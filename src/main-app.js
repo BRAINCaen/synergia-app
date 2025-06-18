@@ -1,6 +1,13 @@
+// Import des styles globaux
 import './styles/base.css';
 import './styles/components.css';
+
+// Import d’un module spécifique (exemple Badging)
 import './styles/modules/badging.css';
+
+// Import des modules JS (adapte selon ce que tu utilises)
+import './modules/badging/badging.js';
+// Ajoute ici les autres modules nécessaires
 
 // Configuration Google Calendar
 const GOOGLE_CONFIG = {
