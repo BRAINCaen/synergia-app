@@ -12,24 +12,24 @@ import './modules/chat/chat-ui.js';
 
 // Planning
 import './modules/planning/calendar-view.js';
-import './modules/planning/planning-manager.j';
-import './modules/planning/planning-ui.';
+import './modules/planning/planning-manager.js';
+import './modules/planning/planning-ui.js';
 
 // Quests (missions)
-import './modules/quests/quest-manager.j';
-import './modules/quests/quest-ui.j';
+import './modules/quests/quest-manager.js';
+import './modules/quests/quest-ui.js';
 
 // Team (équipe)
-import './modules/team/team-manager.';
-import './modules/team/team-ui.j';
+import './modules/team/team-manager.js';
+import './modules/team/team-ui.js';
 
 // ==== CORE/UTILITAIRES ====
-import './core/app-loader';
-import './core/data-manager';
-import './core/firebase-config.';
-import './core/firebase-manager.';
-import './core/router';
-import './core/ui-manager.';
+import './core/app-loader.js';
+import './core/data-manager.js';
+import './core/firebase-config.js';
+import './core/firebase-manager.js';
+import './core/router.js';
+import './core/ui-manager.js';
 
 // (Optionnel) Code d'initialisation globale
 console.log('SYNERGIA v3 - Tous les modules principaux chargés');
