@@ -1,3 +1,7 @@
+import './styles/base.css';
+import './styles/components.css';
+import './styles/modules/badging.css';
+
 // Configuration Google Calendar
 const GOOGLE_CONFIG = {
 apiKey: 'AIzaSyCScckTMndwRM1USdc381Jz64oOjojEseY',
