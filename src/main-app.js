@@ -1,13 +1,38 @@
-// Import des styles globaux
-import './styles/base.css';
-import './styles/components.css';
+// ==== MODULES MÉTIER ====
 
-// Import d’un module spécifique (exemple Badging)
-import './styles/modules/badging.css';
+// Badging (pas de fichier JS détecté dans badging/ mais à ajouter ici si besoin)
+// import './modules/badging/badging.js';
 
-// Import des modules JS (adapte selon ce que tu utilises)
-import './modules/badging/badging.js';
-// Ajoute ici les autres modules nécessaires
+// Chat
+import './modules/chat/chat-manager.js';
+import './modules/chat/chat-ui.js';
+
+// Notifications (pas de fichiers listés, ajoute ici si besoin)
+// import './modules/notifications/notifications-manager.js';
+
+// Planning
+import './modules/planning/calendar-view.js';
+import './modules/planning/planning-manager.j';
+import './modules/planning/planning-ui.';
+
+// Quests (missions)
+import './modules/quests/quest-manager.j';
+import './modules/quests/quest-ui.j';
+
+// Team (équipe)
+import './modules/team/team-manager.';
+import './modules/team/team-ui.j';
+
+// ==== CORE/UTILITAIRES ====
+import './core/app-loader';
+import './core/data-manager';
+import './core/firebase-config.';
+import './core/firebase-manager.';
+import './core/router';
+import './core/ui-manager.';
+
+// (Optionnel) Code d'initialisation globale
+console.log('SYNERGIA v3 - Tous les modules principaux chargés');
 
 // Configuration Google Calendar
 const GOOGLE_CONFIG = {
