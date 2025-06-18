@@ -3,14 +3,14 @@
 
 // Configuration Firebase (à remplacer par vos vraies clés)
 const firebaseConfig = {
-  apiKey: "AIzaSyAaPeNFjFgKUynvYOg0Pm1vY9HmoL94byM",
-  authDomain: "brain-team-caen.firebaseapp.com",
-  databaseURL: "https://brain-team-caen-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "brain-team-caen",
-  storageBucket: "brain-team-caen.appspot.com",
-  messagingSenderId: "1044074925276",
-  appId: "1:1044074925276:web:88dfe35b2d6a8d25e53819"
-}
+  apiKey: "AIzaSyD7uBuAQaOhZ02owkZEuMKC5Vji6PrB2f8",
+  authDomain: "synergia-app-f27e7.firebaseapp.com",
+  projectId: "synergia-app-f27e7",
+  storageBucket: "synergia-app-f27e7.firebasestorage.app", // ⚠️ Correction potentielle
+  messagingSenderId: "201912738922",
+  appId: "1:201912738922:web:2fcc1e49293bb632899613",
+  measurementId: "G-EGJ79SCMWX"
+};
 
 
 // Collections Firestore
