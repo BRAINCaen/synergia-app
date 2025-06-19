@@ -2,9 +2,11 @@
 import React, { useState } from "react";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
-import { auth, db, googleProvider } from "../core/firebase";
+import { auth, db, googleProvider } from "../core/firebase.js";
+import useAuthStore from "../shared/stores/authStore.js";
 
-export default function Login({ onLogin }) {
+export default function Login() {
+  const { setUser } = useAuthStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -24,7 +26,7 @@ export default function Login({ onLogin }) {
       } else {
         userCredential = await signInWithEmailAndPassword(auth, email, password);
       }
-      onLogin(userCredential.user);
+      // L'auth store sera mis à jour automatiquement via onAuthStateChanged
     } catch (err) {
       setError(err.message);
     } finally {
@@ -37,7 +39,7 @@ export default function Login({ onLogin }) {
     try {
       const res = await signInWithPopup(auth, googleProvider);
       await createUserIfNotExists(res.user);
-      onLogin(res.user);
+      // L'auth store sera mis à jour automatiquement
     } catch (err) {
       setError(err.message);
     } finally {
@@ -58,11 +60,7 @@ export default function Login({ onLogin }) {
         xp: 0,
         joinedAt: new Date(),
         status: "active",
-        version: "2.0",
-        features: {
-          modulaire: true,
-          gamification: false
-        }
+        version: "2.0"
       });
     }
   };
@@ -70,7 +68,6 @@ export default function Login({ onLogin }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white px-4">
       <div className="w-full max-w-md">
-        {/* Header avec nouveau design */}
         <div className="text-center mb-8">
           <div className="inline-block p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl mb-4">
             <h1 className="text-3xl font-bold">⚡ Synergia</h1>
@@ -157,7 +154,6 @@ export default function Login({ onLogin }) {
           )}
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-gray-500 text-xs">
             Synergia v2.0 • Architecture Modulaire • 2025
