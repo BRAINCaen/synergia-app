@@ -2,7 +2,6 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../shared/stores/authStore.js';
-import { ROUTES } from '../core/constants.js';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuthStore();
@@ -24,7 +23,7 @@ const ProtectedRoute = ({ children }) => {
   if (!isAuthenticated) {
     return (
       <Navigate 
-        to={ROUTES.LOGIN} 
+        to="/login" 
         state={{ from: location }} 
         replace 
       />
