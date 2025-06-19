@@ -10,83 +10,13 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #111827;
+  color: #f9fafb;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
-}
-
-/* Variables CSS pour les couleurs Synergia */
-:root {
-  --synergia-primary: #6366f1;
-  --synergia-secondary: #8b5cf6;
-  --synergia-accent: #06b6d4;
-}
-
-/* Animations personnalisées */
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.animate-slide-in-up {
-  animation: slideInUp 0.3s ease-out;
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.2s ease-out;
-}
-
-/* Styles pour les focus states améliorés */
-.focus-ring {
-  @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
-}
-
-/* Styles pour les cartes avec hover effects */
-.card-hover {
-  @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
-}
-
-/* Gradient backgrounds pour les sections hero */
-.gradient-primary {
-  background: linear-gradient(135deg, var(--synergia-primary) 0%, var(--synergia-secondary) 100%);
-}
-
-/* Styles pour les badges et indicateurs de statut */
-.badge {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
-}
-
-.badge-success {
-  @apply bg-green-100 text-green-800;
-}
-
-.badge-warning {
-  @apply bg-yellow-100 text-yellow-800;
-}
-
-.badge-error {
-  @apply bg-red-100 text-red-800;
-}
-
-.badge-info {
-  @apply bg-blue-100 text-blue-800;
 }
 
 /* Scrollbar personnalisée */
@@ -95,14 +25,166 @@ code {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #374151;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #6b7280;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #9ca3af;
+}
+
+/* Animations pour les toasts */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-out-right {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Classes d'animation */
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+.animate-slide-out-right {
+  animation: slide-out-right 0.3s ease-in;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s infinite;
+}
+
+/* Loading spinner amélioré */
+.loading-spinner {
+  @apply animate-spin rounded-full border-b-2 border-blue-500;
+}
+
+/* Améliorations des boutons */
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95;
+}
+
+.btn-secondary {
+  @apply bg-gray-600 hover:bg-gray-700 text-white font-medium px-4 py-2 rounded-lg transition-all duration-200;
+}
+
+/* Améliorations des cards */
+.card {
+  @apply bg-gray-800 border border-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200;
+}
+
+.card-hover {
+  @apply hover:transform hover:scale-105 hover:border-gray-600;
+}
+
+/* Focus styles améliorés */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900;
+}
+
+/* Utilitaires pour gradients Synergia */
+.gradient-synergia {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+}
+
+.gradient-synergia-subtle {
+  background: linear-gradient(135deg, #1e40af 0%, #7c3aed 50%, #be185d 100%);
+}
+
+/* États de chargement */
+.skeleton {
+  @apply bg-gray-700 animate-pulse rounded;
+}
+
+/* Responsive improvements */
+@media (max-width: 640px) {
+  .mobile-padding {
+    @apply px-4;
+  }
+  
+  .mobile-text {
+    @apply text-sm;
+  }
+}
+
+/* Améliorations PWA */
+.pwa-install-prompt {
+  @apply fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50;
+  animation: fade-in 0.5s ease-out;
+}
+
+/* Dark mode utilities (déjà en dark par défaut) */
+.dark-mode {
+  @apply bg-gray-900 text-gray-100;
+}
+
+/* Améliorations d'accessibilité */
+.sr-only {
+  @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
+}
+
+/* Focus visible pour navigation clavier */
+.focus-visible:focus-visible {
+  @apply outline-2 outline-blue-500 outline-offset-2;
+}
+
+/* Styles pour les états d'erreur */
+.error-state {
+  @apply border-red-500 bg-red-900/10 text-red-400;
+}
+
+.success-state {
+  @apply border-green-500 bg-green-900/10 text-green-400;
+}
+
+/* Améliorations de performance */
+.will-change-auto {
+  will-change: auto;
+}
+
+.will-change-transform {
+  will-change: transform;
 }
