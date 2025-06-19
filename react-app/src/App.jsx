@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './core/firebase.js';
 import useAuthStore from './shared/stores/authStore.js';
-import AppRoutes from './routes/index.js';
+import AppRoutes from './routes/index.jsx';
 import './index.css';
 
 function App() {
