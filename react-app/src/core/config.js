@@ -1,19 +1,11 @@
-// src/core/config.js
-
+// Configuration globale de l'application
 export const APP_CONFIG = {
   name: 'Synergia',
   version: '2.0.0',
-  description: 'Plateforme de gestion d\'équipe gamifiée',
+  environment: import.meta.env.MODE,
+  apiUrl: import.meta.env.VITE_API_URL || '',
   
-  // Environnement
-  isDevelopment: import.meta.env.DEV,
-  isProduction: import.meta.env.PROD,
-  
-  // URLs
-  baseURL: import.meta.env.VITE_BASE_URL || '/',
-  apiURL: import.meta.env.VITE_API_URL || '',
-  
-  // Firebase
+  // Firebase config (utilise les variables d'environnement existantes)
   firebase: {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -22,21 +14,28 @@ export const APP_CONFIG = {
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
     measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
-  },
-  
-  // Fonctionnalités (feature flags)
-  features: {
-    gamification: true,
-    timeTracking: false, // À activer en Phase 3
-    messaging: false,    // À activer en Phase 4
-    shop: false,         // À activer en Phase 5
-    analytics: false     // À activer en Phase 6
-  },
-  
-  // Thème
-  theme: {
-    defaultMode: 'dark',
-    primaryColor: '#3b82f6',
-    secondaryColor: '#8b5cf6'
   }
-};
+}
+
+// Routes de l'application
+export const ROUTES = {
+  HOME: '/',
+  LOGIN: '/login',
+  DASHBOARD: '/dashboard',
+  PROFILE: '/profile',
+  SETTINGS: '/settings'
+}
+
+// Configuration des thèmes
+export const THEMES = {
+  LIGHT: 'light',
+  DARK: 'dark',
+  SYSTEM: 'system'
+}
+
+// Configuration de la PWA
+export const PWA_CONFIG = {
+  enableNotifications: true,
+  enableOfflineMode: true,
+  cacheVersion: '2.0.0'
+}
