@@ -38,33 +38,6 @@ export default {
           secondary: '#8b5cf6',
           accent: '#06b6d4',
         }
-      },
-      fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui'],
-      },
-      animation: {
-        'slide-in-up': 'slideInUp 0.3s ease-out',
-        'fade-in': 'fadeIn 0.2s ease-out',
-      },
-      keyframes: {
-        slideInUp: {
-          '0%': {
-            opacity: '0',
-            transform: 'translateY(20px)'
-          },
-          '100%': {
-            opacity: '1',
-            transform: 'translateY(0)'
-          }
-        },
-        fadeIn: {
-          '0%': {
-            opacity: '0'
-          },
-          '100%': {
-            opacity: '1'
-          }
-        }
       }
     },
   },
