@@ -1,8 +1,260 @@
-import React from 'react'
-import SynergiaDarkApp from './SynergiaDarkApp' // Le composant que j'ai créé
+// src/App.jsx - VERSION SIMPLIFIÉE QUI MARCHE
+import React, { useState } from 'react'
 
 function App() {
-  return <SynergiaDarkApp />
+  const [user, setUser] = useState(null)
+
+  const handleLogin = () => {
+    setUser({
+      name: 'Puck Time',
+      level: 1,
+      xp: 0,
+      status: 'Inactif'
+    })
+  }
+
+  const handleLogout = () => {
+    setUser(null)
+  }
+
+  // Page de connexion
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <span className="text-white text-2xl font-bold">⚡</span>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900">Synergia</h1>
+            <p className="text-gray-600">v2.0 • Modulaire</p>
+          </div>
+          
+          <button
+            onClick={handleLogin}
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
+          >
+            Se connecter
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Dashboard dark
+  return (
+    <div className="min-h-screen bg-gray-900 text-white">
+      {/* Header */}
+      <header className="bg-gray-800 border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                <span className="text-white text-lg font-bold">⚡</span>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">Synergia</h1>
+                <span className="text-xs text-green-400 bg-green-900 px-2 py-0.5 rounded-full">
+                  v2.0 • Modulaire
+                </span>
+              </div>
+            </div>
+
+            {/* Profil utilisateur */}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm font-medium">P</span>
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-gray-800"></div>
+                </div>
+                <div className="hidden sm:block">
+                  <p className="text-sm font-medium text-white">{user.name}</p>
+                  <p className="text-xs text-gray-400">👤 Membre</p>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                Déconnexion
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Contenu principal */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Message de bienvenue */}
+        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-xl p-6 mb-8">
+          <div className="flex justify-between items-start">
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-white mb-2">
+                Bonsoir, {user.name} ! 👋
+              </h2>
+              <p className="text-blue-100 mb-4">
+                Bienvenue dans Synergia v2.0 avec la nouvelle architecture modulaire ! 🚀
+              </p>
+              <div className="flex flex-wrap gap-4 text-sm">
+                <div className="flex items-center space-x-2">
+                  <span>📅</span>
+                  <span className="text-blue-100">jeudi 19 juin</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span>🎯</span>
+                  <span className="text-blue-100">Niveau {user.level}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span>⭐</span>
+                  <span className="text-blue-100">{user.xp} XP</span>
+                </div>
+              </div>
+            </div>
+            <div className="hidden sm:block">
+              <div className="relative">
+                <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-medium">P</span>
+                </div>
+                <div className="absolute -bottom-1 -right-1">
+                  <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                    En ligne
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Statistiques */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-gray-400 text-sm">STATUT</span>
+              <div className="w-8 h-8 bg-green-900 rounded-lg flex items-center justify-center">
+                <span className="text-green-400">✅</span>
+              </div>
+            </div>
+            <p className="text-xl font-bold text-green-400">{user.status}</p>
+          </div>
+
+          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-gray-400 text-sm">NIVEAU</span>
+              <div className="w-8 h-8 bg-blue-900 rounded-lg flex items-center justify-center">
+                <span className="text-blue-400">🎯</span>
+              </div>
+            </div>
+            <p className="text-xl font-bold text-white">{user.level}</p>
+          </div>
+
+          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-gray-400 text-sm">EXPÉRIENCE</span>
+              <div className="w-8 h-8 bg-purple-900 rounded-lg flex items-center justify-center">
+                <span className="text-purple-400">⭐</span>
+              </div>
+            </div>
+            <p className="text-xl font-bold text-purple-400">{user.xp} XP</p>
+          </div>
+        </div>
+
+        {/* Sections principales */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Architecture Modulaire */}
+          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
+                <span className="text-white text-xl">🏗</span>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Architecture Modulaire</h3>
+                <p className="text-gray-400 text-sm">Fondations solides pour l'évolution</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <span className="text-green-400">✓</span>
+                <span className="text-green-400 text-sm">Services d'authentification optimisés</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-green-400">✓</span>
+                <span className="text-green-400 text-sm">Interface utilisateur moderne</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-yellow-400">⏳</span>
+                <span className="text-yellow-400 text-sm">Modules en cours de développement</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Roadmap 2025 */}
+          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-12 h-12 bg-purple-600 rounded-xl flex items-center justify-center">
+                <span className="text-white text-xl">🎯</span>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Roadmap 2025</h3>
+                <p className="text-gray-400 text-sm">Prochaines fonctionnalités</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-white text-sm">Phase 1 - Architecture</span>
+                <span className="bg-green-600 text-white text-xs px-2 py-1 rounded-full">Terminé</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-white text-sm">Phase 2 - Gamification</span>
+                <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">En cours</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-white text-sm">Phase 3 - Pointage</span>
+                <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded-full">Planifiée</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Message de célébration */}
+        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 text-center">
+          <div className="text-2xl mb-3">🎉</div>
+          <h3 className="text-xl font-bold text-white mb-2">
+            Synergia v2.0 est maintenant en ligne !
+          </h3>
+          <p className="text-gray-400 mb-4">
+            Architecture modulaire déployée avec succès. Les prochaines fonctionnalités arriveront progressivement.
+          </p>
+          <div className="flex flex-wrap justify-center gap-4 text-sm">
+            <div className="flex items-center space-x-2">
+              <span>✨</span>
+              <span className="text-gray-300">Interface moderne</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span>🔧</span>
+              <span className="text-gray-300">Architecture évolutive</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span>🚀</span>
+              <span className="text-gray-300">Prêt pour la gamification</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bouton PWA */}
+        <div className="fixed bottom-6 right-6">
+          <button className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-colors">
+            <div className="flex items-center space-x-2">
+              <span>📱</span>
+              <span className="hidden sm:inline text-sm">Installer l'app</span>
+            </div>
+          </button>
+        </div>
+      </main>
+    </div>
+  )
 }
 
 export default App
