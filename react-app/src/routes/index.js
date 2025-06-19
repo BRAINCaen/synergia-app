@@ -8,7 +8,6 @@ import PublicRoute from './PublicRoute.jsx';
 // Lazy loading des pages
 const Dashboard = React.lazy(() => import('../pages/Dashboard.jsx'));
 const Login = React.lazy(() => import('../pages/Login.jsx'));
-const Profile = React.lazy(() => import('../modules/profile/components/Profile.jsx'));
 const NotFound = React.lazy(() => import('../pages/NotFound.jsx'));
 
 // Loading component
@@ -29,36 +28,39 @@ const AppRoutes = () => {
         <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
         
         {/* Routes publiques */}
-        <Route path={ROUTES.LOGIN} element={
-          <PublicRoute>
-            <Login />
-          </PublicRoute>
-        } />
+        <Route 
+          path={ROUTES.LOGIN} 
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          } 
+        />
         
         {/* Routes protégées */}
-        <Route path={ROUTES.DASHBOARD} element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        } />
-        
-        <Route path={ROUTES.PROFILE} element={
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        } />
+        <Route 
+          path={ROUTES.DASHBOARD} 
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
         
         {/* Future routes (Phase 2+) */}
-        <Route path={ROUTES.GAMIFICATION} element={
-          <ProtectedRoute>
-            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-              <div className="text-center text-white">
-                <h2 className="text-2xl font-bold mb-4">🎮 Gamification</h2>
-                <p className="text-gray-400">Module en développement - Phase 2</p>
+        <Route 
+          path={ROUTES.GAMIFICATION} 
+          element={
+            <ProtectedRoute>
+              <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+                <div className="text-center text-white">
+                  <h2 className="text-2xl font-bold mb-4">🎮 Gamification</h2>
+                  <p className="text-gray-400">Module en développement - Phase 2</p>
+                </div>
               </div>
-            </div>
-          </ProtectedRoute>
-        } />
+            </ProtectedRoute>
+          } 
+        />
         
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
