@@ -5,3 +5,9 @@
 
 [build.environment]
   SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
+# Redirects pour React Router (SPA)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
