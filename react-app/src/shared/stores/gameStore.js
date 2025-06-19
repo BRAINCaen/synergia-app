@@ -1,104 +1,171 @@
-// src/shared/stores/gameStore.js (Phase 2 - Gamification)
+// src/shared/stores/gameStore.js
 import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
 
-const useGameStore = create((set, get) => ({
-  // État gamification
-  xp: 0,
-  level: 1,
-  totalXp: 0,
-  badges: [],
-  achievements: [],
-  quests: [],
-  leaderboard: [],
-  
-  // Configuration niveaux
-  levelThresholds: [0, 100, 300, 600, 1000, 1500, 2500, 4000, 6000, 9000, 13000],
-  
-  // Actions XP
-  addXP: (amount, reason = '') => {
-    const state = get();
-    const newTotalXp = state.totalXp + amount;
-    const newLevel = state.calculateLevel(newTotalXp);
-    const newXp = newTotalXp - state.levelThresholds[newLevel - 1];
-    
-    set({
-      xp: newXp,
-      totalXp: newTotalXp,
-      level: newLevel
-    });
-    
-    // Animation/notification si level up
-    if (newLevel > state.level) {
-      get().triggerLevelUp(newLevel);
+export const useGameStore = create(
+  subscribeWithSelector((set, get) => ({
+    // 🎮 État de la gamification
+    gameData: null,
+    isLoading: false,
+    error: null,
+    isInitialized: false,
+
+    // 📊 État de l'interface
+    showLevelUpModal: false,
+    showBadgeModal: false,
+    showXPAnimation: false,
+    recentActivity: [],
+
+    // 🎯 Actions principales
+    setGameData: (data) => set({ 
+      gameData: data,
+      isInitialized: true 
+    }),
+
+    setLoading: (loading) => set({ isLoading: loading }),
+
+    setError: (error) => set({ error }),
+
+    clearError: () => set({ error: null }),
+
+    // 🎊 Actions d'interface pour feedback utilisateur
+    showLevelUpNotification: (levelData) => set({
+      showLevelUpModal: true,
+      levelUpData: levelData
+    }),
+
+    hideLevelUpNotification: () => set({
+      showLevelUpModal: false,
+      levelUpData: null
+    }),
+
+    showBadgeNotification: (badge) => set({
+      showBadgeModal: true,
+      newBadge: badge
+    }),
+
+    hideBadgeNotification: () => set({
+      showBadgeModal: false,
+      newBadge: null
+    }),
+
+    triggerXPAnimation: (xpGained) => {
+      set({ showXPAnimation: true, xpGained });
+      // Auto-hide après animation
+      setTimeout(() => {
+        set({ showXPAnimation: false, xpGained: null });
+      }, 2000);
+    },
+
+    // 📝 Gestion de l'historique d'activité récente
+    addRecentActivity: (activity) => set((state) => ({
+      recentActivity: [
+        {
+          ...activity,
+          id: Date.now() + Math.random(),
+          timestamp: new Date().toISOString()
+        },
+        ...state.recentActivity.slice(0, 9) // Garder les 10 dernières
+      ]
+    })),
+
+    clearRecentActivity: () => set({ recentActivity: [] }),
+
+    // 🔄 Reset complet du store
+    resetGameStore: () => set({
+      gameData: null,
+      isLoading: false,
+      error: null,
+      isInitialized: false,
+      showLevelUpModal: false,
+      showBadgeModal: false,
+      showXPAnimation: false,
+      recentActivity: [],
+      levelUpData: null,
+      newBadge: null,
+      xpGained: null
+    }),
+
+    // 🧮 Sélecteurs calculés (getters)
+    getters: {
+      getCurrentLevel: () => get().gameData?.level || 1,
+      
+      getCurrentXP: () => get().gameData?.xp || 0,
+      
+      getTotalXP: () => get().gameData?.totalXp || 0,
+      
+      getBadgeCount: () => get().gameData?.badges?.length || 0,
+      
+      getLoginStreak: () => get().gameData?.loginStreak || 0,
+      
+      getTasksCompleted: () => get().gameData?.tasksCompleted || 0,
+      
+      getRecentBadges: (limit = 3) => {
+        const badges = get().gameData?.badges || [];
+        return badges
+          .sort((a, b) => new Date(b.unlockedAt) - new Date(a.unlockedAt))
+          .slice(0, limit);
+      },
+      
+      getProgressPercentage: () => {
+        const gameData = get().gameData;
+        if (!gameData) return 0;
+        
+        const currentLevelXP = Math.pow(gameData.level - 1, 2) * 100;
+        const nextLevelXP = Math.pow(gameData.level, 2) * 100;
+        const progress = gameData.totalXp - currentLevelXP;
+        const needed = nextLevelXP - currentLevelXP;
+        
+        return Math.min((progress / needed) * 100, 100);
+      },
+      
+      getXPForNextLevel: () => {
+        const gameData = get().gameData;
+        if (!gameData) return 100;
+        
+        const nextLevelXP = Math.pow(gameData.level, 2) * 100;
+        return Math.max(nextLevelXP - gameData.totalXp, 0);
+      },
+      
+      getBadgesByCategory: (category) => {
+        const badges = get().gameData?.badges || [];
+        return badges.filter(badge => badge.category === category);
+      },
+      
+      hasError: () => !!get().error,
+      
+      isReady: () => get().isInitialized && !get().isLoading && !get().error
     }
-    
-    // Log activity
-    console.log(`+${amount} XP: ${reason}`);
-  },
-  
-  // Actions badges
-  unlockBadge: (badge) => set((state) => {
-    if (!state.badges.find(b => b.id === badge.id)) {
-      return {
-        badges: [...state.badges, { ...badge, unlockedAt: new Date() }]
-      };
-    }
-    return state;
-  }),
-  
-  // Actions quêtes
-  setQuests: (quests) => set({ quests }),
-  
-  completeQuest: (questId) => set((state) => ({
-    quests: state.quests.map(quest => 
-      quest.id === questId 
-        ? { ...quest, completed: true, completedAt: new Date() }
-        : quest
-    )
-  })),
-  
-  // Leaderboard
-  setLeaderboard: (leaderboard) => set({ leaderboard }),
-  
-  // Calculateurs
-  calculateLevel: (totalXp) => {
-    const thresholds = get().levelThresholds;
-    for (let i = thresholds.length - 1; i >= 0; i--) {
-      if (totalXp >= thresholds[i]) {
-        return i + 1;
-      }
-    }
-    return 1;
-  },
-  
-  getXPForNextLevel: () => {
-    const state = get();
-    const nextThreshold = state.levelThresholds[state.level];
-    return nextThreshold ? nextThreshold - state.totalXp : 0;
-  },
-  
-  getLevelProgress: () => {
-    const state = get();
-    const currentThreshold = state.levelThresholds[state.level - 1] || 0;
-    const nextThreshold = state.levelThresholds[state.level] || state.totalXp;
-    const progress = ((state.totalXp - currentThreshold) / (nextThreshold - currentThreshold)) * 100;
-    return Math.min(100, Math.max(0, progress));
-  },
-  
-  // Events
-  triggerLevelUp: (newLevel) => {
-    console.log(`🎉 Level Up! Nouveau niveau: ${newLevel}`);
-    // Ici on pourra déclencher des animations ou notifications
-  },
-  
-  // Reset (pour dev/test)
-  resetProgress: () => set({
-    xp: 0,
-    level: 1,
-    totalXp: 0,
-    badges: [],
-    achievements: []
-  }),
+  }))
+);
+
+// 🎯 Hook pour accéder facilement aux getters
+export const useGameGetters = () => {
+  const store = useGameStore();
+  return store.getters;
+};
+
+// 🔔 Sélecteurs spécifiques pour optimiser les re-renders
+export const useGameLevel = () => useGameStore(state => state.gameData?.level || 1);
+export const useGameXP = () => useGameStore(state => state.gameData?.xp || 0);
+export const useGameBadges = () => useGameStore(state => state.gameData?.badges || []);
+export const useGameLoading = () => useGameStore(state => state.isLoading);
+export const useGameError = () => useGameStore(state => state.error);
+
+// 🎊 Sélecteurs pour les notifications
+export const useLevelUpModal = () => useGameStore(state => ({
+  show: state.showLevelUpModal,
+  data: state.levelUpData,
+  hide: state.hideLevelUpNotification
 }));
 
-export default useGameStore;
+export const useBadgeModal = () => useGameStore(state => ({
+  show: state.showBadgeModal,
+  badge: state.newBadge,
+  hide: state.hideBadgeNotification
+}));
+
+export const useXPAnimation = () => useGameStore(state => ({
+  show: state.showXPAnimation,
+  amount: state.xpGained
+}));
