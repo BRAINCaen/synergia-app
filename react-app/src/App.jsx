@@ -1,41 +1,17 @@
-// src/App.jsx
-import React, { useEffect } from 'react';
-import { BrowserRouter } from 'react-router-dom';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from './core/firebase.js';
-import useAuthStore from './shared/stores/authStore.js';
-import AppRoutes from './routes/index.jsx';
-import './index.css';
+// Dans App.jsx - à modifier sur GitHub
+import { BrowserRouter as Router } from 'react-router-dom';
+import MainLayout from './layouts/MainLayout';
+import AppRoutes from './routes/AppRoutes';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
-  const { setUser, setLoading } = useAuthStore();
-
-  useEffect(() => {
-    setLoading(true);
-    
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        setUser({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName,
-          photoURL: firebaseUser.photoURL
-        });
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, [setUser, setLoading]);
-
   return (
-    <BrowserRouter>
-      <div className="App min-h-screen bg-gray-900">
+    <Router>
+      <MainLayout>
         <AppRoutes />
-      </div>
-    </BrowserRouter>
+      </MainLayout>
+      <Toaster position="top-right" />
+    </Router>
   );
 }
 
