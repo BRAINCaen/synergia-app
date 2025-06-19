@@ -4,13 +4,12 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from './core/firebase'
 import useAuthStore from './shared/stores/authStore'
 import AppRoutes from './routes'
-import './assets/styles/globals.css'
 
 function App() {
   const { setUser, setLoading } = useAuthStore()
 
   useEffect(() => {
-    // Écouter les changements d'authentification
+    // Écouter les changements d'authentification Firebase
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUser({
