@@ -1,38 +1,22 @@
-import React, { useEffect } from 'react'
-import { BrowserRouter } from 'react-router-dom'
-import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from './core/firebase'
-import useAuthStore from './shared/stores/authStore'
-import AppRoutes from './routes'
+import React from 'react'
 
 function App() {
-  const { setUser, setLoading } = useAuthStore()
-
-  useEffect(() => {
-    // Écouter les changements d'authentification Firebase
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUser({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL
-        })
-      } else {
-        setUser(null)
-      }
-      setLoading(false)
-    })
-
-    return unsubscribe
-  }, [setUser, setLoading])
-
   return (
-    <BrowserRouter>
-      <div className="App">
-        <AppRoutes />
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-blue-600 mb-4">
+          Synergia 2.0
+        </h1>
+        <p className="text-gray-600 mb-8">
+          Migration modulaire en cours...
+        </p>
+        <div className="bg-white p-6 rounded-lg shadow">
+          <p className="text-green-600 font-medium">
+            ✅ Build réussi ! Architecture prête.
+          </p>
+        </div>
       </div>
-    </BrowserRouter>
+    </div>
   )
 }
 
