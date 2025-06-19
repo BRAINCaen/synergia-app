@@ -1,68 +1,44 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import AuthLayout from './layouts/AuthLayout'
-import DashboardLayout from './layouts/DashboardLayout'
-import Login from './modules/auth/pages/Login'
-import Dashboard from './modules/dashboard/pages/Dashboard'
 import useAuthStore from './shared/stores/authStore'
-import { LoadingPage } from './shared/components/ui/Loading'
+import TestDashboard from './pages/TestDashboard'
+
+// Page de connexion simple
+const LoginPage = () => {
+  const { loginTest, isLoading } = useAuthStore()
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-primary-600 to-secondary-600 flex items-center justify-center">
+      <div className="bg-white p-8 rounded-lg shadow-xl">
+        <h2 className="text-2xl font-bold text-center mb-6">Connexion Synergia</h2>
+        <Button 
+          onClick={loginTest} 
+          loading={isLoading}
+          className="w-full"
+        >
+          Se connecter
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 // Composant pour protéger les routes
 const ProtectedRoute = ({ children }) => {
-  const { user, isLoading } = useAuthStore()
-
-  if (isLoading) {
-    return <LoadingPage message="Vérification de l'authentification..." />
-  }
-
+  const { user } = useAuthStore()
   return user ? children : <Navigate to="/login" replace />
-}
-
-// Composant pour rediriger les utilisateurs connectés
-const PublicRoute = ({ children }) => {
-  const { user, isLoading } = useAuthStore()
-
-  if (isLoading) {
-    return <LoadingPage message="Chargement..." />
-  }
-
-  return user ? <Navigate to="/dashboard" replace /> : children
 }
 
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* Routes publiques (avec AuthLayout) */}
-      <Route path="/login" element={
-        <PublicRoute>
-          <AuthLayout>
-            <Login />
-          </AuthLayout>
-        </PublicRoute>
-      } />
-
-      {/* Routes protégées (avec DashboardLayout) */}
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/dashboard" element={
         <ProtectedRoute>
-          <DashboardLayout>
-            <Dashboard />
-          </DashboardLayout>
+          <TestDashboard />
         </ProtectedRoute>
       } />
-
-      {/* Redirection par défaut */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      
-      {/* Route 404 */}
-      <Route path="*" element={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
-            <p className="text-gray-600 mb-4">Page non trouvée</p>
-            <Navigate to="/dashboard" replace />
-          </div>
-        </div>
-      } />
     </Routes>
   )
 }
