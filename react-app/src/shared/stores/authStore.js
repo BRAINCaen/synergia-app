@@ -1,29 +1,46 @@
-import { create } from 'zustand'
+// src/shared/stores/authStore.js
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
-const useAuthStore = create((set, get) => ({
-  // État minimal
-  user: null,
-  isLoading: false,
-  error: null,
-
-  // Actions de base
-  setUser: (user) => set({ user }),
-  setLoading: (isLoading) => set({ isLoading }),
-  setError: (error) => set({ error }),
-  
-  // Action de test
-  loginTest: () => {
-    set({ isLoading: true })
-    setTimeout(() => {
-      set({ 
-        user: { name: 'Utilisateur Test', email: 'test@synergia.com' },
-        isLoading: false,
-        error: null
+const useAuthStore = create(
+  persist(
+    (set, get) => ({
+      // État
+      user: null,
+      isLoading: false,
+      isAuthenticated: false,
+      
+      // Actions
+      setUser: (user) => set({ 
+        user, 
+        isAuthenticated: !!user,
+        isLoading: false 
+      }),
+      
+      setLoading: (isLoading) => set({ isLoading }),
+      
+      logout: () => set({ 
+        user: null, 
+        isAuthenticated: false,
+        isLoading: false 
+      }),
+      
+      updateUser: (updates) => set((state) => ({
+        user: state.user ? { ...state.user, ...updates } : null
+      })),
+      
+      // Getters
+      getUser: () => get().user,
+      isLoggedIn: () => get().isAuthenticated,
+    }),
+    {
+      name: 'synergia-auth',
+      partialize: (state) => ({ 
+        user: state.user, 
+        isAuthenticated: state.isAuthenticated 
       })
-    }, 1000)
-  },
+    }
+  )
+);
 
-  logout: () => set({ user: null, error: null })
-}))
-
-export default useAuthStore
+export default useAuthStore;
