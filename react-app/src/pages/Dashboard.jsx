@@ -1,17 +1,25 @@
 // src/pages/Dashboard.jsx
 import React, { useState, useEffect } from "react";
-import { auth, db } from "../core/firebase";
+import { auth, db } from "../core/firebase.js";
 import { doc, getDoc } from "firebase/firestore";
+import useAuthStore from "../shared/stores/authStore.js";
 
-export default function Dashboard({ user, onLogout }) {
+export default function Dashboard() {
+  const { user, logout } = useAuthStore();
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadUserProfile();
+    if (user?.uid) {
+      loadUserProfile();
+    } else {
+      setLoading(false);
+    }
   }, [user]);
 
   const loadUserProfile = async () => {
+    if (!user?.uid) return;
+    
     try {
       const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
@@ -32,10 +40,35 @@ export default function Dashboard({ user, onLogout }) {
     return "Bonsoir";
   };
 
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      logout();
+    } catch (error) {
+      console.error("Erreur déconnexion:", error);
+    }
+  };
+
+  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white">Chargement du profil...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <div className="text-white">Chargement du profil...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Si pas d'utilisateur (ne devrait pas arriver grâce à ProtectedRoute)
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center text-white">
+          <h2 className="text-2xl font-bold mb-4">Erreur d'authentification</h2>
+          <p className="text-gray-400">Veuillez vous reconnecter</p>
+        </div>
       </div>
     );
   }
@@ -61,13 +94,13 @@ export default function Dashboard({ user, onLogout }) {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
                 <img
-                  src={user.photoURL || `https://api.dicebear.com/7.x/personas/svg?seed=${user.email}`}
+                  src={user.photoURL || `https://api.dicebear.com/7.x/personas/svg?seed=${user.email || 'default'}`}
                   alt="Avatar"
                   className="w-10 h-10 rounded-full border-2 border-blue-400 shadow-lg"
                 />
                 <div className="hidden md:block text-right">
                   <p className="text-white font-medium">
-                    {userProfile?.displayName || user.displayName || user.email}
+                    {userProfile?.displayName || user.displayName || user.email || 'Utilisateur'}
                   </p>
                   <p className="text-gray-400 text-sm">
                     {userProfile?.role === 'admin' ? '👑 Admin' : 
@@ -77,10 +110,7 @@ export default function Dashboard({ user, onLogout }) {
                 </div>
                 <button
                   className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
-                  onClick={() => { 
-                    auth.signOut(); 
-                    onLogout(); 
-                  }}
+                  onClick={handleLogout}
                 >
                   Déconnexion
                 </button>
@@ -127,7 +157,7 @@ export default function Dashboard({ user, onLogout }) {
             <div className="hidden lg:block">
               <div className="relative">
                 <img
-                  src={user.photoURL || `https://api.dicebear.com/7.x/personas/svg?seed=${user.email}`}
+                  src={user.photoURL || `https://api.dicebear.com/7.x/personas/svg?seed=${user.email || 'default'}`}
                   alt="Avatar"
                   className="w-24 h-24 rounded-full border-4 border-white/20 shadow-2xl"
                 />
@@ -239,92 +269,21 @@ export default function Dashboard({ user, onLogout }) {
           </div>
         </div>
 
-        {/* Modules Roadmap */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-            <span className="mr-3">🚀</span>
-            Modules en Développement
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { 
-                name: 'Gamification', 
-                icon: '🎮', 
-                description: 'Points, badges, niveaux',
-                status: 'En développement',
-                progress: 25,
-                color: 'purple'
-              },
-              { 
-                name: 'Pointage', 
-                icon: '⏰', 
-                description: 'Gestion du temps',
-                status: 'Planifié',
-                progress: 0,
-                color: 'blue'
-              },
-              { 
-                name: 'Messagerie', 
-                icon: '💬', 
-                description: 'Chat d\'équipe',
-                status: 'Planifié',
-                progress: 0,
-                color: 'green'
-              },
-              { 
-                name: 'Boutique', 
-                icon: '🛒', 
-                description: 'Récompenses',
-                status: 'Planifié',
-                progress: 0,
-                color: 'orange'
-              }
-            ].map((module) => (
-              <div key={module.name} className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all group hover:scale-105">
-                <div className="text-center">
-                  <div className="text-4xl mb-3">{module.icon}</div>
-                  <h3 className="font-bold text-white mb-2">{module.name}</h3>
-                  <p className="text-gray-400 text-sm mb-3">{module.description}</p>
-                  
-                  <div className="mb-3">
-                    <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full transition-all duration-500 ${
-                          module.color === 'purple' ? 'bg-purple-500' :
-                          module.color === 'blue' ? 'bg-blue-500' :
-                          module.color === 'green' ? 'bg-green-500' :
-                          'bg-orange-500'
-                        }`}
-                        style={{ width: `${module.progress}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-xs text-gray-500 mt-1 block">{module.progress}%</span>
-                  </div>
-                  
-                  <span className={`inline-block px-3 py-1 text-xs rounded-full font-medium ${
-                    module.status === 'En développement' ? 'bg-blue-600 text-white' : 'bg-gray-600 text-gray-300'
-                  }`}>
-                    {module.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Footer Info */}
+        {/* Success Message */}
         <div className="bg-gradient-to-r from-gray-800 to-gray-700 rounded-xl p-6 border border-gray-600">
           <div className="text-center">
-            <h3 className="text-lg font-bold text-white mb-2">🎉 Synergia v2.0 est maintenant en ligne !</h3>
+            <h3 className="text-lg font-bold text-white mb-2">🎉 Architecture Modulaire Déployée !</h3>
             <p className="text-gray-300 mb-4">
-              Architecture modulaire déployée avec succès. Les prochaines fonctionnalités arriveront progressivement.
+              Synergia v2.0 fonctionne parfaitement avec la nouvelle structure modulaire.
             </p>
             <div className="flex justify-center space-x-4 text-sm text-gray-400">
-              <span>✨ Interface moderne</span>
+              <span>✨ Stores Zustand</span>
               <span>•</span>
-              <span>🔧 Architecture évolutive</span>
+              <span>🛣️ React Router</span>
               <span>•</span>
-              <span>🚀 Prêt pour la gamification</span>
+              <span>🔐 Firebase Auth</span>
+              <span>•</span>
+              <span>🚀 Prêt pour Phase 2</span>
             </div>
           </div>
         </div>
