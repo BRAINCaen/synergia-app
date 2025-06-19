@@ -9,7 +9,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('🚀 Synergia v2.0 - Architecture Modulaire en préparation...');
+    console.log('🚀 Synergia v2.0 - Démarrage...');
     
     const unsubscribe = auth.onAuthStateChanged((u) => {
       setUser(u);
@@ -19,13 +19,14 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Écran de chargement
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-        <p className="text-white text-lg">Chargement de Synergia...</p>
-        <p className="text-gray-400 text-sm mt-2">v2.0 - Architecture Modulaire</p>
+        <div className="text-center">
+          <p className="text-white text-xl mb-2">⚡ Synergia</p>
+          <p className="text-gray-400 text-sm">v2.0 - Chargement...</p>
+        </div>
       </div>
     );
   }
