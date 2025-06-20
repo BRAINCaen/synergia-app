@@ -1,142 +1,252 @@
 // src/shared/components/Navigation.jsx
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { useAuthStore } from '../stores/authStore';
-import { useGameLevel, useGameXP } from '../stores/gameStore';
+import React, { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../stores/authStore.js';
+import { useGameStore } from '../stores/gameStore.js';
+import { 
+  Home, 
+  CheckSquare, 
+  FolderOpen, 
+  Trophy, 
+  User, 
+  LogOut, 
+  Menu, 
+  X,
+  Star
+} from 'lucide-react';
 
-const Navigation = () => {
-  const { user, logout } = useAuthStore();
+export const Navigation = () => {
   const location = useLocation();
-  const currentLevel = useGameLevel();
-  const currentXP = useGameXP();
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
+  const { level, totalXP, calculateLevel } = useGameStore();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Calculer le niveau actuel
+  const currentLevel = calculateLevel(totalXP);
+  const nextLevelXP = Math.pow(currentLevel + 1, 2) * 100;
+  const currentLevelXP = Math.pow(currentLevel, 2) * 100;
+  const progressXP = totalXP - currentLevelXP;
+  const neededXP = nextLevelXP - currentLevelXP;
+  const progressPercentage = Math.round((progressXP / neededXP) * 100);
+
+  // Navigation items
   const navItems = [
     {
       path: '/dashboard',
+      icon: Home,
       label: 'Dashboard',
-      icon: '📊'
+      description: 'Vue d\'ensemble'
     },
     {
-      path: '/gamification',
+      path: '/tasks',
+      icon: CheckSquare,
+      label: 'Tâches',
+      description: 'Gérer vos tâches'
+    },
+    {
+      path: '/projects',
+      icon: FolderOpen,
+      label: 'Projets',
+      description: 'Vos projets'
+    },
+    {
+      path: '/progress',
+      icon: Trophy,
       label: 'Progression',
-      icon: '🎮'
+      description: 'Niveaux et badges'
     }
   ];
-
-  const isActive = (path) => location.pathname === path;
 
   const handleLogout = async () => {
     try {
       await logout();
+      navigate('/login');
     } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
+      console.error('Erreur déconnexion:', error);
     }
   };
 
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
   return (
-    <nav className="bg-gray-800 border-b border-gray-700">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
-          
-          {/* Logo / Titre */}
-          <div className="flex items-center space-x-4">
-            <Link to="/dashboard" className="text-2xl font-bold text-purple-400">
-              ⚡ Synergia
-            </Link>
-            
-            {/* Badge de niveau (mini) */}
-            {user && (
-              <div className="hidden sm:flex items-center space-x-2 bg-purple-900/30 px-3 py-1 rounded-full">
-                <span className="text-purple-300 text-sm">Niv. {currentLevel}</span>
-                <div className="w-12 h-1 bg-gray-700 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-300"
-                    style={{ width: `${(currentXP % 100)}%` }}
-                  ></div>
+    <>
+      {/* Navigation desktop */}
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            {/* Logo et nom */}
+            <div className="flex items-center">
+              <Link to="/dashboard" className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">S</span>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Navigation centrale */}
-          <div className="hidden md:flex items-center space-x-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-                  isActive(item.path)
-                    ? 'bg-purple-600 text-white'
-                    : 'text-gray-300 hover:text-white hover:bg-gray-700'
-                }`}
-              >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
+                <span className="text-xl font-bold text-gray-900">Synergia</span>
               </Link>
-            ))}
-          </div>
+            </div>
 
-          {/* Menu utilisateur */}
-          <div className="flex items-center space-x-4">
-            {user && (
-              <>
-                {/* Infos utilisateur */}
-                <div className="hidden sm:flex items-center space-x-3">
-                  {user.photoURL ? (
-                    <img 
-                      src={user.photoURL} 
-                      alt="Avatar" 
-                      className="w-8 h-8 rounded-full"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-medium">
-                        {user.email?.[0]?.toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <div className="text-right">
-                    <p className="text-white text-sm font-medium">
-                      {user.displayName || user.email?.split('@')[0]}
-                    </p>
-                    <p className="text-gray-400 text-xs">{currentXP} XP</p>
+            {/* Navigation principale - Desktop */}
+            <div className="hidden md:flex items-center space-x-1">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                    title={item.description}
+                  >
+                    <Icon size={18} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Partie droite - XP et profil */}
+            <div className="flex items-center gap-4">
+              {/* Progression XP - Desktop */}
+              <div className="hidden md:flex items-center gap-3">
+                <div className="text-right">
+                  <div className="flex items-center gap-1 text-sm font-medium text-gray-900">
+                    <Star size={16} className="text-yellow-500 fill-current" />
+                    <span>Niveau {currentLevel}</span>
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    {totalXP} XP total
                   </div>
                 </div>
+                
+                <div className="w-24">
+                  <div className="flex justify-between text-xs text-gray-600 mb-1">
+                    <span>{progressXP}</span>
+                    <span>{neededXP}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
 
-                {/* Bouton déconnexion */}
+              {/* Menu utilisateur - Desktop */}
+              <div className="hidden md:flex items-center gap-2">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                    <User size={16} className="text-white" />
+                  </div>
+                  <div className="text-sm">
+                    <div className="font-medium text-gray-900">
+                      {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
+                    </div>
+                  </div>
+                </div>
+                
                 <button
                   onClick={handleLogout}
-                  className="text-gray-300 hover:text-white px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                  className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Se déconnecter"
                 >
-                  🚪 Déconnexion
+                  <LogOut size={18} />
                 </button>
-              </>
-            )}
+              </div>
+
+              {/* Bouton menu mobile */}
+              <button
+                onClick={toggleMobileMenu}
+                className="md:hidden p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              >
+                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Navigation mobile */}
-        <div className="md:hidden border-t border-gray-700">
-          <div className="flex items-center justify-around py-2">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex flex-col items-center py-2 px-4 rounded-lg transition-all ${
-                  isActive(item.path)
-                    ? 'text-purple-400'
-                    : 'text-gray-400 hover:text-white'
-                }`}
+        {/* Menu mobile */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t border-gray-200 bg-white">
+            <div className="px-4 py-3 space-y-1">
+              {/* Progression mobile */}
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                    <User size={18} className="text-white" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Niveau {currentLevel} • {totalXP} XP
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Barre de progression mobile */}
+              <div className="px-3 py-2">
+                <div className="flex justify-between text-xs text-gray-600 mb-1">
+                  <span>Progression vers niveau {currentLevel + 1}</span>
+                  <span>{progressPercentage}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Navigation mobile */}
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Icon size={20} />
+                    <div>
+                      <div className="font-medium">{item.label}</div>
+                      <div className="text-sm text-gray-500">{item.description}</div>
+                    </div>
+                  </Link>
+                );
+              })}
+
+              {/* Déconnexion mobile */}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 px-3 py-3 w-full text-left text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               >
-                <span className="text-lg">{item.icon}</span>
-                <span className="text-xs mt-1">{item.label}</span>
-              </Link>
-            ))}
+                <LogOut size={20} />
+                <div>
+                  <div className="font-medium">Se déconnecter</div>
+                  <div className="text-sm text-red-500">Quitter l'application</div>
+                </div>
+              </button>
+            </div>
           </div>
-        </div>
-      </div>
-    </nav>
+        )}
+      </nav>
+    </>
   );
 };
-
-export default Navigation;
