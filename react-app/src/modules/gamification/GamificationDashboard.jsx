@@ -1,113 +1,136 @@
-// src/modules/gamification/GamificationDashboard.jsx - Version debug
-import React, { useState } from 'react';
+// src/modules/gamification/GamificationDashboard.jsx - Version finale avec Firebase
+import React from 'react';
+import { useGameService } from '../../shared/hooks/useGameService';
+import { useGameGetters, useLevelUpModal, useBadgeModal, useXPAnimation } from '../../shared/stores/gameStore';
 
 const GamificationDashboard = () => {
-  // État local pour simulation sans Firebase
-  const [gameData, setGameData] = useState({
-    level: 1,
-    xp: 0,
-    totalXp: 0,
-    badges: [],
-    loginStreak: 0,
-    tasksCompleted: 0,
-    xpHistory: []
-  });
+  const { 
+    gameData, 
+    isLoading, 
+    error, 
+    addXP, 
+    unlockBadge, 
+    quickActions, 
+    calculations,
+    isConnected 
+  } = useGameService();
+  
+  const getters = useGameGetters();
+  const levelUpModal = useLevelUpModal();
+  const badgeModal = useBadgeModal();
+  const xpAnimation = useXPAnimation();
 
-  const [showLevelUpModal, setShowLevelUpModal] = useState(false);
-  const [showBadgeModal, setShowBadgeModal] = useState(false);
-  const [newBadge, setNewBadge] = useState(null);
+  if (!isConnected) {
+    return (
+      <div className="space-y-6">
+        {/* Message de connexion requis */}
+        <div className="bg-blue-900/20 border border-blue-500 rounded-lg p-6 text-center">
+          <div className="text-4xl mb-4">🔐</div>
+          <h2 className="text-xl font-bold text-white mb-2">Authentification requise</h2>
+          <p className="text-blue-300 mb-4">
+            Connectez-vous pour accéder à votre progression et débloquer toutes les fonctionnalités de gamification.
+          </p>
+          <div className="flex justify-center space-x-4">
+            <a 
+              href="/login"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              🚀 Se connecter
+            </a>
+            <a 
+              href="/register"
+              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              ✨ Créer un compte
+            </a>
+          </div>
+        </div>
 
-  // Fonction pour calculer le niveau basé sur l'XP
-  const calculateLevel = (totalXP) => {
-    return Math.floor(Math.sqrt(totalXP / 100)) + 1;
-  };
+        {/* Aperçu des fonctionnalités */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 opacity-75">
+            <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+              🎯 Système XP
+            </h3>
+            <p className="text-gray-400 text-sm">
+              Gagnez de l'expérience en accomplissant des tâches et montez de niveau.
+            </p>
+          </div>
+          
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 opacity-75">
+            <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+              🏅 Badges
+            </h3>
+            <p className="text-gray-400 text-sm">
+              Débloquez des badges uniques en réalisant des achievements.
+            </p>
+          </div>
+          
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 opacity-75">
+            <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+              📊 Statistiques
+            </h3>
+            <p className="text-gray-400 text-sm">
+              Suivez votre progression et vos habitudes de travail.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  // Fonction pour ajouter de l'XP
-  const addXP = (amount, source) => {
-    const newTotalXP = gameData.totalXp + amount;
-    const newLevel = calculateLevel(newTotalXP);
-    const leveledUp = newLevel > gameData.level;
+  if (isLoading) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+          <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+          <div className="h-4 bg-gray-700 rounded w-5/6"></div>
+        </div>
+        <p className="text-center text-gray-400 mt-4">Chargement de votre progression...</p>
+      </div>
+    );
+  }
 
-    setGameData(prev => ({
-      ...prev,
-      xp: prev.xp + amount,
-      totalXp: newTotalXP,
-      level: newLevel,
-      xpHistory: [
-        ...prev.xpHistory.slice(-9),
-        {
-          amount,
-          source,
-          timestamp: new Date().toISOString(),
-          totalAfter: newTotalXP
-        }
-      ]
-    }));
+  if (error) {
+    return (
+      <div className="bg-red-900/20 border border-red-500 rounded-lg p-6">
+        <div className="text-center">
+          <div className="text-4xl mb-4">⚠️</div>
+          <h2 className="text-xl font-bold text-red-400 mb-2">Erreur de chargement</h2>
+          <p className="text-red-300 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+          >
+            🔄 Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-    if (leveledUp) {
-      setShowLevelUpModal(true);
-      setTimeout(() => setShowLevelUpModal(false), 3000);
-    }
-
-    console.log(`🎮 +${amount} XP ajouté (${source}). Total: ${newTotalXP} XP, Niveau: ${newLevel}`);
-  };
-
-  // Fonction pour débloquer un badge
-  const unlockBadge = (badge) => {
-    const newBadgeWithTimestamp = {
-      ...badge,
-      unlockedAt: new Date().toISOString()
-    };
-
-    setGameData(prev => ({
-      ...prev,
-      badges: [...prev.badges, newBadgeWithTimestamp]
-    }));
-
-    setNewBadge(newBadgeWithTimestamp);
-    setShowBadgeModal(true);
-    setTimeout(() => setShowBadgeModal(false), 3000);
-
-    console.log('🏅 Nouveau badge débloqué:', badge.name);
-  };
-
-  // Calculs de progression
-  const getProgressToNextLevel = () => {
-    const currentLevelXP = Math.pow(gameData.level - 1, 2) * 100;
-    const nextLevelXP = Math.pow(gameData.level, 2) * 100;
-    const progress = gameData.totalXp - currentLevelXP;
-    const needed = nextLevelXP - currentLevelXP;
-    return Math.min(progress / needed, 1);
-  };
-
-  const getXPNeededForNextLevel = () => {
-    const nextLevelXP = Math.pow(gameData.level, 2) * 100;
-    return Math.max(nextLevelXP - gameData.totalXp, 0);
-  };
-
-  const progressPercentage = getProgressToNextLevel() * 100;
-  const xpNeeded = getXPNeededForNextLevel();
+  const progressPercentage = calculations.getProgressToNextLevel() * 100;
+  const xpNeeded = calculations.getXPNeededForNextLevel();
 
   return (
     <div className="space-y-6">
-      {/* Header debug */}
-      <div className="bg-yellow-900/20 border border-yellow-500 rounded-lg p-4">
-        <p className="text-yellow-400 font-medium">
-          🔧 MODE DEBUG - Gamification sans Firebase
-        </p>
-      </div>
-
       {/* Header avec stats principales */}
       <div className="bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded-lg p-6 border border-purple-500/20">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-              🎮 Progression Debug
+              🎮 Ma Progression
+              {xpAnimation.show && (
+                <span className="text-green-400 animate-bounce">
+                  +{xpAnimation.amount} XP
+                </span>
+              )}
             </h2>
-            <p className="text-purple-300">Niveau {gameData.level}</p>
+            <p className="text-purple-300">Niveau {gameData?.level || 1}</p>
           </div>
           <div className="text-right">
-            <p className="text-3xl font-bold text-white">{gameData.totalXp}</p>
+            <p className="text-3xl font-bold text-white">{gameData?.totalXp || 0}</p>
             <p className="text-purple-300">XP Total</p>
           </div>
         </div>
@@ -115,7 +138,7 @@ const GamificationDashboard = () => {
         {/* Barre de progression */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-purple-300">Progression vers niveau {gameData.level + 1}</span>
+            <span className="text-purple-300">Progression vers niveau {(gameData?.level || 1) + 1}</span>
             <span className="text-purple-300">{xpNeeded} XP restants</span>
           </div>
           <div className="w-full bg-gray-700 rounded-full h-3">
@@ -136,15 +159,15 @@ const GamificationDashboard = () => {
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-gray-400">Streak de connexion</span>
-              <span className="text-white font-medium">{gameData.loginStreak} jours</span>
+              <span className="text-white font-medium">{gameData?.loginStreak || 0} jours</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Tâches complétées</span>
-              <span className="text-white font-medium">{gameData.tasksCompleted}</span>
+              <span className="text-white font-medium">{gameData?.tasksCompleted || 0}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Badges obtenus</span>
-              <span className="text-white font-medium">{gameData.badges.length}</span>
+              <span className="text-white font-medium">{gameData?.badges?.length || 0}</span>
             </div>
           </div>
         </div>
@@ -155,8 +178,8 @@ const GamificationDashboard = () => {
             🏅 Badges Récents
           </h3>
           <div className="space-y-2">
-            {gameData.badges.slice(-3).map((badge, index) => (
-              <div key={index} className="flex items-center gap-3 p-2 bg-gray-700 rounded">
+            {getters.getRecentBadges(3).map((badge) => (
+              <div key={badge.id} className="flex items-center gap-3 p-2 bg-gray-700 rounded">
                 <span className="text-2xl">{badge.icon}</span>
                 <div className="flex-1">
                   <p className="text-white text-sm font-medium">{badge.name}</p>
@@ -164,7 +187,7 @@ const GamificationDashboard = () => {
                 </div>
               </div>
             ))}
-            {gameData.badges.length === 0 && (
+            {(!gameData?.badges || gameData.badges.length === 0) && (
               <p className="text-gray-500 text-sm italic">Aucun badge encore</p>
             )}
           </div>
@@ -173,23 +196,23 @@ const GamificationDashboard = () => {
         {/* Actions rapides pour tester */}
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            ⚡ Actions de Test
+            ⚡ Actions Rapides
           </h3>
           <div className="space-y-2">
             <button
-              onClick={() => addXP(10, 'daily_login')}
+              onClick={() => quickActions.dailyLogin()}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 px-3 rounded transition-colors"
             >
               +10 XP (Login quotidien)
             </button>
             <button
-              onClick={() => addXP(25, 'task_completed')}
+              onClick={() => quickActions.taskCompleted()}
               className="w-full bg-green-600 hover:bg-green-700 text-white text-sm py-2 px-3 rounded transition-colors"
             >
               +25 XP (Tâche terminée)
             </button>
             <button
-              onClick={() => addXP(15, 'long_session')}
+              onClick={() => quickActions.longSession()}
               className="w-full bg-purple-600 hover:bg-purple-700 text-white text-sm py-2 px-3 rounded transition-colors"
             >
               +15 XP (Session longue)
@@ -212,7 +235,7 @@ const GamificationDashboard = () => {
       </div>
 
       {/* Historique XP récent */}
-      {gameData.xpHistory.length > 0 && (
+      {gameData?.xpHistory && gameData.xpHistory.length > 0 && (
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             📈 Historique XP Récent
@@ -234,16 +257,22 @@ const GamificationDashboard = () => {
       )}
 
       {/* Modal Level Up */}
-      {showLevelUpModal && (
+      {levelUpModal.show && levelUpModal.data && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-gradient-to-br from-yellow-900/90 to-orange-900/90 rounded-lg p-8 max-w-md mx-4 text-center border border-yellow-500/30">
             <div className="text-6xl mb-4">🎉</div>
             <h2 className="text-3xl font-bold text-white mb-2">LEVEL UP!</h2>
             <p className="text-yellow-300 mb-4">
-              Nouveau niveau {gameData.level} atteint !
+              Niveau {levelUpModal.data.previousLevel} → {levelUpModal.data.newLevel}
             </p>
+            {levelUpModal.data.badgeUnlocked && (
+              <div className="mb-4 p-3 bg-yellow-900/30 rounded border border-yellow-500/30">
+                <p className="text-yellow-200">🏆 Nouveau badge débloqué!</p>
+                <p className="text-white font-medium">{levelUpModal.data.badgeUnlocked.name}</p>
+              </div>
+            )}
             <button
-              onClick={() => setShowLevelUpModal(false)}
+              onClick={levelUpModal.hide}
               className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded font-medium transition-colors"
             >
               Continuer
@@ -253,19 +282,19 @@ const GamificationDashboard = () => {
       )}
 
       {/* Modal Nouveau Badge */}
-      {showBadgeModal && newBadge && (
+      {badgeModal.show && badgeModal.badge && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-gradient-to-br from-purple-900/90 to-blue-900/90 rounded-lg p-8 max-w-md mx-4 text-center border border-purple-500/30">
-            <div className="text-6xl mb-4">{newBadge.icon}</div>
+            <div className="text-6xl mb-4">{badgeModal.badge.icon}</div>
             <h2 className="text-2xl font-bold text-white mb-2">Nouveau Badge!</h2>
-            <p className="text-purple-300 font-medium mb-2">{newBadge.name}</p>
-            <p className="text-purple-200 text-sm mb-4">{newBadge.description}</p>
+            <p className="text-purple-300 font-medium mb-2">{badgeModal.badge.name}</p>
+            <p className="text-purple-200 text-sm mb-4">{badgeModal.badge.description}</p>
             <div className="inline-block px-3 py-1 bg-purple-900/50 rounded text-purple-300 text-sm mb-4">
-              {newBadge.category}
+              {badgeModal.badge.category}
             </div>
             <br />
             <button
-              onClick={() => setShowBadgeModal(false)}
+              onClick={badgeModal.hide}
               className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded font-medium transition-colors"
             >
               Super!
