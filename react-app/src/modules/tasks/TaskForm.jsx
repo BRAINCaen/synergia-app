@@ -1,9 +1,8 @@
-// src/modules/tasks/TaskForm.jsx
+// src/modules/tasks/TaskForm.jsx - Sans lucide-react
 import React, { useState, useEffect } from 'react';
 import { useTaskStore } from '../../shared/stores/taskStore.js';
 import { useProjectStore } from '../../shared/stores/projectStore.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import { X, Calendar, Clock, Flag, Tags, FileText, Folder } from 'lucide-react';
 
 export const TaskForm = ({ task, onClose, onSave }) => {
   const { createTask, updateTask, creating, updating } = useTaskStore();
@@ -129,7 +128,7 @@ export const TaskForm = ({ task, onClose, onSave }) => {
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-gray-100"
           >
-            <X size={20} className="text-gray-500" />
+            <span className="text-gray-500 text-xl">✕</span>
           </button>
         </div>
 
@@ -138,7 +137,7 @@ export const TaskForm = ({ task, onClose, onSave }) => {
           {/* Titre */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-              <FileText size={16} />
+              <span>📝</span>
               Titre de la tâche *
             </label>
             <input
@@ -179,7 +178,7 @@ export const TaskForm = ({ task, onClose, onSave }) => {
             {/* Priorité */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <Flag size={16} />
+                <span>🚩</span>
                 Priorité
               </label>
               <select
@@ -197,7 +196,7 @@ export const TaskForm = ({ task, onClose, onSave }) => {
             {/* Projet */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <Folder size={16} />
+                <span>📁</span>
                 Projet
               </label>
               <select
@@ -220,7 +219,7 @@ export const TaskForm = ({ task, onClose, onSave }) => {
             {/* Échéance */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <Calendar size={16} />
+                <span>📅</span>
                 Échéance
               </label>
               <input
@@ -234,7 +233,7 @@ export const TaskForm = ({ task, onClose, onSave }) => {
             {/* Temps estimé */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <Clock size={16} />
+                <span>⏱️</span>
                 Temps estimé (minutes)
               </label>
               <input
@@ -257,7 +256,7 @@ export const TaskForm = ({ task, onClose, onSave }) => {
           {/* Tags */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-              <Tags size={16} />
+              <span>🏷️</span>
               Tags ({formData.tags.length}/10)
             </label>
             
@@ -275,7 +274,7 @@ export const TaskForm = ({ task, onClose, onSave }) => {
                       onClick={() => handleRemoveTag(tag)}
                       className="text-blue-600 hover:text-blue-800"
                     >
-                      <X size={12} />
+                      ✕
                     </button>
                   </span>
                 ))}
