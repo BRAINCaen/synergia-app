@@ -346,7 +346,7 @@ const TaskLayout = ({ children, user, onLogout }) => {
 }
 
 function App() {
-  const [user, setUser] = useState(null)
+  const { user } = useAuthStore() // ✅ Vraie auth Firebase
 
   const handleLogin = () => {
     setUser({
