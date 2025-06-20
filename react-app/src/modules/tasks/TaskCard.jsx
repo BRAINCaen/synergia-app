@@ -1,8 +1,7 @@
-// src/modules/tasks/TaskCard.jsx
+// src/modules/tasks/TaskCard.jsx - Sans lucide-react
 import React, { useState } from 'react';
 import { useTaskStore } from '../../shared/stores/taskStore.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import { CheckCircle, Clock, Calendar, Flag, MoreVertical, Edit, Trash2, Play, Pause } from 'lucide-react';
 
 export const TaskCard = ({ task, onEdit }) => {
   const { completeTask, updateTask, deleteTask } = useTaskStore();
@@ -30,11 +29,11 @@ export const TaskCard = ({ task, onEdit }) => {
   const getStatusInfo = () => {
     switch (task.status) {
       case 'completed':
-        return { color: 'text-green-600', icon: CheckCircle, label: 'Terminé' };
+        return { color: 'text-green-600', icon: '✅', label: 'Terminé' };
       case 'in_progress':
-        return { color: 'text-blue-600', icon: Play, label: 'En cours' };
+        return { color: 'text-blue-600', icon: '▶️', label: 'En cours' };
       default:
-        return { color: 'text-gray-600', icon: Clock, label: 'À faire' };
+        return { color: 'text-gray-600', icon: '⏰', label: 'À faire' };
     }
   };
 
@@ -92,7 +91,6 @@ export const TaskCard = ({ task, onEdit }) => {
   };
 
   const statusInfo = getStatusInfo();
-  const StatusIcon = statusInfo.icon;
 
   return (
     <div className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 ${
@@ -101,10 +99,7 @@ export const TaskCard = ({ task, onEdit }) => {
       {/* Header avec statut et actions */}
       <div className="flex items-center justify-between p-4 pb-2">
         <div className="flex items-center gap-2">
-          <StatusIcon 
-            size={18} 
-            className={`${statusInfo.color} ${task.status === 'completed' ? 'fill-current' : ''}`} 
-          />
+          <span className="text-lg">{statusInfo.icon}</span>
           <span className={`text-sm font-medium ${statusInfo.color}`}>
             {statusInfo.label}
           </span>
@@ -115,7 +110,7 @@ export const TaskCard = ({ task, onEdit }) => {
             onClick={() => setShowActions(!showActions)}
             className="p-1 rounded-lg hover:bg-gray-100"
           >
-            <MoreVertical size={16} className="text-gray-500" />
+            <span className="text-gray-500">⋮</span>
           </button>
           
           {showActions && (
@@ -124,7 +119,7 @@ export const TaskCard = ({ task, onEdit }) => {
                 onClick={() => { onEdit?.(task); setShowActions(false); }}
                 className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 w-full text-left"
               >
-                <Edit size={14} />
+                <span>✏️</span>
                 Modifier
               </button>
               {task.status !== 'in_progress' && (
@@ -132,7 +127,7 @@ export const TaskCard = ({ task, onEdit }) => {
                   onClick={() => { handleStatusChange('in_progress'); setShowActions(false); }}
                   className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 w-full text-left"
                 >
-                  <Play size={14} />
+                  <span>▶️</span>
                   Commencer
                 </button>
               )}
@@ -141,7 +136,7 @@ export const TaskCard = ({ task, onEdit }) => {
                   onClick={() => { handleStatusChange('todo'); setShowActions(false); }}
                   className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 w-full text-left"
                 >
-                  <Pause size={14} />
+                  <span>⏸️</span>
                   Pause
                 </button>
               )}
@@ -149,7 +144,7 @@ export const TaskCard = ({ task, onEdit }) => {
                 onClick={() => { handleDelete(); setShowActions(false); }}
                 className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 w-full text-left text-red-600"
               >
-                <Trash2 size={14} />
+                <span>🗑️</span>
                 Supprimer
               </button>
             </div>
@@ -176,7 +171,7 @@ export const TaskCard = ({ task, onEdit }) => {
         <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
           {task.dueDate && (
             <div className={`flex items-center gap-1 ${isOverdue() ? 'text-red-600' : ''}`}>
-              <Calendar size={12} />
+              <span>📅</span>
               <span>{formatDate(task.dueDate)}</span>
               {isOverdue() && <span className="text-red-600 font-medium">• En retard</span>}
             </div>
@@ -184,7 +179,7 @@ export const TaskCard = ({ task, onEdit }) => {
           
           {task.estimatedTime && (
             <div className="flex items-center gap-1">
-              <Clock size={12} />
+              <span>⏱️</span>
               <span>{Math.round(task.estimatedTime / 60)}h {task.estimatedTime % 60}min</span>
             </div>
           )}
@@ -222,7 +217,7 @@ export const TaskCard = ({ task, onEdit }) => {
               {isCompleting ? (
                 <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                <CheckCircle size={12} />
+                <span>✅</span>
               )}
               {isCompleting ? 'Terminé...' : 'Terminer'}
             </button>
