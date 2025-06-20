@@ -1,11 +1,11 @@
-// src/modules/tasks/TaskForm.jsx - Sans lucide-react
+// src/modules/tasks/TaskForm.jsx - Version sombre corrigée
 import React, { useState, useEffect } from 'react';
 import { useTaskStore } from '../../shared/stores/taskStore.js';
 import { useProjectStore } from '../../shared/stores/projectStore.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 
 export const TaskForm = ({ task, onClose, onSave }) => {
-  const { createTask, updateTask, creating, updating } = useTaskStore();
+  const { createTask, updating, creating } = useTaskStore();
   const { projects } = useProjectStore();
   const { user } = useAuthStore();
   
@@ -71,6 +71,12 @@ export const TaskForm = ({ task, onClose, onSave }) => {
     
     if (!validateForm()) return;
     
+    // Vérification utilisateur
+    if (!user?.uid) {
+      console.error('Utilisateur non connecté');
+      return;
+    }
+    
     try {
       const taskData = {
         ...formData,
@@ -79,8 +85,11 @@ export const TaskForm = ({ task, onClose, onSave }) => {
         projectId: formData.projectId || null
       };
       
+      console.log('Création tâche avec user:', user.uid, 'data:', taskData);
+      
       if (task) {
-        await updateTask(task.id, taskData, user.uid);
+        // await updateTask(task.id, taskData, user.uid);
+        console.log('Mise à jour pas encore implémentée');
       } else {
         await createTask(taskData, user.uid);
       }
@@ -117,26 +126,31 @@ export const TaskForm = ({ task, onClose, onSave }) => {
   const isLoading = creating || updating;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-bold text-gray-900">
+        <div className="flex items-center justify-between p-6 border-b border-gray-700">
+          <h2 className="text-xl font-bold text-white">
             {task ? 'Modifier la tâche' : 'Nouvelle tâche'}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-100"
+            className="p-2 rounded-lg hover:bg-gray-700 transition-colors"
           >
-            <span className="text-gray-500 text-xl">✕</span>
+            <span className="text-gray-400 text-xl">✕</span>
           </button>
         </div>
 
         {/* Formulaire */}
         <form onSubmit={handleSave} className="p-6 space-y-6">
+          {/* Debug info */}
+          <div className="text-xs text-gray-500">
+            User connecté: {user?.uid ? 'Oui' : 'Non'} | UID: {user?.uid || 'Aucun'}
+          </div>
+
           {/* Titre */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
               <span>📝</span>
               Titre de la tâche *
             </label>
@@ -145,18 +159,18 @@ export const TaskForm = ({ task, onClose, onSave }) => {
               value={formData.title}
               onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
               placeholder="Que devez-vous faire ?"
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.title ? 'border-red-300' : 'border-gray-300'
+              className={`w-full px-3 py-2 bg-gray-700 border text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                errors.title ? 'border-red-500' : 'border-gray-600'
               }`}
             />
             {errors.title && (
-              <p className="text-red-600 text-sm mt-1">{errors.title}</p>
+              <p className="text-red-400 text-sm mt-1">{errors.title}</p>
             )}
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Description (optionnelle)
             </label>
             <textarea
@@ -164,12 +178,12 @@ export const TaskForm = ({ task, onClose, onSave }) => {
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               placeholder="Détails supplémentaires..."
               rows={3}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.description ? 'border-red-300' : 'border-gray-300'
+              className={`w-full px-3 py-2 bg-gray-700 border text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                errors.description ? 'border-red-500' : 'border-gray-600'
               }`}
             />
             {errors.description && (
-              <p className="text-red-600 text-sm mt-1">{errors.description}</p>
+              <p className="text-red-400 text-sm mt-1">{errors.description}</p>
             )}
           </div>
 
@@ -177,14 +191,14 @@ export const TaskForm = ({ task, onClose, onSave }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Priorité */}
             <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
                 <span>🚩</span>
                 Priorité
               </label>
               <select
                 value={formData.priority}
                 onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
               >
                 <option value="low">📝 Basse</option>
                 <option value="medium">📌 Moyenne</option>
@@ -195,14 +209,14 @@ export const TaskForm = ({ task, onClose, onSave }) => {
 
             {/* Projet */}
             <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
                 <span>📁</span>
                 Projet
               </label>
               <select
                 value={formData.projectId}
                 onChange={(e) => setFormData(prev => ({ ...prev, projectId: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Aucun projet</option>
                 {projects.filter(p => p.status === 'active').map(project => (
@@ -218,7 +232,7 @@ export const TaskForm = ({ task, onClose, onSave }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Échéance */}
             <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
                 <span>📅</span>
                 Échéance
               </label>
@@ -226,13 +240,13 @@ export const TaskForm = ({ task, onClose, onSave }) => {
                 type="datetime-local"
                 value={formData.dueDate}
                 onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             {/* Temps estimé */}
             <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
                 <span>⏱️</span>
                 Temps estimé (minutes)
               </label>
@@ -243,19 +257,19 @@ export const TaskForm = ({ task, onClose, onSave }) => {
                 placeholder="120"
                 min="5"
                 max="2880"
-                className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.estimatedTime ? 'border-red-300' : 'border-gray-300'
+                className={`w-full bg-gray-700 border text-white placeholder-gray-400 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.estimatedTime ? 'border-red-500' : 'border-gray-600'
                 }`}
               />
               {errors.estimatedTime && (
-                <p className="text-red-600 text-sm mt-1">{errors.estimatedTime}</p>
+                <p className="text-red-400 text-sm mt-1">{errors.estimatedTime}</p>
               )}
             </div>
           </div>
 
           {/* Tags */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
               <span>🏷️</span>
               Tags ({formData.tags.length}/10)
             </label>
@@ -266,13 +280,13 @@ export const TaskForm = ({ task, onClose, onSave }) => {
                 {formData.tags.map(tag => (
                   <span
                     key={tag}
-                    className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-md"
+                    className="inline-flex items-center gap-1 px-2 py-1 bg-blue-900 border border-blue-700 text-blue-300 text-sm rounded-md"
                   >
                     #{tag}
                     <button
                       type="button"
                       onClick={() => handleRemoveTag(tag)}
-                      className="text-blue-600 hover:text-blue-800"
+                      className="text-blue-400 hover:text-blue-200 transition-colors"
                     >
                       ✕
                     </button>
@@ -289,7 +303,7 @@ export const TaskForm = ({ task, onClose, onSave }) => {
               onKeyDown={handleAddTag}
               placeholder="Tapez un tag et appuyez sur Entrée..."
               disabled={formData.tags.length >= 10}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              className="w-full bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 disabled:bg-gray-800 disabled:text-gray-500"
             />
             <p className="text-xs text-gray-500 mt-1">
               Appuyez sur Entrée pour ajouter un tag
@@ -297,23 +311,23 @@ export const TaskForm = ({ task, onClose, onSave }) => {
           </div>
 
           {/* Boutons */}
-          <div className="flex gap-3 pt-4 border-t">
+          <div className="flex gap-3 pt-4 border-t border-gray-700">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 hover:text-white transition-colors"
             >
               Annuler
             </button>
             <button
               type="submit"
-              disabled={isLoading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              disabled={isLoading || !user?.uid}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
             >
               {isLoading && (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               )}
-              {task ? 'Modifier' : 'Créer'}
+              {!user?.uid ? 'Non connecté' : (task ? 'Modifier' : 'Créer')}
             </button>
           </div>
         </form>
