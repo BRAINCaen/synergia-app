@@ -1,8 +1,7 @@
-// src/modules/projects/ProjectDashboard.jsx
+// src/modules/projects/ProjectDashboard.jsx - Sans lucide-react
 import React, { useState, useEffect } from 'react';
 import { useProjectStore } from '../../shared/stores/projectStore.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import { Plus, Filter, Grid, List } from 'lucide-react';
 
 export const ProjectDashboard = () => {
   const { 
@@ -71,7 +70,7 @@ export const ProjectDashboard = () => {
             onClick={() => setShowProjectForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            <Plus size={18} />
+            <span>➕</span>
             Nouveau projet
           </button>
         </div>
@@ -99,7 +98,7 @@ export const ProjectDashboard = () => {
         {/* Filtres et vue */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Filter size={18} className="text-gray-500" />
+            <span>🔍</span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -121,7 +120,7 @@ export const ProjectDashboard = () => {
                   : 'text-gray-500 hover:bg-gray-100'
               }`}
             >
-              <Grid size={18} />
+              📊
             </button>
             <button
               onClick={() => setViewMode('list')}
@@ -131,7 +130,7 @@ export const ProjectDashboard = () => {
                   : 'text-gray-500 hover:bg-gray-100'
               }`}
             >
-              <List size={18} />
+              📃
             </button>
           </div>
         </div>
@@ -151,7 +150,7 @@ export const ProjectDashboard = () => {
             onClick={() => setShowProjectForm(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            <Plus size={18} />
+            <span>➕</span>
             Créer un projet
           </button>
         </div>
@@ -161,19 +160,22 @@ export const ProjectDashboard = () => {
             ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
             : 'space-y-4'
         }>
-          {/* Placeholder pour ProjectCard - à créer dans prochaine session */}
           {filteredProjects.map(project => (
-            <div key={project.id} className="bg-white rounded-lg border p-6">
+            <div key={project.id} className="bg-white rounded-lg border p-6 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-2xl">{project.icon || '📁'}</span>
-                <div>
+                <div className="flex-1">
                   <h3 className="font-semibold text-gray-900">{project.name}</h3>
-                  <p className="text-sm text-gray-600">{project.status}</p>
+                  <p className="text-sm text-gray-600">
+                    {project.status === 'active' ? '🟢 Actif' : 
+                     project.status === 'completed' ? '✅ Terminé' : 
+                     project.status === 'archived' ? '📦 Archivé' : project.status}
+                  </p>
                 </div>
               </div>
               
               {project.description && (
-                <p className="text-sm text-gray-600 mb-4">{project.description}</p>
+                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{project.description}</p>
               )}
               
               {/* Barre de progression */}
@@ -194,9 +196,23 @@ export const ProjectDashboard = () => {
                 </div>
               </div>
               
+              {/* Tags */}
+              {project.tags && project.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-4">
+                  {project.tags.slice(0, 3).map(tag => (
+                    <span key={tag} className="inline-block px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md">
+                      #{tag}
+                    </span>
+                  ))}
+                  {project.tags.length > 3 && (
+                    <span className="text-xs text-gray-400">+{project.tags.length - 3}</span>
+                  )}
+                </div>
+              )}
+              
               <button
                 onClick={() => handleEditProject(project)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Gérer le projet
               </button>
@@ -205,20 +221,37 @@ export const ProjectDashboard = () => {
         </div>
       )}
 
-      {/* Note temporaire pour le formulaire */}
+      {/* Modal temporaire pour le formulaire */}
       {showProjectForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold mb-4">Formulaire Projet</h3>
-            <p className="text-gray-600 mb-4">
-              Le formulaire ProjectForm sera créé dans la prochaine session !
-            </p>
-            <button
-              onClick={handleCloseForm}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Fermer
-            </button>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">
+                {editingProject ? 'Modifier le projet' : 'Nouveau projet'}
+              </h3>
+              <button
+                onClick={handleCloseForm}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="text-center py-8">
+              <div className="text-6xl mb-4">🚧</div>
+              <p className="text-gray-600 mb-4">
+                Le formulaire ProjectForm sera créé dans la prochaine session !
+              </p>
+              <p className="text-sm text-gray-500 mb-6">
+                Pour l'instant, vous pouvez voir l'interface des projets avec les données mock.
+              </p>
+              <button
+                onClick={handleCloseForm}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Fermer
+              </button>
+            </div>
           </div>
         </div>
       )}
