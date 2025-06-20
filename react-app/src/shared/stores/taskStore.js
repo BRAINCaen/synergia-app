@@ -1,8 +1,9 @@
-// src/shared/stores/taskStore.js
+// src/shared/stores/taskStore.js - Version Firebase réelle
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
+import { TaskService, ProjectService } from '../../core/services/taskService.js';
 
-// Store temporaire jusqu'à intégration complète des services
+// Store avec vrais services Firebase
 export const useTaskStore = create(
   subscribeWithSelector((set, get) => ({
     // État des tâches
@@ -38,45 +39,18 @@ export const useTaskStore = create(
     // Subscriptions temps réel
     unsubscribeTasks: null,
     
-    // ✅ Actions - Chargement des tâches
+    // ✅ Actions - Chargement des tâches avec Firebase
     loadUserTasks: async (userId) => {
       set({ loading: true });
       try {
-        // TODO: Remplacer par TaskService.getUserTasks(userId, filters) quand services créés
-        const mockTasks = [
-          {
-            id: 'task_1',
-            title: 'Créer les composants Task',
-            description: 'Implémenter TaskCard, TaskForm et TaskList',
-            status: 'in_progress',
-            priority: 'high',
-            dueDate: new Date('2025-06-22'),
-            estimatedTime: 240,
-            tags: ['development', 'react'],
-            assignedTo: userId,
-            createdBy: userId,
-            createdAt: new Date('2025-06-20'),
-            xpReward: 40
-          },
-          {
-            id: 'task_2',
-            title: 'Tester l\'interface',
-            description: 'Vérifier que tout fonctionne correctement',
-            status: 'todo',
-            priority: 'medium',
-            dueDate: new Date('2025-06-23'),
-            estimatedTime: 120,
-            tags: ['testing'],
-            assignedTo: userId,
-            createdBy: userId,
-            createdAt: new Date('2025-06-20'),
-            xpReward: 25
-          }
-        ];
+        const filters = get().getActiveFilters();
+        const tasks = await TaskService.getUserTasks(userId, filters);
+        set({ tasks, loading: false });
         
-        set({ tasks: mockTasks, loading: false });
+        // Mettre à jour les stats
         get().updateStats(userId);
-        return mockTasks;
+        
+        return tasks;
       } catch (error) {
         console.error('Erreur chargement tâches:', error);
         set({ loading: false });
@@ -84,26 +58,11 @@ export const useTaskStore = create(
       }
     },
 
-    // ✅ Créer une tâche
+    // ✅ Créer une tâche avec Firebase
     createTask: async (taskData, userId) => {
       set({ creating: true });
       try {
-        // TODO: Remplacer par TaskService.createTask(taskData, userId) quand services créés
-        const newTask = {
-          id: `task_${Date.now()}`,
-          ...taskData,
-          status: 'todo',
-          assignedTo: userId,
-          createdBy: userId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          completedAt: null,
-          isXpClaimed: false,
-          xpReward: 0,
-          tags: taskData.tags || [],
-          attachments: [],
-          comments: []
-        };
+        const newTask = await TaskService.createTask(taskData, userId);
         
         // Ajouter à la liste locale
         set(state => ({
@@ -122,19 +81,18 @@ export const useTaskStore = create(
       }
     },
 
-    // ✅ Mettre à jour une tâche
+    // ✅ Mettre à jour une tâche avec Firebase
     updateTask: async (taskId, updates, userId) => {
       set({ updating: true });
       try {
-        // TODO: Remplacer par TaskService.updateTask(taskId, updates, userId) quand services créés
-        const updatedTask = { ...updates, updatedAt: new Date() };
+        const updatedTask = await TaskService.updateTask(taskId, updates, userId);
         
         // Mettre à jour dans la liste locale
         set(state => ({
           tasks: state.tasks.map(task => 
-            task.id === taskId ? { ...task, ...updatedTask } : task
+            task.id === taskId ? updatedTask : task
           ),
-          currentTask: state.currentTask?.id === taskId ? { ...state.currentTask, ...updatedTask } : state.currentTask,
+          currentTask: state.currentTask?.id === taskId ? updatedTask : state.currentTask,
           updating: false
         }));
         
@@ -146,17 +104,16 @@ export const useTaskStore = create(
       }
     },
 
-    // 🎮 Compléter une tâche avec XP
+    // 🎮 Compléter une tâche avec XP Firebase
     completeTask: async (taskId, userId, actualTime = null) => {
       try {
-        // TODO: Remplacer par TaskService.completeTask(taskId, userId, actualTime) quand services créés
-        const xpEarned = 40; // Calculé selon priorité + bonus
+        const result = await TaskService.completeTask(taskId, userId, actualTime);
         
         // Mettre à jour la tâche localement
         set(state => ({
           tasks: state.tasks.map(task => 
             task.id === taskId 
-              ? { ...task, status: 'completed', completedAt: new Date(), actualTime, isXpClaimed: true, xpReward: xpEarned }
+              ? { ...task, status: 'completed', completedAt: result.completedAt, actualTime, isXpClaimed: true, xpReward: result.xpEarned }
               : task
           )
         }));
@@ -165,29 +122,25 @@ export const useTaskStore = create(
         if (window.useGameStore) {
           const gameStore = window.useGameStore.getState();
           if (gameStore.triggerXpGain) {
-            gameStore.triggerXpGain(xpEarned, 'task_completed');
+            gameStore.triggerXpGain(result.xpEarned, 'task_completed');
           }
         }
         
         // Recharger les stats
         get().updateStats(userId);
         
-        return {
-          taskId,
-          xpEarned,
-          completedAt: new Date()
-        };
+        return result;
       } catch (error) {
         console.error('Erreur completion tâche:', error);
         throw error;
       }
     },
 
-    // ✅ Supprimer une tâche
+    // ✅ Supprimer une tâche avec Firebase
     deleteTask: async (taskId, userId) => {
       set({ deleting: true });
       try {
-        // TODO: Remplacer par TaskService.deleteTask(taskId, userId) quand services créés
+        await TaskService.deleteTask(taskId, userId);
         
         // Retirer de la liste locale
         set(state => ({
@@ -281,45 +234,34 @@ export const useTaskStore = create(
       });
     },
 
-    // 📊 Mettre à jour les statistiques
+    // 📊 Mettre à jour les statistiques avec Firebase
     updateStats: async (userId) => {
       try {
-        const { tasks } = get();
-        const now = new Date();
-        
-        const overdue = tasks.filter(t => {
-          if (t.status === 'completed' || !t.dueDate) return false;
-          const dueDate = t.dueDate.toDate ? t.dueDate.toDate() : t.dueDate;
-          return dueDate < now;
-        });
-        
-        const stats = {
-          total: tasks.length,
-          completed: tasks.filter(t => t.status === 'completed').length,
-          inProgress: tasks.filter(t => t.status === 'in_progress').length,
-          todo: tasks.filter(t => t.status === 'todo').length,
-          overdue: overdue.length,
-          totalXpEarned: tasks.reduce((sum, t) => sum + (t.xpReward || 0), 0)
-        };
-        
+        const stats = await TaskService.getTaskStats(userId, 'week');
         set({ stats });
       } catch (error) {
         console.error('Erreur mise à jour stats:', error);
       }
     },
 
-    // 🔔 Subscription temps réel (mock pour l'instant)
+    // 🔔 Subscription temps réel Firebase
     subscribeToTasks: (userId) => {
-      // TODO: Implémenter avec TaskService.subscribeToUserTasks quand services créés
-      console.log('Subscription tâches activée pour:', userId);
+      // Nettoyer l'ancienne subscription
+      const currentUnsub = get().unsubscribeTasks;
+      if (currentUnsub) currentUnsub();
       
-      // Mock subscription
-      const mockUnsubscribe = () => {
-        console.log('Subscription tâches fermée');
-      };
+      const filters = get().getActiveFilters();
+      const unsubscribe = TaskService.subscribeToUserTasks(
+        userId,
+        (tasks) => {
+          set({ tasks });
+          get().updateStats(userId);
+        },
+        filters
+      );
       
-      set({ unsubscribeTasks: mockUnsubscribe });
-      return mockUnsubscribe;
+      set({ unsubscribeTasks: unsubscribe });
+      return unsubscribe;
     },
 
     // Nettoyer les subscriptions
