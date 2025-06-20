@@ -1,11 +1,10 @@
-// src/modules/tasks/TaskList.jsx
+// src/modules/tasks/TaskList.jsx - Sans lucide-react
 import React, { useState, useEffect } from 'react';
 import { useTaskStore } from '../../shared/stores/taskStore.js';
 import { useProjectStore } from '../../shared/stores/projectStore.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { TaskCard } from './TaskCard.jsx';
 import { TaskForm } from './TaskForm.jsx';
-import { Search, Filter, Plus, SortAsc, SortDesc } from 'lucide-react';
 
 export const TaskList = () => {
   const { 
@@ -87,7 +86,7 @@ export const TaskList = () => {
             onClick={() => setShowTaskForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            <Plus size={18} />
+            <span>➕</span>
             Nouvelle tâche
           </button>
         </div>
@@ -115,7 +114,7 @@ export const TaskList = () => {
         {/* Barre de recherche et filtres */}
         <div className="flex gap-4 items-center">
           <div className="flex-1 relative">
-            <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">🔍</span>
             <input
               type="text"
               placeholder="Rechercher une tâche..."
@@ -131,7 +130,7 @@ export const TaskList = () => {
               showFilters ? 'bg-gray-50 border-gray-400' : 'border-gray-300'
             }`}
           >
-            <Filter size={18} />
+            <span>📊</span>
             Filtres
           </button>
         </div>
@@ -194,7 +193,7 @@ export const TaskList = () => {
           {/* Options de tri */}
           <div className="mt-4 pt-4 border-t">
             <label className="block text-sm font-medium text-gray-700 mb-2">Trier par</label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {[
                 { field: 'createdAt', label: 'Date création' },
                 { field: 'dueDate', label: 'Échéance' },
@@ -212,9 +211,7 @@ export const TaskList = () => {
                 >
                   {label}
                   {filters.orderBy === field && (
-                    filters.orderDirection === 'desc' 
-                      ? <SortDesc size={14} />
-                      : <SortAsc size={14} />
+                    <span>{filters.orderDirection === 'desc' ? '↓' : '↑'}</span>
                   )}
                 </button>
               ))}
@@ -242,7 +239,7 @@ export const TaskList = () => {
                 onClick={() => setShowTaskForm(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                <Plus size={18} />
+                <span>➕</span>
                 Créer une tâche
               </button>
             )}
