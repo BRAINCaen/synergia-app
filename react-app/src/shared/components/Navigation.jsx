@@ -1,4 +1,4 @@
-// src/shared/components/Navigation.jsx - Version simplifiée
+// src/shared/components/Navigation.jsx - Code correct
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
@@ -7,10 +7,11 @@ export const Navigation = () => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
 
+  // Les navItems sont DANS la fonction, pas en dehors !
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard' },
-    { path: '/tasks', label: 'Tâches' },
-    { path: '/projects', label: 'Projets' }
+    { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
+    { path: '/tasks', label: 'Tâches', icon: '📋' },
+    { path: '/projects', label: 'Projets', icon: '🏗️' }
   ];
 
   return (
@@ -32,12 +33,13 @@ export const Navigation = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium ${
                     isActive
                       ? 'bg-blue-100 text-blue-700'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
+                  <span>{item.icon}</span>
                   {item.label}
                 </Link>
               );
