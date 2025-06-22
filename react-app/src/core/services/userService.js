@@ -1,145 +1,216 @@
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore'
-import { db } from '../firebase.js'
-import { USER_LEVELS, XP_REWARDS } from '../constants.js'
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
+  onSnapshot,
+  serverTimestamp 
+} from 'firebase/firestore';
+import { db } from '../firebase.js';
 
 class UserService {
-  static async createUserProfile(uid, userData) {
+  constructor() {
+    this.listeners = new Map();
+  }
+
+  // Créer ou mettre à jour le profil utilisateur
+  async createOrUpdateUserProfile(user, additionalData = {}) {
     try {
-      const userRef = doc(db, 'users', uid)
-      const defaultProfile = {
-        uid,
-        email: userData.email,
-        displayName: userData.displayName || userData.email,
-        photoURL: userData.photoURL || null,
-        profile: {
-          firstName: userData.firstName || '',
-          lastName: userData.lastName || '',
-          department: userData.department || ''
-        },
-        gamification: {
-          xp: 0,
-          totalXp: 0,
-          level: 1,
-          badges: [],
-          tasksCompleted: 0,
-          loginStreak: 0
-        },
-        stats: {
-          tasksCompleted: 0,
-          projectsCreated: 0,
-          helpProvided: 0,
-          loginCount: 0,
-          badgesEarned: 0,
-          lastActionAt: new Date()
-        },
-        createdAt: new Date(),
-        lastLogin: new Date(),
-        updatedAt: new Date(),
-        ...userData
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+
+      const baseProfile = {
+        email: user.email,
+        displayName: user.displayName || 'Utilisateur',
+        photoURL: user.photoURL || null,
+        lastLoginAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      if (!userSnap.exists()) {
+        // Nouvel utilisateur - créer profil complet
+        const newUserData = {
+          ...baseProfile,
+          createdAt: serverTimestamp(),
+          profile: {
+            department: additionalData.department || 'Non défini',
+            role: additionalData.role || 'employee',
+            phone: additionalData.phone || '',
+            bio: additionalData.bio || '',
+            ...additionalData.profile
+          },
+          gamification: {
+            totalXp: 0,
+            level: 1,
+            badges: [],
+            tasksCompleted: 0,
+            projectsCreated: 0,
+            loginStreak: 1,
+            lastLoginDate: new Date().toISOString().split('T')[0],
+            weeklyXp: 0,
+            monthlyXp: 0
+          },
+          preferences: {
+            notifications: true,
+            emailUpdates: true,
+            theme: 'dark',
+            ...additionalData.preferences
+          }
+        };
+
+        await setDoc(userRef, newUserData);
+        console.log('✅ Nouveau profil utilisateur créé:', user.uid);
+        return newUserData;
+      } else {
+        // Utilisateur existant - mettre à jour connexion
+        await updateDoc(userRef, {
+          lastLoginAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+
+        const userData = userSnap.data();
+        console.log('✅ Profil utilisateur mis à jour:', user.uid);
+        return userData;
       }
-      
-      await setDoc(userRef, defaultProfile)
-      return { data: defaultProfile, error: null }
     } catch (error) {
-      console.error('Erreur création profil utilisateur:', error)
-      return { data: null, error: error.message }
+      console.error('❌ Erreur création/mise à jour profil:', error);
+      throw error;
     }
   }
 
-  static async getUserProfile(uid) {
+  // Récupérer le profil utilisateur
+  async getUserProfile(userId) {
     try {
-      const userRef = doc(db, 'users', uid)
-      const userSnap = await getDoc(userRef)
-      
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+
       if (userSnap.exists()) {
-        return { data: userSnap.data(), error: null }
+        return userSnap.data();
+      } else {
+        console.warn('⚠️ Profil utilisateur non trouvé:', userId);
+        return null;
       }
-      return { data: null, error: 'Profil utilisateur introuvable' }
     } catch (error) {
-      console.error('Erreur récupération profil utilisateur:', error)
-      return { data: null, error: error.message }
+      console.error('❌ Erreur récupération profil:', error);
+      throw error;
     }
   }
 
-  static async updateUserProfile(uid, updates) {
+  // Mettre à jour les données de gamification
+  async updateGamificationData(userId, updates) {
     try {
-      const userRef = doc(db, 'users', uid)
-      const updateData = {
-        ...updates,
-        updatedAt: new Date()
-      }
-      
-      await updateDoc(userRef, updateData)
-      return { success: true, error: null }
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        [`gamification.${Object.keys(updates)[0]}`]: Object.values(updates)[0],
+        updatedAt: serverTimestamp()
+      });
+      console.log('✅ Données gamification mises à jour:', userId);
     } catch (error) {
-      console.error('Erreur mise à jour profil utilisateur:', error)
-      return { success: false, error: error.message }
+      console.error('❌ Erreur mise à jour gamification:', error);
+      throw error;
     }
   }
 
-  static async addXP(uid, xpAmount) {
+  // Récupérer le leaderboard en temps réel
+  getLeaderboard(callback, options = {}) {
     try {
-      const userResult = await this.getUserProfile(uid)
-      if (userResult.error) return userResult
+      const {
+        orderField = 'gamification.totalXp',
+        limitCount = 50,
+        department = null
+      } = options;
 
-      const userProfile = userResult.data
-      const currentXP = userProfile.gamification?.xp || 0
-      const currentTotalXP = userProfile.gamification?.totalXp || 0
-      const newXP = currentXP + xpAmount
-      const newTotalXP = currentTotalXP + xpAmount
-      const newLevel = this.calculateLevel(newTotalXP)
-      const levelUp = newLevel > (userProfile.gamification?.level || 1)
+      let q = query(
+        collection(db, 'users'),
+        orderBy(orderField, 'desc'),
+        limit(limitCount)
+      );
 
-      const updateResult = await this.updateUserProfile(uid, {
-        'gamification.xp': newXP,
-        'gamification.totalXp': newTotalXP,
-        'gamification.level': newLevel
-      })
-
-      if (updateResult.error) return updateResult
-
-      return { 
-        success: true,
-        newXP, 
-        newTotalXP,
-        newLevel, 
-        levelUp,
-        error: null
+      // Filtrer par département si spécifié
+      if (department) {
+        q = query(
+          collection(db, 'users'),
+          where('profile.department', '==', department),
+          orderBy(orderField, 'desc'),
+          limit(limitCount)
+        );
       }
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const leaderboard = [];
+        snapshot.forEach((doc, index) => {
+          const userData = doc.data();
+          leaderboard.push({
+            rank: index + 1,
+            uid: doc.id,
+            displayName: userData.displayName || 'Utilisateur',
+            photoURL: userData.photoURL,
+            department: userData.profile?.department || 'Non défini',
+            totalXp: userData.gamification?.totalXp || 0,
+            level: userData.gamification?.level || 1,
+            badges: userData.gamification?.badges?.length || 0,
+            tasksCompleted: userData.gamification?.tasksCompleted || 0,
+            loginStreak: userData.gamification?.loginStreak || 0,
+            weeklyXp: userData.gamification?.weeklyXp || 0,
+            monthlyXp: userData.gamification?.monthlyXp || 0
+          });
+        });
+
+        console.log(`📊 Leaderboard mis à jour: ${leaderboard.length} utilisateurs`);
+        callback(leaderboard);
+      });
+
+      return unsubscribe;
     } catch (error) {
-      console.error('Erreur ajout XP:', error)
-      return { success: false, error: error.message }
+      console.error('❌ Erreur écoute leaderboard:', error);
+      callback([]);
+      return () => {};
     }
   }
 
-  static calculateLevel(totalXp) {
-    for (const [level, data] of Object.entries(USER_LEVELS)) {
-      if (totalXp >= data.min && totalXp <= data.max) {
-        return parseInt(level)
-      }
-    }
-    return 1
-  }
-
-  static async updateLastLogin(uid) {
+  // Rechercher des utilisateurs
+  async searchUsers(searchTerm, department = null) {
     try {
-      const updateResult = await this.updateUserProfile(uid, {
-        lastLogin: new Date(),
-        'stats.loginCount': increment(1)
-      })
+      let q = collection(db, 'users');
       
-      if (!updateResult.error) {
-        // Ajouter XP pour connexion quotidienne
-        await this.addXP(uid, XP_REWARDS.DAILY_LOGIN)
+      if (department) {
+        q = query(q, where('profile.department', '==', department));
       }
-      
-      return updateResult
+
+      const snapshot = await getDocs(q);
+      const users = [];
+
+      snapshot.forEach(doc => {
+        const userData = doc.data();
+        const displayName = userData.displayName || '';
+        const email = userData.email || '';
+        
+        // Recherche simple par nom ou email
+        if (displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            email.toLowerCase().includes(searchTerm.toLowerCase())) {
+          users.push({
+            uid: doc.id,
+            displayName: userData.displayName,
+            email: userData.email,
+            photoURL: userData.photoURL,
+            department: userData.profile?.department,
+            level: userData.gamification?.level || 1
+          });
+        }
+      });
+
+      return users;
     } catch (error) {
-      console.error('Erreur mise à jour dernière connexion:', error)
-      return { success: false, error: error.message }
+      console.error('❌ Erreur recherche utilisateurs:', error);
+      return [];
     }
   }
 }
 
-export default UserService
-export { UserService }
+export default new UserService();
