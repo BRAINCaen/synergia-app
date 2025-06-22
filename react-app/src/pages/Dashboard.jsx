@@ -348,25 +348,139 @@ const WelcomeWidget = () => {
   )
 }
 
-// 🚀 Composant Actions Rapides
+// 🚀 Composant Actions Rapides - À REMPLACER dans src/pages/Dashboard.jsx
 const QuickActionsWidget = () => {
   const { user } = useAuthStore()
   const { createTask } = useTaskService()
-  const { createProject } = useProjectService()
   const [isCreating, setIsCreating] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(false)
 
-  const handleQuickTask = async () => {
+  // Templates de tâches rapides prédéfinies
+  const quickTaskTemplates = [
+    {
+      id: 'email',
+      title: 'Vérifier mes emails',
+      description: 'Traiter la boîte de réception et répondre aux emails importants',
+      priority: 'medium',
+      estimatedTime: 15,
+      tags: ['communication', 'quotidien'],
+      icon: '📧'
+    },
+    {
+      id: 'meeting',
+      title: 'Préparer réunion équipe',
+      description: 'Réviser l\'agenda et préparer les points à aborder',
+      priority: 'high',
+      estimatedTime: 30,
+      tags: ['réunion', 'préparation'],
+      icon: '🤝'
+    },
+    {
+      id: 'report',
+      title: 'Rédiger rapport hebdomadaire',
+      description: 'Compiler les données de la semaine et rédiger le rapport',
+      priority: 'medium',
+      estimatedTime: 45,
+      tags: ['rapport', 'hebdomadaire'],
+      icon: '📊'
+    },
+    {
+      id: 'review',
+      title: 'Code review',
+      description: 'Réviser le code des collègues et donner des commentaires',
+      priority: 'medium',
+      estimatedTime: 30,
+      tags: ['développement', 'review'],
+      icon: '👀'
+    },
+    {
+      id: 'planning',
+      title: 'Planifier semaine prochaine',
+      description: 'Organiser les tâches et priorités pour la semaine suivante',
+      priority: 'low',
+      estimatedTime: 20,
+      tags: ['planification', 'organisation'],
+      icon: '📅'
+    },
+    {
+      id: 'learning',
+      title: 'Formation continue',
+      description: 'Temps dédié à l\'apprentissage et au développement personnel',
+      priority: 'low',
+      estimatedTime: 60,
+      tags: ['formation', 'développement'],
+      icon: '📚'
+    },
+    {
+      id: 'standup',
+      title: 'Daily standup',
+      description: 'Participer à la réunion quotidienne d\'équipe',
+      priority: 'high',
+      estimatedTime: 15,
+      tags: ['réunion', 'quotidien'],
+      icon: '🗣️'
+    },
+    {
+      id: 'documentation',
+      title: 'Mettre à jour la documentation',
+      description: 'Réviser et compléter la documentation technique',
+      priority: 'medium',
+      estimatedTime: 40,
+      tags: ['documentation', 'technique'],
+      icon: '📝'
+    }
+  ]
+
+  // Créer une tâche à partir d'un template
+  const handleCreateFromTemplate = async (template) => {
     if (!user?.uid) return
     
     setIsCreating(true)
     try {
-      await createTask({
-        title: 'Nouvelle tâche rapide',
-        description: 'Tâche créée depuis le dashboard',
-        priority: 'medium',
-        status: 'todo'
+      const taskData = {
+        title: template.title,
+        description: template.description,
+        priority: template.priority,
+        status: 'todo',
+        estimatedTime: template.estimatedTime,
+        tags: [...template.tags, 'template-rapide']
+      }
+      
+      await createTask(taskData)
+      console.log('✅ Tâche créée depuis template:', template.title)
+      setShowTemplates(false)
+      
+    } catch (error) {
+      console.error('❌ Erreur création tâche template:', error)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  // Créer une tâche générique rapide
+  const handleCustomQuickTask = async () => {
+    if (!user?.uid) return
+    
+    setIsCreating(true)
+    try {
+      const now = new Date()
+      const timeString = now.toLocaleTimeString('fr-FR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
       })
-      console.log('✅ Tâche rapide créée')
+      
+      const taskData = {
+        title: `Tâche rapide - ${timeString}`,
+        description: `Tâche créée rapidement depuis le dashboard le ${now.toLocaleDateString('fr-FR')} à ${timeString}`,
+        priority: 'medium',
+        status: 'todo',
+        estimatedTime: 30,
+        tags: ['rapide', 'dashboard']
+      }
+      
+      await createTask(taskData)
+      console.log('✅ Tâche rapide personnalisée créée')
+      
     } catch (error) {
       console.error('❌ Erreur création tâche rapide:', error)
     } finally {
@@ -377,63 +491,140 @@ const QuickActionsWidget = () => {
   return (
     <Card className="p-6">
       <h3 className="text-lg font-semibold mb-4">🚀 Actions Rapides</h3>
-      <div className="space-y-3">
-        <Link to={ROUTES.TASKS}>
-          <button className="w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+      
+      {!showTemplates ? (
+        // Vue principale des actions
+        <div className="space-y-3">
+          {/* Gérer les tâches */}
+          <Link to={ROUTES.TASKS}>
+            <button className="w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">✅</span>
+                <div>
+                  <div className="font-medium text-gray-900">Gérer les tâches</div>
+                  <div className="text-sm text-gray-600">Voir toutes mes tâches</div>
+                </div>
+              </div>
+            </button>
+          </Link>
+
+          {/* Templates de tâches */}
+          <button
+            onClick={() => setShowTemplates(true)}
+            disabled={isCreating}
+            className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
+          >
             <div className="flex items-center space-x-3">
-              <span className="text-2xl">✅</span>
+              <span className="text-2xl">⚡</span>
               <div>
-                <div className="font-medium text-gray-900">Gérer les tâches</div>
-                <div className="text-sm text-gray-600">Voir toutes mes tâches</div>
+                <div className="font-medium text-gray-900">Tâches rapides</div>
+                <div className="text-sm text-gray-600">Choisir parmi des templates</div>
               </div>
             </div>
           </button>
-        </Link>
 
-        <button
-          onClick={handleQuickTask}
-          disabled={isCreating}
-          className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
-        >
-          <div className="flex items-center space-x-3">
-            <span className="text-2xl">➕</span>
-            <div>
-              <div className="font-medium text-gray-900">
-                {isCreating ? 'Création...' : 'Nouvelle tâche'}
+          {/* Tâche rapide basique */}
+          <button
+            onClick={handleCustomQuickTask}
+            disabled={isCreating}
+            className="w-full text-left p-3 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <div className="flex items-center space-x-3">
+              <span className="text-2xl">➕</span>
+              <div>
+                <div className="font-medium text-gray-900">
+                  {isCreating ? 'Création...' : 'Tâche générique'}
+                </div>
+                <div className="text-sm text-gray-600">Créer une tâche simple</div>
               </div>
-              <div className="text-sm text-gray-600">Créer une tâche rapide</div>
             </div>
+          </button>
+
+          {/* Mes projets */}
+          <Link to="/projects">
+            <button className="w-full text-left p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors">
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">📁</span>
+                <div>
+                  <div className="font-medium text-gray-900">Mes projets</div>
+                  <div className="text-sm text-gray-600">Gérer mes projets</div>
+                </div>
+              </div>
+            </button>
+          </Link>
+
+          {/* Classement */}
+          <Link to={ROUTES.LEADERBOARD}>
+            <button className="w-full text-left p-3 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors">
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">🏆</span>
+                <div>
+                  <div className="font-medium text-gray-900">Classement</div>
+                  <div className="text-sm text-gray-600">Voir le leaderboard</div>
+                </div>
+              </div>
+            </button>
+          </Link>
+        </div>
+      ) : (
+        // Vue des templates de tâches
+        <div className="space-y-3">
+          {/* Header avec bouton retour */}
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-medium text-gray-900">🎯 Templates de tâches</h4>
+            <button
+              onClick={() => setShowTemplates(false)}
+              className="text-gray-400 hover:text-gray-600 text-sm transition-colors"
+            >
+              ← Retour
+            </button>
           </div>
-        </button>
-
-        <Link to="/projects">
-          <button className="w-full text-left p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors">
-            <div className="flex items-center space-x-3">
-              <span className="text-2xl">📁</span>
-              <div>
-                <div className="font-medium text-gray-900">Mes projets</div>
-                <div className="text-sm text-gray-600">Gérer mes projets</div>
+          
+          {/* Liste des templates */}
+          <div className="max-h-64 overflow-y-auto space-y-2">
+            {quickTaskTemplates.map(template => (
+              <button
+                key={template.id}
+                onClick={() => handleCreateFromTemplate(template)}
+                disabled={isCreating}
+                className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 disabled:opacity-50"
+              >
+                <div className="flex items-start space-x-3">
+                  <span className="text-xl flex-shrink-0">{template.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-gray-900 text-sm">{template.title}</div>
+                    <div className="text-xs text-gray-600 line-clamp-2 mb-1">{template.description}</div>
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-medium ${
+                        template.priority === 'urgent' ? 'bg-red-100 text-red-700' :
+                        template.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                        template.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-green-100 text-green-700'
+                      }`}>
+                        {template.priority}
+                      </span>
+                      <span className="text-xs text-gray-500">⏱️ {template.estimatedTime}min</span>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+          
+          {/* Indicateur de création */}
+          {isCreating && (
+            <div className="flex items-center justify-center p-3 bg-blue-50 rounded-lg">
+              <div className="flex items-center gap-2 text-blue-600">
+                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm">Création de la tâche...</span>
               </div>
             </div>
-          </button>
-        </Link>
-
-        <Link to={ROUTES.LEADERBOARD}>
-          <button className="w-full text-left p-3 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors">
-            <div className="flex items-center space-x-3">
-              <span className="text-2xl">🏆</span>
-              <div>
-                <div className="font-medium text-gray-900">Classement</div>
-                <div className="text-sm text-gray-600">Voir le leaderboard</div>
-              </div>
-            </div>
-          </button>
-        </Link>
-      </div>
+          )}
+        </div>
+      )}
     </Card>
   )
 }
-
 // 📊 Composant principal Dashboard
 export default function Dashboard() {
   const { user } = useAuthStore()
