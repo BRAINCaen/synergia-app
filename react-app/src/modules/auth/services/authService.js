@@ -1,24 +1,36 @@
-// src/modules/auth/services/authService.js
+// src/modules/auth/services/authService.js - VERSION CORRIGÉE
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signInWithPopup,
   signOut,
   sendPasswordResetEmail,
-  updateProfile
+  updateProfile,
+  onAuthStateChanged
 } from "firebase/auth";
-import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
-import { auth, db, googleProvider } from "../../../core/firebase.js";
-import { COLLECTIONS, USER_ROLES, USER_STATUS, ERROR_MESSAGES } from "../../../core/constants.js";
+import { auth, googleProvider } from "../../../core/firebase.js";
+import userService from "../../../services/userService.js";
+import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "../../../core/constants.js";
 
 class AuthService {
-  // Connexion par email/mot de passe
+  // Connexion par email/mot de passe avec vérification du document
   async signInWithEmail(email, password) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await this.updateLastLogin(userCredential.user.uid);
-      return { user: userCredential.user, error: null };
+      const user = userCredential.user;
+      
+      // ✅ CORRECTION : Vérifier et créer le document utilisateur si nécessaire
+      await userService.ensureUserDocument(user);
+      
+      // Mettre à jour la dernière connexion
+      await userService.safeUpdateUser(user.uid, {
+        lastLoginAt: new Date(),
+        'stats.loginCount': { increment: 1 } // Utilise increment pour éviter les race conditions
+      });
+      
+      return { user, error: null };
     } catch (error) {
+      console.error('❌ Erreur connexion:', error);
       return { user: null, error: this.handleAuthError(error) };
     }
   }
@@ -27,31 +39,41 @@ class AuthService {
   async signUpWithEmail(email, password, userData = {}) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
       
-      // Créer le profil utilisateur
-      await this.createUserProfile(userCredential.user, userData);
+      // Créer le profil utilisateur complet
+      await userService.createUserDocument({
+        ...user,
+        ...userData
+      });
       
-      return { user: userCredential.user, error: null };
+      return { user, error: null };
     } catch (error) {
+      console.error('❌ Erreur inscription:', error);
       return { user: null, error: this.handleAuthError(error) };
     }
   }
 
-  // Connexion avec Google
+  // Connexion avec Google avec vérification
   async signInWithGoogle() {
     try {
       const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
       
-      // Vérifier si le profil existe, sinon le créer
-      const profileExists = await this.checkUserProfileExists(result.user.uid);
-      if (!profileExists) {
-        await this.createUserProfile(result.user);
-      } else {
-        await this.updateLastLogin(result.user.uid);
+      // ✅ CORRECTION : Toujours vérifier et créer si nécessaire
+      const wasCreated = await userService.ensureUserDocument(user);
+      
+      if (!wasCreated) {
+        // Document existait, mettre à jour la dernière connexion
+        await userService.safeUpdateUser(user.uid, {
+          lastLoginAt: new Date(),
+          'stats.loginCount': { increment: 1 }
+        });
       }
       
-      return { user: result.user, error: null };
+      return { user, error: null };
     } catch (error) {
+      console.error('❌ Erreur connexion Google:', error);
       return { user: null, error: this.handleAuthError(error) };
     }
   }
@@ -76,102 +98,39 @@ class AuthService {
     }
   }
 
-  // Créer le profil utilisateur dans Firestore
-  async createUserProfile(user, additionalData = {}) {
-    const userRef = doc(db, COLLECTIONS.USERS, user.uid);
-    
-    const userData = {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName || additionalData.displayName || '',
-      photoURL: user.photoURL || '',
-      role: USER_ROLES.EMPLOYEE,
-      status: USER_STATUS.ACTIVE,
-      createdAt: new Date(),
-      lastLoginAt: new Date(),
-      preferences: {
-        theme: 'dark',
-        language: 'fr',
-        notifications: {
-          email: true,
-          push: true,
-          inApp: true
+  // Observer les changements d'état avec auto-correction
+  onAuthStateChanged(callback) {
+    return onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // ✅ CORRECTION : Auto-fix à chaque changement d'état
+        try {
+          await userService.ensureUserDocument(user);
+          
+          // Récupérer le profil complet
+          const { profile } = await userService.getUserProfile(user.uid, user);
+          callback({ ...user, profile });
+        } catch (error) {
+          console.error('❌ Erreur auto-correction:', error);
+          callback(user); // Fallback : retourner l'utilisateur sans profil
         }
-      },
-      profile: {
-        bio: '',
-        department: additionalData.department || '',
-        position: additionalData.position || '',
-        skills: [],
-        phone: additionalData.phone || '',
-        location: additionalData.location || ''
-      },
-      gamification: {
-        xp: 0,
-        level: 1,
-        totalXp: 0,
-        badges: [],
-        achievements: [],
-        joinedAt: new Date()
-      },
-      ...additionalData
-    };
-
-    await setDoc(userRef, userData);
-    return userData;
-  }
-
-  // Vérifier si le profil utilisateur existe
-  async checkUserProfileExists(uid) {
-    const userRef = doc(db, COLLECTIONS.USERS, uid);
-    const userSnap = await getDoc(userRef);
-    return userSnap.exists();
-  }
-
-  // Mettre à jour la dernière connexion
-  async updateLastLogin(uid) {
-    const userRef = doc(db, COLLECTIONS.USERS, uid);
-    await updateDoc(userRef, {
-      lastLoginAt: new Date()
+      } else {
+        callback(null);
+      }
     });
   }
 
-  // Mettre à jour le profil utilisateur
-  async updateUserProfile(uid, updates) {
+  // Récupérer l'utilisateur actuel avec son profil
+  async getCurrentUserWithProfile() {
+    const user = auth.currentUser;
+    if (!user) return null;
+    
     try {
-      // Mise à jour dans Firebase Auth si nécessaire
-      if (updates.displayName && auth.currentUser) {
-        await updateProfile(auth.currentUser, {
-          displayName: updates.displayName
-        });
-      }
-
-      // Mise à jour dans Firestore
-      const userRef = doc(db, COLLECTIONS.USERS, uid);
-      await updateDoc(userRef, {
-        ...updates,
-        updatedAt: new Date()
-      });
-
-      return { error: null };
+      await userService.ensureUserDocument(user);
+      const { profile } = await userService.getUserProfile(user.uid, user);
+      return { ...user, profile };
     } catch (error) {
-      return { error: this.handleAuthError(error) };
-    }
-  }
-
-  // Récupérer le profil utilisateur complet
-  async getUserProfile(uid) {
-    try {
-      const userRef = doc(db, COLLECTIONS.USERS, uid);
-      const userSnap = await getDoc(userRef);
-      
-      if (userSnap.exists()) {
-        return { profile: userSnap.data(), error: null };
-      } else {
-        return { profile: null, error: 'Profil utilisateur introuvable' };
-      }
-    } catch (error) {
-      return { profile: null, error: this.handleAuthError(error) };
+      console.error('❌ Erreur récupération profil:', error);
+      return user; // Fallback
     }
   }
 
@@ -197,14 +156,29 @@ class AuthService {
     }
   }
 
-  // Observer les changements d'état d'authentification
-  onAuthStateChanged(callback) {
-    return auth.onAuthStateChanged(callback);
-  }
-
   // Obtenir l'utilisateur actuel
   getCurrentUser() {
     return auth.currentUser;
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Correction manuelle pour utilisateurs existants
+  async fixCurrentUser() {
+    const user = auth.currentUser;
+    if (!user) {
+      return { success: false, error: 'Aucun utilisateur connecté' };
+    }
+
+    try {
+      const wasCreated = await userService.ensureUserDocument(user);
+      return {
+        success: true,
+        message: wasCreated 
+          ? 'Document utilisateur créé avec succès' 
+          : 'Document utilisateur déjà existant'
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
   }
 }
 
