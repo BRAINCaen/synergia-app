@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from './core/firebase'
-import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
+import Login from './pages/Login.jsx'
+import Dashboard from './pages/Dashboard.jsx'
 import './index.css'
 
 function App() {
