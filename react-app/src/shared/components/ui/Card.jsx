@@ -1,94 +1,78 @@
 import React from 'react'
-import { cn } from '../../utils/helpers'
+import { clsx } from 'clsx'
 
-const Card = ({ 
-  children, 
-  className,
-  header,
-  footer,
-  variant = 'default',
-  padding = 'default',
-  hover = false,
-  ...props 
-}) => {
-  const variants = {
-    default: 'bg-white border border-gray-200 shadow-sm',
-    elevated: 'bg-white border border-gray-200 shadow-md',
-    outlined: 'bg-white border-2 border-gray-300',
-    filled: 'bg-gray-50 border border-gray-200',
-    gradient: 'bg-gradient-to-br from-primary-50 to-secondary-50 border border-primary-200'
-  }
-  
-  const paddings = {
-    none: '',
-    sm: 'p-4',
-    default: 'p-6',
-    lg: 'p-8'
-  }
-  
-  const hoverEffects = hover ? 'transition-all duration-200 hover:shadow-lg hover:-translate-y-1 cursor-pointer' : ''
+const Card = React.forwardRef(({ className, children, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={clsx(
+      'rounded-lg border border-gray-200 bg-white shadow-sm',
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </div>
+))
 
-  return (
-    <div 
-      className={cn(
-        'rounded-lg',
-        variants[variant],
-        hoverEffects,
-        className
-      )}
-      {...props}
-    >
-      {header && (
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-          {typeof header === 'string' ? (
-            <h3 className="text-lg font-semibold text-gray-900">{header}</h3>
-          ) : (
-            header
-          )}
-        </div>
-      )}
-      
-      <div className={cn(paddings[padding])}>
-        {children}
-      </div>
-      
-      {footer && (
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
-          {footer}
-        </div>
-      )}
-    </div>
-  )
-}
+Card.displayName = 'Card'
 
-// Composants spécialisés pour différents types de cartes
-export const StatCard = ({ title, value, icon, color = 'primary', trend, className }) => {
-  const colorClasses = {
-    primary: 'text-primary-600 bg-primary-100',
-    success: 'text-green-600 bg-green-100',
-    warning: 'text-yellow-600 bg-yellow-100',
-    danger: 'text-red-600 bg-red-100',
-    info: 'text-blue-600 bg-blue-100'
-  }
+const CardHeader = React.forwardRef(({ className, children, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={clsx('flex flex-col space-y-1.5 p-6', className)}
+    {...props}
+  >
+    {children}
+  </div>
+))
 
-  return (
-    <Card className={cn('hover:shadow-md transition-shadow', className)} padding="default">
-      <div className="flex items-center">
-        <div className={cn('p-3 rounded-lg', colorClasses[color])}>
-          {icon}
-        </div>
-        <div className="ml-4 flex-1">
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-2xl font-semibold text-gray-900">{value}</p>
-          {trend && (
-            <p className={cn('text-xs', trend.positive ? 'text-green-600' : 'text-red-600')}>
-              {trend.positive ? '↗' : '↘'} {trend.value}
-            </p>
-          )}
-        </div>
-      </div>
-    </Card>
-  )
-}
+CardHeader.displayName = 'CardHeader'
 
-export default Card
+const CardTitle = React.forwardRef(({ className, children, ...props }, ref) => (
+  <h3
+    ref={ref}
+    className={clsx(
+      'text-lg font-semibold leading-none tracking-tight',
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </h3>
+))
+
+CardTitle.displayName = 'CardTitle'
+
+const CardDescription = React.forwardRef(({ className, children, ...props }, ref) => (
+  <p
+    ref={ref}
+    className={clsx('text-sm text-gray-600', className)}
+    {...props}
+  >
+    {children}
+  </p>
+))
+
+CardDescription.displayName = 'CardDescription'
+
+const CardContent = React.forwardRef(({ className, children, ...props }, ref) => (
+  <div ref={ref} className={clsx('p-6 pt-0', className)} {...props}>
+    {children}
+  </div>
+))
+
+CardContent.displayName = 'CardContent'
+
+const CardFooter = React.forwardRef(({ className, children, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={clsx('flex items-center p-6 pt-0', className)}
+    {...props}
+  >
+    {children}
+  </div>
+))
+
+CardFooter.displayName = 'CardFooter'
+
+export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
