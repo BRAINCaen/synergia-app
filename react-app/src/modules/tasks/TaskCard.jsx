@@ -235,3 +235,4 @@ export const TaskCard = ({ task, onEdit }) => {
     </div>
   );
 };
+export default TaskCard;
