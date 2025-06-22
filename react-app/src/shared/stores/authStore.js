@@ -21,3 +21,6 @@ export const useAuthStore = create((set, get) => ({
     return user?.displayName || user?.email || 'Utilisateur'
   }
 }))
+
+// Export par défaut pour compatibilité
+export default useAuthStore
