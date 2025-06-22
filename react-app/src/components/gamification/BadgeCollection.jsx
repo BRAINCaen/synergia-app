@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Card from '../../shared/components/ui/Card.jsx';
-import badgeService from '../../services/badgeService.js';
+import badgeService from '../../core/services/badgeService.js';
 import useUserStore from '../../shared/stores/userStore.js';
 
 const BadgeCollection = () => {
