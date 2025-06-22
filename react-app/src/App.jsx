@@ -1,44 +1,17 @@
-import React, { useEffect, useState } from 'react'
-import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from './core/firebase.js'
+import React from 'react'
 import './index.css'
 
-// Import dynamique pour éviter les erreurs de build
-const Login = React.lazy(() => import('./pages/Login.jsx'))
-const Dashboard = React.lazy(() => import('./pages/Dashboard.jsx'))
-
 function App() {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user)
-      setLoading(false)
-    })
-    return unsubscribe
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white">Chargement...</div>
-      </div>
-    )
-  }
-
   return (
-    <React.Suspense fallback={
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white">Chargement de l'application...</div>
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="text-white text-center">
+        <h1 className="text-4xl font-bold mb-4">⚡ Synergia v2.0</h1>
+        <p className="text-xl mb-8">Architecture Modulaire - Test Build</p>
+        <div className="bg-green-600 text-white px-6 py-3 rounded-lg">
+          ✅ Build réussi ! Phase 2 prête pour développement.
+        </div>
       </div>
-    }>
-      {!user ? (
-        <Login onLogin={setUser} />
-      ) : (
-        <Dashboard user={user} onLogout={() => setUser(null)} />
-      )}
-    </React.Suspense>
+    </div>
   )
 }
 
