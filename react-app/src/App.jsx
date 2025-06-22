@@ -1,5 +1,5 @@
 // ===================================================================
-// 🚀 APP.JSX COMPLET AVEC TOUTES LES AMÉLIORATIONS
+// 🚀 APP.JSX CORRIGÉ - SUPPRESSION DES DOUBLONS
 // Fichier: react-app/src/App.jsx
 // ===================================================================
 
@@ -12,12 +12,6 @@ import AppRoutes from './routes/index.jsx'
 
 // 🍞 Import du système de toast amélioré
 import { ToastProvider } from './shared/components/ui/Toast.jsx'
-
-// 🏆 Import du système de badges (optionnel, si vous voulez un provider global)
-// import { BadgeProvider } from './contexts/BadgeContext.jsx'
-
-// 📱 Import du système PWA
-import { registerSW, setupPWAInstall } from './utils/pwa.js'
 
 function App() {
   const { setUser, setLoading, setError } = useAuthStore()
@@ -67,123 +61,74 @@ function App() {
     }
   }, [setUser, setLoading, setError])
 
-  // 📱 Initialisation PWA
+  // 📱 Initialisation PWA basique
   useEffect(() => {
-    // Enregistrer le service worker
+    // Enregistrement simple du service worker
     if ('serviceWorker' in navigator) {
-      registerSW()
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('📱 SW enregistré:', registration.scope)
+          })
+          .catch((error) => {
+            console.log('❌ Échec SW:', error)
+          })
+      })
     }
     
-    // Setup installation PWA
-    setupPWAInstall()
+    // Installation PWA basique
+    let deferredPrompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault()
+      deferredPrompt = e
+      
+      // Créer bouton d'installation simple
+      if (!document.getElementById('install-pwa')) {
+        const installBtn = document.createElement('button')
+        installBtn.id = 'install-pwa'
+        installBtn.textContent = '📱 Installer'
+        installBtn.className = 'fixed bottom-4 right-4 bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg text-sm z-40'
+        installBtn.onclick = async () => {
+          if (deferredPrompt) {
+            deferredPrompt.prompt()
+            const { outcome } = await deferredPrompt.userChoice
+            console.log('📱 Installation:', outcome)
+            installBtn.remove()
+            deferredPrompt = null
+          }
+        }
+        document.body.appendChild(installBtn)
+        
+        // Masquer après 8 secondes
+        setTimeout(() => installBtn.remove(), 8000)
+      }
+    })
     
     // Log de démarrage
     console.log('🚀 Synergia v3.0 - Application démarrée')
-    console.log('🔧 Features: Toast system, Real-time data, Badge system, PWA')
+    console.log('🔧 Features: Toast system, Real-time data, PWA')
   }, [])
 
   return (
     <BrowserRouter>
       {/* 🍞 Provider Toast Global - Englobe toute l'application */}
       <ToastProvider>
-        {/* 🏆 Provider Badges Global (optionnel) */}
-        {/* <BadgeProvider> */}
+        <div className="min-h-screen bg-gray-50">
+          {/* 🎯 Routes de l'application */}
+          <AppRoutes />
           
-          <div className="min-h-screen bg-gray-50">
-            {/* 🎯 Routes de l'application */}
-            <AppRoutes />
-            
-            {/* 📱 Indicateur PWA (optionnel) */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="fixed bottom-4 left-4 z-40">
-                <div className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs">
-                  🚀 Dev Mode
-                </div>
+          {/* 📱 Indicateur développement */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="fixed bottom-4 left-4 z-40">
+              <div className="bg-green-600 text-white px-2 py-1 rounded text-xs">
+                🔧 Dev
               </div>
-            )}
-          </div>
-          
-        {/* </BadgeProvider> */}
+            </div>
+          )}
+        </div>
       </ToastProvider>
     </BrowserRouter>
   )
 }
 
 export default App
-
-// ===================================================================
-// 📱 UTILITAIRES PWA (si pas encore créés)
-// Fichier: react-app/src/utils/pwa.js
-// ===================================================================
-
-// Enregistrement du service worker
-export const registerSW = () => {
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then((registration) => {
-          console.log('📱 SW enregistré:', registration.scope)
-          
-          // Vérifier les mises à jour
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // Nouvelle version disponible
-                if (confirm('🔄 Nouvelle version disponible. Recharger ?')) {
-                  window.location.reload()
-                }
-              }
-            })
-          })
-        })
-        .catch((error) => {
-          console.log('❌ Échec SW:', error)
-        })
-    })
-  }
-}
-
-// Gestion de l'installation PWA
-export const setupPWAInstall = () => {
-  let deferredPrompt
-  
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault()
-    deferredPrompt = e
-    showInstallButton(deferredPrompt)
-  })
-
-  window.addEventListener('appinstalled', () => {
-    console.log('📱 PWA installée')
-    deferredPrompt = null
-  })
-}
-
-const showInstallButton = (deferredPrompt) => {
-  if (!document.getElementById('install-button')) {
-    const installButton = document.createElement('button')
-    installButton.id = 'install-button'
-    installButton.textContent = '📱 Installer'
-    installButton.className = 'fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-blue-700 transition-colors z-40'
-    
-    installButton.addEventListener('click', async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt()
-        const { outcome } = await deferredPrompt.userChoice
-        console.log(`📱 Installation: ${outcome}`)
-        deferredPrompt = null
-        installButton.remove()
-      }
-    })
-    
-    document.body.appendChild(installButton)
-    
-    // Masquer après 10 secondes
-    setTimeout(() => {
-      if (installButton.parentNode) {
-        installButton.style.opacity = '0.7'
-      }
-    }, 10000)
-  }
-}
