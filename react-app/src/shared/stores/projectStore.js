@@ -1,8 +1,3 @@
-// ==========================================
-// 📁 react-app/src/shared/stores/projectStore.js
-// Store Projets CORRIGÉ avec imports Zustand
-// ==========================================
-
 import { create } from 'zustand'
 import { persist, subscribeWithSelector } from 'zustand/middleware'
 import { projectService } from '../../core/services/taskService.js'
@@ -14,17 +9,11 @@ export const useProjectStore = create(
         // État des projets
         projects: [],
         currentProject: null,
-        
-        // États de chargement
         loading: false,
         creating: false,
         updating: false,
         deleting: false,
-        
-        // Filtres
         statusFilter: 'all',
-        
-        // Subscriptions
         unsubscribeProjects: null,
         
         // ✅ Charger les projets utilisateur
@@ -114,7 +103,7 @@ export const useProjectStore = create(
         }
       }),
       {
-        name: 'synergia-projects', // Clé localStorage
+        name: 'synergia-projects',
         partialize: (state) => ({
           projects: state.projects,
           statusFilter: state.statusFilter
