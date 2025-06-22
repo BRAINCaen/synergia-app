@@ -1,132 +1,125 @@
-// src/components/gamification/Leaderboard.jsx - VERSION CORRIGÉE
+// ===================================================================
+// 📊 LEADERBOARD AVEC DONNÉES FIREBASE RÉELLES
+// Fichier: react-app/src/components/gamification/Leaderboard.jsx
+// ===================================================================
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import MainLayout from '../../layouts/MainLayout.jsx';
 import { useAuthStore } from '../../shared/stores/authStore.js';
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  limit, 
+  onSnapshot,
+  where 
+} from 'firebase/firestore';
+import { db } from '../../core/firebase.js';
 
 const Leaderboard = () => {
   const { user } = useAuthStore();
-  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [timeFilter, setTimeFilter] = useState('all'); // all, week, month
-  const [categoryFilter, setCategoryFilter] = useState('xp'); // xp, tasks, badges
+  const [error, setError] = useState(null);
+  const [timeFilter, setTimeFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('totalXp');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
 
-  // Données mock pour démonstration (à remplacer par vraies données Firebase)
-  const mockLeaderboardData = [
-    {
-      rank: 1,
-      uid: 'user1',
-      displayName: 'Marie Dupont',
-      photoURL: null,
-      department: 'Développement',
-      totalXp: 2850,
-      level: 12,
-      badges: 15,
-      tasksCompleted: 127,
-      loginStreak: 23,
-      weeklyXp: 340,
-      monthlyXp: 1450
-    },
-    {
-      rank: 2,
-      uid: 'user2',
-      displayName: 'Jean Martin',
-      photoURL: null,
-      department: 'Design',
-      totalXp: 2640,
-      level: 11,
-      badges: 12,
-      tasksCompleted: 98,
-      loginStreak: 15,
-      weeklyXp: 280,
-      monthlyXp: 1200
-    },
-    {
-      rank: 3,
-      uid: 'user3',
-      displayName: 'Sophie Bernard',
-      photoURL: null,
-      department: 'Marketing',
-      totalXp: 2380,
-      level: 10,
-      badges: 18,
-      tasksCompleted: 156,
-      loginStreak: 31,
-      weeklyXp: 420,
-      monthlyXp: 1380
-    },
-    {
-      rank: 4,
-      uid: 'user4',
-      displayName: 'Thomas Petit',
-      photoURL: null,
-      department: 'Développement',
-      totalXp: 2180,
-      level: 9,
-      badges: 8,
-      tasksCompleted: 89,
-      loginStreak: 12,
-      weeklyXp: 180,
-      monthlyXp: 980
-    },
-    {
-      rank: 5,
-      uid: 'user5',
-      displayName: 'Amélie Rousseau',
-      photoURL: null,
-      department: 'Ressources Humaines',
-      totalXp: 1950,
-      level: 8,
-      badges: 11,
-      tasksCompleted: 134,
-      loginStreak: 7,
-      weeklyXp: 220,
-      monthlyXp: 1100
-    }
-  ];
-
+  // Charger les données depuis Firebase
   useEffect(() => {
-    // Simuler le chargement des données
+    if (!user) return;
+
     setLoading(true);
-    setTimeout(() => {
-      setLeaderboardData(mockLeaderboardData);
+    setError(null);
+
+    try {
+      // Construire la requête Firebase
+      let q = query(
+        collection(db, 'users'),
+        orderBy(`gamification.${categoryFilter}`, 'desc'),
+        limit(50)
+      );
+
+      // Filtrer par département si nécessaire
+      if (departmentFilter !== 'all') {
+        q = query(
+          collection(db, 'users'),
+          where('profile.department', '==', departmentFilter),
+          orderBy(`gamification.${categoryFilter}`, 'desc'),
+          limit(50)
+        );
+      }
+
+      // Écouter les changements en temps réel
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const users = [];
+        snapshot.forEach((doc, index) => {
+          const userData = doc.data();
+          
+          // Calculer la valeur selon le filtre temporel
+          let displayValue = userData.gamification?.[categoryFilter] || 0;
+          
+          if (timeFilter === 'week') {
+            displayValue = userData.gamification?.weeklyXp || 0;
+          } else if (timeFilter === 'month') {
+            displayValue = userData.gamification?.monthlyXp || 0;
+          }
+
+          users.push({
+            rank: index + 1,
+            uid: doc.id,
+            displayName: userData.displayName || 'Utilisateur',
+            email: userData.email,
+            photoURL: userData.photoURL,
+            department: userData.profile?.department || 'Non défini',
+            totalXp: userData.gamification?.totalXp || 0,
+            weeklyXp: userData.gamification?.weeklyXp || 0,
+            monthlyXp: userData.gamification?.monthlyXp || 0,
+            level: userData.gamification?.level || 1,
+            badges: userData.gamification?.badges?.length || 0,
+            tasksCompleted: userData.gamification?.tasksCompleted || 0,
+            loginStreak: userData.gamification?.loginStreak || 0,
+            displayValue,
+            lastLoginAt: userData.lastLoginAt
+          });
+        });
+
+        console.log(`📊 Leaderboard mis à jour: ${users.length} utilisateurs réels`);
+        setLeaderboard(users);
+        setLoading(false);
+      }, (err) => {
+        console.error('❌ Erreur chargement leaderboard:', err);
+        setError(err.message);
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
+    } catch (err) {
+      console.error('❌ Erreur configuration leaderboard:', err);
+      setError(err.message);
       setLoading(false);
-    }, 1000);
-  }, [timeFilter, categoryFilter]);
+    }
+  }, [user, categoryFilter, departmentFilter, timeFilter]);
 
   // Obtenir la valeur affichée selon le filtre
   const getDisplayValue = (userData) => {
     switch (categoryFilter) {
-      case 'xp':
-        return timeFilter === 'week' ? userData.weeklyXp : 
-               timeFilter === 'month' ? userData.monthlyXp : 
-               userData.totalXp;
-      case 'tasks':
-        return userData.tasksCompleted;
+      case 'weeklyXp':
+        return `${userData.weeklyXp} XP`;
+      case 'monthlyXp':
+        return `${userData.monthlyXp} XP`;
       case 'badges':
-        return userData.badges;
+        return `${userData.badges} badges`;
+      case 'tasksCompleted':
+        return `${userData.tasksCompleted} tâches`;
+      case 'loginStreak':
+        return `${userData.loginStreak} jours`;
       default:
-        return userData.totalXp;
+        return `${userData.totalXp} XP`;
     }
   };
 
-  // Obtenir le label de la métrique
-  const getMetricLabel = () => {
-    switch (categoryFilter) {
-      case 'xp':
-        return timeFilter === 'week' ? 'XP cette semaine' : 
-               timeFilter === 'month' ? 'XP ce mois' : 
-               'XP Total';
-      case 'tasks':
-        return 'Tâches complétées';
-      case 'badges':
-        return 'Badges obtenus';
-      default:
-        return 'XP Total';
-    }
-  };
-
-  // Obtenir l'icône du rang
   const getRankIcon = (rank) => {
     switch (rank) {
       case 1: return '🥇';
@@ -136,23 +129,72 @@ const Leaderboard = () => {
     }
   };
 
-  // Obtenir la couleur du rang
-  const getRankColor = (rank) => {
+  const getRankStyle = (rank) => {
     switch (rank) {
-      case 1: return 'text-yellow-400';
-      case 2: return 'text-gray-300';
-      case 3: return 'text-orange-400';
-      default: return 'text-blue-400';
+      case 1: return 'bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 border-yellow-500';
+      case 2: return 'bg-gradient-to-br from-gray-400/20 to-gray-500/20 border-gray-400';
+      case 3: return 'bg-gradient-to-br from-orange-500/20 to-orange-600/20 border-orange-500';
+      default: return 'bg-gray-800 border-gray-700';
     }
   };
+
+  const timeOptions = [
+    { value: 'all', label: 'Tout temps' },
+    { value: 'month', label: 'Ce mois' },
+    { value: 'week', label: 'Cette semaine' }
+  ];
+
+  const categoryOptions = [
+    { value: 'totalXp', label: 'Points d\'expérience' },
+    { value: 'badges', label: 'Badges' },
+    { value: 'tasksCompleted', label: 'Tâches terminées' },
+    { value: 'loginStreak', label: 'Jours streak' }
+  ];
+
+  const departmentOptions = [
+    { value: 'all', label: 'Tous les départements' },
+    { value: 'Développement', label: 'Développement' },
+    { value: 'Design', label: 'Design' },
+    { value: 'Marketing', label: 'Marketing' },
+    { value: 'RH', label: 'Ressources Humaines' }
+  ];
 
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="flex items-center gap-2 text-white">
-            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            Chargement du classement...
+        <div className="p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-gray-700 rounded w-64"></div>
+            <div className="grid grid-cols-3 gap-4">
+              {[1,2,3].map(i => (
+                <div key={i} className="h-32 bg-gray-700 rounded"></div>
+              ))}
+            </div>
+            {[1,2,3,4,5].map(i => (
+              <div key={i} className="h-16 bg-gray-700 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="p-6">
+          <div className="bg-red-600/20 border border-red-500 rounded-lg p-4 text-center">
+            <div className="text-4xl mb-4">❌</div>
+            <h3 className="text-lg font-medium text-white mb-2">
+              Erreur de chargement
+            </h3>
+            <p className="text-red-400 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+            >
+              Réessayer
+            </button>
           </div>
         </div>
       </MainLayout>
@@ -161,163 +203,195 @@ const Leaderboard = () => {
 
   return (
     <MainLayout>
-      <div className="space-y-6">
-        {/* Header avec filtres */}
-        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                🏆 Classement Synergia
-              </h2>
-              <p className="text-gray-400">Découvrez les top performers de l'équipe</p>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Link 
-                to="/badges"
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
-              >
-                🏅 Mes Badges
-              </Link>
-            </div>
+      <div className="p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center">
+              🏆 Classement Synergia
+            </h1>
+            <p className="text-gray-400 mt-1">
+              Découvrez les top performers de l'équipe ({leaderboard.length} participants)
+            </p>
           </div>
+          
+          <Link
+            to="/profile"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+          >
+            <span>⚡</span>
+            <span>Mes Badges</span>
+          </Link>
+        </div>
 
-          {/* Filtres */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Filtre période */}
+        {/* Filtres */}
+        <div className="bg-gray-800 p-4 rounded-xl border border-gray-700">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Période</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Période
+              </label>
               <select
                 value={timeFilter}
                 onChange={(e) => setTimeFilter(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
               >
-                <option value="all">🏆 Tout temps</option>
-                <option value="month">📅 Ce mois</option>
-                <option value="week">📊 Cette semaine</option>
+                {timeOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
 
-            {/* Filtre catégorie */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Classé par</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Classé par
+              </label>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
               >
-                <option value="xp">⭐ Points d'expérience</option>
-                <option value="tasks">✅ Tâches complétées</option>
-                <option value="badges">🏅 Badges obtenus</option>
+                {categoryOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Département
+              </label>
+              <select
+                value={departmentFilter}
+                onChange={(e) => setDepartmentFilter(e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+              >
+                {departmentOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
         </div>
 
         {/* Podium Top 3 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {leaderboardData.slice(0, 3).map((userData, index) => (
-            <div key={userData.uid} className={`
-              bg-gray-800 rounded-xl border p-6 text-center relative overflow-hidden
-              ${index === 0 ? 'border-yellow-500 bg-gradient-to-br from-yellow-900/20 to-gray-800' :
-                index === 1 ? 'border-gray-400 bg-gradient-to-br from-gray-700/20 to-gray-800' :
-                'border-orange-500 bg-gradient-to-br from-orange-900/20 to-gray-800'}
-            `}>
-              {/* Badge de rang */}
-              <div className="absolute top-4 right-4 text-2xl">
-                {getRankIcon(userData.rank)}
-              </div>
-
-              {/* Avatar */}
-              <div className="mb-4">
-                <img
-                  src={userData.photoURL || `https://api.dicebear.com/7.x/personas/svg?seed=${userData.displayName}`}
-                  alt={userData.displayName}
-                  className={`w-16 h-16 rounded-full mx-auto border-4 ${
-                    index === 0 ? 'border-yellow-400' :
-                    index === 1 ? 'border-gray-300' :
-                    'border-orange-400'
-                  }`}
-                />
-              </div>
-
-              {/* Infos utilisateur */}
-              <h3 className="text-lg font-bold text-white mb-1">{userData.displayName}</h3>
-              <p className="text-sm text-gray-400 mb-3">{userData.department}</p>
-
-              {/* Métrique principale */}
-              <div className="mb-4">
-                <div className={`text-3xl font-bold ${getRankColor(userData.rank)}`}>
-                  {getDisplayValue(userData).toLocaleString()}
+        {leaderboard.length >= 3 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {leaderboard.slice(0, 3).map((userData) => (
+              <div
+                key={userData.uid}
+                className={`
+                  text-center p-6 rounded-xl border-2 relative overflow-hidden
+                  ${getRankStyle(userData.rank)}
+                  hover:scale-105 transition-transform duration-200
+                `}
+              >
+                <div className="text-4xl mb-3">{getRankIcon(userData.rank)}</div>
+                
+                <div className="w-20 h-20 rounded-full bg-gray-600 mx-auto mb-4 flex items-center justify-center overflow-hidden">
+                  {userData.photoURL ? (
+                    <img
+                      src={userData.photoURL}
+                      alt={userData.displayName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-3xl">👤</span>
+                  )}
                 </div>
-                <div className="text-sm text-gray-400">{getMetricLabel()}</div>
-              </div>
-
-              {/* Stats secondaires */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="text-center">
-                  <div className="text-purple-400 font-medium">Niv. {userData.level}</div>
-                  <div className="text-gray-500">Niveau</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-green-400 font-medium">{userData.loginStreak}</div>
-                  <div className="text-gray-500">Jours streak</div>
+                
+                <h3 className="font-bold text-white text-lg mb-1 truncate">
+                  {userData.displayName}
+                  {userData.uid === user?.uid && (
+                    <span className="block text-xs bg-blue-600 px-2 py-1 rounded mt-1">
+                      C'est vous !
+                    </span>
+                  )}
+                </h3>
+                
+                <p className="text-sm text-gray-400 mb-3">{userData.department}</p>
+                
+                <div className="space-y-1">
+                  <p className="font-bold text-2xl text-white">
+                    {getDisplayValue(userData)}
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    Niveau {userData.level} • {userData.badges} badges
+                  </p>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Classement complet */}
         <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-700">
-            <h3 className="text-lg font-semibold text-white">Classement complet</h3>
+          <div className="p-4 border-b border-gray-700">
+            <h2 className="text-lg font-semibold text-white">
+              Classement complet
+            </h2>
           </div>
-
+          
           <div className="divide-y divide-gray-700">
-            {leaderboardData.map((userData) => (
-              <div key={userData.uid} className={`
-                p-4 hover:bg-gray-700/50 transition-colors
-                ${userData.uid === user?.uid ? 'bg-blue-900/20 border-l-4 border-blue-500' : ''}
-              `}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    {/* Rang */}
-                    <div className={`text-xl font-bold w-8 text-center ${getRankColor(userData.rank)}`}>
+            {leaderboard.map((userData) => (
+              <div
+                key={userData.uid}
+                className={`
+                  flex items-center p-4 transition-colors
+                  ${userData.uid === user?.uid 
+                    ? 'bg-blue-600/10 border-l-4 border-l-blue-500' 
+                    : 'hover:bg-gray-750'
+                  }
+                `}
+              >
+                <div className="flex items-center min-w-0 flex-1">
+                  <div className="w-12 text-center mr-4">
+                    <span className="text-xl font-bold text-gray-300">
                       {getRankIcon(userData.rank)}
-                    </div>
-
-                    {/* Avatar et infos */}
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={userData.photoURL || `https://api.dicebear.com/7.x/personas/svg?seed=${userData.displayName}`}
-                        alt={userData.displayName}
-                        className="w-10 h-10 rounded-full border-2 border-gray-600"
-                      />
-                      <div>
-                        <div className={`font-medium ${userData.uid === user?.uid ? 'text-blue-400' : 'text-white'}`}>
-                          {userData.displayName}
-                          {userData.uid === user?.uid && <span className="ml-2 text-xs text-blue-400">(Vous)</span>}
-                        </div>
-                        <div className="text-sm text-gray-400">{userData.department}</div>
-                      </div>
-                    </div>
+                    </span>
                   </div>
 
-                  {/* Stats */}
-                  <div className="flex items-center gap-6 text-sm">
-                    <div className="text-center">
-                      <div className="text-yellow-400 font-medium">{getDisplayValue(userData).toLocaleString()}</div>
-                      <div className="text-gray-500">{getMetricLabel()}</div>
+                  <div className="w-12 h-12 rounded-full bg-gray-600 mr-4 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                    {userData.photoURL ? (
+                      <img
+                        src={userData.photoURL}
+                        alt={userData.displayName}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-lg">👤</span>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center space-x-2">
+                      <h3 className="font-medium text-white truncate">
+                        {userData.displayName}
+                        {userData.uid === user?.uid && (
+                          <span className="ml-2 text-xs bg-blue-600 px-2 py-1 rounded">
+                            Vous
+                          </span>
+                        )}
+                      </h3>
                     </div>
-                    <div className="text-center">
-                      <div className="text-purple-400 font-medium">Niv. {userData.level}</div>
-                      <div className="text-gray-500">Niveau</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-green-400 font-medium">{userData.badges}</div>
-                      <div className="text-gray-500">Badges</div>
-                    </div>
+                    <p className="text-sm text-gray-400 truncate">
+                      {userData.department} • Niveau {userData.level}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right ml-4">
+                  <div className="font-bold text-lg text-white">
+                    {getDisplayValue(userData)}
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    {userData.badges} badges
                   </div>
                 </div>
               </div>
@@ -325,19 +399,25 @@ const Leaderboard = () => {
           </div>
         </div>
 
-        {/* Message motivationnel */}
-        <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-700 rounded-xl p-6">
-          <div className="flex items-center gap-4">
-            <span className="text-4xl">🎯</span>
-            <div>
-              <h4 className="text-blue-400 font-semibold text-lg">Continuez vos efforts !</h4>
-              <p className="text-blue-200">
-                Complétez vos tâches, gagnez de l'XP et grimpez dans le classement. 
-                Chaque action compte pour améliorer votre rang !
-              </p>
-            </div>
+        {/* État vide */}
+        {leaderboard.length === 0 && (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">📊</div>
+            <h3 className="text-xl font-medium text-white mb-2">
+              Aucun participant trouvé
+            </h3>
+            <p className="text-gray-400 mb-6">
+              Commencez à utiliser l'application pour apparaître dans le classement !
+            </p>
+            <Link
+              to="/tasks"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors inline-flex items-center space-x-2"
+            >
+              <span>🎯</span>
+              <span>Créer ma première tâche</span>
+            </Link>
           </div>
-        </div>
+        )}
       </div>
     </MainLayout>
   );
