@@ -1,8 +1,10 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/projectStore.js
-// Store Projets avec PERSISTENCE
+// Store Projets avec PERSISTENCE - IMPORTS CORRIGÉS
 // ==========================================
 
+import { create } from 'zustand';
+import { persist, subscribeWithSelector } from 'zustand/middleware';
 import { projectService } from '../../core/services/taskService.js';
 
 export const useProjectStore = create(
