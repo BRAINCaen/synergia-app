@@ -1,11 +1,11 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/projectStore.js
-// Store Projets avec PERSISTENCE - IMPORTS CORRIGÉS
+// Store Projets CORRIGÉ avec imports Zustand
 // ==========================================
 
-import { create } from 'zustand';
-import { persist, subscribeWithSelector } from 'zustand/middleware';
-import { projectService } from '../../core/services/taskService.js';
+import { create } from 'zustand'
+import { persist, subscribeWithSelector } from 'zustand/middleware'
+import { projectService } from '../../core/services/taskService.js'
 
 export const useProjectStore = create(
   subscribeWithSelector(
@@ -44,6 +44,10 @@ export const useProjectStore = create(
 
         // ✅ Créer un projet
         createProject: async (projectData, userId) => {
+          if (!userId) {
+            throw new Error('UserId requis pour créer un projet');
+          }
+          
           set({ creating: true });
           try {
             const newProject = await projectService.createProject(projectData, userId);
