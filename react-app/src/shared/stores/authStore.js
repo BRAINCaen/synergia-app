@@ -1,128 +1,40 @@
-// src/shared/stores/authStore.js - STORE ZUSTAND POUR L'AUTHENTIFICATION
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+// src/shared/stores/authStore.js
+import { create } from 'zustand'
+import { devtools } from 'zustand/middleware'
 
 const useAuthStore = create(
-  persist(
+  devtools(
     (set, get) => ({
-      // État
+      // État initial
       user: null,
+      userProfile: null,
       loading: true,
       error: null,
-      isAuthenticated: false,
 
       // Actions
-      setUser: (user) => set({ 
-        user, 
-        isAuthenticated: !!user,
-        error: null 
-      }),
-
+      setUser: (user) => set({ user, error: null }),
+      
+      setUserProfile: (userProfile) => set({ userProfile }),
+      
       setLoading: (loading) => set({ loading }),
-
+      
       setError: (error) => set({ error }),
-
-      logout: () => set({ 
-        user: null, 
-        isAuthenticated: false, 
-        error: null 
+      
+      // Réinitialiser le store
+      reset: () => set({
+        user: null,
+        userProfile: null,
+        loading: false,
+        error: null
       }),
 
       // Getters
-      getCurrentUser: () => get().user,
-      
-      isAdmin: () => {
-        const user = get().user;
-        return user?.profile?.role === 'admin';
-      },
-
-      isManager: () => {
-        const user = get().user;
-        return user?.profile?.role === 'manager' || user?.profile?.role === 'admin';
-      },
-
-      getUserRole: () => {
-        const user = get().user;
-        return user?.profile?.role || 'employee';
-      },
-
-      getUserDisplayName: () => {
-        const user = get().user;
-        return user?.displayName || user?.email?.split('@')[0] || 'Utilisateur';
-      },
-
-      getUserXP: () => {
-        const user = get().user;
-        return user?.profile?.gamification?.xp || 0;
-      },
-
-      getUserLevel: () => {
-        const user = get().user;
-        return user?.profile?.gamification?.level || 1;
-      },
-
-      getUserBadges: () => {
-        const user = get().user;
-        return user?.profile?.gamification?.badges || [];
-      },
-
-      // Actions de mise à jour du profil
-      updateUserProfile: (profileUpdates) => set((state) => ({
-        user: state.user ? {
-          ...state.user,
-          profile: {
-            ...state.user.profile,
-            ...profileUpdates
-          }
-        } : null
-      })),
-
-      updateUserXP: (newXP, newLevel) => set((state) => ({
-        user: state.user ? {
-          ...state.user,
-          profile: {
-            ...state.user.profile,
-            gamification: {
-              ...state.user.profile?.gamification,
-              xp: newXP,
-              level: newLevel
-            }
-          }
-        } : null
-      })),
-
-      addUserBadge: (badge) => set((state) => ({
-        user: state.user ? {
-          ...state.user,
-          profile: {
-            ...state.user.profile,
-            gamification: {
-              ...state.user.profile?.gamification,
-              badges: [
-                ...(state.user.profile?.gamification?.badges || []),
-                badge
-              ]
-            }
-          }
-        } : null
-      })),
-
-      // Reset du store
-      reset: () => set({
-        user: null,
-        loading: false,
-        error: null,
-        isAuthenticated: false
-      })
+      isAuthenticated: () => !!get().user,
+      isAdmin: () => get().userProfile?.role === 'admin',
+      isManager: () => ['admin', 'manager'].includes(get().userProfile?.role),
     }),
-    {
-      name: 'synergia-auth',
-      partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated
-      })
-    }
+    { name: 'auth-store' }
   )
-);
+)
 
-export default useAuthStore;
+export default useAuthStore
