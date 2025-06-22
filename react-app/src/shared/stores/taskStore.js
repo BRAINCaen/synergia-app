@@ -1,11 +1,11 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/taskStore.js
-// Store Zustand avec PERSISTENCE - RÉCUPÉRATION COMPLÈTE
+// Store Zustand avec PERSISTENCE - IMPORTS CORRIGÉS
 // ==========================================
 
 import { create } from 'zustand';
 import { persist, subscribeWithSelector } from 'zustand/middleware';
-import taskService, { TaskService } from '../../core/services/taskService.js';
+import taskService from '../../core/services/taskService.js';
 
 export const useTaskStore = create(
   subscribeWithSelector(
