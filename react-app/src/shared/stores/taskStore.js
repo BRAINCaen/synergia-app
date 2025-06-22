@@ -1,8 +1,3 @@
-// ==========================================
-// 📁 react-app/src/shared/stores/taskStore.js
-// Store Tâches CORRIGÉ avec imports Zustand
-// ==========================================
-
 import { create } from 'zustand'
 import { persist, subscribeWithSelector } from 'zustand/middleware'
 import taskService from '../../core/services/taskService.js'
@@ -14,8 +9,6 @@ export const useTaskStore = create(
         // État des tâches
         tasks: [],
         currentTask: null,
-        
-        // États de chargement
         loading: false,
         creating: false,
         updating: false,
@@ -289,7 +282,7 @@ export const useTaskStore = create(
         }
       }),
       {
-        name: 'synergia-tasks', // Clé localStorage
+        name: 'synergia-tasks',
         partialize: (state) => ({
           tasks: state.tasks,
           filters: state.filters,
