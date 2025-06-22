@@ -1,8 +1,3 @@
-// ==========================================
-// 📁 react-app/src/shared/hooks/useTaskService.js
-// Hook d'intégration TaskService + Store - IMPORTS CORRIGÉS
-// ==========================================
-
 import { useEffect, useCallback } from 'react';
 import { useAuthStore } from '../stores/authStore.js';
 import { useTaskStore } from '../stores/taskStore.js';
