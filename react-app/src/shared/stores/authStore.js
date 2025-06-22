@@ -1,23 +1,23 @@
-// src/shared/stores/authStore.js
 import { create } from 'zustand'
 
-const useAuthStore = create((set) => ({
+export const useAuthStore = create((set, get) => ({
   user: null,
-  userProfile: null,
   loading: true,
   error: null,
 
   setUser: (user) => set({ user, error: null }),
-  setUserProfile: (userProfile) => set({ userProfile }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
-  
-  reset: () => set({
-    user: null,
-    userProfile: null,
-    loading: false,
-    error: null
-  })
-}))
 
-export default useAuthStore
+  clearAuth: () => set({ user: null, error: null }),
+
+  isAuthenticated: () => {
+    const { user } = get()
+    return !!user
+  },
+
+  getUserDisplayName: () => {
+    const { user } = get()
+    return user?.displayName || user?.email || 'Utilisateur'
+  }
+}))
