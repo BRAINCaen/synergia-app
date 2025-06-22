@@ -1,10 +1,7 @@
-// ==========================================
-// 📁 react-app/src/shared/hooks/useGameService.js
-// Hook Gamification MISE À JOUR avec persistance
-// ==========================================
-
-import { gameService } from '../../core/services/gameService.js';
+import { useEffect, useCallback } from 'react';
+import { useAuthStore } from '../stores/authStore.js';
 import { useGameStore } from '../stores/gameStore.js';
+import { gameService } from '../../core/services/gameService.js';
 
 export const useGameService = () => {
   const { user } = useAuthStore();
