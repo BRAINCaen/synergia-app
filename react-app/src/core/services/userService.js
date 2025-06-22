@@ -1,347 +1,307 @@
-// src/services/userService.js - SERVICE UTILISATEUR POUR AUTO-CRÉATION
-import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
-import { db } from '../core/firebase.js';
-import { COLLECTIONS, USER_ROLES, USER_STATUS } from '../core/constants.js';
+// src/modules/auth/services/userService.js
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  collection, 
+  query, 
+  where, 
+  getDocs,
+  serverTimestamp 
+} from "firebase/firestore";
+import { db } from "../../../core/firebase.js";
+import { COLLECTIONS, USER_ROLES, USER_STATUS } from "../../../core/constants.js";
 
 class UserService {
-  
-  /**
-   * 🤖 AUTO-CRÉATION : Vérifie et crée automatiquement le profil utilisateur
-   * @param {Object} user - Utilisateur Firebase Auth
-   * @returns {Promise<Object>} - { profile, wasCreated }
-   */
-  async ensureUserExists(user) {
-    if (!user || !user.uid) {
-      throw new Error('Utilisateur invalide fourni');
-    }
-
+  // Récupérer le profil utilisateur complet
+  async getUserProfile(uid) {
     try {
-      const userRef = doc(db, COLLECTIONS.USERS, user.uid);
+      const userRef = doc(db, COLLECTIONS.USERS, uid);
       const userSnap = await getDoc(userRef);
       
       if (userSnap.exists()) {
-        // Document existe, mettre à jour lastLoginAt
-        await this.updateLastLogin(user.uid);
-        return { profile: userSnap.data(), wasCreated: false };
+        const userData = userSnap.data();
+        
+        // Vérifier et corriger les données manquantes
+        const correctedData = await this.ensureUserDataIntegrity(uid, userData);
+        
+        return { profile: correctedData, error: null };
+      } else {
+        // Auto-créer le profil s'il n'existe pas
+        const newProfile = await this.createDefaultProfile(uid);
+        return { profile: newProfile, error: null };
       }
-      
-      // Document n'existe pas, le créer automatiquement
-      console.log(`🤖 AUTO-CRÉATION profil pour: ${user.email}`);
-      const newProfile = await this.createCompleteProfile(user);
-      
-      return { profile: newProfile, wasCreated: true };
-      
     } catch (error) {
-      console.error('❌ Erreur ensureUserExists:', error);
-      throw error;
+      console.error('Erreur lors de la récupération du profil:', error);
+      return { profile: null, error: error.message };
     }
   }
 
-  /**
-   * 📝 CRÉATION COMPLÈTE : Crée un profil utilisateur complet automatiquement
-   * @param {Object} user - Utilisateur Firebase Auth
-   * @returns {Promise<Object>} - Profil utilisateur créé
-   */
-  async createCompleteProfile(user) {
-    const now = new Date();
-    
-    // 🎯 PROFIL UTILISATEUR COMPLET ET AUTOMATIQUE
-    const completeProfile = {
-      // Identité de base
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName || this.generateDisplayName(user.email),
-      photoURL: user.photoURL || '',
-      
-      // Système
-      role: USER_ROLES.EMPLOYEE, // Par défaut : employé
+  // Créer un profil par défaut
+  async createDefaultProfile(uid, additionalData = {}) {
+    const defaultProfile = {
+      uid,
+      email: additionalData.email || '',
+      displayName: additionalData.displayName || '',
+      photoURL: additionalData.photoURL || '',
+      role: USER_ROLES.EMPLOYEE,
       status: USER_STATUS.ACTIVE,
-      version: '3.0',
-      migrationComplete: true,
-      
-      // Timestamps automatiques
-      createdAt: now,
-      lastLoginAt: now,
-      updatedAt: now,
-      
-      // 🎛️ PRÉFÉRENCES PAR DÉFAUT
+      createdAt: serverTimestamp(),
+      lastLoginAt: serverTimestamp(),
       preferences: {
-        theme: 'dark', // Thème sombre par défaut
-        language: 'fr', // Français par défaut
+        theme: 'dark',
+        language: 'fr',
         notifications: {
           email: true,
           push: true,
-          inApp: true,
-          sound: true
-        },
-        privacy: {
-          showEmail: false,
-          showActivity: true,
-          publicProfile: false
-        },
-        display: {
-          compactMode: false,
-          animationsEnabled: true,
-          showTutorials: true
+          inApp: true
         }
       },
-      
-      // 👤 PROFIL UTILISATEUR
       profile: {
         bio: '',
         department: '',
         position: '',
         skills: [],
-        interests: [],
         phone: '',
-        location: '',
-        website: '',
-        social: {
-          linkedin: '',
-          twitter: '',
-          github: ''
-        },
-        avatar: {
-          style: 'initials', // ou 'photo', 'generated'
-          color: this.generateAvatarColor(),
-          initials: this.generateInitials(user.displayName || user.email)
-        }
+        location: ''
       },
-      
-      // 🎮 GAMIFICATION COMPLÈTE
       gamification: {
-        // XP et Niveaux
-        xp: 50, // XP de démarrage pour première connexion
+        xp: 0,
         level: 1,
-        totalXp: 50,
-        xpToNextLevel: 50, // XP nécessaire pour niveau 2
-        
-        // Progression
-        streakDays: 1, // Premier jour de connexion
-        longestStreak: 1,
-        joinedAt: now,
-        lastActivityAt: now,
-        lastXpGainAt: now,
-        
-        // Collections
-        badges: [
-          {
-            id: 'welcome',
-            name: 'Bienvenue !',
-            description: 'Premier pas dans Synergia',
-            category: 'debut',
-            rarity: 'common',
-            unlockedAt: now,
-            xpReward: 50
-          }
-        ],
-        achievements: [
-          {
-            id: 'first_login',
-            name: 'Première Connexion',
-            description: 'Connecté pour la première fois',
-            progress: 1,
-            target: 1,
-            completed: true,
-            completedAt: now,
-            category: 'social'
-          },
-          {
-            id: 'profile_completion',
-            name: 'Profil Complet', 
-            description: 'Compléter son profil à 100%',
-            progress: 30, // 30% déjà fait (infos de base)
-            target: 100,
-            completed: false,
-            category: 'profile'
-          }
-        ],
-        
-        // Système de récompenses
-        rewards: {
-          dailyLoginBonus: 0, // Compteur bonus connexion
-          weeklyTasksCompleted: 0,
-          monthlyGoals: []
-        }
+        totalXp: 0,
+        badges: [],
+        achievements: [],
+        streakDays: 0,
+        lastActivityAt: serverTimestamp(),
+        joinedAt: serverTimestamp()
       },
-      
-      // 📊 STATISTIQUES DÉTAILLÉES
-      stats: {
-        // Activité générale
-        tasksCompleted: 0,
-        projectsCreated: 0,
-        projectsJoined: 0,
-        helpProvided: 0,
-        loginCount: 1,
-        
-        // Temps et engagement
-        totalTimeSpent: 0, // en minutes
-        averageSessionTime: 0,
-        lastSessionDuration: 0,
-        
-        // Social
-        messagesExchanged: 0,
-        collaborationsInitiated: 0,
-        feedbackGiven: 0,
-        
-        // Performance
-        taskCompletionRate: 0,
-        averageTaskTime: 0,
-        projectsOnTime: 0,
-        
-        // Gamification
-        badgesEarned: 1, // Badge de bienvenue
-        achievementsUnlocked: 1,
-        leaderboardPosition: 0
-      },
-      
-      // 🔧 MÉTADONNÉES SYSTÈME
-      metadata: {
-        source: 'auto_creation', // Comment le profil a été créé
-        platform: this.detectPlatform(),
-        userAgent: navigator.userAgent.substring(0, 100),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        language: navigator.language,
-        registrationIP: 'hidden', // Pour la sécurité
-        firstLoginDevice: this.getDeviceInfo()
-      },
-      
-      // 🚀 ONBOARDING
-      onboarding: {
-        completed: false,
-        currentStep: 'welcome',
-        stepsCompleted: ['account_created'],
-        lastStepAt: now,
-        tutorialsSeen: [],
-        firstTimeActions: {
-          dashboardVisited: false,
-          firstTaskCreated: false,
-          profileEdited: false,
-          firstCollaboration: false
-        }
-      }
+      ...additionalData
     };
 
-    // 💾 SAUVEGARDE EN BASE
-    const userRef = doc(db, COLLECTIONS.USERS, user.uid);
-    await setDoc(userRef, completeProfile);
-    
-    console.log('✅ Profil utilisateur créé automatiquement:', {
-      email: user.email,
-      uid: user.uid,
-      xp: completeProfile.gamification.xp,
-      badges: completeProfile.gamification.badges.length
-    });
-    
-    return completeProfile;
+    await setDoc(doc(db, COLLECTIONS.USERS, uid), defaultProfile);
+    return defaultProfile;
   }
 
-  /**
-   * 🔄 MISE À JOUR DERNIÈRE CONNEXION
-   */
-  async updateLastLogin(uid) {
+  // Assurer l'intégrité des données utilisateur
+  async ensureUserDataIntegrity(uid, userData) {
+    let needsUpdate = false;
+    const updates = { ...userData };
+
+    // Vérifier les champs obligatoires
+    if (!updates.role) {
+      updates.role = USER_ROLES.EMPLOYEE;
+      needsUpdate = true;
+    }
+
+    if (!updates.status) {
+      updates.status = USER_STATUS.ACTIVE;
+      needsUpdate = true;
+    }
+
+    if (!updates.preferences) {
+      updates.preferences = {
+        theme: 'dark',
+        language: 'fr',
+        notifications: {
+          email: true,
+          push: true,
+          inApp: true
+        }
+      };
+      needsUpdate = true;
+    }
+
+    if (!updates.profile) {
+      updates.profile = {
+        bio: '',
+        department: '',
+        position: '',
+        skills: [],
+        phone: '',
+        location: ''
+      };
+      needsUpdate = true;
+    }
+
+    if (!updates.gamification) {
+      updates.gamification = {
+        xp: 0,
+        level: 1,
+        totalXp: 0,
+        badges: [],
+        achievements: [],
+        streakDays: 0,
+        lastActivityAt: serverTimestamp(),
+        joinedAt: userData.createdAt || serverTimestamp()
+      };
+      needsUpdate = true;
+    }
+
+    // Mettre à jour si nécessaire
+    if (needsUpdate) {
+      await updateDoc(doc(db, COLLECTIONS.USERS, uid), updates);
+    }
+
+    return updates;
+  }
+
+  // Mettre à jour le profil utilisateur
+  async updateUserProfile(uid, updates) {
     try {
       const userRef = doc(db, COLLECTIONS.USERS, uid);
-      await updateDoc(userRef, {
-        lastLoginAt: new Date(),
-        'stats.loginCount': increment(1)
-      });
-    } catch (error) {
-      console.warn('⚠️ Erreur mise à jour dernière connexion:', error);
-    }
-  }
-
-  /**
-   * 🎨 UTILITAIRES DE GÉNÉRATION
-   */
-  generateDisplayName(email) {
-    const name = email.split('@')[0];
-    return name.charAt(0).toUpperCase() + name.slice(1);
-  }
-  
-  generateInitials(name) {
-    if (!name) return 'SY';
-    const parts = name.split(' ');
-    if (parts.length >= 2) {
-      return parts[0][0].toUpperCase() + parts[1][0].toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
-  }
-  
-  generateAvatarColor() {
-    const colors = ['#3B82F6', '#8B5CF6', '#EF4444', '#10B981', '#F59E0B', '#EC4899'];
-    return colors[Math.floor(Math.random() * colors.length)];
-  }
-  
-  detectPlatform() {
-    const userAgent = navigator.userAgent.toLowerCase();
-    if (userAgent.includes('mobile')) return 'mobile';
-    if (userAgent.includes('tablet')) return 'tablet';
-    return 'desktop';
-  }
-  
-  getDeviceInfo() {
-    return {
-      screen: `${screen.width}x${screen.height}`,
-      platform: navigator.platform,
-      cookieEnabled: navigator.cookieEnabled,
-      language: navigator.language
-    };
-  }
-
-  /**
-   * 🎯 MISE À JOUR SÉCURISÉE
-   */
-  async safeUpdate(uid, updates) {
-    try {
-      await this.ensureUserExists({ uid });
-      const userRef = doc(db, COLLECTIONS.USERS, uid);
-      await updateDoc(userRef, {
+      const updateData = {
         ...updates,
-        updatedAt: new Date()
-      });
-      return { success: true };
+        updatedAt: serverTimestamp()
+      };
+
+      await updateDoc(userRef, updateData);
+      return { error: null };
     } catch (error) {
-      console.error('❌ Erreur mise à jour:', error);
-      return { success: false, error: error.message };
+      console.error('Erreur lors de la mise à jour du profil:', error);
+      return { error: error.message };
     }
   }
 
-  /**
-   * 📖 RÉCUPÉRER PROFIL UTILISATEUR
-   */
-  async getUserProfile(uid, fallbackUserData = null) {
+  // Mettre à jour les préférences
+  async updateUserPreferences(uid, preferences) {
     try {
       const userRef = doc(db, COLLECTIONS.USERS, uid);
-      const userSnap = await getDoc(userRef);
-      
-      if (userSnap.exists()) {
-        return { profile: userSnap.data(), created: false };
-      }
-      
-      // Si le document n'existe pas et qu'on a des données de fallback
-      if (fallbackUserData) {
-        const newProfile = await this.createCompleteProfile(fallbackUserData);
-        return { profile: newProfile, created: true };
-      }
-      
-      return { profile: null, created: false };
+      await updateDoc(userRef, {
+        preferences: {
+          ...preferences
+        },
+        updatedAt: serverTimestamp()
+      });
+      return { error: null };
     } catch (error) {
-      console.error('❌ Erreur récupération profil:', error);
-      return { profile: null, error: error.message };
+      console.error('Erreur lors de la mise à jour des préférences:', error);
+      return { error: error.message };
     }
   }
 
-  /**
-   * 👥 ÉCOUTE TEMPS RÉEL
-   */
-  listenToUser(uid, callback) {
-    const userRef = doc(db, COLLECTIONS.USERS, uid);
-    return onSnapshot(userRef, (doc) => {
-      if (doc.exists()) {
-        callback(doc.data());
+  // Mettre à jour la dernière activité
+  async updateLastActivity(uid) {
+    try {
+      const userRef = doc(db, COLLECTIONS.USERS, uid);
+      await updateDoc(userRef, {
+        lastActivityAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la dernière activité:', error);
+    }
+  }
+
+  // Rechercher des utilisateurs
+  async searchUsers(searchTerm, filters = {}) {
+    try {
+      let q = collection(db, COLLECTIONS.USERS);
+
+      // Appliquer les filtres
+      if (filters.role) {
+        q = query(q, where('role', '==', filters.role));
       }
-    });
+
+      if (filters.status) {
+        q = query(q, where('status', '==', filters.status));
+      }
+
+      if (filters.department) {
+        q = query(q, where('profile.department', '==', filters.department));
+      }
+
+      const querySnapshot = await getDocs(q);
+      const users = [];
+
+      querySnapshot.forEach((doc) => {
+        const userData = doc.data();
+        // Filtrer par terme de recherche côté client
+        if (!searchTerm || 
+            userData.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            userData.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            userData.profile?.department?.toLowerCase().includes(searchTerm.toLowerCase())) {
+          users.push({ id: doc.id, ...userData });
+        }
+      });
+
+      return { users, error: null };
+    } catch (error) {
+      console.error('Erreur lors de la recherche d\'utilisateurs:', error);
+      return { users: [], error: error.message };
+    }
+  }
+
+  // Obtenir tous les utilisateurs d'un département
+  async getUsersByDepartment(department) {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.USERS),
+        where('profile.department', '==', department),
+        where('status', '==', USER_STATUS.ACTIVE)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const users = [];
+
+      querySnapshot.forEach((doc) => {
+        users.push({ id: doc.id, ...doc.data() });
+      });
+
+      return { users, error: null };
+    } catch (error) {
+      console.error('Erreur lors de la récupération des utilisateurs par département:', error);
+      return { users: [], error: error.message };
+    }
+  }
+
+  // Obtenir les statistiques utilisateur
+  async getUserStats(uid) {
+    try {
+      const userProfile = await this.getUserProfile(uid);
+      
+      if (userProfile.error) {
+        return { stats: null, error: userProfile.error };
+      }
+
+      const stats = {
+        totalXp: userProfile.profile.gamification?.totalXp || 0,
+        level: userProfile.profile.gamification?.level || 1,
+        badgesCount: userProfile.profile.gamification?.badges?.length || 0,
+        achievementsCount: userProfile.profile.gamification?.achievements?.length || 0,
+        streakDays: userProfile.profile.gamification?.streakDays || 0,
+        joinedDaysAgo: this.calculateDaysSince(userProfile.profile.createdAt),
+        lastLoginDaysAgo: this.calculateDaysSince(userProfile.profile.lastLoginAt)
+      };
+
+      return { stats, error: null };
+    } catch (error) {
+      console.error('Erreur lors du calcul des statistiques:', error);
+      return { stats: null, error: error.message };
+    }
+  }
+
+  // Calculer le nombre de jours depuis une date
+  calculateDaysSince(date) {
+    if (!date) return 0;
+    
+    const now = new Date();
+    const targetDate = date.toDate ? date.toDate() : new Date(date);
+    const diffTime = Math.abs(now - targetDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays;
+  }
+
+  // Vérifier si l'utilisateur a les permissions
+  checkPermission(userRole, requiredRole) {
+    const roleHierarchy = {
+      [USER_ROLES.GUEST]: 0,
+      [USER_ROLES.EMPLOYEE]: 1,
+      [USER_ROLES.MANAGER]: 2,
+      [USER_ROLES.ADMIN]: 3
+    };
+
+    return roleHierarchy[userRole] >= roleHierarchy[requiredRole];
   }
 }
 
