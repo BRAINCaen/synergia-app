@@ -6,6 +6,13 @@ import { ROUTES } from '../core/constants.js'
 // Pages
 import Login from '../pages/Login.jsx'
 import Dashboard from '../pages/Dashboard.jsx'
+import NotFound from '../pages/NotFound.jsx'
+
+// Components
+import TaskComponent from '../components/gamification/TaskComponent.jsx'
+import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
+import Leaderboard from '../components/gamification/Leaderboard.jsx'
+import Profile from '../modules/profile/components/Profile.jsx'
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -13,8 +20,11 @@ function ProtectedRoute({ children }) {
   
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-white">Chargement...</p>
+        </div>
       </div>
     )
   }
@@ -32,8 +42,11 @@ function PublicRoute({ children }) {
   
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-white">Chargement...</p>
+        </div>
       </div>
     )
   }
@@ -72,10 +85,7 @@ export default function AppRoutes() {
         path={ROUTES.TASKS} 
         element={
           <ProtectedRoute>
-            <div className="p-8">
-              <h1 className="text-2xl font-bold">Tâches</h1>
-              <p className="text-gray-600">Module des tâches en cours de développement...</p>
-            </div>
+            <TaskComponent />
           </ProtectedRoute>
         } 
       />
@@ -84,10 +94,7 @@ export default function AppRoutes() {
         path={ROUTES.LEADERBOARD} 
         element={
           <ProtectedRoute>
-            <div className="p-8">
-              <h1 className="text-2xl font-bold">Classement</h1>
-              <p className="text-gray-600">Module de classement en cours de développement...</p>
-            </div>
+            <Leaderboard />
           </ProtectedRoute>
         } 
       />
@@ -96,10 +103,16 @@ export default function AppRoutes() {
         path={ROUTES.PROFILE} 
         element={
           <ProtectedRoute>
-            <div className="p-8">
-              <h1 className="text-2xl font-bold">Profil</h1>
-              <p className="text-gray-600">Module de profil en cours de développement...</p>
-            </div>
+            <Profile />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/badges" 
+        element={
+          <ProtectedRoute>
+            <BadgeCollection />
           </ProtectedRoute>
         } 
       />
@@ -108,20 +121,7 @@ export default function AppRoutes() {
       <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
       
       {/* 404 Route */}
-      <Route path="*" element={
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
-            <p className="text-gray-600 mb-6">Page non trouvée</p>
-            <button 
-              onClick={() => window.history.back()}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-            >
-              Retour
-            </button>
-          </div>
-        </div>
-      } />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   )
 }
