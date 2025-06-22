@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Card from '../../shared/components/ui/Card.jsx';
-import leaderboardService from '../../services/leaderboardService.js';
+import leaderboardService from '../../core/services/leaderboardService.js';
 import useUserStore from '../../shared/stores/userStore.js';
 
 const Leaderboard = () => {
@@ -445,7 +445,7 @@ export default Leaderboard;
 
 import React, { useState, useEffect } from 'react';
 import Card from '../../shared/components/ui/Card.jsx';
-import leaderboardService from '../../services/leaderboardService.js';
+import leaderboardService from '../../core/services/leaderboardService.js';
 
 const LeaderboardMini = ({ limit = 5 }) => {
   const [topUsers, setTopUsers] = useState([]);
