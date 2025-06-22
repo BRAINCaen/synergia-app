@@ -85,7 +85,7 @@ export default function AppRoutes() {
         path={ROUTES.TASKS} 
         element={
           <ProtectedRoute>
-            <TaskComponent />
+            <TaskList />
           </ProtectedRoute>
         } 
       />
