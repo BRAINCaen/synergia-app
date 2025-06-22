@@ -14,6 +14,9 @@ import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
 import Leaderboard from '../components/gamification/Leaderboard.jsx'
 import Profile from '../modules/profile/components/Profile.jsx'
 
+// ✅ AJOUT : Import du ProjectDashboard
+import { ProjectDashboard } from '../modules/projects/ProjectDashboard.jsx'
+
 // Protected Route Component
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuthStore()
@@ -86,6 +89,16 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute>
             <TaskList />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* ✅ NOUVELLE ROUTE : Projects */}
+      <Route 
+        path="/projects" 
+        element={
+          <ProtectedRoute>
+            <ProjectDashboard />
           </ProtectedRoute>
         } 
       />
