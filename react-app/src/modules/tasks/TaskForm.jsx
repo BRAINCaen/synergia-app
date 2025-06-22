@@ -1,11 +1,12 @@
-// src/modules/tasks/TaskForm.jsx - Version sombre corrigée
+// src/modules/tasks/TaskForm.jsx - Version avec gestion dates corrigée
 import React, { useState, useEffect } from 'react';
 import { useTaskStore } from '../../shared/stores/taskStore.js';
 import { useProjectStore } from '../../shared/stores/projectStore.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
+import dateUtils from '../../shared/utils/dateUtils.js';
 
 export const TaskForm = ({ task, onClose, onSave }) => {
-  const { createTask, updating, creating } = useTaskStore();
+  const { createTask, updateTask, creating, updating } = useTaskStore();
   const { projects } = useProjectStore();
   const { user } = useAuthStore();
   
@@ -22,50 +23,68 @@ export const TaskForm = ({ task, onClose, onSave }) => {
   const [tagInput, setTagInput] = useState('');
   const [errors, setErrors] = useState({});
 
-  // Initialiser le formulaire pour l'édition
+  // 🔧 CORRECTION : Initialiser le formulaire avec gestion dates sécurisée
   useEffect(() => {
     if (task) {
       setFormData({
         title: task.title || '',
         description: task.description || '',
         priority: task.priority || 'medium',
-        dueDate: task.dueDate ? formatDateForInput(task.dueDate) : '',
+        dueDate: task.dueDate ? dateUtils.formatForInput(task.dueDate) : '',
         estimatedTime: task.estimatedTime || '',
         projectId: task.projectId || '',
-        tags: task.tags || []
+        tags: Array.isArray(task.tags) ? task.tags : []
       });
     }
   }, [task]);
-
-  // Formater la date pour l'input datetime-local
-  const formatDateForInput = (date) => {
-    const dateObj = date.toDate ? date.toDate() : date;
-    return dateObj.toISOString().slice(0, 16);
-  };
 
   // Validation du formulaire
   const validateForm = () => {
     const newErrors = {};
     
-    if (!formData.title.trim()) {
+    // Titre requis
+    if (!formData.title?.trim()) {
       newErrors.title = 'Le titre est requis';
     } else if (formData.title.length > 100) {
       newErrors.title = 'Le titre ne peut pas dépasser 100 caractères';
     }
     
+    // Description optionnelle mais limitée
     if (formData.description && formData.description.length > 500) {
       newErrors.description = 'La description ne peut pas dépasser 500 caractères';
     }
     
-    if (formData.estimatedTime && (formData.estimatedTime < 5 || formData.estimatedTime > 2880)) {
-      newErrors.estimatedTime = 'Le temps estimé doit être entre 5 minutes et 48 heures';
+    // Validation du temps estimé
+    if (formData.estimatedTime) {
+      const time = parseInt(formData.estimatedTime);
+      if (isNaN(time) || time < 5 || time > 2880) {
+        newErrors.estimatedTime = 'Le temps estimé doit être entre 5 minutes et 48 heures';
+      }
+    }
+    
+    // 🔧 CORRECTION : Validation de la date d'échéance
+    if (formData.dueDate) {
+      try {
+        const dueDate = new Date(formData.dueDate);
+        if (!dateUtils.fromFirebaseTimestamp(dueDate)) {
+          newErrors.dueDate = 'Date d\'échéance invalide';
+        } else {
+          // Vérifier que la date n'est pas dans le passé (sauf si on modifie une tâche existante)
+          const now = new Date();
+          if (!task && dueDate < now) {
+            newErrors.dueDate = 'La date d\'échéance ne peut pas être dans le passé';
+          }
+        }
+      } catch (error) {
+        newErrors.dueDate = 'Format de date invalide';
+      }
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Sauvegarder la tâche
+  // 🔧 CORRECTION : Sauvegarder avec gestion dates sécurisée
   const handleSave = async (e) => {
     e.preventDefault();
     
@@ -73,30 +92,50 @@ export const TaskForm = ({ task, onClose, onSave }) => {
     
     // Vérification utilisateur
     if (!user?.uid) {
-      console.error('Utilisateur non connecté');
+      setErrors({ general: 'Utilisateur non connecté' });
       return;
     }
     
     try {
+      // 🔧 CORRECTION : Préparer les données avec dates normalisées
       const taskData = {
-        ...formData,
-        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
+        title: formData.title.trim(),
+        description: formData.description?.trim() || '',
+        priority: formData.priority,
+        projectId: formData.projectId || null,
+        tags: formData.tags,
         estimatedTime: formData.estimatedTime ? parseInt(formData.estimatedTime) : null,
-        projectId: formData.projectId || null
+        dueDate: null
       };
       
-      console.log('Création tâche avec user:', user.uid, 'data:', taskData);
+      // Gestion sécurisée de la date d'échéance
+      if (formData.dueDate) {
+        try {
+          const dueDate = dateUtils.toFirebaseTimestamp(new Date(formData.dueDate));
+          if (dueDate) {
+            taskData.dueDate = dueDate;
+          }
+        } catch (error) {
+          console.warn('Erreur conversion date échéance:', error);
+          setErrors({ dueDate: 'Erreur de format de date' });
+          return;
+        }
+      }
+      
+      console.log('🚀 Données tâche à sauvegarder:', taskData);
       
       if (task) {
-        // await updateTask(task.id, taskData, user.uid);
-        console.log('Mise à jour pas encore implémentée');
+        await updateTask(task.id, taskData, user.uid);
+        console.log('✅ Tâche mise à jour avec succès');
       } else {
         await createTask(taskData, user.uid);
+        console.log('✅ Tâche créée avec succès');
       }
       
       onSave?.();
     } catch (error) {
-      console.error('Erreur sauvegarde tâche:', error);
+      console.error('❌ Erreur sauvegarde tâche:', error);
+      setErrors({ general: 'Erreur lors de la sauvegarde: ' + error.message });
     }
   };
 
@@ -143,10 +182,12 @@ export const TaskForm = ({ task, onClose, onSave }) => {
 
         {/* Formulaire */}
         <form onSubmit={handleSave} className="p-6 space-y-6">
-          {/* Debug info */}
-          <div className="text-xs text-gray-500">
-            User connecté: {user?.uid ? 'Oui' : 'Non'} | UID: {user?.uid || 'Aucun'}
-          </div>
+          {/* Erreur générale */}
+          {errors.general && (
+            <div className="bg-red-900/20 border border-red-500 rounded-lg p-3">
+              <p className="text-red-400 text-sm">{errors.general}</p>
+            </div>
+          )}
 
           {/* Titre */}
           <div>
@@ -230,7 +271,7 @@ export const TaskForm = ({ task, onClose, onSave }) => {
 
           {/* Ligne avec échéance et temps estimé */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Échéance */}
+            {/* 🔧 CORRECTION : Échéance avec validation */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
                 <span>📅</span>
@@ -240,8 +281,13 @@ export const TaskForm = ({ task, onClose, onSave }) => {
                 type="datetime-local"
                 value={formData.dueDate}
                 onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                className={`w-full bg-gray-700 border text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 ${
+                  errors.dueDate ? 'border-red-500' : 'border-gray-600'
+                }`}
               />
+              {errors.dueDate && (
+                <p className="text-red-400 text-sm mt-1">{errors.dueDate}</p>
+              )}
             </div>
 
             {/* Temps estimé */}
@@ -327,7 +373,9 @@ export const TaskForm = ({ task, onClose, onSave }) => {
               {isLoading && (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               )}
-              {!user?.uid ? 'Non connecté' : (task ? 'Modifier' : 'Créer')}
+              {!user?.uid ? 'Non connecté' : 
+               isLoading ? 'Sauvegarde...' :
+               task ? 'Modifier' : 'Créer'}
             </button>
           </div>
         </form>
@@ -335,4 +383,5 @@ export const TaskForm = ({ task, onClose, onSave }) => {
     </div>
   );
 };
+
 export default TaskForm;
