@@ -1,106 +1,84 @@
-const CACHE_NAME = 'synergia-v1';
-const urlsToCache = [
+const CACHE_NAME = 'synergia-v3.1.0';
+const STATIC_CACHE = `${CACHE_NAME}-static`;
+const DYNAMIC_CACHE = `${CACHE_NAME}-dynamic`;
+
+// Ressources à mettre en cache
+const STATIC_ASSETS = [
   '/',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png'
+  '/manifest.json'
 ];
 
 // Installation du service worker
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Cache ouvert');
-        return cache.addAll(urlsToCache);
-      })
+    caches.open(STATIC_CACHE).then(cache => {
+      console.log('💾 Cache des ressources statiques');
+      return cache.addAll(STATIC_ASSETS);
+    }).catch(err => {
+      console.error('Erreur mise en cache:', err);
+    })
   );
+  self.skipWaiting();
 });
 
 // Activation du service worker
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
+    caches.keys().then(cacheNames => {
       return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Suppression du cache obsolète:', cacheName);
+        cacheNames.map(cacheName => {
+          if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
+            console.log('🗑️ Suppression ancien cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     })
   );
+  self.clients.claim();
 });
 
-// Gestion des requêtes (stratégie Network First pour Firebase)
+// Interception des requêtes - CORRIGÉ pour éviter les erreurs chrome-extension
 self.addEventListener('fetch', (event) => {
-  // Stratégie Network First pour les APIs Firebase
-  if (event.request.url.includes('firebase') || 
-      event.request.url.includes('googleapis') ||
-      event.request.method !== 'GET') {
-    event.respondWith(
-      fetch(event.request)
-        .catch(() => caches.match(event.request))
-    );
+  // Ignorer les requêtes problématiques
+  if (event.request.url.includes('chrome-extension') ||
+      event.request.url.includes('firebase') || 
+      event.request.url.includes('googleapis')) {
     return;
   }
-
-  // Cache First pour les ressources statiques
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Retourne la version en cache si disponible
-        if (response) {
-          return response;
-        }
-        // Sinon, récupère depuis le réseau
-        return fetch(event.request)
-          .then((response) => {
-            // Vérifie si la réponse est valide
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-
-            // Clone la réponse
-            const responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
-          });
-      })
-  );
-});
-
-// Gestion des notifications push (optionnel)
-self.addEventListener('push', (event) => {
-  if (event.data) {
-    const data = event.data.json();
-    const options = {
-      body: data.body,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      vibrate: [100, 50, 100],
-      data: {
-        dateOfArrival: Date.now(),
-        primaryKey: '1'
-      }
-    };
-    
-    event.waitUntil(
-      self.registration.showNotification(data.title, options)
-    );
+  
+  // Ignorer les requêtes non-HTTP
+  if (!event.request.url.startsWith('http')) {
+    return;
   }
-});
-
-// Gestion des clics sur les notifications
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  event.waitUntil(
-    clients.openWindow('/')
+  
+  event.respondWith(
+    caches.match(event.request).then(response => {
+      if (response) {
+        return response;
+      }
+      
+      return fetch(event.request).then(fetchResponse => {
+        // Mettre en cache seulement les requêtes GET valides
+        if (event.request.method === 'GET' && fetchResponse.status === 200) {
+          const responseClone = fetchResponse.clone();
+          caches.open(DYNAMIC_CACHE).then(cache => {
+            cache.put(event.request, responseClone).catch(err => {
+              // Ignorer silencieusement les erreurs de cache
+              console.debug('Cache ignoré pour:', event.request.url);
+            });
+          });
+        }
+        return fetchResponse;
+      }).catch(() => {
+        // Page offline si pas de connexion
+        if (event.request.mode === 'navigate') {
+          return new Response('Mode hors ligne', {
+            status: 200,
+            headers: { 'Content-Type': 'text/html' }
+          });
+        }
+      });
+    })
   );
 });
