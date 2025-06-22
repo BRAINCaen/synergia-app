@@ -1,10 +1,10 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/gameStore.js
-// Store Gamification avec PERSISTENCE - IMPORTS CORRIGÉS
+// Store Gamification CORRIGÉ avec imports Zustand
 // ==========================================
 
-import { create } from 'zustand';
-import { persist, subscribeWithSelector } from 'zustand/middleware';
+import { create } from 'zustand'
+import { persist, subscribeWithSelector } from 'zustand/middleware'
 
 export const useGameStore = create(
   subscribeWithSelector(
@@ -21,6 +21,11 @@ export const useGameStore = create(
         showBadgeModal: false,
         showXPAnimation: false,
         recentActivity: [],
+        
+        // Données modales
+        levelUpData: null,
+        newBadge: null,
+        xpGained: null,
 
         // 🎯 Actions principales
         setGameData: (data) => set({ 
@@ -91,7 +96,7 @@ export const useGameStore = create(
           xpGained: null
         }),
 
-        // 🧮 Getters
+        // 🧮 Getters calculés
         getters: {
           getCurrentLevel: () => get().gameData?.level || 1,
           getCurrentXP: () => get().gameData?.xp || 0,
@@ -135,14 +140,28 @@ export const useGameStore = create(
           recentActivity: state.recentActivity,
           isInitialized: state.isInitialized
         }),
-        version: 1,
-        // Gérer la réhydratation des fonctions
-        merge: (persistedState, currentState) => ({
-          ...currentState,
-          ...persistedState,
-          getters: currentState.getters // Réattacher les getters
-        })
+        version: 1
       }
     )
   )
 );
+
+// Hooks utilitaires pour l'UI
+export const useGameGetters = () => useGameStore(state => state.getters);
+
+export const useLevelUpModal = () => useGameStore(state => ({
+  show: state.showLevelUpModal,
+  data: state.levelUpData,
+  hide: state.hideLevelUpNotification
+}));
+
+export const useBadgeModal = () => useGameStore(state => ({
+  show: state.showBadgeModal,
+  badge: state.newBadge,
+  hide: state.hideBadgeNotification
+}));
+
+export const useXPAnimation = () => useGameStore(state => ({
+  show: state.showXPAnimation,
+  amount: state.xpGained
+}));
