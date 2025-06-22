@@ -335,3 +335,4 @@ export const TaskForm = ({ task, onClose, onSave }) => {
     </div>
   );
 };
+export default TaskForm;
