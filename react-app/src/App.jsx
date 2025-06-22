@@ -2,7 +2,7 @@
 // 🚀 APP.JSX CORRIGÉ - SUPPRESSION DES DOUBLONS
 // Fichier: react-app/src/App.jsx
 // ===================================================================
-
+import { registerSW, setupPWAInstall } from './utils/pwa.js'
 import React, { useEffect } from 'react'
 import { BrowserRouter } from 'react-router-dom'
 import { onAuthStateChanged } from 'firebase/auth'
