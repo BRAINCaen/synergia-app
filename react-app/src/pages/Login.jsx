@@ -2,8 +2,8 @@
 import React, { useState } from "react";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
-import { auth, db, googleProvider } from "../core/firebase.js";
-import useAuthStore from "../shared/stores/authStore.js";
+import { auth, db, googleProvider } from "../core/firebase";
+import useAuthStore from "../shared/stores/authStore";
 
 export default function Login() {
   const { setUser } = useAuthStore();
@@ -26,7 +26,7 @@ export default function Login() {
       } else {
         userCredential = await signInWithEmailAndPassword(auth, email, password);
       }
-      // L'auth store sera mis à jour automatiquement via onAuthStateChanged
+      setUser(userCredential.user);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -39,7 +39,7 @@ export default function Login() {
     try {
       const res = await signInWithPopup(auth, googleProvider);
       await createUserIfNotExists(res.user);
-      // L'auth store sera mis à jour automatiquement
+      setUser(res.user);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -55,12 +55,37 @@ export default function Login() {
         displayName: user.displayName || "",
         email: user.email,
         photoURL: user.photoURL || "",
-        role: "member",
-        level: 1,
-        xp: 0,
-        joinedAt: new Date(),
+        role: "employee",
         status: "active",
-        version: "2.0"
+        createdAt: new Date(),
+        lastLoginAt: new Date(),
+        preferences: {
+          theme: 'dark',
+          language: 'fr',
+          notifications: {
+            email: true,
+            push: true,
+            inApp: true
+          }
+        },
+        profile: {
+          bio: '',
+          department: '',
+          position: '',
+          skills: [],
+          phone: '',
+          location: ''
+        },
+        gamification: {
+          xp: 0,
+          level: 1,
+          totalXp: 0,
+          badges: [],
+          achievements: [],
+          streakDays: 0,
+          lastActivityAt: new Date(),
+          joinedAt: new Date()
+        }
       });
     }
   };
@@ -68,6 +93,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white px-4">
       <div className="w-full max-w-md">
+        {/* Header avec nouveau design */}
         <div className="text-center mb-8">
           <div className="inline-block p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl mb-4">
             <h1 className="text-3xl font-bold">⚡ Synergia</h1>
@@ -154,6 +180,7 @@ export default function Login() {
           )}
         </div>
 
+        {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-gray-500 text-xs">
             Synergia v2.0 • Architecture Modulaire • 2025
