@@ -1,227 +1,94 @@
-// src/modules/auth/services/authService.js - AVEC AUTO-CRÉATION
 import { 
   signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
   signInWithPopup,
   signOut,
-  sendPasswordResetEmail,
-  updateProfile,
-  onAuthStateChanged
-} from "firebase/auth";
-import { auth, googleProvider } from "../../../core/firebase.js";
-import userService from "../../../services/userService.js";
-import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "../../../core/constants.js";
+  sendPasswordResetEmail
+} from 'firebase/auth'
+import { auth, googleProvider } from '../../../core/firebase.js'
+import { UserService } from '../../../core/services/userService.js'
 
-class AuthService {
-  
-  /**
-   * 🔐 CONNEXION EMAIL + AUTO-CRÉATION
-   */
-  async signInWithEmail(email, password) {
+export class AuthService {
+  static async signInWithEmail(email, password) {
     try {
-      console.log('🔑 Tentative connexion email:', email);
+      const result = await signInWithEmailAndPassword(auth, email, password)
+      await UserService.updateLastLogin(result.user.uid)
+      return result
+    } catch (error) {
+      console.error('Error signing in:', error)
+      throw this.formatAuthError(error)
+    }
+  }
+
+  static async signUpWithEmail(email, password, displayName) {
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password)
       
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      // Create user profile in Firestore
+      await UserService.createUserProfile(result.user.uid, {
+        email,
+        displayName,
+        photoURL: null
+      })
       
-      // 🤖 AUTO-CRÉATION : Vérifier et créer le profil si nécessaire
-      const { profile, wasCreated } = await userService.ensureUserExists(user);
+      return result
+    } catch (error) {
+      console.error('Error signing up:', error)
+      throw this.formatAuthError(error)
+    }
+  }
+
+  static async signInWithGoogle() {
+    try {
+      const result = await signInWithPopup(auth, googleProvider)
       
-      if (wasCreated) {
-        console.log('✨ Nouveau profil créé automatiquement !');
+      // Check if user profile exists, create if not
+      const existingProfile = await UserService.getUserProfile(result.user.uid)
+      if (!existingProfile) {
+        await UserService.createUserProfile(result.user.uid, {
+          email: result.user.email,
+          displayName: result.user.displayName,
+          photoURL: result.user.photoURL
+        })
       } else {
-        console.log('👤 Profil existant mis à jour');
+        await UserService.updateLastLogin(result.user.uid)
       }
       
-      return { 
-        user: { ...user, profile }, 
-        error: null,
-        isNewUser: wasCreated
-      };
-      
+      return result
     } catch (error) {
-      console.error('❌ Erreur connexion email:', error);
-      return { user: null, error: this.handleAuthError(error) };
+      console.error('Error signing in with Google:', error)
+      throw this.formatAuthError(error)
     }
   }
 
-  /**
-   * 📝 INSCRIPTION EMAIL + PROFIL AUTOMATIQUE
-   */
-  async signUpWithEmail(email, password, additionalData = {}) {
+  static async signOut() {
     try {
-      console.log('📝 Création compte:', email);
-      
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      
-      // 🤖 CRÉATION AUTOMATIQUE : Profil complet dès l'inscription
-      const { profile } = await userService.ensureUserExists(user, additionalData);
-      
-      console.log('🎉 Compte créé avec profil complet !');
-      
-      return { 
-        user: { ...user, profile }, 
-        error: null,
-        isNewUser: true
-      };
-      
+      await signOut(auth)
     } catch (error) {
-      console.error('❌ Erreur inscription:', error);
-      return { user: null, error: this.handleAuthError(error) };
+      console.error('Error signing out:', error)
+      throw error
     }
   }
 
-  /**
-   * 🔗 CONNEXION GOOGLE + AUTO-CRÉATION
-   */
-  async signInWithGoogle() {
+  static async resetPassword(email) {
     try {
-      console.log('🔗 Tentative connexion Google...');
-      
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      
-      // 🤖 AUTO-CRÉATION : Profil automatique pour Google aussi
-      const { profile, wasCreated } = await userService.ensureUserExists(user);
-      
-      console.log(wasCreated ? '✨ Nouveau profil Google créé !' : '👤 Profil Google existant');
-      
-      return { 
-        user: { ...user, profile }, 
-        error: null,
-        isNewUser: wasCreated
-      };
-      
+      await sendPasswordResetEmail(auth, email)
     } catch (error) {
-      console.error('❌ Erreur connexion Google:', error);
-      return { user: null, error: this.handleAuthError(error) };
+      console.error('Error sending password reset email:', error)
+      throw this.formatAuthError(error)
     }
   }
 
-  /**
-   * 🚪 DÉCONNEXION
-   */
-  async signOut() {
-    try {
-      await signOut(auth);
-      console.log('👋 Déconnexion réussie');
-      return { error: null };
-    } catch (error) {
-      return { error: this.handleAuthError(error) };
+  static formatAuthError(error) {
+    const errorMessages = {
+      'auth/user-not-found': 'Aucun utilisateur trouvé avec cette adresse email.',
+      'auth/wrong-password': 'Mot de passe incorrect.',
+      'auth/email-already-in-use': 'Cette adresse email est déjà utilisée.',
+      'auth/weak-password': 'Le mot de passe doit contenir au moins 6 caractères.',
+      'auth/invalid-email': 'Adresse email invalide.',
+      'auth/too-many-requests': 'Trop de tentatives. Veuillez réessayer plus tard.',
     }
-  }
-
-  /**
-   * 🔄 RÉINITIALISATION MOT DE PASSE
-   */
-  async resetPassword(email) {
-    try {
-      await sendPasswordResetEmail(auth, email);
-      return { error: null };
-    } catch (error) {
-      return { error: this.handleAuthError(error) };
-    }
-  }
-
-  /**
-   * 👂 ÉCOUTE CHANGEMENTS D'ÉTAT + AUTO-CORRECTION
-   */
-  onAuthStateChanged(callback) {
-    return onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          console.log('👤 Utilisateur détecté:', user.email);
-          
-          // 🤖 AUTO-VÉRIFICATION : S'assurer que le profil existe
-          const { profile, wasCreated } = await userService.ensureUserExists(user);
-          
-          if (wasCreated) {
-            console.log('🔧 Auto-correction : profil manquant créé !');
-          }
-          
-          // Retourner l'utilisateur avec son profil complet
-          callback({ ...user, profile });
-          
-        } catch (error) {
-          console.error('❌ Erreur auto-vérification:', error);
-          // En cas d'erreur, retourner l'utilisateur sans profil
-          callback(user);
-        }
-      } else {
-        callback(null);
-      }
-    });
-  }
-
-  /**
-   * 🛠️ CORRECTION MANUELLE (pour debug)
-   */
-  async fixCurrentUser() {
-    const user = auth.currentUser;
-    if (!user) {
-      return { success: false, error: 'Aucun utilisateur connecté' };
-    }
-
-    try {
-      const { wasCreated } = await userService.ensureUserExists(user);
-      return {
-        success: true,
-        message: wasCreated 
-          ? '✨ Profil créé avec succès' 
-          : '✅ Profil déjà existant'
-      };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 🎯 OBTENIR UTILISATEUR ACTUEL AVEC PROFIL
-   */
-  async getCurrentUserWithProfile() {
-    const user = auth.currentUser;
-    if (!user) return null;
     
-    try {
-      const { profile } = await userService.ensureUserExists(user);
-      return { ...user, profile };
-    } catch (error) {
-      console.error('❌ Erreur récupération profil:', error);
-      return user; // Fallback sans profil
-    }
-  }
-
-  /**
-   * ⚠️ GESTION D'ERREURS
-   */
-  handleAuthError(error) {
-    const errorCode = error.code;
-    
-    switch (errorCode) {
-      case 'auth/user-not-found':
-      case 'auth/wrong-password':
-        return ERROR_MESSAGES.AUTH.INVALID_CREDENTIALS;
-      case 'auth/email-already-in-use':
-        return ERROR_MESSAGES.AUTH.EMAIL_ALREADY_EXISTS;
-      case 'auth/weak-password':
-        return ERROR_MESSAGES.AUTH.WEAK_PASSWORD;
-      case 'auth/network-request-failed':
-        return ERROR_MESSAGES.AUTH.NETWORK_ERROR;
-      case 'auth/popup-closed-by-user':
-        return 'Connexion annulée par l\'utilisateur';
-      default:
-        console.error('Erreur d\'authentification:', error);
-        return ERROR_MESSAGES.GENERAL.UNKNOWN_ERROR;
-    }
-  }
-
-  /**
-   * 👤 UTILISATEUR ACTUEL
-   */
-  getCurrentUser() {
-    return auth.currentUser;
+    return new Error(errorMessages[error.code] || error.message)
   }
 }
-
-export default new AuthService();
