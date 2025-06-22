@@ -1,4 +1,4 @@
-// src/modules/auth/services/authService.js - VERSION CORRIGÉE
+// src/modules/auth/services/authService.js - AVEC AUTO-CRÉATION
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -13,82 +13,108 @@ import userService from "../../../services/userService.js";
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "../../../core/constants.js";
 
 class AuthService {
-  // Connexion par email/mot de passe avec vérification du document
+  
+  /**
+   * 🔐 CONNEXION EMAIL + AUTO-CRÉATION
+   */
   async signInWithEmail(email, password) {
     try {
+      console.log('🔑 Tentative connexion email:', email);
+      
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      // ✅ CORRECTION : Vérifier et créer le document utilisateur si nécessaire
-      await userService.ensureUserDocument(user);
+      // 🤖 AUTO-CRÉATION : Vérifier et créer le profil si nécessaire
+      const { profile, wasCreated } = await userService.ensureUserExists(user);
       
-      // Mettre à jour la dernière connexion
-      await userService.safeUpdateUser(user.uid, {
-        lastLoginAt: new Date(),
-        'stats.loginCount': { increment: 1 } // Utilise increment pour éviter les race conditions
-      });
+      if (wasCreated) {
+        console.log('✨ Nouveau profil créé automatiquement !');
+      } else {
+        console.log('👤 Profil existant mis à jour');
+      }
       
-      return { user, error: null };
+      return { 
+        user: { ...user, profile }, 
+        error: null,
+        isNewUser: wasCreated
+      };
+      
     } catch (error) {
-      console.error('❌ Erreur connexion:', error);
+      console.error('❌ Erreur connexion email:', error);
       return { user: null, error: this.handleAuthError(error) };
     }
   }
 
-  // Inscription par email/mot de passe
-  async signUpWithEmail(email, password, userData = {}) {
+  /**
+   * 📝 INSCRIPTION EMAIL + PROFIL AUTOMATIQUE
+   */
+  async signUpWithEmail(email, password, additionalData = {}) {
     try {
+      console.log('📝 Création compte:', email);
+      
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      // Créer le profil utilisateur complet
-      await userService.createUserDocument({
-        ...user,
-        ...userData
-      });
+      // 🤖 CRÉATION AUTOMATIQUE : Profil complet dès l'inscription
+      const { profile } = await userService.ensureUserExists(user, additionalData);
       
-      return { user, error: null };
+      console.log('🎉 Compte créé avec profil complet !');
+      
+      return { 
+        user: { ...user, profile }, 
+        error: null,
+        isNewUser: true
+      };
+      
     } catch (error) {
       console.error('❌ Erreur inscription:', error);
       return { user: null, error: this.handleAuthError(error) };
     }
   }
 
-  // Connexion avec Google avec vérification
+  /**
+   * 🔗 CONNEXION GOOGLE + AUTO-CRÉATION
+   */
   async signInWithGoogle() {
     try {
+      console.log('🔗 Tentative connexion Google...');
+      
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
       
-      // ✅ CORRECTION : Toujours vérifier et créer si nécessaire
-      const wasCreated = await userService.ensureUserDocument(user);
+      // 🤖 AUTO-CRÉATION : Profil automatique pour Google aussi
+      const { profile, wasCreated } = await userService.ensureUserExists(user);
       
-      if (!wasCreated) {
-        // Document existait, mettre à jour la dernière connexion
-        await userService.safeUpdateUser(user.uid, {
-          lastLoginAt: new Date(),
-          'stats.loginCount': { increment: 1 }
-        });
-      }
+      console.log(wasCreated ? '✨ Nouveau profil Google créé !' : '👤 Profil Google existant');
       
-      return { user, error: null };
+      return { 
+        user: { ...user, profile }, 
+        error: null,
+        isNewUser: wasCreated
+      };
+      
     } catch (error) {
       console.error('❌ Erreur connexion Google:', error);
       return { user: null, error: this.handleAuthError(error) };
     }
   }
 
-  // Déconnexion
+  /**
+   * 🚪 DÉCONNEXION
+   */
   async signOut() {
     try {
       await signOut(auth);
+      console.log('👋 Déconnexion réussie');
       return { error: null };
     } catch (error) {
       return { error: this.handleAuthError(error) };
     }
   }
 
-  // Réinitialisation du mot de passe
+  /**
+   * 🔄 RÉINITIALISATION MOT DE PASSE
+   */
   async resetPassword(email) {
     try {
       await sendPasswordResetEmail(auth, email);
@@ -98,20 +124,29 @@ class AuthService {
     }
   }
 
-  // Observer les changements d'état avec auto-correction
+  /**
+   * 👂 ÉCOUTE CHANGEMENTS D'ÉTAT + AUTO-CORRECTION
+   */
   onAuthStateChanged(callback) {
     return onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // ✅ CORRECTION : Auto-fix à chaque changement d'état
         try {
-          await userService.ensureUserDocument(user);
+          console.log('👤 Utilisateur détecté:', user.email);
           
-          // Récupérer le profil complet
-          const { profile } = await userService.getUserProfile(user.uid, user);
+          // 🤖 AUTO-VÉRIFICATION : S'assurer que le profil existe
+          const { profile, wasCreated } = await userService.ensureUserExists(user);
+          
+          if (wasCreated) {
+            console.log('🔧 Auto-correction : profil manquant créé !');
+          }
+          
+          // Retourner l'utilisateur avec son profil complet
           callback({ ...user, profile });
+          
         } catch (error) {
-          console.error('❌ Erreur auto-correction:', error);
-          callback(user); // Fallback : retourner l'utilisateur sans profil
+          console.error('❌ Erreur auto-vérification:', error);
+          // En cas d'erreur, retourner l'utilisateur sans profil
+          callback(user);
         }
       } else {
         callback(null);
@@ -119,22 +154,47 @@ class AuthService {
     });
   }
 
-  // Récupérer l'utilisateur actuel avec son profil
+  /**
+   * 🛠️ CORRECTION MANUELLE (pour debug)
+   */
+  async fixCurrentUser() {
+    const user = auth.currentUser;
+    if (!user) {
+      return { success: false, error: 'Aucun utilisateur connecté' };
+    }
+
+    try {
+      const { wasCreated } = await userService.ensureUserExists(user);
+      return {
+        success: true,
+        message: wasCreated 
+          ? '✨ Profil créé avec succès' 
+          : '✅ Profil déjà existant'
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🎯 OBTENIR UTILISATEUR ACTUEL AVEC PROFIL
+   */
   async getCurrentUserWithProfile() {
     const user = auth.currentUser;
     if (!user) return null;
     
     try {
-      await userService.ensureUserDocument(user);
-      const { profile } = await userService.getUserProfile(user.uid, user);
+      const { profile } = await userService.ensureUserExists(user);
       return { ...user, profile };
     } catch (error) {
       console.error('❌ Erreur récupération profil:', error);
-      return user; // Fallback
+      return user; // Fallback sans profil
     }
   }
 
-  // Gestion des erreurs d'authentification
+  /**
+   * ⚠️ GESTION D'ERREURS
+   */
   handleAuthError(error) {
     const errorCode = error.code;
     
@@ -156,29 +216,11 @@ class AuthService {
     }
   }
 
-  // Obtenir l'utilisateur actuel
+  /**
+   * 👤 UTILISATEUR ACTUEL
+   */
   getCurrentUser() {
     return auth.currentUser;
-  }
-
-  // ✅ NOUVELLE MÉTHODE : Correction manuelle pour utilisateurs existants
-  async fixCurrentUser() {
-    const user = auth.currentUser;
-    if (!user) {
-      return { success: false, error: 'Aucun utilisateur connecté' };
-    }
-
-    try {
-      const wasCreated = await userService.ensureUserDocument(user);
-      return {
-        success: true,
-        message: wasCreated 
-          ? 'Document utilisateur créé avec succès' 
-          : 'Document utilisateur déjà existant'
-      };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
   }
 }
 
