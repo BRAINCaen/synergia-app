@@ -1,355 +1,151 @@
-// ==========================================
-// 📁 react-app/src/core/services/userService.js
-// Service pour la gestion des utilisateurs
-// ==========================================
-
-import { 
-  doc, 
-  getDoc, 
-  updateDoc, 
-  onSnapshot 
-} from 'firebase/firestore';
-import { db } from '../firebase.js';
-import { COLLECTIONS } from '../constants.js';
+// src/services/userService.js
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { db } from '../core/firebase.js';
+import { COLLECTIONS, USER_ROLES, USER_STATUS } from '../core/constants.js';
 
 class UserService {
-  
-  // Récupérer le profil utilisateur
-  async getUserProfile(userId) {
+  // Vérifier et créer le document utilisateur si nécessaire
+  async ensureUserDocument(user) {
     try {
-      const userRef = doc(db, COLLECTIONS.USERS, userId);
+      const userRef = doc(db, COLLECTIONS.USERS, user.uid);
       const userSnap = await getDoc(userRef);
       
-      if (userSnap.exists()) {
-        return { data: userSnap.data(), error: null };
-      } else {
-        return { data: null, error: 'Profil utilisateur introuvable' };
+      if (!userSnap.exists()) {
+        console.log(`📝 Création du document utilisateur pour ${user.email}`);
+        await this.createUserDocument(user);
+        return true; // Document créé
       }
+      
+      return false; // Document existait déjà
     } catch (error) {
-      console.error('❌ Erreur récupération profil:', error);
-      return { data: null, error: error.message };
+      console.error('❌ Erreur vérification document utilisateur:', error);
+      throw error;
     }
   }
-  
-  // Mettre à jour le profil utilisateur
-  async updateUserProfile(userId, updates) {
+
+  // Créer un document utilisateur complet
+  async createUserDocument(user) {
+    const userRef = doc(db, COLLECTIONS.USERS, user.uid);
+    
+    const userData = {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName || user.email.split('@')[0],
+      photoURL: user.photoURL || '',
+      role: USER_ROLES.EMPLOYEE,
+      status: USER_STATUS.ACTIVE,
+      
+      // Timestamps
+      createdAt: new Date(),
+      lastLoginAt: new Date(),
+      updatedAt: new Date(),
+      
+      // Préférences
+      preferences: {
+        theme: 'dark',
+        language: 'fr',
+        notifications: {
+          email: true,
+          push: true,
+          inApp: true
+        }
+      },
+      
+      // Profile
+      profile: {
+        bio: '',
+        department: '',
+        position: '',
+        skills: [],
+        phone: '',
+        location: ''
+      },
+      
+      // Gamification
+      gamification: {
+        xp: 0,
+        level: 1,
+        totalXp: 0,
+        badges: [],
+        achievements: [],
+        joinedAt: new Date(),
+        streakDays: 0,
+        lastActivityAt: new Date()
+      },
+      
+      // Statistiques
+      stats: {
+        tasksCompleted: 0,
+        projectsCreated: 0,
+        helpProvided: 0,
+        loginCount: 1
+      },
+      
+      // Version de l'app
+      version: '3.0',
+      migrationComplete: true
+    };
+
+    await setDoc(userRef, userData);
+    console.log(`✅ Document utilisateur créé pour ${user.email}`);
+    return userData;
+  }
+
+  // Mettre à jour en toute sécurité (vérifie l'existence avant)
+  async safeUpdateUser(uid, updates) {
     try {
-      const userRef = doc(db, COLLECTIONS.USERS, userId);
+      const userRef = doc(db, COLLECTIONS.USERS, uid);
+      const userSnap = await getDoc(userRef);
+      
+      if (!userSnap.exists()) {
+        console.warn(`⚠️ Tentative de mise à jour d'un utilisateur inexistant: ${uid}`);
+        return { success: false, error: 'Document utilisateur introuvable' };
+      }
+      
       await updateDoc(userRef, {
         ...updates,
         updatedAt: new Date()
       });
       
-      console.log(`✅ Profil ${userId} mis à jour`);
-      return { error: null };
+      return { success: true };
     } catch (error) {
-      console.error('❌ Erreur mise à jour profil:', error);
-      return { error: error.message };
+      console.error('❌ Erreur mise à jour utilisateur:', error);
+      return { success: false, error: error.message };
     }
   }
-  
-  // Écouter les changements du profil utilisateur
-  onUserProfileChange(userId, callback) {
-    const userRef = doc(db, COLLECTIONS.USERS, userId);
-    return onSnapshot(userRef, (doc) => {
-      if (doc.exists()) {
-        callback(doc.data());
-      } else {
-        callback(null);
+
+  // Récupérer un utilisateur avec création automatique si nécessaire
+  async getUserProfile(uid, fallbackUserData = null) {
+    try {
+      const userRef = doc(db, COLLECTIONS.USERS, uid);
+      const userSnap = await getDoc(userRef);
+      
+      if (userSnap.exists()) {
+        return { profile: userSnap.data(), created: false };
       }
-    }, (error) => {
-      console.error('❌ Erreur snapshot profil:', error);
-      callback(null, error);
-    });
+      
+      // Si le document n'existe pas et qu'on a des données de fallback
+      if (fallbackUserData) {
+        const newProfile = await this.createUserDocument(fallbackUserData);
+        return { profile: newProfile, created: true };
+      }
+      
+      return { profile: null, created: false };
+    } catch (error) {
+      console.error('❌ Erreur récupération profil:', error);
+      return { profile: null, error: error.message };
+    }
   }
-  
-  // Mettre à jour la dernière connexion
-  async updateLastLogin(userId) {
-    return await this.updateUserProfile(userId, {
-      lastLoginAt: new Date()
-    });
+
+  // Correction de masse pour tous les utilisateurs connectés
+  async fixAllMissingUsers() {
+    console.log('🔧 Début de la correction des documents utilisateurs manquants...');
+    
+    // Cette fonction pourrait être appelée par un admin
+    // pour corriger tous les problèmes d'un coup
+    
+    return { success: true, message: 'Correction disponible via ensureUserDocument()' };
   }
 }
 
 export default new UserService();
-
-// ==========================================
-// 📁 react-app/src/core/services/taskService.js
-// Service pour la gestion des tâches
-// ==========================================
-
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  orderBy 
-} from 'firebase/firestore';
-import { db } from '../firebase.js';
-
-class TaskService {
-  
-  // Récupérer les tâches d'un utilisateur
-  async getUserTasks(userId) {
-    try {
-      const tasksQuery = query(
-        collection(db, 'tasks'),
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const snapshot = await getDocs(tasksQuery);
-      const tasks = [];
-      
-      snapshot.forEach((doc) => {
-        tasks.push({ id: doc.id, ...doc.data() });
-      });
-      
-      console.log(`✅ ${tasks.length} tâches récupérées pour ${userId}`);
-      return { data: tasks, error: null };
-      
-    } catch (error) {
-      console.error('❌ Erreur récupération tâches:', error);
-      return { data: [], error: error.message };
-    }
-  }
-  
-  // Obtenir les statistiques des tâches
-  async getTaskStats(userId) {
-    const result = await this.getUserTasks(userId);
-    if (result.error) return result;
-    
-    const tasks = result.data;
-    const stats = {
-      total: tasks.length,
-      completed: tasks.filter(t => t.status === 'completed').length,
-      inProgress: tasks.filter(t => t.status === 'in_progress').length,
-      todo: tasks.filter(t => t.status === 'todo').length,
-      completionRate: 0
-    };
-    
-    if (stats.total > 0) {
-      stats.completionRate = Math.round((stats.completed / stats.total) * 100);
-    }
-    
-    return { data: stats, error: null };
-  }
-}
-
-export default new TaskService();
-
-// ==========================================
-// 📁 react-app/src/core/services/gameService.js
-// Service pour la gamification
-// ==========================================
-
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  addDoc, 
-  orderBy, 
-  limit,
-  serverTimestamp 
-} from 'firebase/firestore';
-import { db } from '../firebase.js';
-import userService from './userService.js';
-import { GAMIFICATION } from '../constants.js';
-
-class GameService {
-  
-  // Ajouter de l'XP à un utilisateur
-  async addXP(userId, xpAmount, reason = '') {
-    try {
-      console.log(`🎮 Ajout ${xpAmount} XP à ${userId} - ${reason}`);
-      
-      // Récupérer le profil utilisateur actuel
-      const userResult = await userService.getUserProfile(userId);
-      if (userResult.error) return userResult;
-      
-      const currentUser = userResult.data;
-      const currentXP = currentUser.gamification?.xp || 0;
-      const currentTotalXP = currentUser.gamification?.totalXp || 0;
-      const currentLevel = currentUser.gamification?.level || 1;
-      
-      const newTotalXP = currentTotalXP + xpAmount;
-      const newLevel = this.calculateLevel(newTotalXP);
-      const levelUp = newLevel > currentLevel;
-      
-      // Mettre à jour les données de gamification
-      const updates = {
-        'gamification.xp': currentXP + xpAmount,
-        'gamification.totalXp': newTotalXP,
-        'gamification.level': newLevel
-      };
-      
-      const updateResult = await userService.updateUserProfile(userId, updates);
-      
-      // Créer une activité
-      if (!updateResult.error) {
-        await this.createActivity(userId, 'xp_gained', {
-          xpAmount,
-          reason,
-          levelUp,
-          newLevel: levelUp ? newLevel : null
-        });
-      }
-      
-      return { 
-        data: { xpGained: xpAmount, levelUp, newLevel }, 
-        error: updateResult.error 
-      };
-    } catch (error) {
-      console.error('❌ Erreur ajout XP:', error);
-      return { data: null, error: error.message };
-    }
-  }
-  
-  // Calculer le niveau basé sur l'XP total
-  calculateLevel(totalXP) {
-    const levels = Object.values(GAMIFICATION.LEVELS);
-    for (let i = levels.length - 1; i >= 0; i--) {
-      if (totalXP >= levels[i].min) {
-        return i + 1;
-      }
-    }
-    return 1;
-  }
-  
-  // Débloquer un badge
-  async unlockBadge(userId, badgeId, badgeName, category = 'general') {
-    try {
-      console.log(`🏆 Déblocage badge ${badgeName} pour ${userId}`);
-      
-      const userResult = await userService.getUserProfile(userId);
-      if (userResult.error) return userResult;
-      
-      const currentUser = userResult.data;
-      const badges = currentUser.gamification?.badges || [];
-      
-      // Vérifier si le badge n'est pas déjà débloqué
-      if (badges.find(b => b.id === badgeId)) {
-        return { data: { alreadyUnlocked: true }, error: null };
-      }
-      
-      // Ajouter le nouveau badge
-      const newBadge = {
-        id: badgeId,
-        name: badgeName,
-        category,
-        unlockedAt: new Date()
-      };
-      
-      badges.push(newBadge);
-      
-      const updates = {
-        'gamification.badges': badges
-      };
-      
-      const updateResult = await userService.updateUserProfile(userId, updates);
-      
-      // Créer une activité
-      if (!updateResult.error) {
-        await this.createActivity(userId, 'badge_unlocked', {
-          badge: newBadge
-        });
-      }
-      
-      return { data: { badge: newBadge }, error: updateResult.error };
-    } catch (error) {
-      console.error('❌ Erreur déblocage badge:', error);
-      return { data: null, error: error.message };
-    }
-  }
-  
-  // Créer une activité
-  async createActivity(userId, type, data = {}) {
-    try {
-      const activity = {
-        userId,
-        type,
-        data,
-        timestamp: serverTimestamp()
-      };
-      
-      await addDoc(collection(db, 'activities'), activity);
-      console.log(`✅ Activité ${type} créée pour ${userId}`);
-      
-      return { error: null };
-    } catch (error) {
-      console.error('❌ Erreur création activité:', error);
-      return { error: error.message };
-    }
-  }
-  
-  // Récupérer les activités d'un utilisateur
-  async getUserActivities(userId, limitCount = 20) {
-    try {
-      const activitiesQuery = query(
-        collection(db, 'activities'),
-        where('userId', '==', userId),
-        orderBy('timestamp', 'desc'),
-        limit(limitCount)
-      );
-      
-      const snapshot = await getDocs(activitiesQuery);
-      const activities = [];
-      
-      snapshot.forEach((doc) => {
-        activities.push({ id: doc.id, ...doc.data() });
-      });
-      
-      return { data: activities, error: null };
-    } catch (error) {
-      console.error('❌ Erreur récupération activités:', error);
-      return { data: [], error: error.message };
-    }
-  }
-  
-  // Récupérer le leaderboard
-  async getLeaderboard(limitCount = 10) {
-    try {
-      const usersQuery = query(
-        collection(db, 'users'),
-        orderBy('gamification.totalXp', 'desc'),
-        limit(limitCount)
-      );
-      
-      const snapshot = await getDocs(usersQuery);
-      const leaderboard = [];
-      
-      snapshot.forEach((doc, index) => {
-        const userData = doc.data();
-        leaderboard.push({
-          rank: index + 1,
-          uid: doc.id,
-          displayName: userData.displayName || 'Utilisateur',
-          photoURL: userData.photoURL,
-          xp: userData.gamification?.totalXp || 0,
-          level: userData.gamification?.level || 1,
-          badges: (userData.gamification?.badges || []).length
-        });
-      });
-      
-      return { data: leaderboard, error: null };
-    } catch (error) {
-      console.error('❌ Erreur récupération leaderboard:', error);
-      return { data: [], error: error.message };
-    }
-  }
-  
-  // Récompenser une connexion quotidienne
-  async rewardDailyLogin(userId) {
-    const xpReward = GAMIFICATION.XP_REWARDS.DAILY_LOGIN;
-    return await this.addXP(userId, xpReward, 'Connexion quotidienne');
-  }
-  
-  // Récompenser la completion d'une tâche
-  async rewardTaskCompletion(userId, taskData) {
-    const xpReward = taskData.xpReward || GAMIFICATION.XP_REWARDS.TASK_COMPLETE;
-    return await this.addXP(userId, xpReward, `Tâche complétée: ${taskData.title}`);
-  }
-}
-
-export default new GameService();
