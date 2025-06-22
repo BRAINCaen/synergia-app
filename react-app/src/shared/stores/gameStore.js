@@ -1,7 +1,10 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/gameStore.js
-// Store Gamification avec PERSISTENCE - MISE À JOUR
+// Store Gamification avec PERSISTENCE - IMPORTS CORRIGÉS
 // ==========================================
+
+import { create } from 'zustand';
+import { persist, subscribeWithSelector } from 'zustand/middleware';
 
 export const useGameStore = create(
   subscribeWithSelector(
