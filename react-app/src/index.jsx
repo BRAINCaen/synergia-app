@@ -1,14 +1,14 @@
 // src/routes/index.jsx - ROUTES COMPLÈTES AVEC GAMIFICATION
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import useAuthStore from '../shared/stores/authStore';
+import useAuthStore from '../shared/stores/authStore.js';
 
 // Pages principales
-import Login from '../pages/Login';
-import Dashboard from '../pages/Dashboard';
+import Login from '../pages/Login.jsx';
+import Dashboard from '../pages/Dashboard.jsx';
 
 // Composants de fonctionnalités
-import TaskComponent from '../components/TaskComponent';
+import TaskComponent from '../components/TaskComponent.jsx';
 
 // Composants de protection des routes
 const ProtectedRoute = ({ children }) => {
