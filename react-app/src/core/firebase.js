@@ -1,3 +1,8 @@
+// ===================================================================
+// 🔥 FICHIER FIREBASE COMPLET CORRIGÉ POUR SYNERGIA
+// Fichier: react-app/src/core/firebase.js
+// ===================================================================
+
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
@@ -79,3 +84,117 @@ try {
     })
   };
 }
+
+// ===================================================================
+// SERVICE DE DIAGNOSTIC FIREBASE
+// ===================================================================
+
+export const FirebaseDiagnostic = {
+  async checkConnection() {
+    console.log('🔍 Diagnostic Firebase...');
+    
+    const results = {
+      auth: false,
+      firestore: false,
+      storage: false,
+      config: false
+    };
+    
+    try {
+      // Test configuration
+      if (firebaseConfig.apiKey && firebaseConfig.projectId) {
+        results.config = true;
+        console.log('✅ Configuration Firebase valide');
+      }
+      
+      // Test Auth
+      if (auth) {
+        results.auth = true;
+        console.log('✅ Firebase Auth disponible');
+      }
+      
+      // Test Firestore
+      if (db) {
+        results.firestore = true;
+        console.log('✅ Firestore disponible');
+      }
+      
+      // Test Storage
+      if (storage) {
+        results.storage = true;
+        console.log('✅ Firebase Storage disponible');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur diagnostic:', error);
+    }
+    
+    const allGood = Object.values(results).every(Boolean);
+    console.log(allGood ? '🎉 Firebase opérationnel' : '⚠️ Problèmes détectés');
+    
+    return results;
+  },
+  
+  getConnectionStatus() {
+    return {
+      online: navigator.onLine,
+      firebase: !!app,
+      auth: !!auth,
+      firestore: !!db
+    };
+  },
+
+  // Test de connectivité réseau
+  async testNetworkConnection() {
+    try {
+      const response = await fetch('https://www.google.com/favicon.ico', {
+        method: 'HEAD',
+        mode: 'no-cors'
+      });
+      return true;
+    } catch (error) {
+      console.warn('❌ Pas de connexion réseau');
+      return false;
+    }
+  },
+
+  // Affichage du statut complet
+  async displayFullStatus() {
+    console.log('📊 Statut complet Firebase:');
+    console.log('----------------------------');
+    
+    const connectionResults = await this.checkConnection();
+    const networkStatus = await this.testNetworkConnection();
+    const status = this.getConnectionStatus();
+    
+    console.log(`🌐 Réseau: ${networkStatus ? '✅ Connecté' : '❌ Déconnecté'}`);
+    console.log(`🔧 Configuration: ${connectionResults.config ? '✅' : '❌'}`);
+    console.log(`🔐 Auth: ${connectionResults.auth ? '✅' : '❌'}`);
+    console.log(`📊 Firestore: ${connectionResults.firestore ? '✅' : '❌'}`);
+    console.log(`📁 Storage: ${connectionResults.storage ? '✅' : '❌'}`);
+    console.log('----------------------------');
+    
+    return {
+      ...connectionResults,
+      network: networkStatus,
+      overall: Object.values(connectionResults).every(Boolean) && networkStatus
+    };
+  }
+};
+
+// Diagnostic automatique au chargement en mode développement
+if (import.meta.env.DEV) {
+  setTimeout(() => {
+    FirebaseDiagnostic.checkConnection();
+  }, 1000);
+}
+
+// Diagnostic complet disponible dans la console
+if (typeof window !== 'undefined') {
+  window.firebaseDiagnostic = FirebaseDiagnostic;
+  console.log('🔧 Diagnostic Firebase disponible: window.firebaseDiagnostic.displayFullStatus()');
+}
+
+// Exports principaux
+export { auth, db, storage, googleProvider, app };
+export default { auth, db, storage, googleProvider, app };
