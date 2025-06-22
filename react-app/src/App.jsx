@@ -1,40 +1,48 @@
-import React, { useEffect } from 'react'
-import { BrowserRouter } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from './core/firebase'
-import useAuthStore from './shared/stores/authStore'
-import AppRoutes from './routes'
+import Login from './pages/Login'
+import Dashboard from './pages/Dashboard'
 import './index.css'
 
 function App() {
-  const { setUser, setLoading } = useAuthStore()
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // Écouter les changements d'authentification
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUser({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL
-        })
-      } else {
-        setUser(null)
-      }
+      setUser(user)
       setLoading(false)
     })
 
     return unsubscribe
-  }, [setUser, setLoading])
+  }, [])
 
-  return (
-    <BrowserRouter>
-      <div className="App">
-        <AppRoutes />
+  const handleLogin = (user) => {
+    setUser(user)
+  }
+
+  const handleLogout = () => {
+    setUser(null)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <p className="text-white">Chargement de Synergia...</p>
+        </div>
       </div>
-    </BrowserRouter>
-  )
+    )
+  }
+
+  if (!user) {
+    return <Login onLogin={handleLogin} />
+  }
+
+  return <Dashboard user={user} onLogout={handleLogout} />
 }
 
 export default App
