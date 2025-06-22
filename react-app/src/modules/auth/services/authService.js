@@ -5,14 +5,14 @@ import {
   signOut,
   sendPasswordResetEmail
 } from 'firebase/auth'
+import { doc, setDoc } from 'firebase/firestore'
 import { auth, googleProvider } from '../../../core/firebase.js'
-import UserService from '../../../core/services/userService.js'
+import { db } from '../../../core/firebase.js'
 
 class AuthService {
   static async signInWithEmail(email, password) {
     try {
       const result = await signInWithEmailAndPassword(auth, email, password)
-      await UserService.updateLastLogin(result.user.uid)
       return { success: true, user: result.user, error: null }
     } catch (error) {
       console.error('Erreur connexion email:', error)
@@ -24,16 +24,12 @@ class AuthService {
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password)
       
-      // Créer le profil utilisateur dans Firestore
-      const profileResult = await UserService.createUserProfile(result.user.uid, {
+      // Créer le profil utilisateur basique
+      await this.createBasicProfile(result.user.uid, {
         email,
         displayName,
         photoURL: null
       })
-      
-      if (profileResult.error) {
-        console.error('Erreur création profil:', profileResult.error)
-      }
       
       return { success: true, user: result.user, error: null }
     } catch (error) {
@@ -46,24 +42,12 @@ class AuthService {
     try {
       const result = await signInWithPopup(auth, googleProvider)
       
-      // Vérifier si le profil utilisateur existe
-      const existingProfile = await UserService.getUserProfile(result.user.uid)
-      
-      if (existingProfile.error || !existingProfile.data) {
-        // Créer le profil s'il n'existe pas
-        const profileResult = await UserService.createUserProfile(result.user.uid, {
-          email: result.user.email,
-          displayName: result.user.displayName,
-          photoURL: result.user.photoURL
-        })
-        
-        if (profileResult.error) {
-          console.error('Erreur création profil Google:', profileResult.error)
-        }
-      } else {
-        // Mettre à jour la dernière connexion
-        await UserService.updateLastLogin(result.user.uid)
-      }
+      // Créer le profil utilisateur basique s'il n'existe pas
+      await this.createBasicProfile(result.user.uid, {
+        email: result.user.email,
+        displayName: result.user.displayName,
+        photoURL: result.user.photoURL
+      })
       
       return { success: true, user: result.user, error: null }
     } catch (error) {
@@ -89,6 +73,45 @@ class AuthService {
     } catch (error) {
       console.error('Erreur envoi email reset:', error)
       return { success: false, error: this.formatAuthError(error) }
+    }
+  }
+
+  static async createBasicProfile(uid, userData) {
+    try {
+      const userRef = doc(db, 'users', uid)
+      const defaultProfile = {
+        uid,
+        email: userData.email,
+        displayName: userData.displayName || userData.email,
+        photoURL: userData.photoURL || null,
+        profile: {
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          department: userData.department || ''
+        },
+        gamification: {
+          xp: 0,
+          totalXp: 0,
+          level: 1,
+          badges: [],
+          tasksCompleted: 0,
+          loginStreak: 0
+        },
+        stats: {
+          tasksCompleted: 0,
+          loginCount: 0,
+          lastActionAt: new Date()
+        },
+        createdAt: new Date(),
+        lastLogin: new Date(),
+        updatedAt: new Date()
+      }
+      
+      await setDoc(userRef, defaultProfile, { merge: true })
+      return { success: true, error: null }
+    } catch (error) {
+      console.error('Erreur création profil:', error)
+      return { success: false, error: error.message }
     }
   }
 
