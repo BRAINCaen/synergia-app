@@ -1,8 +1,8 @@
-// src/components/Navigation.jsx - NAVIGATION AVEC LIEN TÂCHES
+// src/shared/components/Navigation.jsx - NAVIGATION COMPLÈTE AVEC PROJECTS
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { auth } from '../core/firebase';
-import useAuthStore from '../shared/stores/authStore';
+import { auth } from '../../core/firebase';
+import useAuthStore from '../stores/authStore';
 
 const Navigation = () => {
   const location = useLocation();
@@ -27,6 +27,16 @@ const Navigation = () => {
       path: '/tasks',
       label: 'Tâches',
       icon: '🎯'
+    },
+    {
+      path: '/projects',
+      label: 'Projets',
+      icon: '📁'
+    },
+    {
+      path: '/leaderboard',
+      label: 'Classement',
+      icon: '🏆'
     }
   ];
 
@@ -49,7 +59,7 @@ const Navigation = () => {
             </Link>
             
             <span className="px-3 py-1 bg-gradient-to-r from-green-600 to-blue-600 text-white text-xs rounded-full font-medium">
-              v3.0 • Gamifié
+              v3.0 • CORRIGÉ
             </span>
           </div>
 
@@ -104,20 +114,20 @@ const Navigation = () => {
 
         {/* Navigation mobile */}
         <div className="md:hidden pb-4">
-          <div className="flex space-x-1">
+          <div className="grid grid-cols-4 gap-1">
             {navItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
                 className={`
-                  flex items-center space-x-2 px-3 py-2 rounded-lg font-medium transition-all duration-200 text-sm
+                  flex flex-col items-center space-y-1 px-2 py-3 rounded-lg font-medium transition-all duration-200 text-xs
                   ${isActive(item.path)
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-300 hover:text-white hover:bg-gray-700'
                   }
                 `}
               >
-                <span>{item.icon}</span>
+                <span className="text-xl">{item.icon}</span>
                 <span>{item.label}</span>
               </Link>
             ))}
