@@ -9,7 +9,7 @@ import Dashboard from '../pages/Dashboard.jsx'
 import NotFound from '../pages/NotFound.jsx'
 
 // Components
-import TaskComponent from '../components/gamification/TaskComponent.jsx'
+import TaskList from '../modules/tasks/TaskList.jsx'
 import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
 import Leaderboard from '../components/gamification/Leaderboard.jsx'
 import Profile from '../modules/profile/components/Profile.jsx'
