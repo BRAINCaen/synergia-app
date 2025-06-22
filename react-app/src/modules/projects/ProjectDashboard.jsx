@@ -1,5 +1,6 @@
-// src/modules/projects/ProjectDashboard.jsx - Version sombre assortie au design
+// src/modules/projects/ProjectDashboard.jsx - Version avec MainLayout
 import React, { useState, useEffect } from 'react';
+import MainLayout from '../../layouts/MainLayout.jsx';
 import { useProjectStore } from '../../shared/stores/projectStore.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 
@@ -51,210 +52,214 @@ export const ProjectDashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex items-center gap-2 text-white">
-          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          Chargement des projets...
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="flex items-center gap-2 text-white">
+            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            Chargement des projets...
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header avec stats - STYLE SOMBRE */}
-      <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-white">Mes Projets</h2>
-          <button
-            onClick={() => setShowProjectForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <span>➕</span>
-            Nouveau projet
-          </button>
-        </div>
-
-        {/* Stats rapides - STYLE SOMBRE */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="text-center p-3 bg-gray-700 rounded-lg border border-gray-600">
-            <div className="text-2xl font-bold text-blue-400">{projectStats.total}</div>
-            <div className="text-sm text-blue-300">Total</div>
-          </div>
-          <div className="text-center p-3 bg-gray-700 rounded-lg border border-gray-600">
-            <div className="text-2xl font-bold text-green-400">{projectStats.active}</div>
-            <div className="text-sm text-green-300">Actifs</div>
-          </div>
-          <div className="text-center p-3 bg-gray-700 rounded-lg border border-gray-600">
-            <div className="text-2xl font-bold text-purple-400">{projectStats.completed}</div>
-            <div className="text-sm text-purple-300">Terminés</div>
-          </div>
-          <div className="text-center p-3 bg-gray-700 rounded-lg border border-gray-600">
-            <div className="text-2xl font-bold text-gray-400">{projectStats.archived}</div>
-            <div className="text-sm text-gray-300">Archivés</div>
-          </div>
-        </div>
-
-        {/* Filtres et vue - STYLE SOMBRE */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <span className="text-gray-400">🔍</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Tous les projets</option>
-              <option value="active">🟢 Actifs</option>
-              <option value="completed">✅ Terminés</option>
-              <option value="archived">📦 Archivés</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2">
+    <MainLayout>
+      <div className="space-y-6">
+        {/* Header avec stats - STYLE SOMBRE */}
+        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-white">📁 Mes Projets</h2>
             <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-colors ${
-                viewMode === 'grid' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-gray-400 hover:bg-gray-700 hover:text-white'
-              }`}
+              onClick={() => setShowProjectForm(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              📊
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg transition-colors ${
-                viewMode === 'list' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-gray-400 hover:bg-gray-700 hover:text-white'
-              }`}
-            >
-              📃
+              <span>➕</span>
+              Nouveau projet
             </button>
           </div>
+
+          {/* Stats rapides - STYLE SOMBRE */}
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="text-center p-3 bg-gray-700 rounded-lg border border-gray-600">
+              <div className="text-2xl font-bold text-blue-400">{projectStats.total}</div>
+              <div className="text-sm text-blue-300">Total</div>
+            </div>
+            <div className="text-center p-3 bg-gray-700 rounded-lg border border-gray-600">
+              <div className="text-2xl font-bold text-green-400">{projectStats.active}</div>
+              <div className="text-sm text-green-300">Actifs</div>
+            </div>
+            <div className="text-center p-3 bg-gray-700 rounded-lg border border-gray-600">
+              <div className="text-2xl font-bold text-purple-400">{projectStats.completed}</div>
+              <div className="text-sm text-purple-300">Terminés</div>
+            </div>
+            <div className="text-center p-3 bg-gray-700 rounded-lg border border-gray-600">
+              <div className="text-2xl font-bold text-gray-400">{projectStats.archived}</div>
+              <div className="text-sm text-gray-300">Archivés</div>
+            </div>
+          </div>
+
+          {/* Filtres et vue - STYLE SOMBRE */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-gray-400">🔍</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Tous les projets</option>
+                <option value="active">🟢 Actifs</option>
+                <option value="completed">✅ Terminés</option>
+                <option value="archived">📦 Archivés</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'grid' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+                }`}
+              >
+                📊
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'list' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+                }`}
+              >
+                📃
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Liste des projets */}
+        {filteredProjects.length === 0 ? (
+          <div className="text-center py-12 bg-gray-800 rounded-xl border border-gray-700">
+            <div className="text-gray-400 text-6xl mb-4">🏗️</div>
+            <h3 className="text-lg font-medium text-white mb-2">
+              Aucun projet trouvé
+            </h3>
+            <p className="text-gray-400 mb-4">
+              Commencez par créer votre premier projet !
+            </p>
+            <button
+              onClick={() => setShowProjectForm(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <span>➕</span>
+              Créer un projet
+            </button>
+          </div>
+        ) : (
+          <div className={
+            viewMode === 'grid' 
+              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+              : 'space-y-4'
+          }>
+            {filteredProjects.map(project => (
+              <div key={project.id} className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:shadow-lg hover:border-gray-600 transition-all">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">{project.icon || '📁'}</span>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-white">{project.name}</h3>
+                    <p className="text-sm text-gray-400">
+                      {project.status === 'active' ? '🟢 Actif' : 
+                       project.status === 'completed' ? '✅ Terminé' : 
+                       project.status === 'archived' ? '📦 Archivé' : project.status}
+                    </p>
+                  </div>
+                </div>
+                
+                {project.description && (
+                  <p className="text-sm text-gray-300 mb-4 line-clamp-2">{project.description}</p>
+                )}
+                
+                {/* Barre de progression - STYLE SOMBRE */}
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm text-gray-400 mb-1">
+                    <span>Progression</span>
+                    <span>{project.progress?.percentage || 0}%</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${project.progress?.percentage || 0}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>{project.progress?.completed || 0} terminées</span>
+                    <span>{project.progress?.total || 0} total</span>
+                  </div>
+                </div>
+                
+                {/* Tags - STYLE SOMBRE */}
+                {project.tags && project.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-4">
+                    {project.tags.slice(0, 3).map(tag => (
+                      <span key={tag} className="inline-block px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded-md border border-gray-600">
+                        #{tag}
+                      </span>
+                    ))}
+                    {project.tags.length > 3 && (
+                      <span className="text-xs text-gray-500">+{project.tags.length - 3}</span>
+                    )}
+                  </div>
+                )}
+                
+                <button
+                  onClick={() => handleEditProject(project)}
+                  className="w-full px-3 py-2 text-sm border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 hover:border-gray-500 hover:text-white transition-colors"
+                >
+                  Gérer le projet
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Modal temporaire pour le formulaire - STYLE SOMBRE */}
+        {showProjectForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-white">
+                  {editingProject ? 'Modifier le projet' : 'Nouveau projet'}
+                </h3>
+                <button
+                  onClick={handleCloseForm}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="text-center py-8">
+                <div className="text-6xl mb-4">✅</div>
+                <p className="text-green-400 mb-4 font-semibold">
+                  Page Projects maintenant accessible !
+                </p>
+                <p className="text-sm text-gray-400 mb-6">
+                  Le ProjectForm sera implémenté dans la prochaine session pour créer/modifier des projets.
+                </p>
+                <button
+                  onClick={handleCloseForm}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Liste des projets */}
-      {filteredProjects.length === 0 ? (
-        <div className="text-center py-12 bg-gray-800 rounded-xl border border-gray-700">
-          <div className="text-gray-400 text-6xl mb-4">🏗️</div>
-          <h3 className="text-lg font-medium text-white mb-2">
-            Aucun projet trouvé
-          </h3>
-          <p className="text-gray-400 mb-4">
-            Commencez par créer votre premier projet !
-          </p>
-          <button
-            onClick={() => setShowProjectForm(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <span>➕</span>
-            Créer un projet
-          </button>
-        </div>
-      ) : (
-        <div className={
-          viewMode === 'grid' 
-            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-            : 'space-y-4'
-        }>
-          {filteredProjects.map(project => (
-            <div key={project.id} className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:shadow-lg hover:border-gray-600 transition-all">
-              <div className="flex items-center gap-3 mb-3">
-                <span className="text-2xl">{project.icon || '📁'}</span>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-white">{project.name}</h3>
-                  <p className="text-sm text-gray-400">
-                    {project.status === 'active' ? '🟢 Actif' : 
-                     project.status === 'completed' ? '✅ Terminé' : 
-                     project.status === 'archived' ? '📦 Archivé' : project.status}
-                  </p>
-                </div>
-              </div>
-              
-              {project.description && (
-                <p className="text-sm text-gray-300 mb-4 line-clamp-2">{project.description}</p>
-              )}
-              
-              {/* Barre de progression - STYLE SOMBRE */}
-              <div className="mb-4">
-                <div className="flex justify-between text-sm text-gray-400 mb-1">
-                  <span>Progression</span>
-                  <span>{project.progress?.percentage || 0}%</span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div 
-                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${project.progress?.percentage || 0}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>{project.progress?.completed || 0} terminées</span>
-                  <span>{project.progress?.total || 0} total</span>
-                </div>
-              </div>
-              
-              {/* Tags - STYLE SOMBRE */}
-              {project.tags && project.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {project.tags.slice(0, 3).map(tag => (
-                    <span key={tag} className="inline-block px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded-md border border-gray-600">
-                      #{tag}
-                    </span>
-                  ))}
-                  {project.tags.length > 3 && (
-                    <span className="text-xs text-gray-500">+{project.tags.length - 3}</span>
-                  )}
-                </div>
-              )}
-              
-              <button
-                onClick={() => handleEditProject(project)}
-                className="w-full px-3 py-2 text-sm border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 hover:border-gray-500 hover:text-white transition-colors"
-              >
-                Gérer le projet
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Modal temporaire pour le formulaire - STYLE SOMBRE */}
-      {showProjectForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">
-                {editingProject ? 'Modifier le projet' : 'Nouveau projet'}
-              </h3>
-              <button
-                onClick={handleCloseForm}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="text-center py-8">
-              <div className="text-6xl mb-4">🚧</div>
-              <p className="text-gray-300 mb-4">
-                Le formulaire ProjectForm sera créé dans la prochaine session !
-              </p>
-              <p className="text-sm text-gray-400 mb-6">
-                Pour l'instant, vous pouvez voir l'interface des projets avec les données mock.
-              </p>
-              <button
-                onClick={handleCloseForm}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Fermer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </MainLayout>
   );
 };
