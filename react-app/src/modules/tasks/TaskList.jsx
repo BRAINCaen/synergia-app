@@ -268,3 +268,4 @@ export const TaskList = () => {
     </div>
   );
 };
+export default TaskList;  // ← AJOUTER CETTE LIGNE
