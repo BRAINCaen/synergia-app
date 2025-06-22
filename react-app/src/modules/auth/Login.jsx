@@ -1,24 +1,71 @@
-// src/modules/auth/Login.jsx
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuthStore } from '../../shared/stores/authStore';
+import React, { useState } from 'react'
+import { Navigate } from 'react-router-dom'
+import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth'
+import { auth, googleProvider } from '../../core/firebase.js'
+import { useAuthStore } from '../../shared/stores/authStore.js'
+import AuthService from './services/authService.js'
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const { login, loginWithGoogle, isLoading, error } = useAuthStore();
+  const { user, loading } = useAuthStore()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  // Si l'utilisateur est déjà connecté, rediriger vers le dashboard
+  if (!loading && user) {
+    return <Navigate to="/dashboard" replace />
+  }
+
+  // Afficher le loader pendant la vérification de l'auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-white">Chargement...</p>
+        </div>
+      </div>
+    )
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (email && password) {
-      await login(email, password);
+    e.preventDefault()
+    if (!email || !password) return
+
+    setIsLoading(true)
+    setError('')
+
+    try {
+      const result = await AuthService.signInWithEmail(email, password)
+      if (!result.success) {
+        setError(result.error)
+      }
+    } catch (err) {
+      setError('Erreur de connexion')
+      console.error('Erreur login:', err)
+    } finally {
+      setIsLoading(false)
     }
-  };
+  }
 
   const handleGoogleLogin = async () => {
-    await loginWithGoogle();
-  };
+    setIsLoading(true)
+    setError('')
+
+    try {
+      const result = await AuthService.signInWithGoogle()
+      if (!result.success) {
+        setError(result.error)
+      }
+    } catch (err) {
+      setError('Erreur de connexion Google')
+      console.error('Erreur Google login:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
@@ -150,22 +197,9 @@ const Login = () => {
             </button>
           </div>
         </form>
-
-        {/* Lien vers inscription */}
-        <div className="text-center">
-          <p className="text-gray-400 text-sm">
-            Pas encore de compte ?{' '}
-            <Link
-              to="/register"
-              className="font-medium text-purple-400 hover:text-purple-300 transition-colors"
-            >
-              Créer un compte
-            </Link>
-          </p>
-        </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default Login;
+export default Login
