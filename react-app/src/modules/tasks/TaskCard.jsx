@@ -1,7 +1,8 @@
-// src/modules/tasks/TaskCard.jsx - Version sombre assortie au design
+// src/modules/tasks/TaskCard.jsx - Version avec gestion dates corrigée
 import React, { useState } from 'react';
 import { useTaskStore } from '../../shared/stores/taskStore.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
+import dateUtils from '../../shared/utils/dateUtils.js';
 
 export const TaskCard = ({ task, onEdit }) => {
   const { completeTask, updateTask, deleteTask } = useTaskStore();
@@ -37,23 +38,28 @@ export const TaskCard = ({ task, onEdit }) => {
     }
   };
 
-  // Vérifier si la tâche est en retard
+  // 🔧 CORRECTION : Vérifier si la tâche est en retard avec gestion date sécurisée
   const isOverdue = () => {
     if (!task.dueDate || task.status === 'completed') return false;
-    const dueDate = task.dueDate.toDate ? task.dueDate.toDate() : task.dueDate;
-    return dueDate < new Date();
+    
+    try {
+      return dateUtils.isOverdue(task.dueDate);
+    } catch (error) {
+      console.warn('Erreur vérification date échéance:', error);
+      return false;
+    }
   };
 
-  // Formatter la date
+  // 🔧 CORRECTION : Formatter la date de manière sécurisée
   const formatDate = (date) => {
     if (!date) return null;
-    const dateObj = date.toDate ? date.toDate() : date;
-    return new Intl.DateTimeFormat('fr-FR', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(dateObj);
+    
+    try {
+      return dateUtils.formatDateTime(date);
+    } catch (error) {
+      console.warn('Erreur formatage date:', error);
+      return 'Date invalide';
+    }
   };
 
   // Compléter la tâche
@@ -91,10 +97,11 @@ export const TaskCard = ({ task, onEdit }) => {
   };
 
   const statusInfo = getStatusInfo();
+  const taskIsOverdue = isOverdue();
 
   return (
     <div className={`bg-gray-800 rounded-xl border shadow-sm hover:shadow-lg transition-all duration-200 ${
-      isOverdue() ? 'border-red-700 bg-red-900 bg-opacity-20' : 'border-gray-700'
+      taskIsOverdue ? 'border-red-700 bg-red-900 bg-opacity-20' : 'border-gray-700'
     }`}>
       {/* Header avec statut et actions */}
       <div className="flex items-center justify-between p-4 pb-2">
@@ -160,7 +167,7 @@ export const TaskCard = ({ task, onEdit }) => {
             ? 'line-through text-gray-500' 
             : 'text-white'
         }`}>
-          {task.title}
+          {task.title || 'Tâche sans titre'}
         </h3>
         
         {task.description && (
@@ -172,10 +179,10 @@ export const TaskCard = ({ task, onEdit }) => {
         {/* Métadonnées */}
         <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
           {task.dueDate && (
-            <div className={`flex items-center gap-1 ${isOverdue() ? 'text-red-400' : ''}`}>
+            <div className={`flex items-center gap-1 ${taskIsOverdue ? 'text-red-400' : ''}`}>
               <span>📅</span>
               <span>{formatDate(task.dueDate)}</span>
-              {isOverdue() && <span className="text-red-400 font-medium">• En retard</span>}
+              {taskIsOverdue && <span className="text-red-400 font-medium">• En retard</span>}
             </div>
           )}
           
@@ -192,10 +199,10 @@ export const TaskCard = ({ task, onEdit }) => {
           <div className="flex items-center gap-2">
             {/* Priorité */}
             <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border ${
-              priorityColors[task.priority]
+              priorityColors[task.priority] || priorityColors.medium
             }`}>
-              <span>{priorityIcons[task.priority]}</span>
-              {task.priority}
+              <span>{priorityIcons[task.priority] || priorityIcons.medium}</span>
+              {task.priority || 'medium'}
             </span>
             
             {/* Tags */}
@@ -235,4 +242,5 @@ export const TaskCard = ({ task, onEdit }) => {
     </div>
   );
 };
+
 export default TaskCard;
