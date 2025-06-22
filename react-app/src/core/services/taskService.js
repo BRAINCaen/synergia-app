@@ -1,3 +1,8 @@
+// ==========================================
+// 📁 react-app/src/core/services/taskService.js
+// Service Firebase COMPLET pour les tâches - RÉCUPÉRATION TOTALE
+// ==========================================
+
 import { 
   collection, 
   doc, 
@@ -174,10 +179,9 @@ class TaskService {
   /**
    * 📝 CRÉER UNE NOUVELLE TÂCHE
    */
-  async createTask(taskData) {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      throw new Error('Utilisateur non connecté');
+  async createTask(taskData, userId) {
+    if (!userId) {
+      throw new Error('UserId requis');
     }
 
     try {
@@ -195,9 +199,9 @@ class TaskService {
         category: taskData.category || 'general',
         complexity: taskData.complexity || 'normal',
         type: taskData.type || 'task',
-        createdBy: currentUser.uid,
-        assignedTo: taskData.assignedTo || currentUser.uid,
-        estimatedHours: taskData.estimatedHours || 0,
+        createdBy: userId,
+        assignedTo: taskData.assignedTo || userId,
+        estimatedTime: taskData.estimatedTime || 0,
         tags: Array.isArray(taskData.tags) ? taskData.tags : [],
         dueDate: taskData.dueDate ? new Date(taskData.dueDate) : null,
         startDate: taskData.startDate ? new Date(taskData.startDate) : null,
@@ -209,7 +213,7 @@ class TaskService {
         metadata: {
           source: 'manual_creation',
           version: '3.0',
-          createdByEmail: currentUser.email
+          createdByEmail: auth.currentUser?.email || 'unknown'
         }
       };
 
@@ -219,7 +223,7 @@ class TaskService {
       console.log('✅ Tâche créée:', docRef.id, completeTaskData.title);
 
       await this.createActivityLog({
-        userId: currentUser.uid,
+        userId: userId,
         type: 'task_created',
         taskId: docRef.id,
         taskTitle: completeTaskData.title,
@@ -228,23 +232,21 @@ class TaskService {
       });
 
       return {
-        success: true,
-        taskId: docRef.id,
-        taskData: completeTaskData
+        id: docRef.id,
+        ...completeTaskData
       };
 
     } catch (error) {
       console.error('❌ Erreur création tâche:', error);
-      return { success: false, error: error.message };
+      throw error;
     }
   }
 
   /**
    * 📋 RÉCUPÉRER LES TÂCHES D'UN UTILISATEUR
    */
-  async getUserTasks(userId = null, filters = {}) {
-    const targetUserId = userId || auth.currentUser?.uid;
-    if (!targetUserId) {
+  async getUserTasks(userId, filters = {}) {
+    if (!userId) {
       throw new Error('Utilisateur non spécifié');
     }
 
@@ -252,20 +254,20 @@ class TaskService {
       const tasksCollection = collection(db, COLLECTIONS.TASKS);
       
       let constraints = [
-        where('assignedTo', '==', targetUserId),
+        where('assignedTo', '==', userId),
         orderBy('updatedAt', 'desc')
       ];
 
-      if (filters.status) {
+      if (filters.status && filters.status !== 'all') {
         constraints.splice(-1, 0, where('status', '==', filters.status));
       }
-      if (filters.priority) {
+      if (filters.priority && filters.priority !== 'all') {
         constraints.splice(-1, 0, where('priority', '==', filters.priority));
       }
-      if (filters.category) {
+      if (filters.category && filters.category !== 'all') {
         constraints.splice(-1, 0, where('category', '==', filters.category));
       }
-      if (filters.projectId) {
+      if (filters.projectId && filters.projectId !== 'all') {
         constraints.splice(-1, 0, where('projectId', '==', filters.projectId));
       }
 
@@ -286,7 +288,7 @@ class TaskService {
         });
       });
 
-      console.log(`📋 ${tasks.length} tâche(s) récupérée(s) pour`, targetUserId);
+      console.log(`📋 ${tasks.length} tâche(s) récupérée(s) pour`, userId);
       return tasks;
 
     } catch (error) {
@@ -298,10 +300,9 @@ class TaskService {
   /**
    * ✏️ METTRE À JOUR UNE TÂCHE
    */
-  async updateTask(taskId, updates) {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      throw new Error('Utilisateur non connecté');
+  async updateTask(taskId, updates, userId) {
+    if (!userId) {
+      throw new Error('UserId requis');
     }
 
     try {
@@ -315,7 +316,7 @@ class TaskService {
       const cleanUpdates = {
         ...updates,
         updatedAt: new Date(),
-        lastUpdatedBy: currentUser.uid
+        lastUpdatedBy: userId
       };
 
       Object.keys(cleanUpdates).forEach(key => {
@@ -329,28 +330,31 @@ class TaskService {
       console.log('✅ Tâche mise à jour:', taskId);
       
       await this.createActivityLog({
-        userId: currentUser.uid,
+        userId: userId,
         type: 'task_updated',
         taskId,
         timestamp: new Date(),
         metadata: { updates: cleanUpdates }
       });
 
-      return { success: true };
+      return { 
+        id: taskId, 
+        ...taskSnap.data(), 
+        ...cleanUpdates 
+      };
 
     } catch (error) {
       console.error('❌ Erreur mise à jour tâche:', error);
-      return { success: false, error: error.message };
+      throw error;
     }
   }
 
   /**
    * 🗑️ SUPPRIMER UNE TÂCHE
    */
-  async deleteTask(taskId) {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      throw new Error('Utilisateur non connecté');
+  async deleteTask(taskId, userId) {
+    if (!userId) {
+      throw new Error('UserId requis');
     }
 
     try {
@@ -362,17 +366,13 @@ class TaskService {
       }
 
       const taskData = taskSnap.data();
-      
-      if (taskData.createdBy !== currentUser.uid && taskData.assignedTo !== currentUser.uid) {
-        throw new Error('Permissions insuffisantes pour supprimer cette tâche');
-      }
 
       await deleteDoc(taskRef);
 
       console.log('✅ Tâche supprimée:', taskId);
       
       await this.createActivityLog({
-        userId: currentUser.uid,
+        userId: userId,
         type: 'task_deleted',
         taskId,
         taskTitle: taskData.title,
@@ -380,22 +380,20 @@ class TaskService {
         metadata: { deletedTask: taskData }
       });
 
-      return { success: true };
+      return taskId;
 
     } catch (error) {
       console.error('❌ Erreur suppression tâche:', error);
-      return { success: false, error: error.message };
+      throw error;
     }
   }
 
   /**
    * 📈 STATISTIQUES TÂCHES
    */
-  async getTaskStats(userId = null) {
-    const targetUserId = userId || auth.currentUser?.uid;
-    
+  async getTaskStats(userId) {
     try {
-      const tasks = await this.getUserTasks(targetUserId);
+      const tasks = await this.getUserTasks(userId);
       
       const now = new Date();
       const thisWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -417,9 +415,9 @@ class TaskService {
         
         byComplexity: {
           expert: tasks.filter(t => t.complexity === 'expert').length,
-          complex: tasks.filter(t => t.complexity === 'complex').length,
-          medium: tasks.filter(t => t.complexity === 'medium').length,
-          simple: tasks.filter(t => t.complexity === 'simple').length
+          hard: tasks.filter(t => t.complexity === 'hard').length,
+          normal: tasks.filter(t => t.complexity === 'normal').length,
+          easy: tasks.filter(t => t.complexity === 'easy').length
         },
         
         thisWeek: {
@@ -436,7 +434,7 @@ class TaskService {
           .filter(t => t.status === 'completed' && t.xpRewarded)
           .reduce((total, task) => total + (task.xpRewarded || 0), 0),
         
-        estimatedHours: tasks.reduce((total, task) => total + (task.estimatedHours || 0), 0),
+        estimatedHours: tasks.reduce((total, task) => total + (task.estimatedTime || 0), 0),
         
         completionRate: tasks.length > 0 ? 
           Math.round((tasks.filter(t => t.status === 'completed').length / tasks.length) * 100) : 0
@@ -446,7 +444,15 @@ class TaskService {
 
     } catch (error) {
       console.error('❌ Erreur statistiques tâches:', error);
-      return null;
+      return {
+        total: 0,
+        completed: 0,
+        inProgress: 0,
+        todo: 0,
+        overdue: 0,
+        totalXPEarned: 0,
+        completionRate: 0
+      };
     }
   }
 
@@ -480,6 +486,10 @@ class TaskService {
       orderBy('updatedAt', 'desc')
     ];
 
+    if (filters.status && filters.status !== 'all') {
+      constraints.splice(-1, 0, where('status', '==', filters.status));
+    }
+
     const q = query(tasksCollection, ...constraints);
 
     return onSnapshot(q, (querySnapshot) => {
@@ -505,5 +515,130 @@ class TaskService {
   }
 }
 
-export default new TaskService();
-export { TaskService };
+// Service pour les projets
+class ProjectService {
+  /**
+   * 📁 CRÉER UN NOUVEAU PROJET
+   */
+  async createProject(projectData, userId) {
+    if (!userId) {
+      throw new Error('UserId requis');
+    }
+
+    try {
+      const now = new Date();
+      
+      const completeProjectData = {
+        name: projectData.name?.trim() || '',
+        description: projectData.description?.trim() || '',
+        status: projectData.status || 'active',
+        icon: projectData.icon || '📁',
+        color: projectData.color || '#3b82f6',
+        tags: Array.isArray(projectData.tags) ? projectData.tags : [],
+        progress: {
+          completed: 0,
+          total: 0,
+          percentage: 0
+        },
+        createdBy: userId,
+        members: [userId],
+        createdAt: now,
+        updatedAt: now
+      };
+
+      const projectsCollection = collection(db, 'projects');
+      const docRef = await addDoc(projectsCollection, completeProjectData);
+
+      console.log('✅ Projet créé:', docRef.id, completeProjectData.name);
+
+      return {
+        id: docRef.id,
+        ...completeProjectData
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur création projet:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📊 RÉCUPÉRER LES PROJETS D'UN UTILISATEUR
+   */
+  async getUserProjects(userId, filters = {}) {
+    if (!userId) {
+      throw new Error('Utilisateur non spécifié');
+    }
+
+    try {
+      const projectsCollection = collection(db, 'projects');
+      
+      let constraints = [
+        where('members', 'array-contains', userId),
+        orderBy('updatedAt', 'desc')
+      ];
+
+      if (filters.status && filters.status !== 'all') {
+        constraints.splice(-1, 0, where('status', '==', filters.status));
+      }
+
+      const q = query(projectsCollection, ...constraints);
+      const querySnapshot = await getDocs(q);
+      const projects = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        projects.push({
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.() || data.createdAt,
+          updatedAt: data.updatedAt?.toDate?.() || data.updatedAt
+        });
+      });
+
+      console.log(`📁 ${projects.length} projet(s) récupéré(s) pour`, userId);
+      return projects;
+
+    } catch (error) {
+      console.error('❌ Erreur récupération projets:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 📊 ÉCOUTER LES PROJETS EN TEMPS RÉEL
+   */
+  subscribeToUserProjects(userId, callback) {
+    const projectsCollection = collection(db, 'projects');
+    
+    const q = query(
+      projectsCollection,
+      where('members', 'array-contains', userId),
+      orderBy('updatedAt', 'desc')
+    );
+
+    return onSnapshot(q, (querySnapshot) => {
+      const projects = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        projects.push({
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.() || data.createdAt,
+          updatedAt: data.updatedAt?.toDate?.() || data.updatedAt
+        });
+      });
+      
+      console.log(`🔄 Projets mis à jour: ${projects.length}`);
+      callback(projects);
+    }, (error) => {
+      console.error('❌ Erreur écoute projets:', error);
+    });
+  }
+}
+
+const taskService = new TaskService();
+const projectService = new ProjectService();
+
+export default taskService;
+export { TaskService, ProjectService, projectService };
