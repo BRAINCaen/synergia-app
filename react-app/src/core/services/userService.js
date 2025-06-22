@@ -1,150 +1,322 @@
-// src/services/userService.js
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+// src/services/userService.js - AUTO-CRÉATION UTILISATEURS
+import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 import { COLLECTIONS, USER_ROLES, USER_STATUS } from '../core/constants.js';
 
 class UserService {
-  // Vérifier et créer le document utilisateur si nécessaire
-  async ensureUserDocument(user) {
+  
+  /**
+   * 🤖 AUTO-CRÉATION : Vérifie et crée automatiquement le profil utilisateur
+   * @param {Object} user - Utilisateur Firebase Auth
+   * @returns {Promise<Object>} - { profile, wasCreated }
+   */
+  async ensureUserExists(user) {
+    if (!user || !user.uid) {
+      throw new Error('Utilisateur invalide fourni');
+    }
+
     try {
       const userRef = doc(db, COLLECTIONS.USERS, user.uid);
       const userSnap = await getDoc(userRef);
       
-      if (!userSnap.exists()) {
-        console.log(`📝 Création du document utilisateur pour ${user.email}`);
-        await this.createUserDocument(user);
-        return true; // Document créé
+      if (userSnap.exists()) {
+        // Document existe, mettre à jour lastLoginAt
+        await this.updateLastLogin(user.uid);
+        return { profile: userSnap.data(), wasCreated: false };
       }
       
-      return false; // Document existait déjà
+      // Document n'existe pas, le créer automatiquement
+      console.log(`🤖 AUTO-CRÉATION profil pour: ${user.email}`);
+      const newProfile = await this.createCompleteProfile(user);
+      
+      return { profile: newProfile, wasCreated: true };
+      
     } catch (error) {
-      console.error('❌ Erreur vérification document utilisateur:', error);
+      console.error('❌ Erreur ensureUserExists:', error);
       throw error;
     }
   }
 
-  // Créer un document utilisateur complet
-  async createUserDocument(user) {
-    const userRef = doc(db, COLLECTIONS.USERS, user.uid);
+  /**
+   * 📝 CRÉATION COMPLÈTE : Crée un profil utilisateur complet automatiquement
+   * @param {Object} user - Utilisateur Firebase Auth
+   * @returns {Promise<Object>} - Profil utilisateur créé
+   */
+  async createCompleteProfile(user) {
+    const now = new Date();
     
-    const userData = {
+    // 🎯 PROFIL UTILISATEUR COMPLET ET AUTOMATIQUE
+    const completeProfile = {
+      // Identité de base
       uid: user.uid,
       email: user.email,
-      displayName: user.displayName || user.email.split('@')[0],
+      displayName: user.displayName || this.generateDisplayName(user.email),
       photoURL: user.photoURL || '',
-      role: USER_ROLES.EMPLOYEE,
+      
+      // Système
+      role: USER_ROLES.EMPLOYEE, // Par défaut : employé
       status: USER_STATUS.ACTIVE,
+      version: '3.0',
+      migrationComplete: true,
       
-      // Timestamps
-      createdAt: new Date(),
-      lastLoginAt: new Date(),
-      updatedAt: new Date(),
+      // Timestamps automatiques
+      createdAt: now,
+      lastLoginAt: now,
+      updatedAt: now,
       
-      // Préférences
+      // 🎛️ PRÉFÉRENCES PAR DÉFAUT
       preferences: {
-        theme: 'dark',
-        language: 'fr',
+        theme: 'dark', // Thème sombre par défaut
+        language: 'fr', // Français par défaut
         notifications: {
           email: true,
           push: true,
-          inApp: true
+          inApp: true,
+          sound: true
+        },
+        privacy: {
+          showEmail: false,
+          showActivity: true,
+          publicProfile: false
+        },
+        display: {
+          compactMode: false,
+          animationsEnabled: true,
+          showTutorials: true
         }
       },
       
-      // Profile
+      // 👤 PROFIL UTILISATEUR
       profile: {
         bio: '',
         department: '',
         position: '',
         skills: [],
+        interests: [],
         phone: '',
-        location: ''
+        location: '',
+        website: '',
+        social: {
+          linkedin: '',
+          twitter: '',
+          github: ''
+        },
+        avatar: {
+          style: 'initials', // ou 'photo', 'generated'
+          color: this.generateAvatarColor(),
+          initials: this.generateInitials(user.displayName || user.email)
+        }
       },
       
-      // Gamification
+      // 🎮 GAMIFICATION COMPLÈTE
       gamification: {
-        xp: 0,
+        // XP et Niveaux
+        xp: 50, // XP de démarrage pour première connexion
         level: 1,
-        totalXp: 0,
-        badges: [],
-        achievements: [],
-        joinedAt: new Date(),
-        streakDays: 0,
-        lastActivityAt: new Date()
+        totalXp: 50,
+        xpToNextLevel: 50, // XP nécessaire pour niveau 2
+        
+        // Progression
+        streakDays: 1, // Premier jour de connexion
+        longestStreak: 1,
+        joinedAt: now,
+        lastActivityAt: now,
+        lastXpGainAt: now,
+        
+        // Collections
+        badges: [
+          {
+            id: 'welcome',
+            name: 'Bienvenue !',
+            description: 'Premier pas dans Synergia',
+            category: 'debut',
+            rarity: 'common',
+            unlockedAt: now,
+            xpReward: 50
+          }
+        ],
+        achievements: [
+          {
+            id: 'first_login',
+            name: 'Première Connexion',
+            description: 'Connecté pour la première fois',
+            progress: 1,
+            target: 1,
+            completed: true,
+            completedAt: now,
+            category: 'social'
+          },
+          {
+            id: 'profile_completion',
+            name: 'Profil Complet', 
+            description: 'Compléter son profil à 100%',
+            progress: 30, // 30% déjà fait (infos de base)
+            target: 100,
+            completed: false,
+            category: 'profile'
+          }
+        ],
+        
+        // Système de récompenses
+        rewards: {
+          dailyLoginBonus: 0, // Compteur bonus connexion
+          weeklyTasksCompleted: 0,
+          monthlyGoals: []
+        }
       },
       
-      // Statistiques
+      // 📊 STATISTIQUES DÉTAILLÉES
       stats: {
+        // Activité générale
         tasksCompleted: 0,
         projectsCreated: 0,
+        projectsJoined: 0,
         helpProvided: 0,
-        loginCount: 1
+        loginCount: 1,
+        
+        // Temps et engagement
+        totalTimeSpent: 0, // en minutes
+        averageSessionTime: 0,
+        lastSessionDuration: 0,
+        
+        // Social
+        messagesExchanged: 0,
+        collaborationsInitiated: 0,
+        feedbackGiven: 0,
+        
+        // Performance
+        taskCompletionRate: 0,
+        averageTaskTime: 0,
+        projectsOnTime: 0,
+        
+        // Gamification
+        badgesEarned: 1, // Badge de bienvenue
+        achievementsUnlocked: 1,
+        leaderboardPosition: 0
       },
       
-      // Version de l'app
-      version: '3.0',
-      migrationComplete: true
+      // 🔧 MÉTADONNÉES SYSTÈME
+      metadata: {
+        source: 'auto_creation', // Comment le profil a été créé
+        platform: this.detectPlatform(),
+        userAgent: navigator.userAgent.substring(0, 100),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        language: navigator.language,
+        registrationIP: 'hidden', // Pour la sécurité
+        firstLoginDevice: this.getDeviceInfo()
+      },
+      
+      // 🚀 ONBOARDING
+      onboarding: {
+        completed: false,
+        currentStep: 'welcome',
+        stepsCompleted: ['account_created'],
+        lastStepAt: now,
+        tutorialsSeen: [],
+        firstTimeActions: {
+          dashboardVisited: false,
+          firstTaskCreated: false,
+          profileEdited: false,
+          firstCollaboration: false
+        }
+      }
     };
 
-    await setDoc(userRef, userData);
-    console.log(`✅ Document utilisateur créé pour ${user.email}`);
-    return userData;
+    // 💾 SAUVEGARDE EN BASE
+    const userRef = doc(db, COLLECTIONS.USERS, user.uid);
+    await setDoc(userRef, completeProfile);
+    
+    console.log('✅ Profil utilisateur créé automatiquement:', {
+      email: user.email,
+      uid: user.uid,
+      xp: completeProfile.gamification.xp,
+      badges: completeProfile.gamification.badges.length
+    });
+    
+    return completeProfile;
   }
 
-  // Mettre à jour en toute sécurité (vérifie l'existence avant)
-  async safeUpdateUser(uid, updates) {
+  /**
+   * 🔄 MISE À JOUR DERNIÈRE CONNEXION
+   */
+  async updateLastLogin(uid) {
     try {
       const userRef = doc(db, COLLECTIONS.USERS, uid);
-      const userSnap = await getDoc(userRef);
-      
-      if (!userSnap.exists()) {
-        console.warn(`⚠️ Tentative de mise à jour d'un utilisateur inexistant: ${uid}`);
-        return { success: false, error: 'Document utilisateur introuvable' };
-      }
-      
+      await updateDoc(userRef, {
+        lastLoginAt: new Date(),
+        'stats.loginCount': increment(1)
+      });
+    } catch (error) {
+      console.warn('⚠️ Erreur mise à jour dernière connexion:', error);
+    }
+  }
+
+  /**
+   * 🎨 UTILITAIRES DE GÉNÉRATION
+   */
+  generateDisplayName(email) {
+    const name = email.split('@')[0];
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+  
+  generateInitials(name) {
+    if (!name) return 'SY';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return parts[0][0].toUpperCase() + parts[1][0].toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  }
+  
+  generateAvatarColor() {
+    const colors = ['#3B82F6', '#8B5CF6', '#EF4444', '#10B981', '#F59E0B', '#EC4899'];
+    return colors[Math.floor(Math.random() * colors.length)];
+  }
+  
+  detectPlatform() {
+    const userAgent = navigator.userAgent.toLowerCase();
+    if (userAgent.includes('mobile')) return 'mobile';
+    if (userAgent.includes('tablet')) return 'tablet';
+    return 'desktop';
+  }
+  
+  getDeviceInfo() {
+    return {
+      screen: `${screen.width}x${screen.height}`,
+      platform: navigator.platform,
+      cookieEnabled: navigator.cookieEnabled,
+      language: navigator.language
+    };
+  }
+
+  /**
+   * 🎯 MISE À JOUR SÉCURISÉE
+   */
+  async safeUpdate(uid, updates) {
+    try {
+      await this.ensureUserExists({ uid });
+      const userRef = doc(db, COLLECTIONS.USERS, uid);
       await updateDoc(userRef, {
         ...updates,
         updatedAt: new Date()
       });
-      
       return { success: true };
     } catch (error) {
-      console.error('❌ Erreur mise à jour utilisateur:', error);
+      console.error('❌ Erreur mise à jour:', error);
       return { success: false, error: error.message };
     }
   }
 
-  // Récupérer un utilisateur avec création automatique si nécessaire
-  async getUserProfile(uid, fallbackUserData = null) {
-    try {
-      const userRef = doc(db, COLLECTIONS.USERS, uid);
-      const userSnap = await getDoc(userRef);
-      
-      if (userSnap.exists()) {
-        return { profile: userSnap.data(), created: false };
+  /**
+   * 👥 ÉCOUTE TEMPS RÉEL
+   */
+  listenToUser(uid, callback) {
+    const userRef = doc(db, COLLECTIONS.USERS, uid);
+    return onSnapshot(userRef, (doc) => {
+      if (doc.exists()) {
+        callback(doc.data());
       }
-      
-      // Si le document n'existe pas et qu'on a des données de fallback
-      if (fallbackUserData) {
-        const newProfile = await this.createUserDocument(fallbackUserData);
-        return { profile: newProfile, created: true };
-      }
-      
-      return { profile: null, created: false };
-    } catch (error) {
-      console.error('❌ Erreur récupération profil:', error);
-      return { profile: null, error: error.message };
-    }
-  }
-
-  // Correction de masse pour tous les utilisateurs connectés
-  async fixAllMissingUsers() {
-    console.log('🔧 Début de la correction des documents utilisateurs manquants...');
-    
-    // Cette fonction pourrait être appelée par un admin
-    // pour corriger tous les problèmes d'un coup
-    
-    return { success: true, message: 'Correction disponible via ensureUserDocument()' };
+    });
   }
 }
 
