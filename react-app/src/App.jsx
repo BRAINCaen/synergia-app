@@ -1,18 +1,38 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+import { onAuthStateChanged } from 'firebase/auth'
+import { auth } from './core/firebase.js'
+import Login from './pages/Login.jsx'
+import Dashboard from './pages/Dashboard.jsx'
 import './index.css'
 
 function App() {
-  return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-      <div className="text-white text-center">
-        <h1 className="text-4xl font-bold mb-4">⚡ Synergia v2.0</h1>
-        <p className="text-xl mb-8">Architecture Modulaire - Test Build</p>
-        <div className="bg-green-600 text-white px-6 py-3 rounded-lg">
-          ✅ Build réussi ! Phase 2 prête pour développement.
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user)
+      setLoading(false)
+    })
+    return unsubscribe
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <p className="text-white">Chargement de Synergia...</p>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
+
+  if (!user) {
+    return <Login onLogin={setUser} />
+  }
+
+  return <Dashboard user={user} onLogout={() => setUser(null)} />
 }
 
 export default App
