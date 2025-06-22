@@ -1,8 +1,5 @@
-// ==========================================
-// 📁 react-app/src/shared/hooks/useProjectService.js
-// Hook d'intégration ProjectService + Store
-// ==========================================
-
+import { useEffect, useCallback } from 'react';
+import { useAuthStore } from '../stores/authStore.js';
 import { useProjectStore } from '../stores/projectStore.js';
 
 export const useProjectService = () => {
