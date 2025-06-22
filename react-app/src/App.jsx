@@ -1,49 +1,69 @@
-// src/App.jsx - VERSION CORRIGÉE
+// src/App.jsx - AVEC AUTO-CRÉATION INTÉGRÉE
 import React, { useEffect, useState } from 'react'
 import { BrowserRouter } from 'react-router-dom'
 import authService from './modules/auth/services/authService.js'
-import userService from './services/userService.js'
 import useAuthStore from './shared/stores/authStore'
 import AppRoutes from './routes'
 import './assets/styles/globals.css'
 
 function App() {
   const { setUser, setLoading } = useAuthStore()
-  const [fixingUser, setFixingUser] = useState(false)
+  const [autoCreating, setAutoCreating] = useState(false)
+  const [creationStatus, setCreationStatus] = useState('')
 
   useEffect(() => {
     let unsubscribe = null;
     
     const initAuth = async () => {
       try {
-        // Écouter les changements d'authentification avec auto-correction
+        // 👂 ÉCOUTE AVEC AUTO-CRÉATION INTÉGRÉE
         unsubscribe = authService.onAuthStateChanged(async (user) => {
           if (user) {
             console.log('👤 Utilisateur connecté:', user.email);
             
-            // ✅ AUTO-FIX : Vérifier et corriger le document utilisateur
-            setFixingUser(true);
+            setAutoCreating(true);
+            setCreationStatus('Vérification du profil...');
+            
             try {
-              const wasCreated = await userService.ensureUserDocument(user);
+              // L'auto-création est déjà gérée dans authService.onAuthStateChanged
+              // On récupère l'utilisateur avec son profil complet
               
-              if (wasCreated) {
-                console.log('✅ Document utilisateur créé automatiquement');
+              if (user.profile) {
+                setCreationStatus('Profil chargé !');
+                
+                // 🎉 NOTIFICATION SI NOUVEAU PROFIL
+                if (user.profile.metadata?.source === 'auto_creation') {
+                  console.log('🎉 Bienvenue ! Votre profil a été créé automatiquement');
+                  // Optionnel : afficher une notification de bienvenue
+                  showWelcomeNotification(user);
+                }
+                
+                setUser({
+                  uid: user.uid,
+                  email: user.email,
+                  displayName: user.displayName,
+                  photoURL: user.photoURL,
+                  profile: user.profile
+                });
+              } else {
+                // Profil manquant, déclencher création manuelle
+                setCreationStatus('Création du profil...');
+                const result = await authService.fixCurrentUser();
+                
+                if (result.success) {
+                  setCreationStatus('Profil créé ! Rechargement...');
+                  setTimeout(() => window.location.reload(), 1500);
+                } else {
+                  setCreationStatus('Erreur création profil');
+                  console.error('❌ Échec création profil:', result.error);
+                }
               }
               
-              // Récupérer le profil complet
-              const { profile } = await userService.getUserProfile(user.uid, user);
-              
-              setUser({
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName,
-                photoURL: user.photoURL,
-                profile: profile || {}
-              });
-              
             } catch (error) {
-              console.error('❌ Erreur auto-correction utilisateur:', error);
-              // Même en cas d'erreur, on garde l'utilisateur connecté
+              console.error('❌ Erreur traitement utilisateur:', error);
+              setCreationStatus('Erreur de traitement');
+              
+              // Fallback : utilisateur sans profil complet
               setUser({
                 uid: user.uid,
                 email: user.email,
@@ -52,10 +72,13 @@ function App() {
                 profile: {}
               });
             } finally {
-              setFixingUser(false);
+              setAutoCreating(false);
+              setTimeout(() => setCreationStatus(''), 3000);
             }
           } else {
             setUser(null)
+            setAutoCreating(false);
+            setCreationStatus('');
           }
           setLoading(false)
         });
@@ -63,6 +86,7 @@ function App() {
       } catch (error) {
         console.error('❌ Erreur initialisation auth:', error);
         setLoading(false);
+        setAutoCreating(false);
       }
     };
 
@@ -76,44 +100,63 @@ function App() {
     };
   }, [setUser, setLoading]);
 
-  // Fonction manuelle pour corriger l'utilisateur actuel
-  const handleFixUser = async () => {
-    if (fixingUser) return;
+  // 🎉 NOTIFICATION DE BIENVENUE
+  const showWelcomeNotification = (user) => {
+    // Créer une notification de bienvenue stylée
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-4 rounded-lg shadow-2xl z-50 transform transition-all duration-500 translate-x-full';
+    notification.innerHTML = `
+      <div class="flex items-center space-x-3">
+        <div class="text-2xl">🎉</div>
+        <div>
+          <div class="font-bold">Bienvenue dans Synergia !</div>
+          <div class="text-sm opacity-90">Votre profil a été créé automatiquement</div>
+          <div class="text-xs opacity-75">+50 XP • Badge "Bienvenue" débloqué</div>
+        </div>
+      </div>
+    `;
     
-    setFixingUser(true);
-    try {
-      const result = await authService.fixCurrentUser();
-      if (result.success) {
-        console.log('✅', result.message);
-        // Recharger le profil
-        window.location.reload();
-      } else {
-        console.error('❌', result.error);
-      }
-    } catch (error) {
-      console.error('❌ Erreur correction manuelle:', error);
-    } finally {
-      setFixingUser(false);
-    }
+    document.body.appendChild(notification);
+    
+    // Animation d'entrée
+    setTimeout(() => {
+      notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Animation de sortie
+    setTimeout(() => {
+      notification.style.transform = 'translateX(100%)';
+      setTimeout(() => notification.remove(), 500);
+    }, 5000);
   };
 
   return (
     <BrowserRouter>
       <div className="App">
-        {/* Bouton de debug en développement */}
-        {import.meta.env.DEV && fixingUser && (
-          <div className="fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">
-            🔧 Correction en cours...
+        {/* 🔄 INDICATEUR AUTO-CRÉATION */}
+        {autoCreating && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-xl z-50 flex items-center space-x-3">
+            <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+            <span className="font-medium">{creationStatus}</span>
           </div>
         )}
         
-        {/* Bouton de correction manuelle en cas de problème */}
+        {/* 🛠️ BOUTON DEBUG (seulement en développement) */}
         {import.meta.env.DEV && (
           <button
-            onClick={handleFixUser}
-            disabled={fixingUser}
-            className="fixed bottom-4 left-4 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm shadow-lg z-50 disabled:opacity-50"
-            title="Corriger les problèmes utilisateur"
+            onClick={async () => {
+              setAutoCreating(true);
+              setCreationStatus('Correction manuelle...');
+              const result = await authService.fixCurrentUser();
+              setCreationStatus(result.success ? 'Corrigé !' : 'Erreur');
+              setAutoCreating(false);
+              if (result.success) {
+                setTimeout(() => window.location.reload(), 1000);
+              }
+            }}
+            disabled={autoCreating}
+            className="fixed bottom-4 left-4 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded text-sm shadow-lg z-50 disabled:opacity-50 transition-all"
+            title="Forcer la création/correction du profil utilisateur"
           >
             🛠️ Fix User
           </button>
