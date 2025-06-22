@@ -1,208 +1,125 @@
-import React, { useEffect } from 'react'
-import { StatCard, Card } from '../../../shared/components/ui'
-import useAuthStore from '../../../shared/stores/authStore'
-import useUserStore from '../../../shared/stores/userStore'
-import useNotificationStore from '../../../shared/stores/notificationStore'
+import React from 'react'
+import { Link } from 'react-router-dom'
+import { LogOut, User, Trophy, CheckSquare } from 'lucide-react'
+import { AuthService } from '../modules/auth/services/authService.js'
+import { useAuthStore } from '../shared/stores/authStore.js'
+import { Card } from '../shared/components/ui/Card.jsx'
+import { Button } from '../shared/components/ui/Button.jsx'
+import WelcomeWidget from '../modules/dashboard/widgets/WelcomeWidget.jsx'
+import { ROUTES } from '../core/constants.js'
 
-const Dashboard = () => {
+export default function Dashboard() {
   const { user } = useAuthStore()
-  const { stats, addXP, updateStreak } = useUserStore()
-  const { dailyBonus } = useNotificationStore()
 
-  // Bonus de connexion quotidienne
-  useEffect(() => {
-    const today = new Date().toDateString()
-    const lastLogin = stats.lastLogin ? new Date(stats.lastLogin).toDateString() : null
-    
-    if (lastLogin !== today) {
-      // Premier login du jour
-      const bonusXP = 50
-      addXP(bonusXP, 'daily_login')
-      updateStreak(true)
-      dailyBonus(bonusXP)
+  const handleSignOut = async () => {
+    try {
+      await AuthService.signOut()
+    } catch (error) {
+      console.error('Error signing out:', error)
     }
-  }, [addXP, updateStreak, dailyBonus, stats.lastLogin])
-
-  const firstName = user?.displayName?.split(' ')[0] || 'Utilisateur'
-  
-  // Calcul du progrès vers le niveau suivant
-  const xpProgress = {
-    current: stats.xp,
-    required: 1000,
-    percentage: Math.round((stats.xp / 1000) * 100)
   }
 
-  const statsData = [
-    {
-      title: 'Niveau',
-      value: stats.level,
-      icon: <span className="text-2xl">🎯</span>,
-      color: 'primary',
-      trend: stats.level > 1 ? { positive: true, value: 'Niveau supérieur !' } : null
-    },
-    {
-      title: 'Expérience',
-      value: `${stats.xp} / 1000 XP`,
-      icon: <span className="text-2xl">⭐</span>,
-      color: 'warning'
-    },
-    {
-      title: 'Points',
-      value: stats.points,
-      icon: <span className="text-2xl">💎</span>,
-      color: 'success'
-    },
-    {
-      title: 'Badges',
-      value: stats.badges.length,
-      icon: <span className="text-2xl">🏆</span>,
-      color: 'danger'
-    }
-  ]
-
-  const quickActions = [
-    {
-      title: 'Pointer',
-      description: 'Enregistrer votre arrivée',
-      icon: '🕐',
-      color: 'bg-blue-500',
-      action: () => console.log('Pointage')
-    },
-    {
-      title: 'Nouvelle tâche',
-      description: 'Créer une nouvelle tâche',
-      icon: '✅',
-      color: 'bg-green-500',
-      action: () => console.log('Nouvelle tâche')
-    },
-    {
-      title: 'Mon équipe',
-      description: 'Voir votre équipe',
-      icon: '👥',
-      color: 'bg-purple-500',
-      action: () => console.log('Équipe')
-    }
-  ]
-
   return (
-    <div className="space-y-6">
-      {/* Message de bienvenue */}
-      <div className="bg-gradient-to-r from-primary-600 to-secondary-600 rounded-lg p-6 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold mb-2">
-              Bon retour, {firstName} ! 👋
-            </h1>
-            <p className="text-primary-100">
-              Voici un aperçu de votre activité sur Synergia
-            </p>
-          </div>
-          <div className="hidden sm:block">
-            <div className="text-right">
-              <p className="text-primary-100 text-sm">Séquence de connexion</p>
-              <p className="text-2xl font-bold">{stats.streak} jour{stats.streak > 1 ? 's' : ''}</p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <h1 className="text-2xl font-bold text-gray-900">Synergia</h1>
+            
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-600">
+                {user?.displayName || user?.email}
+              </span>
+              <Button
+                onClick={handleSignOut}
+                variant="outline"
+                size="sm"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Déconnexion
+              </Button>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Statistiques principales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statsData.map((stat, index) => (
-          <StatCard
-            key={index}
-            title={stat.title}
-            value={stat.value}
-            icon={stat.icon}
-            color={stat.color}
-            trend={stat.trend}
-          />
-        ))}
-      </div>
-
-      {/* Barre de progression XP */}
-      <Card header="Progression vers le niveau suivant">
-        <div className="space-y-3">
-          <div className="flex justify-between text-sm">
-            <span>Niveau {stats.level}</span>
-            <span>Niveau {stats.level + 1}</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
-            <div 
-              className="bg-gradient-to-r from-yellow-400 to-yellow-600 h-3 rounded-full transition-all duration-500"
-              style={{ width: `${xpProgress.percentage}%` }}
-            />
-          </div>
-          <div className="text-center text-sm text-gray-600">
-            {xpProgress.current} / {xpProgress.required} XP ({xpProgress.percentage}%)
-          </div>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome Widget */}
+        <div className="mb-8">
+          <WelcomeWidget />
         </div>
-      </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Actions rapides */}
-        <Card header="Actions rapides">
-          <div className="grid grid-cols-1 gap-4">
-            {quickActions.map((action, index) => (
-              <div
-                key={index}
-                className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors group"
-                onClick={action.action}
-              >
-                <div className="flex items-center space-x-4">
-                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-white ${action.color}`}>
-                    <span className="text-xl">{action.icon}</span>
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900 group-hover:text-primary-600 transition-colors">
-                      {action.title}
-                    </h4>
-                    <p className="text-sm text-gray-600">{action.description}</p>
-                  </div>
-                  <svg className="w-5 h-5 text-gray-400 group-hover:text-primary-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                  </svg>
+        {/* Navigation Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <Link to={ROUTES.TASKS}>
+            <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <CheckSquare className="h-8 w-8 text-blue-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">Tâches</h3>
+                  <p className="text-gray-600">Gérez vos tâches quotidiennes</p>
                 </div>
               </div>
-            ))}
-          </div>
-        </Card>
+            </Card>
+          </Link>
 
-        {/* Activité récente */}
-        <Card header="Activité récente">
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">📈</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Prêt à commencer !
-            </h3>
-            <p className="text-gray-600 mb-4">
-              Votre activité apparaîtra ici une fois que vous commencerez à utiliser Synergia.
-            </p>
-            <p className="text-sm text-gray-500">
-              Pointez, créez des tâches ou collaborez avec votre équipe pour voir vos statistiques !
-            </p>
-          </div>
-        </Card>
-      </div>
-
-      {/* Badges récents */}
-      {stats.badges.length > 0 && (
-        <Card header="Vos derniers badges">
-          <div className="flex flex-wrap gap-3">
-            {stats.badges.slice(-5).map((badge, index) => (
-              <div 
-                key={index}
-                className="flex items-center space-x-2 bg-yellow-50 border border-yellow-200 rounded-full px-3 py-2"
-              >
-                <span className="text-lg">🏆</span>
-                <span className="text-sm font-medium text-yellow-800">{badge.name}</span>
+          <Link to={ROUTES.LEADERBOARD}>
+            <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <Trophy className="h-8 w-8 text-yellow-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">Classement</h3>
+                  <p className="text-gray-600">Consultez le tableau des scores</p>
+                </div>
               </div>
-            ))}
-          </div>
-        </Card>
-      )}
+            </Card>
+          </Link>
+
+          <Link to={ROUTES.PROFILE}>
+            <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <User className="h-8 w-8 text-green-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">Profil</h3>
+                  <p className="text-gray-600">Gérez votre profil utilisateur</p>
+                </div>
+              </div>
+            </Card>
+          </Link>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="p-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-blue-600 mb-2">0</div>
+              <div className="text-sm text-gray-600">Tâches complétées</div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-green-600 mb-2">0</div>
+              <div className="text-sm text-gray-600">Points XP</div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-purple-600 mb-2">1</div>
+              <div className="text-sm text-gray-600">Niveau actuel</div>
+            </div>
+          </Card>
+        </div>
+      </main>
     </div>
   )
 }
-
-export default Dashboard
