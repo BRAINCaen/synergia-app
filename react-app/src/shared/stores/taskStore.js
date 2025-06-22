@@ -1,11 +1,11 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/taskStore.js
-// Store Zustand avec PERSISTENCE - IMPORTS CORRIGÉS
+// Store Tâches CORRIGÉ avec imports Zustand
 // ==========================================
 
-import { create } from 'zustand';
-import { persist, subscribeWithSelector } from 'zustand/middleware';
-import taskService from '../../core/services/taskService.js';
+import { create } from 'zustand'
+import { persist, subscribeWithSelector } from 'zustand/middleware'
+import taskService from '../../core/services/taskService.js'
 
 export const useTaskStore = create(
   subscribeWithSelector(
@@ -38,7 +38,8 @@ export const useTaskStore = create(
           inProgress: 0,
           todo: 0,
           overdue: 0,
-          totalXpEarned: 0
+          totalXpEarned: 0,
+          completionRate: 0
         },
         
         // Subscriptions temps réel
@@ -53,7 +54,7 @@ export const useTaskStore = create(
             set({ tasks, loading: false });
             
             // Mettre à jour les stats
-            get().updateStats(userId);
+            await get().updateStats(userId);
             
             return tasks;
           } catch (error) {
@@ -65,6 +66,10 @@ export const useTaskStore = create(
 
         // ✅ Créer une tâche avec Firebase
         createTask: async (taskData, userId) => {
+          if (!userId) {
+            throw new Error('UserId requis pour créer une tâche');
+          }
+          
           set({ creating: true });
           try {
             const newTask = await taskService.createTask(taskData, userId);
@@ -76,7 +81,7 @@ export const useTaskStore = create(
             }));
             
             // Recharger les stats
-            get().updateStats(userId);
+            await get().updateStats(userId);
             
             return newTask;
           } catch (error) {
@@ -129,7 +134,7 @@ export const useTaskStore = create(
             }));
             
             // Recharger les stats
-            get().updateStats(userId);
+            await get().updateStats(userId);
             
             return result;
           } catch (error) {
@@ -277,7 +282,8 @@ export const useTaskStore = create(
               inProgress: 0,
               todo: 0,
               overdue: 0,
-              totalXpEarned: 0
+              totalXpEarned: 0,
+              completionRate: 0
             }
           });
         }
