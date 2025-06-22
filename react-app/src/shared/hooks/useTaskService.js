@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/hooks/useTaskService.js
-// Hook d'intégration TaskService + Store
+// Hook d'intégration TaskService + Store - IMPORTS CORRIGÉS
 // ==========================================
 
 import { useEffect, useCallback } from 'react';
