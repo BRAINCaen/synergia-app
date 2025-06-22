@@ -1,4 +1,4 @@
-// src/services/userService.js - AUTO-CRÉATION UTILISATEURS
+// src/services/userService.js - SERVICE UTILISATEUR POUR AUTO-CRÉATION
 import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 import { COLLECTIONS, USER_ROLES, USER_STATUS } from '../core/constants.js';
@@ -304,6 +304,31 @@ class UserService {
     } catch (error) {
       console.error('❌ Erreur mise à jour:', error);
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 📖 RÉCUPÉRER PROFIL UTILISATEUR
+   */
+  async getUserProfile(uid, fallbackUserData = null) {
+    try {
+      const userRef = doc(db, COLLECTIONS.USERS, uid);
+      const userSnap = await getDoc(userRef);
+      
+      if (userSnap.exists()) {
+        return { profile: userSnap.data(), created: false };
+      }
+      
+      // Si le document n'existe pas et qu'on a des données de fallback
+      if (fallbackUserData) {
+        const newProfile = await this.createCompleteProfile(fallbackUserData);
+        return { profile: newProfile, created: true };
+      }
+      
+      return { profile: null, created: false };
+    } catch (error) {
+      console.error('❌ Erreur récupération profil:', error);
+      return { profile: null, error: error.message };
     }
   }
 
