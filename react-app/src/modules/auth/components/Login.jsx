@@ -1,11 +1,8 @@
 import React, { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Mail, Lock, LogIn } from 'lucide-react'
-import { AuthService } from '../services/authService.js'
+import AuthService from '../services/authService.js'
 import { useAuthStore } from '../../../shared/stores/authStore.js'
-import { Button } from '../../../shared/components/ui/Button.jsx'
-import { Input } from '../../../shared/components/ui/Input.jsx'
-import { Card } from '../../../shared/components/ui/Card.jsx'
 import { ROUTES } from '../../../core/constants.js'
 
 export default function Login() {
@@ -43,7 +40,10 @@ export default function Login() {
     setError('')
 
     try {
-      await AuthService.signInWithEmail(formData.email, formData.password)
+      const result = await AuthService.signInWithEmail(formData.email, formData.password)
+      if (!result.success) {
+        setError(result.error)
+      }
     } catch (error) {
       setError(error.message)
     } finally {
@@ -56,7 +56,10 @@ export default function Login() {
     setError('')
 
     try {
-      await AuthService.signInWithGoogle()
+      const result = await AuthService.signInWithGoogle()
+      if (!result.success) {
+        setError(result.error)
+      }
     } catch (error) {
       setError(error.message)
     } finally {
@@ -66,7 +69,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <Card className="w-full max-w-md p-8">
+      <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Synergia</h1>
           <p className="text-gray-600">Connectez-vous à votre espace</p>
@@ -79,30 +82,50 @@ export default function Login() {
         )}
 
         <form onSubmit={handleEmailLogin} className="space-y-6">
-          <Input
-            type="email"
-            name="email"
-            placeholder="Adresse email"
-            value={formData.email}
-            onChange={handleInputChange}
-            icon={<Mail className="h-5 w-5" />}
-            required
-          />
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">
+              Adresse email
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Mail className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="email"
+                name="email"
+                placeholder="Adresse email"
+                value={formData.email}
+                onChange={handleInputChange}
+                className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pl-10 text-sm placeholder-gray-400 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                required
+              />
+            </div>
+          </div>
 
-          <Input
-            type="password"
-            name="password"
-            placeholder="Mot de passe"
-            value={formData.password}
-            onChange={handleInputChange}
-            icon={<Lock className="h-5 w-5" />}
-            required
-          />
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">
+              Mot de passe
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="password"
+                name="password"
+                placeholder="Mot de passe"
+                value={formData.password}
+                onChange={handleInputChange}
+                className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pl-10 text-sm placeholder-gray-400 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                required
+              />
+            </div>
+          </div>
 
-          <Button
+          <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full"
+            className="inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 w-full px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 disabled:bg-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting ? (
               <div className="flex items-center justify-center">
@@ -115,7 +138,7 @@ export default function Login() {
                 Se connecter
               </div>
             )}
-          </Button>
+          </button>
         </form>
 
         <div className="mt-6">
@@ -128,11 +151,10 @@ export default function Login() {
             </div>
           </div>
 
-          <Button
+          <button
             onClick={handleGoogleLogin}
             disabled={isSubmitting}
-            variant="outline"
-            className="w-full mt-4"
+            className="inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 w-full mt-4 px-4 py-2 text-sm border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
               <path
@@ -153,9 +175,9 @@ export default function Login() {
               />
             </svg>
             Continuer avec Google
-          </Button>
+          </button>
         </div>
-      </Card>
+      </div>
     </div>
   )
 }
