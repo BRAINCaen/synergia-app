@@ -1,23 +1,22 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './stores/authStore';
-import { useTeamStore } from './stores/teamStore';
 
-// Layout
+// 🔧 CORRECTION : Imports avec chemins corrects selon structure existante
+import { useAuthStore } from './shared/stores/authStore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './core/firebase';
+
+// Layout et Pages existantes
 import MainLayout from './components/MainLayout';
-
-// Pages
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import TasksPage from './pages/TasksPage';
 import ProjectsPage from './pages/ProjectsPage';
-import TeamPage from './pages/TeamPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
-import AdminPage from './pages/AdminPage';
 import SettingsPage from './pages/SettingsPage';
 
-// Auth Guard Component
+// Composants de protection des routes
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuthStore();
 
@@ -35,28 +34,38 @@ const ProtectedRoute = ({ children }) => {
   return user ? children : <Navigate to="/login" replace />;
 };
 
-// Admin Guard Component
-const AdminRoute = ({ children }) => {
-  const { user } = useAuthStore();
-  
-  const isAdmin = user?.role === 'admin' || user?.permissions?.includes('admin');
-  
-  return isAdmin ? children : <Navigate to="/dashboard" replace />;
-};
-
 function App() {
-  const { checkAuthState } = useAuthStore();
-  const { cleanup: cleanupTeam } = useTeamStore();
+  const { setUser, setLoading, setError } = useAuthStore();
 
   useEffect(() => {
-    // Vérifier l'état d'authentification au démarrage
-    checkAuthState();
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (user) => {
+        if (user) {
+          // Utilisateur connecté
+          const userData = {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            emailVerified: user.emailVerified,
+          };
+          setUser(userData);
+        } else {
+          // Utilisateur déconnecté
+          setUser(null);
+        }
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Erreur authentification:', error);
+        setError(error.message);
+        setLoading(false);
+      }
+    );
 
-    // Nettoyer les listeners au démontage
-    return () => {
-      cleanupTeam();
-    };
-  }, [checkAuthState, cleanupTeam]);
+    return () => unsubscribe();
+  }, [setUser, setLoading, setError]);
 
   return (
     <Router>
@@ -84,9 +93,6 @@ function App() {
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/projects/:id" element={<ProjectsPage />} />
             
-            {/* 🎉 NOUVEAU : Dashboard équipe collaboratif */}
-            <Route path="/team" element={<TeamPage />} />
-            
             {/* Analytics et métriques */}
             <Route path="/analytics" element={<AnalyticsPage />} />
             
@@ -95,13 +101,6 @@ function App() {
             
             {/* Paramètres utilisateur */}
             <Route path="/settings" element={<SettingsPage />} />
-            
-            {/* Routes admin uniquement */}
-            <Route path="/admin" element={
-              <AdminRoute>
-                <AdminPage />
-              </AdminRoute>
-            } />
             
             {/* Route fallback - redirection vers dashboard */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
