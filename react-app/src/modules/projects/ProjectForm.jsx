@@ -4,8 +4,8 @@
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { useAuthStore } from '../../shared/stores/authStore.js';
-import { useProjectStore } from '../../shared/stores/projectStore.js';
+import { useProjectStore } from '../../shared/stores/projectStore';
+import { useAuthStore } from '../../shared/stores/authStore';
 
 const ProjectForm = ({ 
   isOpen, 
