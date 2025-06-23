@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx
-// CORRECTION COMPLÈTE : Tous les imports avec chemins corrects
+// CORRECTION : Syntaxe corrigée
 // ==========================================
 
 import React, { useState } from 'react';
@@ -11,9 +11,7 @@ import { useTaskStore } from '../../shared/stores/taskStore';
 import { useAuthStore } from '../../shared/stores/authStore';
 
 export const TaskCard = ({ task, onEdit, onDelete, showProject = false }) => {
-  const { updateTask } = useTaskStore(};
-
-export default TaskCard;
+  const { updateTask } = useTaskStore(); // 🔧 CORRECTION : Parenthèse fermante ajoutée
   const { user } = useAuthStore();
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -205,3 +203,7 @@ export default TaskCard;
         )}
       </div>
     </div>
+  );
+};
+
+export default TaskCard;
