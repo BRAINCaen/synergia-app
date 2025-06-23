@@ -1,20 +1,18 @@
 // ==========================================
 // 📁 react-app/src/modules/projects/ProjectDashboard.jsx
-// Version CORRIGÉE avec bon import MainLayout
+// Dashboard projets COMPLET avec ProjectForm intégré
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MainLayout from '../../layouts/MainLayout.jsx'; // ✅ CORRIGÉ: bon chemin
-// import ProjectForm from './ProjectForm.jsx'; // TODO: Décommenter quand créé
+import MainLayout from '../../layouts/MainLayout.jsx';
+import ProjectForm from './ProjectForm.jsx'; // ✅ NOUVEAU: Import du vrai ProjectForm
 import { useProjectStore } from '../../shared/stores/projectStore.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
-// import { useProjectActions } from '../../shared/hooks/useProjectActions.js'; // TODO: Décommenter quand créé
-// import { useToast } from '../../shared/components/ToastNotification.jsx'; // TODO: Décommenter quand créé
+import ProjectService from '../../shared/services/projectService.js'; // ✅ NOUVEAU: Import du service
 
 const ProjectDashboard = () => {
   const navigate = useNavigate();
-  // const { toast } = useToast(); // TODO: Décommenter quand ToastNotification créé
   const { user } = useAuthStore();
   const { 
     projects, 
@@ -27,13 +25,12 @@ const ProjectDashboard = () => {
     subscribeToProjects,
     getFilteredProjects 
   } = useProjectStore();
-  
-  // const { handleCreateProject, handleUpdateProject, handleDeleteProject } = useProjectActions(); // TODO
 
   // États locaux
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' ou 'list'
+  const [viewMode, setViewMode] = useState('grid');
+  const [formLoading, setFormLoading] = useState(false); // ✅ NOUVEAU: Loading du formulaire
 
   // Charger les projets au montage
   useEffect(() => {
@@ -44,15 +41,17 @@ const ProjectDashboard = () => {
     }
   }, [user?.uid]);
 
-  // Projets filtrés (utilise la méthode du store si disponible, sinon filtre basique)
-  const filteredProjects = getFilteredProjects ? getFilteredProjects() : projects.filter(project => {
-    const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
-    const matchesSearch = !searchTerm || 
-      project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    return matchesStatus && matchesSearch;
-  });
+  // Projets filtrés
+  const filteredProjects = getFilteredProjects ? 
+    getFilteredProjects() : 
+    projects.filter(project => {
+      const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
+      const matchesSearch = !searchTerm || 
+        project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      return matchesStatus && matchesSearch;
+    });
 
   // Statistiques
   const stats = {
@@ -65,6 +64,10 @@ const ProjectDashboard = () => {
       return new Date(p.deadline) < new Date();
     }).length
   };
+
+  // ==========================================
+  // 🎯 HANDLERS PROJETS
+  // ==========================================
 
   const handleNewProject = () => {
     setEditingProject(null);
@@ -80,6 +83,71 @@ const ProjectDashboard = () => {
     setShowProjectForm(false);
     setEditingProject(null);
   };
+
+  // ✅ NOUVEAU: Handler pour créer/modifier un projet
+  const handleSubmitProject = async (projectData) => {
+    setFormLoading(true);
+    
+    try {
+      if (editingProject) {
+        // Modification
+        console.log('🔄 Modification projet:', editingProject.id);
+        await ProjectService.updateProject(editingProject.id, projectData, user.uid);
+        
+        // TODO: Toast success notification
+        console.log('✅ Projet modifié avec succès');
+      } else {
+        // Création
+        console.log('📝 Création nouveau projet');
+        const newProject = await ProjectService.createProject(projectData, user.uid);
+        
+        // TODO: Toast success notification
+        console.log('✅ Projet créé avec succès:', newProject.id);
+      }
+      
+      // Fermer le formulaire
+      handleCloseForm();
+      
+      // Recharger les projets (optionnel car temps réel)
+      if (user?.uid) {
+        loadUserProjects(user.uid);
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur soumission projet:', error);
+      // L'erreur sera affichée dans le formulaire
+      throw error;
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  // ✅ NOUVEAU: Handler pour supprimer un projet
+  const handleDeleteProject = async (project) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le projet "${project.name}" ?`)) {
+      return;
+    }
+
+    try {
+      console.log('🗑️ Suppression projet:', project.id);
+      await ProjectService.deleteProject(project.id, user.uid);
+      
+      // TODO: Toast success notification
+      console.log('✅ Projet supprimé avec succès');
+      
+      // Recharger les projets
+      if (user?.uid) {
+        loadUserProjects(user.uid);
+      }
+    } catch (error) {
+      console.error('❌ Erreur suppression projet:', error);
+      alert(`Erreur: ${error.message}`);
+    }
+  };
+
+  // ==========================================
+  // 🎨 HELPER FUNCTIONS
+  // ==========================================
 
   const getStatusBadge = (status) => {
     const statusConfig = {
@@ -98,6 +166,23 @@ const ProjectDashboard = () => {
     );
   };
 
+  const formatDate = (date) => {
+    if (!date) return null;
+    try {
+      return new Date(date).toLocaleDateString('fr-FR');
+    } catch {
+      return 'Date invalide';
+    }
+  };
+
+  const getProgressColor = (percentage) => {
+    if (percentage >= 80) return 'bg-green-500';
+    if (percentage >= 50) return 'bg-blue-500';
+    if (percentage >= 25) return 'bg-yellow-500';
+    return 'bg-gray-300';
+  };
+
+  // Loading state
   if (loading) {
     return (
       <MainLayout>
@@ -149,7 +234,7 @@ const ProjectDashboard = () => {
               <span className="text-3xl">📊</span>
             </div>
           </div>
-          
+
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -159,7 +244,7 @@ const ProjectDashboard = () => {
               <span className="text-3xl">🟢</span>
             </div>
           </div>
-          
+
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -169,7 +254,7 @@ const ProjectDashboard = () => {
               <span className="text-3xl">✅</span>
             </div>
           </div>
-          
+
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -179,7 +264,7 @@ const ProjectDashboard = () => {
               <span className="text-3xl">⏸️</span>
             </div>
           </div>
-          
+
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -244,9 +329,8 @@ const ProjectDashboard = () => {
             </h3>
             <p className="text-gray-600 mb-6">
               {projects.length === 0 
-                ? 'Créez votre premier projet pour commencer à organiser votre travail'
-                : 'Essayez de modifier vos filtres de recherche'
-              }
+                ? 'Créez votre premier projet pour commencer !'
+                : 'Aucun projet ne correspond à vos critères de recherche.'}
             </p>
             {projects.length === 0 && (
               <button
@@ -259,115 +343,111 @@ const ProjectDashboard = () => {
           </div>
         ) : (
           <div className={viewMode === 'grid' 
-            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' 
             : 'space-y-4'
           }>
-            {filteredProjects.map(project => (
-              <div
-                key={project.id}
-                className="bg-white border border-gray-200 rounded-lg p-6 hover:border-gray-300 transition-colors"
+            {filteredProjects.map((project) => (
+              <div 
+                key={project.id} 
+                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3 flex-1">
-                    <span 
-                      className="text-3xl flex-shrink-0"
-                      style={{ color: project.color }}
-                    >
-                      {project.icon}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-gray-900 truncate mb-1">
-                        {project.name}
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {getStatusBadge(project.status)}
-                      </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{project.icon || '📊'}</span>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{project.name}</h3>
+                      <p className="text-sm text-gray-600">
+                        {project.description?.substring(0, 100)}
+                        {project.description?.length > 100 && '...'}
+                      </p>
                     </div>
                   </div>
-                </div>
-                
-                {/* Description */}
-                {project.description && (
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                    {project.description}
-                  </p>
-                )}
-                
-                {/* Barre de progression */}
-                <div className="mb-4">
-                  <div className="flex justify-between text-sm text-gray-600 mb-1">
-                    <span>Progression</span>
-                    <span>{project.progress?.percentage || 0}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="h-2 rounded-full transition-all duration-300"
-                      style={{ 
-                        width: `${project.progress?.percentage || 0}%`,
-                        background: `linear-gradient(90deg, ${project.color}, ${project.color}dd)`
-                      }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>{project.progress?.completed || 0} terminées</span>
-                    <span>{project.progress?.total || 0} total</span>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleEditProject(project)}
+                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                    >
+                      ✏️ Modifier
+                    </button>
+                    <button
+                      onClick={() => handleDeleteProject(project)}
+                      className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                    >
+                      🗑️ Suppr.
+                    </button>
                   </div>
                 </div>
-                
-                {/* Actions temporaires */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEditProject(project)}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    ✏️ Modifier
-                  </button>
-                  <button
-                    onClick={() => alert('Fonctionnalité à venir!')}
-                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    👀 Voir
-                  </button>
+
+                <div className="space-y-3">
+                  {/* Statut */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Statut:</span>
+                    {getStatusBadge(project.status)}
+                  </div>
+
+                  {/* Progression */}
+                  {project.progress && (
+                    <div>
+                      <div className="flex items-center justify-between text-sm mb-1">
+                        <span className="text-gray-500">Progression:</span>
+                        <span className="font-medium">{project.progress.percentage || 0}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all ${getProgressColor(project.progress.percentage || 0)}`}
+                          style={{ width: `${project.progress.percentage || 0}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Date d'échéance */}
+                  {project.deadline && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Échéance:</span>
+                      <span className={`font-medium ${
+                        new Date(project.deadline) < new Date() && project.status !== 'completed'
+                          ? 'text-red-600'
+                          : 'text-gray-900'
+                      }`}>
+                        {formatDate(project.deadline)}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Tags */}
+                  {project.tags && project.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {project.tags.slice(0, 3).map((tag, index) => (
+                        <span 
+                          key={index}
+                          className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                      {project.tags.length > 3 && (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-500 text-xs rounded">
+                          +{project.tags.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Modal temporaire */}
-        {showProjectForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">
-                  {editingProject ? 'Modifier le projet' : 'Nouveau projet'}
-                </h3>
-                <button
-                  onClick={handleCloseForm}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
-              
-              <div className="text-center py-8">
-                <div className="text-6xl mb-4">🚧</div>
-                <p className="text-gray-600 mb-4 font-semibold">
-                  Interface en cours de développement
-                </p>
-                <p className="text-sm text-gray-500 mb-6">
-                  Le ProjectForm complet sera bientôt disponible !
-                </p>
-                <button
-                  onClick={handleCloseForm}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Fermer
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* ✅ NOUVEAU: ProjectForm Modal complet */}
+        <ProjectForm
+          isOpen={showProjectForm}
+          onClose={handleCloseForm}
+          project={editingProject}
+          onSubmit={handleSubmitProject}
+          loading={formLoading}
+        />
 
       </div>
     </MainLayout>
