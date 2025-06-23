@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuthStore } from '../shared/stores/authStore.js'
+import { useAuthStore } from '../shared/stores/authStore';
 import { useTaskService } from '../shared/hooks/useTaskService.js'
 import { useProjectService } from '../shared/hooks/useProjectService.js'
 import { useGameService } from '../shared/hooks/useGameService.js'
