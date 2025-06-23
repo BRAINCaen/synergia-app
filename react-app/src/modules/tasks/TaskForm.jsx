@@ -1,8 +1,8 @@
 // src/modules/tasks/TaskForm.jsx - Version avec gestion dates corrigée
 import React, { useState, useEffect } from 'react';
-import { useTaskStore } from '../../shared/stores/taskStore.js';
-import { useProjectStore } from '../../shared/stores/projectStore.js';
-import { useAuthStore } from '../../shared/stores/authStore.js';
+import { useTaskStore } from '../../shared/stores/taskStore';
+import { useProjectStore } from '../../shared/stores/projectStore';
+import { useAuthStore } from '../../shared/stores/authStore';
 import dateUtils from '../../shared/utils/dateUtils.js';
 
 export const TaskForm = ({ task, onClose, onSave }) => {
