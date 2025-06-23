@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskService.js
-// Service Firebase COMPLET - Version Corrigée Sans Duplication
+// Service Firebase COMPLET - Version Finale Corrigée
 // ==========================================
 
 import { 
@@ -414,17 +414,49 @@ class TaskService {
     try {
       const tasks = await this.getUserTasks(userId);
       
+      const now = new Date();
+      const thisWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      
       const stats = {
         total: tasks.length,
         completed: tasks.filter(t => t.status === 'completed').length,
         inProgress: tasks.filter(t => t.status === 'in_progress').length,
         todo: tasks.filter(t => t.status === 'todo').length,
         overdue: tasks.filter(t => {
-          return t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'completed';
+          return t.dueDate && new Date(t.dueDate) < now && t.status !== 'completed';
         }).length,
+        
+        byPriority: {
+          urgent: tasks.filter(t => t.priority === 'urgent').length,
+          high: tasks.filter(t => t.priority === 'high').length,
+          medium: tasks.filter(t => t.priority === 'medium').length,
+          low: tasks.filter(t => t.priority === 'low').length
+        },
+        
+        byComplexity: {
+          expert: tasks.filter(t => t.complexity === 'expert').length,
+          hard: tasks.filter(t => t.complexity === 'hard').length,
+          normal: tasks.filter(t => t.complexity === 'normal').length,
+          easy: tasks.filter(t => t.complexity === 'easy').length
+        },
+        
+        thisWeek: {
+          created: tasks.filter(t => t.createdAt >= thisWeek).length,
+          completed: tasks.filter(t => t.completedAt && t.completedAt >= thisWeek).length
+        },
+        
+        thisMonth: {
+          created: tasks.filter(t => t.createdAt >= thisMonth).length,
+          completed: tasks.filter(t => t.completedAt && t.completedAt >= thisMonth).length
+        },
+        
         totalXPEarned: tasks
-          .filter(t => t.status === 'completed')
-          .reduce((sum, t) => sum + (t.xpRewarded || 0), 0),
+          .filter(t => t.status === 'completed' && t.xpRewarded)
+          .reduce((total, task) => total + (task.xpRewarded || 0), 0),
+        
+        estimatedHours: tasks.reduce((total, task) => total + (task.estimatedTime || 0), 0),
+        
         completionRate: tasks.length > 0 ? 
           Math.round((tasks.filter(t => t.status === 'completed').length / tasks.length) * 100) : 0
       };
@@ -495,6 +527,20 @@ class TaskService {
   }
 
   /**
+   * 🔗 ALIASES POUR COMPATIBILITÉ AVEC taskStore
+   */
+  
+  // Alias pour listenToUserTasks (utilisé par taskStore)
+  listenToUserTasks(userId, callback, filters = {}) {
+    return this.subscribeToUserTasks(userId, callback);
+  }
+  
+  // Alias pour getTaskStats (utilisé par taskStore)
+  async getTaskStats(userId) {
+    return await this.getUserTaskStats(userId);
+  }
+
+  /**
    * 📁 MÉTHODES PROJETS (temporaires/mock)
    */
   async createProject(projectData, userId) {
@@ -516,22 +562,8 @@ class TaskService {
     return [];
   }
 
+}
 
 // Export singleton - UNE SEULE FOIS
 export const taskService = new TaskService();
 export default taskService;
-
-/**
-   * 🔗 ALIASES POUR COMPATIBILITÉ AVEC taskStore
-   */
-  
-  // Alias pour listenToUserTasks (utilisé par taskStore)
-  listenToUserTasks(userId, callback, filters = {}) {
-    return this.subscribeToUserTasks(userId, callback);
-  }
-  
-  // Alias pour getTaskStats (utilisé par taskStore)
-  async getTaskStats(userId) {
-    return await this.getUserTaskStats(userId);
-  }
-}
