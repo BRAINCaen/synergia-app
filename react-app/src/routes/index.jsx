@@ -5,7 +5,7 @@ import { ROUTES } from '../core/constants.js'
 
 // Pages
 import Login from '../pages/Login.jsx'
-import Dashboard from '../pages/Dashboard.jsx'  // ✅ Correct
+import Dashboard from '../pages/Dashboard.jsx'
 import NotFound from '../pages/NotFound.jsx'
 
 // Components
@@ -14,8 +14,8 @@ import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
 import Leaderboard from '../components/gamification/Leaderboard.jsx'
 import Profile from '../modules/profile/components/Profile.jsx'
 
-// ✅ AJOUT : Import du ProjectDashboard
-import { ProjectDashboard } from '../modules/projects/ProjectDashboard.jsx'
+// ✅ CORRIGÉ : Import DEFAULT au lieu de nommé
+import ProjectDashboard from '../modules/projects/ProjectDashboard.jsx'
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -93,7 +93,7 @@ export default function AppRoutes() {
         } 
       />
       
-      {/* ✅ NOUVELLE ROUTE : Projects */}
+      {/* ✅ ROUTE PROJECTS : Utilise l'import default corrigé */}
       <Route 
         path="/projects" 
         element={
