@@ -1,3 +1,4 @@
+// 🔧 CORRECTION: react-app/src/shared/hooks/useGameService.js
 import { useEffect, useCallback } from 'react';
 import { useAuthStore } from '../stores/authStore.js';
 import { useGameStore } from '../stores/gameStore.js';
@@ -19,32 +20,54 @@ export const useGameService = () => {
     getters
   } = useGameStore();
 
-  // 🔄 Synchroniser les données depuis Firestore
+  // 🔄 Synchroniser les données depuis Firestore - CORRIGÉ
   const syncGameData = useCallback(async () => {
     if (!user?.uid) return;
 
     try {
       setLoading(true);
       const data = await gameService.getUserGameData(user.uid);
-      setGameData(data);
+      
+      // 🔧 CORRECTION: S'assurer que les données sont cohérentes
+      const normalizedData = {
+        ...data,
+        // S'assurer que totalXp et xp sont synchronisés
+        totalXp: data.totalXp || data.xp || 0,
+        xp: data.xp || data.totalXp || 0,
+        level: data.level || 1,
+        badges: data.badges || [],
+        loginStreak: data.loginStreak || 0,
+        tasksCompleted: data.tasksCompleted || 0
+      };
+      
+      console.log('🔄 Données synchronisées:', normalizedData);
+      setGameData(normalizedData);
       setError(null);
     } catch (error) {
-      console.error('Erreur sync game data:', error);
+      console.error('❌ Erreur sync game data:', error);
       setError(error.message);
     } finally {
       setLoading(false);
     }
   }, [user?.uid, setGameData, setLoading, setError]);
 
-  // ⭐ Ajouter de l'XP avec feedback visuel
+  // ⭐ Ajouter de l'XP avec feedback visuel - CORRIGÉ
   const addXP = useCallback(async (amount, source = 'unknown') => {
     if (!user?.uid) return null;
 
     try {
+      console.log(`🎯 Ajout XP: +${amount} (${source})`);
       const result = await gameService.addXP(user.uid, amount, source);
       
-      // Mise à jour locale immédiate
-      setGameData(result);
+      // 🔧 CORRECTION: Mise à jour locale immédiate ET temps réel
+      const normalizedResult = {
+        ...result,
+        totalXp: result.totalXp || result.xp || 0,
+        xp: result.xp || result.totalXp || 0
+      };
+      
+      console.log('✅ Résultat XP:', normalizedResult);
+      setGameData(normalizedResult);
       
       // Feedback visuel
       triggerXPAnimation(amount);
@@ -54,7 +77,7 @@ export const useGameService = () => {
         type: 'xp_gained',
         amount,
         source,
-        newTotal: result.totalXp
+        newTotal: normalizedResult.totalXp
       });
       
       // Vérifier level up
@@ -65,15 +88,18 @@ export const useGameService = () => {
         });
       }
       
-      return result;
+      // 🔧 CORRECTION: Forcer une resynchronisation après mise à jour
+      setTimeout(syncGameData, 500);
+      
+      return normalizedResult;
     } catch (error) {
-      console.error('Erreur ajout XP:', error);
+      console.error('❌ Erreur ajout XP:', error);
       setError(error.message);
       return null;
     }
-  }, [user?.uid, setGameData, setError, triggerXPAnimation, addRecentActivity, showLevelUpNotification]);
+  }, [user?.uid, setGameData, setError, triggerXPAnimation, addRecentActivity, showLevelUpNotification, syncGameData]);
 
-  // 🏅 Débloquer un badge
+  // 🏅 Débloquer un badge - CORRIGÉ
   const unlockBadge = useCallback(async (badge) => {
     if (!user?.uid) return false;
 
@@ -95,17 +121,26 @@ export const useGameService = () => {
       }
       return success;
     } catch (error) {
-      console.error('Erreur déblocage badge:', error);
+      console.error('❌ Erreur déblocage badge:', error);
       setError(error.message);
       return false;
     }
   }, [user?.uid, syncGameData, setError, showBadgeNotification, addRecentActivity]);
 
-  // 🎯 Actions de gamification rapides
+  // 🎯 Actions de gamification rapides - CORRIGÉ
   const quickActions = {
-    dailyLogin: () => addXP(10, 'daily_login'),
-    taskCompleted: () => addXP(25, 'task_completed'),
-    longSession: () => addXP(15, 'long_session'),
+    dailyLogin: () => {
+      console.log('🌅 Daily login triggered');
+      return addXP(10, 'daily_login');
+    },
+    taskCompleted: () => {
+      console.log('✅ Task completed triggered');
+      return addXP(25, 'task_completed');
+    },
+    longSession: () => {
+      console.log('⏰ Long session triggered');
+      return addXP(15, 'long_session');
+    },
     firstLogin: async () => {
       const badge = {
         id: 'first_login',
@@ -120,14 +155,15 @@ export const useGameService = () => {
     }
   };
 
-  // 🧮 Fonctions de calcul utiles
+  // 🧮 Fonctions de calcul utiles - CORRIGÉ
   const calculations = {
     getProgressToNextLevel: () => {
-      if (!gameData) return 0;
+      if (!gameData || !gameData.level) return 0;
       return getters.getProgressPercentage() / 100;
     },
     
     getXPNeededForNextLevel: () => {
+      if (!gameData) return 100;
       return getters.getXPForNextLevel();
     },
     
@@ -137,28 +173,55 @@ export const useGameService = () => {
     }
   };
 
-  // 🔄 Écouter les changements en temps réel
+  // 🔄 Écouter les changements en temps réel - CORRIGÉ
   useEffect(() => {
-    if (!user?.uid) return;
-
-    // Synchronisation initiale si pas de données
-    if (!gameData || !gameData.level) {
-      syncGameData();
+    if (!user?.uid) {
+      console.log('👤 Pas d\'utilisateur connecté');
+      return;
     }
+
+    console.log('🔄 Setup real-time listener pour:', user.uid);
+
+    // Synchronisation initiale
+    syncGameData();
 
     // Écoute en temps réel
     const unsubscribe = gameService.subscribeToUserGameData(
       user.uid,
       (data) => {
-        setGameData(data);
+        console.log('📡 Données temps réel reçues:', data);
+        
+        // Normaliser les données
+        const normalizedData = {
+          ...data,
+          totalXp: data.totalXp || data.xp || 0,
+          xp: data.xp || data.totalXp || 0,
+          level: data.level || 1,
+          badges: data.badges || []
+        };
+        
+        setGameData(normalizedData);
         setLoading(false);
       }
     );
 
     return () => {
+      console.log('🛑 Cleanup real-time listener');
       gameService.unsubscribeFromUserGameData(user.uid);
     };
-  }, [user?.uid, gameData, syncGameData, setGameData, setLoading]);
+  }, [user?.uid, setGameData, setLoading, syncGameData]);
+
+  // 🔧 CORRECTION: Log pour debug
+  useEffect(() => {
+    if (gameData) {
+      console.log('🎮 GameData mis à jour:', {
+        level: gameData.level,
+        xp: gameData.xp,
+        totalXp: gameData.totalXp,
+        badges: gameData.badges?.length || 0
+      });
+    }
+  }, [gameData]);
 
   return {
     // Données
