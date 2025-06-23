@@ -1,22 +1,25 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// 🔧 CORRECTION : Chemin correct pour MainLayout
+// 🔧 CORRECTION : Imports selon VRAIE structure existante
 import { useAuthStore } from './shared/stores/authStore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './core/firebase';
 
-// Layout correct - dans layouts/
+// Layout existant
 import MainLayout from './layouts/MainLayout';
 
-// Pages existantes - adapter selon votre structure
-import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
-import TasksPage from './pages/TasksPage';
-import ProjectsPage from './pages/ProjectsPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-import LeaderboardPage from './pages/LeaderboardPage';
-import SettingsPage from './pages/SettingsPage';
+// Pages existantes dans modules/ et pages/
+import Login from './modules/auth/Login';
+import Dashboard from './modules/dashboard/Dashboard';
+import TaskList from './modules/tasks/TaskList';
+import ProjectDashboard from './modules/projects/ProjectDashboard';
+import GamificationDashboard from './modules/gamification/GamificationDashboard';
+import Profile from './modules/profile/components/Profile';
+
+// Pages dans pages/
+import LoginPage from './pages/Login';
+import DashboardPage from './pages/Dashboard';
 
 // Composants de protection des routes
 const ProtectedRoute = ({ children }) => {
@@ -73,7 +76,7 @@ function App() {
     <Router>
       <div className="App">
         <Routes>
-          {/* Route publique - Login */}
+          {/* Route publique - Login (utilise pages/Login qui wrapp modules/auth/Login) */}
           <Route path="/login" element={<LoginPage />} />
           
           {/* Redirection racine vers dashboard */}
@@ -85,24 +88,20 @@ function App() {
               <MainLayout />
             </ProtectedRoute>
           }>
-            {/* Dashboard personnel */}
+            {/* Dashboard principal (utilise pages/Dashboard) */}
             <Route path="/dashboard" element={<DashboardPage />} />
             
-            {/* Gestion des tâches personnelles */}
-            <Route path="/tasks" element={<TasksPage />} />
+            {/* Tâches */}
+            <Route path="/tasks" element={<TaskList />} />
             
-            {/* Projets collaboratifs */}
-            <Route path="/projects" element={<ProjectsPage />} />
-            <Route path="/projects/:id" element={<ProjectsPage />} />
+            {/* Projets */}
+            <Route path="/projects" element={<ProjectDashboard />} />
             
-            {/* Analytics et métriques */}
-            <Route path="/analytics" element={<AnalyticsPage />} />
+            {/* Gamification */}
+            <Route path="/gamification" element={<GamificationDashboard />} />
             
-            {/* Classement gamification */}
-            <Route path="/leaderboard" element={<LeaderboardPage />} />
-            
-            {/* Paramètres utilisateur */}
-            <Route path="/settings" element={<SettingsPage />} />
+            {/* Profil */}
+            <Route path="/profile" element={<Profile />} />
             
             {/* Route fallback - redirection vers dashboard */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
