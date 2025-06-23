@@ -14,7 +14,7 @@ import WelcomeWidget from '../../../modules/dashboard/widgets/WelcomeWidget.jsx'
 import { ROUTES } from '../../../core/constants.js';
 
 // Import des hooks pour données réelles
-import { useRealTimeUser, useUserStats } from '../../../hooks/useRealTimeUser.js';
+import { useRealTimeUser, useUserStats } from '../../../../shared/hooks/useRealTimeUser.js';
 
 export default function Dashboard() {
   const { user } = useAuthStore();
