@@ -1,595 +1,351 @@
 // ==========================================
 // 📁 react-app/src/modules/projects/ProjectForm.jsx
-// Formulaire complet création/édition projets - VERSION CORRIGÉE AVEC DEBUGGING
+// Formulaire de création/édition de projets
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
+import { X, Calendar, Flag, FileText, Target, Clock } from 'lucide-react';
+
+// 🔧 CORRECTION : Imports avec chemins corrects
 import { useProjectStore } from '../../shared/stores/projectStore';
 import { useAuthStore } from '../../shared/stores/authStore';
+import dateUtils from '../../shared/utils/dateUtils';
 
-const ProjectForm = ({ 
-  isOpen, 
-  onClose, 
-  editingProject = null, 
-  onSuccess = null 
-}) => {
+const ProjectForm = ({ project, onClose, onSave }) => {
+  const { createProject, updateProject, creating, updating } = useProjectStore();
   const { user } = useAuthStore();
-  const { createProject, updateProject } = useProjectStore();
   
-  // État du formulaire
   const [formData, setFormData] = useState({
-    name: '',
+    title: '',
     description: '',
     status: 'active',
-    icon: '📁',
-    color: '#3b82f6',
-    tags: [],
     priority: 'medium',
-    deadline: '',
-    budget: ''
+    startDate: '',
+    dueDate: '',
+    expectedDuration: '',
+    category: ''
   });
-
+  
   const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [tagInput, setTagInput] = useState('');
 
-  // Options prédéfinies
-  const PROJECT_ICONS = [
-    '📁', '🚀', '⚡', '🎯', '💎', '🔥', '⭐', '🏆',
-    '📊', '💼', '🎨', '🔧', '📱', '💻', '🌟', '🔮'
-  ];
-
-  const STATUS_OPTIONS = [
-    { value: 'active', label: '🟢 Actif', desc: 'Projet en cours' },
-    { value: 'planning', label: '🔵 Planification', desc: 'En phase de préparation' },
-    { value: 'paused', label: '⏸️ En pause', desc: 'Temporairement arrêté' },
-    { value: 'completed', label: '✅ Terminé', desc: 'Projet achevé' },
-    { value: 'archived', label: '📦 Archivé', desc: 'Stocké pour référence' }
-  ];
-
-  const PRIORITY_OPTIONS = [
-    { value: 'low', label: '📝 Basse', color: 'text-gray-400' },
-    { value: 'medium', label: '📌 Moyenne', color: 'text-blue-400' },
-    { value: 'high', label: '⚡ Haute', color: 'text-orange-400' },
-    { value: 'urgent', label: '🔥 Urgent', color: 'text-red-400' }
-  ];
-
-  // 🔧 CORRECTION: Fonction utilitaire pour formater les dates en sécurité
-  const formatDateForInput = (date) => {
-    if (!date) return '';
-    
-    try {
-      // Gestion des timestamps Firebase
-      if (date && typeof date.toDate === 'function') {
-        date = date.toDate();
-      }
-      
-      // Gestion des objets avec seconds (Firebase Timestamp format)
-      if (date && typeof date.seconds === 'number') {
-        date = new Date(date.seconds * 1000);
-      }
-      
-      const parsedDate = new Date(date);
-      
-      // Vérifier si la date est valide
-      if (isNaN(parsedDate.getTime())) {
-        console.warn('Date invalide pour input:', date);
-        return '';
-      }
-      
-      return parsedDate.toISOString().slice(0, 16);
-    } catch (error) {
-      console.warn('Erreur formatage date pour input:', error, 'Date reçue:', date);
-      return '';
-    }
-  };
-
-  // Initialiser le formulaire si édition
+  // Initialiser le formulaire
   useEffect(() => {
-    if (editingProject) {
-      console.log('🔧 Initialisation formulaire édition:', editingProject);
+    if (project) {
       setFormData({
-        name: editingProject.name || '',
-        description: editingProject.description || '',
-        status: editingProject.status || 'active',
-        icon: editingProject.icon || '📁',
-        color: editingProject.color || '#3b82f6',
-        tags: editingProject.tags || [],
-        priority: editingProject.priority || 'medium',
-        deadline: formatDateForInput(editingProject.deadline),
-        budget: editingProject.budget || ''
+        title: project.title || '',
+        description: project.description || '',
+        status: project.status || 'active',
+        priority: project.priority || 'medium',
+        startDate: project.startDate ? dateUtils.formatForInput(project.startDate) : '',
+        dueDate: project.dueDate ? dateUtils.formatForInput(project.dueDate) : '',
+        expectedDuration: project.expectedDuration || '',
+        category: project.category || ''
       });
-    } else {
-      resetForm();
     }
-  }, [editingProject, isOpen]);
+  }, [project]);
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      status: 'active',
-      icon: '📁',
-      color: '#3b82f6',
-      tags: [],
-      priority: 'medium',
-      deadline: '',
-      budget: ''
-    });
-    setErrors({});
-    setTagInput('');
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Nettoyer l'erreur si elle existe
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
   };
 
   const validateForm = () => {
     const newErrors = {};
-
-    // Nom requis
-    if (!formData.name?.trim()) {
-      newErrors.name = 'Le nom du projet est requis';
-    } else if (formData.name.trim().length < 3) {
-      newErrors.name = 'Le nom doit contenir au moins 3 caractères';
-    } else if (formData.name.trim().length > 100) {
-      newErrors.name = 'Le nom ne peut pas dépasser 100 caractères';
+    
+    if (!formData.title.trim()) {
+      newErrors.title = 'Le titre est requis';
+    }
+    
+    if (!formData.description.trim()) {
+      newErrors.description = 'La description est requise';
     }
 
-    // Description optionnelle mais limitée
-    if (formData.description && formData.description.length > 500) {
-      newErrors.description = 'La description ne peut pas dépasser 500 caractères';
-    }
-
-    // Deadline validation - 🔧 CORRECTION: Gestion sécurisée des dates
-    if (formData.deadline) {
-      try {
-        const deadlineDate = new Date(formData.deadline);
-        if (isNaN(deadlineDate.getTime())) {
-          newErrors.deadline = 'Format de date invalide';
-        } else {
-          const now = new Date();
-          if (deadlineDate < now && formData.status !== 'completed') {
-            newErrors.deadline = 'La deadline ne peut pas être dans le passé pour un projet actif';
-          }
-        }
-      } catch (error) {
-        console.warn('Erreur validation deadline:', error);
-        newErrors.deadline = 'Format de date invalide';
+    if (formData.startDate && formData.dueDate) {
+      const startDate = new Date(formData.startDate);
+      const dueDate = new Date(formData.dueDate);
+      
+      if (dueDate <= startDate) {
+        newErrors.dueDate = 'La date de fin doit être après la date de début';
       }
     }
 
-    // Budget validation
-    if (formData.budget && isNaN(parseFloat(formData.budget))) {
-      newErrors.budget = 'Le budget doit être un nombre valide';
+    if (formData.expectedDuration && (isNaN(formData.expectedDuration) || formData.expectedDuration <= 0)) {
+      newErrors.expectedDuration = 'La durée doit être un nombre positif';
     }
 
     setErrors(newErrors);
-    const isValid = Object.keys(newErrors).length === 0;
-    
-    // 🔧 DEBUG: Log validation results
-    console.log('=== VALIDATION ===');
-    console.log('Errors found:', newErrors);
-    console.log('Form is valid:', isValid);
-    console.log('Form data:', formData);
-    
-    return isValid;
-  };
-
-  const handleAddTag = () => {
-    if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, tagInput.trim()]
-      }));
-      setTagInput('');
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }));
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // 🔧 DEBUG: Log submit attempt
-    console.log('=== SUBMIT ATTEMPT ===');
-    console.log('Form data:', formData);
-    console.log('User:', user);
-    console.log('Loading state:', loading);
-    
-    // Validation
-    const isValidForm = validateForm();
-    console.log('Form validation result:', isValidForm);
-    
-    if (!isValidForm) {
-      console.log('❌ Validation failed, stopping submit');
-      return;
-    }
-    
-    if (!user?.uid) {
-      console.log('❌ No user found, stopping submit');
-      setErrors({ general: 'Utilisateur non connecté' });
-      return;
-    }
+    if (!validateForm()) return;
 
-    setLoading(true);
-    console.log('🔄 Starting project save...');
-    
     try {
-      // 🔧 CORRECTION: Gestion sécurisée de la deadline
       const projectData = {
         ...formData,
-        name: formData.name.trim(),
-        description: formData.description.trim(),
-        deadline: formData.deadline ? (() => {
-          try {
-            const date = new Date(formData.deadline);
-            return isNaN(date.getTime()) ? null : date;
-          } catch (error) {
-            console.warn('Erreur parsing deadline:', error);
-            return null;
-          }
-        })() : null,
-        budget: formData.budget ? parseFloat(formData.budget) : null
+        startDate: formData.startDate ? new Date(formData.startDate) : null,
+        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
+        expectedDuration: formData.expectedDuration ? parseInt(formData.expectedDuration) : null,
+        userId: user.uid,
+        updatedAt: new Date()
       };
 
-      console.log('📤 Sending project data:', projectData);
-
-      let result;
-      if (editingProject) {
-        console.log('📝 Updating existing project:', editingProject.id);
-        result = await updateProject(editingProject.id, projectData);
+      if (project) {
+        await updateProject(project.id, projectData);
       } else {
-        console.log('➕ Creating new project');
-        result = await createProject(projectData, user.uid);
+        projectData.createdAt = new Date();
+        projectData.progress = 0;
+        await createProject(projectData);
       }
 
-      console.log('✅ Project saved successfully:', result);
-      
-      if (onSuccess) {
-        onSuccess(result);
-      }
-      
+      onSave?.();
       onClose();
-      
     } catch (error) {
-      console.error('❌ Error saving project:', error);
-      setErrors({ 
-        general: error.message || 'Erreur lors de la sauvegarde du projet' 
-      });
-    } finally {
-      setLoading(false);
-      console.log('🏁 Submit process completed');
+      console.error('Erreur sauvegarde projet:', error);
+      setErrors({ submit: 'Erreur lors de la sauvegarde. Veuillez réessayer.' });
     }
   };
 
-  // 🔧 DEBUG: Log component state
-  console.log('=== COMPONENT STATE ===');
-  console.log('Is open:', isOpen);
-  console.log('Form data name:', formData.name);
-  console.log('Form data name trimmed:', formData.name?.trim());
-  console.log('Loading:', loading);
-  console.log('Errors:', errors);
-  console.log('Button should be disabled:', loading || !formData.name?.trim());
-  console.log('User UID:', user?.uid);
+  const statusOptions = [
+    { value: 'active', label: 'Actif', color: 'text-green-400' },
+    { value: 'on_hold', label: 'En pause', color: 'text-yellow-400' },
+    { value: 'completed', label: 'Terminé', color: 'text-blue-400' },
+    { value: 'cancelled', label: 'Annulé', color: 'text-red-400' }
+  ];
 
-  if (!isOpen) return null;
+  const priorityOptions = [
+    { value: 'low', label: 'Faible', color: 'text-green-400' },
+    { value: 'medium', label: 'Moyenne', color: 'text-yellow-400' },
+    { value: 'high', label: 'Haute', color: 'text-red-400' }
+  ];
+
+  const categoryOptions = [
+    { value: 'development', label: 'Développement' },
+    { value: 'design', label: 'Design' },
+    { value: 'marketing', label: 'Marketing' },
+    { value: 'research', label: 'Recherche' },
+    { value: 'maintenance', label: 'Maintenance' },
+    { value: 'other', label: 'Autre' }
+  ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700">
         
-        {/* Header */}
+        {/* En-tête */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <h2 className="text-xl font-bold text-white flex items-center gap-3">
-            <span className="text-2xl">{formData.icon}</span>
-            {editingProject ? 'Modifier le projet' : 'Nouveau projet'}
+          <h2 className="text-xl font-semibold text-white flex items-center">
+            <Target className="mr-2" size={20} />
+            {project ? 'Modifier le projet' : 'Nouveau projet'}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-700 transition-colors"
-            disabled={loading}
+            className="text-gray-400 hover:text-white transition-colors"
           >
-            <span className="text-gray-400 text-xl">✕</span>
+            <X size={24} />
           </button>
         </div>
 
-        {/* Form Content */}
-        <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          
+          {/* Titre */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              <FileText size={16} className="inline mr-1" />
+              Titre du projet *
+            </label>
+            <input
+              type="text"
+              name="title"
+              value={formData.title}
+              onChange={handleInputChange}
+              className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                errors.title ? 'border-red-500' : 'border-gray-600'
+              }`}
+              placeholder="Entrez le nom du projet..."
+            />
+            {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title}</p>}
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Description *
+            </label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              rows={4}
+              className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                errors.description ? 'border-red-500' : 'border-gray-600'
+              }`}
+              placeholder="Décrivez les objectifs et la portée du projet..."
+            />
+            {errors.description && <p className="text-red-400 text-sm mt-1">{errors.description}</p>}
+          </div>
+
+          {/* Statut et Priorité */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
-            {/* Erreur générale */}
-            {errors.general && (
-              <div className="bg-red-900/20 border border-red-500 rounded-lg p-3">
-                <p className="text-red-400 text-sm">{errors.general}</p>
-              </div>
-            )}
-
-            {/* 🔧 DEBUG: Status display */}
-            <div className="bg-blue-900/20 border border-blue-500 rounded-lg p-3">
-              <p className="text-blue-400 text-sm">
-                <strong>Debug Info:</strong> Nom="{formData.name}" | 
-                Trimmed="{formData.name?.trim()}" | 
-                Valid={formData.name?.trim()?.length >= 3} | 
-                User={!!user?.uid} | 
-                Loading={loading}
-              </p>
-            </div>
-
-            {/* Ligne 1: Icône + Nom */}
-            <div className="grid grid-cols-12 gap-4">
-              {/* Icône */}
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Icône
-                </label>
-                <div className="grid grid-cols-4 gap-1">
-                  {PROJECT_ICONS.map(icon => (
-                    <button
-                      key={icon}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, icon }))}
-                      className={`p-2 text-xl rounded-lg transition-colors ${
-                        formData.icon === icon 
-                          ? 'bg-blue-600 text-white' 
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      }`}
-                      disabled={loading}
-                    >
-                      {icon}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Nom du projet */}
-              <div className="col-span-10">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Nom du projet *
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => {
-                    console.log('Name input changed to:', e.target.value);
-                    setFormData(prev => ({ ...prev, name: e.target.value }));
-                    // Clear name error when typing
-                    if (errors.name) {
-                      setErrors(prev => ({ ...prev, name: '' }));
-                    }
-                  }}
-                  placeholder="Mon super projet..."
-                  className={`w-full px-3 py-2 bg-gray-700 border text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.name ? 'border-red-500' : 'border-gray-600'
-                  }`}
-                  disabled={loading}
-                />
-                {errors.name && (
-                  <p className="text-red-400 text-sm mt-1">{errors.name}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Description */}
+            {/* Statut */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Description
+                Statut
               </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Décrivez votre projet..."
-                rows={3}
-                className={`w-full px-3 py-2 bg-gray-700 border text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.description ? 'border-red-500' : 'border-gray-600'
-                }`}
-                disabled={loading}
-              />
-              {errors.description && (
-                <p className="text-red-400 text-sm mt-1">{errors.description}</p>
-              )}
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {statusOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Ligne 2: Statut + Priorité */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Statut */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Statut
-                </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={loading}
-                >
-                  {STATUS_OPTIONS.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Priorité */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Priorité
-                </label>
-                <select
-                  value={formData.priority}
-                  onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={loading}
-                >
-                  {PRIORITY_OPTIONS.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Ligne 3: Couleur + Deadline */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Couleur */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Couleur du projet
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={formData.color}
-                    onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
-                    className="w-12 h-10 bg-gray-700 border border-gray-600 rounded-lg cursor-pointer"
-                    disabled={loading}
-                  />
-                  <input
-                    type="text"
-                    value={formData.color}
-                    onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
-                    placeholder="#3b82f6"
-                    className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              {/* Deadline */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Date limite
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formData.deadline}
-                  onChange={(e) => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
-                  className={`w-full px-3 py-2 bg-gray-700 border text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.deadline ? 'border-red-500' : 'border-gray-600'
-                  }`}
-                  disabled={loading}
-                />
-                {errors.deadline && (
-                  <p className="text-red-400 text-sm mt-1">{errors.deadline}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Budget */}
+            {/* Priorité */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Budget (€)
+                <Flag size={16} className="inline mr-1" />
+                Priorité
+              </label>
+              <select
+                name="priority"
+                value={formData.priority}
+                onChange={handleInputChange}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {priorityOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Dates */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* Date de début */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                <Calendar size={16} className="inline mr-1" />
+                Date de début
+              </label>
+              <input
+                type="date"
+                name="startDate"
+                value={formData.startDate}
+                onChange={handleInputChange}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Date de fin */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                <Calendar size={16} className="inline mr-1" />
+                Date d'échéance
+              </label>
+              <input
+                type="date"
+                name="dueDate"
+                value={formData.dueDate}
+                onChange={handleInputChange}
+                className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.dueDate ? 'border-red-500' : 'border-gray-600'
+                }`}
+              />
+              {errors.dueDate && <p className="text-red-400 text-sm mt-1">{errors.dueDate}</p>}
+            </div>
+          </div>
+
+          {/* Durée estimée et Catégorie */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* Durée estimée */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                <Clock size={16} className="inline mr-1" />
+                Durée estimée (jours)
               </label>
               <input
                 type="number"
-                step="0.01"
-                min="0"
-                value={formData.budget}
-                onChange={(e) => setFormData(prev => ({ ...prev, budget: e.target.value }))}
-                placeholder="0.00"
-                className={`w-full px-3 py-2 bg-gray-700 border text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.budget ? 'border-red-500' : 'border-gray-600'
+                name="expectedDuration"
+                value={formData.expectedDuration}
+                onChange={handleInputChange}
+                min="1"
+                className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.expectedDuration ? 'border-red-500' : 'border-gray-600'
                 }`}
-                disabled={loading}
+                placeholder="ex: 30"
               />
-              {errors.budget && (
-                <p className="text-red-400 text-sm mt-1">{errors.budget}</p>
-              )}
+              {errors.expectedDuration && <p className="text-red-400 text-sm mt-1">{errors.expectedDuration}</p>}
             </div>
 
-            {/* Tags */}
+            {/* Catégorie */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Tags
+                Catégorie
               </label>
-              
-              {/* Tags existants */}
-              {formData.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {formData.tags.map((tag, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-600 text-white"
-                    >
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTag(tag)}
-                        className="ml-2 hover:text-blue-200 ml-1"
-                        disabled={loading}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Ajouter nouveau tag */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddTag();
-                    }
-                  }}
-                  placeholder="Ajouter un tag..."
-                  className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  disabled={loading}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    console.log('Add tag button clicked, tagInput:', tagInput);
-                    handleAddTag();
-                  }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={loading || !tagInput.trim()}
-                >
-                  Ajouter
-                </button>
-              </div>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleInputChange}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Sélectionner une catégorie</option>
+                {categoryOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
-          </form>
-        </div>
+          </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-700 bg-gray-900">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-gray-300 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
-            disabled={loading}
-          >
-            Annuler
-          </button>
-          <button
-            onClick={(e) => {
-              console.log('Main submit button clicked!');
-              console.log('Current form state:', {
-                name: formData.name,
-                nameTrimmed: formData.name?.trim(),
-                loading,
-                userUid: user?.uid
-              });
-              handleSubmit(e);
-            }}
-            disabled={loading || !formData.name?.trim()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          >
-            {loading && (
-              <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-            )}
-            {editingProject ? 'Mettre à jour' : 'Créer le projet'}
-          </button>
-        </div>
+          {/* Erreur générale */}
+          {errors.submit && (
+            <div className="p-4 bg-red-900/50 border border-red-500 rounded-lg">
+              <p className="text-red-400 text-sm">{errors.submit}</p>
+            </div>
+          )}
+
+          {/* Boutons d'action */}
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-700">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={creating || updating}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {creating || updating ? 'Sauvegarde...' : project ? 'Modifier' : 'Créer'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
