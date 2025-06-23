@@ -515,7 +515,7 @@ class TaskService {
     console.log('📁 getUserProjects (mock) pour:', userId);
     return [];
   }
-}
+
 
 // Export singleton - UNE SEULE FOIS
 export const taskService = new TaskService();
@@ -534,3 +534,4 @@ export default taskService;
   async getTaskStats(userId) {
     return await this.getUserTaskStats(userId);
   }
+}
