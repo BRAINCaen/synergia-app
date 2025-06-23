@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/Dashboard.jsx
-// Dashboard COMPLET avec tous les modules intégrés
+// Dashboard COMPLET avec gamification corrigée
 // ==========================================
 
 import React, { useEffect, useState } from 'react'
@@ -54,9 +54,21 @@ const Button = ({
   )
 }
 
-// 🎮 Composant Gamification Widget avec données réelles
+// 🎮 Composant Gamification Widget avec données réelles - CORRIGÉ
 const GamificationWidget = () => {
   const { gameData, isLoading, addXP, quickActions, calculations, isConnected } = useGameService()
+
+  // 🔧 CORRECTION: Vérifications debug
+  console.log('🎮 GamificationWidget render:', {
+    isConnected,
+    isLoading,
+    gameData: gameData ? {
+      level: gameData.level,
+      xp: gameData.xp,
+      totalXp: gameData.totalXp,
+      badges: gameData.badges?.length
+    } : null
+  });
 
   if (!isConnected) {
     return (
@@ -74,22 +86,27 @@ const GamificationWidget = () => {
           <div className="h-4 bg-purple-300 rounded w-3/4 mb-2"></div>
           <div className="h-3 bg-purple-300 rounded w-1/2"></div>
         </div>
+        <p className="text-purple-100 text-sm mt-2">Chargement de votre progression...</p>
       </Card>
     )
   }
 
+  // 🔧 CORRECTION: Utiliser totalXp de manière cohérente
   const progress = calculations.getProgressToNextLevel() * 100
   const xpNeeded = calculations.getXPNeededForNextLevel()
+  const currentLevel = gameData.level || 1
+  const totalXP = gameData.totalXp || gameData.xp || 0
+  const badgeCount = gameData.badges?.length || 0
 
   return (
-    <Card className="p-6 bg-gradient-to-r from-purple-500 to-blue-600 text-white">
+    <Card className="p-6 bg-gradient-to-r from-purple-500 to-blue-600 text-white" data-testid="gamification-widget">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-bold">🎮 Niveau {gameData.level}</h3>
-          <p className="text-purple-100">{gameData.totalXp} XP Total</p>
+          <h3 className="text-lg font-bold">🎮 Niveau {currentLevel}</h3>
+          <p className="text-purple-100">{totalXP} XP Total</p>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-bold">{gameData.badges?.length || 0}</div>
+          <div className="text-2xl font-bold">{badgeCount}</div>
           <div className="text-sm text-purple-100">Badges</div>
         </div>
       </div>
@@ -102,222 +119,66 @@ const GamificationWidget = () => {
         <div className="w-full bg-purple-400 rounded-full h-2">
           <div 
             className="bg-white h-2 rounded-full transition-all duration-500"
-            style={{ width: `${progress}%` }}
+            style={{ width: `${Math.min(progress, 100)}%` }}
           ></div>
         </div>
       </div>
 
       <div className="flex gap-2">
         <button
-          onClick={() => quickActions.dailyLogin()}
+          onClick={() => {
+            console.log('🌅 Click daily login');
+            quickActions.dailyLogin();
+          }}
           className="flex-1 bg-white/20 hover:bg-white/30 text-white text-xs py-2 px-3 rounded transition-colors"
         >
           +10 XP Login
         </button>
         <button
-          onClick={() => quickActions.taskCompleted()}
+          onClick={() => {
+            console.log('✅ Click task completed');
+            quickActions.taskCompleted();
+          }}
           className="flex-1 bg-white/20 hover:bg-white/30 text-white text-xs py-2 px-3 rounded transition-colors"
         >
           +25 XP Tâche
         </button>
       </div>
-    </Card>
-  )
-}
 
-// 📊 Composant Statistiques Tâches avec données réelles
-const TaskStatsWidget = () => {
-  const { stats, isLoading, isConnected } = useTaskService()
-
-  if (!isConnected) {
-    return (
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">📊 Mes Tâches</h3>
-        <p className="text-gray-500">Connectez-vous pour voir vos statistiques</p>
-      </Card>
-    )
-  }
-
-  if (isLoading) {
-    return (
-      <Card className="p-6">
-        <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-          <div className="space-y-2">
-            <div className="h-3 bg-gray-200 rounded"></div>
-            <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-          </div>
-        </div>
-      </Card>
-    )
-  }
-
-  return (
-    <Card className="p-6">
-      <h3 className="text-lg font-semibold mb-4">📊 Mes Tâches</h3>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="text-center">
-          <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-          <div className="text-sm text-gray-600">Total</div>
-        </div>
-        <div className="text-center">
-          <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-          <div className="text-sm text-gray-600">Terminées</div>
-        </div>
-        <div className="text-center">
-          <div className="text-2xl font-bold text-orange-600">{stats.inProgress}</div>
-          <div className="text-sm text-gray-600">En cours</div>
-        </div>
-        <div className="text-center">
-          <div className="text-2xl font-bold text-red-600">{stats.overdue}</div>
-          <div className="text-sm text-gray-600">En retard</div>
-        </div>
-      </div>
-      
-      {stats.completionRate > 0 && (
-        <div className="mt-4 pt-4 border-t">
-          <div className="flex justify-between text-sm text-gray-600 mb-1">
-            <span>Taux de completion</span>
-            <span>{stats.completionRate}%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-green-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${stats.completionRate}%` }}
-            ></div>
-          </div>
+      {/* 🔧 DEBUG: Affichage des données actuelles */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-3 p-2 bg-black/20 rounded text-xs">
+          <div>Level: {currentLevel}</div>
+          <div>XP: {gameData.xp}</div>
+          <div>Total XP: {totalXP}</div>
+          <div>Progress: {progress.toFixed(1)}%</div>
+          <div>XP Needed: {xpNeeded}</div>
         </div>
       )}
     </Card>
   )
 }
 
-// 📁 Composant Projets Widget avec données réelles
-const ProjectsWidget = () => {
-  const { projects, isLoading, isConnected } = useProjectService()
-
-  if (!isConnected) {
-    return (
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">📁 Mes Projets</h3>
-        <p className="text-gray-500">Connectez-vous pour voir vos projets</p>
-      </Card>
-    )
-  }
-
-  if (isLoading) {
-    return (
-      <Card className="p-6">
-        <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-          <div className="space-y-3">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gray-200 rounded"></div>
-                <div className="flex-1 space-y-1">
-                  <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-2 bg-gray-200 rounded w-1/2"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Card>
-    )
-  }
-
-  const activeProjects = projects.filter(p => p.status === 'active')
-  const completedProjects = projects.filter(p => p.status === 'completed')
-
-  return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">📁 Mes Projets</h3>
-        <Link 
-          to="/projects" 
-          className="text-blue-600 hover:text-blue-700 text-sm"
-        >
-          Voir tous →
-        </Link>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="text-center">
-          <div className="text-2xl font-bold text-blue-600">{activeProjects.length}</div>
-          <div className="text-sm text-gray-600">Actifs</div>
-        </div>
-        <div className="text-center">
-          <div className="text-2xl font-bold text-green-600">{completedProjects.length}</div>
-          <div className="text-sm text-gray-600">Terminés</div>
-        </div>
-      </div>
-
-      {activeProjects.length > 0 ? (
-        <div className="space-y-2">
-          <div className="text-sm font-medium text-gray-700">Projets actifs:</div>
-          {activeProjects.slice(0, 3).map(project => (
-            <div key={project.id} className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
-              <span className="text-lg">{project.icon || '📁'}</span>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">
-                  {project.name}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {project.progress?.percentage || 0}% complété
-                </div>
-              </div>
-            </div>
-          ))}
-          {activeProjects.length > 3 && (
-            <div className="text-xs text-gray-500 text-center">
-              +{activeProjects.length - 3} autres projets
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="text-center py-4">
-          <p className="text-gray-500 text-sm">Aucun projet actif</p>
-          <Link 
-            to="/projects" 
-            className="text-blue-600 hover:text-blue-700 text-sm"
-          >
-            Créer un projet
-          </Link>
-        </div>
-      )}
-    </Card>
-  )
-}
-
-// 🎯 Composant WelcomeWidget avec données réelles
-const WelcomeWidget = () => {
+// 🏠 Composant Header de bienvenue - CORRIGÉ
+const WelcomeHeader = () => {
   const { user } = useAuthStore()
   const { gameData } = useGameService()
-
-  const getGreeting = () => {
-    const hour = new Date().getHours()
-    if (hour < 12) return 'Bonjour'
-    if (hour < 18) return 'Bon après-midi'
-    return 'Bonsoir'
-  }
-
-  const getDisplayName = () => {
-    return user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'
-  }
-
+  
+  const displayName = user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'
+  
   return (
-    <Card className="p-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+    <Card className="p-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white mb-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold mb-2">
-            {getGreeting()}, {getDisplayName()} ! 👋
+            Bonjour {displayName} 👋
           </h2>
           <p className="text-blue-100">
             Prêt à atteindre vos objectifs aujourd'hui ?
           </p>
           {gameData?.level && (
             <p className="text-blue-100 text-sm mt-1">
-              Niveau {gameData.level} • {gameData.totalXp} XP
+              Niveau {gameData.level} • {gameData.totalXp || gameData.xp || 0} XP
             </p>
           )}
         </div>
@@ -370,213 +231,192 @@ const QuickActionsWidget = () => {
           </button>
         </Link>
 
-        {/* Mes projets */}
-        <Link to="/projects">
-          <button className="w-full text-left p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors">
+        {/* Gérer les projets */}
+        <Link to={ROUTES.PROJECTS}>
+          <button className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
             <div className="flex items-center space-x-3">
               <span className="text-2xl">📁</span>
               <div>
                 <div className="font-medium text-gray-900">Mes Projets</div>
-                <div className="text-sm text-gray-600">Organiser mes projets</div>
+                <div className="text-sm text-gray-600">Organiser et suivre mes projets</div>
               </div>
             </div>
           </button>
         </Link>
 
-        {/* Classement */}
+        {/* Voir le leaderboard */}
         <Link to={ROUTES.LEADERBOARD}>
           <button className="w-full text-left p-3 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors">
             <div className="flex items-center space-x-3">
               <span className="text-2xl">🏆</span>
               <div>
                 <div className="font-medium text-gray-900">Classement</div>
-                <div className="text-sm text-gray-600">Voir le leaderboard XP</div>
-              </div>
-            </div>
-          </button>
-        </Link>
-
-        {/* Mon Profil */}
-        <Link to={ROUTES.PROFILE}>
-          <button className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
-            <div className="flex items-center space-x-3">
-              <span className="text-2xl">👤</span>
-              <div>
-                <div className="font-medium text-gray-900">Mon Profil</div>
-                <div className="text-sm text-gray-600">Paramètres et badges</div>
+                <div className="text-sm text-gray-600">Voir ma position et mes badges</div>
               </div>
             </div>
           </button>
         </Link>
       </div>
+    </Card>
+  )
+}
 
-      {/* Note d'information */}
-      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <div className="flex items-start space-x-2">
-          <span className="text-blue-500">💡</span>
-          <div className="text-xs text-blue-700">
-            <strong>Astuce :</strong> Utilisez la page "Mes Tâches" pour créer et gérer toutes vos tâches avec des options avancées.
+// 📊 Composant Statistiques Tâches avec données réelles
+const TaskStatsWidget = () => {
+  const { tasks, stats, loading } = useTaskService()
+  
+  if (loading) {
+    return (
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">📊 Statistiques</h3>
+        <div className="animate-pulse space-y-3">
+          <div className="h-4 bg-gray-200 rounded"></div>
+          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="p-6">
+      <h3 className="text-lg font-semibold mb-4">📊 Mes Statistiques</h3>
+      
+      <div className="space-y-3">
+        <div className="flex justify-between">
+          <span className="text-gray-600">Tâches totales</span>
+          <span className="font-medium">{stats.total || 0}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">Tâches complétées</span>
+          <span className="font-medium text-green-600">{stats.completed || 0}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">En cours</span>
+          <span className="font-medium text-blue-600">{stats.inProgress || 0}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">Taux de réussite</span>
+          <span className="font-medium">{stats.completionRate || 0}%</span>
+        </div>
+      </div>
+      
+      {stats.total > 0 && (
+        <div className="mt-4">
+          <div className="text-sm text-gray-600 mb-2">Progression globale</div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+              style={{ width: `${stats.completionRate || 0}%` }}
+            ></div>
           </div>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+// 🎯 Composant Stats Performance avec tâches XP
+const PerformanceWidget = () => {
+  const { tasks } = useTaskService()
+  const { gameData } = useGameService()
+
+  // Calculer les stats de la semaine
+  const now = new Date()
+  const weekStart = new Date(now.setDate(now.getDate() - now.getDay()))
+  
+  const thisWeekTasks = tasks.filter(task => {
+    if (!task.completedAt) return false
+    const completedDate = new Date(task.completedAt)
+    return completedDate >= weekStart
+  })
+
+  const todayTasks = tasks.filter(task => {
+    if (!task.completedAt) return false
+    const completedDate = new Date(task.completedAt)
+    const today = new Date()
+    return completedDate.toDateString() === today.toDateString()
+  })
+
+  const todayXP = todayTasks.reduce((total, task) => total + (task.xpReward || 0), 0)
+
+  return (
+    <Card className="p-6">
+      <h3 className="text-lg font-semibold mb-4">📈 Performance</h3>
+      <div className="space-y-3">
+        <div className="flex justify-between">
+          <span className="text-gray-600">Tâches cette semaine</span>
+          <span className="font-medium">{thisWeekTasks.length}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">XP gagnés aujourd'hui</span>
+          <span className="font-medium text-purple-600">{todayXP}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">Streak de connexion</span>
+          <span className="font-medium">{gameData?.loginStreak || 0}</span>
         </div>
       </div>
     </Card>
   )
 }
-// 📊 Composant principal Dashboard
+
+// 📱 Composant principal Dashboard
 export default function Dashboard() {
   const { user } = useAuthStore()
-  const [debugInfo, setDebugInfo] = useState(false)
 
-  const handleSignOut = async () => {
-    try {
-      await auth.signOut()
-      console.log('Déconnexion réussie')
-    } catch (error) {
-      console.error('Erreur déconnexion:', error)
-    }
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="p-8 max-w-md w-full mx-4">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Connexion requise
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Veuillez vous connecter pour accéder au dashboard
+            </p>
+            <Button
+              onClick={() => window.location.href = '/login'}
+              className="w-full"
+            >
+              Se connecter
+            </Button>
+          </div>
+        </Card>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-gray-900">⚡ Synergia</h1>
-              <span className="px-2 py-1 bg-gradient-to-r from-green-500 to-blue-500 text-white text-xs rounded-full font-medium">
-                v3.0 • Récupéré
-              </span>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                {user?.displayName || user?.email}
-              </span>
-              <button
-                onClick={() => setDebugInfo(!debugInfo)}
-                className="text-xs text-gray-400 hover:text-gray-600"
-              >
-                Debug
-              </button>
-              <Button
-                onClick={handleSignOut}
-                variant="outline"
-                size="sm"
-              >
-                Déconnexion
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Debug Info */}
-      {debugInfo && (
-        <div className="bg-yellow-50 border-b border-yellow-200 p-2">
-          <div className="max-w-7xl mx-auto text-xs text-yellow-800">
-            <strong>🔧 Debug:</strong> User: {user?.uid ? '✅' : '❌'} | 
-            Stores: TaskStore, ProjectStore, GameStore avec persistance | 
-            Services: Firebase intégrés
-          </div>
-        </div>
-      )}
-
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Widget */}
-        <div className="mb-8">
-          <WelcomeWidget />
-        </div>
+        {/* Header de bienvenue */}
+        <WelcomeHeader />
 
         {/* Grille principale */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Colonne gauche - Stats */}
-          <div className="space-y-6">
-            <TaskStatsWidget />
-            <ProjectsWidget />
-          </div>
-
-          {/* Colonne centre - Gamification */}
-          <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Colonne de gauche */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Gamification Widget */}
             <GamificationWidget />
+            
+            {/* Actions rapides */}
             <QuickActionsWidget />
           </div>
 
-          {/* Colonne droite - Navigation rapide */}
+          {/* Colonne de droite */}
           <div className="space-y-6">
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">🧭 Navigation</h3>
-              <div className="grid grid-cols-1 gap-3">
-                <Link 
-                  to={ROUTES.TASKS}
-                  className="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <span className="text-2xl">🎯</span>
-                  <div>
-                    <div className="font-medium">Mes Tâches</div>
-                    <div className="text-sm text-gray-600">Gestion complète</div>
-                  </div>
-                </Link>
-
-                <Link 
-                  to="/projects"
-                  className="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <span className="text-2xl">📁</span>
-                  <div>
-                    <div className="font-medium">Projets</div>
-                    <div className="text-sm text-gray-600">Organisation</div>
-                  </div>
-                </Link>
-
-                <Link 
-                  to={ROUTES.LEADERBOARD}
-                  className="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <span className="text-2xl">🏆</span>
-                  <div>
-                    <div className="font-medium">Classement</div>
-                    <div className="text-sm text-gray-600">Leaderboard XP</div>
-                  </div>
-                </Link>
-
-                <Link 
-                  to={ROUTES.PROFILE}
-                  className="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <span className="text-2xl">👤</span>
-                  <div>
-                    <div className="font-medium">Mon Profil</div>
-                    <div className="text-sm text-gray-600">Paramètres</div>
-                  </div>
-                </Link>
-              </div>
-            </Card>
-
+            {/* Stats des tâches */}
+            <TaskStatsWidget />
+            
             {/* Stats XP temps réel */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">📈 Performance</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Tâches cette semaine</span>
-                  <span className="font-medium">-</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">XP gagnés aujourd'hui</span>
-                  <span className="font-medium">-</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Streak de connexion</span>
-                  <span className="font-medium">-</span>
-                </div>
-              </div>
-            </Card>
+            <PerformanceWidget />
           </div>
         </div>
 
         {/* Message de récupération */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-6">
           <div className="flex items-center">
             <span className="text-green-600 text-2xl mr-3">✅</span>
             <div>
