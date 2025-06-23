@@ -1,68 +1,115 @@
-// ==========================================
-// 📁 react-app/src/App.jsx
-// Version TEMPORAIRE sans ToastProvider (pour éviter erreur build)
-// ==========================================
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthStore } from './stores/authStore';
+import { useTeamStore } from './stores/teamStore';
 
-import React, { useEffect } from 'react'
-import { BrowserRouter } from 'react-router-dom'
-import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from './core/firebase.js'
-import { useAuthStore } from './shared/stores/authStore.js'
-import AppRoutes from './routes/index.jsx'
-// TODO: Ajouter ToastProvider quand le fichier sera créé
-// import { ToastProvider } from './shared/components/ToastNotification.jsx'
+// Layout
+import MainLayout from './components/MainLayout';
+
+// Pages
+import LoginPage from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
+import TasksPage from './pages/TasksPage';
+import ProjectsPage from './pages/ProjectsPage';
+import TeamPage from './pages/TeamPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import LeaderboardPage from './pages/LeaderboardPage';
+import AdminPage from './pages/AdminPage';
+import SettingsPage from './pages/SettingsPage';
+
+// Auth Guard Component
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuthStore();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-white">Chargement de Synergia...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return user ? children : <Navigate to="/login" replace />;
+};
+
+// Admin Guard Component
+const AdminRoute = ({ children }) => {
+  const { user } = useAuthStore();
+  
+  const isAdmin = user?.role === 'admin' || user?.permissions?.includes('admin');
+  
+  return isAdmin ? children : <Navigate to="/dashboard" replace />;
+};
 
 function App() {
-  const { setUser, setLoading, setError } = useAuthStore()
+  const { checkAuthState } = useAuthStore();
+  const { cleanup: cleanupTeam } = useTeamStore();
 
   useEffect(() => {
-    let mounted = true
+    // Vérifier l'état d'authentification au démarrage
+    checkAuthState();
 
-    const unsubscribe = onAuthStateChanged(auth, 
-      (user) => {
-        if (!mounted) return
-        
-        if (user) {
-          // Utilisateur connecté
-          const userData = {
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            photoURL: user.photoURL,
-            emailVerified: user.emailVerified,
-            createdAt: user.metadata?.creationTime,
-            lastSignInAt: user.metadata?.lastSignInTime
-          }
-          setUser(userData)
-        } else {
-          // Utilisateur déconnecté
-          setUser(null)
-        }
-        
-        setLoading(false)
-      },
-      (error) => {
-        if (!mounted) return
-        console.error('Erreur authentification:', error)
-        setError(error.message)
-        setLoading(false)
-      }
-    )
-
+    // Nettoyer les listeners au démontage
     return () => {
-      mounted = false
-      unsubscribe()
-    }
-  }, [setUser, setLoading, setError])
+      cleanupTeam();
+    };
+  }, [checkAuthState, cleanupTeam]);
 
   return (
-    // TODO: Wrapper avec <ToastProvider> quand créé
-    <BrowserRouter>
-      <div className="min-h-screen bg-gray-50">
-        <AppRoutes />
+    <Router>
+      <div className="App">
+        <Routes>
+          {/* Route publique - Login */}
+          <Route path="/login" element={<LoginPage />} />
+          
+          {/* Redirection racine vers dashboard */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          
+          {/* Routes protégées avec layout */}
+          <Route path="/" element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }>
+            {/* Dashboard personnel */}
+            <Route path="/dashboard" element={<DashboardPage />} />
+            
+            {/* Gestion des tâches personnelles */}
+            <Route path="/tasks" element={<TasksPage />} />
+            
+            {/* Projets collaboratifs */}
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/projects/:id" element={<ProjectsPage />} />
+            
+            {/* 🎉 NOUVEAU : Dashboard équipe collaboratif */}
+            <Route path="/team" element={<TeamPage />} />
+            
+            {/* Analytics et métriques */}
+            <Route path="/analytics" element={<AnalyticsPage />} />
+            
+            {/* Classement gamification */}
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
+            
+            {/* Paramètres utilisateur */}
+            <Route path="/settings" element={<SettingsPage />} />
+            
+            {/* Routes admin uniquement */}
+            <Route path="/admin" element={
+              <AdminRoute>
+                <AdminPage />
+              </AdminRoute>
+            } />
+            
+            {/* Route fallback - redirection vers dashboard */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Route>
+        </Routes>
       </div>
-    </BrowserRouter>
-  )
+    </Router>
+  );
 }
 
-export default App
+export default App;
