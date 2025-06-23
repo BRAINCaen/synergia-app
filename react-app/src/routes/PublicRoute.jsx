@@ -1,7 +1,7 @@
 // src/routes/PublicRoute.jsx
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import useAuthStore from '../shared/stores/authStore.js';
+import { useAuthStore } from '../shared/stores/authStore.js';
 
 const PublicRoute = ({ children }) => {
   const { isAuthenticated } = useAuthStore();
