@@ -1,3 +1,8 @@
+// ==========================================
+// 📁 react-app/src/core/services/gamificationService.js
+// Service de gamification corrigé avec updateDoc complet
+// ==========================================
+
 import { 
   doc, 
   updateDoc, 
@@ -97,20 +102,32 @@ class GamificationService {
           break;
       }
       
-      // Appliquer les mises à jour
+      // 🔧 CORRECTION: Appliquer les mises à jour Firebase
       await updateDoc(userRef, updates);
       
-      console.log(`✅ XP ajouté avec succès:`, {
+      // Créer l'historique d'activité
+      await this.createActivityLog({
+        userId,
+        action,
         xpGain,
-        newXP,
-        newLevel,
-        leveledUp
+        metadata: {
+          ...metadata,
+          previousXP: currentXP,
+          newXP,
+          previousLevel: currentLevel,
+          newLevel,
+          leveledUp
+        }
       });
+      
+      console.log(`✅ XP mis à jour: ${currentXP} → ${newXP} (niveau ${currentLevel} → ${newLevel})`);
       
       return {
         success: true,
         xpGain,
+        previousXP: currentXP,
         newXP,
+        previousLevel: currentLevel,
         newLevel,
         leveledUp,
         xpForNextLevel,
@@ -120,36 +137,48 @@ class GamificationService {
       
     } catch (error) {
       console.error('❌ Erreur ajout XP:', error);
-      return { success: false, error: error.message };
+      return { 
+        success: false, 
+        error: error.message,
+        xpGain: 0 
+      };
     }
   }
 
   /**
-   * 📈 CALCULER NIVEAU BASÉ SUR XP
+   * 📊 CALCULER NIVEAU BASÉ SUR XP
    */
   calculateLevel(xp, currentLevel = 1) {
     let level = 1;
-    let totalXpRequired = 0;
-    let xpForCurrentLevel = XP_CONFIG.LEVEL_SYSTEM.BASE_XP;
+    let totalXpNeeded = 0;
     
-    // Calculer le niveau basé sur l'XP total
+    // Calculer le niveau basé sur le système progressif
     while (level < XP_CONFIG.LEVEL_SYSTEM.MAX_LEVEL) {
-      if (xp < totalXpRequired + xpForCurrentLevel) {
+      const xpForThisLevel = Math.floor(
+        XP_CONFIG.LEVEL_SYSTEM.BASE_XP * Math.pow(XP_CONFIG.LEVEL_SYSTEM.MULTIPLIER, level - 1)
+      );
+      
+      if (totalXpNeeded + xpForThisLevel > xp) {
         break;
       }
       
-      totalXpRequired += xpForCurrentLevel;
+      totalXpNeeded += xpForThisLevel;
       level++;
-      
-      // Augmenter progressivement les requis XP
-      xpForCurrentLevel = Math.floor(
-        XP_CONFIG.LEVEL_SYSTEM.BASE_XP * Math.pow(XP_CONFIG.LEVEL_SYSTEM.MULTIPLIER, level - 1)
-      );
     }
     
     const leveledUp = level > currentLevel;
-    const xpInCurrentLevel = xp - totalXpRequired;
-    const xpForNextLevel = level < XP_CONFIG.LEVEL_SYSTEM.MAX_LEVEL ? xpForCurrentLevel : 0;
+    
+    // Calculer progression dans le niveau actuel
+    const xpForNextLevel = level < XP_CONFIG.LEVEL_SYSTEM.MAX_LEVEL 
+      ? Math.floor(XP_CONFIG.LEVEL_SYSTEM.BASE_XP * Math.pow(XP_CONFIG.LEVEL_SYSTEM.MULTIPLIER, level - 1))
+      : 0;
+    
+    const xpInCurrentLevel = level < XP_CONFIG.LEVEL_SYSTEM.MAX_LEVEL 
+      ? xp - totalXpNeeded 
+      : xpForNextLevel > 0 
+        ? xpForCurrentLevel 
+        : 0;
+    
     const progressPercent = xpForNextLevel > 0 ? Math.floor((xpInCurrentLevel / xpForNextLevel) * 100) : 100;
     
     return {
@@ -159,6 +188,23 @@ class GamificationService {
       xpInCurrentLevel,
       progressPercent
     };
+  }
+
+  /**
+   * 📝 CRÉER LOG D'ACTIVITÉ
+   */
+  async createActivityLog(activityData) {
+    try {
+      const activityRef = collection(db, COLLECTIONS.ACTIVITIES);
+      await addDoc(activityRef, {
+        ...activityData,
+        timestamp: new Date(),
+        type: 'gamification'
+      });
+    } catch (error) {
+      console.warn('⚠️ Erreur création log activité:', error);
+      // Ne pas faire échouer le processus principal
+    }
   }
 
   /**
@@ -241,6 +287,27 @@ class GamificationService {
     }
     
     return message;
+  }
+
+  /**
+   * 🔧 DIAGNOSTIC FIREBASE
+   */
+  async diagnoseUser(userId) {
+    try {
+      const userRef = doc(db, COLLECTIONS.USERS, userId);
+      const userDoc = await getDoc(userRef);
+      
+      console.log('🔍 Diagnostic utilisateur:', {
+        exists: userDoc.exists(),
+        data: userDoc.exists() ? userDoc.data() : null,
+        gamification: userDoc.exists() ? userDoc.data().gamification : null
+      });
+      
+      return userDoc.exists() ? userDoc.data() : null;
+    } catch (error) {
+      console.error('❌ Erreur diagnostic:', error);
+      return null;
+    }
   }
 }
 
