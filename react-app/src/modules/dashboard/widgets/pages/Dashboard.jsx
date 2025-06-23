@@ -3,6 +3,10 @@
 // Fichier: react-app/src/modules/dashboard/widgets/pages/Dashboard.jsx
 // ===================================================================
 
+// Dans Dashboard.jsx, ajoutez au début du composant :
+console.log('🔍 DEBUG Dashboard userData:', userData);
+console.log('🔍 DEBUG xpProgress:', xpProgress);
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { LogOut, User, Trophy, CheckSquare } from 'lucide-react';
