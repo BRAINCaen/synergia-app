@@ -1,5 +1,5 @@
 // react-app/src/pages/Analytics.jsx
-// VERSION COMPLÈTE ET FONCTIONNELLE - Analytics Dashboard
+// VERSION CORRIGÉE - Imports fixes pour build Netlify
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useTaskStore } from '../shared/stores/taskStore.js';
