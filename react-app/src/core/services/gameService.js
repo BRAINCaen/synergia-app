@@ -1,4 +1,8 @@
-// src/core/services/gameService.js
+// ==========================================
+// 📁 react-app/src/core/services/gameService.js
+// Service Gamification COMPLET - Version Corrigée
+// ==========================================
+
 import { 
   doc, 
   getDoc, 
@@ -7,7 +11,7 @@ import {
   onSnapshot,
   serverTimestamp 
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db } from '../firebase.js';
 
 class GameService {
   constructor() {
@@ -21,7 +25,16 @@ class GameService {
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        return docSnap.data();
+        const data = docSnap.data();
+        return {
+          ...data,
+          // Assurer la cohérence des données
+          level: data.level || 1,
+          totalXp: data.totalXp || 0,
+          badges: data.badges || [],
+          tasksCompleted: data.tasksCompleted || 0,
+          loginStreak: data.loginStreak || 0
+        };
       } else {
         // Créer les données par défaut si elles n'existent pas
         const defaultData = this.getDefaultGameData();
@@ -55,53 +68,59 @@ class GameService {
     }
   }
 
-  // ⭐ Ajouter de l'XP et calculer le niveau
-  async addXP(userId, xpAmount, source = 'unknown') {
+  // ⭐ Ajouter de l'XP et calculer le niveau - VERSION CORRIGÉE
+  async addXP(userId, xpAmount, source = 'unknown', metadata = {}) {
     try {
       const currentData = await this.getUserGameData(userId);
-      const newXP = currentData.xp + xpAmount;
-      const newTotalXP = currentData.totalXp + xpAmount;
+      const newTotalXP = (currentData.totalXp || 0) + xpAmount;
       const newLevel = this.calculateLevel(newTotalXP);
       
       // Vérifier si l'utilisateur a gagné un niveau
-      const leveledUp = newLevel > currentData.level;
+      const leveledUp = newLevel > (currentData.level || 1);
       
       const updateData = {
-        xp: newXP,
         totalXp: newTotalXP,
         level: newLevel,
+        tasksCompleted: currentData.tasksCompleted || 0,
         updatedAt: serverTimestamp()
       };
 
-      // Ajouter l'historique XP
-      if (!currentData.xpHistory) {
-        updateData.xpHistory = [];
-      }
+      // ✅ CORRECTION: Gérer xpHistory avec des dates normales
+      const historyEntry = {
+        amount: xpAmount,
+        source,
+        timestamp: new Date().toISOString(), // ✅ CORRECTED: String au lieu de serverTimestamp()
+        totalAfter: newTotalXP,
+        ...metadata
+      };
+
+      // Ajouter à l'historique (garder les 10 dernières)
+      const currentHistory = currentData.xpHistory || [];
       updateData.xpHistory = [
-        ...currentData.xpHistory.slice(-9), // Garder les 10 dernières entrées
-        {
-          amount: xpAmount,
-          source,
-          timestamp: new Date().toISOString(),
-          totalAfter: newTotalXP
-        }
+        ...currentHistory.slice(-9),
+        historyEntry
       ];
 
       const docRef = doc(db, 'users', userId, 'gamification', 'stats');
       await updateDoc(docRef, updateData);
 
-      // Gérer le level up
-      if (leveledUp) {
-        await this.handleLevelUp(userId, newLevel, currentData.level);
-      }
+      console.log(`✅ XP mis à jour: ${currentData.totalXp || 0} → ${newTotalXP} (niveau ${currentData.level || 1} → ${newLevel})`);
 
-      console.log(`✅ +${xpAmount} XP ajouté (${source}). Total: ${newTotalXP} XP, Niveau: ${newLevel}`);
+      // Gérer le level up APRÈS la mise à jour principale
+      if (leveledUp) {
+        try {
+          await this.handleLevelUp(userId, newLevel, currentData.level || 1);
+        } catch (levelUpError) {
+          console.warn('⚠️ Erreur level up (non bloquant):', levelUpError);
+        }
+      }
       
       return {
         ...currentData,
         ...updateData,
         leveledUp,
-        previousLevel: currentData.level
+        previousLevel: currentData.level || 1,
+        xpGain: xpAmount
       };
     } catch (error) {
       console.error('Erreur lors de l\'ajout d\'XP:', error);
@@ -109,7 +128,7 @@ class GameService {
     }
   }
 
-  // 🏆 Gérer le passage de niveau
+  // 🏆 Gérer le passage de niveau - VERSION CORRIGÉE
   async handleLevelUp(userId, newLevel, previousLevel) {
     try {
       // Badge de niveau automatique
@@ -120,14 +139,13 @@ class GameService {
         category: 'level',
         icon: '🏆',
         rarity: this.getLevelRarity(newLevel),
-        unlockedAt: serverTimestamp()
+        unlockedAt: new Date() // ✅ CORRECTED: Date normale
       };
 
       await this.unlockBadge(userId, levelBadge);
       
       console.log(`🎉 LEVEL UP! ${previousLevel} → ${newLevel}`);
       
-      // Bonus XP pour level up (pourra être utilisé pour d'autres mécaniques)
       return {
         levelUp: true,
         newLevel,
@@ -140,7 +158,7 @@ class GameService {
     }
   }
 
-  // 🏅 Débloquer un badge
+  // 🏅 Débloquer un badge - VERSION CORRIGÉE
   async unlockBadge(userId, badge) {
     try {
       const currentData = await this.getUserGameData(userId);
@@ -152,9 +170,10 @@ class GameService {
         return false;
       }
 
+      // ✅ CORRECTION: Utiliser new Date() au lieu de serverTimestamp() dans l'array
       const newBadge = {
         ...badge,
-        unlockedAt: serverTimestamp()
+        unlockedAt: new Date() // ✅ CORRECTED: Date normale au lieu de serverTimestamp()
       };
 
       const updatedBadges = [...(currentData.badges || []), newBadge];
@@ -162,7 +181,7 @@ class GameService {
       const docRef = doc(db, 'users', userId, 'gamification', 'stats');
       await updateDoc(docRef, {
         badges: updatedBadges,
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp() // ✅ serverTimestamp() OK ici (pas dans array)
       });
 
       console.log('🏅 Nouveau badge débloqué:', badge.name);
@@ -185,13 +204,15 @@ class GameService {
       switch (activity.type) {
         case 'login':
           updates.loginStreak = activity.streak || 1;
-          updates.lastLoginAt = serverTimestamp();
+          updates.lastLoginAt = new Date(); // ✅ Date normale
           break;
         case 'task_completed':
-          updates.tasksCompleted = (await this.getUserGameData(userId)).tasksCompleted + 1;
+          const currentData = await this.getUserGameData(userId);
+          updates.tasksCompleted = (currentData.tasksCompleted || 0) + 1;
           break;
         case 'session_time':
-          updates.totalSessionTime = ((await this.getUserGameData(userId)).totalSessionTime || 0) + activity.duration;
+          const userData = await this.getUserGameData(userId);
+          updates.totalSessionTime = (userData.totalSessionTime || 0) + (activity.duration || 0);
           break;
       }
 
@@ -209,7 +230,15 @@ class GameService {
     
     const unsubscribe = onSnapshot(docRef, (doc) => {
       if (doc.exists()) {
-        callback(doc.data());
+        const data = doc.data();
+        callback({
+          ...data,
+          // Assurer la cohérence des données
+          level: data.level || 1,
+          totalXp: data.totalXp || 0,
+          badges: data.badges || [],
+          tasksCompleted: data.tasksCompleted || 0
+        });
       }
     }, (error) => {
       console.error('Erreur lors de l\'écoute des données:', error);
@@ -253,7 +282,6 @@ class GameService {
   // 🎯 Données par défaut pour un nouvel utilisateur
   getDefaultGameData() {
     return {
-      xp: 0,
       level: 1,
       totalXp: 0,
       badges: [],
@@ -285,7 +313,17 @@ class GameService {
       perfectionist: { name: 'Perfectionniste', icon: '💎', category: 'special' }
     };
   }
+
+  // 🧹 Nettoyer tous les listeners
+  cleanup() {
+    this.listeners.forEach((unsubscribe, userId) => {
+      unsubscribe();
+      console.log('🛑 Listener nettoyé pour:', userId);
+    });
+    this.listeners.clear();
+  }
 }
 
 // Export singleton
 export const gameService = new GameService();
+export default gameService;
