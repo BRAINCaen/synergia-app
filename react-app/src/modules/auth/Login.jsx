@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider } from '../../core/firebase.js'
-import { useAuthStore } from '../../shared/stores/authStore.js'
+import { useAuthStore } from '../../shared/stores/authStore';
 import AuthService from './services/authService.js'
 
 const Login = () => {
