@@ -1,144 +1,103 @@
 // ==========================================
 // 📁 react-app/src/modules/projects/ProjectForm.jsx
-// Formulaire complet création/édition projets
+// Modal complète pour créer/éditer des projets
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { projectService } from '../../core/services/taskService.js';
-import { useAuthStore } from '../../shared/stores/authStore.js';
-import { useProjectStore } from '../../shared/stores/projectStore.js';
+import { X, Calendar, Users, Target, DollarSign } from 'lucide-react';
+
+const PROJECT_ICONS = [
+  '📊', '🚀', '💼', '🎯', '⚡', '🔥', '💡', '🛠️',
+  '📱', '💻', '🌟', '🎨', '📈', '🔬', '🏆', '🎪',
+  '⚙️', '🎭', '🎲', '🎸', '🎹', '🎬', '📚', '✏️'
+];
+
+const PROJECT_PRIORITIES = [
+  { value: 'low', label: '📝 Faible', color: 'text-gray-600' },
+  { value: 'medium', label: '📌 Moyenne', color: 'text-blue-600' },
+  { value: 'high', label: '⚡ Élevée', color: 'text-orange-600' },
+  { value: 'urgent', label: '🔥 Urgente', color: 'text-red-600' }
+];
+
+const PROJECT_STATUS = [
+  { value: 'planning', label: '🔵 Planification' },
+  { value: 'active', label: '🟢 Actif' },
+  { value: 'paused', label: '⏸️ En pause' },
+  { value: 'completed', label: '✅ Terminé' },
+  { value: 'archived', label: '📦 Archivé' }
+];
 
 const ProjectForm = ({ 
   isOpen, 
   onClose, 
-  editingProject = null, 
-  onSuccess = null 
+  project = null, 
+  onSubmit,
+  loading = false 
 }) => {
-  const { user } = useAuthStore();
-  const { createProject, updateProject } = useProjectStore();
-  
-  // État du formulaire
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    status: 'active',
-    icon: '📁',
-    color: '#3b82f6',
-    tags: [],
+    icon: '📊',
+    status: 'planning',
     priority: 'medium',
     deadline: '',
-    budget: ''
+    budget: '',
+    members: [],
+    tags: [],
+    color: '#3B82F6'
   });
 
   const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [tagInput, setTagInput] = useState('');
+  const [newTag, setNewTag] = useState('');
 
-  // Options prédéfinies
-  const PROJECT_ICONS = [
-    '📁', '🚀', '⚡', '🎯', '💎', '🔥', '⭐', '🏆',
-    '📊', '💼', '🎨', '🔧', '📱', '💻', '🌟', '🔮'
-  ];
-
-  const PROJECT_COLORS = [
-    '#3b82f6', '#ef4444', '#10b981', '#f59e0b',
-    '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16',
-    '#f97316', '#6366f1', '#14b8a6', '#eab308'
-  ];
-
-  const STATUS_OPTIONS = [
-    { value: 'active', label: '🟢 Actif', desc: 'Projet en cours' },
-    { value: 'planning', label: '🔵 Planification', desc: 'En phase de préparation' },
-    { value: 'paused', label: '⏸️ En pause', desc: 'Temporairement arrêté' },
-    { value: 'completed', label: '✅ Terminé', desc: 'Projet achevé' },
-    { value: 'archived', label: '📦 Archivé', desc: 'Stocké pour référence' }
-  ];
-
-  const PRIORITY_OPTIONS = [
-    { value: 'low', label: '📝 Basse', color: 'text-gray-400' },
-    { value: 'medium', label: '📌 Moyenne', color: 'text-blue-400' },
-    { value: 'high', label: '⚡ Haute', color: 'text-orange-400' },
-    { value: 'urgent', label: '🔥 Urgent', color: 'text-red-400' }
-  ];
-
-  // Initialiser le formulaire si édition
+  // Initialiser le formulaire avec les données du projet (si édition)
   useEffect(() => {
-    if (editingProject) {
+    if (project) {
       setFormData({
-        name: editingProject.name || '',
-        description: editingProject.description || '',
-        status: editingProject.status || 'active',
-        icon: editingProject.icon || '📁',
-        color: editingProject.color || '#3b82f6',
-        tags: editingProject.tags || [],
-        priority: editingProject.priority || 'medium',
-        deadline: editingProject.deadline ? 
-          new Date(editingProject.deadline).toISOString().slice(0, 16) : '',
-        budget: editingProject.budget || ''
+        name: project.name || '',
+        description: project.description || '',
+        icon: project.icon || '📊',
+        status: project.status || 'planning',
+        priority: project.priority || 'medium',
+        deadline: project.deadline ? new Date(project.deadline).toISOString().split('T')[0] : '',
+        budget: project.budget || '',
+        members: project.members || [],
+        tags: project.tags || [],
+        color: project.color || '#3B82F6'
       });
     } else {
-      resetForm();
+      // Reset pour nouveau projet
+      setFormData({
+        name: '',
+        description: '',
+        icon: '📊',
+        status: 'planning',
+        priority: 'medium',
+        deadline: '',
+        budget: '',
+        members: [],
+        tags: [],
+        color: '#3B82F6'
+      });
     }
-  }, [editingProject, isOpen]);
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      status: 'active',
-      icon: '📁',
-      color: '#3b82f6',
-      tags: [],
-      priority: 'medium',
-      deadline: '',
-      budget: ''
-    });
     setErrors({});
-    setTagInput('');
-  };
+  }, [project, isOpen]);
 
-  const validateForm = () => {
-    const newErrors = {};
-
-    // Nom requis
-    if (!formData.name?.trim()) {
-      newErrors.name = 'Le nom du projet est requis';
-    } else if (formData.name.trim().length < 3) {
-      newErrors.name = 'Le nom doit contenir au moins 3 caractères';
-    } else if (formData.name.trim().length > 100) {
-      newErrors.name = 'Le nom ne peut pas dépasser 100 caractères';
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Effacer l'erreur du champ modifié
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
-
-    // Description optionnelle mais limitée
-    if (formData.description && formData.description.length > 500) {
-      newErrors.description = 'La description ne peut pas dépasser 500 caractères';
-    }
-
-    // Deadline validation
-    if (formData.deadline) {
-      const deadlineDate = new Date(formData.deadline);
-      const now = new Date();
-      if (deadlineDate < now && formData.status !== 'completed') {
-        newErrors.deadline = 'La deadline ne peut pas être dans le passé pour un projet actif';
-      }
-    }
-
-    // Budget validation
-    if (formData.budget && isNaN(parseFloat(formData.budget))) {
-      newErrors.budget = 'Le budget doit être un nombre valide';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
   const handleAddTag = () => {
-    if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
+    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
       setFormData(prev => ({
         ...prev,
-        tags: [...prev.tags, tagInput.trim()]
+        tags: [...prev.tags, newTag.trim()]
       }));
-      setTagInput('');
+      setNewTag('');
     }
   };
 
@@ -149,67 +108,70 @@ const ProjectForm = ({
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = 'Le nom du projet est requis';
+    }
+
+    if (!formData.description.trim()) {
+      newErrors.description = 'La description est requise';
+    }
+
+    if (formData.deadline) {
+      const deadlineDate = new Date(formData.deadline);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (deadlineDate < today) {
+        newErrors.deadline = 'La date d\'échéance ne peut pas être dans le passé';
+      }
+    }
+
+    if (formData.budget && (isNaN(formData.budget) || formData.budget < 0)) {
+      newErrors.budget = 'Le budget doit être un nombre positif';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
     
-    if (!validateForm() || !user?.uid) {
+    if (!validateForm()) {
       return;
     }
 
-    setLoading(true);
-    
-    try {
-      const projectData = {
-        ...formData,
-        name: formData.name.trim(),
-        description: formData.description.trim(),
-        deadline: formData.deadline ? new Date(formData.deadline) : null,
-        budget: formData.budget ? parseFloat(formData.budget) : null
-      };
+    // Préparer les données pour submission
+    const projectData = {
+      ...formData,
+      deadline: formData.deadline ? new Date(formData.deadline) : null,
+      budget: formData.budget ? parseFloat(formData.budget) : null
+    };
 
-      let result;
-      if (editingProject) {
-        result = await updateProject(editingProject.id, projectData);
-      } else {
-        result = await createProject(projectData, user.uid);
-      }
-
-      console.log('✅ Projet sauvegardé:', result);
-      
-      if (onSuccess) {
-        onSuccess(result);
-      }
-      
-      onClose();
-      
-    } catch (error) {
-      console.error('❌ Erreur sauvegarde projet:', error);
-      setErrors({ 
-        general: error.message || 'Erreur lors de la sauvegarde du projet' 
-      });
-    } finally {
-      setLoading(false);
-    }
+    onSubmit(projectData);
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <h2 className="text-xl font-bold text-white flex items-center gap-3">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
             <span className="text-2xl">{formData.icon}</span>
-            {editingProject ? 'Modifier le projet' : 'Nouveau projet'}
+            {project ? 'Modifier le projet' : 'Nouveau projet'}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-700 transition-colors"
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
             disabled={loading}
           >
-            <span className="text-gray-400 text-xl">✕</span>
+            <X className="h-5 w-5 text-gray-500" />
           </button>
         </div>
 
@@ -219,8 +181,8 @@ const ProjectForm = ({
             
             {/* Erreur générale */}
             {errors.general && (
-              <div className="bg-red-900/20 border border-red-500 rounded-lg p-3">
-                <p className="text-red-400 text-sm">{errors.general}</p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-red-600 text-sm">{errors.general}</p>
               </div>
             )}
 
@@ -228,19 +190,19 @@ const ProjectForm = ({
             <div className="grid grid-cols-12 gap-4">
               {/* Icône */}
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Icône
                 </label>
                 <div className="grid grid-cols-4 gap-1">
-                  {PROJECT_ICONS.map(icon => (
+                  {PROJECT_ICONS.slice(0, 8).map(icon => (
                     <button
                       key={icon}
                       type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, icon }))}
+                      onClick={() => handleChange('icon', icon)}
                       className={`p-2 text-xl rounded-lg transition-colors ${
                         formData.icon === icon 
-                          ? 'bg-blue-600 text-white' 
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          ? 'bg-blue-100 border-2 border-blue-500' 
+                          : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
                       }`}
                     >
                       {icon}
@@ -249,229 +211,188 @@ const ProjectForm = ({
                 </div>
               </div>
 
-              {/* Nom du projet */}
+              {/* Nom */}
               <div className="col-span-10">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nom du projet *
                 </label>
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Ex: Refonte site web, Application mobile..."
-                  className={`w-full px-3 py-2 bg-gray-700 border text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.name ? 'border-red-500' : 'border-gray-600'
+                  onChange={(e) => handleChange('name', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    errors.name ? 'border-red-300' : 'border-gray-300'
                   }`}
-                  disabled={loading}
+                  placeholder="Ex: Refonte du site web"
                 />
                 {errors.name && (
-                  <p className="text-red-400 text-sm mt-1">{errors.name}</p>
+                  <p className="text-red-600 text-sm mt-1">{errors.name}</p>
                 )}
               </div>
             </div>
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Description
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description *
               </label>
               <textarea
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Décrivez les objectifs et le contexte du projet..."
+                onChange={(e) => handleChange('description', e.target.value)}
                 rows={3}
-                className={`w-full px-3 py-2 bg-gray-700 border text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.description ? 'border-red-500' : 'border-gray-600'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  errors.description ? 'border-red-300' : 'border-gray-300'
                 }`}
-                disabled={loading}
+                placeholder="Décrivez les objectifs et le scope du projet..."
               />
-              <p className="text-xs text-gray-400 mt-1">
-                {formData.description.length}/500 caractères
-              </p>
               {errors.description && (
-                <p className="text-red-400 text-sm mt-1">{errors.description}</p>
+                <p className="text-red-600 text-sm mt-1">{errors.description}</p>
               )}
             </div>
 
-            {/* Ligne 2: Statut + Priorité + Couleur */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Statut */}
+            {/* Ligne 2: Statut + Priorité */}
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Statut
                 </label>
                 <select
                   value={formData.status}
-                  onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                  className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-                  disabled={loading}
+                  onChange={(e) => handleChange('status', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  {STATUS_OPTIONS.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                  {PROJECT_STATUS.map(status => (
+                    <option key={status.value} value={status.value}>
+                      {status.label}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Priorité */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Priorité
                 </label>
                 <select
                   value={formData.priority}
-                  onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
-                  className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-                  disabled={loading}
+                  onChange={(e) => handleChange('priority', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  {PRIORITY_OPTIONS.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                  {PROJECT_PRIORITIES.map(priority => (
+                    <option key={priority.value} value={priority.value}>
+                      {priority.label}
                     </option>
                   ))}
                 </select>
               </div>
-
-              {/* Couleur */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Couleur
-                </label>
-                <div className="grid grid-cols-6 gap-1">
-                  {PROJECT_COLORS.map(color => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, color }))}
-                      className={`w-8 h-8 rounded-lg border-2 transition-all ${
-                        formData.color === color 
-                          ? 'border-white scale-110' 
-                          : 'border-gray-600 hover:border-gray-400'
-                      }`}
-                      style={{ backgroundColor: color }}
-                      disabled={loading}
-                    />
-                  ))}
-                </div>
-              </div>
             </div>
 
-            {/* Ligne 3: Deadline + Budget */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Deadline */}
+            {/* Ligne 3: Date d'échéance + Budget */}
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  📅 Deadline (optionnelle)
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Calendar className="inline h-4 w-4 mr-1" />
+                  Date d'échéance
                 </label>
                 <input
-                  type="datetime-local"
+                  type="date"
                   value={formData.deadline}
-                  onChange={(e) => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
-                  className={`w-full bg-gray-700 border text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.deadline ? 'border-red-500' : 'border-gray-600'
+                  onChange={(e) => handleChange('deadline', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    errors.deadline ? 'border-red-300' : 'border-gray-300'
                   }`}
-                  disabled={loading}
                 />
                 {errors.deadline && (
-                  <p className="text-red-400 text-sm mt-1">{errors.deadline}</p>
+                  <p className="text-red-600 text-sm mt-1">{errors.deadline}</p>
                 )}
               </div>
 
-              {/* Budget */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  💰 Budget (optionnel)
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <DollarSign className="inline h-4 w-4 mr-1" />
+                  Budget (€)
                 </label>
                 <input
                   type="number"
                   value={formData.budget}
-                  onChange={(e) => setFormData(prev => ({ ...prev, budget: e.target.value }))}
-                  placeholder="Ex: 5000"
-                  className={`w-full bg-gray-700 border text-white placeholder-gray-400 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.budget ? 'border-red-500' : 'border-gray-600'
+                  onChange={(e) => handleChange('budget', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    errors.budget ? 'border-red-300' : 'border-gray-300'
                   }`}
-                  disabled={loading}
+                  placeholder="Ex: 15000"
+                  min="0"
+                  step="100"
                 />
                 {errors.budget && (
-                  <p className="text-red-400 text-sm mt-1">{errors.budget}</p>
+                  <p className="text-red-600 text-sm mt-1">{errors.budget}</p>
                 )}
               </div>
             </div>
 
             {/* Tags */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                🏷️ Tags (optionnels)
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tags
               </label>
-              
-              {/* Tag input */}
-              <div className="flex gap-2 mb-3">
+              <div className="flex flex-wrap gap-2 mb-2">
+                {formData.tags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-lg"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTag(tag)}
+                      className="hover:text-blue-600"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
                 <input
                   type="text"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Ajouter un tag..."
-                  className="flex-1 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={handleAddTag}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                  disabled={loading || !tagInput.trim()}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                 >
-                  ➕
+                  Ajouter
                 </button>
               </div>
-
-              {/* Tags actuels */}
-              {formData.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {formData.tags.map(tag => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-gray-700 text-gray-300 text-sm rounded-full border border-gray-600"
-                    >
-                      #{tag}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTag(tag)}
-                        className="text-red-400 hover:text-red-300 ml-1"
-                        disabled={loading}
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
-
           </form>
         </div>
 
-        {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-700">
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-gray-400 border border-gray-600 rounded-lg hover:bg-gray-700 hover:text-white transition-colors"
+            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             disabled={loading}
           >
             Annuler
           </button>
           <button
             onClick={handleSubmit}
-            disabled={loading || !formData.name.trim()}
+            disabled={loading}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >
-            {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-            {editingProject ? 'Modifier' : 'Créer'} le projet
+            {loading && (
+              <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            )}
+            {project ? 'Mettre à jour' : 'Créer le projet'}
           </button>
         </div>
-
       </div>
     </div>
   );
