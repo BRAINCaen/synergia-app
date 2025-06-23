@@ -520,3 +520,17 @@ class TaskService {
 // Export singleton - UNE SEULE FOIS
 export const taskService = new TaskService();
 export default taskService;
+
+/**
+   * 🔗 ALIASES POUR COMPATIBILITÉ AVEC taskStore
+   */
+  
+  // Alias pour listenToUserTasks (utilisé par taskStore)
+  listenToUserTasks(userId, callback, filters = {}) {
+    return this.subscribeToUserTasks(userId, callback);
+  }
+  
+  // Alias pour getTaskStats (utilisé par taskStore)
+  async getTaskStats(userId) {
+    return await this.getUserTaskStats(userId);
+  }
