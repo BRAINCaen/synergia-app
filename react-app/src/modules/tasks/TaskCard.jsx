@@ -1,244 +1,346 @@
-// src/modules/tasks/TaskCard.jsx - Version avec gestion dates corrigée
 import React, { useState } from 'react';
-import { useTaskStore } from '../../shared/stores/taskStore.js';
-import { useAuthStore } from '../../shared/stores/authStore.js';
-import dateUtils from '../../shared/utils/dateUtils.js';
+import { Calendar, Clock, Flag, User, CheckCircle, XCircle, Edit, Trash2, Award, ExternalLink } from 'lucide-react';
+import { useTaskStore } from '../../stores/taskStore';
+import { useAuthStore } from '../../stores/authStore';
+import { xpValidationService } from '../../core/services/xpValidationService';
 
-export const TaskCard = ({ task, onEdit }) => {
-  const { completeTask, updateTask, deleteTask } = useTaskStore();
+const TaskCard = ({ task, onEdit, onDelete, showProject = false }) => {
+  const { updateTask } = useTaskStore();
   const { user } = useAuthStore();
-  const [isCompleting, setIsCompleting] = useState(false);
-  const [showActions, setShowActions] = useState(false);
+  const [isCompletingTask, setIsCompletingTask] = useState(false);
+  const [showXPRequest, setShowXPRequest] = useState(false);
+  const [xpRequestData, setXpRequestData] = useState({
+    description: '',
+    evidenceUrl: '',
+    customXP: task.xpReward || 10
+  });
+  const [submittingXP, setSubmittingXP] = useState(false);
 
-  // Couleurs par priorité - VERSION SOMBRE
-  const priorityColors = {
-    urgent: 'bg-red-900 border-red-700 text-red-300',
-    high: 'bg-orange-900 border-orange-700 text-orange-300',
-    medium: 'bg-blue-900 border-blue-700 text-blue-300',
-    low: 'bg-gray-700 border-gray-600 text-gray-300'
-  };
-
-  // Icônes par priorité
-  const priorityIcons = {
-    urgent: '🔥',
-    high: '⚡',
-    medium: '📌',
-    low: '📝'
-  };
-
-  // Statut de la tâche
-  const getStatusInfo = () => {
-    switch (task.status) {
-      case 'completed':
-        return { color: 'text-green-400', icon: '✅', label: 'Terminé' };
-      case 'in_progress':
-        return { color: 'text-blue-400', icon: '▶️', label: 'En cours' };
-      default:
-        return { color: 'text-gray-400', icon: '⏰', label: 'À faire' };
+  // Fonction pour marquer comme terminé
+  const handleToggleComplete = async () => {
+    if (task.status === 'completed') {
+      // Si déjà terminé, revenir en cours
+      await updateTask(task.id, { 
+        status: 'in_progress',
+        completedAt: null 
+      });
+    } else {
+      // Marquer comme terminé mais demander validation XP
+      setIsCompletingTask(true);
+      await updateTask(task.id, { 
+        status: 'completed',
+        completedAt: new Date() 
+      });
+      
+      // Afficher le formulaire de demande XP
+      setShowXPRequest(true);
+      setXpRequestData(prev => ({
+        ...prev,
+        description: `Tâche terminée: ${task.title}`
+      }));
     }
   };
 
-  // 🔧 CORRECTION : Vérifier si la tâche est en retard avec gestion date sécurisée
-  const isOverdue = () => {
-    if (!task.dueDate || task.status === 'completed') return false;
-    
-    try {
-      return dateUtils.isOverdue(task.dueDate);
-    } catch (error) {
-      console.warn('Erreur vérification date échéance:', error);
-      return false;
+  // Fonction pour soumettre une demande XP
+  const handleSubmitXPRequest = async () => {
+    if (!xpRequestData.description.trim()) {
+      alert('Veuillez décrire ce que vous avez accompli');
+      return;
     }
-  };
 
-  // 🔧 CORRECTION : Formatter la date de manière sécurisée
-  const formatDate = (date) => {
-    if (!date) return null;
+    setSubmittingXP(true);
     
     try {
-      return dateUtils.formatDateTime(date);
-    } catch (error) {
-      console.warn('Erreur formatage date:', error);
-      return 'Date invalide';
-    }
-  };
+      await xpValidationService.createXPRequest(
+        user.uid,
+        task.id,
+        xpRequestData.description,
+        xpRequestData.customXP,
+        xpRequestData.evidenceUrl || null,
+        {
+          title: task.title,
+          priority: task.priority,
+          projectId: task.projectId
+        }
+      );
 
-  // Compléter la tâche
-  const handleComplete = async () => {
-    if (task.status === 'completed') return;
-    
-    setIsCompleting(true);
-    try {
-      await completeTask(task.id, user.uid, task.estimatedTime);
+      setShowXPRequest(false);
+      setXpRequestData({
+        description: '',
+        evidenceUrl: '',
+        customXP: task.xpReward || 10
+      });
+
+      // Afficher une confirmation
+      alert('🎉 Demande XP soumise ! Un administrateur va la valider.');
+
     } catch (error) {
-      console.error('Erreur completion:', error);
+      console.error('Erreur soumission XP:', error);
+      alert('Erreur lors de la soumission de la demande XP');
     } finally {
-      setIsCompleting(false);
+      setSubmittingXP(false);
     }
   };
 
-  // Changer le statut
-  const handleStatusChange = async (newStatus) => {
-    try {
-      await updateTask(task.id, { status: newStatus }, user.uid);
-    } catch (error) {
-      console.error('Erreur changement statut:', error);
+  // Annuler la demande XP et remettre la tâche en cours
+  const handleCancelXPRequest = async () => {
+    setShowXPRequest(false);
+    setIsCompletingTask(false);
+    
+    // Remettre la tâche en cours
+    await updateTask(task.id, { 
+      status: 'in_progress',
+      completedAt: null 
+    });
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'high': return 'border-red-500 bg-red-900/20';
+      case 'medium': return 'border-yellow-500 bg-yellow-900/20';
+      case 'low': return 'border-green-500 bg-green-900/20';
+      default: return 'border-gray-500 bg-gray-900/20';
     }
   };
 
-  // Supprimer la tâche
-  const handleDelete = async () => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
-      try {
-        await deleteTask(task.id, user.uid);
-      } catch (error) {
-        console.error('Erreur suppression:', error);
-      }
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed': return 'text-green-400';
+      case 'in_progress': return 'text-blue-400';
+      case 'todo': return 'text-gray-400';
+      default: return 'text-gray-400';
     }
   };
 
-  const statusInfo = getStatusInfo();
-  const taskIsOverdue = isOverdue();
+  const formatDate = (date) => {
+    if (!date) return '';
+    const dateObj = date.toDate ? date.toDate() : new Date(date);
+    return dateObj.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
+  const isOverdue = task.dueDate && new Date(task.dueDate.toDate ? task.dueDate.toDate() : task.dueDate) < new Date() && task.status !== 'completed';
 
   return (
-    <div className={`bg-gray-800 rounded-xl border shadow-sm hover:shadow-lg transition-all duration-200 ${
-      taskIsOverdue ? 'border-red-700 bg-red-900 bg-opacity-20' : 'border-gray-700'
-    }`}>
-      {/* Header avec statut et actions */}
-      <div className="flex items-center justify-between p-4 pb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">{statusInfo.icon}</span>
-          <span className={`text-sm font-medium ${statusInfo.color}`}>
-            {statusInfo.label}
+    <div className={`rounded-xl border p-6 transition-all duration-200 hover:border-gray-600 ${getPriorityColor(task.priority)}`}>
+      
+      {/* En-tête avec titre et statut */}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-white mb-2">{task.title}</h3>
+          {task.description && (
+            <p className="text-gray-400 text-sm mb-3 line-clamp-2">{task.description}</p>
+          )}
+        </div>
+        
+        {/* Bouton statut */}
+        <button
+          onClick={handleToggleComplete}
+          disabled={isCompletingTask}
+          className={`p-2 rounded-lg transition-colors ${
+            task.status === 'completed'
+              ? 'bg-green-600 hover:bg-green-700 text-white'
+              : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+          }`}
+          title={task.status === 'completed' ? 'Marquer comme non terminé' : 'Marquer comme terminé'}
+        >
+          {task.status === 'completed' ? (
+            <CheckCircle className="w-5 h-5" />
+          ) : (
+            <Clock className="w-5 h-5" />
+          )}
+        </button>
+      </div>
+
+      {/* Informations tâche */}
+      <div className="space-y-3 mb-4">
+        
+        {/* Projet si affiché */}
+        {showProject && task.projectTitle && (
+          <div className="flex items-center gap-2 text-sm text-blue-400">
+            <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+            <span>Projet: {task.projectTitle}</span>
+          </div>
+        )}
+        
+        {/* Date d'échéance */}
+        {task.dueDate && (
+          <div className={`flex items-center gap-2 text-sm ${
+            isOverdue ? 'text-red-400' : 'text-gray-400'
+          }`}>
+            <Calendar className="w-4 h-4" />
+            <span>{formatDate(task.dueDate)}</span>
+            {isOverdue && <span className="text-red-400 font-medium">(En retard)</span>}
+          </div>
+        )}
+        
+        {/* Assigné à */}
+        {task.assignedTo && (
+          <div className="flex items-center gap-2 text-sm text-gray-400">
+            <User className="w-4 h-4" />
+            <span>Assigné à: {task.assignedToName || 'Utilisateur'}</span>
+          </div>
+        )}
+        
+        {/* XP Reward */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-yellow-400">
+            <Award className="w-4 h-4" />
+            <span>+{task.xpReward || 10} XP</span>
+          </div>
+          
+          {/* Statut */}
+          <span className={`text-sm font-medium ${getStatusColor(task.status)}`}>
+            {task.status === 'completed' ? '✅ Terminé' : 
+             task.status === 'in_progress' ? '🔄 En cours' : '📋 À faire'}
           </span>
         </div>
         
-        <div className="relative">
-          <button
-            onClick={() => setShowActions(!showActions)}
-            className="p-1 rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            <span className="text-gray-400">⋮</span>
-          </button>
-          
-          {showActions && (
-            <div className="absolute right-0 top-8 bg-gray-700 border border-gray-600 rounded-lg shadow-xl z-10 py-1 min-w-[120px]">
-              <button
-                onClick={() => { onEdit?.(task); setShowActions(false); }}
-                className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-600 w-full text-left text-gray-300 hover:text-white transition-colors"
-              >
-                <span>✏️</span>
-                Modifier
-              </button>
-              {task.status !== 'in_progress' && (
-                <button
-                  onClick={() => { handleStatusChange('in_progress'); setShowActions(false); }}
-                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-600 w-full text-left text-gray-300 hover:text-white transition-colors"
-                >
-                  <span>▶️</span>
-                  Commencer
-                </button>
-              )}
-              {task.status === 'in_progress' && (
-                <button
-                  onClick={() => { handleStatusChange('todo'); setShowActions(false); }}
-                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-600 w-full text-left text-gray-300 hover:text-white transition-colors"
-                >
-                  <span>⏸️</span>
-                  Pause
-                </button>
-              )}
-              <button
-                onClick={() => { handleDelete(); setShowActions(false); }}
-                className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-600 w-full text-left text-red-400 hover:text-red-300 transition-colors"
-              >
-                <span>🗑️</span>
-                Supprimer
-              </button>
-            </div>
-          )}
+        {/* Priorité */}
+        <div className="flex items-center gap-2">
+          <Flag className={`w-4 h-4 ${
+            task.priority === 'high' ? 'text-red-400' :
+            task.priority === 'medium' ? 'text-yellow-400' : 'text-green-400'
+          }`} />
+          <span className="text-sm text-gray-400 capitalize">{task.priority || 'normal'}</span>
         </div>
       </div>
 
-      {/* Contenu principal */}
-      <div className="px-4 pb-4">
-        {/* Titre et description */}
-        <h3 className={`font-semibold mb-1 ${
-          task.status === 'completed' 
-            ? 'line-through text-gray-500' 
-            : 'text-white'
-        }`}>
-          {task.title || 'Tâche sans titre'}
-        </h3>
-        
-        {task.description && (
-          <p className="text-sm text-gray-400 mb-3 line-clamp-2">
-            {task.description}
-          </p>
-        )}
-
-        {/* Métadonnées */}
-        <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
-          {task.dueDate && (
-            <div className={`flex items-center gap-1 ${taskIsOverdue ? 'text-red-400' : ''}`}>
-              <span>📅</span>
-              <span>{formatDate(task.dueDate)}</span>
-              {taskIsOverdue && <span className="text-red-400 font-medium">• En retard</span>}
-            </div>
-          )}
-          
-          {task.estimatedTime && (
-            <div className="flex items-center gap-1">
-              <span>⏱️</span>
-              <span>{Math.round(task.estimatedTime / 60)}h {task.estimatedTime % 60}min</span>
-            </div>
-          )}
-        </div>
-
-        {/* Tags et priorité */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {/* Priorité */}
-            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border ${
-              priorityColors[task.priority] || priorityColors.medium
-            }`}>
-              <span>{priorityIcons[task.priority] || priorityIcons.medium}</span>
-              {task.priority || 'medium'}
-            </span>
+      {/* Modal Demande XP */}
+      {showXPRequest && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full border border-gray-700">
+            <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+              <Award className="w-5 h-5 text-yellow-400" />
+              🎉 Demander Validation XP
+            </h3>
             
-            {/* Tags */}
-            {task.tags?.slice(0, 2).map(tag => (
-              <span key={tag} className="inline-block px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded-md border border-gray-600">
-                #{tag}
-              </span>
-            ))}
-            {task.tags?.length > 2 && (
-              <span className="text-xs text-gray-500">+{task.tags.length - 2}</span>
-            )}
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Décrivez ce que vous avez accompli *
+                </label>
+                <textarea
+                  value={xpRequestData.description}
+                  onChange={(e) => setXpRequestData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Ex: J'ai terminé la tâche en implémentant la fonctionnalité X et en corrigeant 3 bugs..."
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm resize-none focus:border-blue-500 focus:outline-none"
+                  rows="4"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Preuve/Lien (optionnel)
+                </label>
+                <input
+                  type="url"
+                  value={xpRequestData.evidenceUrl}
+                  onChange={(e) => setXpRequestData(prev => ({ ...prev, evidenceUrl: e.target.value }))}
+                  placeholder="https://github.com/... ou lien vers screenshot"
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  XP Demandés
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={xpRequestData.customXP}
+                  onChange={(e) => setXpRequestData(prev => ({ ...prev, customXP: parseInt(e.target.value) || 10 }))}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  XP suggérés pour cette tâche: {task.xpReward || 10}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={handleCancelXPRequest}
+                disabled={submittingXP}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white py-2 px-4 rounded-lg transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSubmitXPRequest}
+                disabled={submittingXP || !xpRequestData.description.trim()}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                {submittingXP ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Envoi...
+                  </>
+                ) : (
+                  <>
+                    <Award className="w-4 h-4" />
+                    Demander {xpRequestData.customXP} XP
+                  </>
+                )}
+              </button>
+            </div>
+            
+            <div className="mt-4 p-3 bg-blue-900/20 border border-blue-600/30 rounded-lg text-sm text-blue-300">
+              💡 Un administrateur va valider votre demande. Vous recevrez une notification avec la décision.
+            </div>
           </div>
-
-          {/* Bouton completion */}
-          {task.status !== 'completed' && (
-            <button
-              onClick={handleComplete}
-              disabled={isCompleting}
-              className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white text-xs rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
-            >
-              {isCompleting ? (
-                <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <span>✅</span>
-              )}
-              {isCompleting ? 'Terminé...' : 'Terminer'}
-            </button>
-          )}
-          
-          {task.status === 'completed' && task.xpReward > 0 && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-900 border border-yellow-700 text-yellow-300 text-xs rounded-md font-medium">
-              ⭐ +{task.xpReward} XP
-            </span>
-          )}
         </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-2">
+        {/* Bouton éditer */}
+        <button
+          onClick={() => onEdit(task)}
+          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-1"
+        >
+          <Edit className="w-4 h-4" />
+          Éditer
+        </button>
+        
+        {/* Bouton supprimer */}
+        <button
+          onClick={() => onDelete(task.id)}
+          className="bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded-lg text-sm transition-colors"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+        
+        {/* Bouton demander XP manuellement si déjà terminé */}
+        {task.status === 'completed' && !showXPRequest && (
+          <button
+            onClick={() => {
+              setShowXPRequest(true);
+              setXpRequestData(prev => ({
+                ...prev,
+                description: `Tâche terminée: ${task.title}`
+              }));
+            }}
+            className="bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-3 rounded-lg text-sm transition-colors flex items-center gap-1"
+            title="Demander validation XP"
+          >
+            <Award className="w-4 h-4" />
+          </button>
+        )}
       </div>
+
+      {/* Indicateur si tâche terminée récemment */}
+      {task.status === 'completed' && task.completedAt && (
+        <div className="mt-3 text-xs text-green-400 flex items-center gap-1">
+          <CheckCircle className="w-3 h-3" />
+          Terminé le {formatDate(task.completedAt)}
+        </div>
+      )}
     </div>
   );
 };
