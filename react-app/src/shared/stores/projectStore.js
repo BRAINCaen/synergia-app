@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { persist, subscribeWithSelector } from 'zustand/middleware'
-import { projectService } from '../../core/services/taskService.js'
-
+import { projectService } from '../../core/services/projectService.js'
 export const useProjectStore = create(
   subscribeWithSelector(
     persist(
