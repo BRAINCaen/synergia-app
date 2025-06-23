@@ -1,11 +1,11 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/projectStore.js
-// Store Projets CORRIGÉ - Sans dépendance projectService
+// Store Zustand complet pour la gestion des projets
 // ==========================================
 
-import { create } from 'zustand'
-import { persist, subscribeWithSelector } from 'zustand/middleware'
-// import { projectService } from '../../core/services/projectService.js' // TODO: Créer projectService quand prêt
+import { create } from 'zustand';
+import { persist, subscribeWithSelector } from 'zustand/middleware';
+import { projectService } from '../../core/services/taskService.js';
 
 export const useProjectStore = create(
   subscribeWithSelector(
@@ -20,60 +20,44 @@ export const useProjectStore = create(
         deleting: false,
         
         // Filtres et recherche
-        filters: {
-          status: 'all',
-          priority: 'all',
-          orderBy: 'createdAt',
-          orderDirection: 'desc'
-        },
+        statusFilter: 'all',
         searchTerm: '',
+        sortBy: 'updatedAt',
+        sortDirection: 'desc',
         
         // Statistiques
         stats: {
           total: 0,
           active: 0,
           completed: 0,
-          archived: 0,
-          totalTasks: 0,
-          completionRate: 0
+          overdue: 0,
+          totalXpEarned: 0
         },
         
         // Subscriptions temps réel
         unsubscribeProjects: null,
-        
-        // ✅ Actions temporaires (sans backend pour le moment)
+
+        // ==========================================
+        // 📊 ACTIONS DE BASE
+        // ==========================================
+
+        /**
+         * 📂 CHARGER LES PROJETS UTILISATEUR
+         */
         loadUserProjects: async (userId) => {
           set({ loading: true });
           try {
-            // TODO: Remplacer par projectService.getUserProjects(userId) quand prêt
-            console.log('🔄 Chargement projets pour:', userId);
+            const filters = get().statusFilter !== 'all' 
+              ? { status: get().statusFilter } 
+              : {};
             
-            // Données mock temporaires
-            const mockProjects = [
-              {
-                id: 'project1',
-                title: 'Projet Demo',
-                description: 'Projet de démonstration',
-                status: 'active',
-                priority: 'high',
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                createdBy: userId,
-                members: [userId],
-                taskCount: 0,
-                completedTasks: 0
-              }
-            ];
+            const projects = await projectService.getUserProjects(userId, filters);
+            set({ projects, loading: false });
             
-            set({ 
-              projects: mockProjects, 
-              loading: false 
-            });
-            
-            // Mettre à jour les stats
+            // Mettre à jour les statistiques
             get().updateStats();
             
-            return mockProjects;
+            return projects;
           } catch (error) {
             console.error('Erreur chargement projets:', error);
             set({ loading: false });
@@ -81,7 +65,9 @@ export const useProjectStore = create(
           }
         },
 
-        // ✅ Créer un projet (mock)
+        /**
+         * ➕ CRÉER UN NOUVEAU PROJET
+         */
         createProject: async (projectData, userId) => {
           if (!userId) {
             throw new Error('UserId requis pour créer un projet');
@@ -89,34 +75,16 @@ export const useProjectStore = create(
           
           set({ creating: true });
           try {
-            // TODO: Remplacer par projectService.createProject(projectData, userId)
-            console.log('🚀 Création projet:', projectData);
+            const newProject = await projectService.createProject(projectData, userId);
             
-            const newProject = {
-              id: 'project_' + Date.now(),
-              title: projectData.title || 'Nouveau Projet',
-              description: projectData.description || '',
-              status: projectData.status || 'active',
-              priority: projectData.priority || 'normal',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              createdBy: userId,
-              members: [userId],
-              taskCount: 0,
-              completedTasks: 0,
-              ...projectData
-            };
-            
-            // Ajouter à la liste locale
             set(state => ({
               projects: [newProject, ...state.projects],
               creating: false
             }));
             
-            // Recharger les stats
+            // Mettre à jour les stats
             get().updateStats();
             
-            console.log('✅ Projet créé (mock):', newProject.id);
             return newProject;
           } catch (error) {
             console.error('Erreur création projet:', error);
@@ -125,33 +93,28 @@ export const useProjectStore = create(
           }
         },
 
-        // ✅ Mettre à jour un projet
-        updateProject: async (projectId, updates, userId) => {
+        /**
+         * ✏️ METTRE À JOUR UN PROJET
+         */
+        updateProject: async (projectId, updates) => {
           set({ updating: true });
           try {
-            // TODO: Remplacer par projectService.updateProject(projectId, updates, userId)
-            console.log('✏️ Mise à jour projet:', projectId, updates);
-            
-            const updatedProject = {
-              ...updates,
-              updatedAt: new Date(),
-              lastUpdatedBy: userId
-            };
+            const updatedProject = await projectService.updateProject(projectId, updates);
             
             set(state => ({
-              projects: state.projects.map(project => 
-                project.id === projectId 
-                  ? { ...project, ...updatedProject }
-                  : project
+              projects: state.projects.map(p => 
+                p.id === projectId ? updatedProject : p
               ),
               currentProject: state.currentProject?.id === projectId 
-                ? { ...state.currentProject, ...updatedProject }
+                ? updatedProject 
                 : state.currentProject,
               updating: false
             }));
             
-            console.log('✅ Projet mis à jour (mock):', projectId);
-            return { id: projectId, ...updatedProject };
+            // Mettre à jour les stats
+            get().updateStats();
+            
+            return updatedProject;
           } catch (error) {
             console.error('Erreur mise à jour projet:', error);
             set({ updating: false });
@@ -159,20 +122,25 @@ export const useProjectStore = create(
           }
         },
 
-        // ✅ Supprimer un projet
+        /**
+         * 🗑️ SUPPRIMER UN PROJET
+         */
         deleteProject: async (projectId, userId) => {
           set({ deleting: true });
           try {
-            // TODO: Remplacer par projectService.deleteProject(projectId, userId)
-            console.log('🗑️ Suppression projet:', projectId);
+            await projectService.deleteProject(projectId, userId);
             
             set(state => ({
-              projects: state.projects.filter(project => project.id !== projectId),
-              currentProject: state.currentProject?.id === projectId ? null : state.currentProject,
+              projects: state.projects.filter(p => p.id !== projectId),
+              currentProject: state.currentProject?.id === projectId 
+                ? null 
+                : state.currentProject,
               deleting: false
             }));
             
-            console.log('✅ Projet supprimé (mock):', projectId);
+            // Mettre à jour les stats
+            get().updateStats();
+            
             return { success: true };
           } catch (error) {
             console.error('Erreur suppression projet:', error);
@@ -181,83 +149,316 @@ export const useProjectStore = create(
           }
         },
 
-        // 📊 Mettre à jour les statistiques
+        // ==========================================
+        // 📊 GESTION DE LA PROGRESSION
+        // ==========================================
+
+        /**
+         * 📈 METTRE À JOUR LA PROGRESSION D'UN PROJET
+         */
+        updateProjectProgress: async (projectId) => {
+          try {
+            const progressData = await projectService.updateProjectProgress(projectId);
+            
+            set(state => ({
+              projects: state.projects.map(p => 
+                p.id === projectId 
+                  ? { ...p, progress: progressData, updatedAt: new Date() }
+                  : p
+              )
+            }));
+            
+            return progressData;
+          } catch (error) {
+            console.error('Erreur mise à jour progression:', error);
+            throw error;
+          }
+        },
+
+        /**
+         * 📊 CHARGER LES STATISTIQUES D'UN PROJET
+         */
+        loadProjectStats: async (projectId) => {
+          try {
+            const stats = await projectService.getProjectStats(projectId);
+            
+            // Optionnel: stocker les stats dans le projet
+            set(state => ({
+              projects: state.projects.map(p => 
+                p.id === projectId 
+                  ? { ...p, detailedStats: stats }
+                  : p
+              )
+            }));
+            
+            return stats;
+          } catch (error) {
+            console.error('Erreur chargement stats projet:', error);
+            throw error;
+          }
+        },
+
+        // ==========================================
+        // 👥 GESTION DES MEMBRES
+        // ==========================================
+
+        /**
+         * 👥 AJOUTER UN MEMBRE AU PROJET
+         */
+        addProjectMember: async (projectId, userId, memberUserId) => {
+          try {
+            await projectService.addProjectMember(projectId, userId, memberUserId);
+            
+            // Recharger le projet pour avoir les membres à jour
+            const project = get().projects.find(p => p.id === projectId);
+            if (project) {
+              set(state => ({
+                projects: state.projects.map(p => 
+                  p.id === projectId 
+                    ? { ...p, members: [...(p.members || []), memberUserId], updatedAt: new Date() }
+                    : p
+                )
+              }));
+            }
+            
+            return { success: true };
+          } catch (error) {
+            console.error('Erreur ajout membre:', error);
+            throw error;
+          }
+        },
+
+        /**
+         * 👥 RETIRER UN MEMBRE DU PROJET
+         */
+        removeProjectMember: async (projectId, userId, memberUserId) => {
+          try {
+            await projectService.removeProjectMember(projectId, userId, memberUserId);
+            
+            set(state => ({
+              projects: state.projects.map(p => 
+                p.id === projectId 
+                  ? { 
+                      ...p, 
+                      members: (p.members || []).filter(id => id !== memberUserId),
+                      updatedAt: new Date() 
+                    }
+                  : p
+              )
+            }));
+            
+            return { success: true };
+          } catch (error) {
+            console.error('Erreur retrait membre:', error);
+            throw error;
+          }
+        },
+
+        // ==========================================
+        // 🔍 RECHERCHE ET FILTRES
+        // ==========================================
+
+        /**
+         * 🔍 RECHERCHER DES PROJETS
+         */
+        searchProjects: async (userId, searchTerm, filters = {}) => {
+          set({ loading: true });
+          try {
+            const projects = await projectService.searchProjects(userId, searchTerm, filters);
+            set({ projects, loading: false });
+            return projects;
+          } catch (error) {
+            console.error('Erreur recherche projets:', error);
+            set({ loading: false });
+            throw error;
+          }
+        },
+
+        /**
+         * 🎛️ DÉFINIR LE FILTRE DE STATUT
+         */
+        setStatusFilter: (status) => {
+          set({ statusFilter: status });
+        },
+
+        /**
+         * 🔍 DÉFINIR LE TERME DE RECHERCHE
+         */
+        setSearchTerm: (term) => {
+          set({ searchTerm: term });
+        },
+
+        /**
+         * 📊 DÉFINIR LE TRI
+         */
+        setSorting: (sortBy, sortDirection = 'desc') => {
+          set({ sortBy, sortDirection });
+          
+          // Appliquer le tri immédiatement
+          set(state => ({
+            projects: [...state.projects].sort((a, b) => {
+              const aVal = a[sortBy];
+              const bVal = b[sortBy];
+              
+              if (sortDirection === 'asc') {
+                return aVal > bVal ? 1 : -1;
+              } else {
+                return aVal < bVal ? 1 : -1;
+              }
+            })
+          }));
+        },
+
+        // ==========================================
+        // 📊 GETTERS ET UTILITAIRES
+        // ==========================================
+
+        /**
+         * 📊 METTRE À JOUR LES STATISTIQUES GLOBALES
+         */
         updateStats: () => {
           const projects = get().projects;
+          const now = new Date();
           
           const stats = {
             total: projects.length,
             active: projects.filter(p => p.status === 'active').length,
             completed: projects.filter(p => p.status === 'completed').length,
-            archived: projects.filter(p => p.status === 'archived').length,
-            totalTasks: projects.reduce((sum, p) => sum + (p.taskCount || 0), 0),
-            completionRate: projects.length > 0 
-              ? Math.round((projects.filter(p => p.status === 'completed').length / projects.length) * 100)
-              : 0
+            overdue: projects.filter(p => {
+              if (!p.deadline || p.status === 'completed') return false;
+              const deadline = new Date(p.deadline);
+              return deadline < now;
+            }).length,
+            totalXpEarned: projects.reduce((total, p) => {
+              return total + (p.detailedStats?.totalXpEarned || 0);
+            }, 0)
           };
           
           set({ stats });
-          console.log('📊 Stats projets mises à jour:', stats);
         },
 
-        // 🎯 Sélectionner un projet courant
+        /**
+         * 🎯 OBTENIR PROJETS PAR STATUT
+         */
+        getProjectsByStatus: (status) => {
+          return get().projects.filter(p => p.status === status);
+        },
+
+        /**
+         * 🟢 OBTENIR PROJETS ACTIFS
+         */
+        getActiveProjects: () => get().getProjectsByStatus('active'),
+
+        /**
+         * ✅ OBTENIR PROJETS TERMINÉS
+         */
+        getCompletedProjects: () => get().getProjectsByStatus('completed'),
+
+        /**
+         * 📅 OBTENIR PROJETS EN RETARD
+         */
+        getOverdueProjects: () => {
+          const now = new Date();
+          return get().projects.filter(p => {
+            if (!p.deadline || p.status === 'completed') return false;
+            const deadline = new Date(p.deadline);
+            return deadline < now;
+          });
+        },
+
+        /**
+         * 📊 OBTENIR PROJETS FILTRÉS ET TRIÉS
+         */
+        getFilteredProjects: () => {
+          let projects = [...get().projects];
+          const { statusFilter, searchTerm, sortBy, sortDirection } = get();
+          
+          // Filtrer par statut
+          if (statusFilter !== 'all') {
+            projects = projects.filter(p => p.status === statusFilter);
+          }
+          
+          // Filtrer par recherche
+          if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            projects = projects.filter(p => 
+              p.name.toLowerCase().includes(term) ||
+              p.description?.toLowerCase().includes(term) ||
+              p.tags?.some(tag => tag.toLowerCase().includes(term))
+            );
+          }
+          
+          // Trier
+          projects.sort((a, b) => {
+            let aVal = a[sortBy];
+            let bVal = b[sortBy];
+            
+            // Gestion spéciale pour les dates
+            if (sortBy === 'updatedAt' || sortBy === 'createdAt') {
+              aVal = new Date(aVal);
+              bVal = new Date(bVal);
+            }
+            
+            if (sortDirection === 'asc') {
+              return aVal > bVal ? 1 : -1;
+            } else {
+              return aVal < bVal ? 1 : -1;
+            }
+          });
+          
+          return projects;
+        },
+
+        /**
+         * 🎯 DÉFINIR LE PROJET ACTUEL
+         */
         setCurrentProject: (project) => {
           set({ currentProject: project });
         },
 
-        // 🔍 Filtres et recherche
-        setFilters: (newFilters) => {
-          set(state => ({
-            filters: { ...state.filters, ...newFilters }
-          }));
-        },
+        // ==========================================
+        // 🔔 SUBSCRIPTIONS TEMPS RÉEL
+        // ==========================================
 
-        setSearchTerm: (term) => {
-          set({ searchTerm: term });
-        },
-
-        // 📋 Getters calculés
-        getFilteredProjects: () => {
-          const { projects, filters, searchTerm } = get();
+        /**
+         * 🔔 S'ABONNER AUX PROJETS EN TEMPS RÉEL
+         */
+        subscribeToProjects: (userId) => {
+          const currentUnsub = get().unsubscribeProjects;
+          if (currentUnsub) currentUnsub();
           
-          let filtered = [...projects];
-          
-          // Filtrer par statut
-          if (filters.status !== 'all') {
-            filtered = filtered.filter(project => project.status === filters.status);
-          }
-          
-          // Filtrer par priorité
-          if (filters.priority !== 'all') {
-            filtered = filtered.filter(project => project.priority === filters.priority);
-          }
-          
-          // Recherche textuelle
-          if (searchTerm) {
-            const term = searchTerm.toLowerCase();
-            filtered = filtered.filter(project => 
-              project.title.toLowerCase().includes(term) ||
-              project.description.toLowerCase().includes(term)
-            );
-          }
-          
-          // Tri
-          filtered.sort((a, b) => {
-            const field = filters.orderBy;
-            const direction = filters.orderDirection === 'asc' ? 1 : -1;
-            
-            if (field === 'createdAt' || field === 'updatedAt') {
-              return (new Date(a[field]) - new Date(b[field])) * direction;
+          const unsubscribe = projectService.subscribeToUserProjects(
+            userId,
+            (projects) => {
+              set({ projects });
+              get().updateStats();
             }
-            
-            return (a[field] || '').localeCompare(b[field] || '') * direction;
-          });
+          );
           
-          return filtered;
+          set({ unsubscribeProjects: unsubscribe });
+          return unsubscribe;
         },
 
-        // 🧹 Reset du store
+        // ==========================================
+        // 🧹 NETTOYAGE
+        // ==========================================
+
+        /**
+         * 🧹 NETTOYER LES SUBSCRIPTIONS
+         */
+        cleanup: () => {
+          const { unsubscribeProjects } = get();
+          if (unsubscribeProjects) {
+            unsubscribeProjects();
+            set({ unsubscribeProjects: null });
+          }
+        },
+
+        /**
+         * 🔄 RÉINITIALISER LE STORE
+         */
         reset: () => {
+          get().cleanup();
           set({
             projects: [],
             currentProject: null,
@@ -265,25 +466,31 @@ export const useProjectStore = create(
             creating: false,
             updating: false,
             deleting: false,
+            statusFilter: 'all',
             searchTerm: '',
+            sortBy: 'updatedAt',
+            sortDirection: 'desc',
             stats: {
               total: 0,
               active: 0,
               completed: 0,
-              archived: 0,
-              totalTasks: 0,
-              completionRate: 0
+              overdue: 0,
+              totalXpEarned: 0
             }
           });
         }
+
       }),
       {
-        name: 'project-store',
+        name: 'synergia-projects',
         partialize: (state) => ({
           projects: state.projects,
-          currentProject: state.currentProject,
-          filters: state.filters
-        })
+          statusFilter: state.statusFilter,
+          searchTerm: state.searchTerm,
+          sortBy: state.sortBy,
+          sortDirection: state.sortDirection
+        }),
+        version: 2 // Incrémenter pour forcer la migration
       }
     )
   )
