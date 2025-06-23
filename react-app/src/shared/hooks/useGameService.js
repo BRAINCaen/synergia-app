@@ -1,5 +1,9 @@
-// 🔧 CORRECTION: react-app/src/shared/hooks/useGameService.js
-import { useEffect, useCallback } from 'react';
+// ==========================================
+// 📁 react-app/src/shared/hooks/useGameService.js
+// Hook Gamification OPTIMISÉ - Évite les boucles de re-render
+// ==========================================
+
+import { useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore.js';
 import { useGameStore } from '../stores/gameStore.js';
 import { gameService } from '../../core/services/gameService.js';
@@ -20,27 +24,32 @@ export const useGameService = () => {
     getters
   } = useGameStore();
 
-  // 🔄 Synchroniser les données depuis Firestore - CORRIGÉ
+  // 🔧 FIX: Refs pour éviter les boucles infinies
+  const isListenerSetup = useRef(false);
+  const currentUserId = useRef(null);
+
+  // 🔄 Synchroniser les données depuis Firestore - OPTIMISÉ
   const syncGameData = useCallback(async () => {
     if (!user?.uid) return;
 
     try {
+      console.log('🔄 syncGameData pour:', user.uid);
       setLoading(true);
       const data = await gameService.getUserGameData(user.uid);
       
       // 🔧 CORRECTION: S'assurer que les données sont cohérentes
       const normalizedData = {
         ...data,
-        // S'assurer que totalXp et xp sont synchronisés
         totalXp: data.totalXp || data.xp || 0,
         xp: data.xp || data.totalXp || 0,
         level: data.level || 1,
         badges: data.badges || [],
         loginStreak: data.loginStreak || 0,
-        tasksCompleted: data.tasksCompleted || 0
+        tasksCompleted: data.tasksCompleted || 0,
+        xpHistory: data.xpHistory || []
       };
       
-      console.log('🔄 Données synchronisées:', normalizedData);
+      console.log('✅ Données normalisées:', normalizedData);
       setGameData(normalizedData);
       setError(null);
     } catch (error) {
@@ -49,9 +58,9 @@ export const useGameService = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?.uid, setGameData, setLoading, setError]);
+  }, [user?.uid]); // 🔧 FIX: Retirer les dépendances qui causent des boucles
 
-  // ⭐ Ajouter de l'XP avec feedback visuel - CORRIGÉ
+  // ⭐ Ajouter de l'XP avec feedback visuel - OPTIMISÉ
   const addXP = useCallback(async (amount, source = 'unknown') => {
     if (!user?.uid) return null;
 
@@ -59,14 +68,18 @@ export const useGameService = () => {
       console.log(`🎯 Ajout XP: +${amount} (${source})`);
       const result = await gameService.addXP(user.uid, amount, source);
       
-      // 🔧 CORRECTION: Mise à jour locale immédiate ET temps réel
+      // 🔧 CORRECTION: Mise à jour immédiate ET attendre la propagation
       const normalizedResult = {
         ...result,
         totalXp: result.totalXp || result.xp || 0,
-        xp: result.xp || result.totalXp || 0
+        xp: result.xp || result.totalXp || 0,
+        level: result.level || 1,
+        badges: result.badges || gameData?.badges || []
       };
       
-      console.log('✅ Résultat XP:', normalizedResult);
+      console.log('✅ Résultat XP normalisé:', normalizedResult);
+      
+      // Mise à jour immédiate
       setGameData(normalizedResult);
       
       // Feedback visuel
@@ -88,8 +101,10 @@ export const useGameService = () => {
         });
       }
       
-      // 🔧 CORRECTION: Forcer une resynchronisation après mise à jour
-      setTimeout(syncGameData, 500);
+      // 🔧 FIX: Synchronisation différée pour éviter les conflits
+      setTimeout(() => {
+        syncGameData();
+      }, 1000);
       
       return normalizedResult;
     } catch (error) {
@@ -97,27 +112,26 @@ export const useGameService = () => {
       setError(error.message);
       return null;
     }
-  }, [user?.uid, setGameData, setError, triggerXPAnimation, addRecentActivity, showLevelUpNotification, syncGameData]);
+  }, [user?.uid, gameData?.badges]); // 🔧 FIX: Dépendances minimales
 
-  // 🏅 Débloquer un badge - CORRIGÉ
+  // 🏅 Débloquer un badge - OPTIMISÉ
   const unlockBadge = useCallback(async (badge) => {
     if (!user?.uid) return false;
 
     try {
       const success = await gameService.unlockBadge(user.uid, badge);
       if (success) {
-        // Recharger les données
-        await syncGameData();
-        
-        // Feedback visuel
         showBadgeNotification(badge);
-        
-        // Ajouter à l'activité récente
         addRecentActivity({
           type: 'badge_unlocked',
           badge: badge.name,
           category: badge.category
         });
+        
+        // Synchronisation différée
+        setTimeout(() => {
+          syncGameData();
+        }, 500);
       }
       return success;
     } catch (error) {
@@ -125,9 +139,9 @@ export const useGameService = () => {
       setError(error.message);
       return false;
     }
-  }, [user?.uid, syncGameData, setError, showBadgeNotification, addRecentActivity]);
+  }, [user?.uid]);
 
-  // 🎯 Actions de gamification rapides - CORRIGÉ
+  // 🎯 Actions de gamification rapides - STABLES
   const quickActions = {
     dailyLogin: () => {
       console.log('🌅 Daily login triggered');
@@ -155,16 +169,20 @@ export const useGameService = () => {
     }
   };
 
-  // 🧮 Fonctions de calcul utiles - CORRIGÉ
+  // 🧮 Fonctions de calcul utiles - CORRIGÉES
   const calculations = {
     getProgressToNextLevel: () => {
       if (!gameData || !gameData.level) return 0;
-      return getters.getProgressPercentage() / 100;
+      const percentage = getters.getProgressPercentage();
+      console.log('🧮 Progress percentage from getter:', percentage);
+      return Math.min(percentage / 100, 1); // Retourner entre 0 et 1
     },
     
     getXPNeededForNextLevel: () => {
       if (!gameData) return 100;
-      return getters.getXPForNextLevel();
+      const needed = getters.getXPForNextLevel();
+      console.log('🧮 XP needed from getter:', needed);
+      return needed;
     },
     
     getBadgesByCategory: (category) => {
@@ -173,23 +191,45 @@ export const useGameService = () => {
     }
   };
 
-  // 🔄 Écouter les changements en temps réel - CORRIGÉ
+  // 🔄 Écouter les changements en temps réel - OPTIMISÉ
   useEffect(() => {
     if (!user?.uid) {
       console.log('👤 Pas d\'utilisateur connecté');
+      isListenerSetup.current = false;
+      currentUserId.current = null;
+      return;
+    }
+
+    // 🔧 FIX: Éviter de recreer les listeners si déjà setup pour le même user
+    if (isListenerSetup.current && currentUserId.current === user.uid) {
+      console.log('🔄 Listener déjà configuré pour:', user.uid);
       return;
     }
 
     console.log('🔄 Setup real-time listener pour:', user.uid);
 
-    // Synchronisation initiale
-    syncGameData();
+    // Cleanup précédent si changement d'utilisateur
+    if (isListenerSetup.current && currentUserId.current !== user.uid) {
+      console.log('🛑 Cleanup ancien listener');
+      gameService.unsubscribeFromUserGameData(currentUserId.current);
+    }
+
+    // Synchronisation initiale seulement si pas de données
+    if (!gameData || gameData.level === undefined) {
+      console.log('🚀 Sync initiale nécessaire');
+      syncGameData();
+    }
 
     // Écoute en temps réel
     const unsubscribe = gameService.subscribeToUserGameData(
       user.uid,
       (data) => {
-        console.log('📡 Données temps réel reçues:', data);
+        console.log('📡 Données temps réel reçues:', {
+          level: data.level,
+          xp: data.xp,
+          totalXp: data.totalXp,
+          badges: data.badges?.length
+        });
         
         // Normaliser les données
         const normalizedData = {
@@ -197,7 +237,10 @@ export const useGameService = () => {
           totalXp: data.totalXp || data.xp || 0,
           xp: data.xp || data.totalXp || 0,
           level: data.level || 1,
-          badges: data.badges || []
+          badges: data.badges || [],
+          loginStreak: data.loginStreak || 0,
+          tasksCompleted: data.tasksCompleted || 0,
+          xpHistory: data.xpHistory || []
         };
         
         setGameData(normalizedData);
@@ -205,23 +248,37 @@ export const useGameService = () => {
       }
     );
 
+    // Marquer comme configuré
+    isListenerSetup.current = true;
+    currentUserId.current = user.uid;
+
     return () => {
       console.log('🛑 Cleanup real-time listener');
       gameService.unsubscribeFromUserGameData(user.uid);
+      isListenerSetup.current = false;
+      currentUserId.current = null;
     };
-  }, [user?.uid, setGameData, setLoading, syncGameData]);
+  }, [user?.uid]); // 🔧 FIX: Seul user.uid comme dépendance
 
-  // 🔧 CORRECTION: Log pour debug
+  // 🔧 NOUVEAU: Force refresh si données incohérentes
   useEffect(() => {
     if (gameData) {
-      console.log('🎮 GameData mis à jour:', {
+      console.log('🎮 GameData current:', {
         level: gameData.level,
         xp: gameData.xp,
         totalXp: gameData.totalXp,
         badges: gameData.badges?.length || 0
       });
+
+      // Vérifier la cohérence
+      if (gameData.xp !== gameData.totalXp && Math.abs(gameData.xp - gameData.totalXp) > 1) {
+        console.warn('⚠️ Incohérence détectée, resync...');
+        setTimeout(() => {
+          syncGameData();
+        }, 2000);
+      }
     }
-  }, [gameData]);
+  }, [gameData?.level, gameData?.xp, gameData?.totalXp]); // Seulement les valeurs importantes
 
   return {
     // Données
