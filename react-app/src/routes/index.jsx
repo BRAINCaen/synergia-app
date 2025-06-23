@@ -95,9 +95,9 @@ export default function AppRoutes() {
         } 
       />
       
-      {/* ✅ ROUTE PROJECTS : Utilise l'import default corrigé */}
+      {/* ✅ ROUTE PROJECTS : Utilise la constante */}
       <Route 
-        path="/projects" 
+        path={ROUTES.PROJECTS} 
         element={
           <ProtectedRoute>
             <ProjectDashboard />
@@ -105,9 +105,9 @@ export default function AppRoutes() {
         } 
       />
 
-      {/* ✅ NOUVELLE ROUTE ANALYTICS */}
+      {/* ✅ ROUTE ANALYTICS : Utilise la constante */}
       <Route 
-        path="/analytics" 
+        path={ROUTES.ANALYTICS} 
         element={
           <ProtectedRoute>
             <Analytics />
