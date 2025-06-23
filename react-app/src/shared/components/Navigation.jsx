@@ -1,4 +1,5 @@
-// src/shared/components/Navigation.jsx - NAVIGATION COMPLÈTE AVEC PROJECTS
+// react-app/src/shared/components/Navigation.jsx
+// NAVIGATION COMPLÈTE AVEC ANALYTICS AJOUTÉ
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { auth } from '../../core/firebase';
@@ -34,6 +35,11 @@ const Navigation = () => {
       icon: '📁'
     },
     {
+      path: '/analytics',
+      label: 'Analytics',
+      icon: '📈'
+    },
+    {
       path: '/leaderboard',
       label: 'Classement',
       icon: '🏆'
@@ -59,7 +65,7 @@ const Navigation = () => {
             </Link>
             
             <span className="px-3 py-1 bg-gradient-to-r from-green-600 to-blue-600 text-white text-xs rounded-full font-medium">
-              v3.0 • CORRIGÉ
+              v3.4 • ANALYTICS
             </span>
           </div>
 
@@ -114,7 +120,7 @@ const Navigation = () => {
 
         {/* Navigation mobile */}
         <div className="md:hidden pb-4">
-          <div className="grid grid-cols-4 gap-1">
+          <div className="grid grid-cols-5 gap-1">
             {navItems.map((item) => (
               <Link
                 key={item.path}
