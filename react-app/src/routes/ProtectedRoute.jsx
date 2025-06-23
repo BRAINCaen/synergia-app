@@ -1,7 +1,7 @@
 // src/routes/ProtectedRoute.jsx
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import useAuthStore from '../shared/stores/authStore.js';
+import { useAuthStore } from '../shared/stores/authStore.js';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuthStore();
