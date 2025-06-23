@@ -1,20 +1,20 @@
 // ==========================================
 // 📁 react-app/src/components/TeamDashboard.jsx
-// CORRECTION : Tous les imports avec chemins corrects
+// CORRECTION : Imports vers shared/components/team/
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { Clock, Users, Target, Award, CheckCircle, AlertTriangle, Calendar, MessageSquare } from 'lucide-react';
 
-// 🔧 CORRECTION : Imports avec chemins corrects
+// 🔧 CORRECTION : Imports avec chemins corrects vers shared/
 import { useAuthStore } from '../shared/stores/authStore';
 import { useTeamStore } from '../shared/stores/teamStore';
 
-// Components avec chemins corrects
-import LoadingSpinner from './ui/LoadingSpinner';
-import XPRequestCard from './XPRequestCard';
-import TeamMemberCard from './TeamMemberCard';
-import ProjectAssignmentOverview from './ProjectAssignmentOverview';
+// 🔧 CORRECTION : Components depuis shared/components/
+import LoadingSpinner from '../shared/components/ui/LoadingSpinner';
+import XPRequestCard from '../shared/components/team/XPRequestCard';
+import TeamMemberCard from '../shared/components/team/TeamMemberCard';
+import ProjectAssignmentOverview from '../shared/components/team/ProjectAssignmentOverview';
 
 const TeamDashboard = () => {
   const { user } = useAuthStore();
@@ -247,6 +247,7 @@ const TeamDashboard = () => {
                     key={request.id} 
                     request={request} 
                     onValidate={handleValidateXP}
+                    isAdmin={isAdmin}
                   />
                 ))}
               </div>
