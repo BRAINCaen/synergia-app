@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx
-// CORRECTION : Tous les imports avec chemins corrects
+// CORRECTION COMPLÈTE : Tous les imports avec chemins corrects
 // ==========================================
 
 import React, { useState } from 'react';
@@ -11,7 +11,9 @@ import { useTaskStore } from '../../shared/stores/taskStore';
 import { useAuthStore } from '../../shared/stores/authStore';
 
 export const TaskCard = ({ task, onEdit, onDelete, showProject = false }) => {
-  const { updateTask } = useTaskStore();
+  const { updateTask } = useTaskStore(};
+
+export default TaskCard;
   const { user } = useAuthStore();
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -83,104 +85,123 @@ export const TaskCard = ({ task, onEdit, onDelete, showProject = false }) => {
           disabled={isUpdating}
           className={`p-2 rounded-lg transition-colors ${
             task.status === 'completed'
-              ? 'bg-green-600 hover:bg-green-700 text-white'
-              : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+              ? 'bg-green-600 text-white hover:bg-green-700'
+              : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
           } ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
-          title={task.status === 'completed' ? 'Marquer comme non terminé' : 'Marquer comme terminé'}
         >
-          {isUpdating ? (
-            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-          ) : task.status === 'completed' ? (
-            <CheckCircle className="w-5 h-5" />
-          ) : (
-            <Clock className="w-5 h-5" />
-          )}
+          {task.status === 'completed' ? <CheckCircle size={20} /> : <XCircle size={20} />}
         </button>
       </div>
 
-      {/* Informations tâche */}
-      <div className="space-y-3 mb-4">
+      {/* Informations de la tâche */}
+      <div className="space-y-3">
         
-        {/* Projet si affiché */}
-        {showProject && task.projectTitle && (
-          <div className="flex items-center gap-2 text-sm text-blue-400">
-            <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-            <span>Projet: {task.projectTitle}</span>
-          </div>
-        )}
-        
-        {/* Date d'échéance */}
-        {task.dueDate && (
-          <div className={`flex items-center gap-2 text-sm ${
-            isOverdue ? 'text-red-400' : 'text-gray-400'
-          }`}>
-            <Calendar className="w-4 h-4" />
-            <span>{formatDate(task.dueDate)}</span>
-            {isOverdue && <span className="text-red-400 font-medium">(En retard)</span>}
-          </div>
-        )}
-        
-        {/* Assigné à */}
-        {task.assignedTo && (
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <User className="w-4 h-4" />
-            <span>Assigné à: {task.assignedToName || 'Utilisateur'}</span>
-          </div>
-        )}
-        
-        {/* XP Reward */}
+        {/* Statut et priorité */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-yellow-400">
-            <Award className="w-4 h-4" />
-            <span>+{task.xpReward || 10} XP</span>
+          <div className="flex items-center space-x-2">
+            <span className={`text-sm font-medium ${getStatusColor(task.status)}`}>
+              {task.status === 'completed' ? '✅ Terminée' :
+               task.status === 'in_progress' ? '🔄 En cours' :
+               '📋 À faire'}
+            </span>
+            <span className="text-gray-600">•</span>
+            <div className="flex items-center space-x-1">
+              <Flag size={14} className={
+                task.priority === 'high' ? 'text-red-400' :
+                task.priority === 'medium' ? 'text-yellow-400' :
+                'text-green-400'
+              } />
+              <span className="text-sm text-gray-300 capitalize">{task.priority}</span>
+            </div>
           </div>
           
-          {/* Statut */}
-          <span className={`text-sm font-medium ${getStatusColor(task.status)}`}>
-            {task.status === 'completed' ? '✅ Terminé' : 
-             task.status === 'in_progress' ? '🔄 En cours' : '📋 À faire'}
-          </span>
+          {/* XP si disponible */}
+          {task.xpReward && (
+            <div className="flex items-center space-x-1 text-blue-400">
+              <Award size={14} />
+              <span className="text-sm font-medium">{task.xpReward} XP</span>
+            </div>
+          )}
         </div>
-        
-        {/* Priorité */}
-        <div className="flex items-center gap-2">
-          <Flag className={`w-4 h-4 ${
-            task.priority === 'high' ? 'text-red-400' :
-            task.priority === 'medium' ? 'text-yellow-400' : 'text-green-400'
-          }`} />
-          <span className="text-sm text-gray-400 capitalize">{task.priority || 'normal'}</span>
+
+        {/* Date d'échéance */}
+        {task.dueDate && (
+          <div className="flex items-center space-x-2">
+            <Calendar size={14} className="text-gray-400" />
+            <span className={`text-sm ${
+              isOverdue ? 'text-red-400 font-medium' : 'text-gray-300'
+            }`}>
+              {isOverdue ? '⚠️ ' : ''}Échéance: {formatDate(task.dueDate)}
+            </span>
+          </div>
+        )}
+
+        {/* Temps estimé */}
+        {task.estimatedTime && (
+          <div className="flex items-center space-x-2">
+            <Clock size={14} className="text-gray-400" />
+            <span className="text-sm text-gray-300">
+              Temps estimé: {task.estimatedTime}h
+            </span>
+          </div>
+        )}
+
+        {/* Projet (si showProject est true) */}
+        {showProject && task.projectTitle && (
+          <div className="flex items-center space-x-2">
+            <User size={14} className="text-gray-400" />
+            <span className="text-sm text-gray-300">
+              Projet: {task.projectTitle}
+            </span>
+          </div>
+        )}
+
+        {/* Tags */}
+        {task.tags && task.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {task.tags.map((tag, index) => (
+              <span
+                key={index}
+                className="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded-full"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Date de création/modification */}
+        <div className="text-xs text-gray-500 pt-2 border-t border-gray-700">
+          {task.updatedAt ? (
+            `Modifiée le ${formatDate(task.updatedAt)}`
+          ) : task.createdAt ? (
+            `Créée le ${formatDate(task.createdAt)}`
+          ) : (
+            'Date inconnue'
+          )}
         </div>
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2">
-        {/* Bouton éditer */}
-        <button
-          onClick={() => onEdit(task)}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-1"
-        >
-          <Edit className="w-4 h-4" />
-          Éditer
-        </button>
+      <div className="flex justify-end space-x-2 mt-4 pt-4 border-t border-gray-700">
+        {onEdit && (
+          <button
+            onClick={() => onEdit(task)}
+            className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition-colors"
+            title="Modifier la tâche"
+          >
+            <Edit size={16} />
+          </button>
+        )}
         
-        {/* Bouton supprimer */}
-        <button
-          onClick={() => onDelete(task.id)}
-          className="bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded-lg text-sm transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        {onDelete && (
+          <button
+            onClick={() => onDelete(task)}
+            className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg transition-colors"
+            title="Supprimer la tâche"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
       </div>
-
-      {/* Indicateur si tâche terminée récemment */}
-      {task.status === 'completed' && task.completedAt && (
-        <div className="mt-3 text-xs text-green-400 flex items-center gap-1">
-          <CheckCircle className="w-3 h-3" />
-          Terminé le {formatDate(task.completedAt)}
-        </div>
-      )}
     </div>
-  );
-};
-
-export default TaskCard;
