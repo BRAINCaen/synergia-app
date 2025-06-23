@@ -54,9 +54,40 @@ const ProjectForm = ({
     { value: 'urgent', label: '🔥 Urgent', color: 'text-red-400' }
   ];
 
+  // 🔧 CORRECTION: Fonction utilitaire pour formater les dates en sécurité
+  const formatDateForInput = (date) => {
+    if (!date) return '';
+    
+    try {
+      // Gestion des timestamps Firebase
+      if (date && typeof date.toDate === 'function') {
+        date = date.toDate();
+      }
+      
+      // Gestion des objets avec seconds (Firebase Timestamp format)
+      if (date && typeof date.seconds === 'number') {
+        date = new Date(date.seconds * 1000);
+      }
+      
+      const parsedDate = new Date(date);
+      
+      // Vérifier si la date est valide
+      if (isNaN(parsedDate.getTime())) {
+        console.warn('Date invalide pour input:', date);
+        return '';
+      }
+      
+      return parsedDate.toISOString().slice(0, 16);
+    } catch (error) {
+      console.warn('Erreur formatage date pour input:', error, 'Date reçue:', date);
+      return '';
+    }
+  };
+
   // Initialiser le formulaire si édition
   useEffect(() => {
     if (editingProject) {
+      console.log('🔧 Initialisation formulaire édition:', editingProject);
       setFormData({
         name: editingProject.name || '',
         description: editingProject.description || '',
@@ -65,8 +96,7 @@ const ProjectForm = ({
         color: editingProject.color || '#3b82f6',
         tags: editingProject.tags || [],
         priority: editingProject.priority || 'medium',
-        deadline: editingProject.deadline ? 
-          new Date(editingProject.deadline).toISOString().slice(0, 16) : '',
+        deadline: formatDateForInput(editingProject.deadline),
         budget: editingProject.budget || ''
       });
     } else {
@@ -107,15 +137,20 @@ const ProjectForm = ({
       newErrors.description = 'La description ne peut pas dépasser 500 caractères';
     }
 
-    // Deadline validation
+    // Deadline validation - 🔧 CORRECTION: Gestion sécurisée des dates
     if (formData.deadline) {
       try {
         const deadlineDate = new Date(formData.deadline);
-        const now = new Date();
-        if (deadlineDate < now && formData.status !== 'completed') {
-          newErrors.deadline = 'La deadline ne peut pas être dans le passé pour un projet actif';
+        if (isNaN(deadlineDate.getTime())) {
+          newErrors.deadline = 'Format de date invalide';
+        } else {
+          const now = new Date();
+          if (deadlineDate < now && formData.status !== 'completed') {
+            newErrors.deadline = 'La deadline ne peut pas être dans le passé pour un projet actif';
+          }
         }
       } catch (error) {
+        console.warn('Erreur validation deadline:', error);
         newErrors.deadline = 'Format de date invalide';
       }
     }
@@ -182,11 +217,20 @@ const ProjectForm = ({
     console.log('🔄 Starting project save...');
     
     try {
+      // 🔧 CORRECTION: Gestion sécurisée de la deadline
       const projectData = {
         ...formData,
         name: formData.name.trim(),
         description: formData.description.trim(),
-        deadline: formData.deadline ? new Date(formData.deadline) : null,
+        deadline: formData.deadline ? (() => {
+          try {
+            const date = new Date(formData.deadline);
+            return isNaN(date.getTime()) ? null : date;
+          } catch (error) {
+            console.warn('Erreur parsing deadline:', error);
+            return null;
+          }
+        })() : null,
         budget: formData.budget ? parseFloat(formData.budget) : null
       };
 
