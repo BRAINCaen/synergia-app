@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/gameStore.js
-// Store Gamification CORRIGÉ avec imports Zustand
+// Store Gamification CORRIGÉ avec getters robustes
 // ==========================================
 
 import { create } from 'zustand'
@@ -28,10 +28,13 @@ export const useGameStore = create(
         xpGained: null,
 
         // 🎯 Actions principales
-        setGameData: (data) => set({ 
-          gameData: data,
-          isInitialized: true 
-        }),
+        setGameData: (data) => {
+          console.log('🎮 setGameData appelé avec:', data);
+          set({ 
+            gameData: data,
+            isInitialized: true 
+          });
+        },
 
         setLoading: (loading) => set({ isLoading: loading }),
 
@@ -96,11 +99,14 @@ export const useGameStore = create(
           xpGained: null
         }),
 
-        // 🧮 Getters calculés
+        // 🧮 Getters calculés - CORRIGÉ
         getters: {
           getCurrentLevel: () => get().gameData?.level || 1,
           getCurrentXP: () => get().gameData?.xp || 0,
-          getTotalXP: () => get().gameData?.totalXp || 0,
+          getTotalXP: () => {
+            const gameData = get().gameData;
+            return gameData?.totalXp || gameData?.xp || 0;
+          },
           getBadgeCount: () => get().gameData?.badges?.length || 0,
           getLoginStreak: () => get().gameData?.loginStreak || 0,
           getTasksCompleted: () => get().gameData?.tasksCompleted || 0,
@@ -112,24 +118,90 @@ export const useGameStore = create(
               .slice(0, limit);
           },
           
+          // 🔧 CORRECTION: Calcul de progression corrigé
           getProgressPercentage: () => {
             const gameData = get().gameData;
-            if (!gameData) return 0;
+            if (!gameData || !gameData.level) {
+              console.log('⚠️ Pas de gameData pour calcul progression');
+              return 0;
+            }
             
-            const currentLevelXP = Math.pow(gameData.level - 1, 2) * 100;
-            const nextLevelXP = Math.pow(gameData.level, 2) * 100;
-            const progress = gameData.totalXp - currentLevelXP;
+            const currentLevel = gameData.level;
+            const totalXP = gameData.totalXp || gameData.xp || 0;
+            
+            // Formule: XP requis pour niveau N = (N-1)² × 100
+            const currentLevelXP = Math.pow(currentLevel - 1, 2) * 100;
+            const nextLevelXP = Math.pow(currentLevel, 2) * 100;
+            
+            const progress = totalXP - currentLevelXP;
             const needed = nextLevelXP - currentLevelXP;
             
-            return Math.min((progress / needed) * 100, 100);
+            const percentage = Math.min((progress / needed) * 100, 100);
+            
+            console.log('📊 Calcul progression:', {
+              currentLevel,
+              totalXP,
+              currentLevelXP,
+              nextLevelXP,
+              progress,
+              needed,
+              percentage
+            });
+            
+            return Math.max(percentage, 0);
           },
           
+          // 🔧 CORRECTION: XP pour prochain niveau corrigé
           getXPForNextLevel: () => {
             const gameData = get().gameData;
-            if (!gameData) return 100;
+            if (!gameData || !gameData.level) {
+              console.log('⚠️ Pas de gameData pour calcul XP restant');
+              return 100;
+            }
             
-            const nextLevelXP = Math.pow(gameData.level, 2) * 100;
-            return Math.max(nextLevelXP - gameData.totalXp, 0);
+            const currentLevel = gameData.level;
+            const totalXP = gameData.totalXp || gameData.xp || 0;
+            const nextLevelXP = Math.pow(currentLevel, 2) * 100;
+            
+            const needed = Math.max(nextLevelXP - totalXP, 0);
+            
+            console.log('🎯 XP restant:', {
+              currentLevel,
+              totalXP,
+              nextLevelXP,
+              needed
+            });
+            
+            return needed;
+          },
+
+          // 🔧 NOUVEAU: Vérifier la cohérence des données
+          validateGameData: () => {
+            const gameData = get().gameData;
+            if (!gameData) return false;
+            
+            const issues = [];
+            
+            if (!gameData.level || gameData.level < 1) {
+              issues.push('Level invalide');
+            }
+            
+            if ((gameData.totalXp || 0) < 0) {
+              issues.push('TotalXP négatif');
+            }
+            
+            if (gameData.xp !== undefined && gameData.totalXp !== undefined) {
+              if (Math.abs(gameData.xp - gameData.totalXp) > 1) {
+                issues.push('Incohérence xp/totalXp');
+              }
+            }
+            
+            if (issues.length > 0) {
+              console.warn('⚠️ Problèmes données gamification:', issues);
+              return false;
+            }
+            
+            return true;
           }
         }
       }),
