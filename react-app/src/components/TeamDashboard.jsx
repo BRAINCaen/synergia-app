@@ -1,8 +1,17 @@
+// ==========================================
+// 📁 react-app/src/components/TeamDashboard.jsx
+// CORRECTION : Tous les imports avec chemins corrects
+// ==========================================
+
 import React, { useState, useEffect } from 'react';
-import { useAuthStore } from '../../stores/authStore';
-import { useTeamStore } from '../../stores/teamStore';
 import { Clock, Users, Target, Award, CheckCircle, AlertTriangle, Calendar, MessageSquare } from 'lucide-react';
-import LoadingSpinner from '../ui/LoadingSpinner';
+
+// 🔧 CORRECTION : Imports avec chemins corrects
+import { useAuthStore } from '../shared/stores/authStore';
+import { useTeamStore } from '../shared/stores/teamStore';
+
+// Components avec chemins corrects
+import LoadingSpinner from './ui/LoadingSpinner';
 import XPRequestCard from './XPRequestCard';
 import TeamMemberCard from './TeamMemberCard';
 import ProjectAssignmentOverview from './ProjectAssignmentOverview';
@@ -89,238 +98,181 @@ const TeamDashboard = () => {
                 <div className="text-xs text-gray-400">Projets Actifs</div>
               </div>
               <div className="bg-gray-800 rounded-lg p-4 text-center border border-gray-700">
-                <div className="text-2xl font-bold text-yellow-400">
-                  {xpRequests.filter(r => r.status === 'pending').length}
-                </div>
-                <div className="text-xs text-gray-400">XP En Attente</div>
+                <div className="text-2xl font-bold text-yellow-400">{xpRequests.filter(r => r.status === 'pending').length}</div>
+                <div className="text-xs text-gray-400">XP en attente</div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Navigation par onglets */}
-        <div className="mb-8">
-          <nav className="flex space-x-8">
-            {[
-              { id: 'overview', label: '📊 Vue d\'ensemble', icon: Target },
-              { id: 'members', label: '👥 Membres', icon: Users },
-              { id: 'assignments', label: '📋 Assignations', icon: Calendar },
-              { id: 'xp-validation', label: '🏆 Validation XP', icon: Award, adminOnly: true }
-            ].map(tab => {
-              // Masquer l'onglet si réservé admin et user pas admin
-              if (tab.adminOnly && !isAdmin) return null;
-              
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                    activeTab === tab.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                  }`}
-                >
-                  <tab.icon size={16} />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </nav>
+        {/* Navigation Onglets */}
+        <div className="flex space-x-1 mb-6 bg-gray-800 p-1 rounded-lg">
+          {[
+            { id: 'overview', label: '📊 Vue Générale', icon: Target },
+            { id: 'members', label: '👥 Membres', icon: Users },
+            { id: 'projects', label: '📋 Projets', icon: Calendar },
+            { id: 'xp-requests', label: '🏆 Demandes XP', icon: Award }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              }`}
+            >
+              <tab.icon size={16} />
+              <span>{tab.label}</span>
+            </button>
+          ))}
         </div>
 
-        {/* Contenu selon l'onglet actif */}
-        <div className="space-y-8">
+        {/* Contenu des Onglets */}
+        <div className="space-y-6">
           
-          {/* ONGLET VUE D'ENSEMBLE */}
+          {/* Onglet Vue Générale */}
           {activeTab === 'overview' && (
-            <div className="space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
-              {/* Métriques globales équipe */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-2xl font-bold">{teamMetrics.totalTasks || 0}</div>
-                      <div className="text-blue-100">Tâches Totales</div>
-                    </div>
-                    <Target className="w-8 h-8 text-blue-200" />
-                  </div>
-                </div>
-                
-                <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-2xl font-bold">{teamMetrics.completedTasks || 0}</div>
-                      <div className="text-green-100">Tâches Terminées</div>
-                    </div>
-                    <CheckCircle className="w-8 h-8 text-green-200" />
-                  </div>
-                </div>
-                
-                <div className="bg-gradient-to-br from-yellow-600 to-yellow-700 rounded-xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-2xl font-bold">{teamMetrics.inProgressTasks || 0}</div>
-                      <div className="text-yellow-100">En Cours</div>
-                    </div>
-                    <Clock className="w-8 h-8 text-yellow-200" />
-                  </div>
-                </div>
-                
-                <div className="bg-gradient-to-br from-red-600 to-red-700 rounded-xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-2xl font-bold">{teamMetrics.overdueTasks || 0}</div>
-                      <div className="text-red-100">En Retard</div>
-                    </div>
-                    <AlertTriangle className="w-8 h-8 text-red-200" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Activité récente équipe */}
-              <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-                <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5" />
-                  🔥 Activité Récente de l'Équipe
+              {/* Activité Récente */}
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                  <Clock className="mr-2" size={20} />
+                  Activité Récente
                 </h3>
                 <div className="space-y-3">
-                  {teamMetrics.recentActivity?.slice(0, 5).map((activity, index) => (
-                    <div key={index} className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg">
-                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      <div className="flex-1">
-                        <div className="text-white text-sm">{activity.description}</div>
-                        <div className="text-gray-400 text-xs">{activity.timestamp}</div>
-                      </div>
-                      <div className="text-xs text-gray-400">{activity.user}</div>
-                    </div>
-                  )) || (
-                    <div className="text-gray-400 text-center py-8">
-                      Aucune activité récente à afficher
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Projets nécessitant attention */}
-              <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-                <h3 className="text-xl font-semibold text-white mb-4">
-                  ⚠️ Projets Nécessitant une Attention
-                </h3>
-                <div className="space-y-3">
-                  {activeProjects
-                    .filter(project => project.status === 'at_risk' || project.progress < 30)
-                    .slice(0, 3)
-                    .map(project => (
-                    <div key={project.id} className="flex items-center justify-between p-4 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
-                      <div>
-                        <h4 className="text-white font-medium">{project.title}</h4>
-                        <div className="text-yellow-400 text-sm">
-                          Progression: {project.progress}% • Assigné à: {project.assignedToName}
+                  {teamMembers.slice(0, 5).map(member => (
+                    <div key={member.id} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                          {member.displayName?.charAt(0) || member.email?.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="text-white text-sm">{member.displayName || member.email}</div>
+                          <div className="text-gray-400 text-xs">
+                            {member.isOnline ? '🟢 En ligne' : '⚫ Hors ligne'}
+                          </div>
                         </div>
                       </div>
-                      <button className="px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700 transition-colors">
-                        Aider
-                      </button>
+                      <div className="text-right">
+                        <div className="text-blue-400 text-sm font-semibold">{member.totalXP || 0} XP</div>
+                        <div className="text-gray-400 text-xs">Niveau {member.level || 1}</div>
+                      </div>
                     </div>
-                  )) || (
-                    <div className="text-gray-400 text-center py-4">
-                      🎉 Tous les projets sont sur la bonne voie !
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ONGLET MEMBRES */}
-          {activeTab === 'members' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-semibold text-white">👥 Membres de l'Équipe</h3>
-                <div className="text-sm text-gray-400">
-                  {teamMembers.length} membre(s) actif(s)
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {teamMembers.map(member => (
-                  <TeamMemberCard 
-                    key={member.id} 
-                    member={member}
-                    currentUser={user}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ONGLET ASSIGNATIONS */}
-          {activeTab === 'assignments' && (
-            <div className="space-y-6">
-              <ProjectAssignmentOverview 
-                projects={activeProjects}
-                members={teamMembers}
-                currentUser={user}
-              />
-            </div>
-          )}
-
-          {/* ONGLET VALIDATION XP (Admin seulement) */}
-          {activeTab === 'xp-validation' && isAdmin && (
-            <div className="space-y-6">
-              
-              {/* Filtres demandes XP */}
-              <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-semibold text-white">🏆 Validation des Demandes XP</h3>
-                <div className="flex gap-2">
-                  {[
-                    { value: 'all', label: 'Toutes', count: xpRequests.length },
-                    { value: 'pending', label: 'En attente', count: xpRequests.filter(r => r.status === 'pending').length },
-                    { value: 'approved', label: 'Approuvées', count: xpRequests.filter(r => r.status === 'approved').length },
-                    { value: 'rejected', label: 'Rejetées', count: xpRequests.filter(r => r.status === 'rejected').length }
-                  ].map(filter => (
-                    <button
-                      key={filter.value}
-                      onClick={() => setFilterStatus(filter.value)}
-                      className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-                        filterStatus === filter.value
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      }`}
-                    >
-                      {filter.label} ({filter.count})
-                    </button>
                   ))}
                 </div>
               </div>
 
-              {/* Liste des demandes XP */}
-              <div className="space-y-4">
-                {filteredXPRequests.length > 0 ? (
-                  filteredXPRequests.map(request => (
-                    <XPRequestCard
-                      key={request.id}
-                      request={request}
-                      onValidate={handleValidateXP}
-                      isAdmin={isAdmin}
-                    />
-                  ))
-                ) : (
-                  <div className="bg-gray-800 rounded-xl p-8 text-center border border-gray-700">
-                    <Award className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                    <div className="text-gray-400">
-                      {filterStatus === 'pending' 
-                        ? 'Aucune demande XP en attente' 
-                        : `Aucune demande XP ${filterStatus === 'all' ? '' : filterStatus}`
-                      }
+              {/* Projets en cours */}
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                  <Target className="mr-2" size={20} />
+                  Projets Actifs
+                </h3>
+                <div className="space-y-3">
+                  {activeProjects.slice(0, 5).map(project => (
+                    <div key={project.id} className="p-3 bg-gray-700 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-white font-medium">{project.title}</h4>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          project.status === 'active' ? 'bg-green-900 text-green-300' :
+                          project.status === 'in_progress' ? 'bg-blue-900 text-blue-300' :
+                          project.status === 'at_risk' ? 'bg-red-900 text-red-300' :
+                          'bg-gray-600 text-gray-300'
+                        }`}>
+                          {project.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-gray-400">
+                        <span>Assigné à: {project.assignedToName || 'Non assigné'}</span>
+                        <span>{project.progress || 0}%</span>
+                      </div>
+                      <div className="w-full bg-gray-600 rounded-full h-2 mt-2">
+                        <div 
+                          className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${project.progress || 0}%` }}
+                        ></div>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
+          {/* Onglet Membres */}
+          {activeTab === 'members' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {teamMembers.map(member => (
+                <TeamMemberCard key={member.id} member={member} />
+              ))}
+            </div>
+          )}
+
+          {/* Onglet Projets */}
+          {activeTab === 'projects' && (
+            <div>
+              <ProjectAssignmentOverview projects={activeProjects} members={teamMembers} />
+            </div>
+          )}
+
+          {/* Onglet Demandes XP */}
+          {activeTab === 'xp-requests' && isAdmin && (
+            <div>
+              {/* Filtres */}
+              <div className="mb-6 flex space-x-4">
+                {['all', 'pending', 'approved', 'rejected'].map(status => (
+                  <button
+                    key={status}
+                    onClick={() => setFilterStatus(status)}
+                    className={`px-4 py-2 rounded-lg transition-colors ${
+                      filterStatus === status
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    {status === 'all' ? 'Toutes' :
+                     status === 'pending' ? 'En attente' :
+                     status === 'approved' ? 'Approuvées' :
+                     'Rejetées'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Liste des demandes */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {filteredXPRequests.map(request => (
+                  <XPRequestCard 
+                    key={request.id} 
+                    request={request} 
+                    onValidate={handleValidateXP}
+                  />
+                ))}
+              </div>
+
+              {filteredXPRequests.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="text-gray-400 text-lg mb-2">Aucune demande XP</div>
+                  <div className="text-gray-500 text-sm">
+                    {filterStatus === 'all' ? 'Il n\'y a aucune demande XP pour le moment.' :
+                     `Aucune demande XP ${filterStatus === 'pending' ? 'en attente' : filterStatus === 'approved' ? 'approuvée' : 'rejetée'}.`}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Message si pas admin pour XP */}
+          {activeTab === 'xp-requests' && !isAdmin && (
+            <div className="text-center py-12 bg-gray-800 rounded-lg border border-gray-700">
+              <AlertTriangle className="mx-auto mb-4 text-yellow-500" size={48} />
+              <h3 className="text-lg font-semibold text-white mb-2">Accès Restreint</h3>
+              <p className="text-gray-400">
+                Vous devez être administrateur pour voir et gérer les demandes XP.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
