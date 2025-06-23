@@ -1,150 +1,52 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskService.js
-// Service Firebase COMPLET - Version Finale Corrigée
+// Service complet pour tâches et projets avec Firebase
 // ==========================================
 
 import { 
   collection, 
-  doc, 
   addDoc, 
+  getDocs, 
+  doc, 
   updateDoc, 
   deleteDoc, 
-  getDoc, 
-  getDocs, 
+  getDoc,
   query, 
   where, 
   orderBy, 
+  limit,
   onSnapshot,
-  serverTimestamp
+  increment,
+  arrayUnion,
+  arrayRemove,
+  serverTimestamp 
 } from 'firebase/firestore';
-import { db, auth } from '../firebase.js';
-import { gameService } from './gameService.js'; // ✅ CORRECTED: gameService instead of gamificationService
+import { db } from '../firebase.js';
+import { gamificationService } from './gamificationService.js';
 
 // Collections Firestore
 const COLLECTIONS = {
   TASKS: 'tasks',
-  ACTIVITIES: 'activities',
-  USERS: 'users'
+  USERS: 'users',
+  PROJECTS: 'projects',
+  ACTIVITIES: 'activities'
 };
 
+// Configuration des complexités et XP
+const COMPLEXITY_XP = {
+  easy: 20,
+  medium: 40,
+  hard: 60,
+  expert: 100
+};
+
+// ==========================================
+// 📋 SERVICE TÂCHES
+// ==========================================
+
 class TaskService {
-
   /**
-   * 🎯 COMPLÉTER UNE TÂCHE AVEC XP - VERSION BUILD SAFE
-   */
-  async completeTask(taskId, additionalData = {}) {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      throw new Error('Utilisateur non connecté');
-    }
-
-    try {
-      console.log('🎯 Complétion tâche:', taskId, 'par:', currentUser.email);
-
-      // 1. Récupérer la tâche
-      const taskRef = doc(db, COLLECTIONS.TASKS, taskId);
-      const taskSnap = await getDoc(taskRef);
-      
-      if (!taskSnap.exists()) {
-        throw new Error('Tâche introuvable');
-      }
-
-      const taskData = taskSnap.data();
-      
-      if (taskData.status === 'completed') {
-        console.warn('⚠️ Tâche déjà terminée');
-        return { success: false, error: 'Tâche déjà terminée' };
-      }
-
-      // 2. Déterminer difficulté et XP
-      const difficulty = this.determineDifficulty(taskData, additionalData);
-      const xpReward = this.getXPReward(difficulty);
-
-      // 3. Marquer comme terminée
-      const now = new Date();
-      const updates = {
-        status: 'completed',
-        completedAt: now,
-        completedBy: currentUser.uid,
-        updatedAt: now,
-        difficulty: difficulty,
-        xpRewarded: xpReward,
-        ...additionalData
-      };
-
-      await updateDoc(taskRef, updates);
-
-      // 4. 🎮 AJOUTER XP avec gameService (CORRIGÉ)
-      console.log('🎯 Ajout XP:', xpReward, 'pour task_complete (utilisateur:', currentUser.uid + ')');
-      
-      let gamificationResult = { success: false, xpGain: 0 };
-      
-      try {
-        gamificationResult = await gameService.addXP(
-          currentUser.uid,
-          xpReward,
-          'task_complete',
-          {
-            taskId,
-            difficulty,
-            taskTitle: taskData.title,
-            taskCategory: taskData.category,
-            timeSpent: additionalData.timeSpent || 0
-          }
-        );
-        console.log('✅ XP mis à jour:', gamificationResult);
-      } catch (xpError) {
-        console.warn('⚠️ Erreur ajout XP (non bloquant):', xpError);
-        // Continue même si XP fail
-      }
-
-      // 5. Log activité
-      try {
-        await this.createActivityLog({
-          userId: currentUser.uid,
-          type: 'task_completed',
-          taskId,
-          taskTitle: taskData.title,
-          xpGained: gamificationResult.xpGain || xpReward,
-          timestamp: now,
-          metadata: {
-            difficulty,
-            xpReward,
-            originalTask: taskData,
-            gamificationResult
-          }
-        });
-      } catch (logError) {
-        console.warn('⚠️ Erreur log activité (non bloquant):', logError);
-      }
-
-      console.log('✅ Tâche complétée avec succès:', {
-        taskId,
-        xpGained: gamificationResult.xpGain || xpReward,
-        levelUp: gamificationResult.levelUp || false,
-        difficulty
-      });
-
-      return {
-        success: true,
-        taskId,
-        taskData: { ...taskData, ...updates },
-        xpGained: gamificationResult.xpGain || xpReward,
-        levelUp: gamificationResult.levelUp || false,
-        newLevel: gamificationResult.level,
-        newTotalXP: gamificationResult.totalXp,
-        difficulty,
-        message: `Tâche "${taskData.title}" terminée ! +${gamificationResult.xpGain || xpReward} XP`
-      };
-
-    } catch (error) {
-      console.error('❌ Erreur completion tâche:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📝 CRÉER UNE TÂCHE
+   * 📝 CRÉER UNE NOUVELLE TÂCHE
    */
   async createTask(taskData, userId) {
     if (!userId) {
@@ -153,82 +55,350 @@ class TaskService {
 
     try {
       const now = new Date();
-      const cleanTaskData = {
-        title: taskData.title || 'Nouvelle tâche',
-        description: taskData.description || '',
-        priority: taskData.priority || 'normal',
-        complexity: taskData.complexity || 'normal',
+      
+      // Déterminer la complexité et calculer l'XP
+      const complexity = this.determineDifficulty(taskData);
+      const xpReward = this.calculateXP(complexity, taskData);
+
+      const completeTaskData = {
+        title: taskData.title?.trim() || '',
+        description: taskData.description?.trim() || '',
         status: taskData.status || 'todo',
-        tags: taskData.tags || [],
+        priority: taskData.priority || 'medium',
+        complexity: complexity,
+        xpReward: xpReward,
         projectId: taskData.projectId || null,
         assignedTo: taskData.assignedTo || userId,
         createdBy: userId,
-        createdAt: now,
-        updatedAt: now,
-        dueDate: taskData.dueDate || null,
+        tags: Array.isArray(taskData.tags) ? taskData.tags : [],
+        dueDate: taskData.dueDate ? new Date(taskData.dueDate) : null,
+        startDate: taskData.startDate ? new Date(taskData.startDate) : null,
         estimatedTime: taskData.estimatedTime || null,
-        actualTime: null,
-        completedAt: null,
-        completedBy: null
+        createdAt: now,
+        updatedAt: now
       };
 
-      console.log('🚀 Données tâche à sauvegarder:', cleanTaskData);
+      const tasksCollection = collection(db, COLLECTIONS.TASKS);
+      const docRef = await addDoc(tasksCollection, completeTaskData);
 
-      const docRef = await addDoc(collection(db, COLLECTIONS.TASKS), cleanTaskData);
-      
-      console.log('✅ Tâche créée:', docRef.id, cleanTaskData.title);
-      
+      console.log('✅ Tâche créée:', docRef.id, completeTaskData.title);
+
+      // Créer log d'activité
       await this.createActivityLog({
         userId: userId,
         type: 'task_created',
         taskId: docRef.id,
-        taskTitle: cleanTaskData.title,
         timestamp: now,
-        metadata: { taskData: cleanTaskData }
+        metadata: { taskTitle: completeTaskData.title }
       });
 
-      return { 
-        id: docRef.id, 
-        ...cleanTaskData 
+      return {
+        id: docRef.id,
+        ...completeTaskData
       };
 
     } catch (error) {
+      console.error('❌ Erreur ajout membre:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 👥 RETIRER UN MEMBRE DU PROJET
+   */
+  async removeProjectMember(projectId, userId, memberUserId) {
+    try {
+      const projectRef = doc(db, COLLECTIONS.PROJECTS, projectId);
+      const projectSnap = await getDoc(projectRef);
+      
+      if (!projectSnap.exists()) {
+        throw new Error('Projet introuvable');
+      }
+
+      const projectData = projectSnap.data();
+      
+      // Vérifier les permissions (seul le créateur peut retirer des membres)
+      if (projectData.createdBy !== userId) {
+        throw new Error('Seul le créateur peut retirer des membres');
+      }
+
+      // Ne pas permettre de retirer le créateur
+      if (memberUserId === projectData.createdBy) {
+        throw new Error('Impossible de retirer le créateur du projet');
+      }
+
+      // Retirer le membre
+      await updateDoc(projectRef, {
+        members: arrayRemove(memberUserId),
+        updatedAt: new Date()
+      });
+
+      console.log(`👥 Membre ${memberUserId} retiré du projet ${projectId}`);
+      
+      return { success: true };
+
+    } catch (error) {
+      console.error('❌ Erreur retrait membre:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🗑️ GÉRER LA SUPPRESSION DU PROJET (tâches liées)
+   */
+  async handleProjectDeletion(projectId) {
+    try {
+      // Récupérer toutes les tâches du projet
+      const tasksQuery = query(
+        collection(db, COLLECTIONS.TASKS),
+        where('projectId', '==', projectId)
+      );
+      
+      const tasksSnapshot = await getDocs(tasksQuery);
+      
+      // Option : Déplacer les tâches vers "Aucun projet" (recommandé)
+      const updatePromises = [];
+      tasksSnapshot.forEach((doc) => {
+        updatePromises.push(
+          updateDoc(doc.ref, {
+            projectId: null,
+            updatedAt: new Date()
+          })
+        );
+      });
+      await Promise.all(updatePromises);
+
+      console.log(`🔄 ${tasksSnapshot.size} tâche(s) transférée(s) depuis le projet supprimé`);
+
+    } catch (error) {
+      console.error('❌ Erreur gestion suppression projet:', error);
+      // Ne pas faire échouer la suppression du projet pour ça
+    }
+  }
+
+  /**
+   * 📊 OBTENIR LES STATISTIQUES D'UN PROJET
+   */
+  async getProjectStats(projectId) {
+    try {
+      const tasksQuery = query(
+        collection(db, COLLECTIONS.TASKS),
+        where('projectId', '==', projectId)
+      );
+      
+      const tasksSnapshot = await getDocs(tasksQuery);
+      
+      const stats = {
+        totalTasks: tasksSnapshot.size,
+        completedTasks: 0,
+        inProgressTasks: 0,
+        todoTasks: 0,
+        overdueTasks: 0,
+        totalXpEarned: 0,
+        averageTaskComplexity: 0
+      };
+
+      const complexityValues = [];
+      const now = new Date();
+
+      tasksSnapshot.forEach((doc) => {
+        const taskData = doc.data();
+        
+        // Compteurs par statut
+        switch (taskData.status) {
+          case 'completed':
+            stats.completedTasks++;
+            if (taskData.xpReward) {
+              stats.totalXpEarned += taskData.xpReward;
+            }
+            break;
+          case 'in_progress':
+            stats.inProgressTasks++;
+            break;
+          default:
+            stats.todoTasks++;
+        }
+
+        // Tâches en retard
+        if (taskData.dueDate && taskData.status !== 'completed') {
+          const dueDate = taskData.dueDate.toDate ? taskData.dueDate.toDate() : new Date(taskData.dueDate);
+          if (dueDate < now) {
+            stats.overdueTasks++;
+          }
+        }
+
+        // Complexité moyenne
+        if (taskData.complexity) {
+          const complexityMap = { easy: 1, medium: 2, hard: 3, expert: 4 };
+          complexityValues.push(complexityMap[taskData.complexity] || 2);
+        }
+      });
+
+      // Calculer la complexité moyenne
+      if (complexityValues.length > 0) {
+        const avgComplexity = complexityValues.reduce((a, b) => a + b, 0) / complexityValues.length;
+        const complexityLabels = { 1: 'easy', 2: 'medium', 3: 'hard', 4: 'expert' };
+        stats.averageTaskComplexity = complexityLabels[Math.round(avgComplexity)] || 'medium';
+      }
+
+      // Calculer le taux de completion
+      stats.completionRate = stats.totalTasks > 0 
+        ? Math.round((stats.completedTasks / stats.totalTasks) * 100) 
+        : 0;
+
+      return stats;
+
+    } catch (error) {
+      console.error('❌ Erreur récupération stats projet:', error);
+      return {
+        totalTasks: 0,
+        completedTasks: 0,
+        inProgressTasks: 0,
+        todoTasks: 0,
+        overdueTasks: 0,
+        totalXpEarned: 0,
+        completionRate: 0,
+        averageTaskComplexity: 'medium'
+      };
+    }
+  }
+
+  /**
+   * 🔍 RECHERCHER DES PROJETS
+   */
+  async searchProjects(userId, searchTerm, filters = {}) {
+    try {
+      const projectsQuery = query(
+        collection(db, COLLECTIONS.PROJECTS),
+        where('members', 'array-contains', userId)
+      );
+      
+      const snapshot = await getDocs(projectsQuery);
+      let projects = [];
+
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        projects.push({
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.() || data.createdAt,
+          updatedAt: data.updatedAt?.toDate?.() || data.updatedAt
+        });
+      });
+
+      // Filtrer côté client (Firebase ne supporte pas la recherche full-text native)
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        projects = projects.filter(project => 
+          project.name.toLowerCase().includes(term) ||
+          project.description?.toLowerCase().includes(term) ||
+          project.tags?.some(tag => tag.toLowerCase().includes(term))
+        );
+      }
+
+      // Appliquer les filtres additionnels
+      if (filters.status && filters.status !== 'all') {
+        projects = projects.filter(p => p.status === filters.status);
+      }
+
+      if (filters.priority && filters.priority !== 'all') {
+        projects = projects.filter(p => p.priority === filters.priority);
+      }
+
+      // Trier les résultats
+      projects.sort((a, b) => {
+        const dateA = new Date(a.updatedAt);
+        const dateB = new Date(b.updatedAt);
+        return dateB - dateA; // Plus récent en premier
+      });
+
+      console.log(`🔍 Recherche "${searchTerm}": ${projects.length} résultat(s)`);
+      
+      return projects;
+
+    } catch (error) {
+      console.error('❌ Erreur recherche projets:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 📊 ÉCOUTER LES PROJETS EN TEMPS RÉEL
+   */
+  subscribeToUserProjects(userId, callback) {
+    const projectsCollection = collection(db, COLLECTIONS.PROJECTS);
+    
+    const q = query(
+      projectsCollection,
+      where('members', 'array-contains', userId),
+      orderBy('updatedAt', 'desc')
+    );
+
+    return onSnapshot(q, (querySnapshot) => {
+      const projects = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        projects.push({
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.() || data.createdAt,
+          updatedAt: data.updatedAt?.toDate?.() || data.updatedAt
+        });
+      });
+      
+      console.log(`🔄 Projets mis à jour: ${projects.length}`);
+      callback(projects);
+    }, (error) => {
+      console.error('❌ Erreur écoute projets:', error);
+    });
+  }
+}
+
+// ==========================================
+// 📤 EXPORTS
+// ==========================================
+
+const taskService = new TaskService();
+const projectService = new ProjectService();
+
+export default taskService;
+export { TaskService, ProjectService, projectService };
       console.error('❌ Erreur création tâche:', error);
       throw error;
     }
   }
 
   /**
-   * 📋 RÉCUPÉRER TÂCHES UTILISATEUR
+   * 📊 RÉCUPÉRER LES TÂCHES D'UN UTILISATEUR
    */
   async getUserTasks(userId, filters = {}) {
     if (!userId) {
-      throw new Error('UserId requis');
+      throw new Error('Utilisateur non spécifié');
     }
 
     try {
+      const tasksCollection = collection(db, COLLECTIONS.TASKS);
+      
       let constraints = [
         where('assignedTo', '==', userId),
-        orderBy('createdAt', 'desc')
+        orderBy('updatedAt', 'desc')
       ];
 
-      // Ajouter filtres si spécifiés
       if (filters.status && filters.status !== 'all') {
         constraints.splice(-1, 0, where('status', '==', filters.status));
       }
-      if (filters.priority && filters.priority !== 'all') {
-        constraints.splice(-1, 0, where('priority', '==', filters.priority));
-      }
+
       if (filters.projectId && filters.projectId !== 'all') {
         constraints.splice(-1, 0, where('projectId', '==', filters.projectId));
       }
 
-      const q = query(collection(db, COLLECTIONS.TASKS), ...constraints);
+      const q = query(tasksCollection, ...constraints);
       const querySnapshot = await getDocs(q);
-      
-      const tasks = querySnapshot.docs.map(doc => {
+      const tasks = [];
+
+      querySnapshot.forEach((doc) => {
         const data = doc.data();
-        return {
+        tasks.push({
           id: doc.id,
           ...data,
           createdAt: data.createdAt?.toDate?.() || data.createdAt,
@@ -236,7 +406,7 @@ class TaskService {
           completedAt: data.completedAt?.toDate?.() || data.completedAt,
           dueDate: data.dueDate?.toDate?.() || data.dueDate,
           startDate: data.startDate?.toDate?.() || data.startDate
-        };
+        });
       });
 
       console.log(`📋 ${tasks.length} tâche(s) récupérée(s) pour`, userId);
@@ -249,7 +419,7 @@ class TaskService {
   }
 
   /**
-   * ✏️ METTRE À JOUR TÂCHE
+   * ✏️ METTRE À JOUR UNE TÂCHE
    */
   async updateTask(taskId, updates, userId) {
     if (!userId) {
@@ -270,7 +440,6 @@ class TaskService {
         lastUpdatedBy: userId
       };
 
-      // Nettoyer les undefined
       Object.keys(cleanUpdates).forEach(key => {
         if (cleanUpdates[key] === undefined) {
           delete cleanUpdates[key];
@@ -302,37 +471,99 @@ class TaskService {
   }
 
   /**
-   * 🗑️ SUPPRIMER TÂCHE
+   * ✅ COMPLÉTER UNE TÂCHE AVEC XP
    */
-  async deleteTask(taskId, userId) {
+  async completeTask(taskId, userId) {
     if (!userId) {
       throw new Error('UserId requis');
     }
 
     try {
       const taskRef = doc(db, COLLECTIONS.TASKS, taskId);
-      
       const taskSnap = await getDoc(taskRef);
+      
+      if (!taskSnap.exists()) {
+        throw new Error('Tâche introuvable');
+      }
+
+      const taskData = taskSnap.data();
+      const now = new Date();
+
+      // Mettre à jour la tâche
+      await updateDoc(taskRef, {
+        status: 'completed',
+        completedAt: now,
+        updatedAt: now
+      });
+
+      // Ajouter XP avec gamificationService
+      let xpResult = null;
+      if (taskData.xpReward > 0) {
+        xpResult = await gamificationService.addXP(
+          userId, 
+          taskData.xpReward, 
+          'task_complete',
+          { taskId, taskTitle: taskData.title }
+        );
+      }
+
+      console.log('✅ Tâche complétée:', taskData.title, `+${taskData.xpReward} XP`);
+
+      // Log d'activité
+      await this.createActivityLog({
+        userId: userId,
+        type: 'task_completed',
+        taskId,
+        timestamp: now,
+        metadata: { 
+          taskTitle: taskData.title,
+          xpGained: taskData.xpReward
+        }
+      });
+
+      return {
+        task: { id: taskId, ...taskData, status: 'completed', completedAt: now },
+        xpResult
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur completion tâche:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🗑️ SUPPRIMER UNE TÂCHE
+   */
+  async deleteTask(taskId, userId) {
+    try {
+      const taskRef = doc(db, COLLECTIONS.TASKS, taskId);
+      const taskSnap = await getDoc(taskRef);
+      
       if (!taskSnap.exists()) {
         throw new Error('Tâche introuvable');
       }
 
       const taskData = taskSnap.data();
       
+      // Vérifier les permissions
+      if (taskData.createdBy !== userId && taskData.assignedTo !== userId) {
+        throw new Error('Permissions insuffisantes pour supprimer cette tâche');
+      }
+
       await deleteDoc(taskRef);
-      
+
       console.log('✅ Tâche supprimée:', taskId);
-      
+
       await this.createActivityLog({
         userId: userId,
         type: 'task_deleted',
         taskId,
-        taskTitle: taskData.title,
         timestamp: new Date(),
-        metadata: { deletedTask: taskData }
+        metadata: { taskTitle: taskData.title }
       });
 
-      return { success: true, deletedTask: taskData };
+      return { success: true, taskId };
 
     } catch (error) {
       console.error('❌ Erreur suppression tâche:', error);
@@ -341,125 +572,68 @@ class TaskService {
   }
 
   /**
-   * 🎯 Déterminer difficulté d'une tâche
+   * 🎯 DÉTERMINER LA DIFFICULTÉ D'UNE TÂCHE
    */
-  determineDifficulty(taskData, additionalData = {}) {
-    // Facteurs de difficulté
-    const factors = {
-      priority: taskData.priority || 'normal',
-      complexity: taskData.complexity || 'normal',
-      timeSpent: additionalData.timeSpent || 0,
-      description: taskData.description || '',
-      tags: taskData.tags || []
-    };
+  determineDifficulty(taskData) {
+    let score = 0;
 
-    // Calcul basé sur la priorité
-    if (factors.priority === 'high' || factors.priority === 'urgent') {
-      return 'hard';
-    }
-    
-    if (factors.priority === 'low') {
-      return 'easy';
-    }
+    // Facteurs de complexité
+    if (taskData.description && taskData.description.length > 100) score += 1;
+    if (taskData.estimatedTime && taskData.estimatedTime > 480) score += 1; // > 8h
+    if (taskData.priority === 'high' || taskData.priority === 'urgent') score += 1;
+    if (taskData.tags && taskData.tags.length > 3) score += 1;
 
-    // Calcul basé sur la complexité
-    if (factors.complexity === 'high' || factors.complexity === 'complex') {
-      return 'hard';
-    }
-    
-    if (factors.complexity === 'low' || factors.complexity === 'simple') {
-      return 'easy';
-    }
-
-    // Calcul basé sur le temps passé
-    if (factors.timeSpent > 120) { // Plus de 2 heures
-      return 'hard';
-    }
-    
-    if (factors.timeSpent < 30) { // Moins de 30 minutes
-      return 'easy';
-    }
-
-    // Calcul basé sur la description
-    if (factors.description.length > 200) {
-      return 'hard';
-    }
-
-    // Par défaut
-    return 'normal';
+    // Déterminer la complexité
+    if (score >= 3) return 'expert';
+    if (score >= 2) return 'hard';
+    if (score >= 1) return 'medium';
+    return 'easy';
   }
 
   /**
-   * 🎯 Calculer les XP selon la difficulté
+   * 🎯 CALCULER L'XP SELON LA COMPLEXITÉ
    */
-  getXPReward(difficulty) {
-    const xpMap = {
-      'easy': 25,
-      'normal': 40,
-      'hard': 60,
-      'epic': 100
-    };
-
-    return xpMap[difficulty] || xpMap['normal'];
+  calculateXP(complexity, taskData) {
+    let baseXP = COMPLEXITY_XP[complexity] || COMPLEXITY_XP.medium;
+    
+    // Bonus selon priorité
+    if (taskData.priority === 'urgent') baseXP *= 1.2;
+    else if (taskData.priority === 'high') baseXP *= 1.1;
+    
+    return Math.round(baseXP);
   }
 
   /**
-   * 📊 Statistiques des tâches
+   * 📊 OBTENIR LES STATISTIQUES DES TÂCHES
    */
-  async getUserTaskStats(userId) {
-    if (!userId) {
-      throw new Error('UserId requis');
-    }
-
+  async getTaskStats(userId) {
     try {
       const tasks = await this.getUserTasks(userId);
-      
-      const now = new Date();
-      const thisWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       
       const stats = {
         total: tasks.length,
         completed: tasks.filter(t => t.status === 'completed').length,
         inProgress: tasks.filter(t => t.status === 'in_progress').length,
         todo: tasks.filter(t => t.status === 'todo').length,
-        overdue: tasks.filter(t => {
-          return t.dueDate && new Date(t.dueDate) < now && t.status !== 'completed';
-        }).length,
-        
-        byPriority: {
-          urgent: tasks.filter(t => t.priority === 'urgent').length,
-          high: tasks.filter(t => t.priority === 'high').length,
-          medium: tasks.filter(t => t.priority === 'medium').length,
-          low: tasks.filter(t => t.priority === 'low').length
-        },
-        
-        byComplexity: {
-          expert: tasks.filter(t => t.complexity === 'expert').length,
-          hard: tasks.filter(t => t.complexity === 'hard').length,
-          normal: tasks.filter(t => t.complexity === 'normal').length,
-          easy: tasks.filter(t => t.complexity === 'easy').length
-        },
-        
-        thisWeek: {
-          created: tasks.filter(t => t.createdAt >= thisWeek).length,
-          completed: tasks.filter(t => t.completedAt && t.completedAt >= thisWeek).length
-        },
-        
-        thisMonth: {
-          created: tasks.filter(t => t.createdAt >= thisMonth).length,
-          completed: tasks.filter(t => t.completedAt && t.completedAt >= thisMonth).length
-        },
-        
-        totalXPEarned: tasks
-          .filter(t => t.status === 'completed' && t.xpRewarded)
-          .reduce((total, task) => total + (task.xpRewarded || 0), 0),
-        
-        estimatedHours: tasks.reduce((total, task) => total + (task.estimatedTime || 0), 0),
-        
-        completionRate: tasks.length > 0 ? 
-          Math.round((tasks.filter(t => t.status === 'completed').length / tasks.length) * 100) : 0
+        overdue: 0,
+        totalXPEarned: 0,
+        completionRate: 0
       };
+
+      const now = new Date();
+      tasks.forEach(task => {
+        if (task.dueDate && task.status !== 'completed') {
+          const dueDate = new Date(task.dueDate);
+          if (dueDate < now) stats.overdue++;
+        }
+        
+        if (task.status === 'completed' && task.xpReward) {
+          stats.totalXPEarned += task.xpReward;
+        }
+      });
+
+      stats.completionRate = tasks.length > 0 ? 
+        Math.round((tasks.filter(t => t.status === 'completed').length / tasks.length) * 100) : 0;
 
       return stats;
 
@@ -478,92 +652,319 @@ class TaskService {
   }
 
   /**
-   * 📈 Créer log activité (safe)
+   * 📝 CRÉER LOG D'ACTIVITÉ
    */
   async createActivityLog(activityData) {
     try {
-      await addDoc(collection(db, COLLECTIONS.ACTIVITIES), {
+      const activitiesCollection = collection(db, COLLECTIONS.ACTIVITIES);
+      const logData = {
         ...activityData,
-        timestamp: activityData.timestamp || new Date()
-      });
+        id: `${activityData.userId}_${Date.now()}`,
+        createdAt: activityData.timestamp || new Date()
+      };
+      
+      await addDoc(activitiesCollection, logData);
+      
     } catch (error) {
-      console.warn('⚠️ Erreur log activité (non bloquant):', error);
-      // Ne pas faire échouer l'opération principale
+      console.warn('⚠️ Erreur création log activité:', error);
     }
   }
 
   /**
-   * 🔄 Écouter changements temps réel
+   * 📊 ÉCOUTER LES TÂCHES EN TEMPS RÉEL
    */
-  subscribeToUserTasks(userId, callback) {
-    if (!userId) {
-      throw new Error('UserId requis');
+  listenToUserTasks(userId, callback, filters = {}) {
+    const tasksCollection = collection(db, COLLECTIONS.TASKS);
+    
+    let constraints = [
+      where('assignedTo', '==', userId),
+      orderBy('updatedAt', 'desc')
+    ];
+
+    if (filters.status && filters.status !== 'all') {
+      constraints.splice(-1, 0, where('status', '==', filters.status));
     }
 
-    const q = query(
-      collection(db, COLLECTIONS.TASKS),
-      where('assignedTo', '==', userId),
-      orderBy('createdAt', 'desc')
-    );
+    const q = query(tasksCollection, ...constraints);
 
     return onSnapshot(q, (querySnapshot) => {
-      const tasks = querySnapshot.docs.map(doc => {
+      const tasks = [];
+      querySnapshot.forEach((doc) => {
         const data = doc.data();
-        return {
+        tasks.push({
           id: doc.id,
           ...data,
           createdAt: data.createdAt?.toDate?.() || data.createdAt,
           updatedAt: data.updatedAt?.toDate?.() || data.updatedAt,
           completedAt: data.completedAt?.toDate?.() || data.completedAt,
-          dueDate: data.dueDate?.toDate?.() || data.dueDate
-        };
+          dueDate: data.dueDate?.toDate?.() || data.dueDate,
+          startDate: data.startDate?.toDate?.() || data.startDate
+        });
       });
       
-      console.log('🔄 Mise à jour temps réel:', tasks.length, 'tâche(s)');
+      console.log(`🔄 Mise à jour temps réel: ${tasks.length} tâche(s)`);
       callback(tasks);
     }, (error) => {
-      console.error('❌ Erreur écoute temps réel tâches:', error);
+      console.error('❌ Erreur écoute tâches:', error);
     });
   }
-
-  /**
-   * 🔗 ALIASES POUR COMPATIBILITÉ AVEC taskStore
-   */
-  
-  // Alias pour listenToUserTasks (utilisé par taskStore)
-  listenToUserTasks(userId, callback, filters = {}) {
-    return this.subscribeToUserTasks(userId, callback);
-  }
-  
-  // Alias pour getTaskStats (utilisé par taskStore)
-  async getTaskStats(userId) {
-    return await this.getUserTaskStats(userId);
-  }
-
-  /**
-   * 📁 MÉTHODES PROJETS (temporaires/mock)
-   */
-  async createProject(projectData, userId) {
-    // TODO: Séparer en ProjectService dédié
-    console.log('📁 createProject (mock):', projectData.name);
-    return {
-      id: 'project_' + Date.now(),
-      name: projectData.name,
-      description: projectData.description || '',
-      status: 'active',
-      createdBy: userId,
-      createdAt: new Date()
-    };
-  }
-
-  async getUserProjects(userId) {
-    // TODO: Séparer en ProjectService dédié
-    console.log('📁 getUserProjects (mock) pour:', userId);
-    return [];
-  }
-
 }
 
-// Export singleton - UNE SEULE FOIS
-export const taskService = new TaskService();
-export default taskService;
+// ==========================================
+// 📁 SERVICE PROJETS
+// ==========================================
+
+class ProjectService {
+  /**
+   * 📁 CRÉER UN NOUVEAU PROJET
+   */
+  async createProject(projectData, userId) {
+    if (!userId) {
+      throw new Error('UserId requis');
+    }
+
+    try {
+      const now = new Date();
+      
+      const completeProjectData = {
+        name: projectData.name?.trim() || '',
+        description: projectData.description?.trim() || '',
+        status: projectData.status || 'active',
+        icon: projectData.icon || '📁',
+        color: projectData.color || '#3b82f6',
+        priority: projectData.priority || 'medium',
+        tags: Array.isArray(projectData.tags) ? projectData.tags : [],
+        deadline: projectData.deadline ? new Date(projectData.deadline) : null,
+        budget: projectData.budget ? parseFloat(projectData.budget) : null,
+        progress: {
+          completed: 0,
+          total: 0,
+          percentage: 0
+        },
+        createdBy: userId,
+        members: [userId],
+        createdAt: now,
+        updatedAt: now
+      };
+
+      const projectsCollection = collection(db, COLLECTIONS.PROJECTS);
+      const docRef = await addDoc(projectsCollection, completeProjectData);
+
+      console.log('✅ Projet créé:', docRef.id, completeProjectData.name);
+
+      return {
+        id: docRef.id,
+        ...completeProjectData
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur création projet:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ✏️ METTRE À JOUR UN PROJET
+   */
+  async updateProject(projectId, updates) {
+    try {
+      const projectRef = doc(db, COLLECTIONS.PROJECTS, projectId);
+      
+      // Vérifier que le projet existe
+      const projectSnap = await getDoc(projectRef);
+      if (!projectSnap.exists()) {
+        throw new Error('Projet introuvable');
+      }
+
+      // Préparer les données de mise à jour
+      const updateData = {
+        ...updates,
+        updatedAt: new Date()
+      };
+
+      // Nettoyer les valeurs undefined
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === undefined) {
+          delete updateData[key];
+        }
+      });
+
+      // Mettre à jour dans Firebase
+      await updateDoc(projectRef, updateData);
+
+      console.log('✅ Projet mis à jour:', projectId);
+      
+      // Retourner les données mises à jour
+      return {
+        id: projectId,
+        ...projectSnap.data(),
+        ...updateData
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur mise à jour projet:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🗑️ SUPPRIMER UN PROJET
+   */
+  async deleteProject(projectId, userId) {
+    try {
+      const projectRef = doc(db, COLLECTIONS.PROJECTS, projectId);
+      
+      // Vérifier que le projet existe et que l'utilisateur a les droits
+      const projectSnap = await getDoc(projectRef);
+      if (!projectSnap.exists()) {
+        throw new Error('Projet introuvable');
+      }
+
+      const projectData = projectSnap.data();
+      
+      // Vérifier que l'utilisateur est créateur ou membre
+      if (projectData.createdBy !== userId && !projectData.members?.includes(userId)) {
+        throw new Error('Permissions insuffisantes pour supprimer ce projet');
+      }
+
+      // Supprimer le projet
+      await deleteDoc(projectRef);
+
+      console.log('✅ Projet supprimé:', projectId);
+
+      // Gérer les tâches liées
+      await this.handleProjectDeletion(projectId);
+
+      return { success: true, projectId };
+
+    } catch (error) {
+      console.error('❌ Erreur suppression projet:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📊 RÉCUPÉRER LES PROJETS D'UN UTILISATEUR
+   */
+  async getUserProjects(userId, filters = {}) {
+    if (!userId) {
+      throw new Error('Utilisateur non spécifié');
+    }
+
+    try {
+      const projectsCollection = collection(db, COLLECTIONS.PROJECTS);
+      
+      let constraints = [
+        where('members', 'array-contains', userId),
+        orderBy('updatedAt', 'desc')
+      ];
+
+      if (filters.status && filters.status !== 'all') {
+        constraints.splice(-1, 0, where('status', '==', filters.status));
+      }
+
+      const q = query(projectsCollection, ...constraints);
+      const querySnapshot = await getDocs(q);
+      const projects = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        projects.push({
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.() || data.createdAt,
+          updatedAt: data.updatedAt?.toDate?.() || data.updatedAt
+        });
+      });
+
+      console.log(`📁 ${projects.length} projet(s) récupéré(s) pour`, userId);
+      return projects;
+
+    } catch (error) {
+      console.error('❌ Erreur récupération projets:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 📊 METTRE À JOUR LA PROGRESSION D'UN PROJET
+   */
+  async updateProjectProgress(projectId) {
+    try {
+      // Récupérer toutes les tâches du projet
+      const tasksQuery = query(
+        collection(db, COLLECTIONS.TASKS),
+        where('projectId', '==', projectId)
+      );
+      
+      const tasksSnapshot = await getDocs(tasksQuery);
+      
+      let totalTasks = 0;
+      let completedTasks = 0;
+      
+      tasksSnapshot.forEach((doc) => {
+        totalTasks++;
+        const taskData = doc.data();
+        if (taskData.status === 'completed') {
+          completedTasks++;
+        }
+      });
+
+      const percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+      const progressData = {
+        completed: completedTasks,
+        total: totalTasks,
+        percentage: percentage
+      };
+
+      // Mettre à jour le projet
+      await this.updateProject(projectId, {
+        progress: progressData
+      });
+
+      console.log(`📊 Progression projet ${projectId} mise à jour: ${percentage}%`);
+      
+      return progressData;
+
+    } catch (error) {
+      console.error('❌ Erreur mise à jour progression:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 👥 AJOUTER UN MEMBRE AU PROJET
+   */
+  async addProjectMember(projectId, userId, memberUserId) {
+    try {
+      const projectRef = doc(db, COLLECTIONS.PROJECTS, projectId);
+      const projectSnap = await getDoc(projectRef);
+      
+      if (!projectSnap.exists()) {
+        throw new Error('Projet introuvable');
+      }
+
+      const projectData = projectSnap.data();
+      
+      // Vérifier les permissions
+      if (projectData.createdBy !== userId && !projectData.members?.includes(userId)) {
+        throw new Error('Permissions insuffisantes');
+      }
+
+      // Vérifier que le membre n'est pas déjà ajouté
+      if (projectData.members?.includes(memberUserId)) {
+        throw new Error('Utilisateur déjà membre du projet');
+      }
+
+      // Ajouter le membre
+      await updateDoc(projectRef, {
+        members: arrayUnion(memberUserId),
+        updatedAt: new Date()
+      });
+
+      console.log(`👥 Membre ${memberUserId} ajouté au projet ${projectId}`);
+      
+      return { success: true };
+
+    } catch (error) {
