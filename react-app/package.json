@@ -16,7 +16,9 @@
     "zustand": "^4.4.1",
     "lucide-react": "^0.263.1",
     "clsx": "^2.0.0",
-    "tailwind-merge": "^1.14.0"
+    "tailwind-merge": "^1.14.0",
+    "recharts": "^2.8.0",
+    "date-fns": "^2.30.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",
