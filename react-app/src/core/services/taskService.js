@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskService.js
-// Service CORRIGÉ pour synchronisation Dashboard ↔ TaskList
+// Service Firebase CORRIGÉ - Utilise gameService au lieu de gamificationService
 // ==========================================
 
 import { 
@@ -20,7 +20,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db, auth } from '../firebase.js';
-import { gameService } from './gameService.js'; // 🔧 CHANGEMENT: Utiliser gameService au lieu de gamificationService
+import { gameService } from './gameService.js'; // ✅ CORRECTION: gameService au lieu de gamificationService
 
 // Collections Firestore
 const COLLECTIONS = {
@@ -32,7 +32,7 @@ const COLLECTIONS = {
 class TaskService {
 
   /**
-   * 🎯 COMPLÉTER UNE TÂCHE AVEC XP AUTOMATIQUE - CORRIGÉ
+   * 🎯 COMPLÉTER UNE TÂCHE AVEC XP AUTOMATIQUE - VERSION CORRIGÉE
    */
   async completeTask(taskId, additionalData = {}) {
     const currentUser = auth.currentUser;
@@ -77,109 +77,126 @@ class TaskService {
 
       await updateDoc(taskRef, updates);
 
-      // 4. 🔧 CORRECTION: Utiliser gameService (même que Dashboard)
+      // 4. 🎮 AJOUTER XP AVEC LE NOUVEAU gameService
       console.log('🎯 Ajout XP:', xpReward, 'pour task_complete (utilisateur:', currentUser.uid + ')');
       
-      try {
-        const xpResult = await gameService.addXP(currentUser.uid, xpReward, 'task_complete');
-        console.log('✅ XP mis à jour:', xpResult?.xp || 'inconnue', '→', (xpResult?.xp || 0) + xpReward, '(niveau', xpResult?.level || 'inconnue', '→', xpResult?.level || 'inconnue' + ')');
-        
-        // 5. Créer l'historique d'activité
-        await this.createActivityLog({
-          userId: currentUser.uid,
-          type: 'task_completed',
+      const gamificationResult = await gameService.addXP(
+        currentUser.uid,
+        xpReward,
+        'task_complete',
+        {
           taskId,
+          difficulty,
           taskTitle: taskData.title,
-          xpGained: xpReward,
-          timestamp: now,
-          metadata: {
-            difficulty,
-            xpReward,
-            originalTask: taskData
-          }
-        });
+          taskCategory: taskData.category,
+          timeSpent: additionalData.timeSpent || 0
+        }
+      );
 
-        console.log('✅ Tâche complétée avec succès:', {
-          taskId,
-          xpGained: xpReward,
-          levelUp: false, // gameService ne retourne pas levelUp
-          difficulty
-        });
+      console.log('✅ Résultat gameService.addXP:', gamificationResult);
 
-        return {
-          success: true,
-          taskId,
-          taskData: { ...taskData, ...updates },
-          xpGained: xpReward,
+      // 5. Créer l'historique d'activité
+      await this.createActivityLog({
+        userId: currentUser.uid,
+        type: 'task_completed',
+        taskId,
+        taskTitle: taskData.title,
+        xpGained: xpReward,
+        timestamp: now,
+        metadata: {
           difficulty,
-          message: `Tâche "${taskData.title}" terminée ! +${xpReward} XP`
-        };
+          xpReward,
+          originalTask: taskData,
+          gamificationResult
+        }
+      });
 
-      } catch (xpError) {
-        console.error('❌ Erreur ajout XP:', xpError);
-        
-        // La tâche est marquée terminée même si XP échoue
-        return {
-          success: true,
-          taskId,
-          taskData: { ...taskData, ...updates },
-          xpGained: 0,
-          difficulty,
-          message: `Tâche "${taskData.title}" terminée ! (Erreur XP)`
-        };
-      }
+      console.log('✅ Tâche complétée avec succès:', {
+        taskId,
+        xpGained: xpReward,
+        levelUp: gamificationResult?.levelUp || false,
+        difficulty
+      });
+
+      return {
+        success: true,
+        taskId,
+        taskData: { ...taskData, ...updates },
+        xpGained: xpReward,
+        levelUp: gamificationResult?.levelUp || false,
+        newLevel: gamificationResult?.level,
+        newTotalXP: gamificationResult?.totalXp,
+        difficulty,
+        message: `Tâche "${taskData.title}" terminée ! +${xpReward} XP`
+      };
 
     } catch (error) {
-      console.error('❌ Erreur complétion tâche:', error);
-      return { success: false, error: error.message };
+      console.error('❌ Erreur completion tâche:', error);
+      throw error;
     }
   }
 
   /**
-   * 📊 DÉTERMINER LA DIFFICULTÉ D'UNE TÂCHE
+   * 🎯 Déterminer la difficulté d'une tâche
    */
   determineDifficulty(taskData, additionalData = {}) {
-    let score = 0;
+    // Facteurs de difficulté
+    const factors = {
+      priority: taskData.priority || 'normal',
+      complexity: taskData.complexity || 'normal',
+      timeSpent: additionalData.timeSpent || 0,
+      description: taskData.description || '',
+      tags: taskData.tags || []
+    };
+
+    // Calcul basé sur la priorité
+    if (factors.priority === 'high' || factors.priority === 'urgent') {
+      return 'hard';
+    }
     
-    // Priorité (0-4 points)
-    const priority = taskData.priority?.toLowerCase() || 'medium';
-    if (priority === 'urgent' || priority === 'critical') score += 4;
-    else if (priority === 'high') score += 3;
-    else if (priority === 'medium') score += 2;
-    else if (priority === 'low') score += 1;
+    if (factors.priority === 'low') {
+      return 'easy';
+    }
+
+    // Calcul basé sur la complexité
+    if (factors.complexity === 'high' || factors.complexity === 'complex') {
+      return 'hard';
+    }
     
-    // Complexité (0-4 points)
-    const complexity = taskData.complexity?.toLowerCase() || 'medium';
-    if (complexity === 'expert' || complexity === 'very_complex') score += 4;
-    else if (complexity === 'complex' || complexity === 'hard') score += 3;
-    else if (complexity === 'medium' || complexity === 'normal') score += 2;
-    else if (complexity === 'simple' || complexity === 'easy') score += 1;
+    if (factors.complexity === 'low' || factors.complexity === 'simple') {
+      return 'easy';
+    }
+
+    // Calcul basé sur le temps passé
+    if (factors.timeSpent > 120) { // Plus de 2 heures
+      return 'hard';
+    }
     
-    // Temps estimé (0-4 points)
-    const estimatedHours = taskData.estimatedHours || additionalData.estimatedHours || 0;
-    if (estimatedHours > 16) score += 4;
-    else if (estimatedHours > 8) score += 3;
-    else if (estimatedHours > 4) score += 2;
-    else if (estimatedHours > 1) score += 1;
-    
-    // Déterminer la difficulté finale
-    if (score >= 12) return 'expert';
-    else if (score >= 8) return 'hard';
-    else if (score >= 4) return 'normal';
-    else return 'easy';
+    if (factors.timeSpent < 30) { // Moins de 30 minutes
+      return 'easy';
+    }
+
+    // Calcul basé sur la description
+    if (factors.description.length > 200) {
+      return 'hard';
+    }
+
+    // Par défaut
+    return 'normal';
   }
 
   /**
-   * 🎯 OBTENIR RÉCOMPENSE XP SELON DIFFICULTÉ
+   * 🎯 Calculer les XP selon la difficulté
    */
   getXPReward(difficulty) {
-    const rewards = {
-      'easy': 20,
+    const xpMap = {
+      'easy': 25,
       'normal': 40,
       'hard': 60,
-      'expert': 100
+      'epic': 100
     };
-    return rewards[difficulty] || 40;
+
+    return xpMap[difficulty] || xpMap['normal'];
   }
 
   /**
@@ -192,50 +209,44 @@ class TaskService {
 
     try {
       const now = new Date();
-      
-      if (!taskData.title || taskData.title.trim() === '') {
-        throw new Error('Le titre de la tâche est requis');
-      }
-
-      const completeTaskData = {
-        title: taskData.title.trim(),
-        description: taskData.description?.trim() || '',
-        status: 'todo',
-        priority: taskData.priority || 'medium',
-        category: taskData.category || 'general',
+      const cleanTaskData = {
+        title: taskData.title,
+        description: taskData.description || '',
+        priority: taskData.priority || 'normal',
         complexity: taskData.complexity || 'normal',
-        type: taskData.type || 'task',
-        createdBy: userId,
-        assignedTo: taskData.assignedTo || userId,
-        estimatedTime: taskData.estimatedTime || 0,
-        tags: Array.isArray(taskData.tags) ? taskData.tags : [],
-        dueDate: taskData.dueDate || null,
+        status: taskData.status || 'todo',
+        tags: taskData.tags || [],
         projectId: taskData.projectId || null,
+        assignedTo: taskData.assignedTo || userId,
+        createdBy: userId,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
+        dueDate: taskData.dueDate || null,
+        estimatedTime: taskData.estimatedTime || null,
+        actualTime: null,
+        completedAt: null,
+        completedBy: null
       };
 
-      console.log('📝 Création tâche:', completeTaskData.title);
+      console.log('🚀 Données tâche à sauvegarder:', cleanTaskData);
 
-      const docRef = await addDoc(collection(db, COLLECTIONS.TASKS), completeTaskData);
-      const newTask = { id: docRef.id, ...completeTaskData };
-
-      console.log('✅ Tâche créée:', docRef.id);
-
-      // Créer l'historique d'activité
+      const docRef = await addDoc(collection(db, COLLECTIONS.TASKS), cleanTaskData);
+      
+      console.log('✅ Tâche créée:', docRef.id, cleanTaskData.title);
+      
       await this.createActivityLog({
-        userId,
+        userId: userId,
         type: 'task_created',
         taskId: docRef.id,
-        taskTitle: completeTaskData.title,
+        taskTitle: cleanTaskData.title,
         timestamp: now,
-        metadata: {
-          priority: completeTaskData.priority,
-          category: completeTaskData.category
-        }
+        metadata: { taskData: cleanTaskData }
       });
 
-      return newTask;
+      return { 
+        id: docRef.id, 
+        ...cleanTaskData 
+      };
 
     } catch (error) {
       console.error('❌ Erreur création tâche:', error);
@@ -244,39 +255,88 @@ class TaskService {
   }
 
   /**
-   * 🔄 METTRE À JOUR UNE TÂCHE
+   * 📋 RÉCUPÉRER LES TÂCHES D'UN UTILISATEUR
+   */
+  async getUserTasks(userId) {
+    if (!userId) {
+      throw new Error('UserId requis');
+    }
+
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.TASKS),
+        where('assignedTo', '==', userId),
+        orderBy('createdAt', 'desc')
+      );
+
+      const querySnapshot = await getDocs(q);
+      const tasks = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.() || data.createdAt,
+          updatedAt: data.updatedAt?.toDate?.() || data.updatedAt,
+          completedAt: data.completedAt?.toDate?.() || data.completedAt,
+          dueDate: data.dueDate?.toDate?.() || data.dueDate,
+          startDate: data.startDate?.toDate?.() || data.startDate
+        };
+      });
+
+      console.log(`📋 ${tasks.length} tâche(s) récupérée(s) pour`, userId);
+      return tasks;
+
+    } catch (error) {
+      console.error('❌ Erreur récupération tâches:', error);
+      return [];
+    }
+  }
+
+  /**
+   * ✏️ METTRE À JOUR UNE TÂCHE
    */
   async updateTask(taskId, updates, userId) {
-    if (!taskId || !userId) {
-      throw new Error('TaskId et UserId requis');
+    if (!userId) {
+      throw new Error('UserId requis');
     }
 
     try {
       const taskRef = doc(db, COLLECTIONS.TASKS, taskId);
-      const taskSnap = await getDoc(taskRef);
       
+      const taskSnap = await getDoc(taskRef);
       if (!taskSnap.exists()) {
         throw new Error('Tâche introuvable');
       }
 
-      const currentTask = taskSnap.data();
-      
-      // Vérifier les permissions
-      if (currentTask.createdBy !== userId && currentTask.assignedTo !== userId) {
-        throw new Error('Pas d\'autorisation pour modifier cette tâche');
-      }
-
-      const updateData = {
+      const cleanUpdates = {
         ...updates,
         updatedAt: new Date(),
-        updatedBy: userId
+        lastUpdatedBy: userId
       };
 
-      await updateDoc(taskRef, updateData);
+      Object.keys(cleanUpdates).forEach(key => {
+        if (cleanUpdates[key] === undefined) {
+          delete cleanUpdates[key];
+        }
+      });
+
+      await updateDoc(taskRef, cleanUpdates);
 
       console.log('✅ Tâche mise à jour:', taskId);
+      
+      await this.createActivityLog({
+        userId: userId,
+        type: 'task_updated',
+        taskId,
+        timestamp: new Date(),
+        metadata: { updates: cleanUpdates }
+      });
 
-      return { id: taskId, ...currentTask, ...updateData };
+      return { 
+        id: taskId, 
+        ...taskSnap.data(), 
+        ...cleanUpdates 
+      };
 
     } catch (error) {
       console.error('❌ Erreur mise à jour tâche:', error);
@@ -288,40 +348,34 @@ class TaskService {
    * 🗑️ SUPPRIMER UNE TÂCHE
    */
   async deleteTask(taskId, userId) {
-    if (!taskId || !userId) {
-      throw new Error('TaskId et UserId requis');
+    if (!userId) {
+      throw new Error('UserId requis');
     }
 
     try {
       const taskRef = doc(db, COLLECTIONS.TASKS, taskId);
-      const taskSnap = await getDoc(taskRef);
       
+      const taskSnap = await getDoc(taskRef);
       if (!taskSnap.exists()) {
         throw new Error('Tâche introuvable');
       }
 
       const taskData = taskSnap.data();
       
-      // Vérifier les permissions
-      if (taskData.createdBy !== userId) {
-        throw new Error('Seul le créateur peut supprimer cette tâche');
-      }
-
       await deleteDoc(taskRef);
-
+      
       console.log('✅ Tâche supprimée:', taskId);
-
-      // Log de l'activité
+      
       await this.createActivityLog({
-        userId,
+        userId: userId,
         type: 'task_deleted',
         taskId,
         taskTitle: taskData.title,
         timestamp: new Date(),
-        metadata: { originalTask: taskData }
+        metadata: { deletedTask: taskData }
       });
 
-      return { success: true };
+      return { success: true, deletedTask: taskData };
 
     } catch (error) {
       console.error('❌ Erreur suppression tâche:', error);
@@ -330,160 +384,55 @@ class TaskService {
   }
 
   /**
-   * 📋 RÉCUPÉRER LES TÂCHES D'UN UTILISATEUR
+   * 📈 CRÉER UN LOG D'ACTIVITÉ
    */
-  async getUserTasks(userId, filters = {}) {
-    if (!userId) {
-      throw new Error('UserId requis');
-    }
-
+  async createActivityLog(activityData) {
     try {
-      console.log('📋 Récupération tâches pour:', userId);
-
-      let q = query(
-        collection(db, COLLECTIONS.TASKS),
-        where('assignedTo', '==', userId)
-      );
-
-      // Appliquer les filtres
-      if (filters.status && filters.status !== 'all') {
-        q = query(q, where('status', '==', filters.status));
-      }
-
-      if (filters.priority && filters.priority !== 'all') {
-        q = query(q, where('priority', '==', filters.priority));
-      }
-
-      if (filters.projectId && filters.projectId !== 'all') {
-        q = query(q, where('projectId', '==', filters.projectId));
-      }
-
-      // Tri
-      const orderField = filters.orderBy || 'createdAt';
-      const orderDirection = filters.orderDirection || 'desc';
-      q = query(q, orderBy(orderField, orderDirection));
-
-      const snapshot = await getDocs(q);
-      const tasks = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      console.log('📋', tasks.length, 'tâche(s) récupérée(s) pour', userId);
-
-      return tasks;
-
+      await addDoc(collection(db, COLLECTIONS.ACTIVITIES), {
+        ...activityData,
+        timestamp: activityData.timestamp || new Date()
+      });
     } catch (error) {
-      console.error('❌ Erreur récupération tâches:', error);
-      throw error;
+      console.error('❌ Erreur création log activité:', error);
+      // Ne pas faire échouer l'opération principale
     }
   }
 
   /**
    * 🔄 ÉCOUTER LES CHANGEMENTS EN TEMPS RÉEL
    */
-  subscribeToUserTasks(userId, callback, filters = {}) {
+  subscribeToUserTasks(userId, callback) {
     if (!userId) {
       throw new Error('UserId requis');
     }
 
-    console.log('🔄 Setup real-time listener tâches pour:', userId);
-
-    let q = query(
+    const q = query(
       collection(db, COLLECTIONS.TASKS),
-      where('assignedTo', '==', userId)
+      where('assignedTo', '==', userId),
+      orderBy('createdAt', 'desc')
     );
 
-    // Appliquer les filtres
-    if (filters.status && filters.status !== 'all') {
-      q = query(q, where('status', '==', filters.status));
-    }
-
-    const orderField = filters.orderBy || 'createdAt';
-    const orderDirection = filters.orderDirection || 'desc';
-    q = query(q, orderBy(orderField, orderDirection));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const tasks = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
+    return onSnapshot(q, (querySnapshot) => {
+      const tasks = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.() || data.createdAt,
+          updatedAt: data.updatedAt?.toDate?.() || data.updatedAt,
+          completedAt: data.completedAt?.toDate?.() || data.completedAt,
+          dueDate: data.dueDate?.toDate?.() || data.dueDate
+        };
+      });
+      
       console.log('🔄 Mise à jour temps réel:', tasks.length, 'tâche(s)');
       callback(tasks);
     }, (error) => {
-      console.error('❌ Erreur listener tâches:', error);
+      console.error('❌ Erreur écoute temps réel tâches:', error);
     });
-
-    return unsubscribe;
-  }
-
-  /**
-   * 📝 CRÉER UN LOG D'ACTIVITÉ
-   */
-  async createActivityLog(activityData) {
-    try {
-      await addDoc(collection(db, COLLECTIONS.ACTIVITIES), {
-        ...activityData,
-        createdAt: serverTimestamp()
-      });
-    } catch (error) {
-      console.warn('⚠️ Erreur création log activité:', error);
-      // Ne pas faire échouer l'opération principale
-    }
-  }
-
-  /**
-   * 📊 CALCULER LES STATISTIQUES
-   */
-  async getUserStats(userId) {
-    try {
-      const tasks = await this.getUserTasks(userId);
-      
-      const stats = {
-        total: tasks.length,
-        completed: tasks.filter(t => t.status === 'completed').length,
-        inProgress: tasks.filter(t => t.status === 'in_progress').length,
-        todo: tasks.filter(t => t.status === 'todo').length,
-        overdue: 0,
-        totalXpEarned: 0,
-        completionRate: 0
-      };
-
-      // Calculer les retards
-      const now = new Date();
-      stats.overdue = tasks.filter(t => 
-        t.status !== 'completed' && 
-        t.dueDate && 
-        new Date(t.dueDate) < now
-      ).length;
-
-      // Calculer XP total des tâches
-      stats.totalXpEarned = tasks
-        .filter(t => t.status === 'completed')
-        .reduce((total, t) => total + (t.xpRewarded || 0), 0);
-
-      // Taux de completion
-      if (stats.total > 0) {
-        stats.completionRate = Math.round((stats.completed / stats.total) * 100);
-      }
-
-      return stats;
-
-    } catch (error) {
-      console.error('❌ Erreur calcul stats:', error);
-      return {
-        total: 0,
-        completed: 0,
-        inProgress: 0,
-        todo: 0,
-        overdue: 0,
-        totalXpEarned: 0,
-        completionRate: 0
-      };
-    }
   }
 }
 
 // Export singleton
-export default new TaskService();
+export const taskService = new TaskService();
+export default taskService;
