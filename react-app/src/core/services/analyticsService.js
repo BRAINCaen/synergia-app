@@ -1,21 +1,18 @@
-// js/core/services/analyticsService.js
+// react-app/src/modules/analytics/services/analyticsService.js
 import { 
   collection, 
   query, 
   where, 
   orderBy, 
-  limit, 
   getDocs, 
-  doc, 
-  getDoc,
   onSnapshot,
   Timestamp 
 } from 'firebase/firestore';
-import { db } from '../firebase-config.js';
+import { db } from '../../../shared/services/firebase';
 
 /**
- * Service d'analytics pour Synergia v3.3
- * Intégration complète Firebase pour métriques temps réel
+ * Service Analytics pour Synergia v3.3
+ * Intégration complète Firebase - Architecture JSX
  */
 class AnalyticsService {
   constructor() {
@@ -24,37 +21,41 @@ class AnalyticsService {
   }
 
   /**
-   * Obtenir les métriques globales de l'organisation
+   * Obtenir les métriques globales temps réel
    */
   async getGlobalMetrics(userId) {
     try {
-      const [projects, tasks, users] = await Promise.all([
+      const [projects, tasks] = await Promise.all([
         this.getProjectsMetrics(userId),
-        this.getTasksMetrics(userId),
-        this.getUsersMetrics(userId)
+        this.getTasksMetrics(userId)
       ]);
 
       return {
+        // Métriques projets
         totalProjects: projects.total,
         activeProjects: projects.active,
         completedProjects: projects.completed,
+        
+        // Métriques tâches
         totalTasks: tasks.total,
         completedTasks: tasks.completed,
         pendingTasks: tasks.pending,
         overdueTasks: tasks.overdue,
-        teamMembers: users.total,
+        
+        // Métriques calculées
+        teamMembers: 15, // À adapter selon votre système d'équipes
         avgCompletion: this.calculateAvgCompletion(projects.projects),
         productivity: this.calculateProductivity(tasks.tasks),
-        velocity: await this.calculateVelocity(userId)
+        velocity: await this.calculateVelocity(userId, tasks.tasks)
       };
     } catch (error) {
-      console.error('Erreur récupération métriques globales:', error);
+      console.error('❌ Erreur analytics globales:', error);
       throw error;
     }
   }
 
   /**
-   * Métriques des projets
+   * Métriques des projets avec calculs temps réel
    */
   async getProjectsMetrics(userId) {
     const projectsQuery = query(
@@ -63,12 +64,33 @@ class AnalyticsService {
     );
     
     const snapshot = await getDocs(projectsQuery);
-    const projects = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const projects = [];
 
-    const active = projects.filter(p => p.status === 'active').length;
+    for (const doc of snapshot.docs) {
+      const projectData = { id: doc.id, ...doc.data() };
+      
+      // Récupérer les tâches de chaque projet
+      const tasksQuery = query(
+        collection(db, 'tasks'),
+        where('projectId', '==', doc.id)
+      );
+      const tasksSnapshot = await getDocs(tasksQuery);
+      const tasks = tasksSnapshot.docs.map(taskDoc => taskDoc.data());
+      
+      // Calculer la completion
+      const totalTasks = tasks.length;
+      const completedTasks = tasks.filter(t => t.completed).length;
+      const completion = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+      
+      projects.push({
+        ...projectData,
+        completion,
+        totalTasks,
+        completedTasks
+      });
+    }
+
+    const active = projects.filter(p => p.status !== 'completed').length;
     const completed = projects.filter(p => p.status === 'completed').length;
 
     return {
@@ -80,7 +102,7 @@ class AnalyticsService {
   }
 
   /**
-   * Métriques des tâches
+   * Métriques des tâches avec états détaillés
    */
   async getTasksMetrics(userId) {
     const tasksQuery = query(
@@ -97,11 +119,13 @@ class AnalyticsService {
     const now = new Date();
     const completed = tasks.filter(t => t.completed).length;
     const pending = tasks.filter(t => !t.completed).length;
-    const overdue = tasks.filter(t => 
-      !t.completed && 
-      t.dueDate && 
-      new Date(t.dueDate) < now
-    ).length;
+    
+    // Tâches en retard
+    const overdue = tasks.filter(t => {
+      if (t.completed || !t.dueDate) return false;
+      const dueDate = t.dueDate?.toDate ? t.dueDate.toDate() : new Date(t.dueDate);
+      return dueDate < now;
+    }).length;
 
     return {
       total: tasks.length,
@@ -113,18 +137,7 @@ class AnalyticsService {
   }
 
   /**
-   * Métriques des utilisateurs (équipe)
-   */
-  async getUsersMetrics(userId) {
-    // Pour l'instant, retourner données simulées
-    // À adapter selon votre système d'équipes
-    return {
-      total: 15 // Récupérer depuis votre collection users/teams
-    };
-  }
-
-  /**
-   * Données pour graphique progression dans le temps
+   * Données progression dans le temps (graphique ligne)
    */
   async getProgressOverTime(userId, days = 30) {
     const endDate = new Date();
@@ -133,7 +146,6 @@ class AnalyticsService {
     const tasksQuery = query(
       collection(db, 'tasks'),
       where('userId', '==', userId),
-      where('createdAt', '>=', Timestamp.fromDate(startDate)),
       orderBy('createdAt', 'asc')
     );
 
@@ -143,25 +155,24 @@ class AnalyticsService {
       ...doc.data()
     }));
 
-    // Grouper par jour
+    // Initialiser les données quotidiennes
     const dailyStats = {};
-    
-    // Initialiser tous les jours
     for (let i = 0; i < days; i++) {
       const date = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
       const dateKey = date.toISOString().split('T')[0];
       dailyStats[dateKey] = { created: 0, completed: 0 };
     }
 
-    // Compter les tâches créées
+    // Compter tâches créées
     tasks.forEach(task => {
+      if (!task.createdAt) return;
       const createdDate = task.createdAt.toDate().toISOString().split('T')[0];
       if (dailyStats[createdDate]) {
         dailyStats[createdDate].created++;
       }
     });
 
-    // Compter les tâches complétées
+    // Compter tâches complétées
     tasks.filter(t => t.completed && t.completedAt).forEach(task => {
       const completedDate = task.completedAt.toDate().toISOString().split('T')[0];
       if (dailyStats[completedDate]) {
@@ -169,18 +180,20 @@ class AnalyticsService {
       }
     });
 
-    // Convertir en array pour Recharts
-    return Object.entries(dailyStats).map(([date, stats]) => ({
-      date,
-      created: stats.created,
-      completed: stats.completed
-    }));
+    // Convertir pour Recharts
+    return Object.entries(dailyStats)
+      .map(([date, stats]) => ({
+        date,
+        created: stats.created,
+        completed: stats.completed
+      }))
+      .slice(-days); // Garder seulement les X derniers jours
   }
 
   /**
-   * Vélocité par équipe/période
+   * Données vélocité par équipe (simulées pour démo)
    */
-  async getVelocityData(userId, period = 'week') {
+  async getVelocityData(userId) {
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
@@ -193,11 +206,11 @@ class AnalyticsService {
     const thisWeekCompleted = thisWeekTasks.filter(t => t.completed).length;
     const lastWeekCompleted = lastWeekTasks.filter(t => t.completed).length;
 
-    // Données pour graphique vélocité (par équipe simulé)
+    // Générer données équipes (à adapter selon votre structure)
     return [
-      { team: 'Dev Frontend', thisWeek: thisWeekCompleted, lastWeek: lastWeekCompleted },
-      { team: 'Dev Backend', thisWeek: Math.floor(thisWeekCompleted * 0.8), lastWeek: Math.floor(lastWeekCompleted * 0.9) },
-      { team: 'Design UX/UI', thisWeek: Math.floor(thisWeekCompleted * 0.6), lastWeek: Math.floor(lastWeekCompleted * 0.7) },
+      { team: 'Frontend', thisWeek: thisWeekCompleted, lastWeek: lastWeekCompleted },
+      { team: 'Backend', thisWeek: Math.floor(thisWeekCompleted * 0.8), lastWeek: Math.floor(lastWeekCompleted * 0.9) },
+      { team: 'Design', thisWeek: Math.floor(thisWeekCompleted * 0.6), lastWeek: Math.floor(lastWeekCompleted * 0.7) },
       { team: 'Product', thisWeek: Math.floor(thisWeekCompleted * 0.4), lastWeek: Math.floor(lastWeekCompleted * 0.5) }
     ];
   }
@@ -206,87 +219,29 @@ class AnalyticsService {
    * Progression détaillée des projets
    */
   async getProjectsProgress(userId) {
-    const projectsQuery = query(
-      collection(db, 'projects'),
-      where('members', 'array-contains', userId)
-    );
+    const { projects } = await this.getProjectsMetrics(userId);
     
-    const snapshot = await getDocs(projectsQuery);
-    const projects = [];
-
-    for (const doc of snapshot.docs) {
-      const projectData = { id: doc.id, ...doc.data() };
-      
-      // Récupérer les tâches du projet
-      const tasksQuery = query(
-        collection(db, 'tasks'),
-        where('projectId', '==', doc.id)
-      );
-      const tasksSnapshot = await getDocs(tasksQuery);
-      const tasks = tasksSnapshot.docs.map(taskDoc => taskDoc.data());
-      
-      const totalTasks = tasks.length;
-      const completedTasks = tasks.filter(t => t.completed).length;
-      const completion = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-      projects.push({
-        name: projectData.title || projectData.name,
-        completion,
-        tasks: `${completedTasks}/${totalTasks}`,
-        priority: projectData.priority || 'medium',
-        dueDate: projectData.dueDate,
-        status: projectData.status || 'active'
-      });
-    }
-
-    return projects.sort((a, b) => b.completion - a.completion);
+    return projects.map(project => ({
+      name: project.title || project.name || 'Projet sans nom',
+      completion: project.completion || 0,
+      tasks: `${project.completedTasks || 0}/${project.totalTasks || 0}`,
+      priority: project.priority || 'medium',
+      status: project.status || 'active',
+      dueDate: project.dueDate
+    })).sort((a, b) => b.completion - a.completion);
   }
 
   /**
-   * Méthodes utilitaires
+   * Distribution des tâches pour graphique pie
    */
-  async getTasksInPeriod(userId, startDate, endDate) {
-    const tasksQuery = query(
-      collection(db, 'tasks'),
-      where('userId', '==', userId),
-      where('completedAt', '>=', Timestamp.fromDate(startDate)),
-      where('completedAt', '<=', Timestamp.fromDate(endDate))
-    );
-
-    const snapshot = await getDocs(tasksQuery);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  }
-
-  calculateAvgCompletion(projects) {
-    if (!projects.length) return 0;
-    const totalCompletion = projects.reduce((sum, p) => {
-      return sum + (p.completion || 0);
-    }, 0);
-    return Math.round(totalCompletion / projects.length);
-  }
-
-  calculateProductivity(tasks) {
-    const completedToday = tasks.filter(t => 
-      t.completed && 
-      t.completedAt && 
-      this.isToday(t.completedAt.toDate())
-    ).length;
+  async getTasksDistribution(userId) {
+    const { completed, pending, overdue } = await this.getTasksMetrics(userId);
     
-    return completedToday;
-  }
-
-  async calculateVelocity(userId) {
-    const weeklyTasks = await this.getTasksInPeriod(
-      userId, 
-      new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), 
-      new Date()
-    );
-    return weeklyTasks.length;
-  }
-
-  isToday(date) {
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
+    return [
+      { name: 'Complétées', value: completed, color: '#10b981' },
+      { name: 'En cours', value: pending - overdue, color: '#3b82f6' },
+      { name: 'En retard', value: overdue, color: '#ef4444' }
+    ].filter(item => item.value > 0);
   }
 
   /**
@@ -295,63 +250,134 @@ class AnalyticsService {
   subscribeToMetrics(userId, callback) {
     const unsubscribers = [];
 
-    // Écouter les changements de tâches
+    // Écouter les tâches
     const tasksQuery = query(
       collection(db, 'tasks'),
       where('userId', '==', userId)
     );
     
     const unsubTasks = onSnapshot(tasksQuery, () => {
-      this.getGlobalMetrics(userId).then(callback);
+      console.log('🔄 Mise à jour tâches détectée');
+      this.getGlobalMetrics(userId).then(callback).catch(console.error);
     });
     unsubscribers.push(unsubTasks);
 
-    // Écouter les changements de projets
+    // Écouter les projets
     const projectsQuery = query(
       collection(db, 'projects'),
       where('members', 'array-contains', userId)
     );
     
     const unsubProjects = onSnapshot(projectsQuery, () => {
-      this.getGlobalMetrics(userId).then(callback);
+      console.log('🔄 Mise à jour projets détectée');
+      this.getGlobalMetrics(userId).then(callback).catch(console.error);
     });
     unsubscribers.push(unsubProjects);
 
-    // Retourner fonction de nettoyage
+    // Fonction de nettoyage
     return () => {
+      console.log('🔌 Déconnexion listeners analytics');
       unsubscribers.forEach(unsub => unsub());
     };
   }
 
   /**
-   * Export des données pour rapports
+   * Export des données
    */
   async exportAnalytics(userId, format = 'json') {
-    const [metrics, progress, velocity, projects] = await Promise.all([
-      this.getGlobalMetrics(userId),
-      this.getProgressOverTime(userId),
-      this.getVelocityData(userId),
-      this.getProjectsProgress(userId)
-    ]);
+    try {
+      const [metrics, progress, velocity, projects, distribution] = await Promise.all([
+        this.getGlobalMetrics(userId),
+        this.getProgressOverTime(userId),
+        this.getVelocityData(userId),
+        this.getProjectsProgress(userId),
+        this.getTasksDistribution(userId)
+      ]);
 
-    const data = {
-      generatedAt: new Date().toISOString(),
-      metrics,
-      progressOverTime: progress,
-      velocityData: velocity,
-      projectsProgress: projects
-    };
+      const exportData = {
+        generatedAt: new Date().toISOString(),
+        userId,
+        metrics,
+        charts: {
+          progressOverTime: progress,
+          velocityData: velocity,
+          projectsProgress: projects,
+          tasksDistribution: distribution
+        }
+      };
 
-    if (format === 'csv') {
-      return this.convertToCSV(data);
+      if (format === 'csv') {
+        return this.convertToCSV(exportData);
+      }
+      
+      return exportData;
+    } catch (error) {
+      console.error('❌ Erreur export analytics:', error);
+      throw error;
     }
+  }
+
+  /**
+   * Méthodes utilitaires
+   */
+  async getTasksInPeriod(userId, startDate, endDate) {
+    const tasksQuery = query(
+      collection(db, 'tasks'),
+      where('userId', '==', userId)
+    );
+
+    const snapshot = await getDocs(tasksQuery);
+    const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     
-    return data;
+    return tasks.filter(task => {
+      if (!task.completedAt) return false;
+      const completedDate = task.completedAt.toDate();
+      return completedDate >= startDate && completedDate <= endDate;
+    });
+  }
+
+  calculateAvgCompletion(projects) {
+    if (!projects.length) return 0;
+    const totalCompletion = projects.reduce((sum, p) => sum + (p.completion || 0), 0);
+    return Math.round(totalCompletion / projects.length);
+  }
+
+  calculateProductivity(tasks) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return tasks.filter(task => {
+      if (!task.completed || !task.completedAt) return false;
+      const completedDate = task.completedAt.toDate();
+      completedDate.setHours(0, 0, 0, 0);
+      return completedDate.getTime() === today.getTime();
+    }).length;
+  }
+
+  async calculateVelocity(userId, tasks) {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const weeklyTasks = tasks.filter(task => {
+      if (!task.completedAt) return false;
+      return task.completedAt.toDate() >= weekAgo;
+    });
+    return weeklyTasks.length;
   }
 
   convertToCSV(data) {
-    // Implémentation conversion CSV si nécessaire
-    return JSON.stringify(data, null, 2);
+    // Implémentation basique CSV
+    const metrics = data.metrics;
+    const csv = [
+      'Métrique,Valeur',
+      `Projets Total,${metrics.totalProjects}`,
+      `Projets Actifs,${metrics.activeProjects}`,
+      `Tâches Total,${metrics.totalTasks}`,
+      `Tâches Complétées,${metrics.completedTasks}`,
+      `Completion Moyenne,${metrics.avgCompletion}%`,
+      `Productivité Journalière,${metrics.productivity}`,
+      `Vélocité Hebdomadaire,${metrics.velocity}`
+    ].join('\n');
+    
+    return csv;
   }
 }
 
