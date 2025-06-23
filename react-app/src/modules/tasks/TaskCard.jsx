@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, Flag, User, CheckCircle, XCircle, Edit, Trash2, Award, ExternalLink } from 'lucide-react';
-import { useTaskStore } from '../../stores/taskStore';
+import { useTaskStore } from '../../shared/stores/taskStore';
 import { useAuthStore } from '../../stores/authStore';
 import { xpValidationService } from '../../core/services/xpValidationService';
 
