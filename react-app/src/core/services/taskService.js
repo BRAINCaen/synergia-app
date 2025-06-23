@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskService.js
-// Service Firebase CORRIGÉ - Fix Build Netlify
+// Service Firebase COMPLET - Version Corrigée Sans Duplication
 // ==========================================
 
 import { 
@@ -201,19 +201,31 @@ class TaskService {
   /**
    * 📋 RÉCUPÉRER TÂCHES UTILISATEUR
    */
-  async getUserTasks(userId) {
+  async getUserTasks(userId, filters = {}) {
     if (!userId) {
       throw new Error('UserId requis');
     }
 
     try {
-      const q = query(
-        collection(db, COLLECTIONS.TASKS),
+      let constraints = [
         where('assignedTo', '==', userId),
         orderBy('createdAt', 'desc')
-      );
+      ];
 
+      // Ajouter filtres si spécifiés
+      if (filters.status && filters.status !== 'all') {
+        constraints.splice(-1, 0, where('status', '==', filters.status));
+      }
+      if (filters.priority && filters.priority !== 'all') {
+        constraints.splice(-1, 0, where('priority', '==', filters.priority));
+      }
+      if (filters.projectId && filters.projectId !== 'all') {
+        constraints.splice(-1, 0, where('projectId', '==', filters.projectId));
+      }
+
+      const q = query(collection(db, COLLECTIONS.TASKS), ...constraints);
       const querySnapshot = await getDocs(q);
+      
       const tasks = querySnapshot.docs.map(doc => {
         const data = doc.data();
         return {
@@ -392,6 +404,48 @@ class TaskService {
   }
 
   /**
+   * 📊 Statistiques des tâches
+   */
+  async getUserTaskStats(userId) {
+    if (!userId) {
+      throw new Error('UserId requis');
+    }
+
+    try {
+      const tasks = await this.getUserTasks(userId);
+      
+      const stats = {
+        total: tasks.length,
+        completed: tasks.filter(t => t.status === 'completed').length,
+        inProgress: tasks.filter(t => t.status === 'in_progress').length,
+        todo: tasks.filter(t => t.status === 'todo').length,
+        overdue: tasks.filter(t => {
+          return t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'completed';
+        }).length,
+        totalXPEarned: tasks
+          .filter(t => t.status === 'completed')
+          .reduce((sum, t) => sum + (t.xpRewarded || 0), 0),
+        completionRate: tasks.length > 0 ? 
+          Math.round((tasks.filter(t => t.status === 'completed').length / tasks.length) * 100) : 0
+      };
+
+      return stats;
+
+    } catch (error) {
+      console.error('❌ Erreur statistiques tâches:', error);
+      return {
+        total: 0,
+        completed: 0,
+        inProgress: 0,
+        todo: 0,
+        overdue: 0,
+        totalXPEarned: 0,
+        completionRate: 0
+      };
+    }
+  }
+
+  /**
    * 📈 Créer log activité (safe)
    */
   async createActivityLog(activityData) {
@@ -439,21 +493,30 @@ class TaskService {
       console.error('❌ Erreur écoute temps réel tâches:', error);
     });
   }
+
+  /**
+   * 📁 MÉTHODES PROJETS (temporaires/mock)
+   */
+  async createProject(projectData, userId) {
+    // TODO: Séparer en ProjectService dédié
+    console.log('📁 createProject (mock):', projectData.name);
+    return {
+      id: 'project_' + Date.now(),
+      name: projectData.name,
+      description: projectData.description || '',
+      status: 'active',
+      createdBy: userId,
+      createdAt: new Date()
+    };
+  }
+
+  async getUserProjects(userId) {
+    // TODO: Séparer en ProjectService dédié
+    console.log('📁 getUserProjects (mock) pour:', userId);
+    return [];
+  }
 }
-// Export des services (à ajouter à la fin du fichier)
-const taskService = new TaskService();
 
-// TODO: Créer une vraie classe ProjectService
-const projectService = {
-  getUserProjects: () => Promise.resolve([]),
-  createProject: () => Promise.resolve({}),
-  updateProject: () => Promise.resolve({}),
-  deleteProject: () => Promise.resolve({})
-};
-
-export default taskService;
-export { taskService, projectService };
-
-// Export singleton
+// Export singleton - UNE SEULE FOIS
 export const taskService = new TaskService();
 export default taskService;
