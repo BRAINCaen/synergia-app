@@ -1,10 +1,17 @@
+// ==========================================
+// 📁 react-app/src/core/constants.js
+// Fichier constants.js COMPLET avec ERROR_MESSAGES manquants
+// ==========================================
+
 export const ROUTES = {
   HOME: '/',
   LOGIN: '/login',
   DASHBOARD: '/dashboard',
   TASKS: '/tasks',
   LEADERBOARD: '/leaderboard',
-  PROFILE: '/profile'
+  PROFILE: '/profile',
+  PROJECTS: '/projects',
+  GAMIFICATION: '/gamification'
 }
 
 export const USER_LEVELS = {
@@ -46,3 +53,77 @@ export const XP_REWARDS = {
   WEEKLY_BONUS: 50,
   BADGE_EARNED: 25
 }
+
+// ==========================================
+// 🚨 AJOUT : ERROR_MESSAGES MANQUANTS
+// ==========================================
+
+export const ERROR_MESSAGES = {
+  AUTH: {
+    INVALID_EMAIL: 'Adresse email invalide',
+    WEAK_PASSWORD: 'Le mot de passe doit contenir au moins 6 caractères',
+    USER_NOT_FOUND: 'Aucun compte trouvé avec cette adresse email',
+    WRONG_PASSWORD: 'Mot de passe incorrect',
+    EMAIL_ALREADY_EXISTS: 'Un compte existe déjà avec cette adresse email',
+    TOO_MANY_REQUESTS: 'Trop de tentatives. Veuillez réessayer plus tard',
+    NETWORK_ERROR: 'Erreur de connexion. Vérifiez votre connexion internet'
+  },
+  VALIDATION: {
+    REQUIRED_FIELD: 'Ce champ est requis',
+    INVALID_EMAIL: 'Format d\'email invalide',
+    PASSWORDS_DONT_MATCH: 'Les mots de passe ne correspondent pas'
+  },
+  GENERAL: {
+    UNKNOWN_ERROR: 'Une erreur inattendue s\'est produite',
+    NETWORK_ERROR: 'Erreur de connexion'
+  }
+}
+
+export const SUCCESS_MESSAGES = {
+  AUTH: {
+    LOGIN_SUCCESS: 'Connexion réussie !',
+    REGISTER_SUCCESS: 'Compte créé avec succès !',
+    LOGOUT_SUCCESS: 'Déconnexion réussie',
+    PASSWORD_RESET_SENT: 'Email de réinitialisation envoyé'
+  },
+  TASKS: {
+    CREATED: 'Tâche créée avec succès',
+    UPDATED: 'Tâche mise à jour',
+    DELETED: 'Tâche supprimée',
+    COMPLETED: 'Tâche complétée ! +{xp} XP'
+  }
+}
+
+export const TASK_STATUS = {
+  TODO: 'todo',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled'
+}
+
+export const TASK_PRIORITY = {
+  LOW: 'low',
+  MEDIUM: 'medium',
+  HIGH: 'high',
+  URGENT: 'urgent'
+}
+
+export const TASK_DIFFICULTY = {
+  EASY: 'easy',
+  MEDIUM: 'medium',
+  HARD: 'hard',
+  EXPERT: 'expert'
+}
+
+export const PROJECT_STATUS = {
+  PLANNING: 'planning',
+  ACTIVE: 'active',
+  ON_HOLD: 'on_hold',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled'
+}
+
+export const PROJECT_ICONS = [
+  '📊', '🚀', '💼', '🎯', '⚡', '🔥', '💡', '🛠️',
+  '📱', '💻', '🌟', '🎨', '📈', '🔬', '🏆', '🎪'
+]
