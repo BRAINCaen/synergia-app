@@ -2,7 +2,7 @@
 // VERSION COMPLÈTE ET FONCTIONNELLE - Analytics Dashboard
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useTaskStore } from '../modules/tasks/stores/taskStore.js';
+import { useTaskStore } from '../shared/stores/taskStore.js';
 import { useGameStore } from '../shared/stores/gameStore.js';
 
 const Analytics = () => {
