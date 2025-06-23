@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// Composant principal CORRIGÉ avec ToastProvider
+// Version TEMPORAIRE sans ToastProvider (pour éviter erreur build)
 // ==========================================
 
 import React, { useEffect } from 'react'
@@ -9,7 +9,8 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from './core/firebase.js'
 import { useAuthStore } from './shared/stores/authStore.js'
 import AppRoutes from './routes/index.jsx'
-import { ToastProvider } from './shared/components/ToastNotification.jsx' // ✅ NOUVEAU
+// TODO: Ajouter ToastProvider quand le fichier sera créé
+// import { ToastProvider } from './shared/components/ToastNotification.jsx'
 
 function App() {
   const { setUser, setLoading, setError } = useAuthStore()
@@ -55,13 +56,12 @@ function App() {
   }, [setUser, setLoading, setError])
 
   return (
-    <ToastProvider> {/* ✅ NOUVEAU - Wrap l'app avec ToastProvider */}
-      <BrowserRouter>
-        <div className="min-h-screen bg-gray-50">
-          <AppRoutes />
-        </div>
-      </BrowserRouter>
-    </ToastProvider>
+    // TODO: Wrapper avec <ToastProvider> quand créé
+    <BrowserRouter>
+      <div className="min-h-screen bg-gray-50">
+        <AppRoutes />
+      </div>
+    </BrowserRouter>
   )
 }
 
