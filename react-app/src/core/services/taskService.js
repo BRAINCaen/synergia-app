@@ -1,14 +1,6 @@
-# 🔧 FIX BUILD NETLIFY - SOLUTION IMMÉDIATE
-# Problème: taskService.js importe gamificationService (inexistant)
-# Solution: Remplacer l'import par gameService
-
-echo "🔧 === FIX BUILD NETLIFY - CORRECTIONS IMMÉDIATES ==="
-
-# 1. CORRECTION PRINCIPAL - taskService.js
-cat > react-app/src/core/services/taskService.js << 'EOF'
 // ==========================================
 // 📁 react-app/src/core/services/taskService.js
-// Service Firebase CORRIGÉ - Build Fix
+// Service Firebase CORRIGÉ - Fix Build Netlify
 // ==========================================
 
 import { 
@@ -83,7 +75,7 @@ class TaskService {
       await updateDoc(taskRef, updates);
 
       // 4. 🎮 AJOUTER XP avec gameService (CORRIGÉ)
-      console.log('🎯 Ajout XP:', xpReward, 'pour task_complete');
+      console.log('🎯 Ajout XP:', xpReward, 'pour task_complete (utilisateur:', currentUser.uid + ')');
       
       let gamificationResult = { success: false, xpGain: 0 };
       
@@ -95,7 +87,9 @@ class TaskService {
           {
             taskId,
             difficulty,
-            taskTitle: taskData.title
+            taskTitle: taskData.title,
+            taskCategory: taskData.category,
+            timeSpent: additionalData.timeSpent || 0
           }
         );
         console.log('✅ XP mis à jour:', gamificationResult);
@@ -111,9 +105,14 @@ class TaskService {
           type: 'task_completed',
           taskId,
           taskTitle: taskData.title,
-          xpGained: gamificationResult.xpGain || 0,
+          xpGained: gamificationResult.xpGain || xpReward,
           timestamp: now,
-          metadata: { difficulty, xpReward }
+          metadata: {
+            difficulty,
+            xpReward,
+            originalTask: taskData,
+            gamificationResult
+          }
         });
       } catch (logError) {
         console.warn('⚠️ Erreur log activité (non bloquant):', logError);
@@ -121,7 +120,8 @@ class TaskService {
 
       console.log('✅ Tâche complétée avec succès:', {
         taskId,
-        xpGained: gamificationResult.xpGain || 0,
+        xpGained: gamificationResult.xpGain || xpReward,
+        levelUp: gamificationResult.levelUp || false,
         difficulty
       });
 
@@ -129,10 +129,12 @@ class TaskService {
         success: true,
         taskId,
         taskData: { ...taskData, ...updates },
-        xpGained: gamificationResult.xpGain || 0,
+        xpGained: gamificationResult.xpGain || xpReward,
         levelUp: gamificationResult.levelUp || false,
+        newLevel: gamificationResult.level,
+        newTotalXP: gamificationResult.totalXp,
         difficulty,
-        message: `Tâche "${taskData.title}" terminée ! +${gamificationResult.xpGain || 0} XP`
+        message: `Tâche "${taskData.title}" terminée ! +${gamificationResult.xpGain || xpReward} XP`
       };
 
     } catch (error) {
@@ -176,6 +178,15 @@ class TaskService {
       
       console.log('✅ Tâche créée:', docRef.id, cleanTaskData.title);
       
+      await this.createActivityLog({
+        userId: userId,
+        type: 'task_created',
+        taskId: docRef.id,
+        taskTitle: cleanTaskData.title,
+        timestamp: now,
+        metadata: { taskData: cleanTaskData }
+      });
+
       return { 
         id: docRef.id, 
         ...cleanTaskData 
@@ -211,7 +222,8 @@ class TaskService {
           createdAt: data.createdAt?.toDate?.() || data.createdAt,
           updatedAt: data.updatedAt?.toDate?.() || data.updatedAt,
           completedAt: data.completedAt?.toDate?.() || data.completedAt,
-          dueDate: data.dueDate?.toDate?.() || data.dueDate
+          dueDate: data.dueDate?.toDate?.() || data.dueDate,
+          startDate: data.startDate?.toDate?.() || data.startDate
         };
       });
 
@@ -256,6 +268,14 @@ class TaskService {
       await updateDoc(taskRef, cleanUpdates);
 
       console.log('✅ Tâche mise à jour:', taskId);
+      
+      await this.createActivityLog({
+        userId: userId,
+        type: 'task_updated',
+        taskId,
+        timestamp: new Date(),
+        metadata: { updates: cleanUpdates }
+      });
 
       return { 
         id: taskId, 
@@ -290,6 +310,15 @@ class TaskService {
       await deleteDoc(taskRef);
       
       console.log('✅ Tâche supprimée:', taskId);
+      
+      await this.createActivityLog({
+        userId: userId,
+        type: 'task_deleted',
+        taskId,
+        taskTitle: taskData.title,
+        timestamp: new Date(),
+        metadata: { deletedTask: taskData }
+      });
 
       return { success: true, deletedTask: taskData };
 
@@ -300,15 +329,19 @@ class TaskService {
   }
 
   /**
-   * 🎯 Déterminer difficulté
+   * 🎯 Déterminer difficulté d'une tâche
    */
   determineDifficulty(taskData, additionalData = {}) {
+    // Facteurs de difficulté
     const factors = {
       priority: taskData.priority || 'normal',
       complexity: taskData.complexity || 'normal',
-      timeSpent: additionalData.timeSpent || 0
+      timeSpent: additionalData.timeSpent || 0,
+      description: taskData.description || '',
+      tags: taskData.tags || []
     };
 
+    // Calcul basé sur la priorité
     if (factors.priority === 'high' || factors.priority === 'urgent') {
       return 'hard';
     }
@@ -317,6 +350,7 @@ class TaskService {
       return 'easy';
     }
 
+    // Calcul basé sur la complexité
     if (factors.complexity === 'high' || factors.complexity === 'complex') {
       return 'hard';
     }
@@ -325,19 +359,26 @@ class TaskService {
       return 'easy';
     }
 
-    if (factors.timeSpent > 120) {
+    // Calcul basé sur le temps passé
+    if (factors.timeSpent > 120) { // Plus de 2 heures
       return 'hard';
     }
     
-    if (factors.timeSpent < 30) {
+    if (factors.timeSpent < 30) { // Moins de 30 minutes
       return 'easy';
     }
 
+    // Calcul basé sur la description
+    if (factors.description.length > 200) {
+      return 'hard';
+    }
+
+    // Par défaut
     return 'normal';
   }
 
   /**
-   * 🎯 Calculer XP selon difficulté
+   * 🎯 Calculer les XP selon la difficulté
    */
   getXPReward(difficulty) {
     const xpMap = {
@@ -403,24 +444,3 @@ class TaskService {
 // Export singleton
 export const taskService = new TaskService();
 export default taskService;
-EOF
-
-echo "✅ taskService.js corrigé - import gameService au lieu de gamificationService"
-
-# 2. VÉRIFIER QUE gameService.js existe et est correct
-echo "🔍 Vérification gameService.js..."
-
-# 3. OPTIONNEL: Créer build temporaire pour tester
-echo "🧪 Test build..."
-cd react-app
-npm run build 2>&1 | head -20
-
-echo "🎯 === CORRECTIONS APPLIQUÉES ==="
-echo "✅ taskService.js: import corrigé (gameService)"
-echo "✅ Gestion erreurs: try/catch pour XP non bloquant"  
-echo "✅ Build safe: pas de dépendances circulaires"
-echo ""
-echo "🚀 PROCHAINES ÉTAPES:"
-echo "1. Commit et push ces changements"
-echo "2. Vérifier le build Netlify"
-echo "3. Tester l'app après déploiement"
