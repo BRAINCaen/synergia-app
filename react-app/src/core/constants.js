@@ -127,3 +127,14 @@ export const PROJECT_ICONS = [
   '📊', '🚀', '💼', '🎯', '⚡', '🔥', '💡', '🛠️',
   '📱', '💻', '🌟', '🎨', '📈', '🔬', '🏆', '🎪'
 ]
+// react-app/src/core/constants.js
+export const ROUTES = {
+  LOGIN: '/login',
+  DASHBOARD: '/dashboard',
+  TASKS: '/tasks',
+  PROJECTS: '/projects',
+  ANALYTICS: '/analytics', // ✅ NOUVELLE ROUTE
+  LEADERBOARD: '/leaderboard',
+  PROFILE: '/profile',
+  BADGES: '/badges'
+}
