@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/modules/projects/ProjectForm.jsx
-// Formulaire complet création/édition projets - VERSION CORRIGÉE
+// Formulaire complet création/édition projets - VERSION CORRIGÉE AVEC DEBUGGING
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -109,10 +109,14 @@ const ProjectForm = ({
 
     // Deadline validation
     if (formData.deadline) {
-      const deadlineDate = new Date(formData.deadline);
-      const now = new Date();
-      if (deadlineDate < now && formData.status !== 'completed') {
-        newErrors.deadline = 'La deadline ne peut pas être dans le passé pour un projet actif';
+      try {
+        const deadlineDate = new Date(formData.deadline);
+        const now = new Date();
+        if (deadlineDate < now && formData.status !== 'completed') {
+          newErrors.deadline = 'La deadline ne peut pas être dans le passé pour un projet actif';
+        }
+      } catch (error) {
+        newErrors.deadline = 'Format de date invalide';
       }
     }
 
@@ -122,7 +126,15 @@ const ProjectForm = ({
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const isValid = Object.keys(newErrors).length === 0;
+    
+    // 🔧 DEBUG: Log validation results
+    console.log('=== VALIDATION ===');
+    console.log('Errors found:', newErrors);
+    console.log('Form is valid:', isValid);
+    console.log('Form data:', formData);
+    
+    return isValid;
   };
 
   const handleAddTag = () => {
@@ -145,11 +157,29 @@ const ProjectForm = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm() || !user?.uid) {
+    // 🔧 DEBUG: Log submit attempt
+    console.log('=== SUBMIT ATTEMPT ===');
+    console.log('Form data:', formData);
+    console.log('User:', user);
+    console.log('Loading state:', loading);
+    
+    // Validation
+    const isValidForm = validateForm();
+    console.log('Form validation result:', isValidForm);
+    
+    if (!isValidForm) {
+      console.log('❌ Validation failed, stopping submit');
+      return;
+    }
+    
+    if (!user?.uid) {
+      console.log('❌ No user found, stopping submit');
+      setErrors({ general: 'Utilisateur non connecté' });
       return;
     }
 
     setLoading(true);
+    console.log('🔄 Starting project save...');
     
     try {
       const projectData = {
@@ -160,14 +190,18 @@ const ProjectForm = ({
         budget: formData.budget ? parseFloat(formData.budget) : null
       };
 
+      console.log('📤 Sending project data:', projectData);
+
       let result;
       if (editingProject) {
+        console.log('📝 Updating existing project:', editingProject.id);
         result = await updateProject(editingProject.id, projectData);
       } else {
+        console.log('➕ Creating new project');
         result = await createProject(projectData, user.uid);
       }
 
-      console.log('✅ Projet sauvegardé:', result);
+      console.log('✅ Project saved successfully:', result);
       
       if (onSuccess) {
         onSuccess(result);
@@ -176,14 +210,25 @@ const ProjectForm = ({
       onClose();
       
     } catch (error) {
-      console.error('❌ Erreur sauvegarde projet:', error);
+      console.error('❌ Error saving project:', error);
       setErrors({ 
         general: error.message || 'Erreur lors de la sauvegarde du projet' 
       });
     } finally {
       setLoading(false);
+      console.log('🏁 Submit process completed');
     }
   };
+
+  // 🔧 DEBUG: Log component state
+  console.log('=== COMPONENT STATE ===');
+  console.log('Is open:', isOpen);
+  console.log('Form data name:', formData.name);
+  console.log('Form data name trimmed:', formData.name?.trim());
+  console.log('Loading:', loading);
+  console.log('Errors:', errors);
+  console.log('Button should be disabled:', loading || !formData.name?.trim());
+  console.log('User UID:', user?.uid);
 
   if (!isOpen) return null;
 
@@ -217,6 +262,17 @@ const ProjectForm = ({
               </div>
             )}
 
+            {/* 🔧 DEBUG: Status display */}
+            <div className="bg-blue-900/20 border border-blue-500 rounded-lg p-3">
+              <p className="text-blue-400 text-sm">
+                <strong>Debug Info:</strong> Nom="{formData.name}" | 
+                Trimmed="{formData.name?.trim()}" | 
+                Valid={formData.name?.trim()?.length >= 3} | 
+                User={!!user?.uid} | 
+                Loading={loading}
+              </p>
+            </div>
+
             {/* Ligne 1: Icône + Nom */}
             <div className="grid grid-cols-12 gap-4">
               {/* Icône */}
@@ -235,6 +291,7 @@ const ProjectForm = ({
                           ? 'bg-blue-600 text-white' 
                           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                       }`}
+                      disabled={loading}
                     >
                       {icon}
                     </button>
@@ -250,8 +307,15 @@ const ProjectForm = ({
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Ex: Refonte site web, Application mobile..."
+                  onChange={(e) => {
+                    console.log('Name input changed to:', e.target.value);
+                    setFormData(prev => ({ ...prev, name: e.target.value }));
+                    // Clear name error when typing
+                    if (errors.name) {
+                      setErrors(prev => ({ ...prev, name: '' }));
+                    }
+                  }}
+                  placeholder="Mon super projet..."
                   className={`w-full px-3 py-2 bg-gray-700 border text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                     errors.name ? 'border-red-500' : 'border-gray-600'
                   }`}
@@ -271,7 +335,7 @@ const ProjectForm = ({
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Décrivez les objectifs et le contexte du projet..."
+                placeholder="Décrivez votre projet..."
                 rows={3}
                 className={`w-full px-3 py-2 bg-gray-700 border text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.description ? 'border-red-500' : 'border-gray-600'
@@ -283,8 +347,9 @@ const ProjectForm = ({
               )}
             </div>
 
-            {/* Statut + Priorité */}
+            {/* Ligne 2: Statut + Priorité */}
             <div className="grid grid-cols-2 gap-4">
+              {/* Statut */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Statut
@@ -292,7 +357,7 @@ const ProjectForm = ({
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={loading}
                 >
                   {STATUS_OPTIONS.map(option => (
@@ -303,6 +368,7 @@ const ProjectForm = ({
                 </select>
               </div>
 
+              {/* Priorité */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Priorité
@@ -310,7 +376,7 @@ const ProjectForm = ({
                 <select
                   value={formData.priority}
                   onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={loading}
                 >
                   {PRIORITY_OPTIONS.map(option => (
@@ -322,8 +388,33 @@ const ProjectForm = ({
               </div>
             </div>
 
-            {/* Deadline + Budget */}
+            {/* Ligne 3: Couleur + Deadline */}
             <div className="grid grid-cols-2 gap-4">
+              {/* Couleur */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Couleur du projet
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={formData.color}
+                    onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
+                    className="w-12 h-10 bg-gray-700 border border-gray-600 rounded-lg cursor-pointer"
+                    disabled={loading}
+                  />
+                  <input
+                    type="text"
+                    value={formData.color}
+                    onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
+                    placeholder="#3b82f6"
+                    className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              {/* Deadline */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Date limite
@@ -332,7 +423,7 @@ const ProjectForm = ({
                   type="datetime-local"
                   value={formData.deadline}
                   onChange={(e) => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
-                  className={`w-full px-3 py-2 bg-gray-700 border text-white rounded-lg focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-3 py-2 bg-gray-700 border text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                     errors.deadline ? 'border-red-500' : 'border-gray-600'
                   }`}
                   disabled={loading}
@@ -341,33 +432,34 @@ const ProjectForm = ({
                   <p className="text-red-400 text-sm mt-1">{errors.deadline}</p>
                 )}
               </div>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Budget (€)
-                </label>
-                <input
-                  type="number"
-                  value={formData.budget}
-                  onChange={(e) => setFormData(prev => ({ ...prev, budget: e.target.value }))}
-                  placeholder="Ex: 15000"
-                  min="0"
-                  step="100"
-                  className={`w-full px-3 py-2 bg-gray-700 border text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                    errors.budget ? 'border-red-500' : 'border-gray-600'
-                  }`}
-                  disabled={loading}
-                />
-                {errors.budget && (
-                  <p className="text-red-400 text-sm mt-1">{errors.budget}</p>
-                )}
-              </div>
+            {/* Budget */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Budget (€)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.budget}
+                onChange={(e) => setFormData(prev => ({ ...prev, budget: e.target.value }))}
+                placeholder="0.00"
+                className={`w-full px-3 py-2 bg-gray-700 border text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.budget ? 'border-red-500' : 'border-gray-600'
+                }`}
+                disabled={loading}
+              />
+              {errors.budget && (
+                <p className="text-red-400 text-sm mt-1">{errors.budget}</p>
+              )}
             </div>
 
             {/* Tags */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Tags du projet
+                Tags
               </label>
               
               {/* Tags existants */}
@@ -376,13 +468,13 @@ const ProjectForm = ({
                   {formData.tags.map((tag, index) => (
                     <span
                       key={index}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-blue-600 text-white text-sm rounded-lg"
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-600 text-white"
                     >
                       {tag}
                       <button
                         type="button"
                         onClick={() => handleRemoveTag(tag)}
-                        className="hover:text-blue-200 ml-1"
+                        className="ml-2 hover:text-blue-200 ml-1"
                         disabled={loading}
                       >
                         ×
@@ -398,15 +490,23 @@ const ProjectForm = ({
                   type="text"
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddTag();
+                    }
+                  }}
                   placeholder="Ajouter un tag..."
                   className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500"
                   disabled={loading}
                 />
                 <button
                   type="button"
-                  onClick={handleAddTag}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  onClick={() => {
+                    console.log('Add tag button clicked, tagInput:', tagInput);
+                    handleAddTag();
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={loading || !tagInput.trim()}
                 >
                   Ajouter
@@ -427,8 +527,17 @@ const ProjectForm = ({
             Annuler
           </button>
           <button
-            onClick={handleSubmit}
-            disabled={loading || !formData.name.trim()}
+            onClick={(e) => {
+              console.log('Main submit button clicked!');
+              console.log('Current form state:', {
+                name: formData.name,
+                nameTrimmed: formData.name?.trim(),
+                loading,
+                userUid: user?.uid
+              });
+              handleSubmit(e);
+            }}
+            disabled={loading || !formData.name?.trim()}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >
             {loading && (
