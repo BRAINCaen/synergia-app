@@ -1,16 +1,15 @@
 // ==========================================
-// 📁 react-app/src/pages/Dashboard.jsx
-// Dashboard COMPLET avec gamification corrigée
+// 📁 react-app/src/pages/Dashboard.jsx  
+// Dashboard OPTIMISÉ - Force le re-render visuel
 // ==========================================
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '../shared/stores/authStore.js'
 import { useTaskService } from '../shared/hooks/useTaskService.js'
 import { useProjectService } from '../shared/hooks/useProjectService.js'
 import { useGameService } from '../shared/hooks/useGameService.js'
 import { ROUTES } from '../core/constants.js'
-import { auth } from '../core/firebase.js'
 
 // Composant Card simple intégré
 const Card = ({ className = '', children, ...props }) => (
@@ -54,21 +53,45 @@ const Button = ({
   )
 }
 
-// 🎮 Composant Gamification Widget avec données réelles - CORRIGÉ
+// 🎮 Composant Gamification Widget OPTIMISÉ
 const GamificationWidget = () => {
-  const { gameData, isLoading, addXP, quickActions, calculations, isConnected } = useGameService()
+  const { gameData, isLoading, quickActions, calculations, isConnected } = useGameService()
+  const [renderKey, setRenderKey] = useState(0) // 🔧 Force re-render
 
-  // 🔧 CORRECTION: Vérifications debug
-  console.log('🎮 GamificationWidget render:', {
-    isConnected,
-    isLoading,
-    gameData: gameData ? {
-      level: gameData.level,
-      xp: gameData.xp,
-      totalXp: gameData.totalXp,
-      badges: gameData.badges?.length
-    } : null
-  });
+  // 🔧 Mémoriser les valeurs calculées pour éviter les recalculs
+  const calculatedData = useMemo(() => {
+    if (!gameData) return null;
+
+    const progress = calculations.getProgressToNextLevel() * 100
+    const xpNeeded = calculations.getXPNeededForNextLevel()
+    const currentLevel = gameData.level || 1
+    const totalXP = gameData.totalXp || gameData.xp || 0
+    const badgeCount = gameData.badges?.length || 0
+
+    console.log('🧮 Données calculées:', {
+      currentLevel,
+      totalXP,
+      progress,
+      xpNeeded,
+      badgeCount
+    });
+
+    return {
+      progress: Math.min(Math.max(progress, 0), 100),
+      xpNeeded,
+      currentLevel,
+      totalXP,
+      badgeCount
+    }
+  }, [gameData, calculations])
+
+  // 🔧 Force re-render quand les données changent
+  useEffect(() => {
+    if (gameData) {
+      console.log('🔄 GameData changed, forcing re-render');
+      setRenderKey(prev => prev + 1);
+    }
+  }, [gameData?.level, gameData?.totalXp, gameData?.xp]);
 
   if (!isConnected) {
     return (
@@ -79,7 +102,7 @@ const GamificationWidget = () => {
     )
   }
 
-  if (isLoading || !gameData) {
+  if (isLoading || !calculatedData) {
     return (
       <Card className="p-6 bg-gradient-to-r from-purple-500 to-blue-600 text-white">
         <div className="animate-pulse">
@@ -91,15 +114,14 @@ const GamificationWidget = () => {
     )
   }
 
-  // 🔧 CORRECTION: Utiliser totalXp de manière cohérente
-  const progress = calculations.getProgressToNextLevel() * 100
-  const xpNeeded = calculations.getXPNeededForNextLevel()
-  const currentLevel = gameData.level || 1
-  const totalXP = gameData.totalXp || gameData.xp || 0
-  const badgeCount = gameData.badges?.length || 0
+  const { progress, xpNeeded, currentLevel, totalXP, badgeCount } = calculatedData;
 
   return (
-    <Card className="p-6 bg-gradient-to-r from-purple-500 to-blue-600 text-white" data-testid="gamification-widget">
+    <Card 
+      key={renderKey} // 🔧 Force re-render avec key
+      className="p-6 bg-gradient-to-r from-purple-500 to-blue-600 text-white" 
+      data-testid="gamification-widget"
+    >
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-lg font-bold">🎮 Niveau {currentLevel}</h3>
@@ -119,8 +141,11 @@ const GamificationWidget = () => {
         <div className="w-full bg-purple-400 rounded-full h-2">
           <div 
             className="bg-white h-2 rounded-full transition-all duration-500"
-            style={{ width: `${Math.min(progress, 100)}%` }}
+            style={{ width: `${progress}%` }}
           ></div>
+        </div>
+        <div className="text-xs text-purple-200 mt-1">
+          {progress.toFixed(1)}% vers le niveau suivant
         </div>
       </div>
 
@@ -128,7 +153,10 @@ const GamificationWidget = () => {
         <button
           onClick={() => {
             console.log('🌅 Click daily login');
-            quickActions.dailyLogin();
+            quickActions.dailyLogin().then(() => {
+              console.log('✅ Daily login completed');
+              setRenderKey(prev => prev + 1); // Force re-render
+            });
           }}
           className="flex-1 bg-white/20 hover:bg-white/30 text-white text-xs py-2 px-3 rounded transition-colors"
         >
@@ -137,7 +165,10 @@ const GamificationWidget = () => {
         <button
           onClick={() => {
             console.log('✅ Click task completed');
-            quickActions.taskCompleted();
+            quickActions.taskCompleted().then(() => {
+              console.log('✅ Task completed XP added');
+              setRenderKey(prev => prev + 1); // Force re-render
+            });
           }}
           className="flex-1 bg-white/20 hover:bg-white/30 text-white text-xs py-2 px-3 rounded transition-colors"
         >
@@ -145,26 +176,40 @@ const GamificationWidget = () => {
         </button>
       </div>
 
-      {/* 🔧 DEBUG: Affichage des données actuelles */}
+      {/* 🔧 DEBUG: Affichage des données actuelles en mode dev */}
       {process.env.NODE_ENV === 'development' && (
         <div className="mt-3 p-2 bg-black/20 rounded text-xs">
+          <div>Render: #{renderKey}</div>
           <div>Level: {currentLevel}</div>
-          <div>XP: {gameData.xp}</div>
+          <div>XP: {gameData?.xp}</div>
           <div>Total XP: {totalXP}</div>
           <div>Progress: {progress.toFixed(1)}%</div>
           <div>XP Needed: {xpNeeded}</div>
+          <div>Timestamp: {new Date().toLocaleTimeString()}</div>
         </div>
       )}
     </Card>
   )
 }
 
-// 🏠 Composant Header de bienvenue - CORRIGÉ
+// 🏠 Composant Header de bienvenue - OPTIMISÉ
 const WelcomeHeader = () => {
   const { user } = useAuthStore()
   const { gameData } = useGameService()
   
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'
+  
+  // Mémoriser les calculs
+  const welcomeData = useMemo(() => {
+    if (!gameData) return { level: 1, totalXp: 0, progressPercentage: 0 };
+    
+    const level = gameData.level || 1;
+    const totalXp = gameData.totalXp || gameData.xp || 0;
+    const nextLevelXp = Math.pow(level, 2) * 100;
+    const progressPercentage = level > 1 ? ((totalXp % 100) / 100) * 100 : (totalXp / 100) * 100;
+    
+    return { level, totalXp, progressPercentage: Math.min(progressPercentage, 100) };
+  }, [gameData]);
   
   return (
     <Card className="p-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white mb-6">
@@ -176,92 +221,79 @@ const WelcomeHeader = () => {
           <p className="text-blue-100">
             Prêt à atteindre vos objectifs aujourd'hui ?
           </p>
-          {gameData?.level && (
-            <p className="text-blue-100 text-sm mt-1">
-              Niveau {gameData.level} • {gameData.totalXp || gameData.xp || 0} XP
-            </p>
-          )}
+          <p className="text-blue-100 text-sm mt-1">
+            Niveau {welcomeData.level} • {welcomeData.totalXp} XP
+          </p>
         </div>
         
         <div className="text-right">
           <div className="text-sm text-blue-100 mb-1">Niveau</div>
-          <div className="text-3xl font-bold">{gameData?.level || 1}</div>
+          <div className="text-3xl font-bold">{welcomeData.level}</div>
         </div>
       </div>
       
-      {gameData && (
-        <div className="mt-6">
-          <div className="flex justify-between text-sm text-blue-100 mb-2">
-            <span>Progression</span>
-            <span>{gameData.xp || 0} / {Math.pow(gameData.level, 2) * 100} XP</span>
-          </div>
-          <div className="w-full bg-blue-400 rounded-full h-2">
-            <div 
-              className="bg-white h-2 rounded-full transition-all duration-500" 
-              style={{ 
-                width: `${gameData.level ? ((gameData.xp || 0) / (Math.pow(gameData.level, 2) * 100)) * 100 : 0}%` 
-              }}
-            ></div>
-          </div>
+      <div className="mt-6">
+        <div className="flex justify-between text-sm text-blue-100 mb-2">
+          <span>Progression globale</span>
+          <span>{welcomeData.totalXp} XP</span>
         </div>
-      )}
-    </Card>
-  )
-}
-
-// 🚀 Composant Actions Rapides - VERSION SIMPLIFIÉE (Navigation uniquement)
-const QuickActionsWidget = () => {
-  const { user } = useAuthStore()
-
-  return (
-    <Card className="p-6">
-      <h3 className="text-lg font-semibold mb-4">🧭 Navigation Rapide</h3>
-      
-      <div className="space-y-3">
-        {/* Gérer les tâches */}
-        <Link to={ROUTES.TASKS}>
-          <button className="w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
-            <div className="flex items-center space-x-3">
-              <span className="text-2xl">✅</span>
-              <div>
-                <div className="font-medium text-gray-900">Mes Tâches</div>
-                <div className="text-sm text-gray-600">Gérer et créer mes tâches</div>
-              </div>
-            </div>
-          </button>
-        </Link>
-
-        {/* Gérer les projets */}
-        <Link to={ROUTES.PROJECTS}>
-          <button className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
-            <div className="flex items-center space-x-3">
-              <span className="text-2xl">📁</span>
-              <div>
-                <div className="font-medium text-gray-900">Mes Projets</div>
-                <div className="text-sm text-gray-600">Organiser et suivre mes projets</div>
-              </div>
-            </div>
-          </button>
-        </Link>
-
-        {/* Voir le leaderboard */}
-        <Link to={ROUTES.LEADERBOARD}>
-          <button className="w-full text-left p-3 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors">
-            <div className="flex items-center space-x-3">
-              <span className="text-2xl">🏆</span>
-              <div>
-                <div className="font-medium text-gray-900">Classement</div>
-                <div className="text-sm text-gray-600">Voir ma position et mes badges</div>
-              </div>
-            </div>
-          </button>
-        </Link>
+        <div className="w-full bg-blue-400 rounded-full h-2">
+          <div 
+            className="bg-white h-2 rounded-full transition-all duration-500" 
+            style={{ width: `${welcomeData.progressPercentage}%` }}
+          ></div>
+        </div>
       </div>
     </Card>
   )
 }
 
-// 📊 Composant Statistiques Tâches avec données réelles
+// 🚀 Composant Actions Rapides
+const QuickActionsWidget = () => (
+  <Card className="p-6">
+    <h3 className="text-lg font-semibold mb-4">🧭 Navigation Rapide</h3>
+    
+    <div className="space-y-3">
+      <Link to={ROUTES.TASKS}>
+        <button className="w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+          <div className="flex items-center space-x-3">
+            <span className="text-2xl">✅</span>
+            <div>
+              <div className="font-medium text-gray-900">Mes Tâches</div>
+              <div className="text-sm text-gray-600">Gérer et créer mes tâches</div>
+            </div>
+          </div>
+        </button>
+      </Link>
+
+      <Link to={ROUTES.PROJECTS}>
+        <button className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
+          <div className="flex items-center space-x-3">
+            <span className="text-2xl">📁</span>
+            <div>
+              <div className="font-medium text-gray-900">Mes Projets</div>
+              <div className="text-sm text-gray-600">Organiser et suivre mes projets</div>
+            </div>
+          </div>
+        </button>
+      </Link>
+
+      <Link to={ROUTES.LEADERBOARD}>
+        <button className="w-full text-left p-3 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors">
+          <div className="flex items-center space-x-3">
+            <span className="text-2xl">🏆</span>
+            <div>
+              <div className="font-medium text-gray-900">Classement</div>
+              <div className="text-sm text-gray-600">Voir ma position et mes badges</div>
+            </div>
+          </div>
+        </button>
+      </Link>
+    </div>
+  </Card>
+)
+
+// 📊 Composant Statistiques Tâches
 const TaskStatsWidget = () => {
   const { tasks, stats, loading } = useTaskService()
   
@@ -316,29 +348,36 @@ const TaskStatsWidget = () => {
   )
 }
 
-// 🎯 Composant Stats Performance avec tâches XP
+// 🎯 Composant Stats Performance
 const PerformanceWidget = () => {
   const { tasks } = useTaskService()
   const { gameData } = useGameService()
 
-  // Calculer les stats de la semaine
-  const now = new Date()
-  const weekStart = new Date(now.setDate(now.getDate() - now.getDay()))
-  
-  const thisWeekTasks = tasks.filter(task => {
-    if (!task.completedAt) return false
-    const completedDate = new Date(task.completedAt)
-    return completedDate >= weekStart
-  })
+  const performanceData = useMemo(() => {
+    const now = new Date()
+    const weekStart = new Date(now.setDate(now.getDate() - now.getDay()))
+    
+    const thisWeekTasks = tasks.filter(task => {
+      if (!task.completedAt) return false
+      const completedDate = new Date(task.completedAt)
+      return completedDate >= weekStart
+    })
 
-  const todayTasks = tasks.filter(task => {
-    if (!task.completedAt) return false
-    const completedDate = new Date(task.completedAt)
-    const today = new Date()
-    return completedDate.toDateString() === today.toDateString()
-  })
+    const todayTasks = tasks.filter(task => {
+      if (!task.completedAt) return false
+      const completedDate = new Date(task.completedAt)
+      const today = new Date()
+      return completedDate.toDateString() === today.toDateString()
+    })
 
-  const todayXP = todayTasks.reduce((total, task) => total + (task.xpReward || 0), 0)
+    const todayXP = todayTasks.reduce((total, task) => total + (task.xpReward || 0), 0)
+
+    return {
+      weekTasks: thisWeekTasks.length,
+      todayXP,
+      loginStreak: gameData?.loginStreak || 0
+    }
+  }, [tasks, gameData?.loginStreak])
 
   return (
     <Card className="p-6">
@@ -346,15 +385,15 @@ const PerformanceWidget = () => {
       <div className="space-y-3">
         <div className="flex justify-between">
           <span className="text-gray-600">Tâches cette semaine</span>
-          <span className="font-medium">{thisWeekTasks.length}</span>
+          <span className="font-medium">{performanceData.weekTasks}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-600">XP gagnés aujourd'hui</span>
-          <span className="font-medium text-purple-600">{todayXP}</span>
+          <span className="font-medium text-purple-600">{performanceData.todayXP}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-600">Streak de connexion</span>
-          <span className="font-medium">{gameData?.loginStreak || 0}</span>
+          <span className="font-medium">{performanceData.loginStreak}</span>
         </div>
       </div>
     </Card>
@@ -391,39 +430,27 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header de bienvenue */}
         <WelcomeHeader />
 
-        {/* Grille principale */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Colonne de gauche */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Gamification Widget */}
             <GamificationWidget />
-            
-            {/* Actions rapides */}
             <QuickActionsWidget />
           </div>
 
-          {/* Colonne de droite */}
           <div className="space-y-6">
-            {/* Stats des tâches */}
             <TaskStatsWidget />
-            
-            {/* Stats XP temps réel */}
             <PerformanceWidget />
           </div>
         </div>
 
-        {/* Message de récupération */}
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-6">
           <div className="flex items-center">
             <span className="text-green-600 text-2xl mr-3">✅</span>
             <div>
-              <h4 className="text-green-800 font-semibold">Application Récupérée !</h4>
+              <h4 className="text-green-800 font-semibold">Dashboard Optimisé !</h4>
               <p className="text-green-700 text-sm">
-                Tous vos modules (Tâches, Projets, Gamification) sont maintenant opérationnels avec persistance des données.
-                Vos données sont automatiquement sauvegardées et synchronisées avec Firebase.
+                Gamification temps réel avec mise à jour automatique. Testez les boutons XP pour voir les changements instantanés.
               </p>
             </div>
           </div>
