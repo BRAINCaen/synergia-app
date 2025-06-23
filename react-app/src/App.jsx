@@ -1,13 +1,15 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// 🔧 CORRECTION : Imports avec chemins corrects selon structure existante
+// 🔧 CORRECTION : Chemin correct pour MainLayout
 import { useAuthStore } from './shared/stores/authStore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './core/firebase';
 
-// Layout et Pages existantes
-import MainLayout from './components/MainLayout';
+// Layout correct - dans layouts/
+import MainLayout from './layouts/MainLayout';
+
+// Pages existantes - adapter selon votre structure
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import TasksPage from './pages/TasksPage';
