@@ -7,8 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../../layouts/MainLayout.jsx';
 import ProjectForm from './ProjectForm.jsx'; // ✅ Import du ProjectForm corrigé
-import { useProjectStore } from '../../shared/stores/projectStore.js';
-import { useAuthStore } from '../../shared/stores/authStore.js';
+import { useProjectStore } from '../../shared/stores/projectStore';
+import { useAuthStore } from '../../shared/stores/authStore';
 
 const ProjectDashboard = () => {
   const navigate = useNavigate();
