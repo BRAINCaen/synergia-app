@@ -5,7 +5,7 @@ import { ROUTES } from '../core/constants.js'
 
 // Pages
 import Login from '../pages/Login.jsx'
-import Dashboard from '../pages/Dashboard.jsx'
+import Dashboard from '../pages/Dashboard.jsx'  // ✅ Correct
 import NotFound from '../pages/NotFound.jsx'
 
 // Components
