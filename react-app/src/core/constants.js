@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/constants.js
-// Fichier constants.js COMPLET avec ERROR_MESSAGES manquants
+// Fichier constants.js CORRIGÉ avec Analytics route ajoutée
 // ==========================================
 
 export const ROUTES = {
@@ -11,7 +11,8 @@ export const ROUTES = {
   LEADERBOARD: '/leaderboard',
   PROFILE: '/profile',
   PROJECTS: '/projects',
-  GAMIFICATION: '/gamification'
+  GAMIFICATION: '/gamification',
+  ANALYTICS: '/analytics' // ✅ ROUTE ANALYTICS AJOUTÉE
 }
 
 export const USER_LEVELS = {
@@ -54,10 +55,6 @@ export const XP_REWARDS = {
   BADGE_EARNED: 25
 }
 
-// ==========================================
-// 🚨 AJOUT : ERROR_MESSAGES MANQUANTS
-// ==========================================
-
 export const ERROR_MESSAGES = {
   AUTH: {
     INVALID_EMAIL: 'Adresse email invalide',
@@ -90,51 +87,11 @@ export const SUCCESS_MESSAGES = {
     CREATED: 'Tâche créée avec succès',
     UPDATED: 'Tâche mise à jour',
     DELETED: 'Tâche supprimée',
-    COMPLETED: 'Tâche complétée ! +{xp} XP'
+    COMPLETED: 'Tâche complétée !'
+  },
+  PROJECTS: {
+    CREATED: 'Projet créé avec succès',
+    UPDATED: 'Projet mis à jour',
+    DELETED: 'Projet supprimé'
   }
-}
-
-export const TASK_STATUS = {
-  TODO: 'todo',
-  IN_PROGRESS: 'in_progress',
-  COMPLETED: 'completed',
-  CANCELLED: 'cancelled'
-}
-
-export const TASK_PRIORITY = {
-  LOW: 'low',
-  MEDIUM: 'medium',
-  HIGH: 'high',
-  URGENT: 'urgent'
-}
-
-export const TASK_DIFFICULTY = {
-  EASY: 'easy',
-  MEDIUM: 'medium',
-  HARD: 'hard',
-  EXPERT: 'expert'
-}
-
-export const PROJECT_STATUS = {
-  PLANNING: 'planning',
-  ACTIVE: 'active',
-  ON_HOLD: 'on_hold',
-  COMPLETED: 'completed',
-  CANCELLED: 'cancelled'
-}
-
-export const PROJECT_ICONS = [
-  '📊', '🚀', '💼', '🎯', '⚡', '🔥', '💡', '🛠️',
-  '📱', '💻', '🌟', '🎨', '📈', '🔬', '🏆', '🎪'
-]
-// react-app/src/core/constants.js
-export const ROUTES = {
-  LOGIN: '/login',
-  DASHBOARD: '/dashboard',
-  TASKS: '/tasks',
-  PROJECTS: '/projects',
-  ANALYTICS: '/analytics', // ✅ NOUVELLE ROUTE
-  LEADERBOARD: '/leaderboard',
-  PROFILE: '/profile',
-  BADGES: '/badges'
 }
