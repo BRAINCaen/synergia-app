@@ -14,6 +14,7 @@ import WelcomeWidget from '../../../modules/dashboard/widgets/WelcomeWidget.jsx'
 import { ROUTES } from '../../../core/constants.js';
 
 // Import des hooks pour données réelles
+// ✅ Bon chemin depuis modules/dashboard/widgets/pages/Dashboard.jsx
 import { useRealTimeUser, useUserStats } from '../../../../shared/hooks/useRealTimeUser.js';
 
 export default function Dashboard() {
