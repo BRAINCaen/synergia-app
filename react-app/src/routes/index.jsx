@@ -8,7 +8,8 @@ import { ROUTES } from '../core/constants.js'
 import Login from '../pages/Login.jsx'
 import Dashboard from '../pages/Dashboard.jsx'
 import NotFound from '../pages/NotFound.jsx'
-import Analytics from '../pages/Analytics.jsx' // ✅ NOUVELLE IMPORT
+import Analytics from '../pages/Analytics.jsx'
+import TeamPage from '../pages/TeamPage.jsx' // ⭐ NOUVEAU : Page équipe
 
 // Components
 import TaskList from '../modules/tasks/TaskList.jsx'
@@ -16,7 +17,7 @@ import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
 import Leaderboard from '../components/gamification/Leaderboard.jsx'
 import Profile from '../modules/profile/components/Profile.jsx'
 
-// ✅ CORRIGÉ : Import DEFAULT au lieu de nommé
+// Import DEFAULT au lieu de nommé
 import ProjectDashboard from '../modules/projects/ProjectDashboard.jsx'
 
 // Protected Route Component
@@ -95,7 +96,6 @@ export default function AppRoutes() {
         } 
       />
       
-      {/* ✅ ROUTE PROJECTS : Utilise la constante */}
       <Route 
         path={ROUTES.PROJECTS} 
         element={
@@ -104,13 +104,13 @@ export default function AppRoutes() {
           </ProtectedRoute>
         } 
       />
-
-      {/* ✅ ROUTE ANALYTICS : Utilise la constante */}
+      
+      {/* ⭐ NOUVEAU : Route équipe collaborative */}
       <Route 
-        path={ROUTES.ANALYTICS} 
+        path="/team" 
         element={
           <ProtectedRoute>
-            <Analytics />
+            <TeamPage />
           </ProtectedRoute>
         } 
       />
@@ -132,9 +132,20 @@ export default function AppRoutes() {
           </ProtectedRoute>
         } 
       />
-
+      
+      {/* Analytics route */}
       <Route 
-        path="/badges" 
+        path={ROUTES.ANALYTICS} 
+        element={
+          <ProtectedRoute>
+            <Analytics />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* Gamification route */}
+      <Route 
+        path={ROUTES.GAMIFICATION} 
         element={
           <ProtectedRoute>
             <BadgeCollection />
@@ -145,7 +156,7 @@ export default function AppRoutes() {
       {/* Default redirect */}
       <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
       
-      {/* 404 Route */}
+      {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   )
