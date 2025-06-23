@@ -1,3 +1,4 @@
+// react-app/src/routes/index.jsx
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '../shared/stores/authStore.js'
@@ -7,6 +8,7 @@ import { ROUTES } from '../core/constants.js'
 import Login from '../pages/Login.jsx'
 import Dashboard from '../pages/Dashboard.jsx'
 import NotFound from '../pages/NotFound.jsx'
+import Analytics from '../pages/Analytics.jsx' // ✅ NOUVELLE IMPORT
 
 // Components
 import TaskList from '../modules/tasks/TaskList.jsx'
@@ -99,6 +101,16 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute>
             <ProjectDashboard />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* ✅ NOUVELLE ROUTE ANALYTICS */}
+      <Route 
+        path="/analytics" 
+        element={
+          <ProtectedRoute>
+            <Analytics />
           </ProtectedRoute>
         } 
       />
