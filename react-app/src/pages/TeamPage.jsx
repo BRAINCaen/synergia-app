@@ -1,5 +1,11 @@
+// ==========================================
+// 📁 react-app/src/pages/TeamPage.jsx
+// CORRECTION : Import depuis le chemin existant
+// ==========================================
+
 import React from 'react';
-import TeamDashboard from '../components/team/TeamDashboard';
+// 🔧 CORRECTION : TeamDashboard est dans components/ directement
+import TeamDashboard from '../components/TeamDashboard';
 
 const TeamPage = () => {
   return (
