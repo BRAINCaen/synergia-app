@@ -1,9 +1,9 @@
 // src/modules/tasks/TaskList.jsx - Version corrigée avec MainLayout
 import React, { useState, useEffect } from 'react';
 import MainLayout from '../../layouts/MainLayout.jsx';
-import { useTaskStore } from '../../shared/stores/taskStore.js';
-import { useProjectStore } from '../../shared/stores/projectStore.js';
-import { useAuthStore } from '../../shared/stores/authStore.js';
+import { useTaskStore } from '../../shared/stores/taskStore';
+import { useProjectStore } from '../../shared/stores/projectStore';
+import { useAuthStore } from '../../shared/stores/authStore';
 import { TaskCard } from './TaskCard.jsx';
 import { TaskForm } from './TaskForm.jsx';
 
