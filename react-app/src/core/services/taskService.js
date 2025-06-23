@@ -440,6 +440,19 @@ class TaskService {
     });
   }
 }
+// Export des services (à ajouter à la fin du fichier)
+const taskService = new TaskService();
+
+// TODO: Créer une vraie classe ProjectService
+const projectService = {
+  getUserProjects: () => Promise.resolve([]),
+  createProject: () => Promise.resolve({}),
+  updateProject: () => Promise.resolve({}),
+  deleteProject: () => Promise.resolve({})
+};
+
+export default taskService;
+export { taskService, projectService };
 
 // Export singleton
 export const taskService = new TaskService();
