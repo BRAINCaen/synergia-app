@@ -1,15 +1,14 @@
 // ==========================================
 // 📁 react-app/src/modules/projects/ProjectDashboard.jsx
-// Dashboard projets COMPLET avec ProjectForm intégré
+// Dashboard projets CORRIGÉ avec ProjectForm intégré
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../../layouts/MainLayout.jsx';
-import ProjectForm from './ProjectForm.jsx'; // ✅ NOUVEAU: Import du vrai ProjectForm
+import ProjectForm from './ProjectForm.jsx'; // ✅ Import du ProjectForm corrigé
 import { useProjectStore } from '../../shared/stores/projectStore.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import ProjectService from '../../shared/services/projectService.js'; // ✅ NOUVEAU: Import du service
 
 const ProjectDashboard = () => {
   const navigate = useNavigate();
@@ -30,7 +29,6 @@ const ProjectDashboard = () => {
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [viewMode, setViewMode] = useState('grid');
-  const [formLoading, setFormLoading] = useState(false); // ✅ NOUVEAU: Loading du formulaire
 
   // Charger les projets au montage
   useEffect(() => {
@@ -39,7 +37,7 @@ const ProjectDashboard = () => {
       const unsubscribe = subscribeToProjects(user.uid);
       return unsubscribe;
     }
-  }, [user?.uid]);
+  }, [user?.uid, loadUserProjects, subscribeToProjects]);
 
   // Projets filtrés
   const filteredProjects = getFilteredProjects ? 
@@ -84,64 +82,12 @@ const ProjectDashboard = () => {
     setEditingProject(null);
   };
 
-  // ✅ NOUVEAU: Handler pour créer/modifier un projet
-  const handleSubmitProject = async (projectData) => {
-    setFormLoading(true);
-    
-    try {
-      if (editingProject) {
-        // Modification
-        console.log('🔄 Modification projet:', editingProject.id);
-        await ProjectService.updateProject(editingProject.id, projectData, user.uid);
-        
-        // TODO: Toast success notification
-        console.log('✅ Projet modifié avec succès');
-      } else {
-        // Création
-        console.log('📝 Création nouveau projet');
-        const newProject = await ProjectService.createProject(projectData, user.uid);
-        
-        // TODO: Toast success notification
-        console.log('✅ Projet créé avec succès:', newProject.id);
-      }
-      
-      // Fermer le formulaire
-      handleCloseForm();
-      
-      // Recharger les projets (optionnel car temps réel)
-      if (user?.uid) {
-        loadUserProjects(user.uid);
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur soumission projet:', error);
-      // L'erreur sera affichée dans le formulaire
-      throw error;
-    } finally {
-      setFormLoading(false);
-    }
-  };
-
-  // ✅ NOUVEAU: Handler pour supprimer un projet
-  const handleDeleteProject = async (project) => {
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le projet "${project.name}" ?`)) {
-      return;
-    }
-
-    try {
-      console.log('🗑️ Suppression projet:', project.id);
-      await ProjectService.deleteProject(project.id, user.uid);
-      
-      // TODO: Toast success notification
-      console.log('✅ Projet supprimé avec succès');
-      
-      // Recharger les projets
-      if (user?.uid) {
-        loadUserProjects(user.uid);
-      }
-    } catch (error) {
-      console.error('❌ Erreur suppression projet:', error);
-      alert(`Erreur: ${error.message}`);
+  const handleProjectSuccess = (project) => {
+    console.log('✅ Projet traité avec succès:', project);
+    handleCloseForm();
+    // Optionnel: recharger les projets si nécessaire
+    if (user?.uid) {
+      loadUserProjects(user.uid);
     }
   };
 
@@ -278,7 +224,6 @@ const ProjectDashboard = () => {
 
         {/* Filtres et recherche */}
         <div className="flex flex-col lg:flex-row gap-4 mb-6">
-          {/* Recherche */}
           <div className="flex-1">
             <input
               type="text"
@@ -289,7 +234,6 @@ const ProjectDashboard = () => {
             />
           </div>
           
-          {/* Filtre de statut */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -303,7 +247,6 @@ const ProjectDashboard = () => {
             <option value="archived">📦 Archivés</option>
           </select>
           
-          {/* Toggle vue */}
           <div className="flex bg-white border border-gray-300 rounded-lg p-1">
             <button
               onClick={() => setViewMode('grid')}
@@ -363,20 +306,12 @@ const ProjectDashboard = () => {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleEditProject(project)}
-                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                    >
-                      ✏️ Modifier
-                    </button>
-                    <button
-                      onClick={() => handleDeleteProject(project)}
-                      className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
-                    >
-                      🗑️ Suppr.
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => handleEditProject(project)}
+                    className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                  >
+                    ✏️ Modifier
+                  </button>
                 </div>
 
                 <div className="space-y-3">
@@ -440,13 +375,12 @@ const ProjectDashboard = () => {
           </div>
         )}
 
-        {/* ✅ NOUVEAU: ProjectForm Modal complet */}
+        {/* ✅ ProjectForm Modal */}
         <ProjectForm
           isOpen={showProjectForm}
           onClose={handleCloseForm}
-          project={editingProject}
-          onSubmit={handleSubmitProject}
-          loading={formLoading}
+          editingProject={editingProject}
+          onSuccess={handleProjectSuccess}
         />
 
       </div>
