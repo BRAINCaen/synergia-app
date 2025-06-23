@@ -1,5 +1,5 @@
 // react-app/src/pages/Analytics.jsx
-// VERSION CORRIGÉE - Imports fixes pour build Netlify
+// VERSION FINALE CORRIGÉE - Gestion sécurisée des props stats
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useTaskStore } from '../shared/stores/taskStore.js';
@@ -14,55 +14,72 @@ const Analytics = () => {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Calcul des analytics en temps réel
+  // Calcul des analytics en temps réel avec gestion sécurisée des erreurs
   useEffect(() => {
     const calculateAnalytics = () => {
       try {
+        // Vérification sécurisée des données
+        if (!Array.isArray(tasks)) {
+          console.warn('⚠️ Tasks not ready yet');
+          setLoading(false);
+          return;
+        }
+
         const now = new Date();
         const filterDays = timeFilter === '7days' ? 7 : timeFilter === '30days' ? 30 : 365;
         const startDate = new Date(now.getTime() - filterDays * 24 * 60 * 60 * 1000);
 
-        // Filtrer les tâches par période
+        // Filtrer les tâches par période avec vérification sécurisée
         const filteredTasks = tasks.filter(task => {
-          const taskDate = task.completedAt ? new Date(task.completedAt) : new Date(task.createdAt);
-          return taskDate >= startDate;
+          if (!task) return false;
+          try {
+            const taskDate = task.completedAt ? new Date(task.completedAt) : new Date(task.createdAt);
+            return taskDate >= startDate;
+          } catch (error) {
+            console.warn('⚠️ Invalid task date:', task);
+            return false;
+          }
         });
 
-        const completedTasks = filteredTasks.filter(task => task.completed);
-        const pendingTasks = filteredTasks.filter(task => !task.completed);
+        const completedTasks = filteredTasks.filter(task => task.completed || task.status === 'completed');
+        const pendingTasks = filteredTasks.filter(task => !task.completed && task.status !== 'completed');
         
-        // Métriques principales
+        // Métriques principales avec gestion sécurisée des stats
         const metrics = {
           totalTasks: filteredTasks.length,
           completedTasks: completedTasks.length,
           pendingTasks: pendingTasks.length,
           completionRate: filteredTasks.length > 0 ? Math.round((completedTasks.length / filteredTasks.length) * 100) : 0,
-          totalXP: stats.totalXP || 0,
-          currentLevel: stats.level || 1,
-          weeklyXP: 0 // À calculer selon vos besoins
+          totalXP: stats?.totalXp || stats?.totalXP || 0, // Support les deux formats
+          currentLevel: stats?.level || 1,
+          weeklyXP: 0
         };
 
-        // Distribution par priorité
+        // Distribution par priorité avec gestion sécurisée
         const priorityDistribution = {
-          low: filteredTasks.filter(t => t.priority === 'low').length,
-          medium: filteredTasks.filter(t => t.priority === 'medium').length,
-          high: filteredTasks.filter(t => t.priority === 'high').length,
-          urgent: filteredTasks.filter(t => t.priority === 'urgent').length
+          low: filteredTasks.filter(t => t?.priority === 'low').length,
+          medium: filteredTasks.filter(t => t?.priority === 'medium').length,
+          high: filteredTasks.filter(t => t?.priority === 'high').length,
+          urgent: filteredTasks.filter(t => t?.priority === 'urgent').length
         };
 
-        // Progression par jour (7 derniers jours)
+        // Progression par jour (7 derniers jours) avec gestion sécurisée
         const dailyProgress = [];
         for (let i = 6; i >= 0; i--) {
           const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
           const dayTasks = completedTasks.filter(task => {
-            const taskDate = new Date(task.completedAt);
-            return taskDate.toDateString() === date.toDateString();
+            try {
+              const taskDate = new Date(task.completedAt);
+              return taskDate.toDateString() === date.toDateString();
+            } catch (error) {
+              return false;
+            }
           });
           
           dailyProgress.push({
             date: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
             completed: dayTasks.length,
-            xp: dayTasks.reduce((sum, task) => sum + (task.xpEarned || 20), 0)
+            xp: dayTasks.reduce((sum, task) => sum + (task.xpEarned || task.xp || 20), 0)
           });
         }
 
@@ -71,6 +88,8 @@ const Analytics = () => {
           priorityDistribution,
           dailyProgress
         });
+
+        console.log('✅ Analytics calculées:', { metrics, priorityDistribution, dailyProgress });
       } catch (error) {
         console.error('❌ Erreur calcul analytics:', error);
       } finally {
@@ -98,6 +117,9 @@ const Analytics = () => {
         <div className="text-center">
           <div className="text-6xl mb-4">📊</div>
           <p className="text-gray-400">Aucune donnée analytics disponible</p>
+          <p className="text-gray-500 text-sm mt-2">
+            Créez quelques tâches pour voir vos statistiques
+          </p>
         </div>
       </div>
     );
@@ -206,25 +228,30 @@ const Analytics = () => {
               📊 Progression Quotidienne
             </h3>
             <div className="space-y-4">
-              {dailyProgress.map((day, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span className="text-gray-400 w-12">{day.date}</span>
-                  <div className="flex-1 mx-4">
-                    <div className="bg-gray-700 rounded-full h-3">
-                      <div 
-                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min(100, (day.completed / Math.max(1, Math.max(...dailyProgress.map(d => d.completed)))) * 100)}%` }}
-                      ></div>
+              {dailyProgress.map((day, index) => {
+                const maxCompleted = Math.max(1, Math.max(...dailyProgress.map(d => d.completed)));
+                const widthPercent = Math.min(100, (day.completed / maxCompleted) * 100);
+                
+                return (
+                  <div key={index} className="flex items-center justify-between">
+                    <span className="text-gray-400 w-12">{day.date}</span>
+                    <div className="flex-1 mx-4">
+                      <div className="bg-gray-700 rounded-full h-3">
+                        <div 
+                          className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300"
+                          style={{ width: `${widthPercent}%` }}
+                        ></div>
+                      </div>
                     </div>
+                    <span className="text-white font-medium w-8 text-right">
+                      {day.completed}
+                    </span>
+                    <span className="text-purple-400 text-sm ml-2 w-12 text-right">
+                      +{day.xp}XP
+                    </span>
                   </div>
-                  <span className="text-white font-medium w-8 text-right">
-                    {day.completed}
-                  </span>
-                  <span className="text-purple-400 text-sm ml-2 w-12 text-right">
-                    +{day.xp}XP
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -239,25 +266,29 @@ const Analytics = () => {
                 { key: 'high', label: 'Haute', color: 'bg-orange-500', count: priorityDistribution.high },
                 { key: 'medium', label: 'Moyenne', color: 'bg-yellow-500', count: priorityDistribution.medium },
                 { key: 'low', label: 'Basse', color: 'bg-green-500', count: priorityDistribution.low }
-              ].map((priority) => (
-                <div key={priority.key} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-4 h-4 rounded-full ${priority.color}`}></div>
-                    <span className="text-gray-300">{priority.label}</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="bg-gray-700 rounded-full h-2 w-24">
-                      <div 
-                        className={`h-2 rounded-full transition-all duration-300 ${priority.color}`}
-                        style={{ width: `${Math.min(100, (priority.count / Math.max(1, metrics.totalTasks)) * 100)}%` }}
-                      ></div>
+              ].map((priority) => {
+                const widthPercent = Math.min(100, (priority.count / Math.max(1, metrics.totalTasks)) * 100);
+                
+                return (
+                  <div key={priority.key} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-4 h-4 rounded-full ${priority.color}`}></div>
+                      <span className="text-gray-300">{priority.label}</span>
                     </div>
-                    <span className="text-white font-medium w-8 text-right">
-                      {priority.count}
-                    </span>
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-gray-700 rounded-full h-2 w-24">
+                        <div 
+                          className={`h-2 rounded-full transition-all duration-300 ${priority.color}`}
+                          style={{ width: `${widthPercent}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-white font-medium w-8 text-right">
+                        {priority.count}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -297,7 +328,7 @@ const Analytics = () => {
         {/* Footer analytics */}
         <div className="text-center py-4">
           <p className="text-gray-500 text-sm">
-            Données mises à jour en temps réel • Utilisateur: {user?.email}
+            Données mises à jour en temps réel • Utilisateur: {user?.email} • {tasks?.length || 0} tâches
           </p>
         </div>
       </div>
