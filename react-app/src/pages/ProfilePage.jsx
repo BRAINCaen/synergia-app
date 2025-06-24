@@ -36,7 +36,7 @@ import {
   Clock,
   CheckCircle,
   Zap,
-  Fire,
+  Flame,
   Crown,
   Shield,
   Camera,
@@ -532,7 +532,7 @@ const ProfilePage = () => {
                       <p className="text-gray-400 text-sm">Série actuelle</p>
                       <p className="text-2xl font-bold text-white">{userStats?.loginStreak || 0}</p>
                     </div>
-                    <Fire className="w-8 h-8 text-orange-400" />
+                    <Flame className="w-8 h-8 text-orange-400" />
                   </div>
                 </div>
               </div>
