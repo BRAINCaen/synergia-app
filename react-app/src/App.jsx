@@ -1,21 +1,70 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// 🔧 CORRECTION : Imports avec chemins corrects selon votre architecture
+// 🔧 IMPORT UNIQUEMENT LES STORES QUI EXISTENT
 import { useAuthStore } from './shared/stores/authStore.js';
-import { useGamificationStore } from './shared/stores/gamificationStore.js';
 
-// Pages - Import depuis la structure modulaire existante
+// Pages - Import basique pour commencer
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
-import Analytics from './pages/Analytics.jsx';
 
-// Components
-import MainLayout from './components/MainLayout.jsx';
-import LoadingSpinner from './components/LoadingSpinner.jsx';
+// Component de chargement simple
+function LoadingSpinner() {
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="flex flex-col items-center space-y-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <p className="text-white">Chargement...</p>
+      </div>
+    </div>
+  );
+}
 
-// Routes modulaires
-import AppRoutes from './routes/index.jsx';
+// Layout simple
+function SimpleLayout({ children }) {
+  const { user, signOut } = useAuthStore();
+
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-900">
+      {/* Header simple */}
+      <header className="bg-gray-800 shadow-lg border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-2">
+              <span className="text-2xl">⚡</span>
+              <span className="text-xl font-bold text-white">Synergia</span>
+              <span className="text-sm bg-green-500 text-white px-2 py-1 rounded-full">
+                v3.3
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <span className="text-white text-sm">
+                {user?.displayName || 'Utilisateur'}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-gray-700"
+                title="Déconnexion"
+              >
+                🚪
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Contenu principal */}
+      <main className="flex-1">
+        {children}
+      </main>
+    </div>
+  );
+}
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -29,22 +78,15 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />;
   }
   
-  return children;
+  return <SimpleLayout>{children}</SimpleLayout>;
 }
 
 function App() {
   const { user, loading, checkAuth } = useAuthStore();
-  const { initializeGameData } = useGamificationStore();
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
-
-  useEffect(() => {
-    if (user) {
-      initializeGameData(user.uid);
-    }
-  }, [user, initializeGameData]);
 
   if (loading) {
     return <LoadingSpinner />;
@@ -59,23 +101,25 @@ function App() {
           element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
         />
 
-        {/* Routes protégées avec layout */}
+        {/* Routes protégées */}
         <Route 
-          path="/"
+          path="/dashboard"
           element={
             <ProtectedRoute>
-              <MainLayout />
+              <Dashboard />
             </ProtectedRoute>
           }
-        >
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="analytics" element={<Analytics />} />
-          {/* Les autres routes seront ajoutées progressivement */}
-        </Route>
+        />
 
         {/* Route par défaut */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route 
+          path="/" 
+          element={<Navigate to="/dashboard" replace />} 
+        />
+        <Route 
+          path="*" 
+          element={<Navigate to="/dashboard" replace />} 
+        />
       </Routes>
     </Router>
   );
