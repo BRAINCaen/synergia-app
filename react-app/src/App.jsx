@@ -1,139 +1,73 @@
-// ==========================================
-// 📁 react-app/src/App.jsx
-// App principal avec routage CORRIGÉ - Navigation complète
-// ==========================================
-
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './shared/stores/authStore';
-
-// Layouts
-import MainLayout from './layouts/MainLayout';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthStore } from './stores/authStore';
+import { useGameStore } from './stores/gameStore';
 
 // Pages
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import TeamPage from './pages/TeamPage';
-import Analytics from './pages/Analytics';
-import NotFound from './pages/NotFound';
+import Tasks from './pages/Tasks';
+import Projects from './pages/Projects';
+import ProjectDetail from './pages/ProjectDetail';
+import Leaderboard from './pages/Leaderboard';
+import Profile from './pages/Profile';
+import Analytics from './pages/Analytics'; // 🆕 Nouvelle page
 
-// Modules
-import ProjectDashboard from './modules/projects/ProjectDashboard';
-import ProjectDetailView from './modules/projects/ProjectDetailView';
-import TaskList from './modules/tasks/TaskList';
-import Profile from './modules/profile/components/Profile';
-import GamificationDashboard from './modules/gamification/GamificationDashboard';
-
-// Composants de gamification
-import Leaderboard from './components/gamification/Leaderboard';
-import TeamDashboard from './components/TeamDashboard';
-
-// ✅ Composant de protection des routes
-const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuthStore();
-  
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-white">Vérification de l'authentification...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return children;
-};
-
-// ✅ Route publique (redirect si connecté)
-const PublicRoute = ({ children }) => {
-  const { user, loading } = useAuthStore();
-  
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-white">Chargement...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  if (user) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  
-  return children;
-};
+// Components
+import MainLayout from './components/MainLayout';
+import ProtectedRoute from './components/ProtectedRoute';
+import LoadingSpinner from './components/LoadingSpinner';
 
 function App() {
-  const { initializeAuth } = useAuthStore();
+  const { user, loading, checkAuth } = useAuthStore();
+  const { initializeGameData } = useGameStore();
 
   useEffect(() => {
-    console.log('🚀 Initialisation de Synergia App...');
-    initializeAuth();
-  }, [initializeAuth]);
+    checkAuth();
+  }, [checkAuth]);
+
+  useEffect(() => {
+    if (user) {
+      initializeGameData(user.uid);
+    }
+  }, [user, initializeGameData]);
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
 
   return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-gray-900">
-        <Routes>
-          {/* ✅ Route publique - Login */}
-          <Route 
-            path="/login" 
-            element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            } 
-          />
+    <Router>
+      <Routes>
+        {/* Route publique */}
+        <Route 
+          path="/login" 
+          element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
+        />
 
-          {/* ✅ Routes protégées avec MainLayout */}
-          <Route 
-            path="/" 
-            element={
-              <ProtectedRoute>
-                <MainLayout />
-              </ProtectedRoute>
-            }
-          >
-            {/* Dashboard par défaut */}
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            
-            {/* ✅ Pages principales */}
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="team" element={<TeamPage />} />
-            <Route path="analytics" element={<Analytics />} />
-            
-            {/* ✅ Modules Projets */}
-            <Route path="projects" element={<ProjectDashboard />} />
-            <Route path="projects/:id" element={<ProjectDetailView />} />
-            
-            {/* ✅ Modules Tâches */}
-            <Route path="tasks" element={<TaskList />} />
-            
-            {/* ✅ Gamification */}
-            <Route path="leaderboard" element={<Leaderboard />} />
-            <Route path="gamification" element={<GamificationDashboard />} />
-            
-            {/* ✅ Profil */}
-            <Route path="profile" element={<Profile />} />
-            
-            {/* ✅ Team Dashboard */}
-            <Route path="team-dashboard" element={<TeamDashboard />} />
-          </Route>
+        {/* Routes protégées */}
+        <Route 
+          path="/"
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="tasks" element={<Tasks />} />
+          <Route path="projects" element={<Projects />} />
+          <Route path="projects/:id" element={<ProjectDetail />} />
+          <Route path="leaderboard" element={<Leaderboard />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="analytics" element={<Analytics />} /> {/* 🆕 Nouvelle route */}
+        </Route>
 
-          {/* ✅ Route 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </div>
-    </BrowserRouter>
+        {/* Route par défaut */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </Router>
   );
 }
 
