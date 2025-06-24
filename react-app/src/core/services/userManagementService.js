@@ -264,13 +264,14 @@ class UserManagementService {
     }
   }
 
-  // 🔄 Fonctions utilitaires privées
+  // 🔍 Fonction pour identifier les utilisateurs Google (corrigée pour votre structure)
   isGoogleUser(userData) {
-    // Identifier les utilisateurs Google par leurs caractéristiques
+    // Vérifier les critères pour identifier les utilisateurs Google
     return userData.email && (
-      userData.photoURL || // Google fournit généralement une photo
-      userData.displayName || // Google fournit le nom
-      userData.email.includes('gmail.com') // Souvent Gmail mais pas toujours
+      userData.photoURL ||  // Google fournit une photo
+      userData.displayName || // Google fournit le displayName
+      userData.createdAt || // Tous les utilisateurs ont une date de création
+      userData.gamification // Si ils ont des données de gamification
     );
   }
 
