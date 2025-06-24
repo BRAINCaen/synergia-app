@@ -1,677 +1,1022 @@
+// src/pages/TasksPage.jsx
 import React, { useState, useEffect } from 'react';
 import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc,
-  serverTimestamp 
-} from 'firebase/firestore';
-import { db } from '../core/firebase';
-import { useAuthStore } from '../shared/stores/authStore';
-import { useGameStore } from '../shared/stores/gameStore';
-import { taskService } from '../core/services/taskService';
-import { gamificationService } from '../core/services/gamificationService';
-
-// Icônes
-import { 
-  PlusCircle, 
-  Search, 
-  Filter, 
-  Calendar, 
-  Clock, 
-  Star, 
-  CheckCircle, 
-  Circle, 
-  Edit3, 
-  Trash2,
-  Tag,
-  Target,
-  TrendingUp,
-  AlertCircle,
-  Trophy
+  Plus, Search, Filter, Calendar, Clock, Target, Flag, 
+  CheckCircle, Circle, Edit, Trash2, Eye, Tag, FolderOpen,
+  AlertTriangle, TrendingUp, BarChart3, Users
 } from 'lucide-react';
+import { useTaskStore } from '../shared/stores/taskStore.js';
+import { useProjectStore } from '../shared/stores/projectStore.js';
+import { useAuthStore } from '../shared/stores/authStore.js';
 
 const TasksPage = () => {
-  const [tasks, setTasks] = useState([]);
-  const [filteredTasks, setFilteredTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // États locaux
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterPriority, setFilterPriority] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [projectFilter, setProjectFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [viewMode, setViewMode] = useState('cards'); // cards, list, kanban
+  const [sortBy, setSortBy] = useState('dueDate'); // dueDate, priority, created, title
+  const [sortOrder, setSortOrder] = useState('asc');
+
+  // Stores
+  const { 
+    tasks, 
+    loading, 
+    createTask, 
+    updateTask, 
+    deleteTask, 
+    loadUserTasks,
+    completeTask 
+  } = useTaskStore();
   
+  const { projects, loadUserProjects } = useProjectStore();
   const { user } = useAuthStore();
-  const { userStats } = useGameStore();
 
-  // État du formulaire
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    priority: 'medium',
-    complexity: 'medium',
-    dueDate: '',
-    tags: [],
-    projectId: ''
-  });
-
-  // Écouter les tâches en temps réel depuis Firebase
+  // Charger les données
   useEffect(() => {
-    if (!user?.uid) return;
+    if (user?.uid) {
+      loadUserTasks(user.uid);
+      loadUserProjects(user.uid);
+    }
+  }, [user?.uid, loadUserTasks, loadUserProjects]);
 
-    const tasksQuery = query(
-      collection(db, 'tasks'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
-      const tasksData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate(),
-        dueDate: doc.data().dueDate?.toDate()
-      }));
-      
-      setTasks(tasksData);
-      setLoading(false);
-    }, (error) => {
-      console.error('Erreur écoute tâches:', error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user?.uid]);
-
-  // Filtrer les tâches en temps réel
-  useEffect(() => {
-    let filtered = tasks;
-
-    // Filtre par terme de recherche
-    if (searchTerm) {
-      filtered = filtered.filter(task => 
-        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  // Filtrer et trier les tâches
+  const getFilteredAndSortedTasks = () => {
+    let filtered = tasks.filter(task => {
+      // Filtre recherche
+      const matchesSearch = !searchTerm || 
+        task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-    }
+        task.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    // Filtre par statut
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(task => task.status === filterStatus);
-    }
+      // Filtre statut
+      const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
 
-    // Filtre par priorité
-    if (filterPriority !== 'all') {
-      filtered = filtered.filter(task => task.priority === filterPriority);
-    }
+      // Filtre priorité
+      const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
 
-    setFilteredTasks(filtered);
-  }, [tasks, searchTerm, filterStatus, filterPriority]);
+      // Filtre projet
+      const matchesProject = projectFilter === 'all' || 
+        (projectFilter === 'none' && !task.projectId) ||
+        task.projectId === projectFilter;
 
-  // Créer ou modifier une tâche
-  const handleSubmitTask = async (e) => {
-    e.preventDefault();
-    if (!formData.title.trim()) return;
+      // Filtre date
+      const matchesDate = dateFilter === 'all' || (() => {
+        if (!task.dueDate) return dateFilter === 'no-date';
+        const dueDate = new Date(task.dueDate.seconds ? task.dueDate.seconds * 1000 : task.dueDate);
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        const week = new Date(today);
+        week.setDate(today.getDate() + 7);
 
-    setSubmitting(true);
-    try {
-      const taskData = {
-        ...formData,
-        userId: user.uid,
-        status: 'todo',
-        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
-        tags: formData.tags.filter(tag => tag.trim()),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
+        switch (dateFilter) {
+          case 'overdue':
+            return dueDate < today && task.status !== 'completed';
+          case 'today':
+            return dueDate.toDateString() === today.toDateString();
+          case 'tomorrow':
+            return dueDate.toDateString() === tomorrow.toDateString();
+          case 'week':
+            return dueDate <= week && dueDate >= today;
+          case 'no-date':
+            return false;
+          default:
+            return true;
+        }
+      })();
 
-      if (editingTask) {
-        // Modifier tâche existante
-        await updateDoc(doc(db, 'tasks', editingTask.id), {
-          ...taskData,
-          createdAt: editingTask.createdAt // Garder date création originale
-        });
-      } else {
-        // Créer nouvelle tâche
-        await addDoc(collection(db, 'tasks'), taskData);
-        
-        // Ajouter XP pour création de tâche
-        await gamificationService.addXP(user.uid, 10, 'Nouvelle tâche créée');
-      }
-
-      // Reset formulaire
-      setFormData({
-        title: '',
-        description: '',
-        priority: 'medium',
-        complexity: 'medium',
-        dueDate: '',
-        tags: [],
-        projectId: ''
-      });
-      setShowTaskForm(false);
-      setEditingTask(null);
-
-    } catch (error) {
-      console.error('Erreur sauvegarde tâche:', error);
-      alert('Erreur lors de la sauvegarde de la tâche');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Marquer tâche comme complétée/non complétée
-  const toggleTaskStatus = async (task) => {
-    try {
-      const newStatus = task.status === 'completed' ? 'todo' : 'completed';
-      
-      await updateDoc(doc(db, 'tasks', task.id), {
-        status: newStatus,
-        completedAt: newStatus === 'completed' ? serverTimestamp() : null,
-        updatedAt: serverTimestamp()
-      });
-
-      // Ajouter XP si tâche complétée
-      if (newStatus === 'completed') {
-        const xpGain = task.xpReward || (
-          task.priority === 'high' ? 50 : 
-          task.priority === 'medium' ? 30 : 20
-        );
-        await gamificationService.addXP(user.uid, xpGain, `Tâche complétée: ${task.title}`);
-      }
-
-    } catch (error) {
-      console.error('Erreur mise à jour statut:', error);
-    }
-  };
-
-  // Supprimer une tâche
-  const deleteTask = async (taskId) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
-      try {
-        await deleteDoc(doc(db, 'tasks', taskId));
-      } catch (error) {
-        console.error('Erreur suppression tâche:', error);
-        alert('Erreur lors de la suppression');
-      }
-    }
-  };
-
-  // Modifier une tâche
-  const startEditTask = (task) => {
-    setFormData({
-      title: task.title,
-      description: task.description || '',
-      priority: task.priority || 'medium',
-      complexity: task.complexity || 'medium',
-      dueDate: task.dueDate ? task.dueDate.toISOString().split('T')[0] : '',
-      tags: task.tags || [],
-      projectId: task.projectId || ''
+      return matchesSearch && matchesStatus && matchesPriority && matchesProject && matchesDate;
     });
-    setEditingTask(task);
-    setShowTaskForm(true);
+
+    // Trier
+    filtered.sort((a, b) => {
+      let aVal, bVal;
+      
+      switch (sortBy) {
+        case 'priority':
+          const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
+          aVal = priorityOrder[a.priority] || 0;
+          bVal = priorityOrder[b.priority] || 0;
+          break;
+        case 'dueDate':
+          aVal = a.dueDate ? new Date(a.dueDate.seconds ? a.dueDate.seconds * 1000 : a.dueDate) : new Date('2099-12-31');
+          bVal = b.dueDate ? new Date(b.dueDate.seconds ? b.dueDate.seconds * 1000 : b.dueDate) : new Date('2099-12-31');
+          break;
+        case 'created':
+          aVal = new Date(a.createdAt.seconds ? a.createdAt.seconds * 1000 : a.createdAt);
+          bVal = new Date(b.createdAt.seconds ? b.createdAt.seconds * 1000 : b.createdAt);
+          break;
+        case 'title':
+          aVal = a.title.toLowerCase();
+          bVal = b.title.toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+
+      if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
   };
 
-  // Ajouter un tag
-  const addTag = (tag) => {
-    if (tag && !formData.tags.includes(tag)) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, tag]
-      }));
-    }
-  };
+  const filteredTasks = getFilteredAndSortedTasks();
 
-  // Supprimer un tag
-  const removeTag = (tagToRemove) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }));
-  };
-
-  // Fonctions utilitaires
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'high': return 'text-red-400 bg-red-400/10 border-red-400/20';
-      case 'medium': return 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20';
-      case 'low': return 'text-green-400 bg-green-400/10 border-green-400/20';
-      default: return 'text-gray-400 bg-gray-400/10 border-gray-400/20';
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'text-green-400';
-      case 'in_progress': return 'text-blue-400';
-      case 'todo': return 'text-gray-400';
-      default: return 'text-gray-400';
-    }
-  };
-
-  const formatDate = (date) => {
-    if (!date) return '';
-    const today = new Date();
-    const diffTime = date.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 0) return `En retard de ${Math.abs(diffDays)} jour(s)`;
-    if (diffDays === 0) return 'Aujourd\'hui';
-    if (diffDays === 1) return 'Demain';
-    return `Dans ${diffDays} jour(s)`;
-  };
-
+  // Calculer les statistiques
   const getTaskStats = () => {
     const total = tasks.length;
     const completed = tasks.filter(t => t.status === 'completed').length;
     const inProgress = tasks.filter(t => t.status === 'in_progress').length;
     const todo = tasks.filter(t => t.status === 'todo').length;
-    
-    return { total, completed, inProgress, todo };
+    const overdue = tasks.filter(t => {
+      if (!t.dueDate || t.status === 'completed') return false;
+      const dueDate = new Date(t.dueDate.seconds ? t.dueDate.seconds * 1000 : t.dueDate);
+      return dueDate < new Date();
+    }).length;
+
+    return { total, completed, inProgress, todo, overdue };
   };
 
   const stats = getTaskStats();
 
-  if (loading) {
+  // Gestionnaires d'événements
+  const handleCreateTask = async (taskData) => {
+    try {
+      await createTask(taskData, user.uid);
+      setShowTaskForm(false);
+    } catch (error) {
+      console.error('Erreur création tâche:', error);
+      alert('Erreur lors de la création de la tâche');
+    }
+  };
+
+  const handleUpdateTask = async (taskData) => {
+    try {
+      await updateTask(editingTask.id, taskData, user.uid);
+      setEditingTask(null);
+      setShowTaskForm(false);
+    } catch (error) {
+      console.error('Erreur modification tâche:', error);
+      alert('Erreur lors de la modification de la tâche');
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
+      try {
+        await deleteTask(taskId, user.uid);
+      } catch (error) {
+        console.error('Erreur suppression tâche:', error);
+        alert('Erreur lors de la suppression de la tâche');
+      }
+    }
+  };
+
+  const handleCompleteTask = async (taskId) => {
+    try {
+      await completeTask(taskId, user.uid);
+    } catch (error) {
+      console.error('Erreur completion tâche:', error);
+      alert('Erreur lors de la completion de la tâche');
+    }
+  };
+
+  const handleEditTask = (task) => {
+    setEditingTask(task);
+    setShowTaskForm(true);
+  };
+
+  // Fonctions utilitaires
+  const getPriorityColor = (priority) => {
+    const colors = {
+      urgent: 'text-red-500 border-red-500 bg-red-500/10',
+      high: 'text-orange-500 border-orange-500 bg-orange-500/10',
+      medium: 'text-yellow-500 border-yellow-500 bg-yellow-500/10',
+      low: 'text-green-500 border-green-500 bg-green-500/10'
+    };
+    return colors[priority] || colors.medium;
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      completed: 'text-green-400',
+      in_progress: 'text-blue-400', 
+      todo: 'text-gray-400'
+    };
+    return colors[status] || colors.todo;
+  };
+
+  const formatDate = (date) => {
+    if (!date) return null;
+    try {
+      const dateObj = new Date(date.seconds ? date.seconds * 1000 : date);
+      const today = new Date();
+      const diffTime = dateObj.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays < 0) return { text: `En retard de ${Math.abs(diffDays)} jour(s)`, color: 'text-red-400' };
+      if (diffDays === 0) return { text: 'Aujourd\'hui', color: 'text-yellow-400' };
+      if (diffDays === 1) return { text: 'Demain', color: 'text-blue-400' };
+      if (diffDays <= 7) return { text: `Dans ${diffDays} jour(s)`, color: 'text-green-400' };
+      return { text: dateObj.toLocaleDateString('fr-FR'), color: 'text-gray-400' };
+    } catch (error) {
+      return { text: 'Date invalide', color: 'text-red-400' };
+    }
+  };
+
+  const getProjectName = (projectId) => {
+    if (!projectId) return 'Aucun projet';
+    const project = projects.find(p => p.id === projectId);
+    return project?.title || 'Projet supprimé';
+  };
+
+  const resetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setPriorityFilter('all');
+    setProjectFilter('all');
+    setDateFilter('all');
+  };
+
+  return (
+    <div className="p-6">
+      {/* En-tête */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Tâches</h1>
+          <p className="text-gray-400">Gérez vos tâches et suivez votre progression</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Bouton vue */}
+          <div className="flex bg-gray-800 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`p-2 rounded ${viewMode === 'cards' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
+              title="Vue cartes"
+            >
+              <BarChart3 size={18} />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
+              title="Vue liste"
+            >
+              <Target size={18} />
+            </button>
+          </div>
+          
+          <button
+            onClick={() => setShowTaskForm(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            <Plus size={20} />
+            Nouvelle Tâche
+          </button>
+        </div>
+      </div>
+
+      {/* Statistiques */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm">Total</p>
+              <p className="text-2xl font-bold text-white">{stats.total}</p>
+            </div>
+            <Target className="text-blue-400" size={24} />
+          </div>
+        </div>
+        
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm">À faire</p>
+              <p className="text-2xl font-bold text-white">{stats.todo}</p>
+            </div>
+            <Circle className="text-gray-400" size={24} />
+          </div>
+        </div>
+        
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm">En cours</p>
+              <p className="text-2xl font-bold text-white">{stats.inProgress}</p>
+            </div>
+            <Clock className="text-yellow-400" size={24} />
+          </div>
+        </div>
+        
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm">Terminées</p>
+              <p className="text-2xl font-bold text-white">{stats.completed}</p>
+            </div>
+            <CheckCircle className="text-green-400" size={24} />
+          </div>
+        </div>
+        
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm">En retard</p>
+              <p className="text-2xl font-bold text-white">{stats.overdue}</p>
+            </div>
+            <AlertTriangle className="text-red-400" size={24} />
+          </div>
+        </div>
+      </div>
+
+      {/* Filtres avancés */}
+      <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 mb-8">
+        <div className="space-y-4">
+          {/* Première ligne : Recherche et actions */}
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Rechercher dans les tâches..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <button
+                onClick={resetFilters}
+                className="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Réinitialiser
+              </button>
+              
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="dueDate">Trier par échéance</option>
+                <option value="priority">Trier par priorité</option>
+                <option value="created">Trier par création</option>
+                <option value="title">Trier par titre</option>
+              </select>
+              
+              <button
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
+                title={`Ordre ${sortOrder === 'asc' ? 'croissant' : 'décroissant'}`}
+              >
+                {sortOrder === 'asc' ? '↑' : '↓'}
+              </button>
+            </div>
+          </div>
+
+          {/* Deuxième ligne : Filtres */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Tous les statuts</option>
+              <option value="todo">À faire</option>
+              <option value="in_progress">En cours</option>
+              <option value="completed">Terminées</option>
+            </select>
+
+            <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Toutes priorités</option>
+              <option value="urgent">Urgente</option>
+              <option value="high">Haute</option>
+              <option value="medium">Moyenne</option>
+              <option value="low">Basse</option>
+            </select>
+
+            <select
+              value={projectFilter}
+              onChange={(e) => setProjectFilter(e.target.value)}
+              className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Tous les projets</option>
+              <option value="none">Sans projet</option>
+              {projects.map(project => (
+                <option key={project.id} value={project.id}>
+                  {project.title}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Toutes les dates</option>
+              <option value="overdue">En retard</option>
+              <option value="today">Aujourd'hui</option>
+              <option value="tomorrow">Demain</option>
+              <option value="week">Cette semaine</option>
+              <option value="no-date">Sans date</option>
+            </select>
+
+            <div className="flex items-center justify-center bg-gray-700 rounded-lg px-3 py-2 text-gray-300">
+              <span className="text-sm">{filteredTasks.length} résultat(s)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Liste des tâches */}
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      ) : filteredTasks.length === 0 ? (
+        <div className="text-center py-12">
+          <Target className="mx-auto text-gray-600 mb-4" size={48} />
+          <p className="text-gray-400 text-lg mb-2">
+            {tasks.length === 0 ? 'Aucune tâche créée' : 'Aucune tâche trouvée'}
+          </p>
+          <p className="text-gray-500 mb-6">
+            {tasks.length === 0 
+              ? 'Commencez par créer votre première tâche'
+              : 'Essayez de modifier vos filtres'
+            }
+          </p>
+          {tasks.length === 0 && (
+            <button
+              onClick={() => setShowTaskForm(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 mx-auto"
+            >
+              <Plus size={20} />
+              Créer ma première tâche
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className={viewMode === 'cards' ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6' : 'space-y-4'}>
+          {filteredTasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              viewMode={viewMode}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+              onComplete={handleCompleteTask}
+              onView={setSelectedTask}
+              getProjectName={getProjectName}
+              getPriorityColor={getPriorityColor}
+              getStatusColor={getStatusColor}
+              formatDate={formatDate}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Modal TaskForm */}
+      {showTaskForm && (
+        <TaskFormModal
+          task={editingTask}
+          projects={projects}
+          onSave={editingTask ? handleUpdateTask : handleCreateTask}
+          onClose={() => {
+            setShowTaskForm(false);
+            setEditingTask(null);
+          }}
+        />
+      )}
+
+      {/* Modal détails tâche */}
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+          onEdit={handleEditTask}
+          onDelete={handleDeleteTask}
+          onComplete={handleCompleteTask}
+          getProjectName={getProjectName}
+          getPriorityColor={getPriorityColor}
+          getStatusColor={getStatusColor}
+          formatDate={formatDate}
+        />
+      )}
+    </div>
+  );
+};
+
+// Composant carte de tâche
+const TaskCard = ({ 
+  task, 
+  viewMode, 
+  onEdit, 
+  onDelete, 
+  onComplete, 
+  onView,
+  getProjectName,
+  getPriorityColor,
+  getStatusColor,
+  formatDate 
+}) => {
+  const dateInfo = formatDate(task.dueDate);
+
+  if (viewMode === 'list') {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white flex items-center gap-3">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          Chargement des tâches...
+      <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition-colors">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4 flex-1">
+            <button
+              onClick={() => onComplete(task.id)}
+              className={getStatusColor(task.status)}
+            >
+              {task.status === 'completed' ? (
+                <CheckCircle size={20} />
+              ) : (
+                <Circle size={20} />
+              )}
+            </button>
+            
+            <div className="flex-1">
+              <h3 className={`font-medium ${task.status === 'completed' ? 'line-through text-gray-500' : 'text-white'}`}>
+                {task.title}
+              </h3>
+              <div className="flex items-center gap-4 text-sm mt-1">
+                <span className={`px-2 py-1 rounded-full border text-xs ${getPriorityColor(task.priority)}`}>
+                  {task.priority}
+                </span>
+                
+                <span className="text-gray-400">
+                  <FolderOpen size={14} className="inline mr-1" />
+                  {getProjectName(task.projectId)}
+                </span>
+                
+                {dateInfo && (
+                  <span className={dateInfo.color}>
+                    <Calendar size={14} className="inline mr-1" />
+                    {dateInfo.text}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onView(task)}
+              className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
+              title="Voir détails"
+            >
+              <Eye size={16} />
+            </button>
+            <button
+              onClick={() => onEdit(task)}
+              className="p-2 text-gray-400 hover:text-yellow-400 transition-colors"
+              title="Modifier"
+            >
+              <Edit size={16} />
+            </button>
+            <button
+              onClick={() => onDelete(task.id)}
+              className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+              title="Supprimer"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
+  // Vue cartes
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <div className="border-b border-gray-700 bg-gray-800/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                <Target className="w-8 h-8 text-blue-400" />
-                Mes Tâches
-              </h1>
-              <p className="text-gray-400 mt-2">
-                Gérez et suivez toutes vos tâches en cours
+    <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 hover:border-gray-600 transition-colors">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start gap-3 flex-1">
+          <button
+            onClick={() => onComplete(task.id)}
+            className={`mt-1 ${getStatusColor(task.status)}`}
+          >
+            {task.status === 'completed' ? (
+              <CheckCircle size={20} />
+            ) : (
+              <Circle size={20} />
+            )}
+          </button>
+          
+          <div className="flex-1">
+            <h3 className={`text-lg font-semibold mb-2 ${task.status === 'completed' ? 'line-through text-gray-500' : 'text-white'}`}>
+              {task.title}
+            </h3>
+            
+            {task.description && (
+              <p className="text-gray-400 text-sm mb-3 line-clamp-2">
+                {task.description}
               </p>
-            </div>
-            <button
-              onClick={() => setShowTaskForm(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
-            >
-              <PlusCircle className="w-5 h-5" />
-              Nouvelle tâche
-            </button>
+            )}
           </div>
-
-          {/* Statistiques */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-            <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Total</p>
-                  <p className="text-2xl font-bold text-white">{stats.total}</p>
-                </div>
-                <Target className="w-8 h-8 text-gray-400" />
-              </div>
-            </div>
-            <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Complétées</p>
-                  <p className="text-2xl font-bold text-green-400">{stats.completed}</p>
-                </div>
-                <CheckCircle className="w-8 h-8 text-green-400" />
-              </div>
-            </div>
-            <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">En cours</p>
-                  <p className="text-2xl font-bold text-blue-400">{stats.inProgress}</p>
-                </div>
-                <Clock className="w-8 h-8 text-blue-400" />
-              </div>
-            </div>
-            <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">À faire</p>
-                  <p className="text-2xl font-bold text-yellow-400">{stats.todo}</p>
-                </div>
-                <Circle className="w-8 h-8 text-yellow-400" />
-              </div>
-            </div>
-          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onView(task)}
+            className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
+            title="Voir détails"
+          >
+            <Eye size={16} />
+          </button>
+          <button
+            onClick={() => onEdit(task)}
+            className="p-2 text-gray-400 hover:text-yellow-400 transition-colors"
+            title="Modifier"
+          >
+            <Edit size={16} />
+          </button>
+          <button
+            onClick={() => onDelete(task.id)}
+            className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+            title="Supprimer"
+          >
+            <Trash2 size={16} />
+          </button>
         </div>
       </div>
 
-      {/* Filtres et recherche */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          {/* Recherche */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Rechercher des tâches..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* Filtres */}
-          <div className="flex gap-2">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="todo">À faire</option>
-              <option value="in_progress">En cours</option>
-              <option value="completed">Complétées</option>
-            </select>
-
-            <select
-              value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value)}
-              className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Toutes priorités</option>
-              <option value="high">Haute</option>
-              <option value="medium">Moyenne</option>
-              <option value="low">Basse</option>
-            </select>
-          </div>
+      <div className="space-y-3">
+        {/* Priorité et projet */}
+        <div className="flex items-center justify-between">
+          <span className={`px-3 py-1 rounded-full border text-sm font-medium ${getPriorityColor(task.priority)}`}>
+            <Flag size={14} className="inline mr-1" />
+            {task.priority === 'urgent' ? 'Urgente' :
+             task.priority === 'high' ? 'Haute' :
+             task.priority === 'medium' ? 'Moyenne' : 'Basse'}
+          </span>
+          
+          <span className="text-gray-400 text-sm">
+            <FolderOpen size={14} className="inline mr-1" />
+            {getProjectName(task.projectId)}
+          </span>
         </div>
 
-        {/* Liste des tâches */}
-        {filteredTasks.length === 0 ? (
-          <div className="text-center py-12">
-            <Target className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-400 mb-2">
-              {tasks.length === 0 ? 'Aucune tâche' : 'Aucun résultat'}
-            </h3>
-            <p className="text-gray-500 mb-6">
-              {tasks.length === 0 
-                ? 'Commencez par créer votre première tâche'
-                : 'Essayez de modifier vos filtres de recherche'
-              }
-            </p>
-            {tasks.length === 0 && (
-              <button
-                onClick={() => setShowTaskForm(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg inline-flex items-center gap-2"
-              >
-                <PlusCircle className="w-5 h-5" />
-                Créer ma première tâche
-              </button>
-            )}
+        {/* Date d'échéance */}
+        {dateInfo && (
+          <div className="flex items-center gap-2">
+            <Calendar size={16} className="text-gray-400" />
+            <span className={`text-sm ${dateInfo.color}`}>
+              {dateInfo.text}
+            </span>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredTasks.map((task) => (
-              <div
-                key={task.id}
-                className="bg-gray-800 border border-gray-700 rounded-lg p-6 hover:border-gray-600 transition-colors"
+        )}
+
+        {/* Tags */}
+        {task.tags && task.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {task.tags.slice(0, 3).map((tag, index) => (
+              <span
+                key={index}
+                className="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded flex items-center gap-1"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-4 flex-1">
-                    {/* Checkbox statut */}
-                    <button
-                      onClick={() => toggleTaskStatus(task)}
-                      className={`mt-1 ${getStatusColor(task.status)}`}
-                    >
-                      {task.status === 'completed' ? (
-                        <CheckCircle className="w-6 h-6" />
-                      ) : (
-                        <Circle className="w-6 h-6" />
-                      )}
-                    </button>
-
-                    {/* Contenu tâche */}
-                    <div className="flex-1">
-                      <h3 className={`text-lg font-semibold mb-2 ${
-                        task.status === 'completed' ? 'line-through text-gray-500' : 'text-white'
-                      }`}>
-                        {task.title}
-                      </h3>
-                      
-                      {task.description && (
-                        <p className="text-gray-400 mb-3">{task.description}</p>
-                      )}
-
-                      {/* Métadonnées */}
-                      <div className="flex flex-wrap items-center gap-3 text-sm">
-                        {/* Priorité */}
-                        <span className={`px-2 py-1 rounded-full border text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                          {task.priority === 'high' ? 'Haute' : task.priority === 'medium' ? 'Moyenne' : 'Basse'}
-                        </span>
-
-                        {/* Date échéance */}
-                        {task.dueDate && (
-                          <span className="flex items-center gap-1 text-gray-400">
-                            <Calendar className="w-4 h-4" />
-                            {formatDate(task.dueDate)}
-                          </span>
-                        )}
-
-                        {/* XP Reward */}
-                        {task.xpReward && (
-                          <span className="flex items-center gap-1 text-yellow-400">
-                            <Trophy className="w-4 h-4" />
-                            {task.xpReward} XP
-                          </span>
-                        )}
-
-                        {/* Tags */}
-                        {task.tags && task.tags.length > 0 && (
-                          <div className="flex gap-1">
-                            {task.tags.map((tag, index) => (
-                              <span
-                                key={index}
-                                className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs"
-                              >
-                                #{tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 ml-4">
-                    <button
-                      onClick={() => startEditTask(task)}
-                      className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition-colors"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => deleteTask(task.id)}
-                      className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+                <Tag size={10} />
+                {tag}
+              </span>
             ))}
+            {task.tags.length > 3 && (
+              <span className="px-2 py-1 bg-gray-700 text-gray-400 text-xs rounded">
+                +{task.tags.length - 3}
+              </span>
+            )}
           </div>
         )}
       </div>
+    </div>
+  );
+};
 
-      {/* Modal formulaire tâche */}
-      {showTaskForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h2 className="text-xl font-bold text-white mb-6">
-                {editingTask ? 'Modifier la tâche' : 'Nouvelle tâche'}
-              </h2>
+// Composant modal formulaire tâche (simplifié)
+const TaskFormModal = ({ task, projects, onSave, onClose }) => {
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    priority: 'medium',
+    status: 'todo',
+    projectId: '',
+    dueDate: '',
+    tags: []
+  });
 
-              <form onSubmit={handleSubmitTask} className="space-y-4">
-                {/* Titre */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Titre *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Titre de la tâche"
-                    required
-                  />
-                </div>
+  useEffect(() => {
+    if (task) {
+      setFormData({
+        title: task.title || '',
+        description: task.description || '',
+        priority: task.priority || 'medium',
+        status: task.status || 'todo',
+        projectId: task.projectId || '',
+        dueDate: task.dueDate ? formatDateForInput(task.dueDate) : '',
+        tags: task.tags || []
+      });
+    }
+  }, [task]);
 
-                {/* Description */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    rows={3}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Description détaillée (optionnel)"
-                  />
-                </div>
+  const formatDateForInput = (date) => {
+    try {
+      const dateObj = new Date(date.seconds ? date.seconds * 1000 : date);
+      return dateObj.toISOString().split('T')[0];
+    } catch (error) {
+      return '';
+    }
+  };
 
-                {/* Priorité et Complexité */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Priorité
-                    </label>
-                    <select
-                      value={formData.priority}
-                      onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="low">Basse</option>
-                      <option value="medium">Moyenne</option>
-                      <option value="high">Haute</option>
-                    </select>
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.title.trim()) return;
+
+    const taskData = {
+      title: formData.title,
+      description: formData.description,
+      priority: formData.priority,
+      status: formData.status,
+      projectId: formData.projectId || null,
+      dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
+      tags: formData.tags
+    };
+
+    await onSave(taskData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-white">
+              {task ? 'Modifier la tâche' : 'Nouvelle tâche'}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Titre *
+              </label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+                placeholder="Titre de la tâche..."
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                rows={3}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+                placeholder="Description de la tâche..."
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Priorité
+                </label>
+                <select
+                  value={formData.priority}
+                  onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="low">Basse</option>
+                  <option value="medium">Moyenne</option>
+                  <option value="high">Haute</option>
+                  <option value="urgent">Urgente</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Statut
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="todo">À faire</option>
+                  <option value="in_progress">En cours</option>
+                  <option value="completed">Terminée</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Projet
+                </label>
+                <select
+                  value={formData.projectId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, projectId: e.target.value }))}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Aucun projet</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={project.id}>
+                      {project.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Date d'échéance
+                </label>
+                <input
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-700">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                {task ? 'Modifier' : 'Créer'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Composant modal détails tâche
+const TaskDetailModal = ({ 
+  task, 
+  onClose, 
+  onEdit, 
+  onDelete, 
+  onComplete,
+  getProjectName,
+  getPriorityColor,
+  getStatusColor,
+  formatDate 
+}) => {
+  const dateInfo = formatDate(task.dueDate);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-white mb-2">{task.title}</h2>
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full border text-sm font-medium ${getPriorityColor(task.priority)}`}>
+                  {task.priority === 'urgent' ? 'Urgente' :
+                   task.priority === 'high' ? 'Haute' :
+                   task.priority === 'medium' ? 'Moyenne' : 'Basse'}
+                </span>
+                <span className={`text-sm ${getStatusColor(task.status)}`}>
+                  {task.status === 'completed' ? 'Terminée' :
+                   task.status === 'in_progress' ? 'En cours' : 'À faire'}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            {task.description && (
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-2">Description</h3>
+                <p className="text-gray-300">{task.description}</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-3">Informations</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Projet:</span>
+                    <span className="text-white">{getProjectName(task.projectId)}</span>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Complexité
-                    </label>
-                    <select
-                      value={formData.complexity}
-                      onChange={(e) => setFormData(prev => ({ ...prev, complexity: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="low">Simple</option>
-                      <option value="medium">Moyenne</option>
-                      <option value="high">Complexe</option>
-                    </select>
+                  {dateInfo && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Échéance:</span>
+                      <span className={dateInfo.color}>{dateInfo.text}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Créée le:</span>
+                    <span className="text-white">
+                      {new Date(task.createdAt.seconds ? task.createdAt.seconds * 1000 : task.createdAt).toLocaleDateString('fr-FR')}
+                    </span>
                   </div>
                 </div>
+              </div>
 
-                {/* Date échéance */}
+              {task.tags && task.tags.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Date d'échéance
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.dueDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Tags */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Tags
-                  </label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {formData.tags.map((tag, index) => (
+                  <h3 className="text-lg font-semibold text-white mb-3">Tags</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {task.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-sm flex items-center gap-1"
+                        className="px-3 py-1 bg-gray-700 text-gray-300 text-sm rounded-full flex items-center gap-1"
                       >
-                        #{tag}
-                        <button
-                          type="button"
-                          onClick={() => removeTag(tag)}
-                          className="text-red-400 hover:text-red-300"
-                        >
-                          ×
-                        </button>
+                        <Tag size={12} />
+                        {tag}
                       </span>
                     ))}
                   </div>
-                  <input
-                    type="text"
-                    placeholder="Ajouter un tag et appuyer sur Entrée"
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addTag(e.target.value.trim());
-                        e.target.value = '';
-                      }
-                    }}
-                  />
                 </div>
-
-                {/* Actions */}
-                <div className="flex justify-end gap-3 pt-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowTaskForm(false);
-                      setEditingTask(null);
-                      setFormData({
-                        title: '',
-                        description: '',
-                        priority: 'medium',
-                        complexity: 'medium',
-                        dueDate: '',
-                        tags: [],
-                        projectId: ''
-                      });
-                    }}
-                    className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting || !formData.title.trim()}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
-                  >
-                    {submitting && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
-                    {editingTask ? 'Modifier' : 'Créer'}
-                  </button>
-                </div>
-              </form>
+              )}
             </div>
           </div>
+
+          <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-700">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+            >
+              Fermer
+            </button>
+            <button
+              onClick={() => onComplete(task.id)}
+              className={`px-6 py-2 rounded-lg transition-colors ${
+                task.status === 'completed' 
+                  ? 'bg-gray-600 text-gray-300 hover:bg-gray-500' 
+                  : 'bg-green-600 text-white hover:bg-green-700'
+              }`}
+            >
+              {task.status === 'completed' ? 'Rouvrir' : 'Marquer terminée'}
+            </button>
+            <button
+              onClick={() => {
+                onEdit(task);
+                onClose();
+              }}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Modifier
+            </button>
+            <button
+              onClick={() => {
+                onDelete(task.id);
+                onClose();
+              }}
+              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Supprimer
+            </button>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
