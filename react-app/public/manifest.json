@@ -1,41 +1,85 @@
 {
-  "name": "Synergia App",
   "short_name": "Synergia",
-  "description": "Application de gestion communautaire Synergia",
-  "start_url": "/",
+  "name": "Synergia v3.5 - Gestion de Projets Gamifiée",
+  "description": "Application de gestion de tâches et projets avec système de gamification intelligent",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
   "display": "standalone",
-  "background_color": "#111827",
   "theme_color": "#1f2937",
+  "background_color": "#111827",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "fr",
-  "categories": ["productivity", "social"],
-  "icons": [
+  "categories": ["productivity", "business", "utilities"],
+  "screenshots": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
+      "src": "screenshot-wide.png",
+      "sizes": "1280x720",
       "type": "image/png",
-      "purpose": "maskable any"
+      "form_factor": "wide"
     },
     {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
+      "src": "screenshot-narrow.png", 
+      "sizes": "750x1334",
       "type": "image/png",
-      "purpose": "maskable any"
+      "form_factor": "narrow"
     }
   ],
   "shortcuts": [
     {
-      "name": "Dashboard",
-      "short_name": "Dashboard",
-      "description": "Accéder au tableau de bord",
-      "url": "/dashboard",
-      "icons": [
-        {
-          "src": "/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
+      "name": "Nouvelles Tâches",
+      "short_name": "Tâches",
+      "description": "Créer une nouvelle tâche rapidement",
+      "url": "/tasks?action=create",
+      "icons": [{ "src": "icon-task.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Mes Projets",
+      "short_name": "Projets", 
+      "description": "Accéder à mes projets",
+      "url": "/projects",
+      "icons": [{ "src": "icon-project.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Badges",
+      "short_name": "Badges",
+      "description": "Voir mes badges débloqués",
+      "url": "/badges", 
+      "icons": [{ "src": "icon-badge.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Classement",
+      "short_name": "Leaderboard",
+      "description": "Voir le classement",
+      "url": "/leaderboard",
+      "icons": [{ "src": "icon-leaderboard.png", "sizes": "96x96" }]
     }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "features": [
+    "cross-platform",
+    "offline-support", 
+    "real-time-sync",
+    "gamification",
+    "push-notifications"
   ]
 }
