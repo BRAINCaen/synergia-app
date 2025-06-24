@@ -25,7 +25,7 @@ import BadgeNotification from './components/gamification/BadgeNotification.jsx';
 
 // Hooks et stores
 import { useAuthStore } from './shared/stores/authStore.js';
-import { useRealTimeUser } from './hooks/useRealTimeUser.js';
+import { useRealTimeUser } from './shared/hooks/useRealTimeUser.js';
 
 // Services
 import BadgeIntegrationService from './core/services/badgeIntegrationService.js';
