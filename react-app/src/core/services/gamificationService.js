@@ -345,4 +345,7 @@ class GamificationService {
 
 // ✅ Instance singleton
 const gamificationService = new GamificationService();
+
+// ✅ Export multiple pour compatibilité
+export { gamificationService };
 export default gamificationService;
