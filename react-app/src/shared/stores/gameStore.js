@@ -31,16 +31,17 @@ export const useGameStore = create(
       setError: (error) => set({ error }),
       clearError: () => set({ error: null }),
 
-      // Initialiser les statistiques utilisateur
+      // ✅ CORRIGÉ: Initialiser les statistiques utilisateur
       initializeUser: async (userId, userEmail) => {
         set({ loading: true, error: null });
 
         try {
-          const stats = await gamificationService.initializeUserStats(userId, userEmail);
+          // ✅ Utiliser la méthode qui existe vraiment
+          const stats = await gamificationService.initializeUserData(userId);
           set({ userStats: stats, loading: false });
           
-          // Mettre à jour la série de connexions
-          await gamificationService.updateLoginStreak(userId);
+          // ✅ Connecter l'utilisateur (connexion quotidienne)
+          await gamificationService.dailyLogin(userId);
           
           console.log('✅ Statistiques utilisateur initialisées');
           return { success: true, stats };
@@ -51,7 +52,7 @@ export const useGameStore = create(
         }
       },
 
-      // Initialiser l'écoute en temps réel des statistiques
+      // ✅ CORRIGÉ: Initialiser l'écoute en temps réel des statistiques
       initializeStatsSync: (userId) => {
         const { unsubscribe: currentUnsubscribe } = get();
         
@@ -61,8 +62,8 @@ export const useGameStore = create(
         }
 
         try {
-          // Écouter les changements de statistiques en temps réel
-          const unsubscribe = gamificationService.subscribeToUserStats(
+          // ✅ Utiliser la méthode qui existe vraiment
+          const unsubscribe = gamificationService.subscribeToUserData(
             userId,
             (stats) => {
               set({ userStats: stats });
@@ -87,20 +88,34 @@ export const useGameStore = create(
         }
       },
 
-      // Ajouter des points XP
-      addXP: async (userId, amount, reason = 'Activité') => {
+      // ✅ CORRIGÉ: Ajouter des points XP avec validation
+      addXP: async (amount, reason = 'Activité') => {
         try {
-          const result = await gamificationService.addXP(userId, amount, reason);
+          // ✅ Récupérer l'userId depuis authStore ou autre source
+          // Pour l'instant, on va récupérer l'ID depuis le contexte auth
+          const authStore = window?.authStore || {};
+          const userId = authStore.user?.uid;
+          
+          if (!userId) {
+            console.error('❌ Aucun utilisateur connecté pour addXP');
+            return { success: false, error: 'Utilisateur non connecté' };
+          }
+
+          // ✅ Validation stricte de l'ID utilisateur
+          const validUserId = String(userId);
+          console.log('🔧 AddXP appelé avec userId:', validUserId, 'amount:', amount, 'reason:', reason);
+          
+          const result = await gamificationService.addXP(validUserId, amount, reason);
           
           // Ajouter une notification si niveau up ou nouveaux badges
           const notifications = [];
           
-          if (result.levelUp) {
+          if (result.leveledUp) {
             notifications.push({
               id: Date.now() + '_levelup',
               type: 'levelUp',
               title: 'Niveau supérieur !',
-              message: `Félicitations ! Vous êtes maintenant niveau ${result.level}`,
+              message: `Félicitations ! Vous êtes maintenant niveau ${result.newLevel}`,
               icon: '🎉',
               timestamp: new Date()
             });
@@ -132,7 +147,7 @@ export const useGameStore = create(
         }
       },
 
-      // Charger le leaderboard
+      // ✅ CORRIGÉ: Charger le leaderboard
       loadLeaderboard: async (limit = 10) => {
         set({ loading: true, error: null });
 
@@ -149,12 +164,12 @@ export const useGameStore = create(
         }
       },
 
-      // Obtenir les statistiques utilisateur
+      // ✅ CORRIGÉ: Obtenir les statistiques utilisateur
       getUserStats: async (userId) => {
         set({ loading: true, error: null });
 
         try {
-          const stats = await gamificationService.getUserStats(userId);
+          const stats = await gamificationService.getUserData(userId);
           if (stats) {
             set({ userStats: stats, loading: false });
           } else {
@@ -169,28 +184,30 @@ export const useGameStore = create(
         }
       },
 
-      // Mettre à jour les statistiques de tâche
+      // ✅ CORRIGÉ: Mettre à jour les statistiques de tâche
       updateTaskStats: async (userId, action) => {
         try {
-          await gamificationService.updateTaskStats(userId, action);
+          if (action === 'completed') {
+            await gamificationService.completeTask(userId, 'normal');
+          }
           console.log(`✅ Stats tâche mises à jour: ${action}`);
         } catch (error) {
           console.error('❌ Erreur mise à jour stats tâche:', error);
         }
       },
 
-      // Vérifier les nouveaux badges
+      // ✅ CORRIGÉ: Vérifier les nouveaux badges
       checkForNewBadges: async (userId) => {
         try {
-          const newBadges = await gamificationService.checkForNewBadges(userId);
+          const newBadges = await gamificationService.checkAndUnlockBadges(userId);
           
           if (newBadges.length > 0) {
-            const notifications = newBadges.map(badge => ({
-              id: Date.now() + '_badge_' + badge.id,
+            const notifications = newBadges.map(badgeId => ({
+              id: Date.now() + '_badge_' + badgeId,
               type: 'badge',
               title: 'Nouveau badge !',
-              message: `Vous avez débloqué: ${badge.name}`,
-              icon: badge.icon,
+              message: `Vous avez débloqué un nouveau badge !`,
+              icon: '🏆',
               timestamp: new Date()
             }));
             
@@ -218,27 +235,53 @@ export const useGameStore = create(
         set({ notifications: [] });
       },
 
-      // Obtenir les badges disponibles
+      // ✅ CORRIGÉ: Obtenir les badges disponibles
       getAvailableBadges: () => {
         const { userStats } = get();
-        const userBadgeIds = userStats.badges.map(badge => badge.id);
+        const userBadgeIds = userStats.badges || [];
         
-        return Object.values(gamificationService.BADGES_CONFIG || {}).map(badge => ({
-          ...badge,
-          unlocked: userBadgeIds.includes(badge.id),
-          canUnlock: badge.condition && badge.condition(userStats)
-        }));
+        // Badges basiques disponibles
+        const availableBadges = [
+          { id: 'first_task', name: 'Première Tâche', icon: '🎯', unlocked: userBadgeIds.includes('first_task') },
+          { id: 'task_master', name: 'Maître des Tâches', icon: '🏆', unlocked: userBadgeIds.includes('task_master') },
+          { id: 'level_master', name: 'Maître du Niveau', icon: '⭐', unlocked: userBadgeIds.includes('level_master') },
+          { id: 'streak_warrior', name: 'Guerrier de la Série', icon: '🔥', unlocked: userBadgeIds.includes('streak_warrior') }
+        ];
+        
+        return availableBadges;
       },
 
-      // Calculer la progression vers le niveau suivant
+      // ✅ CORRIGÉ: Calculer la progression vers le niveau suivant
       getLevelProgress: () => {
         const { userStats } = get();
-        return gamificationService.calculateLevelProgress(userStats.totalXp, userStats.level);
+        const currentLevel = userStats.level || 1;
+        const currentXp = userStats.totalXp || 0;
+        const nextLevelXp = gamificationService.getXPForNextLevel(currentLevel);
+        const currentLevelXp = currentLevel > 1 ? gamificationService.getXPForNextLevel(currentLevel - 1) : 0;
+        
+        const progress = Math.max(0, currentXp - currentLevelXp);
+        const needed = Math.max(0, nextLevelXp - currentLevelXp);
+        
+        return {
+          progress,
+          xpNeeded: Math.max(0, nextLevelXp - currentXp),
+          percentage: needed > 0 ? Math.round((progress / needed) * 100) : 100
+        };
       },
 
-      // Obtenir les informations de niveau
+      // ✅ CORRIGÉ: Obtenir les informations de niveau
       getLevelInfo: (level) => {
-        return gamificationService.getLevelInfo(level || get().userStats.level);
+        const targetLevel = level || get().userStats.level || 1;
+        
+        const levelNames = {
+          1: { name: 'Novice', color: '#9CA3AF' },
+          2: { name: 'Apprenti', color: '#6366F1' },
+          3: { name: 'Compétent', color: '#8B5CF6' },
+          4: { name: 'Expert', color: '#EC4899' },
+          5: { name: 'Maître', color: '#F59E0B' }
+        };
+        
+        return levelNames[targetLevel] || { name: 'Légendaire', color: '#EF4444' };
       },
 
       // Obtenir les statistiques de performance
@@ -253,16 +296,16 @@ export const useGameStore = create(
                    userStats.completionRate >= 40 ? 'Correct' : 'À améliorer'
           },
           consistency: {
-            score: Math.min(100, userStats.loginStreak * 10),
-            label: userStats.loginStreak >= 7 ? 'Très régulier' :
-                   userStats.loginStreak >= 3 ? 'Régulier' :
-                   userStats.loginStreak >= 1 ? 'Occasionnel' : 'Irrégulier'
+            score: Math.min(100, (userStats.loginStreak || 0) * 10),
+            label: (userStats.loginStreak || 0) >= 7 ? 'Très régulier' :
+                   (userStats.loginStreak || 0) >= 3 ? 'Régulier' :
+                   (userStats.loginStreak || 0) >= 1 ? 'Occasionnel' : 'Irrégulier'
           },
           engagement: {
-            score: Math.min(100, Math.round((userStats.badges.length / 8) * 100)),
-            label: userStats.badges.length >= 6 ? 'Très engagé' :
-                   userStats.badges.length >= 3 ? 'Engagé' :
-                   userStats.badges.length >= 1 ? 'Actif' : 'Débutant'
+            score: Math.min(100, Math.round(((userStats.badges?.length || 0) / 8) * 100)),
+            label: (userStats.badges?.length || 0) >= 6 ? 'Très engagé' :
+                   (userStats.badges?.length || 0) >= 3 ? 'Engagé' :
+                   (userStats.badges?.length || 0) >= 1 ? 'Actif' : 'Débutant'
           }
         };
       },
@@ -284,7 +327,7 @@ export const useGameStore = create(
         }
         
         // Estimer basé sur la performance récente (XP par jour)
-        const avgXpPerDay = userStats.totalXp / Math.max(1, userStats.loginStreak);
+        const avgXpPerDay = (userStats.totalXp || 0) / Math.max(1, (userStats.loginStreak || 1));
         const daysToNextLevel = Math.ceil(levelProgress.xpNeeded / Math.max(1, avgXpPerDay));
         
         if (daysToNextLevel <= 1) return '1 jour';
@@ -298,7 +341,7 @@ export const useGameStore = create(
         const { userStats } = get();
         const recommendations = [];
         
-        if (userStats.tasksCreated === 0) {
+        if ((userStats.tasksCreated || 0) === 0) {
           recommendations.push({
             action: 'Créez votre première tâche',
             xp: 5,
@@ -306,7 +349,7 @@ export const useGameStore = create(
           });
         }
         
-        if (userStats.tasksCompleted < 5) {
+        if ((userStats.tasksCompleted || 0) < 5) {
           recommendations.push({
             action: 'Complétez plus de tâches',
             xp: '10-35 par tâche',
@@ -314,7 +357,7 @@ export const useGameStore = create(
           });
         }
         
-        if (userStats.projectsCreated === 0) {
+        if ((userStats.projectsCreated || 0) === 0) {
           recommendations.push({
             action: 'Créez votre premier projet',
             xp: 25,
@@ -322,7 +365,7 @@ export const useGameStore = create(
           });
         }
         
-        if (userStats.loginStreak < 7) {
+        if ((userStats.loginStreak || 0) < 7) {
           recommendations.push({
             action: 'Connectez-vous quotidiennement',
             xp: '5 par jour + bonus série',
