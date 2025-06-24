@@ -1,5 +1,6 @@
-// src/shared/stores/gameStore.js
+// react-app/src/shared/stores/gameStore.js
 // Store de gamification corrigé avec bonnes méthodes
+
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { gamificationService } from '../../core/services/gamificationService.js'
@@ -75,12 +76,12 @@ export const useGameStore = create(
           // Ajouter une notification si niveau up ou nouveaux badges
           const notifications = [];
           
-          if (result.levelUp) {
+          if (result.leveledUp) {
             notifications.push({
               id: Date.now() + '_levelup',
               type: 'levelUp',
               title: 'Niveau supérieur !',
-              message: `Félicitations ! Vous êtes maintenant niveau ${result.level}`,
+              message: `Félicitations ! Vous êtes maintenant niveau ${result.newLevel}`,
               icon: '🎉',
               timestamp: new Date()
             });
@@ -146,7 +147,7 @@ export const useGameStore = create(
         return userStats.level || gamificationService.calculateLevel(userStats.totalXp || 0);
       },
 
-      // Calculer les progrès vers le niveau suivant
+      // ✅ CORRIGÉ: Calculer les progrès vers le niveau suivant
       getLevelProgress: () => {
         const { userStats } = get();
         if (!userStats) return { current: 0, needed: 100, percentage: 0, remaining: 100 };
@@ -156,9 +157,11 @@ export const useGameStore = create(
           return userStats.levelProgress;
         }
 
-        // Sinon calculer manuellement
+        // Sinon calculer manuellement avec la méthode corrigée
         const currentLevel = userStats.level || 1;
         const totalXp = userStats.totalXp || 0;
+        
+        // ✅ CORRECTION: Utiliser la bonne méthode qui existe maintenant
         return gamificationService.calculateLevelProgress(totalXp, currentLevel);
       },
 
@@ -182,65 +185,73 @@ export const useGameStore = create(
         return {
           productivity: {
             score: Math.min(100, Math.round((userStats.tasksCompleted / Math.max(1, userStats.tasksCreated)) * 100)),
-            label: userStats.tasksCompleted >= userStats.tasksCreated * 0.8 ? 'Très productif' :
-                   userStats.tasksCompleted >= userStats.tasksCreated * 0.6 ? 'Productif' :
-                   userStats.tasksCompleted >= userStats.tasksCreated * 0.3 ? 'Modéré' : 'À améliorer'
+            label: userStats.tasksCompleted >= userStats.tasksCreated * 0.8 ? 'Excellent' : 
+                   userStats.tasksCompleted >= userStats.tasksCreated * 0.6 ? 'Bon' : 'À améliorer'
           },
           consistency: {
             score: Math.min(100, (userStats.loginStreak || 0) * 10),
-            label: (userStats.loginStreak || 0) >= 10 ? 'Très régulier' :
-                   (userStats.loginStreak || 0) >= 3 ? 'Régulier' :
-                   (userStats.loginStreak || 0) >= 1 ? 'Occasionnel' : 'Irrégulier'
+            label: userStats.loginStreak >= 7 ? 'Très régulier' : 
+                   userStats.loginStreak >= 3 ? 'Régulier' : 'Irrégulier'
           },
           engagement: {
-            score: Math.min(100, Math.round(((userStats.badges?.length || 0) / 8) * 100)),
-            label: (userStats.badges?.length || 0) >= 6 ? 'Très engagé' :
-                   (userStats.badges?.length || 0) >= 3 ? 'Engagé' :
-                   (userStats.badges?.length || 0) >= 1 ? 'Actif' : 'Débutant'
+            score: Math.min(100, Math.round(((userStats.totalXp || 0) / 500) * 100)),
+            label: userStats.totalXp >= 500 ? 'Très engagé' : 
+                   userStats.totalXp >= 200 ? 'Engagé' : 'Débutant'
           }
         };
       },
 
-      // Obtenir le rang dans le leaderboard
-      getUserRank: (userId) => {
-        const { leaderboard } = get();
-        const userEntry = leaderboard.find(entry => entry.userId === userId);
-        return userEntry ? userEntry.position : null;
+      // Obtenir le rang d'un utilisateur
+      getUserRank: async (userId) => {
+        try {
+          const { leaderboard } = get();
+          if (!leaderboard.length) {
+            await get().loadLeaderboard();
+          }
+          
+          const userIndex = leaderboard.findIndex(user => user.userId === userId);
+          return userIndex !== -1 ? userIndex + 1 : null;
+        } catch (error) {
+          console.error('❌ Erreur récupération rang:', error);
+          return null;
+        }
       },
 
       // Prédire le temps pour atteindre le niveau suivant
       predictTimeToNextLevel: () => {
         const { userStats } = get();
-        if (!userStats) return 'Données non disponibles';
+        if (!userStats) return null;
 
+        const currentLevel = userStats.level || 1;
+        const totalXp = userStats.totalXp || 0;
         const levelProgress = get().getLevelProgress();
         
-        if (levelProgress.remaining <= 0) {
-          return 'Niveau maximum atteint';
-        }
+        // Calculer l'XP moyen par jour (basé sur les 7 derniers jours)
+        const dailyXpAverage = userStats.weeklyXp ? userStats.weeklyXp / 7 : 10;
         
-        // Estimer basé sur la performance récente (XP par jour)
-        const avgXpPerDay = (userStats.totalXp || 0) / Math.max(1, userStats.loginStreak || 1);
-        const daysToNextLevel = Math.ceil(levelProgress.remaining / Math.max(1, avgXpPerDay));
+        if (dailyXpAverage <= 0) return null;
         
-        if (daysToNextLevel <= 1) return '1 jour';
-        if (daysToNextLevel <= 7) return `${daysToNextLevel} jours`;
-        if (daysToNextLevel <= 30) return `${Math.ceil(daysToNextLevel / 7)} semaines`;
-        return `${Math.ceil(daysToNextLevel / 30)} mois`;
+        const daysToNextLevel = Math.ceil(levelProgress.remaining / dailyXpAverage);
+        
+        return {
+          days: daysToNextLevel,
+          dailyXpNeeded: Math.ceil(levelProgress.remaining / Math.max(1, daysToNextLevel)),
+          estimatedDate: new Date(Date.now() + (daysToNextLevel * 24 * 60 * 60 * 1000))
+        };
       },
 
-      // Obtenir les recommandations pour gagner plus d'XP
+      // Obtenir des recommandations XP
       getXpRecommendations: () => {
         const { userStats } = get();
         if (!userStats) return [];
-        
+
         const recommendations = [];
         
-        if ((userStats.tasksCreated || 0) === 0) {
+        if ((userStats.loginStreak || 0) === 0) {
           recommendations.push({
-            action: 'Créez votre première tâche',
-            xp: 5,
-            icon: '🎯'
+            action: 'Connectez-vous quotidiennement',
+            xp: '5 XP par jour + bonus série',
+            icon: '🔥'
           });
         }
         
@@ -272,7 +283,7 @@ export const useGameStore = create(
       },
 
       // Actions rapides pour les tâches
-      taskCompleted: async (difficulty = 'normal') => {
+      taskCompleted: async (difficulty = 'medium') => {
         try {
           const { useAuthStore } = await import('./authStore.js');
           const authState = useAuthStore.getState();
@@ -297,7 +308,7 @@ export const useGameStore = create(
             throw new Error('Utilisateur non connecté');
           }
 
-          return await gamificationService.createTask(authState.user.uid);
+          return await gamificationService.createProject(authState.user.uid);
         } catch (error) {
           console.error('❌ Erreur création tâche:', error);
           return { success: false, error: error.message };
