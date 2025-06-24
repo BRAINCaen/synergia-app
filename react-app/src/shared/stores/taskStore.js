@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/taskStore.js
-// CORRECTION : Import gamificationService comme named export
+// Store Zustand pour la gestion des tâches - VERSION CORRIGÉE
 // ==========================================
 
 import { create } from 'zustand';
@@ -8,7 +8,7 @@ import { persist, subscribeWithSelector } from 'zustand/middleware';
 
 // ✅ CORRECTION : Import correct selon votre structure existante
 import taskService from '../../core/services/taskService.js';
-import { gamificationService } from '../../core/services/gamificationService.js';  // Named import au lieu de default
+import { gamificationService } from '../../core/services/gamificationService.js';
 
 export const useTaskStore = create(
   subscribeWithSelector(
@@ -135,6 +135,18 @@ export const useTaskStore = create(
             if (userId && gamificationService) {
               try {
                 await gamificationService.completeTask(userId, task.difficulty || 'normal');
+                
+                // Déclencher événement pour le système de badges
+                window.dispatchEvent(new CustomEvent('taskCompleted', {
+                  detail: {
+                    userId,
+                    task: {
+                      ...task,
+                      status: 'completed',
+                      completedAt: new Date()
+                    }
+                  }
+                }));
               } catch (gamificationError) {
                 console.warn('⚠️ Erreur gamification (non bloquant):', gamificationError);
               }
@@ -185,7 +197,7 @@ export const useTaskStore = create(
               const dueDate = t.dueDate.toDate ? t.dueDate.toDate() : new Date(t.dueDate);
               return dueDate < now;
             }).length,
-            totalXpEarned: 0, // À calculer si nécessaire
+            totalXpEarned: 0,
             completionRate: tasks.length > 0 
               ? Math.round((tasks.filter(t => t.status === 'completed').length / tasks.length) * 100)
               : 0
@@ -243,7 +255,7 @@ export const useTaskStore = create(
               default:
                 const aCreated = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate() : new Date(a.createdAt)) : new Date(0);
                 const bCreated = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate() : new Date(b.createdAt)) : new Date(0);
-                return direction * (bCreated.getTime() - aCreated.getTime()); // Plus récent en premier par défaut
+                return direction * (bCreated.getTime() - aCreated.getTime());
             }
           });
 
