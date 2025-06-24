@@ -266,8 +266,4 @@ export const useBadges = () => {
 };
 
 // Export par défaut pour compatibilité
-const useBadges = () => {
-  return useBadges();
-};
-
 export default useBadges;
