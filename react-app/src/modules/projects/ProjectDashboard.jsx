@@ -13,7 +13,7 @@ import { gamificationService } from '../../core/services/gamificationService.js'
 
 // Components UI
 import Button from '../../shared/components/ui/Button.jsx';
-import Card from '../../shared/components/ui/Card.jsx';
+import { Card } from '../../shared/components/ui/Card.jsx';
 
 const ProjectDashboard = () => {
   const navigate = useNavigate();
