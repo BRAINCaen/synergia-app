@@ -1,213 +1,192 @@
 // ==========================================
 // 📁 react-app/src/core/services/badgeIntegrationService.js
-// Service d'intégration badges - VERSION COMPLÈTE ET CORRIGÉE
+// Service d'intégration pour le système de badges automatiques
 // ==========================================
 
 import BadgeEngine from './badgeEngine.js';
 import { gamificationService } from './gamificationService.js';
+import { toast } from 'react-hot-toast';
 
 /**
- * 🔗 SERVICE D'INTÉGRATION DES BADGES
- * Compatible avec la structure existante de Synergia
+ * 🔗 SERVICE D'INTÉGRATION BADGES
+ * 
+ * Interface principale entre l'UI et le Badge Engine
+ * - Vérification automatique lors d'actions
+ * - Gestion des notifications
+ * - Synchronisation avec le système de gamification
+ * - Statistiques et analytics
  */
 class BadgeIntegrationService {
-  
-  static lastCheck = {};
-  static checkCooldown = 5000;
+  static isInitialized = false;
+  static eventListeners = new Map();
 
-  static initialize() {
-    try {
-      console.log('🔗 Badge Integration Service: Initialisation...');
-      
-      if (typeof window === 'undefined') {
-        console.warn('⚠️ Window non disponible, skip badges');
-        return;
+  /**
+   * 🚀 INITIALISATION DU SERVICE
+   */
+  static init() {
+    if (this.isInitialized) return;
+
+    console.log('🏆 Badge Integration Service: Initialisation');
+
+    // Écouter les événements de badges débloqués
+    window.addEventListener('badgeUnlocked', this.handleBadgeUnlocked);
+
+    // Écouter les événements de gamification pour déclencher les vérifications
+    window.addEventListener('taskCompleted', this.handleTaskCompleted);
+    window.addEventListener('projectCompleted', this.handleProjectCompleted);
+    window.addEventListener('streakUpdated', this.handleStreakUpdated);
+    window.addEventListener('levelUp', this.handleLevelUp);
+
+    this.isInitialized = true;
+  }
+
+  /**
+   * 🎯 GESTIONNAIRE BADGE DÉBLOQUÉ
+   */
+  static handleBadgeUnlocked = (event) => {
+    const { badge } = event.detail;
+    
+    console.log('🏆 Badge débloqué:', badge.name);
+
+    // Notification toast
+    toast.success(`🏆 Badge débloqué: ${badge.name}`, {
+      duration: 4000,
+      icon: badge.icon,
+      style: {
+        background: '#1f2937',
+        color: '#fff',
+        border: '1px solid #374151'
       }
+    });
 
-      this.setupEventListeners();
-      this.setupPeriodicCheck();
-      
-      console.log('✅ Badge Integration Service initialisé');
+    // Analytics
+    this.trackBadgeUnlock(badge);
+  };
+
+  /**
+   * ✅ GESTIONNAIRE TÂCHE COMPLÉTÉE
+   */
+  static handleTaskCompleted = async (event) => {
+    const { task, userId } = event.detail;
+    console.log('📋 Tâche complétée, vérification badges pour:', userId);
+    
+    await this.checkBadgesForUser(userId);
+  };
+
+  /**
+   * 🏁 GESTIONNAIRE PROJET COMPLÉTÉ
+   */
+  static handleProjectCompleted = async (event) => {
+    const { project, userId } = event.detail;
+    console.log('📁 Projet complété, vérification badges pour:', userId);
+    
+    await this.checkBadgesForUser(userId);
+  };
+
+  /**
+   * 🔥 GESTIONNAIRE STREAK MIS À JOUR
+   */
+  static handleStreakUpdated = async (event) => {
+    const { streak, userId } = event.detail;
+    console.log('🔥 Streak mis à jour, vérification badges pour:', userId);
+    
+    await this.checkBadgesForUser(userId);
+  };
+
+  /**
+   * ⭐ GESTIONNAIRE LEVEL UP
+   */
+  static handleLevelUp = async (event) => {
+    const { newLevel, userId } = event.detail;
+    console.log('⭐ Level up, vérification badges pour:', userId);
+    
+    await this.checkBadgesForUser(userId);
+  };
+
+  /**
+   * 🔍 VÉRIFICATION BADGES POUR UN UTILISATEUR
+   */
+  static async checkBadgesForUser(userId) {
+    try {
+      await BadgeEngine.checkAndAwardBadges(userId);
     } catch (error) {
-      console.error('❌ Erreur initialisation badges:', error);
+      console.error('❌ Erreur vérification badges:', error);
     }
   }
 
-  static setupEventListeners() {
-    try {
-      const events = [
-        'taskCompleted',
-        'projectCreated', 
-        'projectCompleted',
-        'xpUpdated',
-        'streakUpdated'
-      ];
-
-      events.forEach(eventName => {
-        window.addEventListener(eventName, (event) => {
-          this.handleEvent(eventName, event);
-        });
-      });
-
-      console.log('🎧 Event listeners badges configurés');
-    } catch (error) {
-      console.error('❌ Erreur setup listeners:', error);
-    }
-  }
-
-  static handleEvent(eventName, event) {
-    try {
-      const { userId } = event.detail || {};
-      if (userId) {
-        this.triggerBadgeCheck(userId, eventName, event.detail);
-      }
-    } catch (error) {
-      console.error(`❌ Erreur handle ${eventName}:`, error);
-    }
-  }
-
-  static setupPeriodicCheck() {
-    try {
-      setInterval(() => {
-        const currentUser = this.getCurrentUser();
-        if (currentUser?.uid) {
-          this.triggerBadgeCheck(currentUser.uid, 'periodic');
-        }
-      }, 30000);
-    } catch (error) {
-      console.error('❌ Erreur periodic check:', error);
-    }
-  }
-
-  static getCurrentUser() {
-    try {
-      if (window.authStore) {
-        return window.authStore.getState().user;
-      }
-      
-      const authData = localStorage.getItem('synergia-auth');
-      if (authData) {
-        const parsed = JSON.parse(authData);
-        return parsed.state?.user;
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('❌ Erreur getCurrentUser:', error);
-      return null;
-    }
-  }
-
-  static async triggerBadgeCheck(userId, eventType, eventData = {}) {
-    try {
-      if (!userId) {
-        console.warn('⚠️ UserId manquant');
-        return [];
-      }
-
-      const now = Date.now();
-      const lastCheckTime = this.lastCheck[userId] || 0;
-      
-      if (now - lastCheckTime < this.checkCooldown && eventType !== 'manual') {
-        console.log(`⏳ Badge check en cooldown pour ${userId}`);
-        return [];
-      }
-
-      this.lastCheck[userId] = now;
-      console.log(`🏆 Vérification badges - Event: ${eventType}`);
-
-      const newBadges = await BadgeEngine.checkAndAwardBadges(userId);
-
-      if (newBadges && newBadges.length > 0) {
-        await this.updateGamificationAfterBadges(userId, newBadges);
-        this.dispatchBadgeEvent(userId, newBadges, eventType);
-      }
-
-      return newBadges || [];
-
-    } catch (error) {
-      console.error('❌ Erreur triggerBadgeCheck:', error);
-      return [];
-    }
-  }
-
-  static async updateGamificationAfterBadges(userId, newBadges) {
-    try {
-      const totalXpBonus = newBadges.reduce((sum, badge) => sum + (badge.xpReward || 0), 0);
-
-      if (totalXpBonus > 0) {
-        this.dispatchXpEvent(userId, totalXpBonus, newBadges);
-        console.log(`🎯 XP bonus badges: +${totalXpBonus}`);
-      }
-    } catch (error) {
-      console.error('❌ Erreur updateGamification:', error);
-    }
-  }
-
-  static dispatchBadgeEvent(userId, badges, eventType) {
-    try {
-      if (typeof window !== 'undefined' && window.dispatchEvent) {
-        window.dispatchEvent(new CustomEvent('badgesAwarded', {
-          detail: { userId, badges, eventType, timestamp: new Date() }
-        }));
-      }
-    } catch (error) {
-      console.error('❌ Erreur dispatchBadgeEvent:', error);
-    }
-  }
-
-  static dispatchXpEvent(userId, xpBonus, badges) {
-    try {
-      if (typeof window !== 'undefined' && window.dispatchEvent) {
-        window.dispatchEvent(new CustomEvent('xpUpdatedFromBadges', {
-          detail: { userId, xpBonus, source: 'badges', badges }
-        }));
-      }
-    } catch (error) {
-      console.error('❌ Erreur dispatchXpEvent:', error);
-    }
-  }
-
+  /**
+   * 🔧 VÉRIFICATION MANUELLE DES BADGES
+   */
   static async manualBadgeCheck(userId) {
-    console.log('🔍 Vérification manuelle badges');
-    return await this.triggerBadgeCheck(userId, 'manual');
+    try {
+      console.log('🔧 Vérification manuelle badges pour:', userId);
+      
+      const newBadges = await BadgeEngine.checkAndAwardBadges(userId);
+      
+      if (newBadges && newBadges.length > 0) {
+        toast.success(`🎉 ${newBadges.length} nouveau(x) badge(s) débloqué(s)!`);
+        return newBadges;
+      } else {
+        toast('🔍 Aucun nouveau badge disponible', {
+          icon: '🤔',
+          style: {
+            background: '#1f2937',
+            color: '#fff'
+          }
+        });
+        return [];
+      }
+    } catch (error) {
+      console.error('❌ Erreur vérification manuelle:', error);
+      toast.error('❌ Erreur lors de la vérification des badges');
+      throw error;
+    }
   }
 
+  /**
+   * 📊 OBTENIR LES STATISTIQUES DES BADGES
+   */
   static async getBadgeStats(userId) {
     try {
-      if (!userId) return null;
-
       const userData = await BadgeEngine.getUserAnalytics(userId);
       const allBadges = BadgeEngine.getAllBadges();
-      
       const unlockedBadges = userData.badges || [];
-      const unlockedCount = unlockedBadges.length;
-      const totalCount = allBadges.length;
-      const percentage = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
+
+      const statsByCategory = {};
+      const statsByRarity = {};
+
+      allBadges.forEach(badge => {
+        // Stats par catégorie
+        if (!statsByCategory[badge.category]) {
+          statsByCategory[badge.category] = { total: 0, unlocked: 0 };
+        }
+        statsByCategory[badge.category].total++;
+        if (unlockedBadges.includes(badge.id)) {
+          statsByCategory[badge.category].unlocked++;
+        }
+
+        // Stats par rareté
+        if (!statsByRarity[badge.rarity]) {
+          statsByRarity[badge.rarity] = { total: 0, unlocked: 0 };
+        }
+        statsByRarity[badge.rarity].total++;
+        if (unlockedBadges.includes(badge.id)) {
+          statsByRarity[badge.rarity].unlocked++;
+        }
+      });
 
       const totalXpFromBadges = allBadges
         .filter(badge => unlockedBadges.includes(badge.id))
-        .reduce((sum, badge) => sum + (badge.xpReward || 0), 0);
-
-      const rarityStats = allBadges.reduce((acc, badge) => {
-        const rarity = badge.rarity;
-        if (!acc[rarity]) {
-          acc[rarity] = { total: 0, unlocked: 0, xp: 0 };
-        }
-        acc[rarity].total++;
-        if (unlockedBadges.includes(badge.id)) {
-          acc[rarity].unlocked++;
-          acc[rarity].xp += badge.xpReward;
-        }
-        return acc;
-      }, {});
+        .reduce((sum, badge) => sum + badge.xpReward, 0);
 
       return {
-        unlockedCount,
-        totalCount,
-        percentage,
+        total: allBadges.length,
+        unlocked: unlockedBadges.length,
+        completion: Math.round((unlockedBadges.length / allBadges.length) * 100),
         totalXpFromBadges,
-        rarityStats
+        byCategory: statsByCategory,
+        byRarity: statsByRarity,
+        recentBadges: await this.getRecentBadges(userId, 5)
       };
 
     } catch (error) {
@@ -216,86 +195,122 @@ class BadgeIntegrationService {
     }
   }
 
-  static getDebugInfo(userId) {
+  /**
+   * 🕐 OBTENIR LES BADGES RÉCENTS
+   */
+  static async getRecentBadges(userId, limit = 5) {
     try {
-      return {
-        lastCheck: this.lastCheck[userId] || 'Jamais',
-        cooldownRemaining: Math.max(0, this.checkCooldown - (Date.now() - (this.lastCheck[userId] || 0))),
-        currentUser: this.getCurrentUser()?.email || 'Non connecté',
-        initialized: true
+      const userData = await BadgeEngine.getUserAnalytics(userId);
+      const userBadges = userData.badges || [];
+      const allBadges = BadgeEngine.getAllBadges();
+
+      // Pour l'instant, on retourne les derniers badges par ordre d'ajout
+      // Dans une vraie implémentation, on stockerait la date de déblocage
+      return allBadges
+        .filter(badge => userBadges.includes(badge.id))
+        .slice(-limit)
+        .reverse();
+
+    } catch (error) {
+      console.error('❌ Erreur getRecentBadges:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 📈 TRACKER UN DÉBLOCAGE DE BADGE
+   */
+  static trackBadgeUnlock(badge) {
+    try {
+      // Ici on pourrait envoyer des analytics à un service externe
+      const analyticsData = {
+        event: 'badge_unlocked',
+        badge_id: badge.id,
+        badge_name: badge.name,
+        badge_category: badge.category,
+        badge_rarity: badge.rarity,
+        xp_reward: badge.xpReward,
+        timestamp: new Date().toISOString()
       };
+
+      console.log('📊 Analytics badge:', analyticsData);
+
+      // Déclencher un événement personnalisé pour d'autres composants
+      window.dispatchEvent(new CustomEvent('badgeAnalytics', {
+        detail: analyticsData
+      }));
+
     } catch (error) {
-      return { error: error.message };
+      console.error('❌ Erreur trackBadgeUnlock:', error);
     }
   }
 
-  static triggerTestEvents(userId) {
-    if (process.env.NODE_ENV !== 'development') {
-      console.warn('⚠️ Test events uniquement en dev');
-      return;
-    }
-
+  /**
+   * 🎯 OBTENIR LES BADGES PROCHES DU DÉBLOCAGE
+   */
+  static async getNearCompletionBadges(userId, threshold = 80) {
     try {
-      console.log('🧪 Test events...');
-      
-      setTimeout(() => {
-        this.dispatchEvent('taskCompleted', {
-          userId,
-          task: {
-            id: 'test-task',
-            title: 'Test Task',
-            priority: 'high',
-            completedAt: { toDate: () => new Date() },
-            createdAt: { toDate: () => new Date(Date.now() - 30 * 60 * 1000) },
-            dueDate: { toDate: () => new Date(Date.now() + 24 * 60 * 60 * 1000) }
-          }
-        });
-      }, 1000);
+      const allBadges = BadgeEngine.getAllBadges();
+      const userData = await BadgeEngine.getUserAnalytics(userId);
+      const userBadges = userData.badges || [];
 
-    } catch (error) {
-      console.error('❌ Erreur test events:', error);
-    }
-  }
+      const nearCompletion = [];
 
-  static dispatchEvent(eventName, detail) {
-    try {
-      if (typeof window !== 'undefined' && window.dispatchEvent) {
-        window.dispatchEvent(new CustomEvent(eventName, { detail }));
-      }
-    } catch (error) {
-      console.error(`❌ Erreur dispatch ${eventName}:`, error);
-    }
-  }
+      for (const badge of allBadges) {
+        if (userBadges.includes(badge.id)) continue;
 
-  static cleanupCache() {
-    try {
-      const now = Date.now();
-      const maxAge = 60 * 60 * 1000;
-
-      Object.keys(this.lastCheck).forEach(userId => {
-        if (now - this.lastCheck[userId] > maxAge) {
-          delete this.lastCheck[userId];
+        const progress = await BadgeEngine.getBadgeProgress(badge.id, userId);
+        if (progress && progress.percentage >= threshold) {
+          nearCompletion.push({
+            ...badge,
+            progress: progress.percentage
+          });
         }
-      });
+      }
 
-      console.log('🧹 Cache badges nettoyé');
+      return nearCompletion.sort((a, b) => b.progress - a.progress);
+
     } catch (error) {
-      console.error('❌ Erreur cleanup:', error);
+      console.error('❌ Erreur getNearCompletionBadges:', error);
+      return [];
     }
   }
-}
 
-// Auto-initialisation sécurisée
-if (typeof window !== 'undefined') {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      setTimeout(() => BadgeIntegrationService.initialize(), 1000);
-    });
-  } else {
-    setTimeout(() => BadgeIntegrationService.initialize(), 1000);
+  /**
+   * 🗑️ NETTOYAGE DU SERVICE
+   */
+  static cleanup() {
+    if (!this.isInitialized) return;
+
+    window.removeEventListener('badgeUnlocked', this.handleBadgeUnlocked);
+    window.removeEventListener('taskCompleted', this.handleTaskCompleted);
+    window.removeEventListener('projectCompleted', this.handleProjectCompleted);
+    window.removeEventListener('streakUpdated', this.handleStreakUpdated);
+    window.removeEventListener('levelUp', this.handleLevelUp);
+
+    this.isInitialized = false;
+    console.log('🏆 Badge Integration Service: Nettoyage effectué');
   }
 
-  window.BadgeIntegrationService = BadgeIntegrationService;
+  /**
+   * 🔄 SYNCHRONISATION AVEC LE SYSTÈME DE GAMIFICATION
+   */
+  static async syncWithGamification(userId) {
+    try {
+      console.log('🔄 Synchronisation badges avec gamification pour:', userId);
+
+      // Obtenir les stats de gamification actuelles
+      const gamificationData = await gamificationService.getUserGamificationData(userId);
+      
+      // Vérifier les badges basés sur ces données
+      await this.checkBadgesForUser(userId);
+
+      console.log('✅ Synchronisation terminée');
+
+    } catch (error) {
+      console.error('❌ Erreur syncWithGamification:', error);
+    }
+  }
 }
 
 export default BadgeIntegrationService;
