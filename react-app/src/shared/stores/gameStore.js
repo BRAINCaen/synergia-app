@@ -1,5 +1,5 @@
 // src/shared/stores/gameStore.js
-// Store de gamification complet avec gestion automatique userId
+// Store de gamification corrigé avec bonnes méthodes
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { gamificationService } from '../../core/services/gamificationService.js'
@@ -15,7 +15,7 @@ export const useGameStore = create(
       error: null,
       unsubscribe: null,
 
-      // Initialiser le store avec un userId
+      // ✅ CORRIGÉ: Initialiser le store avec userId
       initializeGameStore: async (userId) => {
         if (!userId) {
           console.error('❌ Aucun userId fourni pour initializeGameStore');
@@ -26,11 +26,11 @@ export const useGameStore = create(
           set({ loading: true, error: null });
           console.log('🎮 Initialisation GameStore pour:', userId);
 
-          // Initialiser les stats utilisateur s'il n'en a pas
-          await gamificationService.initializeUserStats(userId);
+          // ✅ Utiliser la bonne méthode qui existe
+          await gamificationService.initializeUserData(userId);
 
-          // S'abonner aux changements des stats
-          const unsubscribe = gamificationService.subscribeToUserStats(
+          // ✅ S'abonner aux changements des stats avec la bonne méthode
+          const unsubscribe = gamificationService.subscribeToUserData(
             userId,
             (stats) => {
               set({ userStats: stats });
@@ -143,27 +143,23 @@ export const useGameStore = create(
       getCurrentLevel: () => {
         const { userStats } = get();
         if (!userStats) return 1;
-        return gamificationService.calculateLevel(userStats.totalXp);
+        return userStats.level || gamificationService.calculateLevel(userStats.totalXp || 0);
       },
 
       // Calculer les progrès vers le niveau suivant
       getLevelProgress: () => {
         const { userStats } = get();
-        if (!userStats) return { current: 0, needed: 100, percentage: 0 };
+        if (!userStats) return { current: 0, needed: 100, percentage: 0, remaining: 100 };
         
-        const currentLevel = gamificationService.calculateLevel(userStats.totalXp);
-        const xpForCurrentLevel = gamificationService.getXpForLevel(currentLevel);
-        const xpForNextLevel = gamificationService.getXpForLevel(currentLevel + 1);
-        
-        const currentLevelXp = userStats.totalXp - xpForCurrentLevel;
-        const neededForNext = xpForNextLevel - xpForCurrentLevel;
-        
-        return {
-          current: currentLevelXp,
-          needed: neededForNext,
-          remaining: Math.max(0, xpForNextLevel - userStats.totalXp),
-          percentage: Math.round((currentLevelXp / neededForNext) * 100)
-        };
+        // Si les données sont déjà calculées dans userStats
+        if (userStats.levelProgress) {
+          return userStats.levelProgress;
+        }
+
+        // Sinon calculer manuellement
+        const currentLevel = userStats.level || 1;
+        const totalXp = userStats.totalXp || 0;
+        return gamificationService.calculateLevelProgress(totalXp, currentLevel);
       },
 
       // Obtenir les badges débloqués
@@ -191,16 +187,16 @@ export const useGameStore = create(
                    userStats.tasksCompleted >= userStats.tasksCreated * 0.3 ? 'Modéré' : 'À améliorer'
           },
           consistency: {
-            score: Math.min(100, userStats.loginStreak * 10),
-            label: userStats.loginStreak >= 10 ? 'Très régulier' :
-                   userStats.loginStreak >= 3 ? 'Régulier' :
-                   userStats.loginStreak >= 1 ? 'Occasionnel' : 'Irrégulier'
+            score: Math.min(100, (userStats.loginStreak || 0) * 10),
+            label: (userStats.loginStreak || 0) >= 10 ? 'Très régulier' :
+                   (userStats.loginStreak || 0) >= 3 ? 'Régulier' :
+                   (userStats.loginStreak || 0) >= 1 ? 'Occasionnel' : 'Irrégulier'
           },
           engagement: {
-            score: Math.min(100, Math.round((userStats.badges.length / 8) * 100)),
-            label: userStats.badges.length >= 6 ? 'Très engagé' :
-                   userStats.badges.length >= 3 ? 'Engagé' :
-                   userStats.badges.length >= 1 ? 'Actif' : 'Débutant'
+            score: Math.min(100, Math.round(((userStats.badges?.length || 0) / 8) * 100)),
+            label: (userStats.badges?.length || 0) >= 6 ? 'Très engagé' :
+                   (userStats.badges?.length || 0) >= 3 ? 'Engagé' :
+                   (userStats.badges?.length || 0) >= 1 ? 'Actif' : 'Débutant'
           }
         };
       },
@@ -209,12 +205,14 @@ export const useGameStore = create(
       getUserRank: (userId) => {
         const { leaderboard } = get();
         const userEntry = leaderboard.find(entry => entry.userId === userId);
-        return userEntry ? userEntry.rank : null;
+        return userEntry ? userEntry.position : null;
       },
 
       // Prédire le temps pour atteindre le niveau suivant
       predictTimeToNextLevel: () => {
         const { userStats } = get();
+        if (!userStats) return 'Données non disponibles';
+
         const levelProgress = get().getLevelProgress();
         
         if (levelProgress.remaining <= 0) {
@@ -222,7 +220,7 @@ export const useGameStore = create(
         }
         
         // Estimer basé sur la performance récente (XP par jour)
-        const avgXpPerDay = userStats.totalXp / Math.max(1, userStats.loginStreak);
+        const avgXpPerDay = (userStats.totalXp || 0) / Math.max(1, userStats.loginStreak || 1);
         const daysToNextLevel = Math.ceil(levelProgress.remaining / Math.max(1, avgXpPerDay));
         
         if (daysToNextLevel <= 1) return '1 jour';
@@ -238,7 +236,7 @@ export const useGameStore = create(
         
         const recommendations = [];
         
-        if (userStats.tasksCreated === 0) {
+        if ((userStats.tasksCreated || 0) === 0) {
           recommendations.push({
             action: 'Créez votre première tâche',
             xp: 5,
@@ -246,7 +244,7 @@ export const useGameStore = create(
           });
         }
         
-        if (userStats.tasksCompleted < 5) {
+        if ((userStats.tasksCompleted || 0) < 5) {
           recommendations.push({
             action: 'Complétez plus de tâches',
             xp: '10-35 par tâche',
@@ -254,7 +252,7 @@ export const useGameStore = create(
           });
         }
         
-        if (userStats.projectsCreated === 0) {
+        if ((userStats.projectsCreated || 0) === 0) {
           recommendations.push({
             action: 'Créez votre premier projet',
             xp: 25,
@@ -262,7 +260,7 @@ export const useGameStore = create(
           });
         }
         
-        if (userStats.loginStreak < 7) {
+        if ((userStats.loginStreak || 0) < 7) {
           recommendations.push({
             action: 'Connectez-vous quotidiennement',
             xp: '5 par jour + bonus série',
@@ -271,10 +269,65 @@ export const useGameStore = create(
         }
         
         return recommendations;
+      },
+
+      // Actions rapides pour les tâches
+      taskCompleted: async (difficulty = 'normal') => {
+        try {
+          const { useAuthStore } = await import('./authStore.js');
+          const authState = useAuthStore.getState();
+          
+          if (!authState.user?.uid) {
+            throw new Error('Utilisateur non connecté');
+          }
+
+          return await gamificationService.completeTask(authState.user.uid, difficulty);
+        } catch (error) {
+          console.error('❌ Erreur completion tâche:', error);
+          return { success: false, error: error.message };
+        }
+      },
+
+      taskCreated: async () => {
+        try {
+          const { useAuthStore } = await import('./authStore.js');
+          const authState = useAuthStore.getState();
+          
+          if (!authState.user?.uid) {
+            throw new Error('Utilisateur non connecté');
+          }
+
+          return await gamificationService.createTask(authState.user.uid);
+        } catch (error) {
+          console.error('❌ Erreur création tâche:', error);
+          return { success: false, error: error.message };
+        }
+      },
+
+      dailyLogin: async () => {
+        try {
+          const { useAuthStore } = await import('./authStore.js');
+          const authState = useAuthStore.getState();
+          
+          if (!authState.user?.uid) {
+            throw new Error('Utilisateur non connecté');
+          }
+
+          return await gamificationService.dailyLogin(authState.user.uid);
+        } catch (error) {
+          console.error('❌ Erreur connexion quotidienne:', error);
+          return { success: false, error: error.message };
+        }
       }
     }),
     {
-      name: 'game-store'
+      name: 'game-store',
+      // Ne pas persister les fonctions et listeners
+      partialize: (state) => ({
+        userStats: state.userStats,
+        leaderboard: state.leaderboard,
+        notifications: state.notifications
+      })
     }
   )
 );
