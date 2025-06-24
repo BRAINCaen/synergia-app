@@ -1,3 +1,4 @@
+// src/shared/components/ui/Card.jsx
 import React from 'react'
 import { clsx } from 'clsx'
 
@@ -75,4 +76,8 @@ const CardFooter = React.forwardRef(({ className, children, ...props }, ref) => 
 
 CardFooter.displayName = 'CardFooter'
 
+// Exports nommés
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
+
+// Export par défaut pour compatibilité
+export default Card
