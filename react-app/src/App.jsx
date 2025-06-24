@@ -8,7 +8,7 @@ import { useGameStore } from './shared/stores/gameStore';
 // Components
 import Sidebar from './components/layout/Sidebar';
 
-// Pages - utiliser les vrais noms de fichiers existants
+// Pages
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import TasksPage from './pages/TasksPage';
@@ -74,40 +74,45 @@ const App = () => {
     );
   }
 
-  // Authenticated
+  // Authenticated - Layout avec sidebar
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50 flex">
-        {/* Sidebar */}
-        <Sidebar 
-          isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
-        />
-        
-        {/* Main Content */}
-        <div className="flex-1 lg:ml-64">
-          {/* Mobile overlay */}
-          {sidebarOpen && (
-            <div 
-              className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-            />
-          )}
+      <div className="min-h-screen bg-gray-50">
+        {/* Layout principal */}
+        <div className="flex h-screen">
           
-          {/* Routes */}
-          <main className="min-h-screen">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/tasks" element={<TasksPage />} />
-              <Route path="/projects" element={<ProjectsPage />} />
-              <Route path="/analytics" element={<AnalyticsPage />} />
-              <Route path="/leaderboard" element={<LeaderboardPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/users" element={<UsersPage />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </main>
+          {/* Sidebar */}
+          <div className="hidden lg:block lg:w-64 lg:flex-shrink-0">
+            <Sidebar 
+              isOpen={true} // Toujours ouverte sur desktop
+              onToggle={() => {}} // Pas de toggle sur desktop
+            />
+          </div>
+
+          {/* Sidebar mobile */}
+          <div className="lg:hidden">
+            <Sidebar 
+              isOpen={sidebarOpen}
+              onToggle={() => setSidebarOpen(!sidebarOpen)}
+            />
+          </div>
+          
+          {/* Contenu principal */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <main className="flex-1 overflow-y-auto">
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/tasks" element={<TasksPage />} />
+                <Route path="/projects" element={<ProjectsPage />} />
+                <Route path="/analytics" element={<AnalyticsPage />} />
+                <Route path="/leaderboard" element={<LeaderboardPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/users" element={<UsersPage />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </main>
+          </div>
         </div>
       </div>
     </Router>
