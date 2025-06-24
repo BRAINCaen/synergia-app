@@ -319,4 +319,55 @@ class TaskService {
 
 // Instance singleton
 export const taskService = new TaskService()
+
+// Mock projectService simple pour éviter l'erreur d'import
+export const projectService = {
+  // Données mock pour les projets
+  getMockProjects() {
+    return [
+      {
+        id: 'proj-1',
+        title: 'Synergia v3.3',
+        description: 'Développement de la plateforme collaborative',
+        status: 'in_progress',
+        progress: 75,
+        tasksTotal: 20,
+        tasksCompleted: 15,
+        createdAt: '2024-01-01T00:00:00Z'
+      },
+      {
+        id: 'proj-2',
+        title: 'Optimisation Performance',
+        description: 'Amélioration des temps de chargement',
+        status: 'planning',
+        progress: 30,
+        tasksTotal: 8,
+        tasksCompleted: 2,
+        createdAt: '2024-01-15T00:00:00Z'
+      }
+    ]
+  },
+
+  async getUserProjects(userId) {
+    console.log('🔧 [MOCK] Récupération projets pour:', userId)
+    return this.getMockProjects()
+  },
+
+  async createProject(userId, projectData) {
+    console.log('🔧 [MOCK] Création projet:', projectData.title)
+    return { 
+      id: `proj-${Date.now()}`, 
+      ...projectData, 
+      userId,
+      createdAt: new Date().toISOString()
+    }
+  },
+
+  subscribeToUserProjects(userId, callback) {
+    console.log('👂 [MOCK] Abonnement aux projets pour:', userId)
+    callback(this.getMockProjects())
+    return () => {}
+  }
+}
+
 export default taskService
