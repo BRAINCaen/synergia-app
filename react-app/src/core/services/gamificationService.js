@@ -60,6 +60,25 @@ class GamificationService {
     return 1;
   }
 
+  // 📊 Calculer la progression vers le niveau suivant
+  calculateLevelProgress(totalXP, currentLevel = null) {
+    const level = currentLevel || this.calculateLevel(totalXP);
+    const currentLevelXP = this.getXpForLevel(level);
+    const nextLevelXP = this.getXpForLevel(level + 1);
+    const progressXP = totalXP - currentLevelXP;
+    const neededXP = nextLevelXP - currentLevelXP;
+    const percentage = neededXP > 0 ? Math.round((progressXP / neededXP) * 100) : 0;
+
+    return {
+      current: progressXP,
+      needed: neededXP,
+      percentage: Math.max(0, Math.min(100, percentage)),
+      remaining: Math.max(0, nextLevelXP - totalXP),
+      currentLevelXP,
+      nextLevelXP
+    };
+  }
+
   // 🎯 Calculer l'XP nécessaire pour un niveau donné
   getXpForLevel(level) {
     if (level <= 1) return 0;
@@ -475,6 +494,55 @@ class GamificationService {
       console.error('❌ Erreur récupération leaderboard:', error);
       throw error;
     }
+  }
+
+  // 🏆 Récupérer tous les badges disponibles
+  getAllBadges() {
+    // Badges de base du système
+    const systemBadges = {
+      first_login: {
+        id: 'first_login',
+        name: 'Premier Pas',
+        description: 'Première connexion à Synergia',
+        icon: '🚀',
+        color: '#3B82F6',
+        rarity: 'common'
+      },
+      task_master: {
+        id: 'task_master',
+        name: 'Maître des Tâches',
+        description: 'Compléter 10 tâches',
+        icon: '⚡',
+        color: '#10B981',
+        rarity: 'uncommon'
+      },
+      level_5: {
+        id: 'level_5',
+        name: 'Niveau 5',
+        description: 'Atteindre le niveau 5',
+        icon: '⭐',
+        color: '#F59E0B',
+        rarity: 'rare'
+      },
+      perfectionist: {
+        id: 'perfectionist',
+        name: 'Perfectionniste',
+        description: 'Compléter 50 tâches',
+        icon: '💎',
+        color: '#8B5CF6',
+        rarity: 'epic'
+      },
+      legend: {
+        id: 'legend',
+        name: 'Légende',
+        description: 'Atteindre le niveau 10',
+        icon: '👑',
+        color: '#EF4444',
+        rarity: 'legendary'
+      }
+    };
+
+    return systemBadges;
   }
 
   // 🧹 Nettoyer les listeners
