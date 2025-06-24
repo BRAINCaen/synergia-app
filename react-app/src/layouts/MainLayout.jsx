@@ -1,237 +1,140 @@
-// ==========================================
-// 📁 react-app/src/layouts/MainLayout.jsx
-// Layout principal CORRIGÉ - Affichage sidebar + contenu
-// ==========================================
-
-import React, { useState } from 'react';
-import { Outlet, useLocation, Link } from 'react-router-dom';
-import { useAuthStore } from '../shared/stores/authStore';
-
-// Icons
-import { 
-  FaHome, 
-  FaTasks, 
-  FaProjectDiagram, 
-  FaTrophy, 
-  FaUsers, 
-  FaChartLine, 
-  FaUser, 
-  FaSignOutAlt, 
-  FaBars, 
-  FaTimes,
-  FaGamepad
-} from 'react-icons/fa';
+import React from 'react';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../stores/authStore';
+import { useGameStore } from '../stores/gameStore';
 
 const MainLayout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuthStore();
-  const location = useLocation();
-
-  // ✅ Configuration de navigation
-  const navigationItems = [
-    {
-      name: 'Dashboard',
-      href: '/dashboard',
-      icon: FaHome,
-      description: 'Vue d\'ensemble'
-    },
-    {
-      name: 'Tâches',
-      href: '/tasks',
-      icon: FaTasks,
-      description: 'Gestion des tâches'
-    },
-    {
-      name: 'Projets',
-      href: '/projects',
-      icon: FaProjectDiagram,
-      description: 'Projets et collaborations'
-    },
-    {
-      name: 'Gamification',
-      href: '/gamification',
-      icon: FaGamepad,
-      description: 'XP et progression'
-    },
-    {
-      name: 'Leaderboard',
-      href: '/leaderboard',
-      icon: FaTrophy,
-      description: 'Classements'
-    },
-    {
-      name: 'Équipe',
-      href: '/team',
-      icon: FaUsers,
-      description: 'Collaboration équipe'
-    },
-    {
-      name: 'Analytics',
-      href: '/analytics',
-      icon: FaChartLine,
-      description: 'Métriques et statistiques'
-    }
-  ];
+  const { level, xp, nextLevelXP } = useGameStore();
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error('❌ Erreur déconnexion:', error);
-    }
+    await logout();
+    navigate('/login');
   };
 
-  const isActivePath = (path) => {
-    return location.pathname === path || location.pathname.startsWith(path + '/');
-  };
+  const navItems = [
+    { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
+    { path: '/tasks', label: 'Tâches', icon: '✅' },
+    { path: '/projects', label: 'Projets', icon: '📁' },
+    { path: '/analytics', label: 'Analytics', icon: '📊' }, // 🆕 Nouveau lien
+    { path: '/leaderboard', label: 'Classement', icon: '🏆' }
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-900 flex">
-      {/* ✅ Overlay mobile pour fermer sidebar */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+    <div className="min-h-screen bg-gray-900">
+      {/* Header */}
+      <header className="bg-gray-800 shadow-lg border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo et navigation */}
+            <div className="flex items-center space-x-8">
+              <div className="flex items-center space-x-2">
+                <span className="text-2xl">⚡</span>
+                <span className="text-xl font-bold text-white">Synergia</span>
+                <span className="text-sm bg-green-500 text-white px-2 py-1 rounded-full">
+                  v3.3
+                </span>
+              </div>
 
-      {/* ✅ Sidebar */}
-      <div className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-64 bg-gray-800 transform transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
-        {/* Header sidebar */}
-        <div className="flex items-center justify-between h-16 px-6 bg-gray-900">
-          <div className="flex items-center">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold">S</span>
-            </div>
-            <span className="ml-2 text-white font-semibold">Synergia</span>
-          </div>
-          
-          {/* Bouton fermer mobile */}
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-gray-400 hover:text-white"
-          >
-            <FaTimes />
-          </button>
-        </div>
-
-        {/* Version badge */}
-        <div className="px-6 py-2">
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            v3.3
-          </span>
-          <span className="ml-2 text-xs text-gray-400">
-            Application stable avec toutes les fonctionnalités gamification
-          </span>
-        </div>
-
-        {/* Navigation principale */}
-        <nav className="mt-6 px-3">
-          <div className="space-y-1">
-            {navigationItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = isActivePath(item.href);
-              
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`
-                    group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
-                    ${isActive 
-                      ? 'bg-blue-600 text-white' 
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+              {/* Navigation principale */}
+              <nav className="hidden md:flex space-x-1">
+                {navItems.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) =>
+                      `flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        isActive
+                          ? 'bg-blue-600 text-white shadow-lg'
+                          : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                      }`
                     }
-                  `}
-                >
-                  <Icon className={`
-                    mr-3 h-5 w-5 transition-colors
-                    ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'}
-                  `} />
-                  <div className="flex-1">
-                    <div>{item.name}</div>
-                    <div className="text-xs opacity-75">{item.description}</div>
+                  >
+                    <span>{item.icon}</span>
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
+
+            {/* Informations utilisateur */}
+            <div className="flex items-center space-x-4">
+              {/* Barre XP */}
+              <div className="hidden sm:flex items-center space-x-3">
+                <div className="text-right">
+                  <div className="text-sm font-medium text-white">
+                    Niveau {level}
                   </div>
-                  {isActive && (
-                    <div className="w-2 h-2 bg-white rounded-full"></div>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
+                  <div className="text-xs text-gray-400">
+                    {xp} / {nextLevelXP} XP
+                  </div>
+                </div>
+                <div className="w-24 bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+                    style={{ 
+                      width: `${Math.min((xp / nextLevelXP) * 100, 100)}%` 
+                    }}
+                  ></div>
+                </div>
+              </div>
 
-        {/* Profil utilisateur */}
-        <div className="absolute bottom-0 w-full p-4 border-t border-gray-700">
-          <div className="flex items-center mb-3">
-            <img
-              className="h-8 w-8 rounded-full"
-              src={user?.photoURL || 'https://via.placeholder.com/32'}
-              alt={user?.displayName || 'Utilisateur'}
-            />
-            <div className="ml-3 flex-1">
-              <p className="text-sm font-medium text-white truncate">
-                {user?.displayName || 'Utilisateur'}
-              </p>
-              <p className="text-xs text-gray-400 truncate">
-                {user?.email}
-              </p>
+              {/* Menu utilisateur */}
+              <div className="flex items-center space-x-3">
+                <NavLink
+                  to="/profile"
+                  className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
+                >
+                  <img
+                    src={user?.photoURL || 'https://via.placeholder.com/32'}
+                    alt="Profile"
+                    className="w-8 h-8 rounded-full border-2 border-gray-600"
+                  />
+                  <span className="hidden sm:block text-sm">
+                    {user?.displayName || 'Utilisateur'}
+                  </span>
+                </NavLink>
+
+                <button
+                  onClick={handleLogout}
+                  className="text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-gray-700"
+                  title="Déconnexion"
+                >
+                  🚪
+                </button>
+              </div>
             </div>
           </div>
-          
-          <div className="space-y-1">
-            <Link
-              to="/profile"
-              onClick={() => setSidebarOpen(false)}
-              className="group flex items-center px-3 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 hover:text-white transition-colors"
-            >
-              <FaUser className="mr-3 h-4 w-4" />
-              Profil
-            </Link>
-            
-            <button
-              onClick={handleLogout}
-              className="w-full group flex items-center px-3 py-2 text-sm font-medium text-red-300 rounded-md hover:bg-red-600 hover:text-white transition-colors"
-            >
-              <FaSignOutAlt className="mr-3 h-4 w-4" />
-              Déconnexion
-            </button>
-          </div>
         </div>
-      </div>
+      </header>
 
-      {/* ✅ Contenu principal */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header mobile */}
-        <div className="lg:hidden bg-gray-800 px-4 py-2 flex items-center justify-between">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="text-gray-400 hover:text-white"
-          >
-            <FaBars className="h-6 w-6" />
-          </button>
-          
-          <div className="flex items-center">
-            <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-md flex items-center justify-center">
-              <span className="text-white text-xs font-bold">S</span>
-            </div>
-            <span className="ml-2 text-white font-semibold">Synergia</span>
-          </div>
-          
-          <div className="w-8"></div> {/* Spacer */}
+      {/* Navigation mobile */}
+      <nav className="md:hidden bg-gray-800 border-t border-gray-700">
+        <div className="flex justify-around py-2">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) =>
+                `flex flex-col items-center p-2 rounded-lg transition-all duration-200 ${
+                  isActive
+                    ? 'text-blue-500'
+                    : 'text-gray-400 hover:text-white'
+                }`
+              }
+            >
+              <span className="text-lg">{item.icon}</span>
+              <span className="text-xs mt-1">{item.label}</span>
+            </NavLink>
+          ))}
         </div>
+      </nav>
 
-        {/* ✅ Zone de contenu avec scroll */}
-        <main className="flex-1 overflow-y-auto bg-gray-900">
-          <div className="max-w-7xl mx-auto">
-            <Outlet />
-          </div>
-        </main>
-      </div>
+      {/* Contenu principal */}
+      <main className="flex-1">
+        <Outlet />
+      </main>
     </div>
   );
 };
