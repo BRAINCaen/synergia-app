@@ -15,6 +15,7 @@ import ProjectsPage from './pages/ProjectsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import ProfilePage from './pages/ProfilePage';
+import UsersPage from './pages/UsersPage';
 
 // Component de chargement
 function LoadingSpinner() {
@@ -48,6 +49,7 @@ function MainLayout() {
     { path: '/projects', label: 'Projets', icon: '📁', color: 'text-purple-400' },
     { path: '/analytics', label: 'Analytics', icon: '📊', color: 'text-orange-400' },
     { path: '/leaderboard', label: 'Classement', icon: '🏆', color: 'text-yellow-400' },
+    { path: '/users', label: 'Utilisateurs', icon: '👥', color: 'text-cyan-400' },
     { path: '/profile', label: 'Profil', icon: '👤', color: 'text-gray-400' }
   ];
 
@@ -140,6 +142,7 @@ function MainLayout() {
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/users" element={<UsersPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
