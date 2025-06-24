@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// 🔧 IMPORT UNIQUEMENT LES STORES QUI EXISTENT
+// 🔧 IMPORT avec destructuration correcte
 import { useAuthStore } from './shared/stores/authStore.js';
 
-// Pages - Import basique pour commencer
+// Pages
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 
@@ -25,7 +25,11 @@ function SimpleLayout({ children }) {
   const { user, signOut } = useAuthStore();
 
   const handleLogout = async () => {
-    await signOut();
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Erreur déconnexion:', error);
+    }
   };
 
   return (
@@ -82,11 +86,30 @@ function ProtectedRoute({ children }) {
 }
 
 function App() {
-  const { user, loading, checkAuth } = useAuthStore();
+  // 🔧 CORRECTION : Utilisation de initializeAuth au lieu de checkAuth
+  const { user, loading, initializeAuth } = useAuthStore();
 
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+    // 🔧 CORRECTION : Vérifier que initializeAuth existe avant de l'appeler
+    if (initializeAuth && typeof initializeAuth === 'function') {
+      console.log('🔧 Initialisation de l\'authentification...');
+      const unsubscribe = initializeAuth();
+      
+      // Nettoyage à la destruction du composant
+      return () => {
+        if (unsubscribe && typeof unsubscribe === 'function') {
+          unsubscribe();
+        }
+      };
+    } else {
+      console.warn('⚠️ initializeAuth non disponible dans authStore');
+      // Fallback : marquer comme non chargé
+      const { setLoading } = useAuthStore.getState();
+      if (setLoading) {
+        setLoading(false);
+      }
+    }
+  }, [initializeAuth]);
 
   if (loading) {
     return <LoadingSpinner />;
