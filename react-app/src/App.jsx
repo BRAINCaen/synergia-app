@@ -94,42 +94,4 @@ function App() {
   )
 }
 
-  return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-        <Routes>
-          {/* Routes publiques */}
-          <Route 
-            path="/login" 
-            element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
-          />
-          
-          {/* Routes protégées */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <MainLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="projects" element={<ProjectDashboard />} />
-            <Route path="projects/:projectId" element={<ProjectDetailView />} />
-            <Route path="tasks" element={<TaskList />} />
-            <Route path="team" element={<TeamPage />} />
-            <Route path="gamification" element={<GamificationDashboard />} />
-            <Route path="analytics" element={<Analytics />} />
-            <Route path="profile" element={<Profile />} />
-          </Route>
-
-          {/* Route 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </div>
-    </BrowserRouter>
-  )
-}
-
 export default App
