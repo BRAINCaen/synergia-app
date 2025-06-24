@@ -1,458 +1,192 @@
+// src/pages/ProfilePage.jsx
+// Page de profil complète avec gamification corrigée
 import React, { useState, useEffect } from 'react';
 import { 
-  doc, 
-  getDoc, 
-  updateDoc, 
-  collection, 
-  query, 
-  where, 
-  getDocs,
-  orderBy,
-  limit,
-  serverTimestamp
-} from 'firebase/firestore';
-import { db } from '../core/firebase';
-import { useAuthStore } from '../shared/stores/authStore';
-import { useGameStore } from '../shared/stores/gameStore';
-
-// Icônes
-import { 
   User, 
-  Settings, 
-  Trophy, 
-  Target, 
-  Calendar, 
-  Mail, 
   Edit3, 
-  Save, 
-  X,
-  Bell,
-  Eye,
-  EyeOff,
+  Settings, 
+  Camera, 
+  Crown, 
+  Star, 
+  Trophy, 
   Award,
-  Star,
-  TrendingUp,
-  Activity,
-  Clock,
+  Target,
+  Calendar,
   CheckCircle,
-  Zap,
-  Flame,
-  Crown,
-  Shield,
-  Camera,
-  Download
+  BarChart3,
+  Save,
+  X
 } from 'lucide-react';
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { useGamification } from '../shared/hooks/useGamification.js';
+import { useRealTimeUser } from '../shared/hooks/useRealTimeUser.js';
 
 const ProfilePage = () => {
-  const [profile, setProfile] = useState(null);
-  const [userStats, setUserStats] = useState(null);
-  const [recentActivity, setRecentActivity] = useState([]);
-  const [badges, setBadges] = useState([]);
-  const [achievements, setAchievements] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuthStore();
+  const { userData, loading: userLoading, updateUserData } = useRealTimeUser();
+  const { 
+    userStats, 
+    addXPForEvent, 
+    currentLevel, 
+    levelProgress,
+    getUnlockedBadges,
+    getUserInsights 
+  } = useGamification();
+
+  // États locaux
+  const [activeTab, setActiveTab] = useState('profile');
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview'); // overview, stats, achievements, settings
-
-  const { user, signOut } = useAuthStore();
-  const { addXP } = useGameStore();
-
-  // État du formulaire d'édition
   const [formData, setFormData] = useState({
     displayName: '',
     bio: '',
+    department: '',
     preferences: {
       notifications: true,
       publicProfile: false,
-      theme: 'dark'
+      emailUpdates: true
     }
   });
 
-  // Charger les données du profil
-  const loadProfile = async () => {
-    if (!user?.uid) return;
-
-    setLoading(true);
-    try {
-      // 1. Charger le profil utilisateur
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-      
-      let profileData = {
-        userId: user.uid,
-        email: user.email,
-        displayName: user.displayName || user.email?.split('@')[0] || 'Utilisateur',
-        photoURL: user.photoURL || null,
-        bio: '',
-        preferences: {
-          notifications: true,
-          publicProfile: false,
-          theme: 'dark'
-        },
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      if (userSnap.exists()) {
-        profileData = { ...profileData, ...userSnap.data() };
-      }
-
-      setProfile(profileData);
+  // Charger les données utilisateur
+  useEffect(() => {
+    if (userData) {
       setFormData({
-        displayName: profileData.displayName || '',
-        bio: profileData.bio || '',
-        preferences: profileData.preferences || {
-          notifications: true,
-          publicProfile: false,
-          theme: 'dark'
+        displayName: userData.profile?.displayName || userData.displayName || '',
+        bio: userData.profile?.bio || '',
+        department: userData.profile?.department || '',
+        preferences: {
+          notifications: userData.profile?.preferences?.notifications ?? true,
+          publicProfile: userData.profile?.preferences?.publicProfile ?? false,
+          emailUpdates: userData.profile?.preferences?.emailUpdates ?? true
         }
       });
-
-      // 2. Charger les statistiques utilisateur
-      const statsRef = doc(db, 'userStats', user.uid);
-      const statsSnap = await getDoc(statsRef);
-      
-      if (statsSnap.exists()) {
-        setUserStats(statsSnap.data());
-      }
-
-      // 3. Charger l'activité récente (dernières tâches complétées)
-      let recentTasks = [];
-      let recentProjects = [];
-      
-      try {
-        const tasksQuery = query(
-          collection(db, 'tasks'),
-          where('userId', '==', user.uid),
-          where('status', '==', 'completed'),
-          orderBy('completedAt', 'desc'),
-          limit(10)
-        );
-        
-        const tasksSnapshot = await getDocs(tasksQuery);
-        recentTasks = tasksSnapshot.docs.map(doc => ({
-          id: doc.id,
-          type: 'task_completed',
-          ...doc.data(),
-          timestamp: doc.data().completedAt?.toDate() || new Date()
-        }));
-      } catch (taskError) {
-        console.warn('Impossible de charger les tâches récentes:', taskError);
-        recentTasks = [];
-      }
-
-      // 4. Charger les projets récents
-      try {
-        const projectsQuery = query(
-          collection(db, 'projects'),
-          where('ownerId', '==', user.uid),
-          orderBy('createdAt', 'desc'),
-          limit(5)
-        );
-
-        const projectsSnapshot = await getDocs(projectsQuery);
-        recentProjects = projectsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          type: 'project_created',
-          ...doc.data(),
-          timestamp: doc.data().createdAt?.toDate() || new Date()
-        }));
-      } catch (projectError) {
-        console.warn('Impossible de charger les projets récents:', projectError);
-        recentProjects = [];
-      }
-
-      // Combiner et trier l'activité
-      const combinedActivity = [...recentTasks, ...recentProjects]
-        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-        .slice(0, 10);
-
-      setRecentActivity(combinedActivity);
-
-      // 5. Générer les badges disponibles
-      const availableBadges = generateBadges(statsSnap.data());
-      setBadges(availableBadges);
-
-      // 6. Générer les achievements
-      const userAchievements = generateAchievements(statsSnap.data(), recentTasks.length, recentProjects.length);
-      setAchievements(userAchievements);
-
-    } catch (error) {
-      console.error('Erreur chargement profil:', error);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [userData]);
 
-  // Sauvegarder les modifications du profil
+  // Sauvegarder le profil
   const saveProfile = async () => {
     if (!user?.uid) return;
 
     setSaving(true);
     try {
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        displayName: formData.displayName,
-        bio: formData.bio,
-        preferences: formData.preferences,
-        updatedAt: serverTimestamp()
-      });
+      const updates = {
+        profile: {
+          displayName: formData.displayName,
+          bio: formData.bio,
+          department: formData.department,
+          preferences: formData.preferences,
+          completedAt: new Date().toISOString()
+        }
+      };
 
-      // Mettre à jour l'état local
-      setProfile(prev => ({
-        ...prev,
-        displayName: formData.displayName,
-        bio: formData.bio,
-        preferences: formData.preferences
-      }));
+      await updateUserData(updates);
 
-      setEditing(false);
-      
-      // Ajouter un peu d'XP pour la mise à jour du profil
-      // Seulement si le service de gamification est disponible
+      // ✅ Ajouter XP pour la mise à jour du profil (MÉTHODE CORRIGÉE)
       try {
-        if (addXP && typeof addXP === 'function') {
-          await addXP(5, 'Profil mis à jour');
+        const xpResult = await addXPForEvent('profile_update');
+        if (xpResult.success) {
+          console.log('✅ XP ajouté pour mise à jour profil:', xpResult);
+        } else {
+          console.warn('⚠️ Impossible d\'ajouter XP:', xpResult.error);
         }
       } catch (xpError) {
-        console.warn('Impossible d\'ajouter l\'XP:', xpError);
-        // Continue sans bloquer la sauvegarde
+        console.warn('⚠️ Erreur ajout XP:', xpError);
       }
 
+      setEditing(false);
     } catch (error) {
-      console.error('Erreur sauvegarde profil:', error);
-      alert('Erreur lors de la sauvegarde');
+      console.error('❌ Erreur sauvegarde profil:', error);
     } finally {
       setSaving(false);
     }
   };
 
-  // Générer les badges en fonction des stats
-  const generateBadges = (stats) => {
-    if (!stats) return [];
-
-    const badges = [];
-
-    // Badges basés sur XP
-    if (stats.totalXp >= 1000) badges.push({ 
-      id: 'xp_1000', 
-      name: 'Guerrier XP', 
-      description: '1000 XP obtenus', 
-      icon: '⚡', 
-      color: 'yellow',
-      earned: true,
-      earnedAt: new Date()
-    });
-    
-    if (stats.totalXp >= 5000) badges.push({ 
-      id: 'xp_5000', 
-      name: 'Maître XP', 
-      description: '5000 XP obtenus', 
-      icon: '🌟', 
-      color: 'gold',
-      earned: true,
-      earnedAt: new Date()
-    });
-
-    // Badges basés sur tâches
-    if (stats.tasksCompleted >= 10) badges.push({ 
-      id: 'tasks_10', 
-      name: 'Débutant', 
-      description: '10 tâches complétées', 
-      icon: '🎯', 
-      color: 'blue',
-      earned: true,
-      earnedAt: new Date()
-    });
-    
-    if (stats.tasksCompleted >= 50) badges.push({ 
-      id: 'tasks_50', 
-      name: 'Producteur', 
-      description: '50 tâches complétées', 
-      icon: '🚀', 
-      color: 'green',
-      earned: true,
-      earnedAt: new Date()
-    });
-
-    if (stats.tasksCompleted >= 100) badges.push({ 
-      id: 'tasks_100', 
-      name: 'Machine', 
-      description: '100 tâches complétées', 
-      icon: '🤖', 
-      color: 'purple',
-      earned: true,
-      earnedAt: new Date()
-    });
-
-    // Badges basés sur connexions
-    if (stats.loginStreak >= 7) badges.push({ 
-      id: 'streak_7', 
-      name: 'Régulier', 
-      description: '7 jours consécutifs', 
-      icon: '🔥', 
-      color: 'orange',
-      earned: true,
-      earnedAt: new Date()
-    });
-
-    if (stats.loginStreak >= 30) badges.push({ 
-      id: 'streak_30', 
-      name: 'Assidu', 
-      description: '30 jours consécutifs', 
-      icon: '🏆', 
-      color: 'red',
-      earned: true,
-      earnedAt: new Date()
-    });
-
-    // Badges basés sur projets
-    if (stats.projectsCreated >= 5) badges.push({ 
-      id: 'projects_5', 
-      name: 'Organisateur', 
-      description: '5 projets créés', 
-      icon: '📁', 
-      color: 'indigo',
-      earned: true,
-      earnedAt: new Date()
-    });
-
-    return badges;
-  };
-
-  // Générer les achievements
-  const generateAchievements = (stats, recentTasksCount, recentProjectsCount) => {
-    if (!stats) return [];
-
-    const achievements = [];
-
-    // Achievement niveau
-    achievements.push({
-      id: 'level',
-      title: `Niveau ${stats.level || 1}`,
-      description: 'Votre niveau actuel',
-      progress: stats.level || 1,
-      maxProgress: (stats.level || 1) + 1,
-      icon: '🏅',
-      type: 'level'
-    });
-
-    // Achievement XP vers prochain niveau
-    const currentLevelXP = ((stats.level || 1) - 1) * 1000;
-    const nextLevelXP = (stats.level || 1) * 1000;
-    const progressToNext = (stats.totalXp || 0) - currentLevelXP;
-    const maxToNext = nextLevelXP - currentLevelXP;
-
-    achievements.push({
-      id: 'next_level',
-      title: 'Prochain niveau',
-      description: `${progressToNext}/${maxToNext} XP`,
-      progress: progressToNext,
-      maxProgress: maxToNext,
-      icon: '⭐',
-      type: 'progress'
-    });
-
-    // Achievement taux de completion
-    const completionRate = stats.tasksCreated > 0 ? 
-      Math.round((stats.tasksCompleted / stats.tasksCreated) * 100) : 0;
-
-    achievements.push({
-      id: 'completion_rate',
-      title: 'Taux de réussite',
-      description: `${completionRate}% de tâches complétées`,
-      progress: completionRate,
-      maxProgress: 100,
-      icon: '📈',
-      type: 'percentage'
-    });
-
-    return achievements;
-  };
-
-  // Déconnexion
-  const handleLogout = async () => {
-    if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
-      try {
-        await signOut();
-      } catch (error) {
-        console.error('Erreur déconnexion:', error);
-      }
+  // Fonctions utilitaires
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Non défini';
+    try {
+      return new Date(dateString).toLocaleDateString('fr-FR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return 'Non défini';
     }
   };
 
-  useEffect(() => {
-    loadProfile();
-  }, [user?.uid]);
-
-  const formatDate = (date) => {
-    if (!date) return 'N/A';
-    
-    // Gérer les Timestamps Firebase
-    if (date.toDate && typeof date.toDate === 'function') {
-      date = date.toDate();
+  const getUserLevel = () => currentLevel || 1;
+  const getTotalXP = () => userStats?.totalXp || 0;
+  const getUnlockedBadgesList = () => getUnlockedBadges() || [];
+  
+  // Données de simulation pour les réalisations
+  const achievements = [
+    {
+      id: 1,
+      title: 'Première tâche',
+      description: 'Créer votre première tâche',
+      progress: userStats?.tasksCreated || 0,
+      maxProgress: 1,
+      icon: Target,
+      unlocked: (userStats?.tasksCreated || 0) >= 1
+    },
+    {
+      id: 2,
+      title: 'Productif',
+      description: 'Compléter 10 tâches',
+      progress: userStats?.tasksCompleted || 0,
+      maxProgress: 10,
+      icon: CheckCircle,
+      unlocked: (userStats?.tasksCompleted || 0) >= 10
+    },
+    {
+      id: 3,
+      title: 'Série de connexions',
+      description: 'Se connecter 7 jours consécutifs',
+      progress: userStats?.loginStreak || 0,
+      maxProgress: 7,
+      icon: Calendar,
+      unlocked: (userStats?.loginStreak || 0) >= 7
+    },
+    {
+      id: 4,
+      title: 'Niveau expert',
+      description: 'Atteindre le niveau 10',
+      progress: getUserLevel(),
+      maxProgress: 10,
+      icon: Crown,
+      unlocked: getUserLevel() >= 10
     }
-    
-    // Vérifier que c'est bien un objet Date
-    if (!(date instanceof Date) || isNaN(date.getTime())) {
-      return 'N/A';
-    }
-    
-    return date.toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
+  ];
 
-  const getActivityIcon = (type) => {
-    switch (type) {
-      case 'task_completed': return <CheckCircle className="w-4 h-4 text-green-400" />;
-      case 'project_created': return <Activity className="w-4 h-4 text-purple-400" />;
-      default: return <Star className="w-4 h-4 text-gray-400" />;
-    }
-  };
-
-  const getActivityText = (activity) => {
-    switch (activity.type) {
-      case 'task_completed': 
-        return `A complété la tâche "${activity.title}"`;
-      case 'project_created': 
-        return `A créé le projet "${activity.name}"`;
-      default: 
-        return 'Activité inconnue';
-    }
-  };
-
-  if (loading) {
+  if (userLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white flex items-center gap-3">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          Chargement du profil...
-        </div>
+        <div className="text-white">Chargement du profil...</div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <div className="border-b border-gray-700 bg-gray-800/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-6xl mx-auto p-6">
+        {/* En-tête du profil */}
+        <div className="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
           <div className="flex items-center justify-between">
+            {/* Avatar et infos */}
             <div className="flex items-center gap-6">
-              {/* Avatar */}
               <div className="relative">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-2xl font-bold">
-                  {profile?.photoURL ? (
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-2xl font-bold text-white">
+                  {userData?.profile?.photoURL ? (
                     <img 
-                      src={profile.photoURL} 
-                      alt={profile.displayName}
+                      src={userData.profile.photoURL} 
+                      alt={userData.profile?.displayName}
                       className="w-20 h-20 rounded-full object-cover"
                     />
                   ) : (
-                    profile?.displayName?.charAt(0)?.toUpperCase() || '?'
+                    userData?.profile?.displayName?.charAt(0)?.toUpperCase() || 
+                    user?.displayName?.charAt(0)?.toUpperCase() || '?'
                   )}
                 </div>
                 <button className="absolute bottom-0 right-0 w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center border-2 border-gray-800 hover:bg-gray-600 transition-colors">
@@ -463,19 +197,19 @@ const ProfilePage = () => {
               {/* Infos utilisateur */}
               <div>
                 <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                  {profile?.displayName || 'Utilisateur'}
-                  {userStats?.level >= 10 && <Crown className="w-6 h-6 text-yellow-400" />}
+                  {userData?.profile?.displayName || user?.displayName || 'Utilisateur'}
+                  {getUserLevel() >= 10 && <Crown className="w-6 h-6 text-yellow-400" />}
                 </h1>
-                <p className="text-gray-400 mt-1">{profile?.email}</p>
+                <p className="text-gray-400 mt-1">{user?.email}</p>
                 <div className="flex items-center gap-4 mt-2">
                   <span className="text-sm text-gray-400">
-                    Niveau {userStats?.level || 1}
+                    Niveau {getUserLevel()}
                   </span>
                   <span className="text-sm text-gray-400">
-                    {userStats?.totalXp || 0} XP
+                    {getTotalXP()} XP
                   </span>
                   <span className="text-sm text-gray-400">
-                    Membre depuis {formatDate(profile?.createdAt)}
+                    Membre depuis {formatDate(userData?.createdAt)}
                   </span>
                 </div>
               </div>
@@ -489,347 +223,379 @@ const ProfilePage = () => {
                 <Edit3 className="w-4 h-4" />
                 {editing ? 'Annuler' : 'Modifier'}
               </button>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-              >
-                Déconnexion
-              </button>
             </div>
           </div>
 
-          {/* Bio */}
-          {profile?.bio && !editing && (
+          {/* Barre de progression niveau */}
+          {levelProgress && (
             <div className="mt-4">
-              <p className="text-gray-300">{profile.bio}</p>
+              <div className="flex items-center justify-between text-sm text-gray-400 mb-2">
+                <span>Progression niveau {getUserLevel()}</span>
+                <span>{levelProgress.current}/{levelProgress.needed} XP</span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${levelProgress.percentage}%` }}
+                ></div>
+              </div>
             </div>
           )}
+        </div>
 
-          {/* Navigation tabs */}
-          <div className="flex gap-6 mt-6">
-            {[
-              { id: 'overview', label: 'Vue d\'ensemble', icon: User },
-              { id: 'stats', label: 'Statistiques', icon: TrendingUp },
-              { id: 'achievements', label: 'Achievements', icon: Trophy },
-              { id: 'settings', label: 'Paramètres', icon: Settings }
-            ].map((tab) => (
+        {/* Navigation onglets */}
+        <div className="flex space-x-1 mb-6">
+          {[
+            { id: 'profile', label: 'Profil', icon: User },
+            { id: 'stats', label: 'Statistiques', icon: BarChart3 },
+            { id: 'achievements', label: 'Réalisations', icon: Trophy },
+            { id: 'settings', label: 'Paramètres', icon: Settings }
+          ].map(tab => {
+            const Icon = tab.icon;
+            return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  activeTab === tab.id 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
                 }`}
               >
-                <tab.icon className="w-4 h-4" />
+                <Icon className="w-4 h-4" />
                 {tab.label}
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Contenu selon l'onglet actif */}
-        {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Statistiques rapides */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Métriques principales */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">Tâches complétées</p>
-                      <p className="text-2xl font-bold text-white">{userStats?.tasksCompleted || 0}</p>
-                    </div>
-                    <CheckCircle className="w-8 h-8 text-green-400" />
-                  </div>
-                </div>
-
-                <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">Projets créés</p>
-                      <p className="text-2xl font-bold text-white">{userStats?.projectsCreated || 0}</p>
-                    </div>
-                    <Activity className="w-8 h-8 text-purple-400" />
-                  </div>
-                </div>
-
-                <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">Série actuelle</p>
-                      <p className="text-2xl font-bold text-white">{userStats?.loginStreak || 0}</p>
-                    </div>
-                    <Flame className="w-8 h-8 text-orange-400" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Activité récente */}
+        {/* Contenu des onglets */}
+        {activeTab === 'profile' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Informations principales */}
+            <div className="lg:col-span-2">
               <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-blue-400" />
-                  Activité récente
+                <h3 className="text-lg font-semibold text-white mb-6">
+                  Informations personnelles
                 </h3>
-                
-                {recentActivity.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400">
-                    <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>Aucune activité récente</p>
-                  </div>
+
+                {editing ? (
+                  <form onSubmit={(e) => { e.preventDefault(); saveProfile(); }} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Nom d'affichage
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.displayName}
+                        onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Votre nom"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Bio
+                      </label>
+                      <textarea
+                        value={formData.bio}
+                        onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                        rows={3}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Parlez-nous de vous..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Département
+                      </label>
+                      <select
+                        value={formData.department}
+                        onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Sélectionner un département</option>
+                        <option value="tech">Technique</option>
+                        <option value="design">Design</option>
+                        <option value="marketing">Marketing</option>
+                        <option value="sales">Ventes</option>
+                        <option value="hr">Ressources Humaines</option>
+                        <option value="finance">Finance</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h4 className="font-medium text-white">Préférences</h4>
+                      
+                      <label className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={formData.preferences.notifications}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            preferences: { ...prev.preferences, notifications: e.target.checked }
+                          }))}
+                          className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-gray-300">Recevoir les notifications</span>
+                      </label>
+
+                      <label className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={formData.preferences.publicProfile}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            preferences: { ...prev.preferences, publicProfile: e.target.checked }
+                          }))}
+                          className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-gray-300">Profil public</span>
+                      </label>
+
+                      <label className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={formData.preferences.emailUpdates}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            preferences: { ...prev.preferences, emailUpdates: e.target.checked }
+                          }))}
+                          className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-gray-300">Mises à jour par email</span>
+                      </label>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        type="submit"
+                        disabled={saving}
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-lg transition-colors flex items-center gap-2"
+                      >
+                        <Save className="w-4 h-4" />
+                        {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditing(false)}
+                        className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                      >
+                        <X className="w-4 h-4" />
+                        Annuler
+                      </button>
+                    </div>
+                  </form>
                 ) : (
-                  <div className="space-y-3">
-                    {recentActivity.slice(0, 5).map((activity, index) => (
-                      <div key={index} className="flex items-center gap-3 p-3 bg-gray-700/50 rounded-lg">
-                        {getActivityIcon(activity.type)}
-                        <div className="flex-1">
-                          <p className="text-white text-sm">{getActivityText(activity)}</p>
-                          <p className="text-gray-400 text-xs">
-                            {activity.timestamp.toLocaleDateString('fr-FR')} à {activity.timestamp.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Nom d'affichage
+                      </label>
+                      <p className="text-white">{userData?.profile?.displayName || 'Non défini'}</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Bio
+                      </label>
+                      <p className="text-white">{userData?.profile?.bio || 'Aucune bio définie'}</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Département
+                      </label>
+                      <p className="text-white">{userData?.profile?.department || 'Non défini'}</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Email
+                      </label>
+                      <p className="text-gray-400">{user?.email}</p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h4 className="font-medium text-white">Préférences</h4>
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-300">Notifications</span>
+                        <span className="text-white">
+                          {userData?.profile?.preferences?.notifications ? 'Activées' : 'Désactivées'}
+                        </span>
                       </div>
-                    ))}
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-300">Profil public</span>
+                        <span className="text-white">
+                          {userData?.profile?.preferences?.publicProfile ? 'Public' : 'Privé'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-300">Mises à jour par email</span>
+                        <span className="text-white">
+                          {userData?.profile?.preferences?.emailUpdates ? 'Activées' : 'Désactivées'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Sidebar droite */}
+            {/* Sidebar */}
             <div className="space-y-6">
-              {/* Badges récents */}
-              <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <Award className="w-5 h-5 text-yellow-400" />
-                  Badges récents
-                </h3>
-                
-                {badges.length === 0 ? (
-                  <div className="text-center py-6 text-gray-400">
-                    <Award className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Aucun badge obtenu</p>
+              {/* Statistiques rapides */}
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4">Statistiques</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Tâches complétées</span>
+                    <span className="text-white font-semibold">{userStats?.tasksCompleted || 0}</span>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    {badges.slice(0, 4).map((badge, index) => (
-                      <div key={index} className="text-center p-3 bg-gray-700/50 rounded-lg">
-                        <div className="text-2xl mb-1">{badge.icon}</div>
-                        <p className="text-xs font-medium text-white">{badge.name}</p>
-                        <p className="text-xs text-gray-400">{badge.description}</p>
-                      </div>
-                    ))}
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Projets créés</span>
+                    <span className="text-white font-semibold">{userStats?.projectsCreated || 0}</span>
                   </div>
-                )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Points XP</span>
+                    <span className="text-blue-400 font-semibold">{getTotalXP()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Série de connexions</span>
+                    <span className="text-orange-400 font-semibold">{userStats?.loginStreak || 0}</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Progression niveau */}
-              <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+              {/* Badges récents */}
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <Star className="w-5 h-5 text-yellow-400" />
-                  Progression
+                  <Award className="w-5 h-5 text-yellow-400" />
+                  Badges débloqués
                 </h3>
-                
-                {achievements.slice(0, 3).map((achievement, index) => (
-                  <div key={index} className="mb-4 last:mb-0">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{achievement.icon}</span>
-                        <span className="text-sm font-medium text-white">{achievement.title}</span>
+                <div className="grid grid-cols-3 gap-2">
+                  {getUnlockedBadgesList().slice(0, 6).map((badge, index) => (
+                    <div
+                      key={index}
+                      className="bg-gray-700 p-2 rounded text-center"
+                      title={badge.name || `Badge ${index + 1}`}
+                    >
+                      <div className="text-lg">{badge.icon || '🏆'}</div>
+                      <div className="text-xs text-gray-400 truncate">
+                        {badge.name || `Badge ${index + 1}`}
                       </div>
-                      <span className="text-xs text-gray-400">
-                        {achievement.progress}/{achievement.maxProgress}
-                      </span>
                     </div>
-                    <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min((achievement.progress / achievement.maxProgress) * 100, 100)}%` }}
-                      ></div>
+                  ))}
+                  {getUnlockedBadgesList().length === 0 && (
+                    <div className="col-span-3 text-center text-gray-400 py-4">
+                      Aucun badge débloqué
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">{achievement.description}</p>
-                  </div>
-                ))}
+                  )}
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {activeTab === 'stats' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Statistiques détaillées */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Cartes de statistiques */}
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <h3 className="text-lg font-semibold text-white mb-6">📊 Statistiques détaillées</h3>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">XP Total</span>
-                  <span className="text-white font-medium">{userStats?.totalXp?.toLocaleString() || 0}</span>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-400">XP Total</p>
+                  <p className="text-2xl font-bold text-blue-400">{getTotalXP()}</p>
                 </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Niveau</span>
-                  <span className="text-white font-medium">{userStats?.level || 1}</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Tâches créées</span>
-                  <span className="text-white font-medium">{userStats?.tasksCreated || 0}</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Tâches complétées</span>
-                  <span className="text-white font-medium">{userStats?.tasksCompleted || 0}</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Taux de completion</span>
-                  <span className="text-white font-medium">
-                    {userStats?.tasksCreated > 0 
-                      ? Math.round((userStats.tasksCompleted / userStats.tasksCreated) * 100) 
-                      : 0}%
-                  </span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Projets créés</span>
-                  <span className="text-white font-medium">{userStats?.projectsCreated || 0}</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Série de connexions</span>
-                  <span className="text-white font-medium">{userStats?.loginStreak || 0} jours</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Dernière connexion</span>
-                  <span className="text-white font-medium">
-                    {userStats?.lastLoginDate?.toDate ? 
-                      formatDate(userStats.lastLoginDate.toDate()) : 
-                      'Aujourd\'hui'
-                    }
-                  </span>
-                </div>
+                <Star className="w-8 h-8 text-blue-400" />
               </div>
             </div>
 
-            {/* Graphique de progression (simplifié) */}
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <h3 className="text-lg font-semibold text-white mb-6">📈 Progression mensuelle</h3>
-              
-              {/* Visualisation simple de progression */}
-              <div className="space-y-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-400">XP ce mois</span>
-                    <span className="text-yellow-400 font-medium">+{Math.floor((userStats?.totalXp || 0) * 0.3)}</span>
-                  </div>
-                  <div className="w-full bg-gray-700 rounded-full h-3">
-                    <div className="bg-gradient-to-r from-yellow-500 to-orange-500 h-3 rounded-full" style={{ width: '65%' }}></div>
-                  </div>
+                  <p className="text-sm text-gray-400">Niveau</p>
+                  <p className="text-2xl font-bold text-purple-400">{getUserLevel()}</p>
                 </div>
-                
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-400">Tâches ce mois</span>
-                    <span className="text-blue-400 font-medium">+{Math.floor((userStats?.tasksCompleted || 0) * 0.4)}</span>
-                  </div>
-                  <div className="w-full bg-gray-700 rounded-full h-3">
-                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full" style={{ width: '80%' }}></div>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-400">Projets ce mois</span>
-                    <span className="text-green-400 font-medium">+{Math.floor((userStats?.projectsCreated || 0) * 0.5)}</span>
-                  </div>
-                  <div className="w-full bg-gray-700 rounded-full h-3">
-                    <div className="bg-gradient-to-r from-green-500 to-teal-500 h-3 rounded-full" style={{ width: '45%' }}></div>
-                  </div>
-                </div>
+                <Crown className="w-8 h-8 text-purple-400" />
               </div>
-              
-              <div className="mt-6 pt-6 border-t border-gray-700 text-center">
-                <p className="text-gray-400 text-sm">
-                  Continuez comme ça ! Vous êtes sur la bonne voie 🚀
-                </p>
+            </div>
+
+            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-400">Tâches complétées</p>
+                  <p className="text-2xl font-bold text-green-400">{userStats?.tasksCompleted || 0}</p>
+                </div>
+                <CheckCircle className="w-8 h-8 text-green-400" />
+              </div>
+            </div>
+
+            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-400">Série actuelle</p>
+                  <p className="text-2xl font-bold text-orange-400">{userStats?.loginStreak || 0}</p>
+                </div>
+                <Calendar className="w-8 h-8 text-orange-400" />
               </div>
             </div>
           </div>
         )}
 
         {activeTab === 'achievements' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Badges */}
+          <div className="space-y-6">
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
               <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-                <Award className="w-5 h-5 text-yellow-400" />
-                Badges obtenus ({badges.length})
+                <Trophy className="w-5 h-5 text-yellow-400" />
+                Réalisations
               </h3>
               
-              {badges.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <Award className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>Aucun badge obtenu pour le moment</p>
-                  <p className="text-sm mt-2">Complétez des tâches pour débloquer vos premiers badges !</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-4">
-                  {badges.map((badge, index) => (
-                    <div key={index} className="bg-gray-700/50 p-4 rounded-lg text-center">
-                      <div className="text-3xl mb-2">{badge.icon}</div>
-                      <h4 className="font-medium text-white mb-1">{badge.name}</h4>
-                      <p className="text-xs text-gray-400 mb-2">{badge.description}</p>
-                      {badge.earnedAt && (
-                        <p className="text-xs text-green-400">
-                          Obtenu le {formatDate(badge.earnedAt)}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Achievements et objectifs */}
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-                <Target className="w-5 h-5 text-blue-400" />
-                Objectifs et progression
-              </h3>
-              
-              <div className="space-y-6">
-                {achievements.map((achievement, index) => (
-                  <div key={index}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xl">{achievement.icon}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {achievements.map((achievement) => {
+                  const Icon = achievement.icon;
+                  return (
+                    <div
+                      key={achievement.id}
+                      className={`p-4 rounded-lg border ${
+                        achievement.unlocked
+                          ? 'bg-green-900/20 border-green-500'
+                          : 'bg-gray-700 border-gray-600'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <Icon className={`w-6 h-6 ${
+                          achievement.unlocked ? 'text-green-400' : 'text-gray-400'
+                        }`} />
                         <div>
                           <h4 className="font-medium text-white">{achievement.title}</h4>
-                          <p className="text-xs text-gray-400">{achievement.description}</p>
+                          <p className="text-sm text-gray-400">{achievement.description}</p>
                         </div>
+                        {achievement.unlocked && (
+                          <CheckCircle className="w-5 h-5 text-green-400 ml-auto" />
+                        )}
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-white">
-                          {achievement.progress}/{achievement.maxProgress}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {Math.round((achievement.progress / achievement.maxProgress) * 100)}%
-                        </p>
+                      <div className="flex items-center justify-between text-sm text-gray-400 mb-2">
+                        <span>Progression</span>
+                        <span>{achievement.progress}/{achievement.maxProgress}</span>
+                      </div>
+                      <div className="w-full bg-gray-700 rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            achievement.unlocked
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-500'
+                              : 'bg-gradient-to-r from-blue-500 to-purple-500'
+                          }`}
+                          style={{ width: `${Math.min((achievement.progress / achievement.maxProgress) * 100, 100)}%` }}
+                        ></div>
                       </div>
                     </div>
-                    <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min((achievement.progress / achievement.maxProgress) * 100, 100)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -840,138 +606,43 @@ const ProfilePage = () => {
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
               <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
                 <Settings className="w-5 h-5 text-gray-400" />
-                Paramètres du profil
+                Paramètres du compte
               </h3>
 
-              {editing ? (
-                <form onSubmit={(e) => { e.preventDefault(); saveProfile(); }} className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Nom d'affichage
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.displayName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Votre nom"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Bio
-                    </label>
-                    <textarea
-                      value={formData.bio}
-                      onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
-                      rows={3}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Parlez-nous de vous..."
-                    />
-                  </div>
-
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-white">Préférences</h4>
-                    
-                    <label className="flex items-center justify-between">
-                      <span className="text-gray-300">Notifications activées</span>
-                      <input
-                        type="checkbox"
-                        checked={formData.preferences.notifications}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          preferences: { ...prev.preferences, notifications: e.target.checked }
-                        }))}
-                        className="rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500"
-                      />
-                    </label>
-
-                    <label className="flex items-center justify-between">
-                      <span className="text-gray-300">Profil public</span>
-                      <input
-                        type="checkbox"
-                        checked={formData.preferences.publicProfile}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          preferences: { ...prev.preferences, publicProfile: e.target.checked }
-                        }))}
-                        className="rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500"
-                      />
-                    </label>
-                  </div>
-
-                  <div className="flex justify-end gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setEditing(false)}
-                      className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
-                    >
-                      {saving && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
-                      <Save className="w-4 h-4" />
-                      {saving ? 'Sauvegarde...' : 'Sauvegarder'}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Nom d'affichage
-                    </label>
-                    <p className="text-white">{profile?.displayName || 'Non défini'}</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Bio
-                    </label>
-                    <p className="text-white">{profile?.bio || 'Aucune bio définie'}</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Email
-                    </label>
-                    <p className="text-gray-400">{profile?.email}</p>
-                  </div>
-
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-medium text-white mb-4">Informations du compte</h4>
                   <div className="space-y-3">
-                    <h4 className="font-medium text-white">Préférences</h4>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-300">Notifications</span>
-                      <span className="text-white">
-                        {profile?.preferences?.notifications ? 'Activées' : 'Désactivées'}
-                      </span>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Email</span>
+                      <span className="text-white">{user?.email}</span>
                     </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-300">Profil public</span>
-                      <span className="text-white">
-                        {profile?.preferences?.publicProfile ? 'Public' : 'Privé'}
-                      </span>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Compte créé le</span>
+                      <span className="text-white">{formatDate(userData?.createdAt)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Dernière connexion</span>
+                      <span className="text-white">{formatDate(userData?.lastLoginAt)}</span>
                     </div>
                   </div>
+                </div>
 
-                  <div className="pt-6 border-t border-gray-700">
-                    <button
-                      onClick={() => setEditing(true)}
-                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      Modifier le profil
+                <div className="border-t border-gray-700 pt-6">
+                  <h4 className="font-medium text-white mb-4">Actions</h4>
+                  <div className="space-y-3">
+                    <button className="w-full text-left px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-white">
+                      Changer le mot de passe
+                    </button>
+                    <button className="w-full text-left px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-white">
+                      Exporter mes données
+                    </button>
+                    <button className="w-full text-left px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors text-white">
+                      Supprimer le compte
                     </button>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         )}
