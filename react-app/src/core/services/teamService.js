@@ -1,477 +1,307 @@
-// core/services/teamService.js
+// ==========================================
+// 📁 react-app/src/core/services/teamService.js
+// Service pour gérer les données équipe en temps réel
+// ==========================================
+
 import { 
   collection, 
   doc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  getDocs, 
-  getDoc,
   query, 
   where, 
   orderBy, 
+  limit,
   onSnapshot,
-  arrayUnion,
-  arrayRemove,
-  serverTimestamp 
+  updateDoc,
+  serverTimestamp,
+  getDocs 
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db } from '../firebase.js';
 
 class TeamService {
   constructor() {
-    this.teamCollection = collection(db, 'teams');
-    this.membersCollection = collection(db, 'teamMembers');
-    this.xpRequestsCollection = collection(db, 'xpRequests');
+    this.listeners = new Map();
+    this.cache = new Map();
   }
 
-  // ==========================================
-  // GESTION ÉQUIPES
-  // ==========================================
-
-  /**
-   * Créer une nouvelle équipe
-   */
-  async createTeam(teamData, creatorId) {
-    try {
-      const team = {
-        ...teamData,
-        createdBy: creatorId,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        members: [creatorId],
-        admins: [creatorId],
-        settings: {
-          xpValidationRequired: true,
-          publicProjects: true,
-          allowMemberInvites: true
-        }
-      };
-
-      const docRef = await addDoc(this.teamCollection, team);
-      
-      // Ajouter le créateur comme membre admin
-      await this.addTeamMember(docRef.id, creatorId, 'admin');
-      
-      return { id: docRef.id, ...team };
-    } catch (error) {
-      console.error('Erreur création équipe:', error);
-      throw error;
+  // ✅ Récupérer tous les membres de l'équipe
+  async getTeamMembers(limitCount = 20) {
+    if (!db) {
+      return this.getMockTeamMembers();
     }
-  }
 
-  /**
-   * Ajouter un membre à l'équipe
-   */
-  async addTeamMember(teamId, userId, role = 'member') {
     try {
-      const memberData = {
-        teamId,
-        userId,
-        role, // 'admin', 'manager', 'member'
-        joinedAt: serverTimestamp(),
-        status: 'active',
-        permissions: {
-          canCreateProjects: role === 'admin' || role === 'manager',
-          canValidateXP: role === 'admin',
-          canInviteMembers: role === 'admin' || role === 'manager',
-          canManageTasks: true
-        }
-      };
-
-      await addDoc(this.membersCollection, memberData);
-      
-      // Mettre à jour la liste des membres dans l'équipe
-      const teamRef = doc(this.teamCollection, teamId);
-      await updateDoc(teamRef, {
-        members: arrayUnion(userId),
-        updatedAt: serverTimestamp()
-      });
-
-      return memberData;
-    } catch (error) {
-      console.error('Erreur ajout membre:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Obtenir les membres d'une équipe avec leurs détails
-   */
-  async getTeamMembers(teamId) {
-    try {
-      const membersQuery = query(
-        this.membersCollection,
-        where('teamId', '==', teamId),
-        where('status', '==', 'active')
+      const q = query(
+        collection(db, 'users'),
+        orderBy('lastActivity', 'desc'),
+        limit(limitCount)
       );
       
-      const snapshot = await getDocs(membersQuery);
+      const querySnapshot = await getDocs(q);
       const members = [];
-      
-      for (const doc of snapshot.docs) {
-        const memberData = { id: doc.id, ...doc.data() };
-        
-        // Récupérer les infos utilisateur depuis la collection users
-        const userDoc = await getDoc(doc(db, 'users', memberData.userId));
-        if (userDoc.exists()) {
-          memberData.user = userDoc.data();
+
+      querySnapshot.forEach((doc) => {
+        const userData = doc.data();
+        if (userData.email) {
+          members.push({
+            id: doc.id,
+            name: userData.displayName || userData.email.split('@')[0],
+            email: userData.email,
+            role: userData.role || 'Membre',
+            department: userData.department || 'Non spécifié',
+            photoURL: userData.photoURL,
+            level: userData.gamification?.level || 1,
+            xp: userData.gamification?.totalXp || 0,
+            tasksCompleted: userData.gamification?.tasksCompleted || 0,
+            badges: userData.gamification?.badges || [],
+            lastActivity: userData.lastActivity,
+            status: this.calculateUserStatus(userData.lastActivity),
+            joinedAt: userData.createdAt || userData.metadata?.creationTime
+          });
         }
-        
-        members.push(memberData);
-      }
-      
+      });
+
       return members;
     } catch (error) {
-      console.error('Erreur récupération membres:', error);
-      throw error;
+      console.error('❌ Erreur récupération équipe:', error);
+      return this.getMockTeamMembers();
     }
   }
 
-  // ==========================================
-  // GESTION XP COLLABORATIVE
-  // ==========================================
+  // ✅ Récupérer les statistiques équipe
+  async getTeamStats() {
+    if (!db) {
+      return this.getMockTeamStats();
+    }
 
-  /**
-   * Demander validation XP pour une tâche
-   */
-  async requestXPValidation(requestData) {
     try {
-      const xpRequest = {
-        ...requestData,
-        status: 'pending', // 'pending', 'approved', 'rejected'
-        requestedAt: serverTimestamp(),
-        requestedBy: requestData.userId,
-        description: requestData.description || '',
-        evidence: requestData.evidence || '', // Photos, liens, détails
-        xpAmount: requestData.xpAmount,
-        taskId: requestData.taskId,
-        teamId: requestData.teamId
+      const [members, tasks, projects] = await Promise.all([
+        this.getTeamMembers(),
+        this.getTeamTasks(),
+        this.getTeamProjects()
+      ]);
+
+      const stats = {
+        totalMembers: members.length,
+        activeMembers: members.filter(m => m.status === 'online').length,
+        totalXP: members.reduce((sum, member) => sum + member.xp, 0),
+        averageLevel: members.length > 0 ? 
+          members.reduce((sum, member) => sum + member.level, 0) / members.length : 0,
+        totalTasks: tasks.length,
+        completedTasks: tasks.filter(t => t.status === 'completed').length,
+        inProgressTasks: tasks.filter(t => t.status === 'in_progress').length,
+        totalProjects: projects.length,
+        activeProjects: projects.filter(p => p.status === 'active').length,
+        completedProjects: projects.filter(p => p.status === 'completed').length,
+        completionRate: tasks.length > 0 ? 
+          Math.round((tasks.filter(t => t.status === 'completed').length / tasks.length) * 100) : 0
       };
 
-      const docRef = await addDoc(this.xpRequestsCollection, xpRequest);
-      return { id: docRef.id, ...xpRequest };
+      return stats;
     } catch (error) {
-      console.error('Erreur demande validation XP:', error);
-      throw error;
+      console.error('❌ Erreur calcul stats équipe:', error);
+      return this.getMockTeamStats();
     }
   }
 
-  /**
-   * Valider ou rejeter une demande XP (admin seulement)
-   */
-  async validateXPRequest(requestId, adminId, decision, feedback = '') {
-    try {
-      const requestRef = doc(this.xpRequestsCollection, requestId);
-      const requestDoc = await getDoc(requestRef);
-      
-      if (!requestDoc.exists()) {
-        throw new Error('Demande XP introuvable');
-      }
-
-      const requestData = requestDoc.data();
-      
-      // Mettre à jour le statut de la demande
-      await updateDoc(requestRef, {
-        status: decision, // 'approved' ou 'rejected'
-        validatedBy: adminId,
-        validatedAt: serverTimestamp(),
-        feedback: feedback,
-        updatedAt: serverTimestamp()
-      });
-
-      // Si approuvé, attribuer les XP à l'utilisateur
-      if (decision === 'approved') {
-        await this.awardXP(requestData.userId, requestData.xpAmount, {
-          reason: 'Task validation',
-          taskId: requestData.taskId,
-          validatedBy: adminId
-        });
-      }
-
-      return { success: true, decision, feedback };
-    } catch (error) {
-      console.error('Erreur validation XP:', error);
-      throw error;
+  // ✅ Récupérer les tâches de l'équipe
+  async getTeamTasks(limitCount = 50) {
+    if (!db) {
+      return [];
     }
-  }
 
-  /**
-   * Attribuer des XP à un utilisateur
-   */
-  async awardXP(userId, xpAmount, metadata = {}) {
     try {
-      // Récupérer les données utilisateur actuelles
-      const userRef = doc(db, 'users', userId);
-      const userDoc = await getDoc(userRef);
-      
-      if (!userDoc.exists()) {
-        throw new Error('Utilisateur introuvable');
-      }
-
-      const userData = userDoc.data();
-      const currentXP = userData.xp || 0;
-      const newXP = currentXP + xpAmount;
-
-      // Calculer le nouveau niveau
-      const newLevel = Math.floor(newXP / 100) + 1;
-      const currentLevel = userData.level || 1;
-      const levelUp = newLevel > currentLevel;
-
-      // Mettre à jour les données utilisateur
-      await updateDoc(userRef, {
-        xp: newXP,
-        level: newLevel,
-        updatedAt: serverTimestamp()
-      });
-
-      // Enregistrer l'historique XP
-      await addDoc(collection(db, 'xpHistory'), {
-        userId,
-        xpAmount,
-        previousXP: currentXP,
-        newXP,
-        previousLevel: currentLevel,
-        newLevel,
-        levelUp,
-        reason: metadata.reason || 'Manual award',
-        taskId: metadata.taskId || null,
-        validatedBy: metadata.validatedBy || null,
-        awardedAt: serverTimestamp()
-      });
-
-      return {
-        success: true,
-        xpAwarded: xpAmount,
-        newXP,
-        newLevel,
-        levelUp
-      };
-    } catch (error) {
-      console.error('Erreur attribution XP:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Obtenir les demandes XP en attente (pour les admins)
-   */
-  async getPendingXPRequests(teamId) {
-    try {
-      const requestsQuery = query(
-        this.xpRequestsCollection,
-        where('teamId', '==', teamId),
-        where('status', '==', 'pending'),
-        orderBy('requestedAt', 'desc')
+      const q = query(
+        collection(db, 'tasks'),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
       );
+      
+      const querySnapshot = await getDocs(q);
+      const tasks = [];
 
-      const snapshot = await getDocs(requestsQuery);
-      const requests = [];
+      querySnapshot.forEach((doc) => {
+        tasks.push({ id: doc.id, ...doc.data() });
+      });
 
-      for (const doc of snapshot.docs) {
-        const requestData = { id: doc.id, ...doc.data() };
-        
-        // Récupérer les infos utilisateur
-        const userDoc = await getDoc(doc(db, 'users', requestData.requestedBy));
-        if (userDoc.exists()) {
-          requestData.user = userDoc.data();
-        }
-
-        requests.push(requestData);
-      }
-
-      return requests;
+      return tasks;
     } catch (error) {
-      console.error('Erreur récupération demandes XP:', error);
-      throw error;
+      console.error('❌ Erreur récupération tâches équipe:', error);
+      return [];
     }
   }
 
-  // ==========================================
-  // SURVEILLANCE ÉQUIPE (WHO DOES WHAT)
-  // ==========================================
+  // ✅ Récupérer les projets de l'équipe
+  async getTeamProjects(limitCount = 20) {
+    if (!db) {
+      return [];
+    }
 
-  /**
-   * Obtenir l'activité de l'équipe en temps réel
-   */
-  async getTeamActivity(teamId) {
     try {
-      // Obtenir tous les projets de l'équipe
-      const projectsQuery = query(
+      const q = query(
         collection(db, 'projects'),
-        where('teamId', '==', teamId),
-        where('isActive', '==', true)
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const projects = [];
+
+      querySnapshot.forEach((doc) => {
+        projects.push({ id: doc.id, ...doc.data() });
+      });
+
+      return projects;
+    } catch (error) {
+      console.error('❌ Erreur récupération projets équipe:', error);
+      return [];
+    }
+  }
+
+  // ✅ Écouter les changements équipe en temps réel
+  subscribeToTeamUpdates(callback) {
+    if (!db) {
+      callback(this.getMockTeamData());
+      return () => {};
+    }
+
+    try {
+      // Écouter les utilisateurs
+      const usersQuery = query(
+        collection(db, 'users'),
+        orderBy('lastActivity', 'desc'),
+        limit(20)
       );
 
-      const projectsSnapshot = await getDocs(projectsQuery);
-      const teamActivity = {
-        projects: [],
-        members: {},
-        workload: {},
-        needsHelp: [],
-        blockers: []
+      const unsubscribeUsers = onSnapshot(usersQuery, async (snapshot) => {
+        try {
+          const members = [];
+          snapshot.forEach((doc) => {
+            const userData = doc.data();
+            if (userData.email) {
+              members.push({
+                id: doc.id,
+                name: userData.displayName || userData.email.split('@')[0],
+                email: userData.email,
+                role: userData.role || 'Membre',
+                level: userData.gamification?.level || 1,
+                xp: userData.gamification?.totalXp || 0,
+                tasksCompleted: userData.gamification?.tasksCompleted || 0,
+                status: this.calculateUserStatus(userData.lastActivity),
+                lastActivity: userData.lastActivity
+              });
+            }
+          });
+
+          // Récupérer aussi les stats complètes
+          const stats = await this.getTeamStats();
+          
+          callback({
+            members,
+            stats,
+            lastUpdated: new Date().toISOString()
+          });
+        } catch (error) {
+          console.error('❌ Erreur traitement changements équipe:', error);
+        }
+      });
+
+      this.listeners.set('team-updates', unsubscribeUsers);
+      return unsubscribeUsers;
+
+    } catch (error) {
+      console.error('❌ Erreur abonnement équipe:', error);
+      callback(this.getMockTeamData());
+      return () => {};
+    }
+  }
+
+  // ✅ Mettre à jour le statut d'un utilisateur
+  async updateUserStatus(userId, status, activity = null) {
+    if (!db) return;
+
+    try {
+      const userRef = doc(db, 'users', userId);
+      const updateData = {
+        status,
+        lastActivity: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
 
-      for (const projectDoc of projectsSnapshot.docs) {
-        const project = { id: projectDoc.id, ...projectDoc.data() };
-        
-        // Obtenir les tâches du projet
-        const tasksQuery = query(
-          collection(db, 'tasks'),
-          where('projectId', '==', project.id)
-        );
-        
-        const tasksSnapshot = await getDocs(tasksQuery);
-        project.tasks = tasksSnapshot.docs.map(taskDoc => ({
-          id: taskDoc.id,
-          ...taskDoc.data()
-        }));
-
-        // Analyser l'activité par membre
-        project.tasks.forEach(task => {
-          if (task.assignedTo) {
-            // Comptabiliser la charge de travail
-            if (!teamActivity.workload[task.assignedTo]) {
-              teamActivity.workload[task.assignedTo] = {
-                total: 0,
-                pending: 0,
-                inProgress: 0,
-                overdue: 0
-              };
-            }
-
-            teamActivity.workload[task.assignedTo].total++;
-            
-            if (task.status === 'pending') {
-              teamActivity.workload[task.assignedTo].pending++;
-            } else if (task.status === 'in-progress') {
-              teamActivity.workload[task.assignedTo].inProgress++;
-            }
-
-            // Détecter les tâches en retard
-            if (task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'completed') {
-              teamActivity.workload[task.assignedTo].overdue++;
-            }
-
-            // Détecter les demandes d'aide
-            if (task.needsHelp) {
-              teamActivity.needsHelp.push({
-                taskId: task.id,
-                taskTitle: task.title,
-                assignedTo: task.assignedTo,
-                projectId: project.id,
-                projectTitle: project.title,
-                helpRequested: task.helpRequested || 'Non spécifié'
-              });
-            }
-
-            // Détecter les bloqueurs
-            if (task.status === 'blocked') {
-              teamActivity.blockers.push({
-                taskId: task.id,
-                taskTitle: task.title,
-                assignedTo: task.assignedTo,
-                projectId: project.id,
-                projectTitle: project.title,
-                blocker: task.blocker || 'Non spécifié'
-              });
-            }
-          }
-        });
-
-        teamActivity.projects.push(project);
+      if (activity) {
+        updateData.lastActivityType = activity;
       }
 
-      return teamActivity;
+      await updateDoc(userRef, updateData);
     } catch (error) {
-      console.error('Erreur récupération activité équipe:', error);
-      throw error;
+      console.error('❌ Erreur mise à jour statut:', error);
     }
   }
 
-  /**
-   * Signaler qu'une tâche a besoin d'aide
-   */
-  async requestTaskHelp(taskId, userId, helpMessage) {
-    try {
-      const taskRef = doc(db, 'tasks', taskId);
-      await updateDoc(taskRef, {
-        needsHelp: true,
-        helpRequested: helpMessage,
-        helpRequestedBy: userId,
-        helpRequestedAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-
-      return { success: true };
-    } catch (error) {
-      console.error('Erreur demande aide tâche:', error);
-      throw error;
-    }
+  // ✅ Calculer le statut utilisateur selon activité
+  calculateUserStatus(lastActivity) {
+    if (!lastActivity) return 'offline';
+    
+    const now = new Date();
+    const lastActiveDate = new Date(lastActivity.seconds ? lastActivity.seconds * 1000 : lastActivity);
+    const diffMinutes = (now - lastActiveDate) / (1000 * 60);
+    
+    if (diffMinutes < 5) return 'online';
+    if (diffMinutes < 30) return 'away';
+    return 'offline';
   }
 
-  /**
-   * Marquer une tâche comme bloquée
-   */
-  async blockTask(taskId, userId, blockerReason) {
-    try {
-      const taskRef = doc(db, 'tasks', taskId);
-      await updateDoc(taskRef, {
-        status: 'blocked',
-        blocker: blockerReason,
-        blockedBy: userId,
-        blockedAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-
-      return { success: true };
-    } catch (error) {
-      console.error('Erreur blocage tâche:', error);
-      throw error;
-    }
-  }
-
-  // ==========================================
-  // ÉCOUTE TEMPS RÉEL
-  // ==========================================
-
-  /**
-   * S'abonner aux changements d'activité équipe
-   */
-  subscribeToTeamActivity(teamId, callback) {
-    const projectsQuery = query(
-      collection(db, 'projects'),
-      where('teamId', '==', teamId)
-    );
-
-    return onSnapshot(projectsQuery, async (snapshot) => {
-      try {
-        const activity = await this.getTeamActivity(teamId);
-        callback(activity);
-      } catch (error) {
-        console.error('Erreur subscription activité équipe:', error);
+  // ✅ Nettoyer les listeners
+  unsubscribeAll() {
+    this.listeners.forEach(unsubscribe => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
       }
     });
+    this.listeners.clear();
   }
 
-  /**
-   * S'abonner aux demandes XP en attente
-   */
-  subscribeToPendingXPRequests(teamId, callback) {
-    const requestsQuery = query(
-      this.xpRequestsCollection,
-      where('teamId', '==', teamId),
-      where('status', '==', 'pending'),
-      orderBy('requestedAt', 'desc')
-    );
+  // ✅ Données mock pour le fallback
+  getMockTeamMembers() {
+    return [
+      {
+        id: 'mock-1',
+        name: 'Vous',
+        email: 'utilisateur@synergia.com',
+        role: 'Utilisateur connecté',
+        level: 1,
+        xp: 0,
+        tasksCompleted: 0,
+        status: 'online',
+        lastActivity: new Date().toISOString()
+      }
+    ];
+  }
 
-    return onSnapshot(requestsQuery, (snapshot) => {
-      const requests = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      callback(requests);
-    });
+  getMockTeamStats() {
+    return {
+      totalMembers: 1,
+      activeMembers: 1,
+      totalXP: 0,
+      averageLevel: 1,
+      totalTasks: 0,
+      completedTasks: 0,
+      inProgressTasks: 0,
+      totalProjects: 0,
+      activeProjects: 0,
+      completedProjects: 0,
+      completionRate: 0
+    };
+  }
+
+  getMockTeamData() {
+    return {
+      members: this.getMockTeamMembers(),
+      stats: this.getMockTeamStats(),
+      lastUpdated: new Date().toISOString()
+    };
   }
 }
 
-export default new TeamService();
+// ✅ Instance singleton
+const teamService = new TeamService();
+export default teamService;
