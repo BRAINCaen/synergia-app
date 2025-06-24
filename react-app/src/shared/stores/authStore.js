@@ -69,6 +69,15 @@ export const useAuthStore = create(
             error: null 
           })
           
+          // Initialiser la gamification pour le nouvel utilisateur
+          try {
+            const { gamificationService } = await import('../../core/services/gamificationService.js');
+            await gamificationService.initializeUserStats(userData.uid, userData.email);
+            await gamificationService.updateLoginStreak(userData.uid);
+          } catch (gamificationError) {
+            console.warn('⚠️ Erreur initialisation gamification:', gamificationError);
+          }
+          
           return { success: true, user: userData }
         } catch (error) {
           const errorMessage = error.code === 'auth/popup-closed-by-user' 
@@ -100,6 +109,15 @@ export const useAuthStore = create(
             loading: false, 
             error: null 
           })
+          
+          // Initialiser la gamification pour le nouvel utilisateur
+          try {
+            const { gamificationService } = await import('../../core/services/gamificationService.js');
+            await gamificationService.initializeUserStats(userData.uid, userData.email);
+            await gamificationService.updateLoginStreak(userData.uid);
+          } catch (gamificationError) {
+            console.warn('⚠️ Erreur initialisation gamification:', gamificationError);
+          }
           
           return { success: true, user: userData }
         } catch (error) {
