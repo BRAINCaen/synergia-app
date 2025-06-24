@@ -1,200 +1,116 @@
-// ===================================================================
-// 🔥 FICHIER FIREBASE COMPLET CORRIGÉ POUR SYNERGIA
-// Fichier: react-app/src/core/firebase.js
-// ===================================================================
+// Configuration Firebase complète pour Synergia avec Google Auth
+import { initializeApp } from 'firebase/app'
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
+import { getStorage } from 'firebase/storage'
 
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getStorage, connectStorageEmulator } from 'firebase/storage';
-
-// Configuration Firebase avec gestion des erreurs CORS
+// Configuration Firebase - utilise les variables d'environnement Netlify
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDemo-Key-Replace-With-Yours",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "your-project.firebaseapp.com", 
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "your-project-id",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "your-project.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "123456789",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:123456789:web:abcdef"
-};
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+}
 
-// Variables globales pour éviter les erreurs de réinitialisation
-let app;
-let auth;
-let db;
-let storage;
-let googleProvider;
+// Vérification de la configuration
+const isFirebaseConfigured = Object.values(firebaseConfig).every(value => value && value !== 'undefined')
 
-try {
-  // Initialisation Firebase avec vérification
-  console.log('🔥 Initialisation Firebase...');
-  app = initializeApp(firebaseConfig);
-  
-  // Services Firebase
-  auth = getAuth(app);
-  db = getFirestore(app);
-  storage = getStorage(app);
-  
-  // Configuration Google Provider sécurisée
-  googleProvider = new GoogleAuthProvider();
-  googleProvider.addScope('email');
-  googleProvider.addScope('profile');
-  googleProvider.setCustomParameters({
-    prompt: 'select_account',
-    access_type: 'offline'
-  });
-  
-  // Configuration des émulateurs en mode développement
-  if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === 'true') {
-    console.log('🛠️ Mode émulateur activé');
-    try {
-      connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-      connectFirestoreEmulator(db, 'localhost', 8080);
-      connectStorageEmulator(storage, 'localhost', 9199);
-    } catch (emulatorError) {
-      console.warn('⚠️ Émulateurs Firebase non disponibles:', emulatorError.message);
-    }
-  }
-  
-  console.log('✅ Firebase initialisé avec succès');
-  
-} catch (initError) {
-  console.error('❌ Erreur initialisation Firebase:', initError);
-  
-  // Mode dégradé avec données mock
-  console.warn('🔄 Activation du mode dégradé...');
-  
-  // Créer des objets mock pour éviter les erreurs
-  auth = {
-    currentUser: null,
-    onAuthStateChanged: (callback) => callback(null),
-    signOut: () => Promise.resolve()
-  };
-  
-  db = {
-    collection: () => ({
-      get: () => Promise.resolve({ docs: [] }),
-      add: () => Promise.resolve({ id: 'mock-id' }),
-      doc: () => ({
-        get: () => Promise.resolve({ exists: false }),
-        set: () => Promise.resolve(),
-        update: () => Promise.resolve(),
-        delete: () => Promise.resolve()
-      })
+// Initialisation Firebase
+let app, auth, db, storage, googleProvider
+
+if (isFirebaseConfigured) {
+  try {
+    app = initializeApp(firebaseConfig)
+    auth = getAuth(app)
+    db = getFirestore(app)
+    storage = getStorage(app)
+    
+    // Configuration Google Auth Provider
+    googleProvider = new GoogleAuthProvider()
+    googleProvider.addScope('email')
+    googleProvider.addScope('profile')
+    googleProvider.setCustomParameters({
+      prompt: 'select_account'
     })
-  };
-}
-
-// ===================================================================
-// SERVICE DE DIAGNOSTIC FIREBASE
-// ===================================================================
-
-export const FirebaseDiagnostic = {
-  async checkConnection() {
-    console.log('🔍 Diagnostic Firebase...');
     
-    const results = {
-      auth: false,
-      firestore: false,
-      storage: false,
-      config: false
-    };
-    
-    try {
-      // Test configuration
-      if (firebaseConfig.apiKey && firebaseConfig.projectId) {
-        results.config = true;
-        console.log('✅ Configuration Firebase valide');
-      }
-      
-      // Test Auth
-      if (auth) {
-        results.auth = true;
-        console.log('✅ Firebase Auth disponible');
-      }
-      
-      // Test Firestore
-      if (db) {
-        results.firestore = true;
-        console.log('✅ Firestore disponible');
-      }
-      
-      // Test Storage
-      if (storage) {
-        results.storage = true;
-        console.log('✅ Firebase Storage disponible');
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur diagnostic:', error);
-    }
-    
-    const allGood = Object.values(results).every(Boolean);
-    console.log(allGood ? '🎉 Firebase opérationnel' : '⚠️ Problèmes détectés');
-    
-    return results;
-  },
-  
-  getConnectionStatus() {
-    return {
-      online: navigator.onLine,
-      firebase: !!app,
-      auth: !!auth,
-      firestore: !!db
-    };
-  },
-
-  // Test de connectivité réseau
-  async testNetworkConnection() {
-    try {
-      const response = await fetch('https://www.google.com/favicon.ico', {
-        method: 'HEAD',
-        mode: 'no-cors'
-      });
-      return true;
-    } catch (error) {
-      console.warn('❌ Pas de connexion réseau');
-      return false;
-    }
-  },
-
-  // Affichage du statut complet
-  async displayFullStatus() {
-    console.log('📊 Statut complet Firebase:');
-    console.log('----------------------------');
-    
-    const connectionResults = await this.checkConnection();
-    const networkStatus = await this.testNetworkConnection();
-    const status = this.getConnectionStatus();
-    
-    console.log(`🌐 Réseau: ${networkStatus ? '✅ Connecté' : '❌ Déconnecté'}`);
-    console.log(`🔧 Configuration: ${connectionResults.config ? '✅' : '❌'}`);
-    console.log(`🔐 Auth: ${connectionResults.auth ? '✅' : '❌'}`);
-    console.log(`📊 Firestore: ${connectionResults.firestore ? '✅' : '❌'}`);
-    console.log(`📁 Storage: ${connectionResults.storage ? '✅' : '❌'}`);
-    console.log('----------------------------');
-    
-    return {
-      ...connectionResults,
-      network: networkStatus,
-      overall: Object.values(connectionResults).every(Boolean) && networkStatus
-    };
+    console.log('🔥 Firebase et Google Auth initialisés avec succès')
+  } catch (error) {
+    console.error('❌ Erreur initialisation Firebase:', error)
   }
-};
-
-// Diagnostic automatique au chargement en mode développement
-if (import.meta.env.DEV) {
-  setTimeout(() => {
-    FirebaseDiagnostic.checkConnection();
-  }, 1000);
+} else {
+  console.warn('⚠️ Firebase non configuré - Variables d\'environnement manquantes')
 }
 
-// Diagnostic complet disponible dans la console
-if (typeof window !== 'undefined') {
-  window.firebaseDiagnostic = FirebaseDiagnostic;
-  console.log('🔧 Diagnostic Firebase disponible: window.firebaseDiagnostic.displayFullStatus()');
+// Services d'authentification
+export const authService = {
+  // Connexion avec Google
+  async signInWithGoogle() {
+    if (!auth || !googleProvider) {
+      throw new Error('Firebase non configuré')
+    }
+    
+    try {
+      const result = await signInWithPopup(auth, googleProvider)
+      const user = result.user
+      
+      console.log('✅ Connexion Google réussie:', user.email)
+      
+      return {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        emailVerified: user.emailVerified
+      }
+    } catch (error) {
+      console.error('❌ Erreur connexion Google:', error)
+      throw error
+    }
+  },
+
+  // Déconnexion
+  async signOut() {
+    if (!auth) {
+      throw new Error('Firebase non configuré')
+    }
+    
+    try {
+      await signOut(auth)
+      console.log('✅ Déconnexion réussie')
+    } catch (error) {
+      console.error('❌ Erreur déconnexion:', error)
+      throw error
+    }
+  },
+
+  // Écouter les changements d'état auth
+  onAuthStateChanged(callback) {
+    if (!auth) {
+      console.warn('⚠️ Firebase non configuré - Mode mock')
+      callback(null)
+      return () => {}
+    }
+    
+    return auth.onAuthStateChanged(callback)
+  },
+
+  // Obtenir l'utilisateur actuel
+  getCurrentUser() {
+    return auth?.currentUser || null
+  }
 }
 
-// Exports principaux
-export { auth, db, storage, googleProvider, app };
-export default { auth, db, storage, googleProvider, app };
+// Export avec fallback
+export { 
+  auth: auth || null, 
+  db: db || null, 
+  storage: storage || null,
+  googleProvider: googleProvider || null,
+  isFirebaseConfigured,
+  authService
+}
+
+export default app || null
