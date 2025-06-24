@@ -1,296 +1,316 @@
-import { create } from 'zustand'
-import { persist, subscribeWithSelector } from 'zustand/middleware'
-import taskService from '../../core/services/taskService.js'
+// src/shared/stores/taskStore.js
+import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
+import { taskService } from '../../core/services/taskService.js';
+import { gamificationService } from '../../core/services/gamificationService.js';
 
 export const useTaskStore = create(
-  subscribeWithSelector(
-    persist(
-      (set, get) => ({
-        // État des tâches
-        tasks: [],
-        currentTask: null,
-        loading: false,
-        creating: false,
-        updating: false,
-        deleting: false,
+  devtools(
+    (set, get) => ({
+      // État
+      tasks: [],
+      loading: false,
+      error: null,
+      filters: {
+        status: 'all',
+        priority: 'all',
+        projectId: null
+      },
+      selectedTask: null,
+      unsubscribe: null,
+
+      // Actions
+      setLoading: (loading) => set({ loading }),
+      setError: (error) => set({ error }),
+      clearError: () => set({ error: null }),
+
+      // Initialiser l'écoute en temps réel
+      initializeTaskSync: (userId) => {
+        const { unsubscribe: currentUnsubscribe } = get();
         
-        // Filtres et recherche
-        filters: {
-          status: 'all',
-          priority: 'all',
-          projectId: 'all',
-          orderBy: 'createdAt',
-          orderDirection: 'desc'
-        },
-        searchTerm: '',
-        
-        // Statistiques
-        stats: {
-          total: 0,
-          completed: 0,
-          inProgress: 0,
-          todo: 0,
-          overdue: 0,
-          totalXpEarned: 0,
-          completionRate: 0
-        },
-        
-        // Subscriptions temps réel
-        unsubscribeTasks: null,
-        
-        // ✅ Actions - Chargement des tâches avec Firebase
-        loadUserTasks: async (userId) => {
-          set({ loading: true });
-          try {
-            const filters = get().getActiveFilters();
-            const tasks = await taskService.getUserTasks(userId, filters);
-            set({ tasks, loading: false });
-            
-            // Mettre à jour les stats
-            await get().updateStats(userId);
-            
-            return tasks;
-          } catch (error) {
-            console.error('Erreur chargement tâches:', error);
-            set({ loading: false });
-            throw error;
-          }
-        },
+        // Nettoyer l'ancien abonnement s'il existe
+        if (currentUnsubscribe) {
+          currentUnsubscribe();
+        }
 
-        // ✅ Créer une tâche avec Firebase
-        createTask: async (taskData, userId) => {
-          if (!userId) {
-            throw new Error('UserId requis pour créer une tâche');
-          }
-          
-          set({ creating: true });
-          try {
-            const newTask = await taskService.createTask(taskData, userId);
-            
-            // Ajouter à la liste locale
-            set(state => ({
-              tasks: [newTask, ...state.tasks],
-              creating: false
-            }));
-            
-            // Recharger les stats
-            await get().updateStats(userId);
-            
-            return newTask;
-          } catch (error) {
-            console.error('Erreur création tâche:', error);
-            set({ creating: false });
-            throw error;
-          }
-        },
+        set({ loading: true, error: null });
 
-        // ✅ Mettre à jour une tâche
-        updateTask: async (taskId, updates, userId) => {
-          set({ updating: true });
-          try {
-            const updatedTask = await taskService.updateTask(taskId, updates, userId);
-            
-            set(state => ({
-              tasks: state.tasks.map(task => 
-                task.id === taskId ? updatedTask : task
-              ),
-              currentTask: state.currentTask?.id === taskId ? updatedTask : state.currentTask,
-              updating: false
-            }));
-            
-            return updatedTask;
-          } catch (error) {
-            console.error('Erreur mise à jour tâche:', error);
-            set({ updating: false });
-            throw error;
-          }
-        },
-
-        // 🎮 Compléter une tâche avec XP
-        completeTask: async (taskId, userId, actualTime = null) => {
-          try {
-            const result = await taskService.completeTask(taskId, { timeSpent: actualTime });
-            
-            // Mettre à jour la tâche localement
-            set(state => ({
-              tasks: state.tasks.map(task => 
-                task.id === taskId 
-                  ? { 
-                      ...task, 
-                      status: 'completed', 
-                      completedAt: new Date(), 
-                      actualTime, 
-                      xpReward: result.xpGained 
-                    }
-                  : task
-              )
-            }));
-            
-            // Recharger les stats
-            await get().updateStats(userId);
-            
-            return result;
-          } catch (error) {
-            console.error('Erreur completion tâche:', error);
-            throw error;
-          }
-        },
-
-        // ✅ Supprimer une tâche
-        deleteTask: async (taskId, userId) => {
-          set({ deleting: true });
-          try {
-            await taskService.deleteTask(taskId, userId);
-            
-            set(state => ({
-              tasks: state.tasks.filter(task => task.id !== taskId),
-              currentTask: state.currentTask?.id === taskId ? null : state.currentTask,
-              deleting: false
-            }));
-            
-            return taskId;
-          } catch (error) {
-            console.error('Erreur suppression tâche:', error);
-            set({ deleting: false });
-            throw error;
-          }
-        },
-
-        // 🔍 Gestion des filtres
-        setFilters: (newFilters) => {
-          set(state => ({
-            filters: { ...state.filters, ...newFilters }
-          }));
-        },
-
-        setSearchTerm: (searchTerm) => {
-          set({ searchTerm });
-        },
-
-        // Obtenir les filtres actifs
-        getActiveFilters: () => {
-          const { filters } = get();
-          const apiFilters = {};
-          
-          if (filters.status !== 'all') apiFilters.status = filters.status;
-          if (filters.priority !== 'all') apiFilters.priority = filters.priority;
-          if (filters.projectId !== 'all') apiFilters.projectId = filters.projectId;
-          
-          apiFilters.orderBy = filters.orderBy;
-          apiFilters.orderDirection = filters.orderDirection;
-          
-          return apiFilters;
-        },
-
-        // Obtenir les tâches filtrées
-        getFilteredTasks: () => {
-          const { tasks, searchTerm, filters } = get();
-          
-          let filtered = [...tasks];
-          
-          // Filtrer par statut
-          if (filters.status !== 'all') {
-            filtered = filtered.filter(task => task.status === filters.status);
-          }
-          
-          // Filtrer par priorité
-          if (filters.priority !== 'all') {
-            filtered = filtered.filter(task => task.priority === filters.priority);
-          }
-          
-          // Filtrer par projet
-          if (filters.projectId !== 'all') {
-            if (filters.projectId === '') {
-              filtered = filtered.filter(task => !task.projectId);
-            } else {
-              filtered = filtered.filter(task => task.projectId === filters.projectId);
-            }
-          }
-          
-          // Recherche textuelle
-          if (searchTerm.trim()) {
-            const searchLower = searchTerm.toLowerCase();
-            filtered = filtered.filter(task => 
-              task.title.toLowerCase().includes(searchLower) ||
-              task.description?.toLowerCase().includes(searchLower) ||
-              task.tags?.some(tag => tag.toLowerCase().includes(searchLower))
-            );
-          }
-          
-          return filtered;
-        },
-
-        // 📊 Mettre à jour les statistiques
-        updateStats: async (userId) => {
-          try {
-            const stats = await taskService.getTaskStats(userId);
-            set({ stats });
-          } catch (error) {
-            console.error('Erreur mise à jour stats:', error);
-          }
-        },
-
-        // 🔔 Subscription temps réel
-        subscribeToTasks: (userId) => {
-          const currentUnsub = get().unsubscribeTasks;
-          if (currentUnsub) currentUnsub();
-          
-          const filters = get().getActiveFilters();
-          const unsubscribe = taskService.listenToUserTasks(
+        try {
+          // Écouter les changements de tâches en temps réel
+          const unsubscribe = taskService.subscribeToUserTasks(
             userId,
             (tasks) => {
-              set({ tasks });
-              get().updateStats(userId);
+              set({ 
+                tasks, 
+                loading: false, 
+                error: null 
+              });
+              console.log(`📥 ${tasks.length} tâches synchronisées`);
             },
-            filters
+            get().filters
           );
-          
-          set({ unsubscribeTasks: unsubscribe });
+
+          set({ unsubscribe });
           return unsubscribe;
-        },
-
-        // Nettoyer
-        cleanup: () => {
-          const { unsubscribeTasks } = get();
-          if (unsubscribeTasks) {
-            unsubscribeTasks();
-            set({ unsubscribeTasks: null });
-          }
-        },
-
-        // Réinitialiser
-        reset: () => {
-          get().cleanup();
-          set({
-            tasks: [],
-            currentTask: null,
-            loading: false,
-            creating: false,
-            updating: false,
-            deleting: false,
-            searchTerm: '',
-            stats: {
-              total: 0,
-              completed: 0,
-              inProgress: 0,
-              todo: 0,
-              overdue: 0,
-              totalXpEarned: 0,
-              completionRate: 0
-            }
-          });
+        } catch (error) {
+          console.error('❌ Erreur initialisation sync tâches:', error);
+          set({ loading: false, error: error.message });
         }
-      }),
-      {
-        name: 'synergia-tasks',
-        partialize: (state) => ({
-          tasks: state.tasks,
-          filters: state.filters,
-          searchTerm: state.searchTerm,
-          stats: state.stats
-        }),
-        version: 1
+      },
+
+      // Nettoyer l'abonnement
+      cleanup: () => {
+        const { unsubscribe } = get();
+        if (unsubscribe) {
+          unsubscribe();
+          set({ unsubscribe: null });
+        }
+      },
+
+      // Créer une tâche
+      createTask: async (taskData, userId) => {
+        set({ loading: true, error: null });
+
+        try {
+          const newTask = await taskService.createTask(taskData, userId);
+          
+          // Mettre à jour les statistiques de gamification
+          await gamificationService.updateTaskStats(userId, 'created');
+          
+          // XP pour création de tâche
+          const xpResult = await gamificationService.addXP(userId, 5, 'Tâche créée');
+          
+          set({ loading: false });
+          
+          console.log('✅ Tâche créée avec succès');
+          return { 
+            success: true, 
+            task: newTask,
+            xpGained: xpResult.xpGained,
+            newBadges: xpResult.newBadges
+          };
+        } catch (error) {
+          console.error('❌ Erreur création tâche:', error);
+          set({ loading: false, error: error.message });
+          return { success: false, error: error.message };
+        }
+      },
+
+      // Mettre à jour une tâche
+      updateTask: async (taskId, updates, userId) => {
+        set({ loading: true, error: null });
+
+        try {
+          const updatedTask = await taskService.updateTask(taskId, updates, userId);
+          
+          // Si la tâche est marquée comme complétée
+          if (updates.status === 'completed') {
+            await gamificationService.updateTaskStats(userId, 'completed');
+            
+            // XP pour complétion de tâche
+            const xpReward = updatedTask.xpReward || taskService.calculateXPReward(
+              updatedTask.priority, 
+              updatedTask.complexity
+            );
+            
+            const xpResult = await gamificationService.addXP(
+              userId, 
+              xpReward, 
+              `Tâche complétée: ${updatedTask.title}`
+            );
+            
+            set({ loading: false });
+            
+            return { 
+              success: true, 
+              task: updatedTask,
+              xpGained: xpResult.xpGained,
+              levelUp: xpResult.levelUp,
+              newBadges: xpResult.newBadges
+            };
+          }
+          
+          set({ loading: false });
+          return { success: true, task: updatedTask };
+        } catch (error) {
+          console.error('❌ Erreur mise à jour tâche:', error);
+          set({ loading: false, error: error.message });
+          return { success: false, error: error.message };
+        }
+      },
+
+      // Supprimer une tâche
+      deleteTask: async (taskId, userId) => {
+        set({ loading: true, error: null });
+
+        try {
+          await taskService.deleteTask(taskId, userId);
+          set({ loading: false });
+          
+          console.log('✅ Tâche supprimée avec succès');
+          return { success: true };
+        } catch (error) {
+          console.error('❌ Erreur suppression tâche:', error);
+          set({ loading: false, error: error.message });
+          return { success: false, error: error.message };
+        }
+      },
+
+      // Récupérer une tâche par ID
+      getTaskById: async (taskId, userId) => {
+        set({ loading: true, error: null });
+
+        try {
+          const task = await taskService.getTaskById(taskId, userId);
+          set({ selectedTask: task, loading: false });
+          return { success: true, task };
+        } catch (error) {
+          console.error('❌ Erreur récupération tâche:', error);
+          set({ loading: false, error: error.message });
+          return { success: false, error: error.message };
+        }
+      },
+
+      // Compléter une tâche avec récompenses
+      completeTask: async (taskId, userId) => {
+        try {
+          const result = await taskService.completeTask(taskId, userId);
+          
+          if (result.xpGained > 0) {
+            const xpResult = await gamificationService.addXP(
+              userId, 
+              result.xpGained, 
+              result.message
+            );
+            
+            return {
+              ...result,
+              levelUp: xpResult.levelUp,
+              newBadges: xpResult.newBadges,
+              totalXp: xpResult.totalXp
+            };
+          }
+          
+          return result;
+        } catch (error) {
+          console.error('❌ Erreur complétion tâche:', error);
+          return { success: false, error: error.message };
+        }
+      },
+
+      // Mettre à jour les filtres
+      setFilters: (newFilters, userId) => {
+        const currentFilters = get().filters;
+        const updatedFilters = { ...currentFilters, ...newFilters };
+        
+        set({ filters: updatedFilters });
+        
+        // Réinitialiser l'abonnement avec les nouveaux filtres
+        if (userId) {
+          get().initializeTaskSync(userId);
+        }
+      },
+
+      // Obtenir les tâches filtrées
+      getFilteredTasks: () => {
+        const { tasks, filters } = get();
+        
+        return tasks.filter(task => {
+          if (filters.status !== 'all' && task.status !== filters.status) {
+            return false;
+          }
+          
+          if (filters.priority !== 'all' && task.priority !== filters.priority) {
+            return false;
+          }
+          
+          if (filters.projectId && task.projectId !== filters.projectId) {
+            return false;
+          }
+          
+          return true;
+        });
+      },
+
+      // Statistiques des tâches
+      getTaskStats: () => {
+        const tasks = get().tasks;
+        
+        return {
+          total: tasks.length,
+          completed: tasks.filter(task => task.status === 'completed').length,
+          inProgress: tasks.filter(task => task.status === 'in_progress').length,
+          todo: tasks.filter(task => task.status === 'todo').length,
+          highPriority: tasks.filter(task => task.priority === 'high').length,
+          overdue: tasks.filter(task => {
+            if (!task.dueDate || task.status === 'completed') return false;
+            return new Date(task.dueDate) < new Date();
+          }).length
+        };
+      },
+
+      // Rechercher des tâches
+      searchTasks: (searchTerm) => {
+        const tasks = get().tasks;
+        
+        if (!searchTerm.trim()) {
+          return tasks;
+        }
+        
+        const term = searchTerm.toLowerCase();
+        return tasks.filter(task => 
+          task.title?.toLowerCase().includes(term) ||
+          task.description?.toLowerCase().includes(term) ||
+          task.tags?.some(tag => tag.toLowerCase().includes(term))
+        );
+      },
+
+      // Obtenir les tâches par priorité
+      getTasksByPriority: () => {
+        const tasks = get().tasks;
+        
+        return {
+          high: tasks.filter(task => task.priority === 'high'),
+          medium: tasks.filter(task => task.priority === 'medium'),
+          low: tasks.filter(task => task.priority === 'low')
+        };
+      },
+
+      // Obtenir les tâches récentes
+      getRecentTasks: (limit = 5) => {
+        const tasks = get().tasks;
+        
+        return tasks
+          .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+          .slice(0, limit);
+      },
+
+      // Obtenir les tâches dues aujourd'hui
+      getTodayTasks: () => {
+        const tasks = get().tasks;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        return tasks.filter(task => {
+          if (!task.dueDate) return false;
+          const dueDate = new Date(task.dueDate);
+          return dueDate >= today && dueDate < tomorrow;
+        });
+      },
+
+      // Calculer le taux de complétion
+      getCompletionRate: () => {
+        const { total, completed } = get().getTaskStats();
+        return total > 0 ? Math.round((completed / total) * 100) : 0;
       }
-    )
+    }),
+    {
+      name: 'task-store'
+    }
   )
 );
+
+export default useTaskStore;
