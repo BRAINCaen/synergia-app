@@ -11,7 +11,7 @@
   command = "npm run build"
   
   # Répertoire à publier (VITE génère dans 'dist', pas 'build')
-  publish = "react-app/dist"
+  publish = "dist"
 
 # Variables d'environnement
 [build.environment]
@@ -22,6 +22,9 @@
   GENERATE_SOURCEMAP = "false"
   CI = "false"
   NODE_ENV = "production"
+  
+  # Version Node.js
+  NODE_VERSION = "18"
 
 # Redirections pour SPA (Single Page Application)
 [[redirects]]
@@ -48,7 +51,7 @@
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization"
 
-# Cache statique pour assets
+# Cache statique pour assets VITE (dossier /assets/ et non /static/)
 [[headers]]
   for = "/assets/*"
   [headers.values]
