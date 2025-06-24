@@ -1,10 +1,10 @@
 // ==========================================
 // 📁 react-app/src/core/services/badgeIntegrationService.js
-// Service d'intégration badges - VERSION CORRIGÉE SANS DUPLICATION
+// Service d'intégration badges - VERSION COMPLÈTE ET CORRIGÉE
 // ==========================================
 
 import BadgeEngine from './badgeEngine.js';
-import gamificationService from './gamificationService.js';
+import { gamificationService } from './gamificationService.js';
 
 /**
  * 🔗 SERVICE D'INTÉGRATION DES BADGES
@@ -189,11 +189,25 @@ class BadgeIntegrationService {
         .filter(badge => unlockedBadges.includes(badge.id))
         .reduce((sum, badge) => sum + (badge.xpReward || 0), 0);
 
+      const rarityStats = allBadges.reduce((acc, badge) => {
+        const rarity = badge.rarity;
+        if (!acc[rarity]) {
+          acc[rarity] = { total: 0, unlocked: 0, xp: 0 };
+        }
+        acc[rarity].total++;
+        if (unlockedBadges.includes(badge.id)) {
+          acc[rarity].unlocked++;
+          acc[rarity].xp += badge.xpReward;
+        }
+        return acc;
+      }, {});
+
       return {
         unlockedCount,
         totalCount,
         percentage,
-        totalXpFromBadges
+        totalXpFromBadges,
+        rarityStats
       };
 
     } catch (error) {
