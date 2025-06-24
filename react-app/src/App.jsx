@@ -12,6 +12,7 @@ import LoginPage from './pages/LoginPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
+import BadgesPage from './pages/BadgesPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import LeaderboardPage from './pages/LeaderboardPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
@@ -105,6 +106,7 @@ function App() {
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/tasks" element={<TasksPage />} />
                   <Route path="/projects" element={<ProjectsPage />} />
+                  <Route path="/badges" element={<BadgesPage />} />
                   <Route path="/analytics" element={<AnalyticsPage />} />
                   <Route path="/leaderboard" element={<LeaderboardPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
