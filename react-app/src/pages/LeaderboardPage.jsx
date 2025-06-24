@@ -23,7 +23,7 @@ import {
   Users, 
   Target,
   Zap,
-  Fire,
+  Flame,
   ChevronUp,
   ChevronDown,
   Minus,
@@ -394,7 +394,7 @@ const LeaderboardPage = () => {
                                   Niveau {user.level || 1}
                                   {user.loginStreak > 0 && (
                                     <span className="ml-2 inline-flex items-center gap-1">
-                                      <Fire className="w-3 h-3 text-orange-400" />
+                                      <Flame className="w-3 h-3 text-orange-400" />
                                       {user.loginStreak}
                                     </span>
                                   )}
@@ -505,7 +505,7 @@ const LeaderboardPage = () => {
                 {topPerformers.longestStreak && (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Fire className="w-4 h-4 text-orange-400" />
+                      <Flame className="w-4 h-4 text-orange-400" />
                       <span className="text-sm text-gray-400">Plus longue série</span>
                     </div>
                     <div className="text-right">
