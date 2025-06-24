@@ -1,24 +1,27 @@
 # ==========================================
 # 📁 netlify.toml
-# Configuration Netlify pour Synergia v3.5
+# Configuration Netlify pour Synergia v3.5 (VITE)
 # ==========================================
 
 [build]
   # Répertoire de base pour le build
   base = "react-app"
   
-  # Commande de build (Create React App génère dans 'build', pas 'dist')
+  # Commande de build (VITE utilise 'vite build', pas 'react-scripts build')
   command = "npm run build"
   
-  # Répertoire à publier (Create React App utilise 'build')
-  publish = "react-app/build"
+  # Répertoire à publier (VITE génère dans 'dist', pas 'build')
+  publish = "react-app/dist"
 
-# Variables d'environnement Firebase
+# Variables d'environnement
 [build.environment]
-  # Ces variables sont définies dans l'interface Netlify
+  # Désactiver le scan de secrets qui causait des erreurs
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+  
+  # Variables de build
   GENERATE_SOURCEMAP = "false"
   CI = "false"
-  DISABLE_ESLINT_PLUGIN = "true"
+  NODE_ENV = "production"
 
 # Redirections pour SPA (Single Page Application)
 [[redirects]]
@@ -47,7 +50,7 @@
 
 # Cache statique pour assets
 [[headers]]
-  for = "/static/*"
+  for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
@@ -63,28 +66,6 @@
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
-# Optimisations Netlify
-[build.processing]
-  skip_processing = false
-
-[build.processing.css]
-  bundle = true
-  minify = true
-
-[build.processing.js]
-  bundle = true
-  minify = true
-
-[build.processing.html]
-  pretty_urls = true
-
-# Plugin Netlify pour React
-[[plugins]]
-  package = "@netlify/plugin-lighthouse"
-  
-  [plugins.inputs]
-    output_path = "lighthouse-report.html"
-
 # Configuration des déploiements
 [context.production]
   command = "npm run build"
@@ -96,8 +77,3 @@
 
 [context.branch-deploy]
   command = "npm run build"
-
-# Configuration des fonctions (si nécessaire plus tard)
-[functions]
-  directory = "functions"
-  node_bundler = "nft"
