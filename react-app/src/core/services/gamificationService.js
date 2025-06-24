@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/gamificationService.js
-// Service de gamification CORRIGÉ - Fini la boucle infinie !
+// Service de gamification CORRIGÉ - Structure Firebase compatible
 // ==========================================
 
 import { 
@@ -24,15 +24,15 @@ class GamificationService {
   // ✅ Données mock pour le développement
   getMockUserData() {
     return {
-      xp: 240,
+      totalXp: 240,
       level: 3,
       tasksCompleted: 12,
       projectsCompleted: 2,
       badges: ['first_task', 'streak_warrior'],
-      currentStreak: 5,
+      loginStreak: 5,
       lastLoginDate: new Date().toISOString().split('T')[0],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
   }
 
@@ -43,23 +43,30 @@ class GamificationService {
       
       // Vérifier si les données existent déjà
       const existingData = await this.getUserData(userId);
-      if (existingData && existingData.xp !== undefined) {
+      if (existingData && existingData.totalXp !== undefined) {
         console.log('ℹ️ Données existantes trouvées');
         return existingData;
       }
 
-      // Créer de nouvelles données
+      // Créer de nouvelles données compatibles avec la structure attendue
       const initialData = {
-        xp: 0,
+        userId,
+        email: '', // Sera rempli par le système d'auth
+        totalXp: 0,
         level: 1,
+        tasksCreated: 0,
         tasksCompleted: 0,
-        projectsCompleted: 0,
+        projectsCreated: 0,
+        projectsJoined: 0,
         badges: [],
-        currentStreak: 0,
+        loginStreak: 0,
         lastLoginDate: null,
-        totalSessionTime: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        completionRate: 0,
+        maxTasksPerDay: 0,
+        achievements: [],
+        xpHistory: [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
 
       await this.setUserData(userId, initialData);
@@ -72,10 +79,11 @@ class GamificationService {
     }
   }
 
-  // ✅ Récupérer les données utilisateur
+  // ✅ CORRECTION PRINCIPALE: Utiliser la bonne structure de collection
   async getUserData(userId) {
     try {
-      const docRef = doc(db, 'users', userId, 'gamification', 'stats');
+      // ✅ CORRECTION: Utiliser 'userStats' au lieu de subcollection
+      const docRef = doc(db, 'userStats', userId);
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
@@ -88,14 +96,15 @@ class GamificationService {
     }
   }
 
-  // ✅ Sauvegarder les données utilisateur
+  // ✅ CORRECTION PRINCIPALE: Utiliser la bonne structure de collection
   async setUserData(userId, data) {
     try {
-      const docRef = doc(db, 'users', userId, 'gamification', 'stats');
+      // ✅ CORRECTION: Utiliser 'userStats' au lieu de subcollection
+      const docRef = doc(db, 'userStats', userId);
       await setDoc(docRef, {
         ...data,
-        updatedAt: new Date().toISOString()
-      });
+        updatedAt: serverTimestamp()
+      }, { merge: true }); // Merge pour ne pas écraser les données existantes
       return true;
     } catch (error) {
       console.error('❌ Erreur sauvegarde:', error);
@@ -110,20 +119,20 @@ class GamificationService {
       const actionKey = `${userId}-${reason}-${new Date().toDateString()}`;
       
       if (reason === 'Connexion quotidienne' && this.dailyLoginProcessed.has(actionKey)) {
-        console.log('ℹ️ Connexion quotidienne déjà traitée aujourd\'hui');
+        console.log('ℹ️ Connexion quotidienne déjà enregistrée aujourd\'hui');
         return { success: true, addedXP: 0, alreadyProcessed: true };
       }
 
-      const currentData = await this.getUserData(userId) || { xp: 0, level: 1 };
-      const newXP = (currentData.xp || 0) + amount;
+      const currentData = await this.getUserData(userId) || { totalXp: 0, level: 1 };
+      const newXP = (currentData.totalXp || 0) + amount;
       const newLevel = this.calculateLevel(newXP);
       const leveledUp = newLevel > (currentData.level || 1);
 
       const updatedData = {
         ...currentData,
-        xp: newXP,
+        totalXp: newXP,
         level: newLevel,
-        updatedAt: new Date().toISOString()
+        updatedAt: serverTimestamp()
       };
 
       // Ajouter à l'historique
@@ -222,7 +231,8 @@ class GamificationService {
   // ✅ Écouter les changements en temps réel
   subscribeToUserData(userId, callback) {
     try {
-      const docRef = doc(db, 'users', userId, 'gamification', 'stats');
+      // ✅ CORRECTION: Utiliser 'userStats' au lieu de subcollection
+      const docRef = doc(db, 'userStats', userId);
       
       const unsubscribe = onSnapshot(docRef, (doc) => {
         if (doc.exists()) {
@@ -299,7 +309,7 @@ class GamificationService {
       const updatedData = {
         ...userData,
         lastLoginDate: today,
-        currentStreak: this.calculateStreak(userData.lastLoginDate, today, userData.currentStreak || 0)
+        loginStreak: this.calculateStreak(userData.lastLoginDate, today, userData.loginStreak || 0)
       };
       await this.setUserData(userId, updatedData);
     }
@@ -330,11 +340,11 @@ class GamificationService {
     try {
       // En mode développement, retourner des données mock
       return [
-        { userId: 'user1', name: 'Alice Martin', xp: 1250, level: 4 },
-        { userId: 'user2', name: 'Bob Dupont', xp: 980, level: 3 },
-        { userId: 'user3', name: 'Claire Dubois', xp: 750, level: 3 },
-        { userId: 'user4', name: 'David Chen', xp: 620, level: 2 },
-        { userId: 'user5', name: 'Emma Wilson', xp: 450, level: 2 }
+        { userId: 'user1', name: 'Alice Martin', totalXp: 1250, level: 4 },
+        { userId: 'user2', name: 'Bob Dupont', totalXp: 980, level: 3 },
+        { userId: 'user3', name: 'Claire Dubois', totalXp: 750, level: 3 },
+        { userId: 'user4', name: 'David Chen', totalXp: 620, level: 2 },
+        { userId: 'user5', name: 'Emma Wilson', totalXp: 450, level: 2 }
       ];
     } catch (error) {
       console.error('❌ Erreur récupération leaderboard:', error);
