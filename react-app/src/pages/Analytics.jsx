@@ -1,335 +1,196 @@
-// react-app/src/pages/Analytics.jsx
-// VERSION FINALE CORRIGÉE - Gestion sécurisée des props stats
 import React, { useState, useEffect } from 'react';
-import { useAuthStore } from '../shared/stores/authStore.js';
-import { useTaskStore } from '../shared/stores/taskStore.js';
-import { useGameStore } from '../shared/stores/gameStore.js';
+import { useTaskStore } from '../stores/taskStore';
+import { useAuthStore } from '../stores/authStore';
+import ProgressChart from '../components/ProgressChart';
 
 const Analytics = () => {
+  const { tasks, projects, fetchTasks, fetchProjects } = useTaskStore();
   const { user } = useAuthStore();
-  const { tasks } = useTaskStore();
-  const { stats } = useGameStore();
-  
-  const [timeFilter, setTimeFilter] = useState('7days');
-  const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedPeriod, setSelectedPeriod] = useState('week');
 
-  // Calcul des analytics en temps réel avec gestion sécurisée des erreurs
   useEffect(() => {
-    const calculateAnalytics = () => {
-      try {
-        // Vérification sécurisée des données
-        if (!Array.isArray(tasks)) {
-          console.warn('⚠️ Tasks not ready yet');
+    const loadData = async () => {
+      if (user) {
+        setLoading(true);
+        try {
+          await Promise.all([
+            fetchTasks(),
+            fetchProjects()
+          ]);
+        } catch (error) {
+          console.error('Erreur chargement analytics:', error);
+        } finally {
           setLoading(false);
-          return;
         }
-
-        const now = new Date();
-        const filterDays = timeFilter === '7days' ? 7 : timeFilter === '30days' ? 30 : 365;
-        const startDate = new Date(now.getTime() - filterDays * 24 * 60 * 60 * 1000);
-
-        // Filtrer les tâches par période avec vérification sécurisée
-        const filteredTasks = tasks.filter(task => {
-          if (!task) return false;
-          try {
-            const taskDate = task.completedAt ? new Date(task.completedAt) : new Date(task.createdAt);
-            return taskDate >= startDate;
-          } catch (error) {
-            console.warn('⚠️ Invalid task date:', task);
-            return false;
-          }
-        });
-
-        const completedTasks = filteredTasks.filter(task => task.completed || task.status === 'completed');
-        const pendingTasks = filteredTasks.filter(task => !task.completed && task.status !== 'completed');
-        
-        // Métriques principales avec gestion sécurisée des stats
-        const metrics = {
-          totalTasks: filteredTasks.length,
-          completedTasks: completedTasks.length,
-          pendingTasks: pendingTasks.length,
-          completionRate: filteredTasks.length > 0 ? Math.round((completedTasks.length / filteredTasks.length) * 100) : 0,
-          totalXP: stats?.totalXp || stats?.totalXP || 0, // Support les deux formats
-          currentLevel: stats?.level || 1,
-          weeklyXP: 0
-        };
-
-        // Distribution par priorité avec gestion sécurisée
-        const priorityDistribution = {
-          low: filteredTasks.filter(t => t?.priority === 'low').length,
-          medium: filteredTasks.filter(t => t?.priority === 'medium').length,
-          high: filteredTasks.filter(t => t?.priority === 'high').length,
-          urgent: filteredTasks.filter(t => t?.priority === 'urgent').length
-        };
-
-        // Progression par jour (7 derniers jours) avec gestion sécurisée
-        const dailyProgress = [];
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-          const dayTasks = completedTasks.filter(task => {
-            try {
-              const taskDate = new Date(task.completedAt);
-              return taskDate.toDateString() === date.toDateString();
-            } catch (error) {
-              return false;
-            }
-          });
-          
-          dailyProgress.push({
-            date: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
-            completed: dayTasks.length,
-            xp: dayTasks.reduce((sum, task) => sum + (task.xpEarned || task.xp || 20), 0)
-          });
-        }
-
-        setAnalytics({
-          metrics,
-          priorityDistribution,
-          dailyProgress
-        });
-
-        console.log('✅ Analytics calculées:', { metrics, priorityDistribution, dailyProgress });
-      } catch (error) {
-        console.error('❌ Erreur calcul analytics:', error);
-      } finally {
-        setLoading(false);
       }
     };
 
-    calculateAnalytics();
-  }, [tasks, timeFilter, stats]);
+    loadData();
+  }, [user, fetchTasks, fetchProjects]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Calcul des analytics...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-white">Chargement des analytics...</p>
         </div>
       </div>
     );
   }
-
-  if (!analytics) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">📊</div>
-          <p className="text-gray-400">Aucune donnée analytics disponible</p>
-          <p className="text-gray-500 text-sm mt-2">
-            Créez quelques tâches pour voir vos statistiques
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const { metrics, priorityDistribution, dailyProgress } = analytics;
 
   return (
-    <div className="min-h-screen bg-gray-900 p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
-        
+    <div className="min-h-screen bg-gray-900 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              📈 Analytics Dashboard
-            </h1>
-            <p className="text-gray-400">
-              Analyses et métriques de votre productivité
-            </p>
-          </div>
-          
-          {/* Filtre temporel */}
-          <div className="flex bg-gray-800 rounded-lg p-1">
-            {[
-              { value: '7days', label: '7 jours' },
-              { value: '30days', label: '30 jours' },
-              { value: '1year', label: '1 an' }
-            ].map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setTimeFilter(option.value)}
-                className={`px-4 py-2 rounded-md font-medium transition-all ${
-                  timeFilter === option.value
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-400 hover:text-white'
-                }`}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-2">
+                📊 Analytics Synergia
+              </h1>
+              <p className="text-gray-400">
+                Analysez vos performances et suivez vos progrès
+              </p>
+            </div>
+            
+            {/* Sélecteur de période */}
+            <div className="flex items-center space-x-2">
+              <span className="text-gray-400 text-sm">Période :</span>
+              <select 
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+                className="bg-gray-800 text-white border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
               >
-                {option.label}
-              </button>
-            ))}
+                <option value="week">7 derniers jours</option>
+                <option value="month">30 derniers jours</option>
+                <option value="quarter">3 derniers mois</option>
+                <option value="year">Année en cours</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        {/* Métriques principales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Tâches Total</h3>
-              <span className="text-2xl">📋</span>
-            </div>
-            <div className="text-3xl font-bold text-blue-400 mb-2">
-              {metrics.totalTasks}
-            </div>
-            <p className="text-gray-400 text-sm">
-              {metrics.completedTasks} complétées
-            </p>
-          </div>
+        {/* Analytics Dashboard */}
+        <div className="space-y-6">
+          {/* Graphiques principaux */}
+          <ProgressChart 
+            projects={projects} 
+            tasks={tasks}
+            period={selectedPeriod}
+          />
 
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Taux Complétion</h3>
-              <span className="text-2xl">✅</span>
-            </div>
-            <div className="text-3xl font-bold text-green-400 mb-2">
-              {metrics.completionRate}%
-            </div>
-            <p className="text-gray-400 text-sm">
-              {metrics.pendingTasks} en attente
-            </p>
-          </div>
-
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">XP Total</h3>
-              <span className="text-2xl">⚡</span>
-            </div>
-            <div className="text-3xl font-bold text-purple-400 mb-2">
-              {metrics.totalXP}
-            </div>
-            <p className="text-gray-400 text-sm">
-              Niveau {metrics.currentLevel}
-            </p>
-          </div>
-
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Productivité</h3>
-              <span className="text-2xl">🚀</span>
-            </div>
-            <div className="text-3xl font-bold text-yellow-400 mb-2">
-              {Math.round(metrics.completedTasks / Math.max(1, timeFilter === '7days' ? 7 : timeFilter === '30days' ? 30 : 365))}
-            </div>
-            <p className="text-gray-400 text-sm">
-              tâches/jour moyenne
-            </p>
-          </div>
-        </div>
-
-        {/* Graphiques */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
-          {/* Progression quotidienne */}
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-            <h3 className="text-xl font-semibold text-white mb-6">
-              📊 Progression Quotidienne
-            </h3>
-            <div className="space-y-4">
-              {dailyProgress.map((day, index) => {
-                const maxCompleted = Math.max(1, Math.max(...dailyProgress.map(d => d.completed)));
-                const widthPercent = Math.min(100, (day.completed / maxCompleted) * 100);
-                
-                return (
-                  <div key={index} className="flex items-center justify-between">
-                    <span className="text-gray-400 w-12">{day.date}</span>
-                    <div className="flex-1 mx-4">
-                      <div className="bg-gray-700 rounded-full h-3">
-                        <div 
-                          className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300"
-                          style={{ width: `${widthPercent}%` }}
-                        ></div>
+          {/* Insights supplémentaires */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Projet le plus actif */}
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+                🏆 Projet le Plus Actif
+              </h3>
+              {projects.length > 0 ? (
+                <div className="space-y-3">
+                  {projects
+                    .map(project => ({
+                      ...project,
+                      taskCount: tasks.filter(t => t.projectId === project.id).length
+                    }))
+                    .sort((a, b) => b.taskCount - a.taskCount)
+                    .slice(0, 3)
+                    .map((project, index) => (
+                      <div key={project.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-lg">
+                            {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                          </span>
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">
+                              {project.title}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {project.taskCount} tâche{project.taskCount > 1 ? 's' : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-blue-600">
+                            {Math.round((tasks.filter(t => t.projectId === project.id && t.status === 'completed').length / project.taskCount) * 100) || 0}%
+                          </p>
+                          <p className="text-xs text-gray-500">Terminé</p>
+                        </div>
                       </div>
-                    </div>
-                    <span className="text-white font-medium w-8 text-right">
-                      {day.completed}
-                    </span>
-                    <span className="text-purple-400 text-sm ml-2 w-12 text-right">
-                      +{day.xp}XP
-                    </span>
-                  </div>
-                );
-              })}
+                    ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-8">
+                  Aucun projet créé
+                </p>
+              )}
+            </div>
+
+            {/* Productivité récente */}
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+                ⚡ Productivité Récente
+              </h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Aujourd'hui</span>
+                  <span className="font-bold text-green-600">
+                    {tasks.filter(t => {
+                      const today = new Date().toDateString();
+                      const taskDate = new Date(t.completedAt?.toDate?.() || t.completedAt);
+                      return taskDate.toDateString() === today && t.status === 'completed';
+                    }).length} tâches
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Cette semaine</span>
+                  <span className="font-bold text-blue-600">
+                    {tasks.filter(t => {
+                      const weekAgo = new Date();
+                      weekAgo.setDate(weekAgo.getDate() - 7);
+                      const taskDate = new Date(t.completedAt?.toDate?.() || t.completedAt);
+                      return taskDate >= weekAgo && t.status === 'completed';
+                    }).length} tâches
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Moyenne journalière</span>
+                  <span className="font-bold text-purple-600">
+                    {Math.round(tasks.filter(t => t.status === 'completed').length / 7) || 0} tâches
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Distribution priorités */}
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-            <h3 className="text-xl font-semibold text-white mb-6">
-              🎯 Distribution par Priorité
+          {/* Recommandations automatiques */}
+          <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 rounded-lg shadow-lg text-white">
+            <h3 className="text-lg font-semibold mb-4">
+              💡 Recommandations Intelligentes
             </h3>
-            <div className="space-y-4">
-              {[
-                { key: 'urgent', label: 'Urgent', color: 'bg-red-500', count: priorityDistribution.urgent },
-                { key: 'high', label: 'Haute', color: 'bg-orange-500', count: priorityDistribution.high },
-                { key: 'medium', label: 'Moyenne', color: 'bg-yellow-500', count: priorityDistribution.medium },
-                { key: 'low', label: 'Basse', color: 'bg-green-500', count: priorityDistribution.low }
-              ].map((priority) => {
-                const widthPercent = Math.min(100, (priority.count / Math.max(1, metrics.totalTasks)) * 100);
-                
-                return (
-                  <div key={priority.key} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-4 h-4 rounded-full ${priority.color}`}></div>
-                      <span className="text-gray-300">{priority.label}</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="bg-gray-700 rounded-full h-2 w-24">
-                        <div 
-                          className={`h-2 rounded-full transition-all duration-300 ${priority.color}`}
-                          style={{ width: `${widthPercent}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-white font-medium w-8 text-right">
-                        {priority.count}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white/10 p-4 rounded-lg">
+                <h4 className="font-medium mb-2">🎯 Focus Recommandé</h4>
+                <p className="text-sm opacity-90">
+                  {projects.length > 0 ? 
+                    `Concentrez-vous sur "${projects[0]?.title}" qui a le plus de tâches en attente.` :
+                    'Créez votre premier projet pour commencer à organiser votre travail.'
+                  }
+                </p>
+              </div>
+              <div className="bg-white/10 p-4 rounded-lg">
+                <h4 className="font-medium mb-2">📈 Optimisation</h4>
+                <p className="text-sm opacity-90">
+                  {tasks.filter(t => t.status === 'completed').length > 5 ?
+                    'Excellent ! Maintenez ce rythme pour atteindre vos objectifs.' :
+                    'Fixez-vous un objectif de 3-5 tâches par jour pour améliorer votre productivité.'
+                  }
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* Actions rapides */}
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-xl font-semibold text-white mb-4">
-            ⚡ Actions Rapides
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button className="flex items-center space-x-3 p-4 bg-blue-900/30 border border-blue-700 rounded-lg hover:bg-blue-900/50 transition-colors">
-              <span className="text-2xl">📊</span>
-              <div className="text-left">
-                <p className="text-blue-400 font-medium">Export Données</p>
-                <p className="text-gray-400 text-sm">Télécharger en CSV</p>
-              </div>
-            </button>
-            
-            <button className="flex items-center space-x-3 p-4 bg-purple-900/30 border border-purple-700 rounded-lg hover:bg-purple-900/50 transition-colors">
-              <span className="text-2xl">📈</span>
-              <div className="text-left">
-                <p className="text-purple-400 font-medium">Rapport Détaillé</p>
-                <p className="text-gray-400 text-sm">Analyse complète</p>
-              </div>
-            </button>
-            
-            <button className="flex items-center space-x-3 p-4 bg-green-900/30 border border-green-700 rounded-lg hover:bg-green-900/50 transition-colors">
-              <span className="text-2xl">🎯</span>
-              <div className="text-left">
-                <p className="text-green-400 font-medium">Objectifs</p>
-                <p className="text-gray-400 text-sm">Définir cibles</p>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Footer analytics */}
-        <div className="text-center py-4">
-          <p className="text-gray-500 text-sm">
-            Données mises à jour en temps réel • Utilisateur: {user?.email} • {tasks?.length || 0} tâches
-          </p>
         </div>
       </div>
     </div>
