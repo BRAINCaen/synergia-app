@@ -44,7 +44,7 @@ function App() {
   const { user, loading, initializeAuth } = useAuthStore();
 
   // Hook temps réel pour synchronisation données utilisateur
-  useRealTimeUser(user?.uid);
+  useRealTimeUser();
 
   // Initialisation de l'application
   useEffect(() => {
