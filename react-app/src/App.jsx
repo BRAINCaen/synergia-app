@@ -1,17 +1,17 @@
-// ==========================================
-// 📁 react-app/src/App.jsx
-// CORRECTION : App.jsx avec les bons noms de fichiers
-// ==========================================
+// react-app/src/App.jsx
 
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthStore } from './core/stores/authStore';
+import { useGameStore } from './core/stores/gameStore';
+import { authService } from './core/services/authService';
 
-// Stores et services
-import { useAuthStore } from './shared/stores/authStore';
-import { useGameStore } from './shared/stores/gameStore';
+// Components
+import Sidebar from './components/layout/Sidebar';
+import LoadingSpinner from './components/common/LoadingSpinner';
 
-// 🔧 CORRECTION : Imports avec les VRAIS noms de fichiers existants
-import Login from './pages/Login';
+// Pages
+import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import TasksPage from './pages/TasksPage';
 import ProjectsPage from './pages/ProjectsPage';
@@ -19,224 +19,93 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import ProfilePage from './pages/ProfilePage';
 import UsersPage from './pages/UsersPage';
+import OnboardingPage from './pages/OnboardingPage';
 
-// 🔧 AJOUT : Import du badge initializer (optionnel et sécurisé)
-import badgeSystem from './core/badgeInitializer.js';
-
-// Component de chargement
-function LoadingSpinner() {
-  return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-      <div className="flex flex-col items-center space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <p className="text-white">Chargement de Synergia...</p>
-      </div>
-    </div>
-  );
-}
-
-// Layout principal avec navigation
-function MainLayout() {
-  const { user, signOut } = useAuthStore();
-  const { userStats } = useGameStore();
-  const location = useLocation();
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Erreur déconnexion:', error);
-    }
-  };
-
-  const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: '🏠', color: 'text-blue-400' },
-    { path: '/tasks', label: 'Tâches', icon: '✅', color: 'text-green-400' },
-    { path: '/projects', label: 'Projets', icon: '📁', color: 'text-purple-400' },
-    { path: '/analytics', label: 'Analytics', icon: '📊', color: 'text-orange-400' },
-    { path: '/leaderboard', label: 'Classement', icon: '🏆', color: 'text-yellow-400' },
-    { path: '/users', label: 'Utilisateurs', icon: '👥', color: 'text-cyan-400' },
-    { path: '/profile', label: 'Profil', icon: '👤', color: 'text-gray-400' }
-  ];
-
-  const isActive = (path) => location.pathname === path;
-
-  return (
-    <div className="min-h-screen bg-gray-900 flex">
-      {/* Sidebar Navigation */}
-      <div className="w-64 bg-gray-800 shadow-lg flex flex-col">
-        {/* Logo et infos utilisateur */}
-        <div className="p-6 border-b border-gray-700">
-          <div className="flex items-center space-x-3 mb-4">
-            <span className="text-2xl">⚡</span>
-            <div>
-              <h1 className="text-xl font-bold text-white">Synergia</h1>
-              <p className="text-xs text-blue-400">v3.5</p>
-            </div>
-          </div>
-
-          {/* Stats utilisateur */}
-          {userStats && (
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              <div className="text-center">
-                <div className="text-lg font-bold text-blue-400">
-                  {userStats.level || 1}
-                </div>
-                <div className="text-xs text-gray-400">Niveau</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-bold text-yellow-400">
-                  {userStats.totalXp || 0}
-                </div>
-                <div className="text-xs text-gray-400">XP</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-bold text-purple-400">
-                  {(userStats.badges || []).length}
-                </div>
-                <div className="text-xs text-gray-400">Badges</div>
-              </div>
-            </div>
-          )}
-
-          {/* Infos utilisateur */}
-          <div className="flex items-center space-x-2 mb-4">
-            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-bold">
-                {(user?.displayName || user?.email || 'U')[0].toUpperCase()}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">
-                {user?.displayName || 'Utilisateur'}
-              </p>
-              <p className="text-xs text-gray-400 truncate">
-                {user?.email}
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={handleLogout}
-            className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
-          >
-            Se déconnecter
-          </button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 p-4">
-          <div className="space-y-2">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`
-                  flex items-center space-x-3 p-3 rounded-lg transition-all duration-200
-                  ${isActive(item.path)
-                    ? 'bg-blue-600 text-white shadow-lg'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  }
-                `}
-              >
-                <span className="text-lg">{item.icon}</span>
-                <span className="font-medium">{item.label}</span>
-              </Link>
-            ))}
-          </div>
-        </nav>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-auto">
-          <Routes>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/tasks" element={<TasksPage />} />
-            <Route path="/projects" element={<ProjectsPage />} />
-            <Route path="/analytics" element={<AnalyticsPage />} />
-            <Route path="/leaderboard" element={<LeaderboardPage />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </main>
-      </div>
-    </div>
-  );
-}
-
-// Route protégée
-function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuthStore();
-
-  if (loading) {
-    return <LoadingSpinner />;
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
-}
-
-// Composant principal App
-function App() {
-  const { initializeAuth, isAuthenticated, loading, user } = useAuthStore();
+const App = () => {
+  const { user, isLoading, setUser, setLoading } = useAuthStore();
+  const { initializeGameData } = useGameStore();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    // Initialiser l'authentification au chargement de l'app
-    const unsubscribe = initializeAuth();
-    
-    // Nettoyage à la fermeture de l'app
-    return () => {
-      if (unsubscribe && typeof unsubscribe === 'function') {
-        unsubscribe();
+    const initializeAuth = async () => {
+      try {
+        setLoading(true);
+        const currentUser = await authService.getCurrentUser();
+        
+        if (currentUser) {
+          setUser(currentUser);
+          await initializeGameData(currentUser.uid);
+        }
+      } catch (error) {
+        console.error('Erreur initialisation auth:', error);
+      } finally {
+        setLoading(false);
       }
     };
-  }, [initializeAuth]);
 
-  // 🎮 INITIALISATION DU SYSTÈME DE BADGES (SÉCURISÉE)
-  useEffect(() => {
-    if (user?.uid) {
-      // Initialiser le système de badges avec gestion d'erreur
-      badgeSystem.init(user.uid).catch(error => {
-        console.warn('⚠️ Système de badges non disponible:', error);
-      });
-    }
-  }, [user?.uid]);
+    initializeAuth();
+  }, [setUser, setLoading, initializeGameData]);
 
-  // Affichage du loader pendant l'initialisation
-  if (loading) {
-    return <LoadingSpinner />;
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <LoadingSpinner size="large" />
+      </div>
+    );
   }
 
+  // Not authenticated
+  if (!user) {
+    return (
+      <Router>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </Router>
+    );
+  }
+
+  // Authenticated
   return (
     <Router>
-      <Routes>
-        {/* Route de connexion */}
-        <Route 
-          path="/login" 
-          element={
-            isAuthenticated 
-              ? <Navigate to="/dashboard" replace /> 
-              : <Login />
-          } 
+      <div className="min-h-screen bg-gray-50 flex">
+        {/* Sidebar */}
+        <Sidebar 
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
         />
         
-        {/* Routes protégées */}
-        <Route 
-          path="/*" 
-          element={
-            <ProtectedRoute>
-              <MainLayout />
-            </ProtectedRoute>
-          } 
-        />
-      </Routes>
+        {/* Main Content */}
+        <div className="flex-1 lg:ml-64">
+          {/* Mobile overlay */}
+          {sidebarOpen && (
+            <div 
+              className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+          
+          {/* Routes */}
+          <main className="min-h-screen">
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/analytics" element={<AnalyticsPage />} />
+              <Route path="/leaderboard" element={<LeaderboardPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/onboarding" element={<OnboardingPage />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </main>
+        </div>
+      </div>
     </Router>
   );
-}
+};
 
 export default App;
