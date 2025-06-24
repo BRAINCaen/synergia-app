@@ -4,7 +4,6 @@ import { Plus, Search, Filter, Calendar, Users, Target, Trash2, Edit, Eye, Clock
 import { useProjectStore } from '../shared/stores/projectStore.js';
 import { useTaskStore } from '../shared/stores/taskStore.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import ProjectForm from '../modules/projects/ProjectForm.jsx';
 
 const ProjectsPage = () => {
   // États locaux
@@ -14,6 +13,7 @@ const ProjectsPage = () => {
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Stores
   const { 
@@ -65,20 +65,28 @@ const ProjectsPage = () => {
   // Gestionnaires d'événements
   const handleCreateProject = async (projectData) => {
     try {
+      setSubmitting(true);
       await createProject(projectData, user.uid);
       setShowProjectForm(false);
     } catch (error) {
       console.error('Erreur création projet:', error);
+      alert('Erreur lors de la création du projet');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleUpdateProject = async (projectData) => {
     try {
-      await updateProject(editingProject.id, projectData);
+      setSubmitting(true);
+      await updateProject(editingProject.id, projectData, user.uid);
       setEditingProject(null);
       setShowProjectForm(false);
     } catch (error) {
       console.error('Erreur modification projet:', error);
+      alert('Erreur lors de la modification du projet');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -88,6 +96,7 @@ const ProjectsPage = () => {
         await deleteProject(projectId, user.uid);
       } catch (error) {
         console.error('Erreur suppression projet:', error);
+        alert('Erreur lors de la suppression du projet');
       }
     }
   };
@@ -105,8 +114,8 @@ const ProjectsPage = () => {
   // Fonction pour obtenir la couleur du statut
   const getStatusColor = (status) => {
     const colors = {
-      planning: 'bg-gray-500 text-white',
       active: 'bg-blue-500 text-white',
+      planning: 'bg-gray-500 text-white',
       'on-hold': 'bg-yellow-500 text-black',
       completed: 'bg-green-500 text-white',
       cancelled: 'bg-red-500 text-white'
@@ -128,7 +137,15 @@ const ProjectsPage = () => {
   // Fonction pour formater les dates
   const formatDate = (date) => {
     if (!date) return 'Non définie';
-    return new Date(date).toLocaleDateString('fr-FR');
+    try {
+      if (date.seconds) {
+        // Timestamp Firebase
+        return new Date(date.seconds * 1000).toLocaleDateString('fr-FR');
+      }
+      return new Date(date).toLocaleDateString('fr-FR');
+    } catch (error) {
+      return 'Date invalide';
+    }
   };
 
   return (
@@ -354,32 +371,9 @@ const ProjectsPage = () => {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-400">
                     <Calendar size={16} />
-                    <span>Fin: {formatDate(project.endDate)}</span>
+                    <span>Fin: {formatDate(project.dueDate)}</span>
                   </div>
                 </div>
-
-                {/* Membres assignés */}
-                {project.assignedMembers && project.assignedMembers.length > 0 && (
-                  <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-700">
-                    <Users size={16} className="text-gray-400" />
-                    <div className="flex -space-x-2">
-                      {project.assignedMembers.slice(0, 3).map((member, index) => (
-                        <div
-                          key={index}
-                          className="w-6 h-6 bg-blue-500 rounded-full border-2 border-gray-800 flex items-center justify-center text-xs text-white font-medium"
-                          title={member.name || member.email || 'Membre'}
-                        >
-                          {(member.name || member.email || 'M')[0].toUpperCase()}
-                        </div>
-                      ))}
-                      {project.assignedMembers.length > 3 && (
-                        <div className="w-6 h-6 bg-gray-600 rounded-full border-2 border-gray-800 flex items-center justify-center text-xs text-white">
-                          +{project.assignedMembers.length - 3}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
 
                 {/* Tags */}
                 {project.tags && project.tags.length > 0 && (
@@ -405,15 +399,34 @@ const ProjectsPage = () => {
         </div>
       )}
 
-      {/* Modal ProjectForm */}
+      {/* Modal ProjectForm - Version simplifiée intégrée */}
       {showProjectForm && (
-        <ProjectForm
-          isOpen={showProjectForm}
-          onClose={handleCloseForm}
-          project={editingProject}
-          onSave={editingProject ? handleUpdateProject : handleCreateProject}
-          loading={loading}
-        />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {/* En-tête modal */}
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white">
+                  {editingProject ? 'Modifier le projet' : 'Nouveau projet'}
+                </h2>
+                <button
+                  onClick={handleCloseForm}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Formulaire simplifié */}
+              <ProjectFormContent
+                project={editingProject}
+                onSave={editingProject ? handleUpdateProject : handleCreateProject}
+                onClose={handleCloseForm}
+                submitting={submitting}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal détails projet */}
@@ -469,11 +482,7 @@ const ProjectsPage = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Date de fin:</span>
-                      <span className="text-white">{formatDate(selectedProject.endDate)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Heures estimées:</span>
-                      <span className="text-white">{selectedProject.estimatedHours || 'Non estimé'}</span>
+                      <span className="text-white">{formatDate(selectedProject.dueDate)}</span>
                     </div>
                   </div>
                 </div>
@@ -557,6 +566,273 @@ const ProjectsPage = () => {
         </div>
       )}
     </div>
+  );
+};
+
+// Composant formulaire simple intégré
+const ProjectFormContent = ({ project, onSave, onClose, submitting }) => {
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    status: 'active',
+    priority: 'medium',
+    category: '',
+    startDate: '',
+    dueDate: '',
+    expectedDuration: ''
+  });
+
+  const [errors, setErrors] = useState({});
+
+  // Initialiser avec les données du projet
+  useEffect(() => {
+    if (project) {
+      setFormData({
+        title: project.title || '',
+        description: project.description || '',
+        status: project.status || 'active',
+        priority: project.priority || 'medium',
+        category: project.category || '',
+        startDate: project.startDate ? formatDateForInput(project.startDate) : '',
+        dueDate: project.dueDate ? formatDateForInput(project.dueDate) : '',
+        expectedDuration: project.expectedDuration || ''
+      });
+    }
+  }, [project]);
+
+  const formatDateForInput = (date) => {
+    try {
+      if (date?.seconds) {
+        // Timestamp Firebase
+        return new Date(date.seconds * 1000).toISOString().split('T')[0];
+      }
+      return new Date(date).toISOString().split('T')[0];
+    } catch (error) {
+      return '';
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.title.trim()) {
+      newErrors.title = 'Le titre est requis';
+    }
+    
+    if (!formData.description.trim()) {
+      newErrors.description = 'La description est requise';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) return;
+
+    try {
+      const projectData = {
+        title: formData.title,
+        description: formData.description,
+        status: formData.status,
+        priority: formData.priority,
+        category: formData.category,
+        startDate: formData.startDate ? new Date(formData.startDate) : null,
+        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
+        expectedDuration: formData.expectedDuration ? parseInt(formData.expectedDuration) : null,
+        tags: []
+      };
+
+      await onSave(projectData);
+    } catch (error) {
+      console.error('Erreur sauvegarde:', error);
+      setErrors({ submit: 'Erreur lors de la sauvegarde' });
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Titre */}
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-2">
+          Titre du projet *
+        </label>
+        <input
+          type="text"
+          name="title"
+          value={formData.title}
+          onChange={handleInputChange}
+          className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+            errors.title ? 'border-red-500' : 'border-gray-600'
+          }`}
+          placeholder="Entrez le titre du projet..."
+        />
+        {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title}</p>}
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-2">
+          Description *
+        </label>
+        <textarea
+          name="description"
+          value={formData.description}
+          onChange={handleInputChange}
+          rows={4}
+          className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+            errors.description ? 'border-red-500' : 'border-gray-600'
+          }`}
+          placeholder="Décrivez les objectifs et la portée du projet..."
+        />
+        {errors.description && <p className="text-red-400 text-sm mt-1">{errors.description}</p>}
+      </div>
+
+      {/* Statut et Priorité */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Statut
+          </label>
+          <select
+            name="status"
+            value={formData.status}
+            onChange={handleInputChange}
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="active">En cours</option>
+            <option value="planning">Planification</option>
+            <option value="on-hold">En pause</option>
+            <option value="completed">Terminé</option>
+            <option value="cancelled">Annulé</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Priorité
+          </label>
+          <select
+            name="priority"
+            value={formData.priority}
+            onChange={handleInputChange}
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="low">Basse</option>
+            <option value="medium">Moyenne</option>
+            <option value="high">Haute</option>
+            <option value="urgent">Urgente</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Dates */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Date de début
+          </label>
+          <input
+            type="date"
+            name="startDate"
+            value={formData.startDate}
+            onChange={handleInputChange}
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Date de fin
+          </label>
+          <input
+            type="date"
+            name="dueDate"
+            value={formData.dueDate}
+            onChange={handleInputChange}
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
+      {/* Catégorie et Durée */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Catégorie
+          </label>
+          <select
+            name="category"
+            value={formData.category}
+            onChange={handleInputChange}
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Sélectionner une catégorie</option>
+            <option value="development">Développement</option>
+            <option value="design">Design</option>
+            <option value="marketing">Marketing</option>
+            <option value="research">Recherche</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="other">Autre</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Durée estimée (heures)
+          </label>
+          <input
+            type="number"
+            name="expectedDuration"
+            value={formData.expectedDuration}
+            onChange={handleInputChange}
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+            placeholder="ex: 30"
+          />
+        </div>
+      </div>
+
+      {/* Erreur générale */}
+      {errors.submit && (
+        <div className="p-4 bg-red-900/50 border border-red-500 rounded-lg">
+          <p className="text-red-400 text-sm">{errors.submit}</p>
+        </div>
+      )}
+
+      {/* Boutons d'action */}
+      <div className="flex justify-end space-x-3 pt-4 border-t border-gray-700">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+        >
+          Annuler
+        </button>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {submitting ? 'Sauvegarde...' : project ? 'Modifier' : 'Créer'}
+        </button>
+      </div>
+    </form>
   );
 };
 
