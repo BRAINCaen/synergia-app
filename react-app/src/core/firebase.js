@@ -1,10 +1,18 @@
-// Configuration Firebase complète pour Synergia avec Google Auth
+// src/core/firebase.js
 import { initializeApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth'
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged
+} from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 
-// Configuration Firebase - utilise les variables d'environnement Netlify
+// Configuration Firebase
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -15,10 +23,17 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 }
 
-// Vérification de la configuration
+// Vérifier si la configuration est présente
 const isFirebaseConfigured = Object.values(firebaseConfig).every(value => value && value !== 'undefined')
 
-// Initialisation Firebase
+console.log('🔧 Configuration Firebase:', {
+  configured: isFirebaseConfigured,
+  env: import.meta.env.MODE,
+  apiKey: firebaseConfig.apiKey ? '✅' : '❌',
+  projectId: firebaseConfig.projectId || '❌'
+})
+
+// Initialiser Firebase
 let app = null
 let auth = null
 let db = null
@@ -31,16 +46,9 @@ if (isFirebaseConfigured) {
     auth = getAuth(app)
     db = getFirestore(app)
     storage = getStorage(app)
-    
-    // Configuration Google Auth Provider
     googleProvider = new GoogleAuthProvider()
-    googleProvider.addScope('email')
-    googleProvider.addScope('profile')
-    googleProvider.setCustomParameters({
-      prompt: 'select_account'
-    })
     
-    console.log('🔥 Firebase et Google Auth initialisés avec succès')
+    console.log('✅ Firebase initialisé avec succès')
   } catch (error) {
     console.error('❌ Erreur initialisation Firebase:', error)
   }
@@ -48,7 +56,7 @@ if (isFirebaseConfigured) {
   console.warn('⚠️ Firebase non configuré - Variables d\'environnement manquantes')
 }
 
-// Services d'authentification
+// Service d'authentification
 export const authService = {
   // Connexion avec Google
   async signInWithGoogle() {
@@ -67,10 +75,72 @@ export const authService = {
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
-        emailVerified: user.emailVerified
+        emailVerified: user.emailVerified,
+        metadata: {
+          creationTime: user.metadata.creationTime,
+          lastSignInTime: user.metadata.lastSignInTime
+        }
       }
     } catch (error) {
       console.error('❌ Erreur connexion Google:', error)
+      throw error
+    }
+  },
+
+  // Connexion avec email/mot de passe
+  async signInWithEmail(email, password) {
+    if (!auth) {
+      throw new Error('Firebase non configuré')
+    }
+    
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password)
+      const user = result.user
+      
+      console.log('✅ Connexion email réussie:', user.email)
+      
+      return {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        emailVerified: user.emailVerified,
+        metadata: {
+          creationTime: user.metadata.creationTime,
+          lastSignInTime: user.metadata.lastSignInTime
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur connexion email:', error)
+      throw error
+    }
+  },
+
+  // Inscription avec email/mot de passe
+  async createUserWithEmail(email, password) {
+    if (!auth) {
+      throw new Error('Firebase non configuré')
+    }
+    
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password)
+      const user = result.user
+      
+      console.log('✅ Inscription réussie:', user.email)
+      
+      return {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        emailVerified: user.emailVerified,
+        metadata: {
+          creationTime: user.metadata.creationTime,
+          lastSignInTime: user.metadata.lastSignInTime
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur inscription:', error)
       throw error
     }
   },
@@ -82,7 +152,7 @@ export const authService = {
     }
     
     try {
-      await signOut(auth)
+      await firebaseSignOut(auth)
       console.log('✅ Déconnexion réussie')
     } catch (error) {
       console.error('❌ Erreur déconnexion:', error)
@@ -98,7 +168,7 @@ export const authService = {
       return () => {}
     }
     
-    return auth.onAuthStateChanged(callback)
+    return onAuthStateChanged(auth, callback)
   },
 
   // Obtenir l'utilisateur actuel
