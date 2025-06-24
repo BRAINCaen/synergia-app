@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/collaboration/ActivityFeed.jsx
-// Flux d'activité temps réel pour projets et tâches
+// Flux d'activité temps réel pour projets et tâches - VERSION COMPLÈTE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -297,15 +297,12 @@ const ActivityFeed = ({
                 className={`
                   px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
                   ${filter === type.id
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }
                 `}
               >
-                {type.label}
-                {type.count > 0 && (
-                  <span className="ml-1 text-xs">({type.count})</span>
-                )}
+                {type.label} ({type.count})
               </button>
             ))}
           </div>
@@ -315,12 +312,12 @@ const ActivityFeed = ({
         {showUserFilter && getUniqueUsers().length > 1 && (
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">
-              Utilisateur
+              Filtrer par utilisateur
             </label>
             <select
               value={userFilter}
               onChange={(e) => setUserFilter(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
             >
               <option value="all">Tous les utilisateurs</option>
               {getUniqueUsers().map(user => (
@@ -333,50 +330,34 @@ const ActivityFeed = ({
         )}
       </div>
 
-      {/* Timeline d'activités */}
-      <div className="relative">
+      {/* Liste des activités */}
+      <div className="space-y-1">
         <AnimatePresence>
-          {getFilteredActivities().length > 0 ? (
-            <div className="space-y-2">
-              {getFilteredActivities().map(renderActivity)}
-            </div>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-8 text-gray-500"
-            >
-              <div className="text-4xl mb-2">📭</div>
-              <p className="text-lg font-medium">Aucune activité</p>
-              <p className="text-sm">
-                {filter === 'all' 
-                  ? 'Aucune activité récente à afficher'
-                  : `Aucune activité de type "${activityTypes.find(t => t.id === filter)?.label}"`
-                }
-              </p>
-            </motion.div>
+          {getFilteredActivities().map((activity, index) => 
+            renderActivity(activity, index)
           )}
         </AnimatePresence>
+        
+        {getFilteredActivities().length === 0 && (
+          <div className="text-center py-8">
+            <div className="text-gray-400 text-4xl mb-4">📝</div>
+            <p className="text-gray-500">
+              {filter === 'all' 
+                ? 'Aucune activité récente'
+                : `Aucune activité du type "${activityTypes.find(t => t.id === filter)?.label}"`
+              }
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* Statistiques rapides */}
+      {/* Résumé des statistiques */}
       {activities.length > 0 && (
-        <div className="mt-6 pt-4 border-t border-gray-200">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+        <div className="mt-8 p-4 bg-gray-50 rounded-lg">
+          <h4 className="text-sm font-medium text-gray-700 mb-3">📊 Résumé d'activité</h4>
+          <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <div className="text-lg font-bold text-blue-600">
-                {activities.length}
-              </div>
-              <div className="text-xs text-gray-500">Activités totales</div>
-            </div>
-            <div>
-              <div className="text-lg font-bold text-green-600">
-                {getUniqueUsers().length}
-              </div>
-              <div className="text-xs text-gray-500">Contributeurs</div>
-            </div>
-            <div>
-              <div className="text-lg font-bold text-purple-600">
                 {activities.filter(a => a.type.includes('comment')).length}
               </div>
               <div className="text-xs text-gray-500">Commentaires</div>
@@ -386,6 +367,12 @@ const ActivityFeed = ({
                 {activities.filter(a => a.type === 'task_completed').length}
               </div>
               <div className="text-xs text-gray-500">Tâches terminées</div>
+            </div>
+            <div>
+              <div className="text-lg font-bold text-green-600">
+                {getUniqueUsers().length}
+              </div>
+              <div className="text-xs text-gray-500">Contributeurs</div>
             </div>
           </div>
         </div>
@@ -418,6 +405,68 @@ export const ActivityWidget = ({ entityType, entityId, maxItems = 5 }) => {
       loadActivities();
     }
   }, [entityType, entityId, maxItems]);
+
+  const getActivityIcon = (type) => {
+    const icons = {
+      comment_added: '💬',
+      comment_deleted: '🗑️',
+      task_created: '➕',
+      task_completed: '✅',
+      task_updated: '📝',
+      task_deleted: '❌',
+      project_created: '🆕',
+      project_updated: '📝',
+      project_completed: '🎉',
+      user_joined: '👋',
+      user_left: '👋',
+      file_uploaded: '📎',
+      badge_earned: '🏆',
+      level_up: '⭐'
+    };
+    return icons[type] || '📋';
+  };
+
+  const formatActivityMessage = (activity) => {
+    const userName = activity.user?.name || 'Un utilisateur';
+    
+    const messages = {
+      comment_added: `${userName} a ajouté un commentaire`,
+      comment_deleted: `${userName} a supprimé un commentaire`,
+      task_created: `${userName} a créé une nouvelle tâche`,
+      task_completed: `${userName} a terminé une tâche`,
+      task_updated: `${userName} a mis à jour une tâche`,
+      task_deleted: `${userName} a supprimé une tâche`,
+      project_created: `${userName} a créé le projet`,
+      project_updated: `${userName} a mis à jour le projet`,
+      project_completed: `${userName} a terminé le projet`,
+      user_joined: `${userName} a rejoint le projet`,
+      user_left: `${userName} a quitté le projet`,
+      file_uploaded: `${userName} a ajouté un fichier`,
+      badge_earned: `${userName} a gagné un badge`,
+      level_up: `${userName} a monté de niveau`
+    };
+
+    return messages[activity.type] || `${userName} a effectué une action`;
+  };
+
+  const getRelativeTime = (timestamp) => {
+    if (!timestamp) return 'Maintenant';
+    
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffInMinutes = Math.floor((now - time) / (1000 * 60));
+
+    if (diffInMinutes < 1) return 'Maintenant';
+    if (diffInMinutes < 60) return `Il y a ${diffInMinutes}min`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `Il y a ${diffInHours}h`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `Il y a ${diffInDays}j`;
+    
+    return time.toLocaleDateString();
+  };
 
   if (loading) {
     return (
