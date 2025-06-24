@@ -1,7 +1,5 @@
 // src/shared/hooks/useGameService.js
 import { useState, useEffect, useCallback } from 'react';
-
-// Import direct du service de gamification
 import { gamificationService } from '../../core/services/gamificationService.js';
 
 const XP_CONFIG = {
@@ -82,14 +80,14 @@ export const useGameService = (userId = 'demo-user') => {
         setIsLoading(true);
         setError(null);
 
-        if (gamificationService && typeof gamificationService.initializeUserData === 'function') {
+        if (gamificationService && gamificationService.initializeUserData) {
           // Mode Firebase
           const initialData = await gamificationService.initializeUserData(userId);
           setGameData(initialData);
           setIsConnected(true);
 
           // S'abonner aux changements
-          if (typeof gamificationService.subscribeToUserData === 'function') {
+          if (gamificationService.subscribeToUserData) {
             unsubscribe = gamificationService.subscribeToUserData(userId, (data) => {
               setGameData(data);
             });
@@ -126,7 +124,7 @@ export const useGameService = (userId = 'demo-user') => {
 
   const addXP = useCallback(async (amount, reason) => {
     try {
-      if (gamificationService && typeof gamificationService.addXP === 'function') {
+      if (gamificationService && gamificationService.addXP) {
         const result = await gamificationService.addXP(userId, amount, reason);
         return result;
       } else {
@@ -144,7 +142,7 @@ export const useGameService = (userId = 'demo-user') => {
 
   const completeTask = useCallback(async (difficulty = 'normal') => {
     try {
-      if (gamificationService && typeof gamificationService.completeTask === 'function') {
+      if (gamificationService && gamificationService.completeTask) {
         const result = await gamificationService.completeTask(userId, difficulty);
         return result;
       } else {
@@ -166,7 +164,7 @@ export const useGameService = (userId = 'demo-user') => {
 
   const dailyLogin = useCallback(async () => {
     try {
-      if (gamificationService && typeof gamificationService.dailyLogin === 'function') {
+      if (gamificationService && gamificationService.dailyLogin) {
         const result = await gamificationService.dailyLogin(userId);
         return result;
       } else {
@@ -181,7 +179,7 @@ export const useGameService = (userId = 'demo-user') => {
 
   const unlockBadge = useCallback(async () => {
     try {
-      if (gamificationService && typeof gamificationService.checkForNewBadges === 'function') {
+      if (gamificationService && gamificationService.checkForNewBadges) {
         const newBadges = await gamificationService.checkForNewBadges(userId);
         return newBadges;
       } else {
