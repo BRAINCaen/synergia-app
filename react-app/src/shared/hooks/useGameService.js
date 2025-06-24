@@ -1,6 +1,10 @@
-// src/shared/hooks/useGameService.js
-import { useState, useEffect, useCallback } from 'react';
-import { gamificationService } from '../../core/services/gamificationService.js';
+// ==========================================
+// 📁 react-app/src/shared/hooks/useGameService.js
+// Hook React pour le service de gamification CORRIGÉ
+// ==========================================
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import gamificationService from '../../core/services/gamificationService';
 
 const XP_CONFIG = {
   REWARDS: {
@@ -43,234 +47,161 @@ const BADGES_CONFIG = {
   }
 };
 
-// Données mock par défaut
-const getMockGameData = () => ({
-  userId: 'demo-user',
-  totalXp: 240,
-  level: 3,
-  tasksCompleted: 12,
-  projectsCompleted: 2,
-  badges: [
-    {
-      id: 'first_task',
-      name: 'Premier Pas',
-      description: 'Première tâche complétée',
-      icon: '🎯',
-      unlockedAt: new Date()
-    }
-  ],
-  loginStreak: 5,
-  lastLoginDate: new Date().toISOString().split('T')[0],
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-  completionRate: 80
-});
-
 export const useGameService = (userId = 'demo-user') => {
   const [gameData, setGameData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
+  
+  // ✅ Utiliser useRef pour éviter les réinitialisations multiples
+  const initializationRef = useRef(false);
+  const dailyLoginRef = useRef(false);
 
   useEffect(() => {
     let unsubscribe = null;
 
     const initializeGameData = async () => {
+      // ✅ Éviter les initialisations multiples
+      if (initializationRef.current) return;
+      initializationRef.current = true;
+
       try {
         setIsLoading(true);
         setError(null);
 
-        if (gamificationService && gamificationService.initializeUserData) {
-          // Mode Firebase
-          const initialData = await gamificationService.initializeUserData(userId);
-          setGameData(initialData);
-          setIsConnected(true);
+        console.log('🔧 Initialisation du service de gamification...');
+        
+        const initialData = await gamificationService.initializeUserData(userId);
+        setGameData(initialData);
+        setIsConnected(true);
 
-          // S'abonner aux changements
-          if (gamificationService.subscribeToUserData) {
-            unsubscribe = gamificationService.subscribeToUserData(userId, (data) => {
-              setGameData(data);
-            });
-          }
-        } else {
-          // Mode démo
-          console.warn('⚠️ Mode démo - GamificationService non disponible');
-          setGameData(getMockGameData());
-          setIsConnected(false);
+        // ✅ Gérer la connexion quotidienne UNE SEULE FOIS
+        if (!dailyLoginRef.current) {
+          dailyLoginRef.current = true;
+          setTimeout(async () => {
+            try {
+              await gamificationService.dailyLogin(userId);
+            } catch (err) {
+              console.log('ℹ️ Connexion quotidienne déjà traitée ou erreur mineure');
+            }
+          }, 1000);
         }
 
+        // ✅ S'abonner aux mises à jour temps réel
+        unsubscribe = gamificationService.subscribeToUserData(userId, (data) => {
+          console.log('🔄 Données gamification mises à jour:', data);
+          setGameData(data);
+        });
+
         setIsLoading(false);
+        console.log('✅ Service de gamification initialisé avec succès');
+
       } catch (err) {
-        console.error('Erreur initialisation gamification:', err);
+        console.error('❌ Erreur initialisation gamification:', err);
         setError(err.message);
         setIsLoading(false);
         
-        // Fallback sur données mock
-        setGameData(getMockGameData());
+        // Mode fallback
+        setGameData(gamificationService.getMockUserData());
         setIsConnected(false);
       }
     };
 
-    if (userId) {
+    if (userId && !initializationRef.current) {
       initializeGameData();
     }
 
     return () => {
-      if (unsubscribe && typeof unsubscribe === 'function') {
+      if (unsubscribe) {
         unsubscribe();
       }
     };
   }, [userId]);
 
+  // ✅ Nettoyage lors du démontage
+  useEffect(() => {
+    return () => {
+      gamificationService.unsubscribeAll();
+    };
+  }, []);
+
   const addXP = useCallback(async (amount, reason) => {
     try {
-      if (gamificationService && gamificationService.addXP) {
-        const result = await gamificationService.addXP(userId, amount, reason);
-        return result;
-      } else {
-        // Mode démo
-        console.log(`🎮 [DEMO] +${amount} XP pour ${reason}`);
-        const newXp = (gameData?.totalXp || 0) + amount;
-        setGameData(prev => prev ? { ...prev, totalXp: newXp } : getMockGameData());
-        return { success: true, xpGained: amount, totalXp: newXp };
-      }
+      const result = await gamificationService.addXP(userId, amount, reason);
+      return result;
     } catch (err) {
       setError(err.message);
       return { success: false, error: err.message };
     }
-  }, [userId, gameData]);
+  }, [userId]);
 
   const completeTask = useCallback(async (difficulty = 'normal') => {
     try {
-      if (gamificationService && gamificationService.completeTask) {
-        const result = await gamificationService.completeTask(userId, difficulty);
-        return result;
-      } else {
-        // Mode démo
-        const xpRewards = {
-          easy: 20,
-          normal: 40,
-          hard: 60,
-          expert: 100
-        };
-        const xpReward = xpRewards[difficulty] || 40;
-        return await addXP(xpReward, `Tâche ${difficulty} complétée`);
-      }
+      const result = await gamificationService.completeTask(userId, difficulty);
+      
+      // Vérifier les nouveaux badges
+      setTimeout(async () => {
+        await gamificationService.checkAndUnlockBadges(userId);
+      }, 500);
+      
+      return result;
     } catch (err) {
       setError(err.message);
       return { success: false, error: err.message };
     }
-  }, [userId, addXP]);
+  }, [userId]);
 
-  const dailyLogin = useCallback(async () => {
+  const unlockBadge = useCallback(async (badgeId) => {
     try {
-      if (gamificationService && gamificationService.dailyLogin) {
-        const result = await gamificationService.dailyLogin(userId);
-        return result;
-      } else {
-        // Mode démo
-        return await addXP(10, 'Connexion quotidienne');
-      }
+      const badges = await gamificationService.checkAndUnlockBadges(userId);
+      return badges.includes(badgeId);
     } catch (err) {
       setError(err.message);
-      return { success: false, error: err.message };
+      return false;
     }
-  }, [userId, addXP]);
+  }, [userId]);
 
-  const unlockBadge = useCallback(async () => {
+  const getLeaderboard = useCallback(async (limit = 10) => {
     try {
-      if (gamificationService && gamificationService.checkForNewBadges) {
-        const newBadges = await gamificationService.checkForNewBadges(userId);
-        return newBadges;
-      } else {
-        // Mode démo
-        console.log('🏆 [DEMO] Vérification badges');
-        return [];
-      }
+      return await gamificationService.getLeaderboard(limit);
     } catch (err) {
       setError(err.message);
       return [];
     }
-  }, [userId]);
+  }, []);
 
-  const calculations = {
-    getCurrentLevel: () => {
-      if (!gameData) return 1;
-      return gameData.level || 1;
-    },
+  const resetDailyLogin = useCallback(() => {
+    dailyLoginRef.current = false;
+  }, []);
 
-    getXPForNextLevel: () => {
-      if (!gameData) return 100;
-      const currentLevel = gameData.level || 1;
-      return XP_CONFIG.LEVEL_FORMULA(currentLevel + 1);
-    },
-
-    getLevelProgress: () => {
-      if (!gameData) return 0;
-      const currentLevel = gameData.level || 1;
-      const currentXP = gameData.totalXp || 0;
-      const xpForCurrentLevel = currentLevel > 1 
-        ? XP_CONFIG.LEVEL_FORMULA(currentLevel)
-        : 0;
-      const xpForNextLevel = XP_CONFIG.LEVEL_FORMULA(currentLevel + 1);
-      const progressInLevel = currentXP - xpForCurrentLevel;
-      const xpNeededInLevel = xpForNextLevel - xpForCurrentLevel;
-      
-      return Math.min(100, Math.max(0, (progressInLevel / xpNeededInLevel) * 100));
-    },
-
-    getStats: () => {
-      if (!gameData) return {
-        level: 1,
-        totalXP: 0,
-        tasksCompleted: 0,
-        badges: 0,
-        loginStreak: 0
-      };
-      
-      return {
-        level: gameData.level || 1,
-        totalXP: gameData.totalXp || 0,
-        tasksCompleted: gameData.tasksCompleted || 0,
-        badges: gameData.badges ? gameData.badges.length : 0,
-        loginStreak: gameData.loginStreak || 0
-      };
-    },
-
-    getUnlockedBadges: () => {
-      return gameData?.badges || [];
-    },
-
-    getAvailableBadges: () => {
-      const unlockedBadgeIds = gameData?.badges?.map(b => b.id) || [];
-      return Object.values(BADGES_CONFIG).map(badge => ({
-        ...badge,
-        unlocked: unlockedBadgeIds.includes(badge.id)
-      }));
-    }
-  };
-
-  const quickActions = {
-    completeEasyTask: () => completeTask('easy'),
-    completeNormalTask: () => completeTask('normal'),
-    completeHardTask: () => completeTask('hard'),
-    completeExpertTask: () => completeTask('expert'),
-    dailyLogin,
-    addCustomXP: (amount, reason) => addXP(amount, reason)
-  };
+  // ✅ Calculer les stats dérivées
+  const derivedStats = gameData ? {
+    currentLevel: gameData.level || 1,
+    currentXP: gameData.xp || 0,
+    xpForNextLevel: gamificationService.getXPForNextLevel(gameData.level || 1),
+    progressPercentage: gameData.xp ? Math.round((gameData.xp / gamificationService.getXPForNextLevel(gameData.level || 1)) * 100) : 0,
+    totalBadges: (gameData.badges || []).length,
+    tasksCompleted: gameData.tasksCompleted || 0,
+    currentStreak: gameData.currentStreak || 0
+  } : null;
 
   return {
+    // Données
     gameData,
+    derivedStats,
     isLoading,
     error,
     isConnected,
+    
+    // Actions
     addXP,
     completeTask,
-    dailyLogin,
     unlockBadge,
-    calculations,
-    quickActions
+    getLeaderboard,
+    resetDailyLogin,
+    
+    // Configuration
+    XP_CONFIG,
+    BADGES_CONFIG
   };
 };
-
-export default useGameService;
