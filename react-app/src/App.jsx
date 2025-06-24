@@ -1,34 +1,43 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 
-// 🔧 IMPORT avec destructuration correcte
-import { useAuthStore } from './shared/stores/authStore.js';
+// Stores et services
+import { useAuthStore } from './shared/stores/authStore';
+import { useGameStore } from './shared/stores/gameStore';
 
 // Pages
-import Login from './pages/Login.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import TasksPage from './pages/TasksPage.jsx';
-import ProjectsPage from './pages/ProjectsPage.jsx';
-import AnalyticsPage from './pages/AnalyticsPage.jsx';
-import LeaderboardPage from './pages/LeaderboardPage.jsx';
-import ProfilePage from './pages/ProfilePage.jsx';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import TasksPage from './pages/TasksPage';
+import ProjectsPage from './pages/ProjectsPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import LeaderboardPage from './pages/LeaderboardPage';
+import ProfilePage from './pages/ProfilePage';
 
-// Component de chargement simple
+// Component de chargement
 function LoadingSpinner() {
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center">
       <div className="flex flex-col items-center space-y-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <p className="text-white">Chargement...</p>
+        <p className="text-white">Chargement de Synergia...</p>
       </div>
     </div>
   );
 }
 
-// Layout complet avec navigation
+// Layout principal avec navigation
 function MainLayout() {
   const { user, signOut } = useAuthStore();
+  const { userStats, initializeUser } = useGameStore();
   const location = useLocation();
+
+  // Initialiser l'utilisateur dans le système de gamification
+  useEffect(() => {
+    if (user?.uid && !userStats) {
+      initializeUser(user.uid);
+    }
+  }, [user?.uid, userStats, initializeUser]);
 
   const handleLogout = async () => {
     try {
@@ -39,12 +48,12 @@ function MainLayout() {
   };
 
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
-    { path: '/tasks', label: 'Tâches', icon: '✅' },
-    { path: '/projects', label: 'Projets', icon: '📁' },
-    { path: '/analytics', label: 'Analytics', icon: '📊' },
-    { path: '/leaderboard', label: 'Classement', icon: '🏆' },
-    { path: '/profile', label: 'Profil', icon: '👤' }
+    { path: '/dashboard', label: 'Dashboard', icon: '🏠', color: 'text-blue-400' },
+    { path: '/tasks', label: 'Tâches', icon: '✅', color: 'text-green-400' },
+    { path: '/projects', label: 'Projets', icon: '📁', color: 'text-purple-400' },
+    { path: '/analytics', label: 'Analytics', icon: '📊', color: 'text-orange-400' },
+    { path: '/leaderboard', label: 'Classement', icon: '🏆', color: 'text-yellow-400' },
+    { path: '/profile', label: 'Profil', icon: '👤', color: 'text-gray-400' }
   ];
 
   const isActive = (path) => location.pathname === path;
@@ -52,20 +61,43 @@ function MainLayout() {
   return (
     <div className="min-h-screen bg-gray-900 flex">
       {/* Sidebar Navigation */}
-      <div className="w-64 bg-gray-800 shadow-lg">
-        {/* Logo */}
+      <div className="w-64 bg-gray-800 shadow-lg flex flex-col">
+        {/* Logo et infos utilisateur */}
         <div className="p-6 border-b border-gray-700">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 mb-4">
             <span className="text-2xl">⚡</span>
             <div>
               <h1 className="text-xl font-bold text-white">Synergia</h1>
-              <p className="text-sm text-gray-400">v3.3 Production</p>
+              <p className="text-sm text-gray-400">v3.4 Firebase</p>
             </div>
           </div>
+          
+          {/* Infos utilisateur */}
+          {userStats && (
+            <div className="bg-gray-700/50 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-400">Niveau {userStats.level || 1}</span>
+                <span className="text-sm text-yellow-400 font-medium">
+                  {userStats.totalXp?.toLocaleString() || 0} XP
+                </span>
+              </div>
+              <div className="w-full bg-gray-600 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: `${Math.min(((userStats.totalXp || 0) % 1000) / 10, 100)}%` 
+                  }}
+                ></div>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                {user?.email?.split('@')[0] || 'Utilisateur'}
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Navigation */}
-        <nav className="mt-6 px-3">
+        {/* Navigation principale */}
+        <nav className="flex-1 mt-6 px-3">
           <div className="space-y-1">
             {navItems.map((item) => (
               <Link
@@ -75,190 +107,131 @@ function MainLayout() {
                   flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200
                   ${isActive(item.path)
                     ? 'bg-blue-600 text-white shadow-lg'
-                    : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                   }
                 `}
               >
-                <span className="text-lg">{item.icon}</span>
+                <span className={`text-lg ${isActive(item.path) ? 'text-white' : item.color}`}>
+                  {item.icon}
+                </span>
                 <span>{item.label}</span>
+                {isActive(item.path) && (
+                  <div className="ml-auto w-2 h-2 bg-white rounded-full"></div>
+                )}
               </Link>
             ))}
           </div>
         </nav>
 
-        {/* User Info & Logout */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
-          <div className="flex items-center space-x-3 mb-3">
-            <img
-              src={user?.photoURL || 'https://via.placeholder.com/40'}
-              alt="Profile"
-              className="w-10 h-10 rounded-full border-2 border-gray-600"
-            />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">
-                {user?.displayName || 'Utilisateur'}
-              </p>
-              <p className="text-xs text-gray-400 truncate">
-                {user?.email}
-              </p>
-            </div>
+        {/* Footer avec actions */}
+        <div className="p-4 border-t border-gray-700">
+          <div className="space-y-2">
+            {/* Statistiques rapides */}
+            {userStats && (
+              <div className="text-xs text-gray-400 grid grid-cols-2 gap-2">
+                <div className="bg-gray-700/30 rounded p-2 text-center">
+                  <div className="font-medium text-white">{userStats.tasksCompleted || 0}</div>
+                  <div>Tâches</div>
+                </div>
+                <div className="bg-gray-700/30 rounded p-2 text-center">
+                  <div className="font-medium text-white">{userStats.projectsCreated || 0}</div>
+                  <div>Projets</div>
+                </div>
+              </div>
+            )}
+            
+            {/* Bouton déconnexion */}
+            <button
+              onClick={handleLogout}
+              className="w-full px-3 py-2 text-sm text-gray-400 hover:text-red-400 hover:bg-gray-700/50 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <span>🚪</span>
+              Déconnexion
+            </button>
           </div>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            <span>🚪</span>
-            <span>Déconnexion</span>
-          </button>
         </div>
       </div>
 
       {/* Contenu principal */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="bg-gray-800 shadow-sm border-b border-gray-700">
-          <div className="px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-white">
-                  {navItems.find(item => isActive(item.path))?.label || 'Page'}
-                </h2>
-                <p className="text-sm text-gray-400">
-                  Gestion d'équipe et gamification
-                </p>
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Header avec notifications */}
+        <header className="bg-gray-800/50 border-b border-gray-700 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h2 className="text-lg font-semibold text-white">
+                {navItems.find(item => item.path === location.pathname)?.label || 'Synergia'}
+              </h2>
+              
+              {/* Badge de notification XP récente */}
+              {userStats?.lastXpGain && (
+                <div className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-xs font-medium">
+                  +{userStats.lastXpGain} XP
+                </div>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-3">
+              {/* Indicateur de connexion */}
+              <div className="flex items-center gap-2 text-xs text-gray-400">
+                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                En ligne
               </div>
               
-              {/* Stats utilisateur */}
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2 text-sm">
-                  <span className="text-yellow-400">⭐</span>
-                  <span className="text-white">Niveau 4</span>
-                </div>
-                <div className="flex items-center space-x-2 text-sm">
-                  <span className="text-blue-400">💎</span>
-                  <span className="text-white">535 XP</span>
-                </div>
-              </div>
+              {/* Avatar utilisateur */}
+              <Link 
+                to="/profile"
+                className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium text-sm hover:shadow-lg transition-all"
+              >
+                {user?.email?.charAt(0)?.toUpperCase() || '?'}
+              </Link>
             </div>
           </div>
         </header>
 
-        {/* Contenu de la page */}
+        {/* Zone de contenu avec scroll */}
         <main className="flex-1 overflow-auto">
-          <Outlet />
+          <Routes>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
         </main>
       </div>
     </div>
   );
 }
 
-// Protected Route Component
-function ProtectedRoute({ children }) {
-  const { user, loading } = useAuthStore();
-  
-  if (loading) {
-    return <LoadingSpinner />;
-  }
-  
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return children;
-}
-
-// Page par défaut pour les routes manquantes
-function DefaultPage({ title, icon, description }) {
-  return (
-    <div className="p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center py-12">
-          <span className="text-6xl mb-4 block">{icon}</span>
-          <h1 className="text-2xl font-bold text-white mb-2">{title}</h1>
-          <p className="text-gray-400 mb-6">{description}</p>
-          <div className="bg-gray-800 rounded-lg p-6">
-            <p className="text-gray-300">
-              Cette fonctionnalité est en cours de développement. 
-              Votre système de gamification et Firebase sont pleinement opérationnels !
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
+// Composant principal de l'application
 function App() {
-  // 🔧 CORRECTION : Utilisation simplifiée sans boucle
   const { user, loading, initializeAuth } = useAuthStore();
 
+  // Initialiser l'authentification au démarrage
   useEffect(() => {
-    let unsubscribe;
-    
-    if (initializeAuth && typeof initializeAuth === 'function') {
-      console.log('🔧 Initialisation unique de l\'authentification...');
-      unsubscribe = initializeAuth();
-    } else {
-      console.warn('⚠️ initializeAuth non disponible');
-    }
-    
-    // Nettoyage
-    return () => {
-      if (unsubscribe && typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
-    };
-  }, []); // 🔧 IMPORTANT : Dépendances vides pour éviter les boucles
+    initializeAuth();
+  }, [initializeAuth]);
 
+  // Affichage pendant le chargement initial
   if (loading) {
     return <LoadingSpinner />;
   }
 
   return (
     <Router>
-      <Routes>
-        {/* Route publique */}
-        <Route 
-          path="/login" 
-          element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
-        />
-
-        {/* Routes protégées avec navigation */}
-        <Route 
-          path="/"
-          element={
-            <ProtectedRoute>
-              <MainLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route 
-            path="tasks" 
-            element={<TasksPage />}
-          />
-          <Route 
-            path="projects" 
-            element={<ProjectsPage />}
-          />
-          <Route 
-            path="analytics" 
-            element={<AnalyticsPage />}
-          />
-          <Route 
-            path="leaderboard" 
-            element={<LeaderboardPage />}
-          />
-          <Route 
-            path="profile" 
-            element={<ProfilePage />}
-          />
-        </Route>
-
-        {/* Route par défaut */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+      <div className="App">
+        {user ? (
+          <MainLayout />
+        ) : (
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        )}
+      </div>
     </Router>
   );
 }
