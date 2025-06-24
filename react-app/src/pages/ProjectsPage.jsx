@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Filter, Calendar, Users, Target, Trash2, Edit, Eye, Clock, AlertTriangle } from 'lucide-react';
 import { useProjectStore } from '../shared/stores/projectStore.js';
 import { useTaskStore } from '../shared/stores/taskStore.js';
+import { useAuthStore } from '../shared/stores/authStore.js';
 import ProjectForm from '../modules/projects/ProjectForm.jsx';
 
 const ProjectsPage = () => {
@@ -21,16 +22,19 @@ const ProjectsPage = () => {
     createProject, 
     updateProject, 
     deleteProject, 
-    fetchProjects 
+    loadUserProjects 
   } = useProjectStore();
   
-  const { tasks, fetchTasks } = useTaskStore();
+  const { tasks, loadUserTasks } = useTaskStore();
+  const { user } = useAuthStore();
 
   // Charger les données au montage
   useEffect(() => {
-    fetchProjects();
-    fetchTasks();
-  }, [fetchProjects, fetchTasks]);
+    if (user?.uid) {
+      loadUserProjects(user.uid);
+      loadUserTasks(user.uid);
+    }
+  }, [user?.uid, loadUserProjects, loadUserTasks]);
 
   // Calculer les statistiques des projets
   const getProjectStats = (projectId) => {
@@ -61,7 +65,7 @@ const ProjectsPage = () => {
   // Gestionnaires d'événements
   const handleCreateProject = async (projectData) => {
     try {
-      await createProject(projectData);
+      await createProject(projectData, user.uid);
       setShowProjectForm(false);
     } catch (error) {
       console.error('Erreur création projet:', error);
@@ -81,7 +85,7 @@ const ProjectsPage = () => {
   const handleDeleteProject = async (projectId) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
       try {
-        await deleteProject(projectId);
+        await deleteProject(projectId, user.uid);
       } catch (error) {
         console.error('Erreur suppression projet:', error);
       }
