@@ -2,16 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './core/stores/authStore';
-import { useGameStore } from './core/stores/gameStore';
-import { authService } from './core/services/authService';
+import { useAuthStore } from './shared/stores/authStore';
+import { useGameStore } from './shared/stores/gameStore';
 
 // Components
 import Sidebar from './components/layout/Sidebar';
-import LoadingSpinner from './components/common/LoadingSpinner';
 
-// Pages
-import LoginPage from './pages/LoginPage';
+// Pages - utiliser les vrais noms de fichiers
+import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import TasksPage from './pages/TasksPage';
 import ProjectsPage from './pages/ProjectsPage';
@@ -19,38 +17,43 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import ProfilePage from './pages/ProfilePage';
 import UsersPage from './pages/UsersPage';
-import OnboardingPage from './pages/OnboardingPage';
 
 const App = () => {
-  const { user, isLoading, setUser, setLoading } = useAuthStore();
-  const { initializeGameData } = useGameStore();
+  const { user, loading, initializeAuth } = useAuthStore();
+  const { initializeGameStore } = useGameStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    const initializeAuth = async () => {
+    const initializeApp = async () => {
       try {
-        setLoading(true);
-        const currentUser = await authService.getCurrentUser();
+        console.log('🚀 Initialisation de l\'application...');
         
-        if (currentUser) {
-          setUser(currentUser);
-          await initializeGameData(currentUser.uid);
+        // Initialiser l'authentification
+        const unsubscribe = initializeAuth();
+        
+        // Si utilisateur connecté, initialiser la gamification
+        if (user?.uid) {
+          await initializeGameStore(user.uid);
+          console.log('✅ Gamification initialisée pour:', user.email);
         }
+        
+        return unsubscribe;
       } catch (error) {
-        console.error('Erreur initialisation auth:', error);
-      } finally {
-        setLoading(false);
+        console.error('❌ Erreur initialisation app:', error);
       }
     };
 
-    initializeAuth();
-  }, [setUser, setLoading, initializeGameData]);
+    initializeApp();
+  }, [user?.uid, initializeAuth, initializeGameStore]);
 
   // Loading state
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <LoadingSpinner size="large" />
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-white">Chargement de Synergia...</p>
+        </div>
       </div>
     );
   }
@@ -60,7 +63,7 @@ const App = () => {
     return (
       <Router>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" element={<Login />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
@@ -98,7 +101,6 @@ const App = () => {
               <Route path="/leaderboard" element={<LeaderboardPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/users" element={<UsersPage />} />
-              <Route path="/onboarding" element={<OnboardingPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </main>
