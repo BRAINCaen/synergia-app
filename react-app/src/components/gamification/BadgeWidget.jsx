@@ -1,206 +1,83 @@
 // ==========================================
 // 📁 react-app/src/components/gamification/BadgeWidget.jsx
-// Widget compact pour afficher les badges sur le dashboard
+// Widget badges avec imports et exports corrigés
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
-import { useAuthStore } from '../../shared/stores/authStore.js';
-import { useBadgeStats } from '../../hooks/useBadges.js';
-import BadgeIntegrationService from '../../core/services/badgeIntegrationService.js';
+import React from 'react';
+import { useBadges } from '../../shared/hooks/useBadges.js'; // ✅ Import corrigé
 
 /**
- * 🏆 WIDGET COMPACT DES BADGES
+ * 🏆 COMPOSANT WIDGET BADGES
  * 
- * Affichage condensé pour le dashboard avec:
- * - Progression globale des badges
- * - Prochains badges à débloquer
- * - Bouton de vérification rapide
- * - Liens vers la galerie complète
+ * Widget compact pour afficher l'état des badges dans le dashboard
+ * - Badges récents débloqués
+ * - Progression générale
+ * - Actions rapides
+ * - Statistiques résumées
  */
 const BadgeWidget = () => {
-  const { user } = useAuthStore();
-  const { stats, loading } = useBadgeStats();
-  const [checking, setChecking] = useState(false);
-  const [recentActivity, setRecentActivity] = useState([]);
-  const [nextBadges, setNextBadges] = useState([]);
-
-  useEffect(() => {
-    if (user?.uid) {
-      loadNextBadges();
-    }
-  }, [user?.uid]);
-
-  /**
-   * 🎯 CHARGER LES PROCHAINS BADGES À DÉBLOQUER
-   */
-  const loadNextBadges = async () => {
-    try {
-      // Cette fonction nécessiterait une extension du BadgeEngine
-      // Pour l'instant, on utilise des données mock
-      setNextBadges([
-        {
-          id: 'early_bird',
-          name: 'Early Bird',
-          icon: '🌅',
-          description: 'Complété 5 tâches avant 8h',
-          progress: { current: 2, target: 5, percentage: 40 }
-        },
-        {
-          id: 'task_destroyer_25',
-          name: 'Task Destroyer',
-          icon: '💥',
-          description: 'Complété 25 tâches',
-          progress: { current: 18, target: 25, percentage: 72 }
-        }
-      ]);
-    } catch (error) {
-      console.error('❌ Erreur loadNextBadges:', error);
-    }
-  };
-
-  /**
-   * 🔍 VÉRIFICATION RAPIDE DES BADGES
-   */
-  const handleQuickCheck = async () => {
-    if (!user?.uid || checking) return;
-
-    try {
-      setChecking(true);
-      const newBadges = await BadgeIntegrationService.manualBadgeCheck(user.uid);
-      
-      if (newBadges.length > 0) {
-        setRecentActivity(prev => [
-          ...newBadges.map(badge => ({
-            type: 'badge',
-            data: badge,
-            timestamp: new Date()
-          })),
-          ...prev.slice(0, 2)
-        ]);
-      }
-
-    } catch (error) {
-      console.error('❌ Erreur quickCheck:', error);
-    } finally {
-      setChecking(false);
-    }
-  };
+  const {
+    badges,
+    userBadges,
+    stats,
+    loading,
+    checking,
+    checkBadges,
+    recentBadges
+  } = useBadges();
 
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-lg p-6">
-        <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-          <div className="space-y-3">
-            <div className="h-3 bg-gray-200 rounded"></div>
-            <div className="h-3 bg-gray-200 rounded w-5/6"></div>
-          </div>
+        <div className="flex items-center justify-center h-32">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
         </div>
       </div>
     );
   }
 
+  const completionPercentage = badges.length > 0 
+    ? Math.round((userBadges.length / badges.length) * 100) 
+    : 0;
+
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 h-full">
-      {/* 🏆 En-tête */}
+    <div className="bg-white rounded-xl shadow-lg p-6">
+      {/* 🎯 En-tête */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-          <span className="mr-2">🏆</span>
-          Badges
-        </h3>
-        <a
-          href="/gamification"
-          className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
-        >
-          Voir tout →
-        </a>
+        <h3 className="text-lg font-semibold text-gray-900">🏆 Badges</h3>
+        <span className="text-sm text-gray-500">
+          {userBadges.length}/{badges.length}
+        </span>
       </div>
 
       {/* 📊 Progression globale */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-gray-600">Progression</span>
-          <span className="text-sm font-medium text-gray-900">
-            {stats?.unlockedCount || 0}/{stats?.totalCount || 0}
-          </span>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm font-medium text-gray-700">Progression</span>
+          <span className="text-sm font-bold text-blue-600">{completionPercentage}%</span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+        <div className="w-full bg-gray-200 rounded-full h-2">
           <div 
-            className="bg-gradient-to-r from-purple-500 to-blue-600 h-2 rounded-full transition-all duration-500"
-            style={{ width: `${stats?.percentage || 0}%` }}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+            style={{ width: `${completionPercentage}%` }}
           ></div>
         </div>
-        <div className="text-xs text-gray-500 text-center">
-          {stats?.percentage || 0}% débloqués
-        </div>
       </div>
 
-      {/* 🎯 Prochains badges */}
-      <div className="mb-6">
-        <h4 className="text-sm font-semibold text-gray-700 mb-3">
-          🎯 Prochains objectifs
-        </h4>
-        
-        {nextBadges.length > 0 ? (
-          <div className="space-y-3">
-            {nextBadges.slice(0, 2).map(badge => (
-              <div key={badge.id} className="border border-gray-200 rounded-lg p-3">
-                <div className="flex items-center space-x-3 mb-2">
-                  <span className="text-lg">{badge.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <h5 className="text-sm font-medium text-gray-900 truncate">
-                      {badge.name}
-                    </h5>
-                    <p className="text-xs text-gray-500 truncate">
-                      {badge.description}
-                    </p>
-                  </div>
-                </div>
-                
-                {badge.progress && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>{badge.progress.current}/{badge.progress.target}</span>
-                      <span>{badge.progress.percentage}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-1.5">
-                      <div 
-                        className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
-                        style={{ width: `${badge.progress.percentage}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-4">
-            <div className="text-2xl mb-2">🎉</div>
-            <p className="text-sm text-gray-500">
-              Tous les badges disponibles sont débloqués !
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* 🔄 Activité récente */}
-      {recentActivity.length > 0 && (
+      {/* 🏅 Badges récents */}
+      {recentBadges.length > 0 && (
         <div className="mb-6">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">
-            🆕 Récemment débloqués
-          </h4>
-          <div className="space-y-2">
-            {recentActivity.slice(0, 2).map((activity, index) => (
-              <div key={index} className="flex items-center space-x-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-                <span className="text-lg">{activity.data.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-green-800 truncate">
-                    {activity.data.name}
-                  </p>
-                  <p className="text-xs text-green-600">
-                    +{activity.data.xpReward} XP
-                  </p>
+          <h4 className="text-sm font-medium text-gray-700 mb-3">Récemment débloqués</h4>
+          <div className="flex space-x-2">
+            {recentBadges.slice(0, 3).map((badge, index) => (
+              <div 
+                key={badge.id || index}
+                className="flex-1 bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-3 text-center"
+                title={badge.name}
+              >
+                <div className="text-lg mb-1">{badge.icon}</div>
+                <div className="text-xs font-medium text-gray-700 truncate">
+                  {badge.name}
                 </div>
               </div>
             ))}
@@ -208,14 +85,14 @@ const BadgeWidget = () => {
         </div>
       )}
 
-      {/* 🔍 Actions */}
+      {/* 🔄 Actions */}
       <div className="space-y-3">
         <button
-          onClick={handleQuickCheck}
+          onClick={checkBadges}
           disabled={checking}
           className={`
-            w-full py-2 px-4 rounded-lg font-medium text-sm transition-all duration-200
-            ${checking 
+            w-full py-2 px-3 rounded-lg text-sm font-medium transition-colors
+            ${checking
               ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
               : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
             }
@@ -256,7 +133,7 @@ const BadgeWidget = () => {
           <div className="grid grid-cols-3 gap-3 text-center">
             <div>
               <div className="text-lg font-bold text-purple-600">
-                {stats.unlockedCount}
+                {stats.unlockedCount || userBadges.length}
               </div>
               <div className="text-xs text-gray-500">Débloqués</div>
             </div>
@@ -268,7 +145,7 @@ const BadgeWidget = () => {
             </div>
             <div>
               <div className="text-lg font-bold text-blue-600">
-                {stats.percentage || 0}%
+                {stats.percentage || completionPercentage}%
               </div>
               <div className="text-xs text-gray-500">Complet</div>
             </div>
@@ -292,43 +169,52 @@ export const MiniBadge = ({ badge, size = 'sm', showProgress = false }) => {
   };
 
   const rarityClasses = {
-    common: 'border-gray-300 bg-gray-50',
-    uncommon: 'border-green-300 bg-green-50',
-    rare: 'border-blue-300 bg-blue-50',
-    epic: 'border-purple-300 bg-purple-50',
-    legendary: 'border-yellow-300 bg-yellow-50 animate-pulse'
+    common: 'bg-gray-100 border-gray-300',
+    uncommon: 'bg-green-100 border-green-300',
+    rare: 'bg-blue-100 border-blue-300',
+    epic: 'bg-purple-100 border-purple-300',
+    legendary: 'bg-yellow-100 border-yellow-300'
   };
 
   return (
     <div className={`
       ${sizeClasses[size]} 
-      ${rarityClasses[badge.rarity]} 
+      ${rarityClasses[badge.rarity || 'common']}
       border-2 rounded-full flex items-center justify-center
+      font-bold text-center relative overflow-hidden
     `}>
       <span>{badge.icon}</span>
+      {showProgress && badge.progress && (
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/30">
+          <div 
+            className="h-full bg-white transition-all duration-300"
+            style={{ width: `${badge.progress}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 };
 
 /**
- * 📊 COMPOSANT BARRE DE PROGRESSION BADGE
- * Barre de progression réutilisable pour les badges
+ * 📋 COMPOSANT LISTE BADGES COMPACTE
+ * Pour affichage dans les profils ou cartes
  */
-export const BadgeProgressBar = ({ current, target, className = '' }) => {
-  const percentage = Math.min(100, Math.round((current / target) * 100));
-  
+export const BadgeList = ({ badges, maxVisible = 3, showMore = true }) => {
+  const visibleBadges = badges.slice(0, maxVisible);
+  const remainingCount = badges.length - maxVisible;
+
   return (
-    <div className={`space-y-1 ${className}`}>
-      <div className="flex justify-between text-xs text-gray-500">
-        <span>{current}/{target}</span>
-        <span>{percentage}%</span>
-      </div>
-      <div className="w-full bg-gray-200 rounded-full h-2">
-        <div 
-          className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500"
-          style={{ width: `${percentage}%` }}
-        ></div>
-      </div>
+    <div className="flex items-center space-x-1">
+      {visibleBadges.map((badge, index) => (
+        <MiniBadge key={badge.id || index} badge={badge} size="sm" />
+      ))}
+      
+      {showMore && remainingCount > 0 && (
+        <div className="w-8 h-8 bg-gray-100 border-2 border-gray-300 rounded-full flex items-center justify-center text-xs font-bold text-gray-600">
+          +{remainingCount}
+        </div>
+      )}
     </div>
   );
 };
