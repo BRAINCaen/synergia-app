@@ -2,108 +2,253 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <!-- Meta tags pour PWA -->
-  <meta name="theme-color" content="#6366f1" />
-  <meta name="description" content="Synergia v3.5 - Application de gestion de tâches et projets avec gamification avancée" />
+  <!-- ⭐ CACHE BUSTING META TAGS -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta name="app-version" content="3.5.1" />
+  <meta name="build-time" content="{{BUILD_TIME}}" />
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#1F2937" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Synergia" />
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   
   <!-- Manifest PWA -->
   <link rel="manifest" href="/manifest.json" />
   
-  <!-- Apple PWA -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>Synergia v3.5 - Gamification & Productivité</title>
   
-  <!-- Préchargement des polices -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- ⭐ PRELOAD CRITICAL RESOURCES avec cache busting -->
+  <link rel="preload" href="/assets/index.css?v=3.5.1" as="style" />
+  <link rel="preload" href="/assets/index.js?v=3.5.1" as="script" />
   
-  <title>Synergia v3.5 - Gestion de tâches gamifiée</title>
+  <!-- SEO Meta -->
+  <meta name="description" content="Synergia - Plateforme de gamification pour booster votre productivité en équipe" />
+  <meta name="keywords" content="gamification, productivité, équipe, tâches, XP, badges" />
+  <meta name="author" content="Synergia Team" />
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="Synergia v3.5 - Gamification & Productivité" />
+  <meta property="og:description" content="Transformez vos tâches en aventure avec notre système de gamification intelligent" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://rainbow-caramel-df0320.netlify.app/" />
+  <meta property="og:image" content="/og-image.png" />
+  
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Synergia v3.5" />
+  <meta name="twitter:description" content="Gamification & Productivité en équipe" />
+  <meta name="twitter:image" content="/twitter-image.png" />
   
   <style>
-    /* Styles pour le loader initial */
-    .initial-loader {
+    /* ⭐ CRITICAL CSS inline pour éviter le flash */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #111827;
+      color: #ffffff;
+      overflow-x: hidden;
+    }
+    
+    /* Loading Screen */
+    .loading-screen {
       position: fixed;
       top: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
-      background: #111827;
+      width: 100vw;
+      height: 100vh;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 9999;
+      transition: opacity 0.5s ease-out;
     }
     
-    .spinner {
-      width: 40px;
-      height: 40px;
+    .loading-screen.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    .loader {
+      width: 60px;
+      height: 60px;
       border: 4px solid #374151;
       border-top: 4px solid #3b82f6;
       border-radius: 50%;
       animation: spin 1s linear infinite;
+      margin-bottom: 20px;
     }
     
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    
+    .loading-text {
+      color: #9ca3af;
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+    
+    .version-info {
+      color: #6b7280;
+      font-size: 12px;
+      position: absolute;
+      bottom: 20px;
+    }
+    
+    /* App Container */
+    #root {
+      min-height: 100vh;
+      background-color: #111827;
+    }
+    
+    /* Prevent FOUC */
+    .no-js #root {
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <noscript>
-    <div style="text-align: center; padding: 50px; background: #f3f4f6;">
-      <h2 style="color: #1f2937; margin-bottom: 16px;">JavaScript requis</h2>
-      <p style="color: #6b7280;">
-        Cette application nécessite JavaScript pour fonctionner correctement.
-        Veuillez l'activer dans votre navigateur.
-      </p>
-    </div>
-  </noscript>
-  
-  <!-- Container principal React -->
-  <div id="root"></div>
-  
-  <!-- Loader initial (masqué automatiquement quand React se charge) -->
-  <div class="initial-loader">
-    <div style="text-align: center;">
-      <div class="spinner"></div>
-      <div style="margin-top: 16px; color: #9ca3af; font-size: 14px;">
-        Chargement de Synergia...
-      </div>
-    </div>
+  <!-- ⭐ LOADING SCREEN avec version -->
+  <div id="loading-screen" class="loading-screen">
+    <div class="loader"></div>
+    <div class="loading-text">Chargement de Synergia...</div>
+    <div class="version-info">v3.5.1</div>
   </div>
   
-  <!-- Service Worker Registration -->
+  <!-- React App -->
+  <div id="root"></div>
+  
+  <!-- ⭐ CACHE BUSTER SCRIPT avant tout -->
   <script>
-    // Enregistrement du service worker pour PWA (si disponible)
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js')
-          .then(function(registration) {
-            console.log('✅ Service Worker enregistré:', registration);
-          })
-          .catch(function(error) {
-            console.log('❌ Erreur Service Worker:', error);
-          });
-      });
-    }
+    // Version tracking et cache busting
+    window.SYNERGIA_VERSION = '3.5.1';
+    window.BUILD_TIME = Date.now();
     
-    // Masquer le loader quand React se charge
-    window.addEventListener('load', function() {
-      setTimeout(() => {
-        const loader = document.querySelector('.initial-loader');
-        if (loader) {
-          loader.style.display = 'none';
-        }
-      }, 1000);
-    });
+    // Force refresh function globale
+    window.forceDashboardReload = function() {
+      console.log('🚀 FORCE RELOAD: Début...');
+      
+      // Vider tous les caches
+      if ('caches' in window) {
+        caches.keys().then(cacheNames => {
+          return Promise.all(cacheNames.map(name => caches.delete(name)));
+        }).then(() => {
+          console.log('✅ Caches vidés');
+          
+          // Vider le storage
+          try {
+            localStorage.clear();
+            sessionStorage.clear();
+          } catch(e) {}
+          
+          // Hard reload avec timestamp
+          const url = new URL(window.location);
+          url.searchParams.set('_cacheBust', Date.now());
+          url.searchParams.set('_version', '3.5.1');
+          window.location.replace(url.toString());
+        });
+      } else {
+        // Fallback
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.reload(true);
+      }
+    };
+    
+    // Auto-hide loading screen après timeout
+    setTimeout(() => {
+      const loadingScreen = document.getElementById('loading-screen');
+      if (loadingScreen) {
+        loadingScreen.classList.add('fade-out');
+        setTimeout(() => {
+          loadingScreen.remove();
+        }, 500);
+      }
+    }, 3000);
+    
+    // Version check
+    const storedVersion = localStorage.getItem('synergia_app_version');
+    if (storedVersion && storedVersion !== '3.5.1') {
+      console.log('🔄 Nouvelle version détectée, nettoyage...');
+      localStorage.clear();
+      sessionStorage.clear();
+    }
+    localStorage.setItem('synergia_app_version', '3.5.1');
+    
+    // Console welcome
+    console.log('%c🚀 SYNERGIA v3.5.1', 'color: #3b82f6; font-size: 20px; font-weight: bold;');
+    console.log('%cCommandes disponibles:', 'color: #10b981; font-weight: bold;');
+    console.log('%c• forceDashboardReload() - Force le rechargement', 'color: #6b7280;');
+    console.log('%c• window.location.reload(true) - Rechargement dur', 'color: #6b7280;');
   </script>
   
-  <!-- POINT D'ENTRÉE REACT - CRUCIAL ! -->
-  <script type="module" src="/src/index.jsx"></script>
+  <!-- ⭐ SERVICE WORKER REGISTRATION avec mise à jour forcée -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js?v=3.5.1', {
+          scope: '/',
+          updateViaCache: 'none' // ⭐ Toujours chercher les mises à jour
+        })
+        .then(registration => {
+          console.log('📱 SW registered:', registration.scope);
+          
+          // Forcer la mise à jour du SW
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            console.log('🔄 Nouvelle version SW détectée');
+            
+            newWorker?.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('📱 SW mis à jour, rechargement...');
+                window.location.reload();
+              }
+            });
+          });
+          
+          // Vérifier les mises à jour immédiatement
+          registration.update();
+          
+          // Vérifier périodiquement
+          setInterval(() => {
+            registration.update();
+          }, 60000); // Toutes les minutes
+        })
+        .catch(error => {
+          console.log('❌ SW registration failed:', error);
+        });
+      });
+    }
+  </script>
+  
+  <!-- ⭐ VERSION TRACKER -->
+  <script type="application/json" id="version-info">
+    {
+      "version": "3.5.1",
+      "buildTime": "{{BUILD_TIME}}",
+      "features": ["cache-busting", "auto-refresh", "sw-update"]
+    }
+  </script>
+  
+  <!-- Main App Script avec cache busting -->
+  <script type="module" src="/src/main.jsx?v=3.5.1"></script>
 </body>
 </html>
