@@ -1,195 +1,188 @@
-// ==========================================
-// 📁 react-app/src/core/services/gamificationService.js
-// Service de gamification CORRIGÉ - Structure Firebase compatible
-// ==========================================
-
+// src/core/services/gamificationService.js
+// Service de gamification complet avec méthodes corrigées
 import { 
   doc, 
   getDoc, 
   setDoc, 
   updateDoc, 
-  onSnapshot, 
-  serverTimestamp,
-  arrayUnion 
+  collection, 
+  query, 
+  orderBy, 
+  limit, 
+  getDocs,
+  onSnapshot,
+  serverTimestamp 
 } from 'firebase/firestore';
-import { db } from '../firebase.js';
+import { db } from '../firebase';
 
 class GamificationService {
   constructor() {
     this.listeners = new Map();
-    this.cache = new Map();
-    this.dailyLoginProcessed = new Set(); // ✅ NOUVEAU: Éviter les doublons
+    this.initialized = false;
   }
 
-  // ✅ Données mock pour le développement
-  getMockUserData() {
-    return {
-      totalXp: 240,
-      level: 3,
-      tasksCompleted: 12,
-      projectsCompleted: 2,
-      badges: ['first_task', 'streak_warrior'],
-      loginStreak: 5,
-      lastLoginDate: new Date().toISOString().split('T')[0],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+  // ✅ CORRIGÉ: initializeUserStats (méthode manquante)
+  async initializeUserStats(userId, userEmail = null) {
+    return await this.initializeUserData(userId);
   }
 
   // ✅ Initialiser les données utilisateur
   async initializeUserData(userId) {
     try {
-      console.log('✅ Initialisation gamification pour:', userId);
-      
-      // Vérifier si les données existent déjà
-      const existingData = await this.getUserData(userId);
-      if (existingData && existingData.totalXp !== undefined) {
-        console.log('ℹ️ Données existantes trouvées');
-        return existingData;
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        console.log('✅ Données utilisateur existantes trouvées');
+        return userSnap.data().gamification || this.getDefaultUserData();
+      } else {
+        console.log('🆕 Nouveau utilisateur, création des données gamification');
+        const defaultData = this.getDefaultUserData();
+        
+        await setDoc(userRef, {
+          gamification: defaultData,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        
+        return defaultData;
       }
-
-      // Créer de nouvelles données compatibles avec la structure attendue
-      const initialData = {
-        userId,
-        email: '', // Sera rempli par le système d'auth
-        totalXp: 0,
-        level: 1,
-        tasksCreated: 0,
-        tasksCompleted: 0,
-        projectsCreated: 0,
-        projectsJoined: 0,
-        badges: [],
-        loginStreak: 0,
-        lastLoginDate: null,
-        completionRate: 0,
-        maxTasksPerDay: 0,
-        achievements: [],
-        xpHistory: [],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-
-      await this.setUserData(userId, initialData);
-      console.log('✅ Statistiques utilisateur initialisées');
-      return initialData;
-      
     } catch (error) {
-      console.error('❌ Erreur initialisation:', error);
-      return this.getMockUserData();
+      console.error('❌ Erreur initialisation données utilisateur:', error);
+      return this.getDefaultUserData();
     }
   }
 
-  // ✅ CORRECTION PRINCIPALE: Utiliser la bonne structure de collection
+  // ✅ CORRIGÉ: subscribeToUserStats (méthode manquante)
+  subscribeToUserStats(userId, callback) {
+    return this.subscribeToUserData(userId, callback);
+  }
+
+  // ✅ S'abonner aux données utilisateur en temps réel
+  subscribeToUserData(userId, callback) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      
+      const unsubscribe = onSnapshot(userRef, (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
+          const gamificationData = data.gamification || this.getDefaultUserData();
+          callback(gamificationData);
+        } else {
+          callback(this.getDefaultUserData());
+        }
+      });
+
+      this.listeners.set(userId, unsubscribe);
+      return unsubscribe;
+    } catch (error) {
+      console.error('❌ Erreur souscription données utilisateur:', error);
+      return () => {}; // Fonction vide pour éviter les erreurs
+    }
+  }
+
+  // ✅ CORRIGÉ: updateLoginStreak (méthode manquante)
+  async updateLoginStreak(userId) {
+    return await this.dailyLogin(userId);
+  }
+
+  // ✅ Données par défaut
+  getDefaultUserData() {
+    return {
+      totalXp: 0,
+      level: 1,
+      tasksCreated: 0,
+      tasksCompleted: 0,
+      projectsCreated: 0,
+      projectsJoined: 0,
+      badges: [],
+      loginStreak: 0,
+      completionRate: 0,
+      weeklyXp: 0,
+      monthlyXp: 0,
+      lastLoginDate: null,
+      levelInfo: { 
+        name: 'Novice', 
+        color: '#9CA3AF',
+        description: 'Vous commencez votre aventure !'
+      },
+      levelProgress: { 
+        current: 0,
+        needed: 100,
+        percentage: 0
+      }
+    };
+  }
+
+  // ✅ Obtenir les données utilisateur
   async getUserData(userId) {
     try {
-      // ✅ VALIDATION CRITIQUE: S'assurer que userId est un string
-      if (!userId || typeof userId !== 'string') {
-        console.error('❌ ID utilisateur invalide:', userId, typeof userId);
-        return null;
-      }
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
 
-      // ✅ CORRECTION: Utiliser 'userStats' au lieu de subcollection
-      const docRef = doc(db, 'userStats', userId);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        return docSnap.data();
+      if (userSnap.exists()) {
+        return userSnap.data().gamification || this.getDefaultUserData();
+      } else {
+        return await this.initializeUserData(userId);
       }
-      return null;
     } catch (error) {
-      console.error('❌ Erreur récupération données:', error);
-      return null;
+      console.error('❌ Erreur récupération données utilisateur:', error);
+      return this.getDefaultUserData();
     }
   }
 
-  // ✅ CORRECTION PRINCIPALE: Utiliser la bonne structure de collection
+  // ✅ Mettre à jour les données utilisateur
   async setUserData(userId, data) {
     try {
-      // ✅ VALIDATION CRITIQUE: S'assurer que userId est un string
-      if (!userId || typeof userId !== 'string') {
-        console.error('❌ ID utilisateur invalide pour setUserData:', userId, typeof userId);
-        return false;
-      }
-
-      // ✅ CORRECTION: Utiliser 'userStats' au lieu de subcollection
-      const docRef = doc(db, 'userStats', userId);
-      await setDoc(docRef, {
-        ...data,
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        gamification: data,
         updatedAt: serverTimestamp()
-      }, { merge: true }); // Merge pour ne pas écraser les données existantes
-      return true;
+      });
+      return { success: true };
     } catch (error) {
-      console.error('❌ Erreur sauvegarde:', error);
-      return false;
+      console.error('❌ Erreur mise à jour données:', error);
+      return { success: false, error: error.message };
     }
   }
 
-  // ✅ CORRECTION PRINCIPALE: Ajouter XP sans boucle infinie
-  async addXP(userId, amount, reason = 'Action') {
+  // ✅ Ajouter des points XP
+  async addXP(userId, amount, reason = 'Activité') {
     try {
-      // ✅ VALIDATION CRITIQUE: S'assurer que userId est un string
-      if (!userId || typeof userId !== 'string') {
-        console.error('❌ ID utilisateur invalide pour addXP:', userId, typeof userId);
-        return { success: false, error: 'ID utilisateur invalide' };
-      }
-
-      // ✅ VALIDATION: S'assurer que amount est un nombre
-      if (typeof amount !== 'number' || isNaN(amount)) {
-        console.error('❌ Montant XP invalide:', amount);
-        return { success: false, error: 'Montant XP invalide' };
-      }
-
-      // Éviter les doublons pour la connexion quotidienne
-      const actionKey = `${userId}-${reason}-${new Date().toDateString()}`;
+      const userData = await this.getUserData(userId);
+      const newTotalXp = userData.totalXp + amount;
+      const oldLevel = userData.level;
+      const newLevel = this.calculateLevel(newTotalXp);
       
-      if (reason === 'Connexion quotidienne' && this.dailyLoginProcessed.has(actionKey)) {
-        console.log('ℹ️ Connexion quotidienne déjà enregistrée aujourd\'hui');
-        return { success: true, addedXP: 0, alreadyProcessed: true };
-      }
+      const levelUp = newLevel > oldLevel;
+      const newBadges = [];
 
-      const currentData = await this.getUserData(userId) || { totalXp: 0, level: 1 };
-      const newXP = (currentData.totalXp || 0) + amount;
-      const newLevel = this.calculateLevel(newXP);
-      const leveledUp = newLevel > (currentData.level || 1);
+      // Calculer les progrès du niveau
+      const levelProgress = this.calculateLevelProgress(newTotalXp, newLevel);
 
       const updatedData = {
-        ...currentData,
-        totalXp: newXP,
+        ...userData,
+        totalXp: newTotalXp,
         level: newLevel,
-        updatedAt: serverTimestamp()
+        weeklyXp: (userData.weeklyXp || 0) + amount,
+        monthlyXp: (userData.monthlyXp || 0) + amount,
+        levelProgress,
+        levelInfo: this.getLevelInfo(newLevel)
       };
 
-      // Ajouter à l'historique
-      if (!updatedData.xpHistory) updatedData.xpHistory = [];
-      updatedData.xpHistory.unshift({
-        amount,
-        reason,
-        timestamp: new Date().toISOString(),
-        totalAfter: newXP
-      });
-      
-      // Garder seulement les 20 dernières entrées
-      if (updatedData.xpHistory.length > 20) {
-        updatedData.xpHistory = updatedData.xpHistory.slice(0, 20);
-      }
-
       await this.setUserData(userId, updatedData);
-      
-      // Marquer comme traité pour éviter les doublons
-      if (reason === 'Connexion quotidienne') {
-        this.dailyLoginProcessed.add(actionKey);
-      }
 
-      console.log(`✅ +${amount} XP ajoutés (${reason}). Total: ${newXP} XP`);
+      console.log(`✅ +${amount} XP ajouté (${reason}). Total: ${newTotalXp} XP, Niveau: ${newLevel}`);
 
       return {
         success: true,
         addedXP: amount,
-        newTotal: newXP,
-        newLevel,
-        leveledUp
+        totalXP: newTotalXp,
+        level: newLevel,
+        levelUp,
+        newBadges,
+        reason
       };
-
     } catch (error) {
       console.error('❌ Erreur ajout XP:', error);
       return { success: false, error: error.message };
@@ -202,143 +195,139 @@ class GamificationService {
     if (xp < 250) return 2;
     if (xp < 500) return 3;
     if (xp < 1000) return 4;
-    if (xp < 2000) return 5;
-    return Math.min(Math.floor(Math.sqrt(xp / 100)) + 1, 50);
+    if (xp < 1750) return 5;
+    if (xp < 2750) return 6;
+    if (xp < 4000) return 7;
+    if (xp < 5500) return 8;
+    if (xp < 7500) return 9;
+    if (xp < 10000) return 10;
+    
+    // Au-delà du niveau 10
+    return Math.floor(10 + (xp - 10000) / 2000);
   }
 
-  // ✅ XP requis pour le prochain niveau
-  getXPForNextLevel(currentLevel) {
-    const levelThresholds = [0, 100, 250, 500, 1000, 2000];
-    if (currentLevel < levelThresholds.length) {
-      return levelThresholds[currentLevel];
+  // ✅ Calculer les progrès du niveau
+  calculateLevelProgress(xp, level) {
+    const xpForCurrentLevel = this.getXpForLevel(level);
+    const xpForNextLevel = this.getXpForLevel(level + 1);
+    
+    const currentLevelXp = xp - xpForCurrentLevel;
+    const neededForNext = xpForNextLevel - xpForCurrentLevel;
+    
+    return {
+      current: currentLevelXp,
+      needed: neededForNext,
+      remaining: Math.max(0, xpForNextLevel - xp),
+      percentage: Math.round((currentLevelXp / neededForNext) * 100)
+    };
+  }
+
+  // ✅ Obtenir l'XP requis pour un niveau
+  getXpForLevel(level) {
+    const xpThresholds = [0, 100, 250, 500, 1000, 1750, 2750, 4000, 5500, 7500, 10000];
+    
+    if (level <= 10) {
+      return xpThresholds[level - 1] || 0;
+    } else {
+      return 10000 + (level - 10) * 2000;
     }
-    return Math.floor(100 * Math.pow(currentLevel - 4, 2));
   }
 
-  // ✅ Vérifier et débloquer les badges
-  async checkAndUnlockBadges(userId) {
+  // ✅ Obtenir les informations du niveau
+  getLevelInfo(level) {
+    const levels = [
+      { name: 'Novice', color: '#9CA3AF', description: 'Vous commencez votre aventure !' },
+      { name: 'Apprenti', color: '#10B981', description: 'Vous prenez vos marques' },
+      { name: 'Compétent', color: '#3B82F6', description: 'Vous maîtrisez les bases' },
+      { name: 'Expérimenté', color: '#8B5CF6', description: 'Votre expertise se développe' },
+      { name: 'Expert', color: '#F59E0B', description: 'Vous êtes un vrai professionnel' },
+      { name: 'Maître', color: '#EF4444', description: 'Votre maîtrise impressionne' },
+      { name: 'Grand Maître', color: '#EC4899', description: 'Vous excellez dans votre domaine' },
+      { name: 'Légendaire', color: '#6366F1', description: 'Votre réputation vous précède' },
+      { name: 'Mythique', color: '#8B5CF6', description: 'Vous êtes une légende vivante' },
+      { name: 'Divin', color: '#F59E0B', description: 'Vous transcendez les limites' }
+    ];
+
+    if (level <= 10) {
+      return levels[level - 1] || levels[0];
+    } else {
+      return { 
+        name: `Niveau ${level}`, 
+        color: '#F59E0B', 
+        description: 'Vous avez atteint des sommets inexplorés !' 
+      };
+    }
+  }
+
+  // ✅ Compléter une tâche
+  async completeTask(userId, difficulty = 'normal') {
     try {
       const userData = await this.getUserData(userId);
-      if (!userData) return [];
-
-      const newBadges = [];
-      const currentBadges = userData.badges || [];
-
-      // Badge première tâche
-      if (userData.tasksCompleted >= 1 && !currentBadges.includes('first_task')) {
-        newBadges.push('first_task');
-      }
-
-      // Badge 10 tâches
-      if (userData.tasksCompleted >= 10 && !currentBadges.includes('task_master')) {
-        newBadges.push('task_master');
-      }
-
-      // Badge niveau 5
-      if (userData.level >= 5 && !currentBadges.includes('level_master')) {
-        newBadges.push('level_master');
-      }
-
-      if (newBadges.length > 0) {
-        const updatedBadges = [...currentBadges, ...newBadges];
-        await this.setUserData(userId, { ...userData, badges: updatedBadges });
-        console.log('🏆 Nouveaux badges débloqués:', newBadges);
-      }
-
-      return newBadges;
-    } catch (error) {
-      console.error('❌ Erreur vérification badges:', error);
-      return [];
-    }
-  }
-
-  // ✅ Écouter les changements en temps réel
-  subscribeToUserData(userId, callback) {
-    try {
-      // ✅ CORRECTION: Utiliser 'userStats' au lieu de subcollection
-      const docRef = doc(db, 'userStats', userId);
+      const xpReward = difficulty === 'easy' ? 10 : difficulty === 'hard' ? 35 : 20;
       
-      const unsubscribe = onSnapshot(docRef, (doc) => {
-        if (doc.exists()) {
-          const data = doc.data();
-          callback(data);
-        } else {
-          // Si pas de données, initialiser
-          callback(this.getMockUserData());
-        }
-      }, (error) => {
-        console.error('❌ Erreur écoute temps réel:', error);
-        callback(this.getMockUserData());
-      });
-
-      this.listeners.set(userId, unsubscribe);
-      return unsubscribe;
-      
-    } catch (error) {
-      console.error('❌ Erreur abonnement:', error);
-      // Mode fallback avec mock data
-      callback(this.getMockUserData());
-      return () => {};
-    }
-  }
-
-  // ✅ Nettoyer les listeners
-  unsubscribeAll() {
-    this.listeners.forEach(unsubscribe => {
-      if (typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
-    });
-    this.listeners.clear();
-    this.dailyLoginProcessed.clear();
-  }
-
-  // ✅ Actions rapides pré-configurées
-  async completeTask(userId, taskDifficulty = 'normal') {
-    const xpRewards = {
-      easy: 20,
-      normal: 40,
-      hard: 60,
-      expert: 100
-    };
-    
-    const xpReward = xpRewards[taskDifficulty] || 40;
-    
-    // Mettre à jour le compteur de tâches
-    const userData = await this.getUserData(userId);
-    if (userData) {
       const updatedData = {
         ...userData,
-        tasksCompleted: (userData.tasksCompleted || 0) + 1
+        tasksCompleted: userData.tasksCompleted + 1,
+        completionRate: ((userData.tasksCompleted + 1) / Math.max(userData.tasksCreated, 1)) * 100
       };
+
       await this.setUserData(userId, updatedData);
+      return await this.addXP(userId, xpReward, `Tâche ${difficulty} complétée`);
+    } catch (error) {
+      console.error('❌ Erreur completion tâche:', error);
+      return { success: false, error: error.message };
     }
-    
-    return await this.addXP(userId, xpReward, `Tâche ${taskDifficulty} complétée`);
   }
 
-  // ✅ Connexion quotidienne (limitée à 1 par jour)
-  async dailyLogin(userId) {
-    const today = new Date().toDateString();
-    const userData = await this.getUserData(userId);
-    
-    // Vérifier si déjà connecté aujourd'hui
-    if (userData && userData.lastLoginDate === today) {
-      console.log('ℹ️ Connexion quotidienne déjà enregistrée aujourd\'hui');
-      return { success: true, addedXP: 0, alreadyProcessed: true };
-    }
+  // ✅ Créer une tâche
+  async createTask(userId) {
+    try {
+      const userData = await this.getUserData(userId);
+      const updatedData = {
+        ...userData,
+        tasksCreated: userData.tasksCreated + 1
+      };
 
-    // Mettre à jour la date de dernière connexion
-    if (userData) {
+      await this.setUserData(userId, updatedData);
+      return await this.addXP(userId, 5, 'Tâche créée');
+    } catch (error) {
+      console.error('❌ Erreur création tâche:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ✅ Connexion quotidienne
+  async dailyLogin(userId) {
+    const today = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
+    
+    try {
+      const userData = await this.getUserData(userId);
+      
+      // Vérifier si déjà connecté aujourd'hui
+      if (userData && userData.lastLoginDate === today) {
+        console.log('ℹ️ Connexion quotidienne déjà enregistrée aujourd\'hui');
+        return { success: true, addedXP: 0, alreadyProcessed: true };
+      }
+
+      // Calculer le nouveau streak
+      const newStreak = this.calculateStreak(userData.lastLoginDate, today, userData.loginStreak || 0);
+      
+      // Mettre à jour les données
       const updatedData = {
         ...userData,
         lastLoginDate: today,
-        loginStreak: this.calculateStreak(userData.lastLoginDate, today, userData.loginStreak || 0)
+        loginStreak: newStreak
       };
-      await this.setUserData(userId, updatedData);
-    }
 
-    return await this.addXP(userId, 10, 'Connexion quotidienne');
+      await this.setUserData(userId, updatedData);
+
+      // XP bonus pour le streak
+      const xpBonus = newStreak >= 7 ? 15 : newStreak >= 3 ? 10 : 5;
+      return await this.addXP(userId, xpBonus, `Connexion quotidienne (série: ${newStreak})`);
+    } catch (error) {
+      console.error('❌ Erreur connexion quotidienne:', error);
+      return { success: false, error: error.message };
+    }
   }
 
   // ✅ Calculer le streak de connexion
@@ -360,20 +349,107 @@ class GamificationService {
   }
 
   // ✅ Obtenir le classement
-  async getLeaderboard(limit = 10) {
+  async getLeaderboard(limitCount = 10) {
     try {
-      // En mode développement, retourner des données mock
-      return [
-        { userId: 'user1', name: 'Alice Martin', totalXp: 1250, level: 4 },
-        { userId: 'user2', name: 'Bob Dupont', totalXp: 980, level: 3 },
-        { userId: 'user3', name: 'Claire Dubois', totalXp: 750, level: 3 },
-        { userId: 'user4', name: 'David Chen', totalXp: 620, level: 2 },
-        { userId: 'user5', name: 'Emma Wilson', totalXp: 450, level: 2 }
+      // Pour le moment, retourner des données mock
+      // TODO: Implémenter avec de vraies données Firebase
+      const mockLeaderboard = [
+        { userId: 'user1', name: 'Alice Martin', totalXp: 1250, level: 4, position: 1 },
+        { userId: 'user2', name: 'Bob Dupont', totalXp: 980, level: 3, position: 2 },
+        { userId: 'user3', name: 'Claire Dubois', totalXp: 750, level: 3, position: 3 },
+        { userId: 'user4', name: 'David Chen', totalXp: 620, level: 2, position: 4 },
+        { userId: 'user5', name: 'Emma Wilson', totalXp: 450, level: 2, position: 5 }
       ];
+
+      return mockLeaderboard.slice(0, limitCount);
     } catch (error) {
       console.error('❌ Erreur récupération leaderboard:', error);
       return [];
     }
+  }
+
+  // ✅ Vérifier et débloquer des badges
+  async checkAndUnlockBadges(userId) {
+    try {
+      const userData = await this.getUserData(userId);
+      const newBadges = [];
+
+      // Définir les conditions des badges
+      const badgeConditions = [
+        { id: 'first_task', condition: userData.tasksCreated >= 1, name: 'Première tâche', icon: '🎯' },
+        { id: 'productive', condition: userData.tasksCompleted >= 10, name: 'Productif', icon: '✅' },
+        { id: 'streak_week', condition: userData.loginStreak >= 7, name: 'Série hebdomadaire', icon: '🔥' },
+        { id: 'level_5', condition: userData.level >= 5, name: 'Niveau expert', icon: '⭐' },
+        { id: 'xp_1000', condition: userData.totalXp >= 1000, name: 'Millionnaire XP', icon: '💎' }
+      ];
+
+      // Vérifier chaque badge
+      badgeConditions.forEach(badge => {
+        const alreadyUnlocked = userData.badges.some(b => b.id === badge.id);
+        if (badge.condition && !alreadyUnlocked) {
+          newBadges.push(badge);
+        }
+      });
+
+      // Ajouter les nouveaux badges
+      if (newBadges.length > 0) {
+        const updatedBadges = [...userData.badges, ...newBadges];
+        const updatedData = { ...userData, badges: updatedBadges };
+        await this.setUserData(userId, updatedData);
+        
+        console.log('🏆 Nouveaux badges débloqués:', newBadges.map(b => b.name).join(', '));
+      }
+
+      return newBadges;
+    } catch (error) {
+      console.error('❌ Erreur vérification badges:', error);
+      return [];
+    }
+  }
+
+  // ✅ Obtenir tous les badges disponibles
+  getAllBadges() {
+    return [
+      { id: 'first_task', name: 'Première tâche', description: 'Créer votre première tâche', icon: '🎯' },
+      { id: 'productive', name: 'Productif', description: 'Compléter 10 tâches', icon: '✅' },
+      { id: 'streak_week', name: 'Série hebdomadaire', description: 'Se connecter 7 jours consécutifs', icon: '🔥' },
+      { id: 'level_5', name: 'Niveau expert', description: 'Atteindre le niveau 5', icon: '⭐' },
+      { id: 'xp_1000', name: 'Millionnaire XP', description: 'Atteindre 1000 XP', icon: '💎' },
+      { id: 'team_player', name: 'Joueur d\'équipe', description: 'Rejoindre 3 projets', icon: '👥' },
+      { id: 'creator', name: 'Créateur', description: 'Créer 5 projets', icon: '🏗️' },
+      { id: 'consistent', name: 'Constant', description: 'Série de 30 jours', icon: '🎯' }
+    ];
+  }
+
+  // ✅ Données mock pour développement
+  getMockUserData() {
+    return {
+      totalXp: 250,
+      level: 2,
+      tasksCreated: 5,
+      tasksCompleted: 3,
+      projectsCreated: 1,
+      projectsJoined: 2,
+      badges: [
+        { id: 'first_task', name: 'Première tâche', icon: '🎯' }
+      ],
+      loginStreak: 3,
+      completionRate: 60,
+      weeklyXp: 120,
+      monthlyXp: 250,
+      levelInfo: { name: 'Apprenti', color: '#10B981' },
+      levelProgress: { current: 150, needed: 250, percentage: 60 }
+    };
+  }
+
+  // ✅ Nettoyer tous les listeners
+  unsubscribeAll() {
+    this.listeners.forEach(unsubscribe => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    });
+    this.listeners.clear();
   }
 }
 
