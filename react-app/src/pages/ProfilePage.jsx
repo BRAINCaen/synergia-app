@@ -1,500 +1,948 @@
 import React, { useState, useEffect } from 'react';
-import { useAuthStore } from '../shared/stores/authStore.js';
+import { 
+  doc, 
+  getDoc, 
+  updateDoc, 
+  collection, 
+  query, 
+  where, 
+  getDocs,
+  orderBy,
+  limit,
+  serverTimestamp
+} from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { useAuthStore } from '../shared/stores/authStore';
+import { useGameStore } from '../shared/stores/gameStore';
+
+// Icônes
+import { 
+  User, 
+  Settings, 
+  Trophy, 
+  Target, 
+  Calendar, 
+  Mail, 
+  Edit3, 
+  Save, 
+  X,
+  Bell,
+  Eye,
+  EyeOff,
+  Award,
+  Star,
+  TrendingUp,
+  Activity,
+  Clock,
+  CheckCircle,
+  Zap,
+  Fire,
+  Crown,
+  Shield,
+  Camera,
+  Download
+} from 'lucide-react';
 
 const ProfilePage = () => {
-  const { user, signOut } = useAuthStore();
+  const [profile, setProfile] = useState(null);
+  const [userStats, setUserStats] = useState(null);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [badges, setBadges] = useState([]);
+  const [achievements, setAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
-  const [profileData, setProfileData] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview'); // overview, stats, achievements, settings
 
-  useEffect(() => {
-    const loadProfile = async () => {
-      setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 600));
-      
-      const mockProfileData = {
-        user: {
-          id: user?.uid,
-          name: user?.displayName || 'Puck Time',
-          email: user?.email || 'alan.boehme61@gmail.com',
-          avatar: user?.photoURL,
-          title: 'Développeur Senior',
-          department: 'Équipe Technique',
-          joinDate: '2024-03-15',
-          bio: 'Passionné de développement et de gamification. Toujours prêt à relever de nouveaux défis !',
-          location: 'Bayeux, France',
-          timezone: 'Europe/Paris'
-        },
-        stats: {
-          level: 6,
-          currentXp: 2340,
-          nextLevelXp: 3000,
-          totalXp: 12450,
-          tasksCompleted: 157,
-          projectsCompleted: 8,
-          collaborations: 24,
-          streak: 8,
-          badges: 12,
-          hoursWorked: 456,
-          avgTasksPerDay: 3.2,
-          efficiency: 87
-        },
-        badges: [
-          { id: 1, name: 'First Steps', description: 'Première tâche terminée', icon: '👶', category: 'milestone', unlocked: true, unlockedAt: '2024-03-16' },
-          { id: 2, name: 'Speed Demon', description: '10 tâches en une journée', icon: '⚡', category: 'performance', unlocked: true, unlockedAt: '2024-04-02' },
-          { id: 3, name: 'Team Player', description: 'Collaborer sur 5 projets', icon: '🤝', category: 'collaboration', unlocked: true, unlockedAt: '2024-04-15' },
-          { id: 4, name: 'Streak Master', description: 'Streak de 7 jours', icon: '🔥', category: 'consistency', unlocked: true, unlockedAt: '2024-05-01' },
-          { id: 5, name: 'XP Hunter', description: 'Gagner 1000 XP', icon: '💎', category: 'milestone', unlocked: true, unlockedAt: '2024-05-10' },
-          { id: 6, name: 'Project Master', description: 'Terminer 5 projets', icon: '📁', category: 'achievement', unlocked: true, unlockedAt: '2024-05-25' },
-          { id: 7, name: 'Night Owl', description: 'Travailler après 22h', icon: '🦉', category: 'special', unlocked: true, unlockedAt: '2024-06-01' },
-          { id: 8, name: 'Early Bird', description: 'Première tâche avant 7h', icon: '🐦', category: 'special', unlocked: true, unlockedAt: '2024-06-05' },
-          { id: 9, name: 'Perfectionist', description: '100% de tâches réussies', icon: '💯', category: 'performance', unlocked: false },
-          { id: 10, name: 'Marathon Runner', description: 'Streak de 30 jours', icon: '🏃', category: 'consistency', unlocked: false },
-          { id: 11, name: 'Level Master', description: 'Atteindre le niveau 10', icon: '🏆', category: 'milestone', unlocked: false },
-          { id: 12, name: 'Innovator', description: 'Proposer 10 idées', icon: '💡', category: 'creativity', unlocked: false }
-        ],
-        recentActivity: [
-          { type: 'task_completed', title: 'Intégrer système notifications', xp: 60, date: '2025-06-24', icon: '✅' },
-          { type: 'badge_earned', title: 'Badge "Early Bird" débloqué', xp: 50, date: '2025-06-23', icon: '🏅' },
-          { type: 'level_up', title: 'Niveau 6 atteint !', xp: 100, date: '2025-06-22', icon: '⭐' },
-          { type: 'project_completed', title: 'Migration Base de Données terminée', xp: 200, date: '2025-06-20', icon: '📁' },
-          { type: 'collaboration', title: 'Rejoint l\'équipe Synergia v4.0', xp: 25, date: '2025-06-19', icon: '🤝' }
-        ],
-        skills: [
-          { name: 'React', level: 85, category: 'Frontend' },
-          { name: 'Node.js', level: 78, category: 'Backend' },
-          { name: 'Firebase', level: 92, category: 'Database' },
-          { name: 'Leadership', level: 67, category: 'Soft Skills' },
-          { name: 'Problem Solving', level: 89, category: 'Soft Skills' },
-          { name: 'Communication', level: 73, category: 'Soft Skills' }
-        ],
-        goals: [
-          { id: 1, title: 'Atteindre niveau 7', progress: 78, target: '2025-07-01', category: 'level' },
-          { id: 2, title: 'Streak de 15 jours', progress: 53, target: '2025-06-30', category: 'consistency' },
-          { id: 3, title: 'Terminer 200 tâches', progress: 78, target: '2025-08-01', category: 'tasks' },
-          { id: 4, title: 'Participer à 10 projets', progress: 80, target: '2025-12-31', category: 'collaboration' }
-        ]
-      };
-      
-      setProfileData(mockProfileData);
-      setLoading(false);
-    };
+  const { user, signOut } = useAuthStore();
+  const { addXP } = useGameStore();
 
-    loadProfile();
-  }, [user]);
+  // État du formulaire d'édition
+  const [formData, setFormData] = useState({
+    displayName: '',
+    bio: '',
+    preferences: {
+      notifications: true,
+      publicProfile: false,
+      theme: 'dark'
+    }
+  });
 
-  const handleLogout = async () => {
+  // Charger les données du profil
+  const loadProfile = async () => {
+    if (!user?.uid) return;
+
+    setLoading(true);
     try {
-      await signOut();
+      // 1. Charger le profil utilisateur
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      
+      let profileData = {
+        userId: user.uid,
+        email: user.email,
+        displayName: user.displayName || user.email?.split('@')[0] || 'Utilisateur',
+        photoURL: user.photoURL || null,
+        bio: '',
+        preferences: {
+          notifications: true,
+          publicProfile: false,
+          theme: 'dark'
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      if (userSnap.exists()) {
+        profileData = { ...profileData, ...userSnap.data() };
+      }
+
+      setProfile(profileData);
+      setFormData({
+        displayName: profileData.displayName || '',
+        bio: profileData.bio || '',
+        preferences: profileData.preferences || {
+          notifications: true,
+          publicProfile: false,
+          theme: 'dark'
+        }
+      });
+
+      // 2. Charger les statistiques utilisateur
+      const statsRef = doc(db, 'userStats', user.uid);
+      const statsSnap = await getDoc(statsRef);
+      
+      if (statsSnap.exists()) {
+        setUserStats(statsSnap.data());
+      }
+
+      // 3. Charger l'activité récente (dernières tâches complétées)
+      const tasksQuery = query(
+        collection(db, 'tasks'),
+        where('userId', '==', user.uid),
+        where('status', '==', 'completed'),
+        orderBy('completedAt', 'desc'),
+        limit(10)
+      );
+      
+      const tasksSnapshot = await getDocs(tasksQuery);
+      const recentTasks = tasksSnapshot.docs.map(doc => ({
+        id: doc.id,
+        type: 'task_completed',
+        ...doc.data(),
+        timestamp: doc.data().completedAt?.toDate() || new Date()
+      }));
+
+      // 4. Charger les projets récents
+      const projectsQuery = query(
+        collection(db, 'projects'),
+        where('ownerId', '==', user.uid),
+        orderBy('createdAt', 'desc'),
+        limit(5)
+      );
+
+      const projectsSnapshot = await getDocs(projectsQuery);
+      const recentProjects = projectsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        type: 'project_created',
+        ...doc.data(),
+        timestamp: doc.data().createdAt?.toDate() || new Date()
+      }));
+
+      // Combiner et trier l'activité
+      const combinedActivity = [...recentTasks, ...recentProjects]
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        .slice(0, 10);
+
+      setRecentActivity(combinedActivity);
+
+      // 5. Générer les badges disponibles
+      const availableBadges = generateBadges(statsSnap.data());
+      setBadges(availableBadges);
+
+      // 6. Générer les achievements
+      const userAchievements = generateAchievements(statsSnap.data(), recentTasks.length, recentProjects.length);
+      setAchievements(userAchievements);
+
     } catch (error) {
-      console.error('Erreur déconnexion:', error);
+      console.error('Erreur chargement profil:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getBadgesByCategory = (category) => {
-    return profileData?.badges.filter(badge => badge.category === category) || [];
+  // Sauvegarder les modifications du profil
+  const saveProfile = async () => {
+    if (!user?.uid) return;
+
+    setSaving(true);
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        displayName: formData.displayName,
+        bio: formData.bio,
+        preferences: formData.preferences,
+        updatedAt: serverTimestamp()
+      });
+
+      // Mettre à jour l'état local
+      setProfile(prev => ({
+        ...prev,
+        displayName: formData.displayName,
+        bio: formData.bio,
+        preferences: formData.preferences
+      }));
+
+      setEditing(false);
+      
+      // Ajouter un peu d'XP pour la mise à jour du profil
+      await addXP(5, 'Profil mis à jour');
+
+    } catch (error) {
+      console.error('Erreur sauvegarde profil:', error);
+      alert('Erreur lors de la sauvegarde');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Générer les badges en fonction des stats
+  const generateBadges = (stats) => {
+    if (!stats) return [];
+
+    const badges = [];
+
+    // Badges basés sur XP
+    if (stats.totalXp >= 1000) badges.push({ 
+      id: 'xp_1000', 
+      name: 'Guerrier XP', 
+      description: '1000 XP obtenus', 
+      icon: '⚡', 
+      color: 'yellow',
+      earned: true,
+      earnedAt: new Date()
+    });
+    
+    if (stats.totalXp >= 5000) badges.push({ 
+      id: 'xp_5000', 
+      name: 'Maître XP', 
+      description: '5000 XP obtenus', 
+      icon: '🌟', 
+      color: 'gold',
+      earned: true,
+      earnedAt: new Date()
+    });
+
+    // Badges basés sur tâches
+    if (stats.tasksCompleted >= 10) badges.push({ 
+      id: 'tasks_10', 
+      name: 'Débutant', 
+      description: '10 tâches complétées', 
+      icon: '🎯', 
+      color: 'blue',
+      earned: true,
+      earnedAt: new Date()
+    });
+    
+    if (stats.tasksCompleted >= 50) badges.push({ 
+      id: 'tasks_50', 
+      name: 'Producteur', 
+      description: '50 tâches complétées', 
+      icon: '🚀', 
+      color: 'green',
+      earned: true,
+      earnedAt: new Date()
+    });
+
+    if (stats.tasksCompleted >= 100) badges.push({ 
+      id: 'tasks_100', 
+      name: 'Machine', 
+      description: '100 tâches complétées', 
+      icon: '🤖', 
+      color: 'purple',
+      earned: true,
+      earnedAt: new Date()
+    });
+
+    // Badges basés sur connexions
+    if (stats.loginStreak >= 7) badges.push({ 
+      id: 'streak_7', 
+      name: 'Régulier', 
+      description: '7 jours consécutifs', 
+      icon: '🔥', 
+      color: 'orange',
+      earned: true,
+      earnedAt: new Date()
+    });
+
+    if (stats.loginStreak >= 30) badges.push({ 
+      id: 'streak_30', 
+      name: 'Assidu', 
+      description: '30 jours consécutifs', 
+      icon: '🏆', 
+      color: 'red',
+      earned: true,
+      earnedAt: new Date()
+    });
+
+    // Badges basés sur projets
+    if (stats.projectsCreated >= 5) badges.push({ 
+      id: 'projects_5', 
+      name: 'Organisateur', 
+      description: '5 projets créés', 
+      icon: '📁', 
+      color: 'indigo',
+      earned: true,
+      earnedAt: new Date()
+    });
+
+    return badges;
+  };
+
+  // Générer les achievements
+  const generateAchievements = (stats, recentTasksCount, recentProjectsCount) => {
+    if (!stats) return [];
+
+    const achievements = [];
+
+    // Achievement niveau
+    achievements.push({
+      id: 'level',
+      title: `Niveau ${stats.level || 1}`,
+      description: 'Votre niveau actuel',
+      progress: stats.level || 1,
+      maxProgress: (stats.level || 1) + 1,
+      icon: '🏅',
+      type: 'level'
+    });
+
+    // Achievement XP vers prochain niveau
+    const currentLevelXP = ((stats.level || 1) - 1) * 1000;
+    const nextLevelXP = (stats.level || 1) * 1000;
+    const progressToNext = (stats.totalXp || 0) - currentLevelXP;
+    const maxToNext = nextLevelXP - currentLevelXP;
+
+    achievements.push({
+      id: 'next_level',
+      title: 'Prochain niveau',
+      description: `${progressToNext}/${maxToNext} XP`,
+      progress: progressToNext,
+      maxProgress: maxToNext,
+      icon: '⭐',
+      type: 'progress'
+    });
+
+    // Achievement taux de completion
+    const completionRate = stats.tasksCreated > 0 ? 
+      Math.round((stats.tasksCompleted / stats.tasksCreated) * 100) : 0;
+
+    achievements.push({
+      id: 'completion_rate',
+      title: 'Taux de réussite',
+      description: `${completionRate}% de tâches complétées`,
+      progress: completionRate,
+      maxProgress: 100,
+      icon: '📈',
+      type: 'percentage'
+    });
+
+    return achievements;
+  };
+
+  // Déconnexion
+  const handleLogout = async () => {
+    if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
+      try {
+        await signOut();
+      } catch (error) {
+        console.error('Erreur déconnexion:', error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadProfile();
+  }, [user?.uid]);
+
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
+    return date.toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
   const getActivityIcon = (type) => {
-    const icons = {
-      task_completed: '✅',
-      badge_earned: '🏅',
-      level_up: '⭐',
-      project_completed: '📁',
-      collaboration: '🤝'
-    };
-    return icons[type] || '📝';
+    switch (type) {
+      case 'task_completed': return <CheckCircle className="w-4 h-4 text-green-400" />;
+      case 'project_created': return <Activity className="w-4 h-4 text-purple-400" />;
+      default: return <Star className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const getActivityText = (activity) => {
+    switch (activity.type) {
+      case 'task_completed': 
+        return `A complété la tâche "${activity.title}"`;
+      case 'project_created': 
+        return `A créé le projet "${activity.name}"`;
+      default: 
+        return 'Activité inconnue';
+    }
   };
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-400">Chargement du profil...</p>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white flex items-center gap-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          Chargement du profil...
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header profil */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-8 mb-8 text-white">
-          <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
-            {/* Avatar */}
-            <div className="relative">
-              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center text-4xl">
-                {profileData.user.avatar ? (
-                  <img src={profileData.user.avatar} alt="Avatar" className="w-full h-full rounded-full object-cover" />
-                ) : (
-                  '👤'
-                )}
+    <div className="min-h-screen bg-gray-900 text-white">
+      {/* Header */}
+      <div className="border-b border-gray-700 bg-gray-800/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              {/* Avatar */}
+              <div className="relative">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-2xl font-bold">
+                  {profile?.photoURL ? (
+                    <img 
+                      src={profile.photoURL} 
+                      alt={profile.displayName}
+                      className="w-20 h-20 rounded-full object-cover"
+                    />
+                  ) : (
+                    profile?.displayName?.charAt(0)?.toUpperCase() || '?'
+                  )}
+                </div>
+                <button className="absolute bottom-0 right-0 w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center border-2 border-gray-800 hover:bg-gray-600 transition-colors">
+                  <Camera className="w-3 h-3" />
+                </button>
               </div>
-              <div className="absolute -bottom-2 -right-2 bg-yellow-500 rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold text-black">
-                {profileData.stats.level}
+
+              {/* Infos utilisateur */}
+              <div>
+                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                  {profile?.displayName || 'Utilisateur'}
+                  {userStats?.level >= 10 && <Crown className="w-6 h-6 text-yellow-400" />}
+                </h1>
+                <p className="text-gray-400 mt-1">{profile?.email}</p>
+                <div className="flex items-center gap-4 mt-2">
+                  <span className="text-sm text-gray-400">
+                    Niveau {userStats?.level || 1}
+                  </span>
+                  <span className="text-sm text-gray-400">
+                    {userStats?.totalXp || 0} XP
+                  </span>
+                  <span className="text-sm text-gray-400">
+                    Membre depuis {formatDate(profile?.createdAt)}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Informations principales */}
-            <div className="flex-1">
-              <div className="flex items-center space-x-3 mb-2">
-                <h1 className="text-2xl font-bold">{profileData.user.name}</h1>
-                {!isEditing && (
-                  <button 
-                    onClick={() => setIsEditing(true)}
-                    className="text-white/80 hover:text-white text-sm"
-                  >
-                    ✏️ Modifier
-                  </button>
-                )}
-              </div>
-              <p className="text-lg opacity-90 mb-1">{profileData.user.title}</p>
-              <p className="opacity-75 mb-3">{profileData.user.department} • {profileData.user.location}</p>
-              <p className="text-sm opacity-90">{profileData.user.bio}</p>
-            </div>
-
-            {/* Stats rapides */}
-            <div className="grid grid-cols-2 gap-4 text-center">
-              <div>
-                <p className="text-2xl font-bold">{profileData.stats.level}</p>
-                <p className="text-sm opacity-75">Niveau</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{profileData.stats.currentXp}</p>
-                <p className="text-sm opacity-75">XP</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{profileData.stats.badges}</p>
-                <p className="text-sm opacity-75">Badges</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{profileData.stats.streak}</p>
-                <p className="text-sm opacity-75">Streak</p>
-              </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setEditing(!editing)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+              >
+                <Edit3 className="w-4 h-4" />
+                {editing ? 'Annuler' : 'Modifier'}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              >
+                Déconnexion
+              </button>
             </div>
           </div>
 
-          {/* Barre de progression niveau */}
-          <div className="mt-6">
-            <div className="flex justify-between text-sm mb-2">
-              <span>Progression vers niveau {profileData.stats.level + 1}</span>
-              <span>{profileData.stats.currentXp} / {profileData.stats.nextLevelXp} XP</span>
+          {/* Bio */}
+          {profile?.bio && !editing && (
+            <div className="mt-4">
+              <p className="text-gray-300">{profile.bio}</p>
             </div>
-            <div className="w-full bg-white/20 rounded-full h-3">
-              <div
-                className="bg-gradient-to-r from-yellow-400 to-yellow-500 h-3 rounded-full transition-all duration-300"
-                style={{ width: `${(profileData.stats.currentXp / profileData.stats.nextLevelXp) * 100}%` }}
-              ></div>
-            </div>
+          )}
+
+          {/* Navigation tabs */}
+          <div className="flex gap-6 mt-6">
+            {[
+              { id: 'overview', label: 'Vue d\'ensemble', icon: User },
+              { id: 'stats', label: 'Statistiques', icon: TrendingUp },
+              { id: 'achievements', label: 'Achievements', icon: Trophy },
+              { id: 'settings', label: 'Paramètres', icon: Settings }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  activeTab === tab.id 
+                    ? 'bg-blue-600 text-white' 
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
+      </div>
 
-        {/* Navigation tabs */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {[
-            { key: 'overview', label: 'Vue d\'ensemble', icon: '📊' },
-            { key: 'badges', label: 'Badges', icon: '🏅' },
-            { key: 'activity', label: 'Activité', icon: '📈' },
-            { key: 'skills', label: 'Compétences', icon: '🎯' },
-            { key: 'goals', label: 'Objectifs', icon: '🎯' },
-            { key: 'settings', label: 'Paramètres', icon: '⚙️' }
-          ].map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === tab.key
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Contenu des tabs */}
-        <div className="space-y-6">
-          {/* Vue d'ensemble */}
-          {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
-                {/* Statistiques détaillées */}
-                <div className="bg-gray-800 rounded-lg p-6">
-                  <h2 className="text-xl font-semibold text-white mb-4">📊 Statistiques</h2>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-blue-400">{profileData.stats.tasksCompleted}</p>
-                      <p className="text-gray-400 text-sm">Tâches terminées</p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Contenu selon l'onglet actif */}
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Statistiques rapides */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Métriques principales */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-400 text-sm">Tâches complétées</p>
+                      <p className="text-2xl font-bold text-white">{userStats?.tasksCompleted || 0}</p>
                     </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-green-400">{profileData.stats.projectsCompleted}</p>
-                      <p className="text-gray-400 text-sm">Projets terminés</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-purple-400">{profileData.stats.collaborations}</p>
-                      <p className="text-gray-400 text-sm">Collaborations</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-orange-400">{profileData.stats.efficiency}%</p>
-                      <p className="text-gray-400 text-sm">Efficacité</p>
-                    </div>
+                    <CheckCircle className="w-8 h-8 text-green-400" />
                   </div>
                 </div>
 
-                {/* Badges récents */}
-                <div className="bg-gray-800 rounded-lg p-6">
-                  <h2 className="text-xl font-semibold text-white mb-4">🏅 Derniers Badges</h2>
-                  <div className="grid grid-cols-4 gap-4">
-                    {profileData.badges.filter(badge => badge.unlocked).slice(-8).map(badge => (
-                      <div
-                        key={badge.id}
-                        className="bg-gradient-to-br from-yellow-500 to-yellow-600 p-3 rounded-lg text-center"
-                        title={badge.description}
-                      >
-                        <div className="text-2xl text-white mb-1">{badge.icon}</div>
-                        <div className="text-xs text-white font-medium">{badge.name}</div>
+                <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-400 text-sm">Projets créés</p>
+                      <p className="text-2xl font-bold text-white">{userStats?.projectsCreated || 0}</p>
+                    </div>
+                    <Activity className="w-8 h-8 text-purple-400" />
+                  </div>
+                </div>
+
+                <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-400 text-sm">Série actuelle</p>
+                      <p className="text-2xl font-bold text-white">{userStats?.loginStreak || 0}</p>
+                    </div>
+                    <Fire className="w-8 h-8 text-orange-400" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Activité récente */}
+              <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-blue-400" />
+                  Activité récente
+                </h3>
+                
+                {recentActivity.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>Aucune activité récente</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {recentActivity.slice(0, 5).map((activity, index) => (
+                      <div key={index} className="flex items-center gap-3 p-3 bg-gray-700/50 rounded-lg">
+                        {getActivityIcon(activity.type)}
+                        <div className="flex-1">
+                          <p className="text-white text-sm">{getActivityText(activity)}</p>
+                          <p className="text-gray-400 text-xs">
+                            {activity.timestamp.toLocaleDateString('fr-FR')} à {activity.timestamp.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
-              </div>
-
-              {/* Sidebar */}
-              <div className="space-y-6">
-                {/* Informations personnelles */}
-                <div className="bg-gray-800 rounded-lg p-6">
-                  <h2 className="text-xl font-semibold text-white mb-4">👤 Informations</h2>
-                  <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Email</span>
-                      <span className="text-white">{profileData.user.email}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Membre depuis</span>
-                      <span className="text-white">{new Date(profileData.user.joinDate).toLocaleDateString('fr-FR')}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Fuseau horaire</span>
-                      <span className="text-white">{profileData.user.timezone}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">XP Total</span>
-                      <span className="text-white">{profileData.stats.totalXp.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions rapides */}
-                <div className="bg-gray-800 rounded-lg p-6">
-                  <h2 className="text-xl font-semibold text-white mb-4">⚡ Actions</h2>
-                  <div className="space-y-3">
-                    <button className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                      📊 Voir Analytics
-                    </button>
-                    <button className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
-                      🏆 Voir Classement
-                    </button>
-                    <button className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors">
-                      📁 Mes Projets
-                    </button>
-                    <button 
-                      onClick={handleLogout}
-                      className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                    >
-                      🚪 Déconnexion
-                    </button>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
-          )}
 
-          {/* Badges */}
-          {activeTab === 'badges' && (
+            {/* Sidebar droite */}
             <div className="space-y-6">
-              <div className="bg-gray-800 rounded-lg p-6">
-                <h2 className="text-xl font-semibold text-white mb-6">🏅 Collection de Badges</h2>
+              {/* Badges récents */}
+              <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Award className="w-5 h-5 text-yellow-400" />
+                  Badges récents
+                </h3>
                 
-                {['milestone', 'performance', 'collaboration', 'consistency', 'special', 'creativity'].map(category => (
-                  <div key={category} className="mb-8">
-                    <h3 className="text-lg font-medium text-white mb-4 capitalize">
-                      {category === 'milestone' ? '🎯 Étapes' :
-                       category === 'performance' ? '⚡ Performance' :
-                       category === 'collaboration' ? '🤝 Collaboration' :
-                       category === 'consistency' ? '🔥 Régularité' :
-                       category === 'special' ? '⭐ Spéciaux' : '💡 Créativité'}
-                    </h3>
-                    <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-                      {getBadgesByCategory(category).map(badge => (
-                        <div
-                          key={badge.id}
-                          className={`p-4 rounded-lg text-center transition-all ${
-                            badge.unlocked
-                              ? 'bg-gradient-to-br from-yellow-500 to-yellow-600 hover:scale-105'
-                              : 'bg-gray-700 opacity-50'
-                          }`}
-                          title={badge.description}
-                        >
-                          <div className={`text-3xl mb-2 ${badge.unlocked ? 'text-white' : 'text-gray-500'}`}>
-                            {badge.icon}
-                          </div>
-                          <div className={`text-xs font-medium ${badge.unlocked ? 'text-white' : 'text-gray-500'}`}>
-                            {badge.name}
-                          </div>
-                          {badge.unlocked && badge.unlockedAt && (
-                            <div className="text-xs text-white/75 mt-1">
-                              {new Date(badge.unlockedAt).toLocaleDateString('fr-FR')}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                {badges.length === 0 ? (
+                  <div className="text-center py-6 text-gray-400">
+                    <Award className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Aucun badge obtenu</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {badges.slice(0, 4).map((badge, index) => (
+                      <div key={index} className="text-center p-3 bg-gray-700/50 rounded-lg">
+                        <div className="text-2xl mb-1">{badge.icon}</div>
+                        <p className="text-xs font-medium text-white">{badge.name}</p>
+                        <p className="text-xs text-gray-400">{badge.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Progression niveau */}
+              <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Star className="w-5 h-5 text-yellow-400" />
+                  Progression
+                </h3>
+                
+                {achievements.slice(0, 3).map((achievement, index) => (
+                  <div key={index} className="mb-4 last:mb-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{achievement.icon}</span>
+                        <span className="text-sm font-medium text-white">{achievement.title}</span>
+                      </div>
+                      <span className="text-xs text-gray-400">
+                        {achievement.progress}/{achievement.maxProgress}
+                      </span>
                     </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min((achievement.progress / achievement.maxProgress) * 100, 100)}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">{achievement.description}</p>
                   </div>
                 ))}
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Activité */}
-          {activeTab === 'activity' && (
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-white mb-6">📈 Activité Récente</h2>
+        {activeTab === 'stats' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Statistiques détaillées */}
+            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+              <h3 className="text-lg font-semibold text-white mb-6">📊 Statistiques détaillées</h3>
+              
               <div className="space-y-4">
-                {profileData.recentActivity.map((activity, index) => (
-                  <div key={index} className="flex items-center space-x-4 p-4 bg-gray-700 rounded-lg">
-                    <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-xl">
-                      {getActivityIcon(activity.type)}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-white font-medium">{activity.title}</h3>
-                      <p className="text-gray-400 text-sm">{new Date(activity.date).toLocaleDateString('fr-FR')}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-green-400 font-medium">+{activity.xp} XP</span>
-                    </div>
-                  </div>
-                ))}
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">XP Total</span>
+                  <span className="text-white font-medium">{userStats?.totalXp?.toLocaleString() || 0}</span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Niveau</span>
+                  <span className="text-white font-medium">{userStats?.level || 1}</span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Tâches créées</span>
+                  <span className="text-white font-medium">{userStats?.tasksCreated || 0}</span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Tâches complétées</span>
+                  <span className="text-white font-medium">{userStats?.tasksCompleted || 0}</span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Taux de completion</span>
+                  <span className="text-white font-medium">
+                    {userStats?.tasksCreated > 0 
+                      ? Math.round((userStats.tasksCompleted / userStats.tasksCreated) * 100) 
+                      : 0}%
+                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Projets créés</span>
+                  <span className="text-white font-medium">{userStats?.projectsCreated || 0}</span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Série de connexions</span>
+                  <span className="text-white font-medium">{userStats?.loginStreak || 0} jours</span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Dernière connexion</span>
+                  <span className="text-white font-medium">
+                    {userStats?.lastLoginDate?.toDate ? 
+                      formatDate(userStats.lastLoginDate.toDate()) : 
+                      'Aujourd\'hui'
+                    }
+                  </span>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Compétences */}
-          {activeTab === 'skills' && (
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-white mb-6">🎯 Compétences</h2>
-              <div className="space-y-4">
-                {profileData.skills.map((skill, index) => (
-                  <div key={index} className="flex items-center space-x-4">
-                    <div className="w-32">
-                      <h3 className="text-white font-medium">{skill.name}</h3>
-                      <p className="text-gray-400 text-sm">{skill.category}</p>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between mb-1">
-                        <span className="text-sm text-gray-400">Niveau</span>
-                        <span className="text-sm text-white">{skill.level}%</span>
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-3">
-                        <div
-                          className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full"
-                          style={{ width: `${skill.level}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Objectifs */}
-          {activeTab === 'goals' && (
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-white mb-6">🎯 Objectifs Personnels</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {profileData.goals.map(goal => (
-                  <div key={goal.id} className="bg-gray-700 rounded-lg p-4">
-                    <h3 className="text-white font-medium mb-2">{goal.title}</h3>
-                    <div className="mb-3">
-                      <div className="flex justify-between text-sm text-gray-400 mb-1">
-                        <span>Progression</span>
-                        <span>{goal.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-600 rounded-full h-2">
-                        <div
-                          className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full"
-                          style={{ width: `${goal.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Objectif : {goal.target}</span>
-                      <span className="text-gray-400">{goal.category}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Paramètres */}
-          {activeTab === 'settings' && (
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-white mb-6">⚙️ Paramètres</h2>
+            {/* Graphique de progression (simplifié) */}
+            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+              <h3 className="text-lg font-semibold text-white mb-6">📈 Progression mensuelle</h3>
+              
+              {/* Visualisation simple de progression */}
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-white font-medium mb-4">Notifications</h3>
-                  <div className="space-y-3">
-                    <label className="flex items-center space-x-3">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      <span className="text-gray-300">Notifications XP et badges</span>
-                    </label>
-                    <label className="flex items-center space-x-3">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      <span className="text-gray-300">Rappels de tâches</span>
-                    </label>
-                    <label className="flex items-center space-x-3">
-                      <input type="checkbox" className="rounded" />
-                      <span className="text-gray-300">Notifications d'équipe</span>
-                    </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-400">XP ce mois</span>
+                    <span className="text-yellow-400 font-medium">+{Math.floor((userStats?.totalXp || 0) * 0.3)}</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-3">
+                    <div className="bg-gradient-to-r from-yellow-500 to-orange-500 h-3 rounded-full" style={{ width: '65%' }}></div>
                   </div>
                 </div>
-
+                
                 <div>
-                  <h3 className="text-white font-medium mb-4">Confidentialité</h3>
-                  <div className="space-y-3">
-                    <label className="flex items-center space-x-3">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      <span className="text-gray-300">Profil visible dans le leaderboard</span>
-                    </label>
-                    <label className="flex items-center space-x-3">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      <span className="text-gray-300">Partager les statistiques</span>
-                    </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-400">Tâches ce mois</span>
+                    <span className="text-blue-400 font-medium">+{Math.floor((userStats?.tasksCompleted || 0) * 0.4)}</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-3">
+                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full" style={{ width: '80%' }}></div>
                   </div>
                 </div>
-
-                <div className="pt-4 border-t border-gray-700">
-                  <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors mr-3">
-                    Sauvegarder
-                  </button>
-                  <button className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
-                    Annuler
-                  </button>
+                
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-400">Projets ce mois</span>
+                    <span className="text-green-400 font-medium">+{Math.floor((userStats?.projectsCreated || 0) * 0.5)}</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-3">
+                    <div className="bg-gradient-to-r from-green-500 to-teal-500 h-3 rounded-full" style={{ width: '45%' }}></div>
+                  </div>
                 </div>
               </div>
+              
+              <div className="mt-6 pt-6 border-t border-gray-700 text-center">
+                <p className="text-gray-400 text-sm">
+                  Continuez comme ça ! Vous êtes sur la bonne voie 🚀
+                </p>
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {activeTab === 'achievements' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Badges */}
+            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+              <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+                <Award className="w-5 h-5 text-yellow-400" />
+                Badges obtenus ({badges.length})
+              </h3>
+              
+              {badges.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <Award className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>Aucun badge obtenu pour le moment</p>
+                  <p className="text-sm mt-2">Complétez des tâches pour débloquer vos premiers badges !</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  {badges.map((badge, index) => (
+                    <div key={index} className="bg-gray-700/50 p-4 rounded-lg text-center">
+                      <div className="text-3xl mb-2">{badge.icon}</div>
+                      <h4 className="font-medium text-white mb-1">{badge.name}</h4>
+                      <p className="text-xs text-gray-400 mb-2">{badge.description}</p>
+                      {badge.earnedAt && (
+                        <p className="text-xs text-green-400">
+                          Obtenu le {formatDate(badge.earnedAt)}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Achievements et objectifs */}
+            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+              <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+                <Target className="w-5 h-5 text-blue-400" />
+                Objectifs et progression
+              </h3>
+              
+              <div className="space-y-6">
+                {achievements.map((achievement, index) => (
+                  <div key={index}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">{achievement.icon}</span>
+                        <div>
+                          <h4 className="font-medium text-white">{achievement.title}</h4>
+                          <p className="text-xs text-gray-400">{achievement.description}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-white">
+                          {achievement.progress}/{achievement.maxProgress}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {Math.round((achievement.progress / achievement.maxProgress) * 100)}%
+                        </p>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min((achievement.progress / achievement.maxProgress) * 100, 100)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+              <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+                <Settings className="w-5 h-5 text-gray-400" />
+                Paramètres du profil
+              </h3>
+
+              {editing ? (
+                <form onSubmit={(e) => { e.preventDefault(); saveProfile(); }} className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Nom d'affichage
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.displayName}
+                      onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Votre nom"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Bio
+                    </label>
+                    <textarea
+                      value={formData.bio}
+                      onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                      rows={3}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Parlez-nous de vous..."
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-white">Préférences</h4>
+                    
+                    <label className="flex items-center justify-between">
+                      <span className="text-gray-300">Notifications activées</span>
+                      <input
+                        type="checkbox"
+                        checked={formData.preferences.notifications}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          preferences: { ...prev.preferences, notifications: e.target.checked }
+                        }))}
+                        className="rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500"
+                      />
+                    </label>
+
+                    <label className="flex items-center justify-between">
+                      <span className="text-gray-300">Profil public</span>
+                      <input
+                        type="checkbox"
+                        checked={formData.preferences.publicProfile}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          preferences: { ...prev.preferences, publicProfile: e.target.checked }
+                        }))}
+                        className="rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(false)}
+                      className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
+                    >
+                      {saving && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
+                      <Save className="w-4 h-4" />
+                      {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Nom d'affichage
+                    </label>
+                    <p className="text-white">{profile?.displayName || 'Non défini'}</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Bio
+                    </label>
+                    <p className="text-white">{profile?.bio || 'Aucune bio définie'}</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Email
+                    </label>
+                    <p className="text-gray-400">{profile?.email}</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-white">Préférences</h4>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">Notifications</span>
+                      <span className="text-white">
+                        {profile?.preferences?.notifications ? 'Activées' : 'Désactivées'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">Profil public</span>
+                      <span className="text-white">
+                        {profile?.preferences?.publicProfile ? 'Public' : 'Privé'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-6 border-t border-gray-700">
+                    <button
+                      onClick={() => setEditing(true)}
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      Modifier le profil
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
