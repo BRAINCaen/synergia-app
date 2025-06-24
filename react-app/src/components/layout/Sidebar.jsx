@@ -1,7 +1,12 @@
-// react-app/src/components/layout/Sidebar.jsx
+// ==========================================
+// 📁 react-app/src/shared/components/layout/Sidebar.jsx
+// Sidebar premium avec design moderne et gradients
+// ==========================================
 
-import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { useAuthStore } from '../../stores/authStore.js';
+import { useGameStore } from '../../stores/gameStore.js';
 import { 
   Home, 
   CheckSquare, 
@@ -9,220 +14,295 @@ import {
   BarChart3, 
   Trophy, 
   User, 
-  Users, 
+  Settings,
+  ChevronLeft,
+  ChevronRight,
   LogOut,
-  Menu,
-  X,
+  Zap,
   Star,
-  Zap
+  Target
 } from 'lucide-react';
-import { useAuthStore } from '../../shared/stores/authStore';
-import { useGameStore } from '../../shared/stores/gameStore';
 
-const Sidebar = ({ isOpen, onToggle }) => {
-  const { user, signOut } = useAuthStore();
-  const { userStats } = useGameStore();
-  const navigate = useNavigate();
+/**
+ * 🎨 SIDEBAR PREMIUM AVEC DESIGN MODERNE
+ */
+const Sidebar = ({ collapsed, onToggle }) => {
+  const location = useLocation();
+  const { user, logout } = useAuthStore();
+  const { level, xp, streak, tasksCompleted } = useGameStore();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate('/login');
-    } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
-    }
-  };
-
+  // Navigation items
   const navigationItems = [
     {
-      name: 'Dashboard',
-      href: '/dashboard',
+      id: 'dashboard',
+      path: '/dashboard',
       icon: Home,
-      description: 'Vue d\'ensemble'
+      label: 'Dashboard',
+      gradient: 'from-blue-500 to-cyan-500'
     },
     {
-      name: 'Tâches',
-      href: '/tasks',
+      id: 'tasks',
+      path: '/tasks',
       icon: CheckSquare,
-      description: 'Gestion des tâches'
+      label: 'Tâches',
+      gradient: 'from-green-500 to-emerald-500'
     },
     {
-      name: 'Projets',
-      href: '/projects',
+      id: 'projects',
+      path: '/projects',
       icon: FolderOpen,
-      description: 'Gestion des projets'
+      label: 'Projets',
+      gradient: 'from-purple-500 to-violet-500'
     },
     {
-      name: 'Analytics',
-      href: '/analytics',
+      id: 'analytics',
+      path: '/analytics',
       icon: BarChart3,
-      description: 'Statistiques et analyses'
+      label: 'Analytics',
+      gradient: 'from-orange-500 to-red-500'
     },
     {
-      name: 'Classement',
-      href: '/leaderboard',
+      id: 'leaderboard',
+      path: '/leaderboard',
       icon: Trophy,
-      description: 'Leaderboard'
+      label: 'Classement',
+      gradient: 'from-yellow-500 to-orange-500'
     },
     {
-      name: 'Profil',
-      href: '/profile',
+      id: 'profile',
+      path: '/profile',
       icon: User,
-      description: 'Mon profil'
+      label: 'Profil',
+      gradient: 'from-pink-500 to-rose-500'
+    },
+    {
+      id: 'settings',
+      path: '/settings',
+      icon: Settings,
+      label: 'Paramètres',
+      gradient: 'from-gray-500 to-slate-500'
     }
   ];
 
-  // Ajouter la page Utilisateurs pour les admins
-  if (user?.role === 'admin') {
-    navigationItems.splice(-1, 0, {
-      name: 'Utilisateurs',
-      href: '/users',
-      icon: Users,
-      description: 'Gestion des utilisateurs'
-    });
-  }
+  const handleLogout = async () => {
+    setIsLoading(true);
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Erreur déconnexion:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const NavItem = ({ item }) => (
-    <NavLink
-      to={item.href}
-      className={({ isActive }) =>
-        `group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
-          isActive
-            ? 'bg-blue-600 text-white shadow-lg'
-            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-        }`
-      }
-      onClick={() => {
-        // Fermer la sidebar sur mobile après clic
-        if (window.innerWidth < 1024) {
-          onToggle();
-        }
-      }}
-    >
-      <item.icon className="mr-3 h-5 w-5" />
-      <span className="flex-1">{item.name}</span>
-    </NavLink>
-  );
+  // Obtenir les initiales de l'utilisateur
+  const getUserInitials = () => {
+    if (!user?.displayName && !user?.email) return '?';
+    const name = user.displayName || user.email;
+    return name.split(' ').map(part => part[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  // Calculer le niveau suivant
+  const getNextLevelXP = () => {
+    return (level + 1) * 100; // Système simple: niveau 2 = 200 XP, niveau 3 = 300 XP, etc.
+  };
+
+  const getXPProgress = () => {
+    const currentLevelXP = level * 100;
+    const nextLevelXP = getNextLevelXP();
+    const progressXP = xp - currentLevelXP;
+    const neededXP = nextLevelXP - currentLevelXP;
+    return (progressXP / neededXP) * 100;
+  };
 
   return (
     <>
-      {/* Bouton menu mobile */}
-      <button
-        onClick={onToggle}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow-lg text-gray-600 hover:text-gray-900 transition-colors"
-      >
-        {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-      </button>
-
-      {/* Overlay mobile */}
-      {isOpen && (
-        <div 
-          className="lg:hidden fixed inset-0 z-40 bg-black bg-opacity-50"
-          onClick={onToggle}
-        />
-      )}
-
       {/* Sidebar */}
       <div className={`
-        fixed top-0 left-0 z-50 h-full w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out
-        lg:relative lg:z-auto lg:translate-x-0 lg:shadow-none
-        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        fixed left-0 top-0 h-full bg-white/5 backdrop-blur-xl border-r border-white/10
+        transition-all duration-300 z-30
+        ${collapsed ? 'w-16' : 'w-64'}
       `}>
-        
         {/* Header avec logo */}
-        <div className="flex items-center justify-center h-16 px-4 bg-gradient-to-r from-blue-600 to-purple-600">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <Zap className="h-5 w-5 text-blue-600" />
-            </div>
-            <span className="text-xl font-bold text-white">Synergia</span>
+        <div className="p-4 border-b border-white/10">
+          <div className="flex items-center justify-between">
+            {!collapsed && (
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
+                  ⚡
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-white">Synergia</h1>
+                  <p className="text-xs text-blue-200">v3.5.1 Premium</p>
+                </div>
+              </div>
+            )}
+            
+            {collapsed && (
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg mx-auto">
+                ⚡
+              </div>
+            )}
+            
+            {!collapsed && (
+              <button
+                onClick={onToggle}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/70 hover:text-white"
+              >
+                <ChevronLeft size={18} />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Section profil */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
-              {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
-            </div>
-            <div className="ml-3 flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {user?.displayName || user?.email?.split('@')[0]}
-              </p>
-              <div className="flex items-center space-x-2">
-                <div className="flex items-center text-xs text-gray-500">
-                  <Star className="h-3 w-3 mr-1 text-yellow-500" />
-                  <span>Niveau {userStats?.level || 1}</span>
+        {/* Profil utilisateur */}
+        <div className="p-4 border-b border-white/10">
+          {!collapsed ? (
+            <div className="space-y-3">
+              {/* Avatar et nom */}
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
+                  {getUserInitials()}
                 </div>
-                <div className="flex items-center text-xs text-gray-500">
-                  <Zap className="h-3 w-3 mr-1 text-blue-500" />
-                  <span>{userStats?.totalXP || 0} XP</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium truncate">
+                    {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
+                  </p>
+                  <p className="text-blue-200 text-sm">Niveau {level}</p>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Barre de progression */}
-          <div className="mt-3">
-            <div className="flex justify-between text-xs text-gray-600 mb-1">
-              <span>Progression</span>
-              <span>{userStats?.progressToNextLevel || 0}%</span>
+              {/* Stats rapides */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-white/5 rounded-lg p-2 text-center">
+                  <div className="flex items-center justify-center mb-1">
+                    <Star size={14} className="text-yellow-400" />
+                  </div>
+                  <p className="text-xs text-white/80">{xp} XP</p>
+                </div>
+                <div className="bg-white/5 rounded-lg p-2 text-center">
+                  <div className="flex items-center justify-center mb-1">
+                    <Target size={14} className="text-green-400" />
+                  </div>
+                  <p className="text-xs text-white/80">{tasksCompleted}</p>
+                </div>
+                <div className="bg-white/5 rounded-lg p-2 text-center">
+                  <div className="flex items-center justify-center mb-1">
+                    <Zap size={14} className="text-orange-400" />
+                  </div>
+                  <p className="text-xs text-white/80">{streak}j</p>
+                </div>
+              </div>
+
+              {/* Barre de progression XP */}
+              <div>
+                <div className="flex justify-between text-xs text-white/60 mb-1">
+                  <span>Niveau {level}</span>
+                  <span>Niveau {level + 1}</span>
+                </div>
+                <div className="w-full bg-white/10 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(getXPProgress(), 100)}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-white/60 mt-1 text-center">
+                  {getNextLevelXP() - xp} XP pour le niveau suivant
+                </p>
+              </div>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${userStats?.progressToNextLevel || 0}%` }}
-              />
+          ) : (
+            <div className="flex flex-col items-center space-y-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
+                {getUserInitials()}
+              </div>
+              <div className="w-8 bg-white/10 rounded-full h-1">
+                <div 
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-1 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(getXPProgress(), 100)}%` }}
+                ></div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navigationItems.map((item) => (
-            <NavItem key={item.name} item={item} />
-          ))}
+        <nav className="flex-1 p-4 space-y-2">
+          {navigationItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+            
+            return (
+              <Link
+                key={item.id}
+                to={item.path}
+                className={`
+                  group flex items-center space-x-3 p-3 rounded-xl transition-all duration-200
+                  ${isActive 
+                    ? `bg-gradient-to-r ${item.gradient} shadow-lg text-white` 
+                    : 'hover:bg-white/10 text-white/70 hover:text-white'
+                  }
+                  ${collapsed ? 'justify-center' : ''}
+                `}
+              >
+                <Icon size={20} className={isActive ? 'text-white' : ''} />
+                {!collapsed && (
+                  <span className="font-medium">{item.label}</span>
+                )}
+                
+                {/* Indicateur actif pour sidebar collapsed */}
+                {collapsed && isActive && (
+                  <div className="absolute left-0 w-1 h-8 bg-white rounded-r-full"></div>
+                )}
+              </Link>
+            );
+          })}
         </nav>
 
-        {/* Bouton déconnexion */}
-        <div className="p-4 border-t border-gray-200">
+        {/* Bouton de déconnexion */}
+        <div className="p-4 border-t border-white/10">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100 hover:text-gray-900 transition-colors"
+            disabled={isLoading}
+            className={`
+              w-full flex items-center space-x-3 p-3 rounded-xl transition-all duration-200
+              hover:bg-red-500/20 text-white/70 hover:text-red-400 group
+              ${collapsed ? 'justify-center' : ''}
+              ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
           >
-            <LogOut className="mr-3 h-5 w-5" />
-            Se déconnecter
+            {isLoading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-400"></div>
+            ) : (
+              <LogOut size={20} />
+            )}
+            {!collapsed && (
+              <span className="font-medium">
+                {isLoading ? 'Déconnexion...' : 'Déconnexion'}
+              </span>
+            )}
           </button>
         </div>
 
-        {/* Stats de gamification */}
-        <div className="p-4 bg-gradient-to-r from-gray-50 to-blue-50">
-          <div className="text-xs text-gray-600 mb-2 font-semibold">
-            Statistiques Gamification
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <div className="text-center p-2 bg-white rounded-lg shadow-sm">
-              <div className="text-lg font-bold text-blue-600">
-                {userStats?.completedTasks || 0}
-              </div>
-              <div className="text-xs text-gray-500">Tâches</div>
-            </div>
-            
-            <div className="text-center p-2 bg-white rounded-lg shadow-sm">
-              <div className="text-lg font-bold text-purple-600">
-                {userStats?.badges?.length || 0}
-              </div>
-              <div className="text-xs text-gray-500">Badges</div>
-            </div>
-          </div>
-
-          {/* Version */}
-          <div className="mt-3 text-center">
-            <span className="text-xs text-gray-400">Synergia v3.5</span>
-          </div>
-        </div>
+        {/* Bouton d'expansion quand collapsed */}
+        {collapsed && (
+          <button
+            onClick={onToggle}
+            className="absolute -right-3 top-8 w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-200"
+          >
+            <ChevronRight size={14} />
+          </button>
+        )}
       </div>
+
+      {/* Overlay pour mobile */}
+      {!collapsed && (
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-20 lg:hidden"
+          onClick={onToggle}
+        />
+      )}
     </>
   );
 };
