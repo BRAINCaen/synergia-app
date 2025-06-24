@@ -366,6 +366,17 @@ const ProfilePage = () => {
 
   const formatDate = (date) => {
     if (!date) return 'N/A';
+    
+    // Gérer les Timestamps Firebase
+    if (date.toDate && typeof date.toDate === 'function') {
+      date = date.toDate();
+    }
+    
+    // Vérifier que c'est bien un objet Date
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      return 'N/A';
+    }
+    
     return date.toLocaleDateString('fr-FR', {
       year: 'numeric',
       month: 'long',
