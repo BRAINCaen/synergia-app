@@ -19,11 +19,12 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useGamification } from '../shared/hooks/useGamification.js';
-import { useRealTimeUser } from '../shared/hooks/useRealTimeUser.js';
+import { useRealTimeUser, useUpdateUser } from '../shared/hooks/useRealTimeUser.js';
 
 const ProfilePage = () => {
   const { user } = useAuthStore();
-  const { userData, loading: userLoading, updateUserData } = useRealTimeUser();
+  const { userData, loading: userLoading } = useRealTimeUser();
+  const { updateUserData } = useUpdateUser();
   const { 
     userStats, 
     addXPForEvent, 
