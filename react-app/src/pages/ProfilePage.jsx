@@ -1,5 +1,5 @@
-// src/pages/ProfilePage.jsx
-// Page de profil complète avec gamification corrigée
+// react-app/src/pages/ProfilePage.jsx
+
 import React, { useState, useEffect } from 'react';
 import { 
   User, 
@@ -18,22 +18,12 @@ import {
   X
 } from 'lucide-react';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useGamification } from '../shared/hooks/useGamification.js';
-import { useRealTimeUser, useUpdateUser } from '../shared/hooks/useRealTimeUser.js';
+import { useGameStore } from '../shared/stores/gameStore.js';
 
 const ProfilePage = () => {
   const { user } = useAuthStore();
-  const { userData, loading: userLoading } = useRealTimeUser();
-  const { updateUserData } = useUpdateUser();
-  const { 
-    userStats, 
-    addXPForEvent, 
-    currentLevel, 
-    levelProgress,
-    getUnlockedBadges,
-    getUserInsights 
-  } = useGamification();
-
+  const { userStats, addXP } = useGameStore();
+  
   // États locaux
   const [activeTab, setActiveTab] = useState('profile');
   const [editing, setEditing] = useState(false);
@@ -51,46 +41,30 @@ const ProfilePage = () => {
 
   // Charger les données utilisateur
   useEffect(() => {
-    if (userData) {
+    if (user) {
       setFormData({
-        displayName: userData.profile?.displayName || userData.displayName || '',
-        bio: userData.profile?.bio || '',
-        department: userData.profile?.department || '',
+        displayName: user.displayName || '',
+        bio: user.bio || '',
+        department: user.department || '',
         preferences: {
-          notifications: userData.profile?.preferences?.notifications ?? true,
-          publicProfile: userData.profile?.preferences?.publicProfile ?? false,
-          emailUpdates: userData.profile?.preferences?.emailUpdates ?? true
+          notifications: true,
+          publicProfile: false,
+          emailUpdates: true
         }
       });
     }
-  }, [userData]);
+  }, [user]);
 
   // Sauvegarder le profil
   const saveProfile = async () => {
-    if (!user?.uid) return;
-
     setSaving(true);
     try {
-      const updates = {
-        profile: {
-          displayName: formData.displayName,
-          bio: formData.bio,
-          department: formData.department,
-          preferences: formData.preferences,
-          completedAt: new Date().toISOString()
-        }
-      };
-
-      await updateUserData(updates);
-
-      // ✅ Ajouter XP pour la mise à jour du profil (MÉTHODE CORRIGÉE)
+      // Simuler la sauvegarde
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Ajouter de l'XP pour la mise à jour du profil
       try {
-        const xpResult = await addXPForEvent('profile_update');
-        if (xpResult.success) {
-          console.log('✅ XP ajouté pour mise à jour profil:', xpResult);
-        } else {
-          console.warn('⚠️ Impossible d\'ajouter XP:', xpResult.error);
-        }
+        await addXP(10, 'Mise à jour du profil');
       } catch (xpError) {
         console.warn('⚠️ Erreur ajout XP:', xpError);
       }
@@ -103,550 +77,391 @@ const ProfilePage = () => {
     }
   };
 
-  // Fonctions utilitaires
+  // Calculer les données de niveau de manière sécurisée
+  const getLevelData = () => {
+    if (!userStats) {
+      return {
+        currentLevel: 1,
+        totalXP: 0,
+        progressPercentage: 0,
+        nextLevelXP: 100,
+        currentLevelXP: 0
+      };
+    }
+
+    const currentLevel = userStats.level || 1;
+    const totalXP = userStats.totalXp || 0;
+    const currentLevelXP = (currentLevel - 1) * 100;
+    const nextLevelXP = currentLevel * 100;
+    const progressXP = totalXP - currentLevelXP;
+    const progressPercentage = Math.round((progressXP / 100) * 100);
+
+    return {
+      currentLevel,
+      totalXP,
+      progressPercentage: Math.max(0, Math.min(100, progressPercentage)),
+      nextLevelXP,
+      currentLevelXP,
+      progressXP: Math.max(0, progressXP),
+      remainingXP: Math.max(0, nextLevelXP - totalXP)
+    };
+  };
+
+  const levelData = getLevelData();
+
   const formatDate = (dateString) => {
     if (!dateString) return 'Non défini';
     try {
-      return new Date(dateString).toLocaleDateString('fr-FR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
+      return new Date(dateString).toLocaleDateString('fr-FR');
     } catch {
       return 'Non défini';
     }
   };
 
-  const getUserLevel = () => currentLevel || 1;
-  const getTotalXP = () => userStats?.totalXp || 0;
-  const getUnlockedBadgesList = () => getUnlockedBadges() || [];
-  
-  // Données de simulation pour les réalisations
-  const achievements = [
-    {
-      id: 1,
-      title: 'Première tâche',
-      description: 'Créer votre première tâche',
-      progress: userStats?.tasksCreated || 0,
-      maxProgress: 1,
-      icon: Target,
-      unlocked: (userStats?.tasksCreated || 0) >= 1
-    },
-    {
-      id: 2,
-      title: 'Productif',
-      description: 'Compléter 10 tâches',
-      progress: userStats?.tasksCompleted || 0,
-      maxProgress: 10,
-      icon: CheckCircle,
-      unlocked: (userStats?.tasksCompleted || 0) >= 10
-    },
-    {
-      id: 3,
-      title: 'Série de connexions',
-      description: 'Se connecter 7 jours consécutifs',
-      progress: userStats?.loginStreak || 0,
-      maxProgress: 7,
-      icon: Calendar,
-      unlocked: (userStats?.loginStreak || 0) >= 7
-    },
-    {
-      id: 4,
-      title: 'Niveau expert',
-      description: 'Atteindre le niveau 10',
-      progress: getUserLevel(),
-      maxProgress: 10,
-      icon: Crown,
-      unlocked: getUserLevel() >= 10
-    }
+  const tabs = [
+    { id: 'profile', name: 'Profil', icon: User },
+    { id: 'gamification', name: 'Gamification', icon: Trophy },
+    { id: 'settings', name: 'Paramètres', icon: Settings }
   ];
 
-  if (userLoading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white">Chargement du profil...</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <div className="max-w-6xl mx-auto p-6">
-        {/* En-tête du profil */}
-        <div className="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
-          <div className="flex items-center justify-between">
-            {/* Avatar et infos */}
-            <div className="flex items-center gap-6">
-              <div className="relative">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-2xl font-bold text-white">
-                  {userData?.profile?.photoURL ? (
-                    <img 
-                      src={userData.profile.photoURL} 
-                      alt={userData.profile?.displayName}
-                      className="w-20 h-20 rounded-full object-cover"
-                    />
-                  ) : (
-                    userData?.profile?.displayName?.charAt(0)?.toUpperCase() || 
-                    user?.displayName?.charAt(0)?.toUpperCase() || '?'
-                  )}
-                </div>
-                <button className="absolute bottom-0 right-0 w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center border-2 border-gray-800 hover:bg-gray-600 transition-colors">
-                  <Camera className="w-3 h-3" />
-                </button>
+  const ProfileTab = () => (
+    <div className="space-y-6">
+      {/* En-tête du profil */}
+      <div className="bg-white rounded-lg border p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="relative">
+              <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-2xl">
+                {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
               </div>
-
-              {/* Infos utilisateur */}
-              <div>
-                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                  {userData?.profile?.displayName || user?.displayName || 'Utilisateur'}
-                  {getUserLevel() >= 10 && <Crown className="w-6 h-6 text-yellow-400" />}
-                </h1>
-                <p className="text-gray-400 mt-1">{user?.email}</p>
-                <div className="flex items-center gap-4 mt-2">
-                  <span className="text-sm text-gray-400">
-                    Niveau {getUserLevel()}
-                  </span>
-                  <span className="text-sm text-gray-400">
-                    {getTotalXP()} XP
-                  </span>
-                  <span className="text-sm text-gray-400">
-                    Membre depuis {formatDate(userData?.createdAt)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setEditing(!editing)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition-colors"
-              >
-                <Edit3 className="w-4 h-4" />
-                {editing ? 'Annuler' : 'Modifier'}
+              <button className="absolute bottom-0 right-0 p-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
+                <Camera className="w-3 h-3" />
               </button>
             </div>
-          </div>
-
-          {/* Barre de progression niveau */}
-          {levelProgress && (
-            <div className="mt-4">
-              <div className="flex items-center justify-between text-sm text-gray-400 mb-2">
-                <span>Progression niveau {getUserLevel()}</span>
-                <span>{levelProgress.current}/{levelProgress.needed} XP</span>
-              </div>
-              <div className="w-full bg-gray-700 rounded-full h-2">
-                <div 
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${levelProgress.percentage}%` }}
-                ></div>
+            
+            <div className="flex-1">
+              {editing ? (
+                <input
+                  type="text"
+                  value={formData.displayName}
+                  onChange={(e) => setFormData({...formData, displayName: e.target.value})}
+                  className="text-xl font-bold text-gray-900 border-b border-gray-300 focus:border-blue-500 outline-none bg-transparent"
+                  placeholder="Votre nom"
+                />
+              ) : (
+                <h1 className="text-xl font-bold text-gray-900">
+                  {formData.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
+                </h1>
+              )}
+              
+              <p className="text-gray-600">{user?.email}</p>
+              
+              <div className="flex items-center gap-4 mt-2">
+                <div className="flex items-center gap-1 text-sm text-gray-500">
+                  <Crown className="w-4 h-4 text-yellow-500" />
+                  <span>Niveau {levelData.currentLevel}</span>
+                </div>
+                
+                <div className="flex items-center gap-1 text-sm text-gray-500">
+                  <Star className="w-4 h-4 text-blue-500" />
+                  <span>{levelData.totalXP} XP</span>
+                </div>
               </div>
             </div>
+          </div>
+          
+          <div className="flex gap-2">
+            {editing ? (
+              <>
+                <button
+                  onClick={() => setEditing(false)}
+                  className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={saveProfile}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setEditing(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <Edit3 className="w-4 h-4" />
+                Modifier
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Bio */}
+        <div className="mt-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
+          {editing ? (
+            <textarea
+              value={formData.bio}
+              onChange={(e) => setFormData({...formData, bio: e.target.value})}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              rows={3}
+              placeholder="Parlez-nous de vous..."
+            />
+          ) : (
+            <p className="text-gray-600">
+              {formData.bio || 'Aucune bio renseignée'}
+            </p>
           )}
         </div>
 
-        {/* Navigation onglets */}
-        <div className="flex space-x-1 mb-6">
-          {[
-            { id: 'profile', label: 'Profil', icon: User },
-            { id: 'stats', label: 'Statistiques', icon: BarChart3 },
-            { id: 'achievements', label: 'Réalisations', icon: Trophy },
-            { id: 'settings', label: 'Paramètres', icon: Settings }
-          ].map(tab => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            );
-          })}
+        {/* Département */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Département</label>
+          {editing ? (
+            <input
+              type="text"
+              value={formData.department}
+              onChange={(e) => setFormData({...formData, department: e.target.value})}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Votre département"
+            />
+          ) : (
+            <p className="text-gray-600">
+              {formData.department || 'Aucun département renseigné'}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Informations du compte */}
+      <div className="bg-white rounded-lg border p-6">
+        <h2 className="text-lg font-bold text-gray-900 mb-4">Informations du compte</h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Email</label>
+            <p className="text-gray-900">{user?.email}</p>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Membre depuis</label>
+            <p className="text-gray-900">
+              {formatDate(user?.metadata?.creationTime)}
+            </p>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Dernière connexion</label>
+            <p className="text-gray-900">
+              {formatDate(user?.metadata?.lastSignInTime)}
+            </p>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Statut</label>
+            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+              Actif
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const GamificationTab = () => (
+    <div className="space-y-6">
+      {/* Progression du niveau */}
+      <div className="bg-white rounded-lg border p-6">
+        <h2 className="text-lg font-bold text-gray-900 mb-4">Progression</h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Niveau actuel */}
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-600 mb-2">
+              {levelData.currentLevel}
+            </div>
+            <div className="text-sm text-gray-600">Niveau actuel</div>
+          </div>
+          
+          {/* XP Total */}
+          <div className="text-center">
+            <div className="text-3xl font-bold text-green-600 mb-2">
+              {levelData.totalXP}
+            </div>
+            <div className="text-sm text-gray-600">XP Total</div>
+          </div>
+          
+          {/* Badges */}
+          <div className="text-center">
+            <div className="text-3xl font-bold text-purple-600 mb-2">
+              {userStats?.badges?.length || 0}
+            </div>
+            <div className="text-sm text-gray-600">Badges</div>
+          </div>
         </div>
 
-        {/* Contenu des onglets */}
-        {activeTab === 'profile' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Informations principales */}
-            <div className="lg:col-span-2">
-              <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                <h3 className="text-lg font-semibold text-white mb-6">
-                  Informations personnelles
-                </h3>
-
-                {editing ? (
-                  <form onSubmit={(e) => { e.preventDefault(); saveProfile(); }} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Nom d'affichage
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.displayName}
-                        onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Votre nom"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Bio
-                      </label>
-                      <textarea
-                        value={formData.bio}
-                        onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
-                        rows={3}
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Parlez-nous de vous..."
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Département
-                      </label>
-                      <select
-                        value={formData.department}
-                        onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Sélectionner un département</option>
-                        <option value="tech">Technique</option>
-                        <option value="design">Design</option>
-                        <option value="marketing">Marketing</option>
-                        <option value="sales">Ventes</option>
-                        <option value="hr">Ressources Humaines</option>
-                        <option value="finance">Finance</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-3">
-                      <h4 className="font-medium text-white">Préférences</h4>
-                      
-                      <label className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={formData.preferences.notifications}
-                          onChange={(e) => setFormData(prev => ({
-                            ...prev,
-                            preferences: { ...prev.preferences, notifications: e.target.checked }
-                          }))}
-                          className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-gray-300">Recevoir les notifications</span>
-                      </label>
-
-                      <label className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={formData.preferences.publicProfile}
-                          onChange={(e) => setFormData(prev => ({
-                            ...prev,
-                            preferences: { ...prev.preferences, publicProfile: e.target.checked }
-                          }))}
-                          className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-gray-300">Profil public</span>
-                      </label>
-
-                      <label className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={formData.preferences.emailUpdates}
-                          onChange={(e) => setFormData(prev => ({
-                            ...prev,
-                            preferences: { ...prev.preferences, emailUpdates: e.target.checked }
-                          }))}
-                          className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-gray-300">Mises à jour par email</span>
-                      </label>
-                    </div>
-
-                    <div className="flex gap-3 pt-4">
-                      <button
-                        type="submit"
-                        disabled={saving}
-                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-lg transition-colors flex items-center gap-2"
-                      >
-                        <Save className="w-4 h-4" />
-                        {saving ? 'Sauvegarde...' : 'Sauvegarder'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditing(false)}
-                        className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
-                      >
-                        <X className="w-4 h-4" />
-                        Annuler
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Nom d'affichage
-                      </label>
-                      <p className="text-white">{userData?.profile?.displayName || 'Non défini'}</p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Bio
-                      </label>
-                      <p className="text-white">{userData?.profile?.bio || 'Aucune bio définie'}</p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Département
-                      </label>
-                      <p className="text-white">{userData?.profile?.department || 'Non défini'}</p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Email
-                      </label>
-                      <p className="text-gray-400">{user?.email}</p>
-                    </div>
-
-                    <div className="space-y-3">
-                      <h4 className="font-medium text-white">Préférences</h4>
-                      
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-300">Notifications</span>
-                        <span className="text-white">
-                          {userData?.profile?.preferences?.notifications ? 'Activées' : 'Désactivées'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-300">Profil public</span>
-                        <span className="text-white">
-                          {userData?.profile?.preferences?.publicProfile ? 'Public' : 'Privé'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-300">Mises à jour par email</span>
-                        <span className="text-white">
-                          {userData?.profile?.preferences?.emailUpdates ? 'Activées' : 'Désactivées'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Statistiques rapides */}
-              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <h3 className="text-lg font-semibold text-white mb-4">Statistiques</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Tâches complétées</span>
-                    <span className="text-white font-semibold">{userStats?.tasksCompleted || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Projets créés</span>
-                    <span className="text-white font-semibold">{userStats?.projectsCreated || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Points XP</span>
-                    <span className="text-blue-400 font-semibold">{getTotalXP()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Série de connexions</span>
-                    <span className="text-orange-400 font-semibold">{userStats?.loginStreak || 0}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Badges récents */}
-              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <Award className="w-5 h-5 text-yellow-400" />
-                  Badges débloqués
-                </h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {getUnlockedBadgesList().slice(0, 6).map((badge, index) => (
-                    <div
-                      key={index}
-                      className="bg-gray-700 p-2 rounded text-center"
-                      title={badge.name || `Badge ${index + 1}`}
-                    >
-                      <div className="text-lg">{badge.icon || '🏆'}</div>
-                      <div className="text-xs text-gray-400 truncate">
-                        {badge.name || `Badge ${index + 1}`}
-                      </div>
-                    </div>
-                  ))}
-                  {getUnlockedBadgesList().length === 0 && (
-                    <div className="col-span-3 text-center text-gray-400 py-4">
-                      Aucun badge débloqué
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+        {/* Barre de progression */}
+        <div className="mt-6">
+          <div className="flex justify-between text-sm mb-2">
+            <span>Progrès vers le niveau {levelData.currentLevel + 1}</span>
+            <span>{levelData.progressPercentage}%</span>
           </div>
-        )}
-
-        {activeTab === 'stats' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Cartes de statistiques */}
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">XP Total</p>
-                  <p className="text-2xl font-bold text-blue-400">{getTotalXP()}</p>
-                </div>
-                <Star className="w-8 h-8 text-blue-400" />
-              </div>
-            </div>
-
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Niveau</p>
-                  <p className="text-2xl font-bold text-purple-400">{getUserLevel()}</p>
-                </div>
-                <Crown className="w-8 h-8 text-purple-400" />
-              </div>
-            </div>
-
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Tâches complétées</p>
-                  <p className="text-2xl font-bold text-green-400">{userStats?.tasksCompleted || 0}</p>
-                </div>
-                <CheckCircle className="w-8 h-8 text-green-400" />
-              </div>
-            </div>
-
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Série actuelle</p>
-                  <p className="text-2xl font-bold text-orange-400">{userStats?.loginStreak || 0}</p>
-                </div>
-                <Calendar className="w-8 h-8 text-orange-400" />
-              </div>
-            </div>
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div 
+              className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500"
+              style={{ width: `${levelData.progressPercentage}%` }}
+            />
           </div>
-        )}
-
-        {activeTab === 'achievements' && (
-          <div className="space-y-6">
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-yellow-400" />
-                Réalisations
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {achievements.map((achievement) => {
-                  const Icon = achievement.icon;
-                  return (
-                    <div
-                      key={achievement.id}
-                      className={`p-4 rounded-lg border ${
-                        achievement.unlocked
-                          ? 'bg-green-900/20 border-green-500'
-                          : 'bg-gray-700 border-gray-600'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <Icon className={`w-6 h-6 ${
-                          achievement.unlocked ? 'text-green-400' : 'text-gray-400'
-                        }`} />
-                        <div>
-                          <h4 className="font-medium text-white">{achievement.title}</h4>
-                          <p className="text-sm text-gray-400">{achievement.description}</p>
-                        </div>
-                        {achievement.unlocked && (
-                          <CheckCircle className="w-5 h-5 text-green-400 ml-auto" />
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between text-sm text-gray-400 mb-2">
-                        <span>Progression</span>
-                        <span>{achievement.progress}/{achievement.maxProgress}</span>
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            achievement.unlocked
-                              ? 'bg-gradient-to-r from-green-500 to-emerald-500'
-                              : 'bg-gradient-to-r from-blue-500 to-purple-500'
-                          }`}
-                          style={{ width: `${Math.min((achievement.progress / achievement.maxProgress) * 100, 100)}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+          <div className="flex justify-between text-xs text-gray-500 mt-1">
+            <span>{levelData.progressXP} XP</span>
+            <span>{levelData.remainingXP} XP restants</span>
           </div>
-        )}
+        </div>
+      </div>
 
-        {activeTab === 'settings' && (
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-                <Settings className="w-5 h-5 text-gray-400" />
-                Paramètres du compte
-              </h3>
-
-              <div className="space-y-6">
-                <div>
-                  <h4 className="font-medium text-white mb-4">Informations du compte</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Email</span>
-                      <span className="text-white">{user?.email}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Compte créé le</span>
-                      <span className="text-white">{formatDate(userData?.createdAt)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Dernière connexion</span>
-                      <span className="text-white">{formatDate(userData?.lastLoginAt)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-700 pt-6">
-                  <h4 className="font-medium text-white mb-4">Actions</h4>
-                  <div className="space-y-3">
-                    <button className="w-full text-left px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-white">
-                      Changer le mot de passe
-                    </button>
-                    <button className="w-full text-left px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-white">
-                      Exporter mes données
-                    </button>
-                    <button className="w-full text-left px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors text-white">
-                      Supprimer le compte
-                    </button>
-                  </div>
-                </div>
-              </div>
+      {/* Statistiques */}
+      <div className="bg-white rounded-lg border p-6">
+        <h2 className="text-lg font-bold text-gray-900 mb-4">Statistiques</h2>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="text-center p-4 bg-blue-50 rounded-lg">
+            <CheckCircle className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-blue-600">
+              {userStats?.tasksCompleted || 0}
             </div>
+            <div className="text-sm text-gray-600">Tâches complétées</div>
           </div>
-        )}
+          
+          <div className="text-center p-4 bg-green-50 rounded-lg">
+            <Target className="w-8 h-8 text-green-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-green-600">
+              {userStats?.projectsCompleted || 0}
+            </div>
+            <div className="text-sm text-gray-600">Projets terminés</div>
+          </div>
+          
+          <div className="text-center p-4 bg-orange-50 rounded-lg">
+            <Calendar className="w-8 h-8 text-orange-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-orange-600">
+              {userStats?.loginStreak || 0}
+            </div>
+            <div className="text-sm text-gray-600">Série de connexions</div>
+          </div>
+          
+          <div className="text-center p-4 bg-purple-50 rounded-lg">
+            <BarChart3 className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-purple-600">
+              {levelData.currentLevel}
+            </div>
+            <div className="text-sm text-gray-600">Niveau atteint</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const SettingsTab = () => (
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg border p-6">
+        <h2 className="text-lg font-bold text-gray-900 mb-4">Paramètres</h2>
+        
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-medium text-gray-900">Notifications</h3>
+              <p className="text-sm text-gray-600">Recevoir des notifications sur les activités</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={formData.preferences.notifications}
+              onChange={(e) => setFormData({
+                ...formData,
+                preferences: {
+                  ...formData.preferences,
+                  notifications: e.target.checked
+                }
+              })}
+              className="h-4 w-4 text-blue-600"
+            />
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-medium text-gray-900">Profil public</h3>
+              <p className="text-sm text-gray-600">Autoriser les autres à voir votre profil</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={formData.preferences.publicProfile}
+              onChange={(e) => setFormData({
+                ...formData,
+                preferences: {
+                  ...formData.preferences,
+                  publicProfile: e.target.checked
+                }
+              })}
+              className="h-4 w-4 text-blue-600"
+            />
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-medium text-gray-900">Emails de mise à jour</h3>
+              <p className="text-sm text-gray-600">Recevoir des emails sur les nouveautés</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={formData.preferences.emailUpdates}
+              onChange={(e) => setFormData({
+                ...formData,
+                preferences: {
+                  ...formData.preferences,
+                  emailUpdates: e.target.checked
+                }
+              })}
+              className="h-4 w-4 text-blue-600"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-4xl mx-auto">
+        {/* En-tête */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-800">Mon Profil</h1>
+          <p className="text-gray-600">Gérez vos informations personnelles et vos paramètres</p>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex space-x-1 mb-6">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Contenu des tabs */}
+        {activeTab === 'profile' && <ProfileTab />}
+        {activeTab === 'gamification' && <GamificationTab />}
+        {activeTab === 'settings' && <SettingsTab />}
       </div>
     </div>
   );
