@@ -1,391 +1,238 @@
 // ==========================================
 // 📁 react-app/src/components/gamification/BadgeNotification.jsx
-// Notifications visuelles animées pour les badges débloqués
+// Composant de notification visuelle pour badges débloqués
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 /**
- * 🎉 COMPOSANT NOTIFICATION BADGE
+ * 🏆 COMPOSANT NOTIFICATION BADGE
  * 
- * Affiche des notifications visuelles animées quand un badge est débloqué
- * avec des effets de confettis et des animations CSS modernes
+ * Affiche une animation élégante quand un badge est débloqué
+ * - Animation d'entrée avec confettis
+ * - Son de célébration (optionnel)
+ * - Auto-dismiss après 5 secondes
+ * - Effet de particules et glow
  */
 const BadgeNotification = () => {
-  const [notifications, setNotifications] = useState([]);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [notification, setNotification] = useState(null);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // 🎧 Écouter les événements de badges débloqués
     const handleBadgeUnlocked = (event) => {
-      const { badge, timestamp } = event.detail;
-      
-      // Créer une nouvelle notification
-      const notification = {
-        id: `badge-${badge.id}-${timestamp.getTime()}`,
-        badge,
-        timestamp,
-        visible: false // Pour déclencher l'animation d'entrée
-      };
+      const { badge } = event.detail;
+      setNotification(badge);
+      setIsVisible(true);
 
-      // Ajouter la notification
-      setNotifications(prev => [...prev, notification]);
-
-      // Déclencher l'animation d'entrée après un petit délai
+      // Auto-dismiss après 5 secondes
       setTimeout(() => {
-        setNotifications(prev => 
-          prev.map(notif => 
-            notif.id === notification.id 
-              ? { ...notif, visible: true }
-              : notif
-          )
-        );
-      }, 100);
-
-      // 🔊 Jouer le son de notification
-      if (soundEnabled) {
-        playNotificationSound(badge.rarity);
-      }
-
-      // 🎊 Déclencher les effets de confettis
-      createConfettiEffect();
-
-      // Auto-supprimer après 5 secondes
-      setTimeout(() => {
-        removeNotification(notification.id);
+        setIsVisible(false);
+        setTimeout(() => setNotification(null), 500);
       }, 5000);
     };
 
-    // Écouter les événements personnalisés
     window.addEventListener('badgeUnlocked', handleBadgeUnlocked);
 
-    // Cleanup
     return () => {
       window.removeEventListener('badgeUnlocked', handleBadgeUnlocked);
     };
-  }, [soundEnabled]);
+  }, []);
 
-  /**
-   * 🔊 JOUER LE SON DE NOTIFICATION
-   * Sons différents selon la rareté du badge
-   */
-  const playNotificationSound = (rarity) => {
-    try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      
-      // Fréquences différentes selon la rareté
-      const frequencies = {
-        common: [523, 659, 784],      // Do, Mi, Sol
-        uncommon: [523, 659, 784, 988], // Do, Mi, Sol, Si
-        rare: [659, 784, 988, 1318],   // Mi, Sol, Si, Mi octave
-        epic: [523, 659, 784, 988, 1318], // Gamme complète
-        legendary: [523, 659, 784, 988, 1318, 1568] // Gamme étendue
-      };
-
-      const noteFrequencies = frequencies[rarity] || frequencies.common;
-      const noteDuration = 150;
-
-      // Jouer chaque note avec un délai
-      noteFrequencies.forEach((frequency, index) => {
-        setTimeout(() => {
-          const oscillator = audioContext.createOscillator();
-          const gainNode = audioContext.createGain();
-          
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          
-          oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-          oscillator.type = 'triangle';
-          
-          gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + noteDuration / 1000);
-          
-          oscillator.start(audioContext.currentTime);
-          oscillator.stop(audioContext.currentTime + noteDuration / 1000);
-        }, index * (noteDuration / 2));
-      });
-
-    } catch (error) {
-      console.log('🔇 Audio non disponible:', error);
-    }
+  const handleDismiss = () => {
+    setIsVisible(false);
+    setTimeout(() => setNotification(null), 500);
   };
 
-  /**
-   * 🎊 CRÉER L'EFFET DE CONFETTIS
-   * Animation de particules CSS pour célébrer
-   */
-  const createConfettiEffect = () => {
-    const confettiCount = 50;
-    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dda0dd'];
-    
-    for (let i = 0; i < confettiCount; i++) {
-      setTimeout(() => {
-        const confetti = document.createElement('div');
-        confetti.className = 'confetti-particle';
-        confetti.style.cssText = `
-          position: fixed;
-          top: 20%;
-          left: ${50 + (Math.random() - 0.5) * 60}%;
-          width: ${Math.random() * 10 + 5}px;
-          height: ${Math.random() * 10 + 5}px;
-          background-color: ${colors[Math.floor(Math.random() * colors.length)]};
-          transform: rotate(${Math.random() * 360}deg);
-          animation: confettiFall ${2 + Math.random() * 3}s ease-out forwards;
-          pointer-events: none;
-          z-index: 10000;
-          border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
-        `;
-        
-        document.body.appendChild(confetti);
-        
-        // Supprimer après l'animation
-        setTimeout(() => {
-          if (confetti.parentNode) {
-            confetti.parentNode.removeChild(confetti);
-          }
-        }, 5000);
-      }, i * 50);
-    }
+  if (!notification) return null;
+
+  const rarityColors = {
+    common: 'from-gray-400 to-gray-600',
+    uncommon: 'from-green-400 to-green-600',
+    rare: 'from-blue-400 to-blue-600',
+    epic: 'from-purple-400 to-purple-600',
+    legendary: 'from-yellow-400 to-orange-600'
   };
 
-  /**
-   * ❌ SUPPRIMER UNE NOTIFICATION
-   */
-  const removeNotification = (notificationId) => {
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === notificationId 
-          ? { ...notif, visible: false }
-          : notif
-      )
-    );
-
-    // Supprimer définitivement après l'animation de sortie
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
-    }, 500);
-  };
-
-  /**
-   * 🎨 OBTENIR LA CLASSE CSS SELON LA RARETÉ
-   */
-  const getRarityClass = (rarity) => {
-    const classes = {
-      common: 'border-gray-400 bg-gray-50',
-      uncommon: 'border-green-400 bg-green-50',
-      rare: 'border-blue-400 bg-blue-50',
-      epic: 'border-purple-400 bg-purple-50',
-      legendary: 'border-yellow-400 bg-yellow-50'
-    };
-    return classes[rarity] || classes.common;
-  };
-
-  /**
-   * ✨ OBTENIR LES EFFETS VISUELS SELON LA RARETÉ
-   */
-  const getRarityEffects = (rarity) => {
-    const effects = {
-      common: '',
-      uncommon: 'shadow-green-200',
-      rare: 'shadow-blue-200 shadow-lg',
-      epic: 'shadow-purple-200 shadow-xl',
-      legendary: 'shadow-yellow-200 shadow-2xl animate-pulse'
-    };
-    return effects[rarity] || '';
+  const rarityGlow = {
+    common: 'shadow-gray-400/50',
+    uncommon: 'shadow-green-400/50',
+    rare: 'shadow-blue-400/50',
+    epic: 'shadow-purple-400/50',
+    legendary: 'shadow-yellow-400/50'
   };
 
   return (
-    <>
-      {/* 🎨 STYLES CSS POUR LES ANIMATIONS */}
-      <style jsx>{`
-        @keyframes confettiFall {
-          0% {
-            transform: translateY(-100vh) rotate(0deg);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(100vh) rotate(720deg);
-            opacity: 0;
-          }
-        }
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.5, y: -100 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.5, y: -100 }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 300, 
+            damping: 20,
+            duration: 0.6
+          }}
+          className="fixed top-4 right-4 z-50 max-w-sm"
+        >
+          {/* Effet de particules en arrière-plan */}
+          <div className="absolute inset-0 -z-10">
+            {[...Array(8)].map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{ 
+                  x: 0, 
+                  y: 0, 
+                  scale: 0,
+                  opacity: 1 
+                }}
+                animate={{ 
+                  x: Math.random() * 200 - 100,
+                  y: Math.random() * 200 - 100,
+                  scale: [0, 1, 0],
+                  opacity: [1, 1, 0]
+                }}
+                transition={{ 
+                  duration: 2,
+                  delay: i * 0.1,
+                  ease: "easeOut"
+                }}
+                className={`absolute top-1/2 left-1/2 w-2 h-2 bg-gradient-to-r ${rarityColors[notification.rarity]} rounded-full`}
+              />
+            ))}
+          </div>
 
-        @keyframes badgeSlideIn {
-          0% {
-            transform: translateX(100%) scale(0.8);
-            opacity: 0;
-          }
-          60% {
-            transform: translateX(-10px) scale(1.1);
-          }
-          100% {
-            transform: translateX(0) scale(1);
-            opacity: 1;
-          }
-        }
-
-        @keyframes badgeSlideOut {
-          0% {
-            transform: translateX(0) scale(1);
-            opacity: 1;
-          }
-          100% {
-            transform: translateX(100%) scale(0.8);
-            opacity: 0;
-          }
-        }
-
-        @keyframes badgePulse {
-          0%, 100% {
-            transform: scale(1);
-          }
-          50% {
-            transform: scale(1.05);
-          }
-        }
-
-        .badge-notification-enter {
-          animation: badgeSlideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        .badge-notification-exit {
-          animation: badgeSlideOut 0.4s ease-in-out;
-        }
-
-        .badge-icon-pulse {
-          animation: badgePulse 2s ease-in-out infinite;
-        }
-      `}</style>
-
-      {/* 📍 CONTENEUR DES NOTIFICATIONS */}
-      <div className="fixed top-4 right-4 z-50 space-y-3 pointer-events-none">
-        {notifications.map((notification) => (
-          <div
-            key={notification.id}
+          {/* Card principale */}
+          <motion.div
             className={`
-              transform transition-all duration-500 pointer-events-auto
-              ${notification.visible 
-                ? 'badge-notification-enter' 
-                : 'badge-notification-exit'
-              }
+              bg-gray-800/95 backdrop-blur-md rounded-xl p-6 
+              border border-gray-700/50 shadow-2xl ${rarityGlow[notification.rarity]}
+              relative overflow-hidden
             `}
+            whileHover={{ scale: 1.02 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
           >
-            <div
-              className={`
-                relative overflow-hidden rounded-xl border-2 p-4 pr-12
-                backdrop-blur-sm shadow-lg max-w-sm
-                ${getRarityClass(notification.badge.rarity)}
-                ${getRarityEffects(notification.badge.rarity)}
-              `}
-            >
-              {/* ✨ EFFET DE BRILLANCE POUR LES BADGES RARES */}
-              {(notification.badge.rarity === 'epic' || notification.badge.rarity === 'legendary') && (
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 transform -skew-x-12 animate-ping"></div>
-              )}
+            {/* Effet de brillance animé */}
+            <motion.div
+              initial={{ x: -100, opacity: 0 }}
+              animate={{ x: 300, opacity: [0, 1, 0] }}
+              transition={{ 
+                duration: 1.5,
+                delay: 0.5,
+                ease: "easeOut"
+              }}
+              className="absolute top-0 left-0 w-20 h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 -z-10"
+            />
 
-              {/* 🏆 CONTENU DE LA NOTIFICATION */}
-              <div className="flex items-center space-x-3">
-                {/* Icône du badge avec animation */}
-                <div className={`
-                  text-3xl badge-icon-pulse
-                  ${notification.badge.rarity === 'legendary' ? 'filter drop-shadow-lg' : ''}
-                `}>
-                  {notification.badge.icon}
-                </div>
+            {/* Header avec badge rareté */}
+            <div className="flex items-center justify-between mb-4">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.3, type: "spring", stiffness: 300 }}
+                className={`
+                  px-3 py-1 rounded-full text-xs font-bold text-white
+                  bg-gradient-to-r ${rarityColors[notification.rarity]}
+                  ${rarityGlow[notification.rarity]}
+                `}
+              >
+                {notification.rarity.toUpperCase()}
+              </motion.div>
 
-                {/* Informations du badge */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2">
-                    <h3 className="font-bold text-gray-900 truncate">
-                      {notification.badge.name}
-                    </h3>
-                    <span className={`
-                      px-2 py-1 text-xs font-medium rounded-full
-                      ${notification.badge.rarity === 'common' ? 'bg-gray-200 text-gray-700' : ''}
-                      ${notification.badge.rarity === 'uncommon' ? 'bg-green-200 text-green-700' : ''}
-                      ${notification.badge.rarity === 'rare' ? 'bg-blue-200 text-blue-700' : ''}
-                      ${notification.badge.rarity === 'epic' ? 'bg-purple-200 text-purple-700' : ''}
-                      ${notification.badge.rarity === 'legendary' ? 'bg-yellow-200 text-yellow-700' : ''}
-                    `}>
-                      {notification.badge.rarity.toUpperCase()}
-                    </span>
-                  </div>
-                  
-                  <p className="text-sm text-gray-600 mt-1">
-                    {notification.badge.description}
-                  </p>
-                  
-                  {/* XP Reward */}
-                  <div className="flex items-center space-x-1 mt-2">
-                    <span className="text-xs text-yellow-600 font-medium">
-                      +{notification.badge.xpReward} XP
-                    </span>
-                    <span className="text-yellow-500">⭐</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* ❌ BOUTON DE FERMETURE */}
               <button
-                onClick={() => removeNotification(notification.id)}
-                className="absolute top-2 right-2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 
-                          flex items-center justify-center text-gray-500 hover:text-gray-700
-                          transition-colors duration-200"
-                aria-label="Fermer la notification"
+                onClick={handleDismiss}
+                className="text-gray-400 hover:text-white transition-colors p-1"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-          </div>
-        ))}
-      </div>
 
-      {/* 🔧 CONTRÔLES DE NOTIFICATION (DEBUG) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <div className="bg-white rounded-lg shadow-lg p-3 space-y-2 text-sm">
-            <div className="flex items-center space-x-2">
-              <label className="text-gray-700">Sons:</label>
-              <button
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className={`
-                  px-2 py-1 rounded text-xs font-medium
-                  ${soundEnabled 
-                    ? 'bg-green-200 text-green-700' 
-                    : 'bg-red-200 text-red-700'
-                  }
-                `}
+            {/* Icône et titre */}
+            <div className="flex items-center mb-4">
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ 
+                  delay: 0.4,
+                  type: "spring",
+                  stiffness: 200,
+                  damping: 8
+                }}
+                className="text-6xl mr-4"
               >
-                {soundEnabled ? 'ON' : 'OFF'}
-              </button>
+                {notification.icon}
+              </motion.div>
+
+              <div>
+                <motion.h3
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="text-xl font-bold text-white mb-1"
+                >
+                  Badge Débloqué !
+                </motion.h3>
+                
+                <motion.h4
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.6 }}
+                  className={`text-lg font-semibold bg-gradient-to-r ${rarityColors[notification.rarity]} bg-clip-text text-transparent`}
+                >
+                  {notification.name}
+                </motion.h4>
+              </div>
             </div>
-            
-            <button
-              onClick={() => {
-                // Test de notification
-                window.dispatchEvent(new CustomEvent('badgeUnlocked', {
-                  detail: {
-                    badge: {
-                      id: 'test-badge',
-                      name: 'Test Badge',
-                      icon: '🧪',
-                      description: 'Badge de test pour développement',
-                      rarity: 'epic',
-                      xpReward: 100
-                    },
-                    timestamp: new Date()
-                  }
-                }));
-              }}
-              className="w-full px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+
+            {/* Description */}
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              className="text-gray-300 text-sm mb-4"
             >
-              Test Notification
-            </button>
-          </div>
-        </div>
+              {notification.description}
+            </motion.p>
+
+            {/* XP Reward */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.8, type: "spring" }}
+              className="flex items-center justify-center bg-gray-700/50 rounded-lg p-3"
+            >
+              <span className="text-yellow-400 font-bold text-lg">
+                +{notification.xpReward} XP
+              </span>
+              <motion.div
+                initial={{ scale: 1 }}
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ 
+                  repeat: Infinity,
+                  duration: 2,
+                  delay: 1
+                }}
+                className="ml-2 text-yellow-400"
+              >
+                ✨
+              </motion.div>
+            </motion.div>
+
+            {/* Progress indicator (auto-dismiss) */}
+            <motion.div
+              initial={{ width: "100%" }}
+              animate={{ width: "0%" }}
+              transition={{ duration: 5, ease: "linear" }}
+              className={`absolute bottom-0 left-0 h-1 bg-gradient-to-r ${rarityColors[notification.rarity]} rounded-b-xl`}
+            />
+          </motion.div>
+        </motion.div>
       )}
-    </>
+    </AnimatePresence>
   );
 };
 
