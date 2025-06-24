@@ -117,6 +117,9 @@ const ProfilePage = () => {
       }
 
       // 3. Charger l'activité récente (dernières tâches complétées)
+      let recentTasks = [];
+      let recentProjects = [];
+      
       try {
         const tasksQuery = query(
           collection(db, 'tasks'),
@@ -127,14 +130,19 @@ const ProfilePage = () => {
         );
         
         const tasksSnapshot = await getDocs(tasksQuery);
-        const recentTasks = tasksSnapshot.docs.map(doc => ({
+        recentTasks = tasksSnapshot.docs.map(doc => ({
           id: doc.id,
           type: 'task_completed',
           ...doc.data(),
           timestamp: doc.data().completedAt?.toDate() || new Date()
         }));
+      } catch (taskError) {
+        console.warn('Impossible de charger les tâches récentes:', taskError);
+        recentTasks = [];
+      }
 
-        // 4. Charger les projets récents
+      // 4. Charger les projets récents
+      try {
         const projectsQuery = query(
           collection(db, 'projects'),
           where('ownerId', '==', user.uid),
@@ -143,23 +151,23 @@ const ProfilePage = () => {
         );
 
         const projectsSnapshot = await getDocs(projectsQuery);
-        const recentProjects = projectsSnapshot.docs.map(doc => ({
+        recentProjects = projectsSnapshot.docs.map(doc => ({
           id: doc.id,
           type: 'project_created',
           ...doc.data(),
           timestamp: doc.data().createdAt?.toDate() || new Date()
         }));
-
-        // Combiner et trier l'activité
-        const combinedActivity = [...recentTasks, ...recentProjects]
-          .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-          .slice(0, 10);
-
-        setRecentActivity(combinedActivity);
-      } catch (activityError) {
-        console.warn('Impossible de charger l\'activité récente:', activityError);
-        setRecentActivity([]);
+      } catch (projectError) {
+        console.warn('Impossible de charger les projets récents:', projectError);
+        recentProjects = [];
       }
+
+      // Combiner et trier l'activité
+      const combinedActivity = [...recentTasks, ...recentProjects]
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        .slice(0, 10);
+
+      setRecentActivity(combinedActivity);
 
       // 5. Générer les badges disponibles
       const availableBadges = generateBadges(statsSnap.data());
@@ -201,7 +209,15 @@ const ProfilePage = () => {
       setEditing(false);
       
       // Ajouter un peu d'XP pour la mise à jour du profil
-      await addXP(5, 'Profil mis à jour');
+      // Seulement si le service de gamification est disponible
+      try {
+        if (addXP && typeof addXP === 'function') {
+          await addXP(5, 'Profil mis à jour');
+        }
+      } catch (xpError) {
+        console.warn('Impossible d\'ajouter l\'XP:', xpError);
+        // Continue sans bloquer la sauvegarde
+      }
 
     } catch (error) {
       console.error('Erreur sauvegarde profil:', error);
