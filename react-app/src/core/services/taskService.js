@@ -13,8 +13,11 @@ import {
   onSnapshot 
 } from 'firebase/firestore'
 
-// 🔧 CORRECTION : Import Firebase depuis le bon chemin
-import { db, isFirebaseConfigured } from '../firebase.js'
+// 🔧 CORRECTION : Import Firebase sans isFirebaseConfigured
+import { db } from '../firebase.js'
+
+// Vérification simple si db existe
+const isFirebaseConfigured = !!db
 
 // Configuration des tâches
 export const TASK_PRIORITIES = {
