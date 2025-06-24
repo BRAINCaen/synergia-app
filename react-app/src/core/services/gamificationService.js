@@ -421,6 +421,11 @@ class GamificationService {
     ];
   }
 
+  // ✅ AJOUT: Méthode manquante getXPForNextLevel
+  getXPForNextLevel(currentLevel) {
+    return this.getXpForLevel(currentLevel + 1);
+  }
+
   // ✅ Données mock pour développement
   getMockUserData() {
     return {
