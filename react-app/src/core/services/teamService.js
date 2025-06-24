@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/teamService.js
-// Service centralisé pour la gestion des équipes
+// Service centralisé pour la gestion des équipes - VERSION CORRIGÉE
 // ==========================================
 
 import { 
@@ -25,275 +25,7 @@ class TeamService {
     this.cache = new Map();
   }
 
-  // ✅ Rechercher des membres par nom/email
-  async searchMembers(searchTerm, limit = 10) {
-    if (!db || !searchTerm) return [];
-
-    try {
-      const searchLower = searchTerm.toLowerCase();
-      const allMembers = await this.getTeamMembers(50);
-      
-      return allMembers.filter(member => 
-        member.name.toLowerCase().includes(searchLower) ||
-        member.email.toLowerCase().includes(searchLower) ||
-        member.role.toLowerCase().includes(searchLower)
-      ).slice(0, limit);
-
-    } catch (error) {
-      console.error('❌ Erreur recherche membres:', error);
-      return [];
-    }
-  }
-
-  // ✅ Obtenir les activités récentes de l'équipe
-  async getRecentActivities(limit = 20) {
-    if (!db) return [];
-
-    try {
-      const [tasks, projects, members] = await Promise.all([
-        this.getTeamTasks(30),
-        this.getTeamProjects(15),
-        this.getTeamMembers(20)
-      ]);
-
-      const activities = [];
-
-      // Activités des tâches
-      tasks.forEach(task => {
-        const member = members.find(m => m.id === task.userId) || members[0];
-        if (member) {
-          activities.push({
-            id: `task-${task.id}`,
-            type: task.status === 'completed' ? 'task_completed' : 'task_created',
-            user: member.name,
-            userAvatar: member.avatar,
-            action: task.status === 'completed' ? 'a terminé la tâche' : 'a créé la tâche',
-            target: task.title,
-            targetId: task.id,
-            time: task.updatedAt || task.createdAt,
-            icon: task.status === 'completed' ? '✅' : '📝',
-            color: task.status === 'completed' ? 'green' : 'blue'
-          });
-        }
-      });
-
-      // Activités des projets
-      projects.forEach(project => {
-        const member = members.find(m => m.id === project.userId) || members[0];
-        if (member) {
-          activities.push({
-            id: `project-${project.id}`,
-            type: 'project_created',
-            user: member.name,
-            userAvatar: member.avatar,
-            action: 'a créé le projet',
-            target: project.title,
-            targetId: project.id,
-            time: project.createdAt,
-            icon: '🚀',
-            color: 'purple'
-          });
-        }
-      });
-
-      // Trier par date (plus récent en premier)
-      return activities
-        .sort((a, b) => {
-          const timeA = a.time?.toDate ? a.time.toDate() : new Date(a.time);
-          const timeB = b.time?.toDate ? b.time.toDate() : new Date(b.time);
-          return timeB - timeA;
-        })
-        .slice(0, limit);
-
-    } catch (error) {
-      console.error('❌ Erreur récupération activités:', error);
-      return [];
-    }
-  }
-
-  // ✅ Obtenir les métriques de performance équipe
-  async getTeamPerformanceMetrics(days = 30) {
-    if (!db) return this.getMockPerformanceMetrics();
-
-    try {
-      const [members, tasks, projects] = await Promise.all([
-        this.getTeamMembers(),
-        this.getTeamTasks(100),
-        this.getTeamProjects(50)
-      ]);
-
-      const now = new Date();
-      const startDate = new Date(now.getTime() - (days * 24 * 60 * 60 * 1000));
-
-      // Filtrer les données récentes
-      const recentTasks = tasks.filter(task => {
-        const taskDate = task.createdAt?.toDate ? task.createdAt.toDate() : new Date(task.createdAt);
-        return taskDate >= startDate;
-      });
-
-      const recentProjects = projects.filter(project => {
-        const projectDate = project.createdAt?.toDate ? project.createdAt.toDate() : new Date(project.createdAt);
-        return projectDate >= startDate;
-      });
-
-      return {
-        period: `${days} derniers jours`,
-        tasksCreated: recentTasks.length,
-        tasksCompleted: recentTasks.filter(t => t.status === 'completed').length,
-        projectsCreated: recentProjects.length,
-        projectsCompleted: recentProjects.filter(p => p.status === 'completed').length,
-        averageTaskCompletionTime: this.calculateAverageCompletionTime(recentTasks),
-        teamVelocity: this.calculateTeamVelocity(recentTasks, days),
-        mostActiveMembers: this.getMostActiveMembers(members, recentTasks),
-        departmentStats: this.getDepartmentStats(members, recentTasks)
-      };
-
-    } catch (error) {
-      console.error('❌ Erreur métriques performance:', error);
-      return this.getMockPerformanceMetrics();
-    }
-  }
-
-  // ✅ Calculer temps moyen de completion
-  calculateAverageCompletionTime(tasks) {
-    const completedTasks = tasks.filter(t => 
-      t.status === 'completed' && t.createdAt && t.updatedAt
-    );
-
-    if (completedTasks.length === 0) return 0;
-
-    const totalTime = completedTasks.reduce((sum, task) => {
-      const created = task.createdAt.toDate ? task.createdAt.toDate() : new Date(task.createdAt);
-      const completed = task.updatedAt.toDate ? task.updatedAt.toDate() : new Date(task.updatedAt);
-      return sum + (completed - created);
-    }, 0);
-
-    const avgTimeMs = totalTime / completedTasks.length;
-    return Math.round(avgTimeMs / (1000 * 60 * 60 * 24)); // Retour en jours
-  }
-
-  // ✅ Calculer vélocité équipe
-  calculateTeamVelocity(tasks, days) {
-    const completedTasks = tasks.filter(t => t.status === 'completed');
-    const totalXP = completedTasks.reduce((sum, task) => sum + (task.xpReward || 0), 0);
-    
-    return {
-      tasksPerDay: Math.round((completedTasks.length / days) * 10) / 10,
-      xpPerDay: Math.round((totalXP / days) * 10) / 10,
-      totalXP
-    };
-  }
-
-  // ✅ Obtenir les membres les plus actifs
-  getMostActiveMembers(members, recentTasks) {
-    const memberActivity = {};
-
-    // Compter les activités par membre
-    recentTasks.forEach(task => {
-      if (task.userId) {
-        if (!memberActivity[task.userId]) {
-          memberActivity[task.userId] = {
-            tasksCreated: 0,
-            tasksCompleted: 0,
-            totalXP: 0
-          };
-        }
-        
-        memberActivity[task.userId].tasksCreated++;
-        if (task.status === 'completed') {
-          memberActivity[task.userId].tasksCompleted++;
-          memberActivity[task.userId].totalXP += task.xpReward || 0;
-        }
-      }
-    });
-
-    // Enrichir avec les infos membres et trier
-    return Object.entries(memberActivity)
-      .map(([userId, activity]) => {
-        const member = members.find(m => m.id === userId);
-        return member ? {
-          ...member,
-          ...activity,
-          activityScore: activity.tasksCompleted * 2 + activity.tasksCreated
-        } : null;
-      })
-      .filter(Boolean)
-      .sort((a, b) => b.activityScore - a.activityScore)
-      .slice(0, 5);
-  }
-
-  // ✅ Statistiques par département
-  getDepartmentStats(members, recentTasks) {
-    const deptStats = {};
-
-    members.forEach(member => {
-      const dept = member.department || 'Non spécifié';
-      if (!deptStats[dept]) {
-        deptStats[dept] = {
-          name: dept,
-          memberCount: 0,
-          totalXP: 0,
-          tasksCompleted: 0
-        };
-      }
-      
-      deptStats[dept].memberCount++;
-      deptStats[dept].totalXP += member.xp || 0;
-      
-      // Compter les tâches récentes du membre
-      const memberTasks = recentTasks.filter(t => t.userId === member.id && t.status === 'completed');
-      deptStats[dept].tasksCompleted += memberTasks.length;
-    });
-
-    return Object.values(deptStats)
-      .sort((a, b) => b.totalXP - a.totalXP);
-  }
-
-  // ✅ Données mock pour métriques performance
-  getMockPerformanceMetrics() {
-    return {
-      period: '30 derniers jours',
-      tasksCreated: 45,
-      tasksCompleted: 38,
-      projectsCreated: 8,
-      projectsCompleted: 5,
-      averageTaskCompletionTime: 3,
-      teamVelocity: {
-        tasksPerDay: 1.3,
-        xpPerDay: 45.2,
-        totalXP: 1356
-      },
-      mostActiveMembers: this.getMockTeamMembers().slice(0, 3),
-      departmentStats: [
-        { name: 'Développement', memberCount: 4, totalXP: 2100, tasksCompleted: 28 },
-        { name: 'Design', memberCount: 2, totalXP: 1200, tasksCompleted: 15 },
-        { name: 'Marketing', memberCount: 3, totalXP: 950, tasksCompleted: 12 }
-      ]
-    };
-  }
-
-  // ✅ Nettoyer les listeners
-  cleanup() {
-    this.listeners.forEach((unsubscribe) => {
-      if (typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
-    });
-    this.listeners.clear();
-    this.cache.clear();
-  }
-}
-
-// ✅ Instance singleton
-const teamService = new TeamService();
-
-export default teamService;
-
-// ✅ Exports nommés pour flexibilité
-export {
-  TeamService,
-  teamService
-};✅ Récupérer les membres de l'équipe avec sources multiples
+  // ✅ Récupérer les membres de l'équipe avec sources multiples
   async getTeamMembers(limitCount = 20) {
     if (!db) {
       console.log('🔧 Firebase non disponible - Données mock');
@@ -569,7 +301,6 @@ export {
 
       unsubscribers.push(unsubscribeUsers);
       
-      // Retourner fonction de nettoyage
       return () => {
         unsubscribers.forEach(unsub => unsub());
       };
@@ -639,12 +370,94 @@ export {
       (tasks.filter(t => t.status === 'completed').length / tasks.length) : 0;
     const avgXpPerMember = members.reduce((sum, m) => sum + (m.xp || 0), 0) / members.length;
     
-    // Score basé sur plusieurs critères (0-100)
-    const taskScore = Math.min(avgTasksPerMember * 10, 40); // Max 40 points
-    const completionScore = completionRate * 30; // Max 30 points
-    const xpScore = Math.min(avgXpPerMember / 10, 30); // Max 30 points
+    const taskScore = Math.min(avgTasksPerMember * 10, 40);
+    const completionScore = completionRate * 30;
+    const xpScore = Math.min(avgXpPerMember / 10, 30);
     
     return Math.round(taskScore + completionScore + xpScore);
+  }
+
+  // ✅ Rechercher des membres par nom/email
+  async searchMembers(searchTerm, limit = 10) {
+    if (!db || !searchTerm) return [];
+
+    try {
+      const searchLower = searchTerm.toLowerCase();
+      const allMembers = await this.getTeamMembers(50);
+      
+      return allMembers.filter(member => 
+        member.name.toLowerCase().includes(searchLower) ||
+        member.email.toLowerCase().includes(searchLower) ||
+        member.role.toLowerCase().includes(searchLower)
+      ).slice(0, limit);
+
+    } catch (error) {
+      console.error('❌ Erreur recherche membres:', error);
+      return [];
+    }
+  }
+
+  // ✅ Obtenir les activités récentes de l'équipe
+  async getRecentActivities(limit = 20) {
+    if (!db) return [];
+
+    try {
+      const [tasks, projects, members] = await Promise.all([
+        this.getTeamTasks(30),
+        this.getTeamProjects(15),
+        this.getTeamMembers(20)
+      ]);
+
+      const activities = [];
+
+      tasks.forEach(task => {
+        const member = members.find(m => m.id === task.userId) || members[0];
+        if (member) {
+          activities.push({
+            id: `task-${task.id}`,
+            type: task.status === 'completed' ? 'task_completed' : 'task_created',
+            user: member.name,
+            userAvatar: member.avatar,
+            action: task.status === 'completed' ? 'a terminé la tâche' : 'a créé la tâche',
+            target: task.title,
+            targetId: task.id,
+            time: task.updatedAt || task.createdAt,
+            icon: task.status === 'completed' ? '✅' : '📝',
+            color: task.status === 'completed' ? 'green' : 'blue'
+          });
+        }
+      });
+
+      projects.forEach(project => {
+        const member = members.find(m => m.id === project.userId) || members[0];
+        if (member) {
+          activities.push({
+            id: `project-${project.id}`,
+            type: 'project_created',
+            user: member.name,
+            userAvatar: member.avatar,
+            action: 'a créé le projet',
+            target: project.title,
+            targetId: project.id,
+            time: project.createdAt,
+            icon: '🚀',
+            color: 'purple'
+          });
+        }
+      });
+
+      return activities
+        .sort((a, b) => {
+          const timeA = a.time?.toDate ? a.time.toDate() : new Date(a.time);
+          const timeB = b.time?.toDate ? b.time.toDate() : new Date(b.time);
+          return timeB - timeA;
+        })
+        .slice(0, limit);
+
+    } catch (error) {
+      console.error('❌ Erreur récupération activités:', error);
+      return [];
+    }
   }
 
   // ✅ Données mock pour fallback
@@ -703,4 +516,25 @@ export {
     };
   }
 
-  //
+  // ✅ Nettoyer les listeners
+  cleanup() {
+    this.listeners.forEach((unsubscribe) => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    });
+    this.listeners.clear();
+    this.cache.clear();
+  }
+}
+
+// ✅ Instance singleton
+const teamService = new TeamService();
+
+export default teamService;
+
+// ✅ Exports nommés pour flexibilité
+export {
+  TeamService,
+  teamService
+};
