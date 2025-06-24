@@ -1,4 +1,4 @@
-// core/services/projectService.js - VERSION COLLABORATIVE
+// src/core/services/projectService.js
 import { 
   collection, 
   doc, 
@@ -10,563 +10,414 @@ import {
   query, 
   where, 
   orderBy, 
+  limit,
   onSnapshot,
+  serverTimestamp,
   arrayUnion,
-  arrayRemove,
-  serverTimestamp 
+  arrayRemove
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { firebaseDb } from '../firebase.js';
+import { taskService } from './taskService.js';
 
-class CollaborativeProjectService {
+const PROJECTS_COLLECTION = 'projects';
+
+class ProjectService {
   constructor() {
-    this.projectsCollection = collection(db, 'projects');
-    this.tasksCollection = collection(db, 'tasks');
+    this.db = firebaseDb;
   }
 
-  // ==========================================
-  // PROJETS COLLABORATIFS
-  // ==========================================
+  // Créer un projet
+  async createProject(projectData, userId) {
+    if (!this.db) {
+      throw new Error('Firebase non configuré');
+    }
 
-  /**
-   * Créer un projet collaboratif
-   */
-  async createProject(projectData, creatorId, teamId) {
     try {
       const project = {
         ...projectData,
-        createdBy: creatorId,
-        teamId: teamId, // Projet appartient à l'équipe
+        ownerId: userId,
+        members: [userId], // Le créateur est automatiquement membre
+        status: projectData.status || 'active',
+        progress: 0,
+        taskCount: 0,
+        completedTaskCount: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        
-        // Propriétés collaboratives
-        visibility: projectData.visibility || 'team', // 'team', 'public', 'private'
-        members: [creatorId], // Membres assignés au projet
-        managers: [creatorId], // Gestionnaires du projet
-        
-        // Statistiques équipe
-        stats: {
-          totalTasks: 0,
-          completedTasks: 0,
-          pendingTasks: 0,
-          inProgressTasks: 0,
-          overdueTasks: 0,
-          totalXPAwarded: 0
-        },
-        
-        // Métadonnées collaboration
-        collaboration: {
-          allowMemberAddition: true,
-          requireApprovalForTasks: false,
-          enableComments: true,
-          enableFileSharing: true
-        },
-
-        isActive: true,
-        progress: 0
+        tags: projectData.tags || [],
+        settings: {
+          isPublic: projectData.settings?.isPublic || false,
+          allowJoin: projectData.settings?.allowJoin || false,
+          ...projectData.settings
+        }
       };
 
-      const docRef = await addDoc(this.projectsCollection, project);
+      const docRef = await addDoc(collection(this.db, PROJECTS_COLLECTION), project);
+      
+      console.log('✅ Projet créé:', docRef.id);
       return { id: docRef.id, ...project };
     } catch (error) {
-      console.error('Erreur création projet collaboratif:', error);
+      console.error('❌ Erreur création projet:', error);
       throw error;
     }
   }
 
-  /**
-   * Ajouter un membre au projet
-   */
-  async addProjectMember(projectId, userId, role = 'member') {
+  // Mettre à jour un projet
+  async updateProject(projectId, updates, userId) {
+    if (!this.db) {
+      throw new Error('Firebase non configuré');
+    }
+
     try {
-      const projectRef = doc(this.projectsCollection, projectId);
-      const projectDoc = await getDoc(projectRef);
+      const projectRef = doc(this.db, PROJECTS_COLLECTION, projectId);
       
-      if (!projectDoc.exists()) {
-        throw new Error('Projet introuvable');
+      // Vérifier les permissions (propriétaire ou membre)
+      const projectSnap = await getDoc(projectRef);
+      if (!projectSnap.exists()) {
+        throw new Error('Projet non trouvé');
       }
 
-      const updates = {
-        members: arrayUnion(userId),
+      const projectData = projectSnap.data();
+      if (projectData.ownerId !== userId && !projectData.members?.includes(userId)) {
+        throw new Error('Accès refusé');
+      }
+
+      const updateData = {
+        ...updates,
         updatedAt: serverTimestamp()
       };
 
-      // Si c'est un manager, l'ajouter aussi aux managers
-      if (role === 'manager') {
-        updates.managers = arrayUnion(userId);
-      }
-
-      await updateDoc(projectRef, updates);
-
-      // Enregistrer l'historique d'ajout
-      await addDoc(collection(db, 'projectHistory'), {
-        projectId,
-        action: 'member_added',
-        userId: userId,
-        role: role,
-        timestamp: serverTimestamp()
-      });
-
-      return { success: true };
+      await updateDoc(projectRef, updateData);
+      
+      console.log('✅ Projet mis à jour:', projectId);
+      return { id: projectId, ...projectData, ...updateData };
     } catch (error) {
-      console.error('Erreur ajout membre projet:', error);
+      console.error('❌ Erreur mise à jour projet:', error);
       throw error;
     }
   }
 
-  /**
-   * Obtenir tous les projets d'une équipe (visibles par tous)
-   */
-  async getTeamProjects(teamId, userId = null) {
+  // Supprimer un projet
+  async deleteProject(projectId, userId) {
+    if (!this.db) {
+      throw new Error('Firebase non configuré');
+    }
+
     try {
-      let projectsQuery;
+      const projectRef = doc(this.db, PROJECTS_COLLECTION, projectId);
       
-      if (userId) {
-        // Obtenir les projets où l'utilisateur est membre OU les projets publics de l'équipe
-        projectsQuery = query(
-          this.projectsCollection,
-          where('teamId', '==', teamId),
-          where('isActive', '==', true),
-          orderBy('updatedAt', 'desc')
-        );
-      } else {
-        // Admin - voir tous les projets de l'équipe
-        projectsQuery = query(
-          this.projectsCollection,
-          where('teamId', '==', teamId),
-          orderBy('updatedAt', 'desc')
-        );
+      // Vérifier que l'utilisateur est le propriétaire
+      const projectSnap = await getDoc(projectRef);
+      if (!projectSnap.exists() || projectSnap.data().ownerId !== userId) {
+        throw new Error('Projet non trouvé ou accès refusé');
       }
 
-      const snapshot = await getDocs(projectsQuery);
+      // Supprimer toutes les tâches associées au projet
+      const projectTasks = await taskService.getUserTasks(userId, { projectId });
+      for (const task of projectTasks) {
+        await taskService.deleteTask(task.id, userId);
+      }
+
+      await deleteDoc(projectRef);
+      
+      console.log('✅ Projet supprimé:', projectId);
+      return projectId;
+    } catch (error) {
+      console.error('❌ Erreur suppression projet:', error);
+      throw error;
+    }
+  }
+
+  // Récupérer les projets d'un utilisateur
+  async getUserProjects(userId, filters = {}) {
+    if (!this.db) {
+      throw new Error('Firebase non configuré');
+    }
+
+    try {
+      let q = query(
+        collection(this.db, PROJECTS_COLLECTION),
+        where('members', 'array-contains', userId)
+      );
+
+      // Appliquer les filtres
+      if (filters.status) {
+        q = query(q, where('status', '==', filters.status));
+      }
+
+      // Trier par date de création (plus récent en premier)
+      q = query(q, orderBy('createdAt', 'desc'));
+
+      if (filters.limit) {
+        q = query(q, limit(filters.limit));
+      }
+
+      const querySnapshot = await getDocs(q);
       const projects = [];
 
-      for (const doc of snapshot.docs) {
-        const projectData = { id: doc.id, ...doc.data() };
-        
-        // Filtrer selon la visibilité
-        if (userId && projectData.visibility === 'private' && 
-            !projectData.members.includes(userId)) {
-          continue; // Ignorer les projets privés où l'utilisateur n'est pas membre
-        }
-
-        // Récupérer les tâches du projet pour calculer les stats
-        const tasksSnapshot = await getDocs(
-          query(this.tasksCollection, where('projectId', '==', doc.id))
-        );
-        
-        const tasks = tasksSnapshot.docs.map(taskDoc => ({
-          id: taskDoc.id,
-          ...taskDoc.data()
-        }));
-
-        // Calculer les statistiques temps réel
-        const stats = this.calculateProjectStats(tasks);
-        projectData.stats = stats;
-        projectData.tasks = tasks;
-
-        // Récupérer les infos des membres
-        projectData.memberDetails = await this.getProjectMemberDetails(projectData.members);
-
-        projects.push(projectData);
-      }
-
-      return projects;
-    } catch (error) {
-      console.error('Erreur récupération projets équipe:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Calculer les statistiques d'un projet
-   */
-  calculateProjectStats(tasks) {
-    const stats = {
-      totalTasks: tasks.length,
-      completedTasks: 0,
-      pendingTasks: 0,
-      inProgressTasks: 0,
-      overdueTasks: 0,
-      blockedTasks: 0,
-      totalXPAwarded: 0,
-      memberContribution: {},
-      avgCompletionTime: 0,
-      productivity: 0
-    };
-
-    const now = new Date();
-    let totalCompletionDays = 0;
-    let completedCount = 0;
-
-    tasks.forEach(task => {
-      // Comptage par statut
-      switch (task.status) {
-        case 'completed':
-          stats.completedTasks++;
-          completedCount++;
-          // Calculer temps de completion
-          if (task.completedAt && task.createdAt) {
-            const createdDate = task.createdAt?.toDate ? task.createdAt.toDate() : new Date(task.createdAt);
-            const completedDate = task.completedAt?.toDate ? task.completedAt.toDate() : new Date(task.completedAt);
-            const daysDiff = (completedDate - createdDate) / (1000 * 60 * 60 * 24);
-            totalCompletionDays += daysDiff;
-          }
-          break;
-        case 'in-progress':
-          stats.inProgressTasks++;
-          break;
-        case 'blocked':
-          stats.blockedTasks++;
-          break;
-        default:
-          stats.pendingTasks++;
-      }
-
-      // Tâches en retard
-      if (task.dueDate && new Date(task.dueDate) < now && task.status !== 'completed') {
-        stats.overdueTasks++;
-      }
-
-      // XP total attribué
-      if (task.xpAwarded) {
-        stats.totalXPAwarded += task.xpAwarded;
-      }
-
-      // Contribution par membre
-      if (task.assignedTo) {
-        if (!stats.memberContribution[task.assignedTo]) {
-          stats.memberContribution[task.assignedTo] = {
-            total: 0,
-            completed: 0,
-            pending: 0,
-            inProgress: 0,
-            overdue: 0,
-            xpEarned: 0
-          };
-        }
-
-        stats.memberContribution[task.assignedTo].total++;
-        
-        if (task.status === 'completed') {
-          stats.memberContribution[task.assignedTo].completed++;
-          stats.memberContribution[task.assignedTo].xpEarned += task.xpAwarded || 0;
-        } else if (task.status === 'in-progress') {
-          stats.memberContribution[task.assignedTo].inProgress++;
-        } else {
-          stats.memberContribution[task.assignedTo].pending++;
-        }
-
-        if (task.dueDate && new Date(task.dueDate) < now && task.status !== 'completed') {
-          stats.memberContribution[task.assignedTo].overdue++;
-        }
-      }
-    });
-
-    // Calculer le temps moyen de completion
-    if (completedCount > 0) {
-      stats.avgCompletionTime = Math.round(totalCompletionDays / completedCount);
-    }
-
-    // Calculer la productivité (% de tâches complétées à temps)
-    const tasksWithDeadlines = tasks.filter(task => task.dueDate);
-    const completedOnTime = tasksWithDeadlines.filter(task => 
-      task.status === 'completed' && 
-      task.completedAt &&
-      new Date(task.completedAt) <= new Date(task.dueDate)
-    );
-    
-    if (tasksWithDeadlines.length > 0) {
-      stats.productivity = Math.round((completedOnTime.length / tasksWithDeadlines.length) * 100);
-    }
-
-    return stats;
-  }
-
-  /**
-   * Obtenir les détails des membres d'un projet
-   */
-  async getProjectMemberDetails(memberIds) {
-    try {
-      const members = [];
-      
-      for (const memberId of memberIds) {
-        const userDoc = await getDoc(doc(db, 'users', memberId));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          members.push({
-            id: memberId,
-            displayName: userData.displayName || userData.email,
-            email: userData.email,
-            level: userData.level || 1,
-            xp: userData.xp || 0,
-            avatar: userData.photoURL || null,
-            lastActive: userData.lastActivity || null
-          });
-        }
-      }
-      
-      return members;
-    } catch (error) {
-      console.error('Erreur récupération détails membres:', error);
-      return [];
-    }
-  }
-
-  // ==========================================
-  // GESTION AVANCÉE PROJETS
-  // ==========================================
-
-  /**
-   * Obtenir le tableau de bord d'un projet (vue détaillée)
-   */
-  async getProjectDashboard(projectId, userId) {
-    try {
-      const projectDoc = await getDoc(doc(this.projectsCollection, projectId));
-      
-      if (!projectDoc.exists()) {
-        throw new Error('Projet introuvable');
-      }
-
-      const project = { id: projectId, ...projectDoc.data() };
-
-      // Vérifier les permissions
-      if (project.visibility === 'private' && !project.members.includes(userId)) {
-        throw new Error('Accès non autorisé à ce projet');
-      }
-
-      // Récupérer toutes les tâches
-      const tasksSnapshot = await getDocs(
-        query(
-          this.tasksCollection, 
-          where('projectId', '==', projectId),
-          orderBy('createdAt', 'desc')
-        )
-      );
-
-      const tasks = tasksSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      // Calculer les métriques avancées
-      const stats = this.calculateProjectStats(tasks);
-      const timeline = this.generateProjectTimeline(tasks);
-      const memberDetails = await this.getProjectMemberDetails(project.members);
-
-      // Analyser les goulots d'étranglement
-      const bottlenecks = this.identifyBottlenecks(tasks, memberDetails);
-
-      // Prédictions basées sur l'historique
-      const predictions = this.calculateProjectPredictions(tasks, stats);
-
-      return {
-        project,
-        tasks,
-        stats,
-        timeline,
-        members: memberDetails,
-        bottlenecks,
-        predictions,
-        permissions: {
-          canEdit: project.managers.includes(userId) || project.createdBy === userId,
-          canDelete: project.createdBy === userId,
-          canAddMembers: project.managers.includes(userId) || project.createdBy === userId,
-          canAssignTasks: project.members.includes(userId)
-        }
-      };
-    } catch (error) {
-      console.error('Erreur récupération dashboard projet:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Générer la timeline du projet
-   */
-  generateProjectTimeline(tasks) {
-    const timeline = [];
-    
-    tasks.forEach(task => {
-      // Création de tâche
-      timeline.push({
-        type: 'task_created',
-        taskId: task.id,
-        taskTitle: task.title,
-        userId: task.createdBy,
-        timestamp: task.createdAt,
-        data: { priority: task.priority }
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        projects.push({
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate(),
+          updatedAt: data.updatedAt?.toDate(),
+          dueDate: data.dueDate?.toDate()
+        });
       });
 
-      // Assignation
-      if (task.assignedTo) {
-        timeline.push({
-          type: 'task_assigned',
-          taskId: task.id,
-          taskTitle: task.title,
-          userId: task.assignedTo,
-          timestamp: task.assignedAt || task.createdAt,
-          data: { assignedBy: task.assignedBy }
-        });
-      }
-
-      // Completion
-      if (task.status === 'completed' && task.completedAt) {
-        timeline.push({
-          type: 'task_completed',
-          taskId: task.id,
-          taskTitle: task.title,
-          userId: task.assignedTo,
-          timestamp: task.completedAt,
-          data: { xpAwarded: task.xpAwarded }
-        });
-      }
-    });
-
-    // Trier par timestamp
-    timeline.sort((a, b) => {
-      const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
-      const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
-      return dateB - dateA;
-    });
-
-    return timeline.slice(0, 50); // Limiter aux 50 derniers événements
-  }
-
-  /**
-   * Identifier les goulots d'étranglement
-   */
-  identifyBottlenecks(tasks, members) {
-    const bottlenecks = [];
-
-    // Analyser la charge de travail par membre
-    members.forEach(member => {
-      const memberTasks = tasks.filter(task => task.assignedTo === member.id);
-      const overdueTasks = memberTasks.filter(task => 
-        task.dueDate && 
-        new Date(task.dueDate) < new Date() && 
-        task.status !== 'completed'
+      // Calculer les statistiques pour chaque projet
+      const projectsWithStats = await Promise.all(
+        projects.map(async (project) => {
+          const stats = await this.getProjectStats(project.id, userId);
+          return { ...project, ...stats };
+        })
       );
 
-      if (overdueTasks.length > 2) {
-        bottlenecks.push({
-          type: 'overloaded_member',
-          memberId: member.id,
-          memberName: member.displayName,
-          overdueTasks: overdueTasks.length,
-          totalTasks: memberTasks.length,
-          severity: overdueTasks.length > 5 ? 'high' : 'medium'
-        });
-      }
-    });
-
-    // Identifier les tâches bloquées depuis longtemps
-    const blockedTasks = tasks.filter(task => task.status === 'blocked');
-    blockedTasks.forEach(task => {
-      const blockedDate = task.blockedAt?.toDate ? task.blockedAt.toDate() : new Date(task.blockedAt);
-      const daysSinceBlocked = (new Date() - blockedDate) / (1000 * 60 * 60 * 24);
-      
-      if (daysSinceBlocked > 3) {
-        bottlenecks.push({
-          type: 'long_blocked_task',
-          taskId: task.id,
-          taskTitle: task.title,
-          daysSinceBlocked: Math.round(daysSinceBlocked),
-          blocker: task.blocker,
-          severity: daysSinceBlocked > 7 ? 'high' : 'medium'
-        });
-      }
-    });
-
-    return bottlenecks;
+      console.log(`✅ ${projects.length} projets récupérés pour l'utilisateur ${userId}`);
+      return projectsWithStats;
+    } catch (error) {
+      console.error('❌ Erreur récupération projets:', error);
+      throw error;
+    }
   }
 
-  /**
-   * Calculer les prédictions du projet
-   */
-  calculateProjectPredictions(tasks, stats) {
-    const predictions = {};
-
-    // Prédiction date de fin basée sur la vélocité actuelle
-    if (stats.completedTasks > 0 && stats.totalTasks > stats.completedTasks) {
-      const completedTasks = tasks.filter(task => task.status === 'completed');
-      if (completedTasks.length >= 3) {
-        // Calculer la vélocité (tâches par jour)
-        const completionDates = completedTasks
-          .map(task => task.completedAt?.toDate ? task.completedAt.toDate() : new Date(task.completedAt))
-          .sort((a, b) => a - b);
-        
-        const firstCompletion = completionDates[0];
-        const lastCompletion = completionDates[completionDates.length - 1];
-        const timeSpan = (lastCompletion - firstCompletion) / (1000 * 60 * 60 * 24);
-        
-        if (timeSpan > 0) {
-          const velocity = completedTasks.length / timeSpan; // tâches par jour
-          const remainingTasks = stats.totalTasks - stats.completedTasks;
-          const daysToComplete = remainingTasks / velocity;
-          
-          const estimatedCompletion = new Date();
-          estimatedCompletion.setDate(estimatedCompletion.getDate() + Math.ceil(daysToComplete));
-          
-          predictions.estimatedCompletion = estimatedCompletion;
-          predictions.confidence = Math.min(95, Math.max(60, (completedTasks.length / stats.totalTasks) * 100));
-        }
-      }
+  // Écouter les changements de projets en temps réel
+  subscribeToUserProjects(userId, callback, filters = {}) {
+    if (!this.db) {
+      console.warn('Firebase non configuré - Mode offline');
+      return () => {};
     }
 
-    // Prédiction de risque basée sur les tendances
-    let riskScore = 0;
-    if (stats.overdueTasks > 0) riskScore += (stats.overdueTasks / stats.totalTasks) * 30;
-    if (stats.blockedTasks > 0) riskScore += (stats.blockedTasks / stats.totalTasks) * 40;
-    if (stats.productivity < 70) riskScore += (70 - stats.productivity) * 0.5;
+    try {
+      let q = query(
+        collection(this.db, PROJECTS_COLLECTION),
+        where('members', 'array-contains', userId),
+        orderBy('createdAt', 'desc')
+      );
 
-    predictions.riskLevel = riskScore > 50 ? 'high' : riskScore > 25 ? 'medium' : 'low';
-    predictions.riskScore = Math.round(riskScore);
-
-    return predictions;
-  }
-
-  // ==========================================
-  // ÉCOUTE TEMPS RÉEL
-  // ==========================================
-
-  /**
-   * S'abonner aux changements d'un projet
-   */
-  subscribeToProject(projectId, callback) {
-    const projectRef = doc(this.projectsCollection, projectId);
-    
-    return onSnapshot(projectRef, async (doc) => {
-      if (doc.exists()) {
-        try {
-          const projectData = await this.getProjectDashboard(projectId, 'system');
-          callback(projectData);
-        } catch (error) {
-          console.error('Erreur subscription projet:', error);
+      const unsubscribe = onSnapshot(q, async (snapshot) => {
+        const projects = [];
+        
+        for (const doc of snapshot.docs) {
+          const data = doc.data();
+          const stats = await this.getProjectStats(doc.id, userId);
+          
+          projects.push({
+            id: doc.id,
+            ...data,
+            ...stats,
+            createdAt: data.createdAt?.toDate(),
+            updatedAt: data.updatedAt?.toDate(),
+            dueDate: data.dueDate?.toDate()
+          });
         }
-      }
-    });
+
+        callback(projects);
+      }, (error) => {
+        console.error('❌ Erreur écoute projets:', error);
+      });
+
+      return unsubscribe;
+    } catch (error) {
+      console.error('❌ Erreur abonnement projets:', error);
+      return () => {};
+    }
   }
 
-  /**
-   * S'abonner aux projets d'une équipe
-   */
-  subscribeToTeamProjects(teamId, userId, callback) {
-    const projectsQuery = query(
-      this.projectsCollection,
-      where('teamId', '==', teamId),
-      where('isActive', '==', true)
-    );
+  // Récupérer un projet par ID
+  async getProjectById(projectId, userId) {
+    if (!this.db) {
+      throw new Error('Firebase non configuré');
+    }
 
-    return onSnapshot(projectsQuery, async (snapshot) => {
-      try {
-        const projects = await this.getTeamProjects(teamId, userId);
-        callback(projects);
-      } catch (error) {
-        console.error('Erreur subscription projets équipe:', error);
+    try {
+      const projectRef = doc(this.db, PROJECTS_COLLECTION, projectId);
+      const projectSnap = await getDoc(projectRef);
+
+      if (!projectSnap.exists()) {
+        throw new Error('Projet non trouvé');
       }
-    });
+
+      const data = projectSnap.data();
+      
+      // Vérifier les permissions
+      if (!data.members?.includes(userId) && data.ownerId !== userId) {
+        throw new Error('Accès refusé');
+      }
+
+      const stats = await this.getProjectStats(projectId, userId);
+
+      return {
+        id: projectSnap.id,
+        ...data,
+        ...stats,
+        createdAt: data.createdAt?.toDate(),
+        updatedAt: data.updatedAt?.toDate(),
+        dueDate: data.dueDate?.toDate()
+      };
+    } catch (error) {
+      console.error('❌ Erreur récupération projet:', error);
+      throw error;
+    }
+  }
+
+  // Statistiques d'un projet
+  async getProjectStats(projectId, userId) {
+    try {
+      // Récupérer toutes les tâches du projet
+      const projectTasks = await taskService.getUserTasks(userId, { projectId });
+      
+      const stats = {
+        taskCount: projectTasks.length,
+        completedTaskCount: projectTasks.filter(task => task.status === 'completed').length,
+        inProgressTaskCount: projectTasks.filter(task => task.status === 'in_progress').length,
+        todoTaskCount: projectTasks.filter(task => task.status === 'todo').length,
+        progress: 0,
+        totalXpEarned: projectTasks
+          .filter(task => task.status === 'completed')
+          .reduce((sum, task) => sum + (task.xpReward || 0), 0)
+      };
+
+      // Calculer le pourcentage de progression
+      stats.progress = stats.taskCount > 0 
+        ? Math.round((stats.completedTaskCount / stats.taskCount) * 100) 
+        : 0;
+
+      return stats;
+    } catch (error) {
+      console.error('❌ Erreur statistiques projet:', error);
+      return {
+        taskCount: 0,
+        completedTaskCount: 0,
+        inProgressTaskCount: 0,
+        todoTaskCount: 0,
+        progress: 0,
+        totalXpEarned: 0
+      };
+    }
+  }
+
+  // Ajouter un membre au projet
+  async addMember(projectId, memberUserId, currentUserId) {
+    if (!this.db) {
+      throw new Error('Firebase non configuré');
+    }
+
+    try {
+      const projectRef = doc(this.db, PROJECTS_COLLECTION, projectId);
+      const projectSnap = await getDoc(projectRef);
+
+      if (!projectSnap.exists()) {
+        throw new Error('Projet non trouvé');
+      }
+
+      const projectData = projectSnap.data();
+      
+      // Vérifier que l'utilisateur actuel est le propriétaire
+      if (projectData.ownerId !== currentUserId) {
+        throw new Error('Seul le propriétaire peut ajouter des membres');
+      }
+
+      // Vérifier que le membre n'est pas déjà dans le projet
+      if (projectData.members?.includes(memberUserId)) {
+        throw new Error('L\'utilisateur est déjà membre du projet');
+      }
+
+      await updateDoc(projectRef, {
+        members: arrayUnion(memberUserId),
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ Membre ajouté au projet:', memberUserId);
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur ajout membre:', error);
+      throw error;
+    }
+  }
+
+  // Retirer un membre du projet
+  async removeMember(projectId, memberUserId, currentUserId) {
+    if (!this.db) {
+      throw new Error('Firebase non configuré');
+    }
+
+    try {
+      const projectRef = doc(this.db, PROJECTS_COLLECTION, projectId);
+      const projectSnap = await getDoc(projectRef);
+
+      if (!projectSnap.exists()) {
+        throw new Error('Projet non trouvé');
+      }
+
+      const projectData = projectSnap.data();
+      
+      // Vérifier les permissions (propriétaire ou se retirer soi-même)
+      if (projectData.ownerId !== currentUserId && memberUserId !== currentUserId) {
+        throw new Error('Permission refusée');
+      }
+
+      // Empêcher le propriétaire de se retirer
+      if (memberUserId === projectData.ownerId) {
+        throw new Error('Le propriétaire ne peut pas être retiré du projet');
+      }
+
+      await updateDoc(projectRef, {
+        members: arrayRemove(memberUserId),
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ Membre retiré du projet:', memberUserId);
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur retrait membre:', error);
+      throw error;
+    }
+  }
+
+  // Rechercher des projets publics
+  async searchPublicProjects(searchTerm, limit = 10) {
+    if (!this.db) {
+      throw new Error('Firebase non configuré');
+    }
+
+    try {
+      let q = query(
+        collection(this.db, PROJECTS_COLLECTION),
+        where('settings.isPublic', '==', true),
+        orderBy('createdAt', 'desc'),
+        limit(limit)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const projects = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        
+        // Filtrer par terme de recherche si fourni
+        if (!searchTerm || 
+            data.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            data.description?.toLowerCase().includes(searchTerm.toLowerCase())) {
+          
+          projects.push({
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate(),
+            updatedAt: data.updatedAt?.toDate()
+          });
+        }
+      });
+
+      console.log(`✅ ${projects.length} projets publics trouvés`);
+      return projects;
+    } catch (error) {
+      console.error('❌ Erreur recherche projets publics:', error);
+      throw error;
+    }
   }
 }
 
-export default new CollaborativeProjectService();
+// Instance singleton
+export const projectService = new ProjectService();
+export default projectService;
