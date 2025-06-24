@@ -1,5 +1,5 @@
 // src/shared/stores/authStore.js
-// Store d'authentification complet avec Firebase
+// Store d'authentification complet avec Firebase et initialisation GameStore
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { authService } from '../../core/firebase'
@@ -17,7 +17,7 @@ export const useAuthStore = create(
       initializeAuth: () => {
         set({ loading: true })
         
-        const unsubscribe = authService.onAuthStateChanged((firebaseUser) => {
+        const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
           if (firebaseUser) {
             const userData = {
               uid: firebaseUser.uid,
@@ -40,6 +40,17 @@ export const useAuthStore = create(
             })
             
             console.log('✅ Utilisateur connecté:', userData.email)
+
+            // 🎮 Initialiser le GameStore une fois que l'utilisateur est connecté
+            try {
+              const { useGameStore } = await import('./gameStore.js');
+              const gameStore = useGameStore.getState();
+              await gameStore.initializeGameStore(userData.uid);
+              console.log('🎮 GameStore initialisé pour:', userData.uid);
+            } catch (gameStoreError) {
+              console.warn('⚠️ Erreur initialisation GameStore:', gameStoreError);
+            }
+            
           } else {
             set({ 
               user: null, 
@@ -49,6 +60,16 @@ export const useAuthStore = create(
             })
             
             console.log('ℹ️ Aucun utilisateur connecté')
+
+            // 🎮 Nettoyer le GameStore lors de la déconnexion
+            try {
+              const { useGameStore } = await import('./gameStore.js');
+              const gameStore = useGameStore.getState();
+              gameStore.cleanup();
+              console.log('🎮 GameStore nettoyé');
+            } catch (gameStoreError) {
+              console.warn('⚠️ Erreur nettoyage GameStore:', gameStoreError);
+            }
           }
         })
 
@@ -142,6 +163,15 @@ export const useAuthStore = create(
         set({ loading: true })
         
         try {
+          // 🎮 Nettoyer le GameStore avant la déconnexion
+          try {
+            const { useGameStore } = await import('./gameStore.js');
+            const gameStore = useGameStore.getState();
+            gameStore.cleanup();
+          } catch (gameStoreError) {
+            console.warn('⚠️ Erreur nettoyage GameStore:', gameStoreError);
+          }
+
           await authService.signOut()
           
           set({ 
@@ -169,19 +199,19 @@ export const useAuthStore = create(
       
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       
-      setLoading: (loading) => set({ loading }),
+      getCurrentUser: () => get().user,
       
-      setInitialized: () => set({ loading: false })
+      isUserAuthenticated: () => get().isAuthenticated && !!get().user?.uid
     }),
     {
-      name: 'auth-storage',
-      partialize: (state) => ({ 
+      name: 'auth-store',
+      // Ne pas persister les états de chargement et d'erreur
+      partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated
       })
     }
   )
-)
+);
 
-// Export par défaut pour compatibilité
-export default useAuthStore
+export default useAuthStore;
