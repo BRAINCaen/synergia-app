@@ -15,8 +15,7 @@ class CacheBuster {
     const storedVersion = localStorage.getItem(this.storageKey);
     
     if (!storedVersion || storedVersion !== this.version) {
-      console.log('🧹 Nouvelle version détectée, nettoyage cache...');
-      this.clearAllCaches();
+      console.log('🧹 Nouvelle version détectée, préparation nettoyage...');
       localStorage.setItem(this.storageKey, this.version);
     }
 
@@ -63,13 +62,15 @@ class CacheBuster {
     if ('caches' in window) {
       try {
         const cacheNames = await caches.keys();
+        console.log(`📦 Trouvé ${cacheNames.length} caches:`, cacheNames);
+        
         await Promise.all(
           cacheNames.map(cacheName => {
             console.log(`🗑️ Suppression cache: ${cacheName}`);
             return caches.delete(cacheName);
           })
         );
-        console.log('✅ Caches navigateur vidés');
+        console.log('✅ Tous les caches navigateur vidés');
       } catch (error) {
         console.warn('⚠️ Erreur vidage caches:', error);
       }
@@ -83,10 +84,12 @@ class CacheBuster {
     if ('serviceWorker' in navigator) {
       try {
         const registrations = await navigator.serviceWorker.getRegistrations();
+        console.log(`👷 Trouvé ${registrations.length} Service Workers`);
         
         for (const registration of registrations) {
           // Envoyer message pour vider les caches
           if (registration.active) {
+            console.log('📨 Envoi message CLEAR_CACHE au SW...');
             const messageChannel = new MessageChannel();
             registration.active.postMessage(
               { type: 'CLEAR_CACHE' },
@@ -95,52 +98,63 @@ class CacheBuster {
             
             // Attendre la confirmation
             await new Promise((resolve) => {
-              messageChannel.port1.onmessage = () => resolve();
-              setTimeout(resolve, 1000); // Timeout après 1s
+              messageChannel.port1.onmessage = (event) => {
+                console.log('✅ SW a confirmé le nettoyage cache');
+                resolve();
+              };
+              setTimeout(() => {
+                console.log('⏰ Timeout SW cache clear');
+                resolve();
+              }, 2000);
             });
           }
           
           // Forcer la mise à jour du SW
+          console.log('🔄 Forcer mise à jour SW...');
           await registration.update();
         }
         
-        console.log('✅ Service Worker nettoyé');
+        console.log('✅ Service Worker nettoyé et mis à jour');
       } catch (error) {
         console.warn('⚠️ Erreur nettoyage Service Worker:', error);
       }
     }
   }
 
-  // Vider le stockage web
+  // Vider le stockage web (en préservant Firebase Auth)
   clearWebStorage() {
     console.log('🧹 Vidage du stockage web...');
     
     try {
-      // Garder seulement les données essentielles
-      const essentialKeys = [
-        'synergia_version',
-        'synergia_app_version',
-        'firebase:authUser:AIzaSyApVQG_XnlgBF0sIsI95ynCbMj4F0qXp74:[DEFAULT]',
-        'firebase:persistence:AIzaSyApVQG_XnlgBF0sIsI95ynCbMj4F0qXp74:[DEFAULT]'
-      ];
+      // Identifier et sauvegarder les clés Firebase essentielles
+      const firebaseKeys = Object.keys(localStorage).filter(key => 
+        key.includes('firebase:authUser') || 
+        key.includes('firebase:persistence') ||
+        key === 'synergia_app_version' ||
+        key === 'synergia_version'
+      );
       
-      // Vider localStorage en gardant l'essentiel
-      const itemsToKeep = {};
-      essentialKeys.forEach(key => {
+      console.log('🔐 Clés Firebase préservées:', firebaseKeys.length);
+      
+      // Sauvegarder les valeurs importantes
+      const preservedData = {};
+      firebaseKeys.forEach(key => {
         const value = localStorage.getItem(key);
-        if (value) itemsToKeep[key] = value;
+        if (value) {
+          preservedData[key] = value;
+        }
       });
       
+      // Vider tout
       localStorage.clear();
+      sessionStorage.clear();
       
-      Object.entries(itemsToKeep).forEach(([key, value]) => {
+      // Restaurer les données importantes
+      Object.entries(preservedData).forEach(([key, value]) => {
         localStorage.setItem(key, value);
       });
       
-      // Vider sessionStorage
-      sessionStorage.clear();
-      
-      console.log('✅ Stockage web nettoyé (auth preservée)');
+      console.log('✅ Stockage web nettoyé (auth Firebase préservée)');
     } catch (error) {
       console.warn('⚠️ Erreur nettoyage stockage:', error);
     }
@@ -153,9 +167,19 @@ class CacheBuster {
     // Ajouter un timestamp pour éviter le cache
     const timestamp = Date.now();
     const url = new URL(window.location);
-    url.searchParams.set('_t', timestamp);
-    url.searchParams.set('_v', this.version);
-    url.searchParams.set('_cacheBust', 'true');
+    
+    // Nettoyer les anciens paramètres de cache busting
+    url.searchParams.delete('_t');
+    url.searchParams.delete('_v');
+    url.searchParams.delete('_cacheBust');
+    url.searchParams.delete('emergency_clean');
+    
+    // Ajouter les nouveaux
+    url.searchParams.set('_cacheBust', timestamp);
+    url.searchParams.set('_version', this.version);
+    url.searchParams.set('_forceReload', 'true');
+    
+    console.log('🔗 Rechargement vers:', url.toString());
     
     // Technique: location.replace avec cache-busting
     window.location.replace(url.toString());
@@ -171,78 +195,82 @@ class CacheBuster {
       });
     }
     
-    // Fallback: console
     console.log('🎉 Synergia mis à jour vers la version', this.version);
-  }
-
-  // Méthode utilitaire pour vérifier les mises à jour
-  async checkForUpdates() {
-    try {
-      const response = await fetch('/version.json?_=' + Date.now(), { 
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.version !== this.version) {
-          console.log('🆕 Nouvelle version disponible:', data.version);
-          return data.version;
-        }
-      }
-    } catch (error) {
-      console.warn('⚠️ Erreur vérification mise à jour:', error);
-    }
-    
-    return null;
   }
 
   // Méthode pour debugger le cache
   async debugCacheStatus() {
-    console.log('🔍 DEBUG: État des caches');
+    console.log('%c🔍 DEBUG: État des caches Synergia v3.5.1', 'color: #3b82f6; font-size: 14px; font-weight: bold;');
+    console.log('═'.repeat(50));
     
     // Caches API
     if ('caches' in window) {
       const cacheNames = await caches.keys();
-      console.log('📦 Caches disponibles:', cacheNames);
+      console.log(`📦 Caches disponibles: ${cacheNames.length}`);
       
-      for (const cacheName of cacheNames) {
-        const cache = await caches.open(cacheName);
-        const requests = await cache.keys();
-        console.log(`📂 Cache "${cacheName}": ${requests.length} entrées`);
-        
-        // Afficher quelques URLs d'exemple
-        if (requests.length > 0) {
-          console.log(`   Exemples:`, requests.slice(0, 3).map(req => req.url));
+      if (cacheNames.length === 0) {
+        console.log('   ✅ Aucun cache (c\'est normal après force refresh)');
+      } else {
+        for (const cacheName of cacheNames) {
+          const cache = await caches.open(cacheName);
+          const requests = await cache.keys();
+          console.log(`📂 Cache "${cacheName}": ${requests.length} entrées`);
+          
+          // Afficher quelques URLs d'exemple
+          if (requests.length > 0) {
+            const examples = requests.slice(0, 3).map(req => 
+              req.url.replace(window.location.origin, '')
+            );
+            console.log(`   └─ Exemples: ${examples.join(', ')}`);
+          }
         }
       }
     }
     
+    console.log('─'.repeat(30));
+    
     // Service Worker
     if ('serviceWorker' in navigator) {
       const registrations = await navigator.serviceWorker.getRegistrations();
-      console.log('👷 Service Workers:', registrations.length);
+      console.log(`👷 Service Workers: ${registrations.length}`);
+      
       registrations.forEach((reg, index) => {
-        console.log(`SW ${index}:`, {
-          scope: reg.scope,
+        console.log(`SW ${index + 1}:`, {
+          scope: reg.scope.replace(window.location.origin, ''),
           state: reg.active?.state,
-          scriptURL: reg.active?.scriptURL
+          scriptURL: reg.active?.scriptURL?.split('/').pop()
         });
       });
     }
     
+    console.log('─'.repeat(30));
+    
     // Stockage
-    console.log('💾 localStorage entries:', Object.keys(localStorage).length);
-    console.log('🔄 sessionStorage entries:', Object.keys(sessionStorage).length);
+    const localStorageKeys = Object.keys(localStorage);
+    const sessionStorageKeys = Object.keys(sessionStorage);
+    
+    console.log(`💾 localStorage: ${localStorageKeys.length} entrées`);
+    if (localStorageKeys.length > 0) {
+      const firebaseKeys = localStorageKeys.filter(k => k.includes('firebase'));
+      const synergiaKeys = localStorageKeys.filter(k => k.includes('synergia'));
+      const otherKeys = localStorageKeys.filter(k => !k.includes('firebase') && !k.includes('synergia'));
+      
+      if (firebaseKeys.length > 0) console.log(`   🔐 Firebase: ${firebaseKeys.length}`);
+      if (synergiaKeys.length > 0) console.log(`   🚀 Synergia: ${synergiaKeys.length}`);
+      if (otherKeys.length > 0) console.log(`   📄 Autres: ${otherKeys.length}`);
+    }
+    
+    console.log(`🔄 sessionStorage: ${sessionStorageKeys.length} entrées`);
+    
+    console.log('─'.repeat(30));
     
     // Infos navigateur
-    console.log('🌐 User Agent:', navigator.userAgent.substring(0, 100) + '...');
-    console.log('🔗 URL actuelle:', window.location.href);
-    console.log('⏰ Timestamp:', new Date().toISOString());
+    console.log('🌐 Navigateur:', navigator.userAgent.match(/Chrome|Firefox|Safari|Edge/)?.[0] || 'Unknown');
+    console.log('🔗 URL actuelle:', window.location.pathname + window.location.search);
+    console.log('⏰ Timestamp debug:', new Date().toLocaleTimeString());
+    console.log('📱 Version app:', window.SYNERGIA_VERSION || 'non définie');
+    
+    console.log('═'.repeat(50));
   }
 
   // Méthode pour forcer un refresh simple
@@ -253,41 +281,100 @@ class CacheBuster {
 
   // Méthode d'urgence pour tout nettoyer
   emergencyClean() {
-    console.log('🚨 NETTOYAGE D\'URGENCE...');
+    console.log('🚨 NETTOYAGE D\'URGENCE EN COURS...');
     
     try {
-      // Vider tout le storage
+      // 1. Vider tout le storage sans exception
+      console.log('🗑️ Vidage storage complet...');
       localStorage.clear();
       sessionStorage.clear();
       
-      // Désinstaller tous les service workers
+      // 2. Désinstaller tous les service workers
       if ('serviceWorker' in navigator) {
+        console.log('👷 Désinstallation Service Workers...');
         navigator.serviceWorker.getRegistrations().then(registrations => {
           registrations.forEach(registration => {
             registration.unregister();
+            console.log('🗑️ SW désinstallé:', registration.scope);
           });
         });
       }
       
-      // Vider tous les caches
+      // 3. Vider tous les caches
       if ('caches' in window) {
+        console.log('📦 Suppression tous les caches...');
         caches.keys().then(names => {
           names.forEach(name => {
             caches.delete(name);
+            console.log('🗑️ Cache supprimé:', name);
           });
         });
       }
       
-      console.log('💥 Nettoyage d\'urgence terminé, redirection...');
+      console.log('💥 Nettoyage d\'urgence terminé');
+      console.log('🔄 Redirection dans 2 secondes...');
       
-      // Redirection complète
+      // 4. Redirection complète
       setTimeout(() => {
-        window.location.href = window.location.origin + '/?emergency_clean=true';
-      }, 1000);
+        const cleanUrl = window.location.origin + '/?emergency_clean=' + Date.now();
+        console.log('🚀 Redirection vers:', cleanUrl);
+        window.location.href = cleanUrl;
+      }, 2000);
       
     } catch (error) {
       console.error('❌ Erreur nettoyage d\'urgence:', error);
+      console.log('🔄 Fallback: rechargement simple...');
       window.location.reload(true);
+    }
+  }
+
+  // Méthode pour vérifier la santé du cache
+  async checkCacheHealth() {
+    console.log('🏥 Vérification santé du cache...');
+    
+    const issues = [];
+    
+    try {
+      // Vérifier les caches
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        
+        // Chercher des caches anciens
+        const oldCaches = cacheNames.filter(name => 
+          name.includes('v3.1') || 
+          name.includes('v3.2') || 
+          name.includes('v3.3') || 
+          name.includes('v3.4')
+        );
+        
+        if (oldCaches.length > 0) {
+          issues.push(`📦 ${oldCaches.length} anciens caches détectés`);
+        }
+      }
+      
+      // Vérifier localStorage
+      const oldVersions = Object.keys(localStorage).filter(key => 
+        key.includes('synergia') && !localStorage.getItem(key)?.includes('3.5')
+      );
+      
+      if (oldVersions.length > 0) {
+        issues.push(`💾 ${oldVersions.length} anciennes données localStorage`);
+      }
+      
+      // Rapport
+      if (issues.length === 0) {
+        console.log('✅ Cache en bonne santé');
+      } else {
+        console.log('⚠️ Problèmes détectés:');
+        issues.forEach(issue => console.log(`   ${issue}`));
+        console.log('💡 Recommandation: forceDashboardReload()');
+      }
+      
+      return issues;
+      
+    } catch (error) {
+      console.error('❌ Erreur vérification cache:', error);
+      return ['❌ Erreur lors de la vérification'];
     }
   }
 }
@@ -297,23 +384,30 @@ const cacheBuster = new CacheBuster();
 
 // Exposer les méthodes en global pour utilisation console
 if (typeof window !== 'undefined') {
-  window.forceDashboardReload = () => cacheBuster.forceRefresh();
-  window.debugCache = () => cacheBuster.debugCacheStatus();
-  window.checkUpdates = () => cacheBuster.checkForUpdates();
-  window.simpleRefresh = () => cacheBuster.simpleRefresh();
-  window.emergencyClean = () => cacheBuster.emergencyClean();
-}
-
-// Auto-vérification périodique (toutes les 5 minutes)
-if (typeof window !== 'undefined') {
-  setInterval(() => {
-    cacheBuster.checkForUpdates().then(newVersion => {
-      if (newVersion) {
-        console.log('🔄 Mise à jour automatique vers', newVersion);
-        setTimeout(() => cacheBuster.forceRefresh(), 2000);
-      }
-    });
-  }, 5 * 60 * 1000);
+  window.forceDashboardReload = () => {
+    console.log('🚀 Lancement Force Dashboard Reload...');
+    return cacheBuster.forceRefresh();
+  };
+  
+  window.debugCache = () => {
+    return cacheBuster.debugCacheStatus();
+  };
+  
+  window.simpleRefresh = () => {
+    return cacheBuster.simpleRefresh();
+  };
+  
+  window.emergencyClean = () => {
+    return cacheBuster.emergencyClean();
+  };
+  
+  window.checkCacheHealth = () => {
+    return cacheBuster.checkCacheHealth();
+  };
+  
+  // Raccourcis utiles
+  window.clearCache = window.forceDashboardReload;
+  window.hardRefresh = window.forceDashboardReload;
 }
 
 export default cacheBuster;
