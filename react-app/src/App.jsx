@@ -1,218 +1,309 @@
-// src/App.jsx
-// Application principale avec toutes les corrections
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
+// ==========================================
+// 📁 react-app/src/App.jsx
+// Application principale mise à jour avec le système de badges
+// ==========================================
 
-// Stores et services
-import { useAuthStore } from './shared/stores/authStore';
-import { useGameStore } from './shared/stores/gameStore';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthStore } from './shared/stores/authStore.js';
+import { useGameStore } from './shared/stores/gameStore.js';
 
-// Pages
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import TasksPage from './pages/TasksPage';
-import ProjectsPage from './pages/ProjectsPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-import LeaderboardPage from './pages/LeaderboardPage';
-import ProfilePage from './pages/ProfilePage';
-import UsersPage from './pages/UsersPage';
+// 🔧 Services
+import { authService } from './core/services/authService.js';
+import { gamificationService } from './core/services/gamificationService.js';
+import BadgeIntegrationService from './core/services/badgeIntegrationService.js';
 
-// Component de chargement
-function LoadingSpinner() {
+// 📱 Pages
+import LoginPage from './pages/LoginPage.jsx';
+import DashboardPage from './pages/DashboardPage.jsx';
+import TasksPage from './pages/TasksPage.jsx';
+import ProjectsPage from './pages/ProjectsPage.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import GamificationPage from './pages/GamificationPage.jsx';
+import LeaderboardPage from './pages/LeaderboardPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
+import UsersPage from './pages/UsersPage.jsx';
+
+// 🎮 Composants de gamification
+import BadgeNotification from './components/gamification/BadgeNotification.jsx';
+import LoadingSpinner from './components/ui/LoadingSpinner.jsx';
+
+// 🧭 Composant de navigation
+const Navbar = ({ user, onLogout }) => {
+  const { level, xp, badges } = useGameStore();
+  
+  const navigation = [
+    { name: 'Dashboard', href: '/dashboard', icon: '📊' },
+    { name: 'Tâches', href: '/tasks', icon: '✅' },
+    { name: 'Projets', href: '/projects', icon: '📁' },
+    { name: 'Analytics', href: '/analytics', icon: '📈' },
+    { name: 'Gamification', href: '/gamification', icon: '🎮' },
+    { name: 'Classement', href: '/leaderboard', icon: '🏆' },
+    { name: 'Profil', href: '/profile', icon: '👤' },
+    { name: 'Équipe', href: '/users', icon: '👥' }
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-      <div className="flex flex-col items-center space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <p className="text-white">Chargement de Synergia...</p>
+    <nav className="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-40">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo et titre */}
+          <div className="flex items-center space-x-4">
+            <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              ⚡ SYNERGIA
+            </div>
+            <span className="hidden md:block text-sm text-gray-500">v3.5</span>
+          </div>
+
+          {/* Navigation principale */}
+          <div className="hidden md:flex items-center space-x-1">
+            {navigation.map((item) => (
+              <a
+                key={item.name}
+                href={item.href}
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-200"
+              >
+                <span>{item.icon}</span>
+                <span>{item.name}</span>
+              </a>
+            ))}
+          </div>
+
+          {/* Profil utilisateur et gamification */}
+          <div className="flex items-center space-x-4">
+            {/* Stats de gamification */}
+            <div className="hidden lg:flex items-center space-x-4 px-4 py-2 bg-gray-50 rounded-lg">
+              <div className="flex items-center space-x-1 text-sm">
+                <span className="text-blue-600 font-semibold">Niv. {level || 1}</span>
+              </div>
+              <div className="flex items-center space-x-1 text-sm">
+                <span>⭐</span>
+                <span className="text-yellow-600 font-medium">{xp || 0}</span>
+              </div>
+              <div className="flex items-center space-x-1 text-sm">
+                <span>🏅</span>
+                <span className="text-purple-600 font-medium">{(badges || []).length}</span>
+              </div>
+            </div>
+
+            {/* Profil utilisateur */}
+            <div className="flex items-center space-x-3">
+              {user?.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  alt={user.displayName || user.email}
+                  className="w-8 h-8 rounded-full border-2 border-gray-200"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-semibold">
+                  {(user?.displayName || user?.email || 'U')[0].toUpperCase()}
+                </div>
+              )}
+              
+              <div className="hidden md:block">
+                <div className="text-sm font-medium text-gray-900">
+                  {user?.displayName || 'Utilisateur'}
+                </div>
+                <div className="text-xs text-gray-500 truncate max-w-32">
+                  {user?.email}
+                </div>
+              </div>
+
+              {/* Bouton déconnexion */}
+              <button
+                onClick={onLogout}
+                className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                title="Se déconnecter"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+
+      {/* Navigation mobile */}
+      <div className="md:hidden border-t border-gray-200 bg-gray-50">
+        <div className="px-2 py-3 space-y-1 max-h-64 overflow-y-auto">
+          {navigation.map((item) => (
+            <a
+              key={item.name}
+              href={item.href}
+              className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            >
+              <span>{item.icon}</span>
+              <span>{item.name}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </nav>
   );
-}
+};
 
-// Layout principal avec navigation
-function MainLayout() {
-  const { user, signOut } = useAuthStore();
-  const { userStats } = useGameStore();
-  const location = useLocation();
+/**
+ * 🚀 COMPOSANT PRINCIPAL DE L'APPLICATION
+ */
+const App = () => {
+  const { user, loading: authLoading, setUser, clearUser } = useAuthStore();
+  const { initializeUser, loading: gameLoading } = useGameStore();
+  const [appInitialized, setAppInitialized] = useState(false);
 
+  // 🔧 INITIALISATION DE L'APPLICATION
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        console.log('🚀 Initialisation de l\'application...');
+
+        // 1. Vérifier l'authentification
+        const currentUser = await authService.getCurrentUser();
+        
+        if (currentUser) {
+          console.log('👤 Utilisateur connecté:', currentUser.email);
+          setUser(currentUser);
+          
+          // 2. Initialiser la gamification
+          await initializeUser(currentUser.uid);
+          
+          // 3. Initialiser le système de badges
+          BadgeIntegrationService.initialize();
+          
+          // 4. Déclencher une vérification initiale des badges
+          setTimeout(() => {
+            BadgeIntegrationService.triggerBadgeCheck(currentUser.uid, 'appInit');
+          }, 2000);
+        }
+
+      } catch (error) {
+        console.error('❌ Erreur initialisation app:', error);
+      } finally {
+        setAppInitialized(true);
+      }
+    };
+
+    initializeApp();
+  }, [setUser, initializeUser]);
+
+  // 🎧 ÉCOUTER LES CHANGEMENTS D'AUTHENTIFICATION
+  useEffect(() => {
+    const unsubscribe = authService.onAuthStateChanged(async (user) => {
+      if (user && !authLoading) {
+        setUser(user);
+        await initializeUser(user.uid);
+        
+        // Déclencher vérification badges après connexion
+        setTimeout(() => {
+          BadgeIntegrationService.triggerBadgeCheck(user.uid, 'login');
+        }, 1000);
+      } else if (!user) {
+        clearUser();
+      }
+    });
+
+    return () => unsubscribe();
+  }, [setUser, clearUser, initializeUser, authLoading]);
+
+  // 🎮 ÉCOUTER LES ÉVÉNEMENTS DE GAMIFICATION POUR DÉCLENCHER LES BADGES
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const handleTaskCompleted = async (event) => {
+      // Attendre un peu pour que Firebase soit mis à jour
+      setTimeout(() => {
+        BadgeIntegrationService.triggerBadgeCheck(user.uid, 'taskCompleted', event.detail);
+      }, 1000);
+    };
+
+    const handleProjectCompleted = async (event) => {
+      setTimeout(() => {
+        BadgeIntegrationService.triggerBadgeCheck(user.uid, 'projectCompleted', event.detail);
+      }, 1000);
+    };
+
+    // Écouter les événements globaux
+    window.addEventListener('taskCompleted', handleTaskCompleted);
+    window.addEventListener('projectCompleted', handleProjectCompleted);
+
+    return () => {
+      window.removeEventListener('taskCompleted', handleTaskCompleted);
+      window.removeEventListener('projectCompleted', handleProjectCompleted);
+    };
+  }, [user?.uid]);
+
+  // 🚪 FONCTION DE DÉCONNEXION
   const handleLogout = async () => {
     try {
-      await signOut();
+      await authService.logout();
+      clearUser();
     } catch (error) {
-      console.error('Erreur déconnexion:', error);
+      console.error('❌ Erreur déconnexion:', error);
     }
   };
 
-  const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: '🏠', color: 'text-blue-400' },
-    { path: '/tasks', label: 'Tâches', icon: '✅', color: 'text-green-400' },
-    { path: '/projects', label: 'Projets', icon: '📁', color: 'text-purple-400' },
-    { path: '/analytics', label: 'Analytics', icon: '📊', color: 'text-orange-400' },
-    { path: '/leaderboard', label: 'Classement', icon: '🏆', color: 'text-yellow-400' },
-    { path: '/users', label: 'Utilisateurs', icon: '👥', color: 'text-cyan-400' },
-    { path: '/profile', label: 'Profil', icon: '👤', color: 'text-gray-400' }
-  ];
-
-  const isActive = (path) => location.pathname === path;
-
-  return (
-    <div className="min-h-screen bg-gray-900 flex">
-      {/* Sidebar Navigation */}
-      <div className="w-64 bg-gray-800 shadow-lg flex flex-col">
-        {/* Logo et infos utilisateur */}
-        <div className="p-6 border-b border-gray-700">
-          <div className="flex items-center space-x-3 mb-4">
-            <span className="text-2xl">⚡</span>
-            <div>
-              <h1 className="text-xl font-bold text-white">Synergia</h1>
-              <p className="text-sm text-gray-400">v3.4 Firebase</p>
-            </div>
-          </div>
-          
-          {/* Infos utilisateur - LIGNE 74 CORRIGÉE */}
-          {userStats && (
-            <div className="bg-gray-700 rounded-lg p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-300">Niveau {userStats.level || 1}</span>
-                <span className="text-sm text-blue-400">{userStats.totalXp || 0} XP</span>
-              </div>
-              <div className="w-full bg-gray-600 rounded-full h-2">
-                <div 
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
-                  style={{ width: `${userStats.levelProgress?.percentage || 0}%` }}
-                ></div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Navigation Menu */}
-        <nav className="flex-1 p-4">
-          <ul className="space-y-2">
-            {navItems.map((item) => (
-              <li key={item.path}>
-                <Link
-                  to={item.path}
-                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-colors ${
-                    isActive(item.path)
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  }`}
-                >
-                  <span className="text-lg mr-3">{item.icon}</span>
-                  <span className="font-medium">{item.label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        {/* User Info et Logout */}
-        <div className="p-4 border-t border-gray-700">
-          <div className="flex items-center space-x-3 mb-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-bold">
-                {user?.displayName?.charAt(0) || user?.email?.charAt(0) || '?'}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">
-                {user?.displayName || 'Utilisateur'}
-              </p>
-              <p className="text-xs text-gray-400 truncate">
-                {user?.email}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
-          >
-            Se déconnecter
-          </button>
+  // ⏳ ÉCRAN DE CHARGEMENT
+  if (!appInitialized || authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <LoadingSpinner size="large" />
+          <h2 className="mt-4 text-xl font-semibold text-gray-900">
+            Chargement de Synergia...
+          </h2>
+          <p className="mt-2 text-gray-600">
+            Initialisation du système de gamification
+          </p>
         </div>
       </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-auto">
-          <Routes>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/tasks" element={<TasksPage />} />
-            <Route path="/projects" element={<ProjectsPage />} />
-            <Route path="/analytics" element={<AnalyticsPage />} />
-            <Route path="/leaderboard" element={<LeaderboardPage />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </main>
-      </div>
-    </div>
-  );
-}
-
-// Route protégée
-function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuthStore();
-
-  if (loading) {
-    return <LoadingSpinner />;
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
-}
-
-// Composant principal App
-function App() {
-  const { initializeAuth, isAuthenticated, loading } = useAuthStore();
-
-  useEffect(() => {
-    // Initialiser l'authentification au chargement de l'app
-    const unsubscribe = initializeAuth();
-    
-    // Nettoyage à la fermeture de l'app
-    return () => {
-      if (unsubscribe && typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
-    };
-  }, [initializeAuth]);
-
-  // Affichage du loader pendant l'initialisation
-  if (loading) {
-    return <LoadingSpinner />;
+    );
   }
 
   return (
     <Router>
-      <Routes>
-        {/* Route de connexion */}
-        <Route 
-          path="/login" 
-          element={
-            isAuthenticated 
-              ? <Navigate to="/dashboard" replace /> 
-              : <Login />
-          } 
-        />
-        
-        {/* Routes protégées */}
-        <Route 
-          path="/*" 
-          element={
-            <ProtectedRoute>
-              <MainLayout />
-            </ProtectedRoute>
-          } 
-        />
-      </Routes>
+      <div className="min-h-screen bg-gray-50">
+        {/* 🔔 Système de notifications de badges global */}
+        <BadgeNotification />
+
+        {user ? (
+          <>
+            {/* 🧭 Navigation */}
+            <Navbar user={user} onLogout={handleLogout} />
+            
+            {/* 📱 Contenu principal */}
+            <main className="min-h-screen">
+              {gameLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <LoadingSpinner />
+                    <p className="mt-4 text-gray-600">Chargement des données de gamification...</p>
+                  </div>
+                </div>
+              ) : (
+                <Routes>
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/tasks" element={<TasksPage />} />
+                  <Route path="/projects" element={<ProjectsPage />} />
+                  <Route path="/analytics" element={<AnalyticsPage />} />
+                  <Route path="/gamification" element={<GamificationPage />} />
+                  <Route path="/leaderboard" element={<LeaderboardPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/users" element={<UsersPage />} />
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+              )}
+            </main>
+          </>
+        ) : (
+          /* 🔐 Page de connexion */
+          <Routes>
+            <Route path="*" element={<LoginPage />} />
+          </Routes>
+        )}
+      </div>
     </Router>
   );
-}
+};
 
 export default App;
