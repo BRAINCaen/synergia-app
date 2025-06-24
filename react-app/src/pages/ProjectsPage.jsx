@@ -751,4 +751,136 @@ const ProjectsPage = () => {
 
               {selectedProject.description && (
                 <div className="mb-6">
-                  <h3 className="text-lg font-sem
+                  <h3 className="text-lg font-semibold text-white mb-2">Description</h3>
+                  <p className="text-gray-300">{selectedProject.description}</p>
+                </div>
+              )}
+
+              {/* Progression détaillée */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Progression</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gray-700 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-400">{selectedProject.taskCount || 0}</div>
+                    <div className="text-sm text-gray-400">Tâches totales</div>
+                  </div>
+                  <div className="bg-gray-700 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-green-400">{selectedProject.completedTaskCount || 0}</div>
+                    <div className="text-sm text-gray-400">Tâches complétées</div>
+                  </div>
+                  <div className="bg-gray-700 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-400">{selectedProject.progress}%</div>
+                    <div className="text-sm text-gray-400">Progression</div>
+                  </div>
+                </div>
+                
+                <div className="mt-4">
+                  <div className="w-full bg-gray-700 rounded-full h-3">
+                    <div 
+                      className="bg-gradient-to-r from-purple-500 to-blue-500 h-3 rounded-full transition-all duration-300"
+                      style={{ width: `${selectedProject.progress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Informations détaillées */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-400 mb-3">INFORMATIONS</h4>
+                  <div className="space-y-3">
+                    {selectedProject.priority && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-300">Priorité</span>
+                        <span className={`px-2 py-1 rounded-full border text-xs font-medium ${getPriorityColor(selectedProject.priority)}`}>
+                          {selectedProject.priority === 'high' ? 'Haute' : selectedProject.priority === 'medium' ? 'Moyenne' : 'Basse'}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {selectedProject.deadline && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-300">Échéance</span>
+                        <span className="text-white">{formatDate(selectedProject.deadline)}</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">Équipe</span>
+                      <span className="text-white">{selectedProject.members?.length || 1} membre{(selectedProject.members?.length || 1) > 1 ? 's' : ''}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">Créé le</span>
+                      <span className="text-white">
+                        {selectedProject.createdAt?.toLocaleDateString('fr-FR') || 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-400 mb-3">PARAMÈTRES</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">Visibilité</span>
+                      <span className="text-white">
+                        {selectedProject.settings?.isPublic ? 'Public' : 'Privé'}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">Propriétaire</span>
+                      <span className="text-white">
+                        {selectedProject.ownerId === user?.uid ? 'Vous' : 'Autre'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tags */}
+              {selectedProject.tags && selectedProject.tags.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-400 mb-3">TAGS</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProject.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-gray-700 text-gray-300 rounded-full text-sm"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-6 border-t border-gray-700">
+                <button
+                  onClick={() => {
+                    setSelectedProject(null);
+                    startEditProject(selectedProject);
+                  }}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  Modifier
+                </button>
+                <button
+                  onClick={() => setSelectedProject(null)}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ProjectsPage;
