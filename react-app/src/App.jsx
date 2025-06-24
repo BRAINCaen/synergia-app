@@ -1,26 +1,40 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './stores/authStore';
-import { useGameStore } from './stores/gameStore';
 
-// Pages
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Tasks from './pages/Tasks';
-import Projects from './pages/Projects';
-import ProjectDetail from './pages/ProjectDetail';
-import Leaderboard from './pages/Leaderboard';
-import Profile from './pages/Profile';
-import Analytics from './pages/Analytics'; // 🆕 Nouvelle page
+// 🔧 CORRECTION : Imports avec chemins corrects selon votre architecture
+import { useAuthStore } from './shared/stores/authStore.js';
+import { useGamificationStore } from './shared/stores/gamificationStore.js';
+
+// Pages - Import depuis la structure modulaire existante
+import Login from './pages/Login.jsx';
+import Dashboard from './pages/Dashboard.jsx';
+import Analytics from './pages/Analytics.jsx';
 
 // Components
-import MainLayout from './components/MainLayout';
-import ProtectedRoute from './components/ProtectedRoute';
-import LoadingSpinner from './components/LoadingSpinner';
+import MainLayout from './components/MainLayout.jsx';
+import LoadingSpinner from './components/LoadingSpinner.jsx';
+
+// Routes modulaires
+import AppRoutes from './routes/index.jsx';
+
+// Protected Route Component
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuthStore();
+  
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+}
 
 function App() {
   const { user, loading, checkAuth } = useAuthStore();
-  const { initializeGameData } = useGameStore();
+  const { initializeGameData } = useGamificationStore();
 
   useEffect(() => {
     checkAuth();
@@ -45,7 +59,7 @@ function App() {
           element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
         />
 
-        {/* Routes protégées */}
+        {/* Routes protégées avec layout */}
         <Route 
           path="/"
           element={
@@ -56,12 +70,8 @@ function App() {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="tasks" element={<Tasks />} />
-          <Route path="projects" element={<Projects />} />
-          <Route path="projects/:id" element={<ProjectDetail />} />
-          <Route path="leaderboard" element={<Leaderboard />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="analytics" element={<Analytics />} /> {/* 🆕 Nouvelle route */}
+          <Route path="analytics" element={<Analytics />} />
+          {/* Les autres routes seront ajoutées progressivement */}
         </Route>
 
         {/* Route par défaut */}
