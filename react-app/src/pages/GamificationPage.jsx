@@ -1,12 +1,12 @@
 // ==========================================
 // 📁 react-app/src/pages/GamificationPage.jsx
-// Page de gamification mise à jour avec le système de badges avancé
+// Page de gamification mise à jour avec le système de badges avancé - IMPORTS CORRIGÉS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useGameStore } from '../shared/stores/gameStore.js';
-import useBadges from '../hooks/useBadges.js';
+import { useBadges } from '../shared/hooks/useBadges.js'; // ✅ Import corrigé
 import BadgeGallery from '../components/gamification/BadgeGallery.jsx';
 import BadgeNotification from '../components/gamification/BadgeNotification.jsx';
 import BadgeIntegrationService from '../core/services/badgeIntegrationService.js';
@@ -30,8 +30,6 @@ const GamificationPage = () => {
     loading,
     checking,
     checkBadges,
-    completionPercentage,
-    nextBadge,
     recentBadges
   } = useBadges();
 
@@ -142,14 +140,14 @@ const GamificationPage = () => {
           {/* Streak */}
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Streak</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Série</h3>
               <span className="text-2xl">🔥</span>
             </div>
             <div className="text-3xl font-bold text-orange-600 mb-2">
               {streak || 0}
             </div>
             <div className="text-sm text-gray-600">
-              Jours consécutifs
+              Jours consécutifs actif
             </div>
           </div>
 
@@ -160,46 +158,35 @@ const GamificationPage = () => {
               <span className="text-2xl">🏅</span>
             </div>
             <div className="text-3xl font-bold text-purple-600 mb-2">
-              {userBadges.length}/{badges.length}
+              {userBadges?.length || 0}
             </div>
             <div className="text-sm text-gray-600">
-              {completionPercentage}% débloqués
-            </div>
-            {/* Barre de progression badges */}
-            <div className="mt-4">
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-purple-500 h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${completionPercentage}%` }}
-                ></div>
-              </div>
+              {badges?.length ? `/ ${badges.length} disponibles` : 'Badges débloqués'}
             </div>
           </div>
         </div>
 
-        {/* 📱 Navigation par onglets */}
+        {/* 📑 Navigation par onglets */}
         <div className="bg-white rounded-xl shadow-lg mb-8">
           <div className="border-b border-gray-200">
-            <nav className="flex space-x-8" aria-label="Tabs">
+            <nav className="flex space-x-8 px-6">
               {[
-                { id: 'overview', name: 'Vue d\'ensemble', icon: '📊' },
-                { id: 'badges', name: 'Badges', icon: '🏆' },
-                { id: 'progress', name: 'Progression', icon: '📈' },
-                { id: 'leaderboard', name: 'Classement', icon: '🥇' }
+                { id: 'overview', label: '📊 Vue d\'ensemble', icon: '📊' },
+                { id: 'badges', label: '🏆 Badges', icon: '🏆' },
+                { id: 'stats', label: '📈 Statistiques', icon: '📈' }
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`
-                    py-4 px-6 border-b-2 font-medium text-sm transition-colors duration-200
+                    py-4 px-2 border-b-2 font-medium text-sm transition-colors
                     ${activeTab === tab.id
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }
                   `}
                 >
-                  <span className="mr-2">{tab.icon}</span>
-                  {tab.name}
+                  {tab.label}
                 </button>
               ))}
             </nav>
@@ -210,70 +197,53 @@ const GamificationPage = () => {
             {activeTab === 'overview' && (
               <div className="space-y-6">
                 {/* Actions rapides */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <button
-                    onClick={checkBadges}
-                    disabled={checking}
-                    className={`
-                      p-6 rounded-xl border-2 border-dashed transition-all duration-200
-                      ${checking 
-                        ? 'border-gray-300 bg-gray-50 cursor-not-allowed' 
-                        : 'border-blue-300 hover:border-blue-500 hover:bg-blue-50 cursor-pointer'
-                      }
-                    `}
-                  >
-                    <div className="text-center">
-                      <div className="text-3xl mb-2">
-                        {checking ? '⏳' : '🔍'}
-                      </div>
-                      <h3 className="font-semibold text-gray-900 mb-1">
-                        {checking ? 'Vérification...' : 'Vérifier les badges'}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        Analyser votre activité pour de nouveaux badges
-                      </p>
-                    </div>
-                  </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-blue-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-blue-900 mb-4">
+                      🔍 Vérifier nouveaux badges
+                    </h3>
+                    <p className="text-blue-700 text-sm mb-4">
+                      Analysez votre activité récente pour débloquer de nouveaux badges.
+                    </p>
+                    <button
+                      onClick={checkBadges}
+                      disabled={checking}
+                      className={`
+                        w-full py-2 px-4 rounded-lg font-medium transition-colors
+                        ${checking
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                        }
+                      `}
+                    >
+                      {checking ? (
+                        <span className="flex items-center justify-center">
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Vérification...
+                        </span>
+                      ) : (
+                        'Vérifier maintenant'
+                      )}
+                    </button>
+                  </div>
 
-                  {/* Prochain badge à débloquer */}
-                  {nextBadge && (
-                    <div className="p-6 rounded-xl bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200">
-                      <div className="text-center">
-                        <div className="text-3xl mb-2">{nextBadge.icon}</div>
-                        <h3 className="font-semibold text-gray-900 mb-1">
-                          Prochain Badge
-                        </h3>
-                        <p className="text-sm text-gray-600 mb-2">
-                          {nextBadge.name}
-                        </p>
-                        {nextBadge.progress && (
-                          <div className="space-y-1">
-                            <div className="w-full bg-white rounded-full h-2">
-                              <div 
-                                className="bg-purple-500 h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${nextBadge.progress.percentage}%` }}
-                              ></div>
-                            </div>
-                            <p className="text-xs text-gray-500">
-                              {nextBadge.progress.current}/{nextBadge.progress.target} ({nextBadge.progress.percentage}%)
-                            </p>
-                          </div>
-                        )}
+                  <div className="bg-green-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-green-900 mb-4">
+                      🎯 Progression générale
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-green-700">Badges débloqués</span>
+                        <span className="font-medium">{((userBadges?.length || 0) / (badges?.length || 1) * 100).toFixed(0)}%</span>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Statistiques rapides */}
-                  <div className="p-6 rounded-xl bg-gradient-to-br from-green-50 to-blue-50 border border-green-200">
-                    <div className="text-center">
-                      <div className="text-3xl mb-2">📈</div>
-                      <h3 className="font-semibold text-gray-900 mb-1">
-                        Performances
-                      </h3>
-                      <div className="space-y-1 text-sm text-gray-600">
-                        <p>Niveau: {level || 1}</p>
-                        <p>XP: {xp || 0}</p>
-                        <p>Badges: {userBadges.length}</p>
+                      <div className="w-full bg-green-200 rounded-full h-2">
+                        <div 
+                          className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${(userBadges?.length || 0) / (badges?.length || 1) * 100}%` }}
+                        ></div>
                       </div>
                     </div>
                   </div>
@@ -281,20 +251,16 @@ const GamificationPage = () => {
 
                 {/* Badges récents */}
                 {formattedRecentBadges.length > 0 && (
-                  <div>
+                  <div className="bg-gray-50 rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
                       🏆 Badges récents
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {formattedRecentBadges.map((badge, index) => (
-                        <div key={`${badge.id}-${index}`} className="bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-4">
-                          <div className="flex items-center space-x-3">
-                            <div className="text-2xl">{badge.icon}</div>
-                            <div>
-                              <h4 className="font-semibold text-gray-900">{badge.name}</h4>
-                              <p className="text-sm text-gray-600">{badge.timeAgo}</p>
-                            </div>
-                          </div>
+                        <div key={badge.id || index} className="bg-white rounded-lg p-4 text-center">
+                          <div className="text-3xl mb-2">{badge.icon}</div>
+                          <div className="font-medium text-gray-900 text-sm">{badge.name}</div>
+                          <div className="text-xs text-gray-500 mt-1">{badge.timeAgo}</div>
                         </div>
                       ))}
                     </div>
@@ -305,81 +271,90 @@ const GamificationPage = () => {
 
             {/* 🏆 Onglet Badges */}
             {activeTab === 'badges' && (
-              <BadgeGallery />
-            )}
-
-            {/* 📈 Onglet Progression */}
-            {activeTab === 'progress' && (
-              <div className="space-y-6">
-                <div className="text-center py-12">
-                  <div className="text-4xl mb-4">🚧</div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    Graphiques de progression
-                  </h3>
-                  <p className="text-gray-600">
-                    Cette section sera développée dans la prochaine version
-                  </p>
-                </div>
+              <div>
+                <BadgeGallery />
               </div>
             )}
 
-            {/* 🥇 Onglet Leaderboard */}
-            {activeTab === 'leaderboard' && (
+            {/* 📈 Onglet Statistiques */}
+            {activeTab === 'stats' && (
               <div className="space-y-6">
-                <div className="text-center py-12">
-                  <div className="text-4xl mb-4">🏗️</div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    Classement global
-                  </h3>
-                  <p className="text-gray-600">
-                    Le leaderboard est disponible sur la page dédiée
-                  </p>
-                  <button
-                    onClick={() => window.location.href = '/leaderboard'}
-                    className="mt-4 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                  >
-                    Voir le classement
-                  </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="bg-blue-50 rounded-lg p-6">
+                    <h4 className="font-semibold text-blue-900 mb-2">Badges par rareté</h4>
+                    {stats?.byRarity ? (
+                      <div className="space-y-2">
+                        {Object.entries(stats.byRarity).map(([rarity, count]) => (
+                          <div key={rarity} className="flex justify-between text-sm">
+                            <span className="capitalize text-blue-700">{rarity}</span>
+                            <span className="font-medium">{count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-blue-600 text-sm">Aucune donnée disponible</p>
+                    )}
+                  </div>
+
+                  <div className="bg-green-50 rounded-lg p-6">
+                    <h4 className="font-semibold text-green-900 mb-2">Badges par catégorie</h4>
+                    {stats?.byCategory ? (
+                      <div className="space-y-2">
+                        {Object.entries(stats.byCategory).map(([category, count]) => (
+                          <div key={category} className="flex justify-between text-sm">
+                            <span className="capitalize text-green-700">{category}</span>
+                            <span className="font-medium">{count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-green-600 text-sm">Aucune donnée disponible</p>
+                    )}
+                  </div>
+
+                  <div className="bg-purple-50 rounded-lg p-6">
+                    <h4 className="font-semibold text-purple-900 mb-2">Récompenses totales</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-purple-700">XP des badges</span>
+                        <span className="font-medium">{stats?.totalXpFromBadges || 0}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-purple-700">Badges uniques</span>
+                        <span className="font-medium">{userBadges?.length || 0}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-purple-700">Progression</span>
+                        <span className="font-medium">{stats?.percentage || 0}%</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Outils de debug en développement */}
+                {showDebugTools && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                    <h4 className="font-semibold text-yellow-900 mb-4">🔧 Outils de Debug</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <button
+                        onClick={() => BadgeIntegrationService.syncWithGamification(user?.uid)}
+                        className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors"
+                      >
+                        Sync gamification
+                      </button>
+                      <button
+                        onClick={() => console.log('Badge Data:', { badges, userBadges, stats })}
+                        className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                      >
+                        Log données
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
-
-        {/* 🛠️ Outils de debug (développement uniquement) */}
-        {showDebugTools && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-yellow-800 mb-4">
-              🛠️ Outils de développement
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <button
-                onClick={() => BadgeIntegrationService.triggerTestEvents(user?.uid)}
-                className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
-              >
-                Déclencher événements test
-              </button>
-              <button
-                onClick={() => console.log('Debug Info:', BadgeIntegrationService.getDebugInfo(user?.uid))}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                Log debug info
-              </button>
-              <button
-                onClick={() => BadgeIntegrationService.cleanupCache()}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-              >
-                Nettoyer cache
-              </button>
-              <button
-                onClick={() => setShowDebugTools(false)}
-                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-              >
-                Masquer outils
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
