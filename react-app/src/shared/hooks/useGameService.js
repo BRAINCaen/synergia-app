@@ -185,6 +185,28 @@ export const useGameService = (userId = 'demo-user') => {
     currentStreak: gameData.currentStreak || 0
   } : null;
 
+  // ✅ Fonctions utilitaires pour le Dashboard
+  const calculations = {
+    getStats: () => ({
+      level: derivedStats?.currentLevel || 1,
+      totalXP: derivedStats?.currentXP || 0,
+      tasksCompleted: derivedStats?.tasksCompleted || 0,
+      badges: derivedStats?.totalBadges || 0
+    }),
+    getLevelProgress: () => derivedStats?.progressPercentage || 0,
+    getUnlockedBadges: () => gameData?.badges || []
+  };
+
+  const quickActions = {
+    dailyLogin: useCallback(async () => {
+      if (!dailyLoginRef.current) {
+        dailyLoginRef.current = true;
+        return await gamificationService.dailyLogin(userId);
+      }
+      return { success: true, alreadyProcessed: true };
+    }, [userId])
+  };
+
   return {
     // Données
     gameData,
@@ -199,6 +221,11 @@ export const useGameService = (userId = 'demo-user') => {
     unlockBadge,
     getLeaderboard,
     resetDailyLogin,
+    
+    // ✅ Nouvelles propriétés pour Dashboard
+    calculations,
+    quickActions,
+    dailyLogin: quickActions.dailyLogin,
     
     // Configuration
     XP_CONFIG,
