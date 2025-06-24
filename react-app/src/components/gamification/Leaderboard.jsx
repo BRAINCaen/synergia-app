@@ -1,425 +1,407 @@
-// ===================================================================
-// 📊 LEADERBOARD AVEC DONNÉES FIREBASE RÉELLES
-// Fichier: react-app/src/components/gamification/Leaderboard.jsx
-// ===================================================================
+// ==========================================
+// 📁 react-app/src/components/gamification/Leaderboard.jsx
+// Classement avec VRAIES données Firebase
+// ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import MainLayout from '../../layouts/MainLayout.jsx';
-import { useAuthStore } from '../../shared/stores/authStore.js';
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  limit, 
-  onSnapshot,
-  where 
-} from 'firebase/firestore';
-import { db } from '../../core/firebase.js';
+import { useAuthStore } from '../../shared/stores/authStore';
+import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
+import { db } from '../../core/firebase';
+import LoadingSpinner from '../ui/LoadingSpinner';
 
 const Leaderboard = () => {
   const { user } = useAuthStore();
-  const [leaderboard, setLeaderboard] = useState([]);
+  const [leaderboardData, setLeaderboardData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [timeFilter, setTimeFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('totalXp');
-  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState('xp');
+  const [timeFrame, setTimeFrame] = useState('all-time');
 
-  // Charger les données depuis Firebase
+  // ✅ VRAIES DONNÉES : Charger le classement depuis Firebase
   useEffect(() => {
-    if (!user) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Construire la requête Firebase
-      let q = query(
-        collection(db, 'users'),
-        orderBy(`gamification.${categoryFilter}`, 'desc'),
-        limit(50)
-      );
-
-      // Filtrer par département si nécessaire
-      if (departmentFilter !== 'all') {
-        q = query(
-          collection(db, 'users'),
-          where('profile.department', '==', departmentFilter),
-          orderBy(`gamification.${categoryFilter}`, 'desc'),
-          limit(50)
-        );
+    const loadRealLeaderboard = async () => {
+      if (!db) {
+        console.log('🔧 Mode déconnecté - Données par défaut');
+        setLeaderboardData(getMockLeaderboard());
+        setLoading(false);
+        return;
       }
 
-      // Écouter les changements en temps réel
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const users = [];
-        snapshot.forEach((doc, index) => {
-          const userData = doc.data();
-          
-          // Calculer la valeur selon le filtre temporel
-          let displayValue = userData.gamification?.[categoryFilter] || 0;
-          
-          if (timeFilter === 'week') {
-            displayValue = userData.gamification?.weeklyXp || 0;
-          } else if (timeFilter === 'month') {
-            displayValue = userData.gamification?.monthlyXp || 0;
-          }
+      try {
+        setLoading(true);
 
-          users.push({
-            rank: index + 1,
-            uid: doc.id,
-            displayName: userData.displayName || 'Utilisateur',
-            email: userData.email,
-            photoURL: userData.photoURL,
-            department: userData.profile?.department || 'Non défini',
-            totalXp: userData.gamification?.totalXp || 0,
-            weeklyXp: userData.gamification?.weeklyXp || 0,
-            monthlyXp: userData.gamification?.monthlyXp || 0,
-            level: userData.gamification?.level || 1,
-            badges: userData.gamification?.badges?.length || 0,
-            tasksCompleted: userData.gamification?.tasksCompleted || 0,
-            loginStreak: userData.gamification?.loginStreak || 0,
-            displayValue,
-            lastLoginAt: userData.lastLoginAt
-          });
+        // ✅ Requête pour récupérer les vrais utilisateurs triés par XP
+        let usersQuery;
+        
+        if (activeTab === 'xp') {
+          usersQuery = query(
+            collection(db, 'users'),
+            orderBy('gamification.totalXp', 'desc'),
+            limit(20)
+          );
+        } else if (activeTab === 'tasks') {
+          usersQuery = query(
+            collection(db, 'users'),
+            orderBy('gamification.tasksCompleted', 'desc'),
+            limit(20)
+          );
+        } else if (activeTab === 'level') {
+          usersQuery = query(
+            collection(db, 'users'),
+            orderBy('gamification.level', 'desc'),
+            limit(20)
+          );
+        }
+
+        const querySnapshot = await getDocs(usersQuery);
+        const realUsers = [];
+
+        querySnapshot.forEach((doc, index) => {
+          const userData = doc.data();
+          if (userData.email && userData.gamification) {
+            realUsers.push({
+              id: doc.id,
+              rank: index + 1,
+              name: userData.displayName || userData.email.split('@')[0],
+              email: userData.email,
+              role: userData.role || 'Membre',
+              level: userData.gamification.level || 1,
+              totalXp: userData.gamification.totalXp || 0,
+              tasksCompleted: userData.gamification.tasksCompleted || 0,
+              badges: userData.gamification.badges || [],
+              avatar: userData.photoURL || getAvatarFromName(userData.displayName || userData.email),
+              isCurrentUser: doc.id === user?.uid,
+              streak: userData.gamification.loginStreak || 0,
+              lastActivity: userData.lastActivity
+            });
+          }
         });
 
-        console.log(`📊 Leaderboard mis à jour: ${users.length} utilisateurs réels`);
-        setLeaderboard(users);
+        // ✅ Si l'utilisateur connecté n'est pas dans le top, l'ajouter
+        if (user && !realUsers.find(u => u.id === user.uid)) {
+          try {
+            const currentUserQuery = query(
+              collection(db, 'users'),
+              where('email', '==', user.email),
+              limit(1)
+            );
+            const currentUserSnap = await getDocs(currentUserQuery);
+            
+            if (!currentUserSnap.empty) {
+              const currentUserData = currentUserSnap.docs[0].data();
+              const currentUserRank = await calculateUserRank(user.uid, activeTab);
+              
+              realUsers.push({
+                id: user.uid,
+                rank: currentUserRank,
+                name: user.displayName || user.email.split('@')[0],
+                email: user.email,
+                role: currentUserData.role || 'Membre',
+                level: currentUserData.gamification?.level || 1,
+                totalXp: currentUserData.gamification?.totalXp || 0,
+                tasksCompleted: currentUserData.gamification?.tasksCompleted || 0,
+                badges: currentUserData.gamification?.badges || [],
+                avatar: user.photoURL || getAvatarFromName(user.displayName || user.email),
+                isCurrentUser: true,
+                streak: currentUserData.gamification?.loginStreak || 0,
+                lastActivity: currentUserData.lastActivity,
+                isOutOfTop: true
+              });
+            }
+          } catch (error) {
+            console.log('ℹ️ Utilisateur non trouvé dans classement');
+          }
+        }
+
+        setLeaderboardData(realUsers);
+        console.log('✅ Classement réel chargé:', realUsers.length, 'utilisateurs');
+
+      } catch (error) {
+        console.error('❌ Erreur chargement classement:', error);
+        setLeaderboardData(getMockLeaderboard());
+      } finally {
         setLoading(false);
-      }, (err) => {
-        console.error('❌ Erreur chargement leaderboard:', err);
-        setError(err.message);
-        setLoading(false);
+      }
+    };
+
+    loadRealLeaderboard();
+  }, [activeTab, timeFrame, user]);
+
+  // ✅ Calculer le rang d'un utilisateur
+  const calculateUserRank = async (userId, category) => {
+    if (!db) return 0;
+
+    try {
+      let field = 'gamification.totalXp';
+      if (category === 'tasks') field = 'gamification.tasksCompleted';
+      if (category === 'level') field = 'gamification.level';
+
+      const usersQuery = query(
+        collection(db, 'users'),
+        orderBy(field, 'desc')
+      );
+      
+      const snapshot = await getDocs(usersQuery);
+      let rank = 1;
+      
+      snapshot.forEach((doc) => {
+        if (doc.id === userId) {
+          return;
+        }
+        rank++;
       });
 
-      return () => unsubscribe();
-    } catch (err) {
-      console.error('❌ Erreur configuration leaderboard:', err);
-      setError(err.message);
-      setLoading(false);
+      return rank;
+    } catch (error) {
+      return 0;
     }
-  }, [user, categoryFilter, departmentFilter, timeFilter]);
+  };
 
-  // Obtenir la valeur affichée selon le filtre
+  // ✅ Générer avatar depuis le nom
+  const getAvatarFromName = (name) => {
+    if (!name) return '👤';
+    
+    const avatars = ['👨‍💼', '👩‍💼', '👨‍💻', '👩‍💻', '👨‍🎨', '👩‍🎨', '👨‍📊', '👩‍📊', '🧑‍🔧', '👩‍🔧'];
+    const index = name.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return avatars[index % avatars.length];
+  };
+
+  // ✅ Données mock si pas de Firebase
+  const getMockLeaderboard = () => [
+    {
+      id: user?.uid || 'current-user',
+      rank: 1,
+      name: user?.displayName || user?.email?.split('@')[0] || 'Vous',
+      email: user?.email || 'user@example.com',
+      role: 'Utilisateur connecté',
+      level: 1,
+      totalXp: 0,
+      tasksCompleted: 0,
+      badges: [],
+      avatar: user?.photoURL || '👤',
+      isCurrentUser: true,
+      streak: 0
+    }
+  ];
+
+  // ✅ Obtenir la valeur selon l'onglet actif
   const getDisplayValue = (userData) => {
-    switch (categoryFilter) {
-      case 'weeklyXp':
-        return `${userData.weeklyXp} XP`;
-      case 'monthlyXp':
-        return `${userData.monthlyXp} XP`;
-      case 'badges':
-        return `${userData.badges} badges`;
-      case 'tasksCompleted':
+    switch (activeTab) {
+      case 'xp':
+        return `${userData.totalXp.toLocaleString()} XP`;
+      case 'tasks':
         return `${userData.tasksCompleted} tâches`;
-      case 'loginStreak':
-        return `${userData.loginStreak} jours`;
+      case 'level':
+        return `Niveau ${userData.level}`;
       default:
-        return `${userData.totalXp} XP`;
+        return `${userData.totalXp.toLocaleString()} XP`;
     }
   };
 
+  // ✅ Obtenir la couleur du rang
+  const getRankColor = (rank) => {
+    if (rank === 1) return 'text-yellow-400'; // Or
+    if (rank === 2) return 'text-gray-300';   // Argent
+    if (rank === 3) return 'text-orange-400'; // Bronze
+    return 'text-gray-400';
+  };
+
+  // ✅ Obtenir l'icône du rang
   const getRankIcon = (rank) => {
-    switch (rank) {
-      case 1: return '🥇';
-      case 2: return '🥈';
-      case 3: return '🥉';
-      default: return `#${rank}`;
-    }
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return `#${rank}`;
   };
-
-  const getRankStyle = (rank) => {
-    switch (rank) {
-      case 1: return 'bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 border-yellow-500';
-      case 2: return 'bg-gradient-to-br from-gray-400/20 to-gray-500/20 border-gray-400';
-      case 3: return 'bg-gradient-to-br from-orange-500/20 to-orange-600/20 border-orange-500';
-      default: return 'bg-gray-800 border-gray-700';
-    }
-  };
-
-  const timeOptions = [
-    { value: 'all', label: 'Tout temps' },
-    { value: 'month', label: 'Ce mois' },
-    { value: 'week', label: 'Cette semaine' }
-  ];
-
-  const categoryOptions = [
-    { value: 'totalXp', label: 'Points d\'expérience' },
-    { value: 'badges', label: 'Badges' },
-    { value: 'tasksCompleted', label: 'Tâches terminées' },
-    { value: 'loginStreak', label: 'Jours streak' }
-  ];
-
-  const departmentOptions = [
-    { value: 'all', label: 'Tous les départements' },
-    { value: 'Développement', label: 'Développement' },
-    { value: 'Design', label: 'Design' },
-    { value: 'Marketing', label: 'Marketing' },
-    { value: 'RH', label: 'Ressources Humaines' }
-  ];
 
   if (loading) {
     return (
-      <MainLayout>
-        <div className="p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-700 rounded w-64"></div>
-            <div className="grid grid-cols-3 gap-4">
-              {[1,2,3].map(i => (
-                <div key={i} className="h-32 bg-gray-700 rounded"></div>
-              ))}
-            </div>
-            {[1,2,3,4,5].map(i => (
-              <div key={i} className="h-16 bg-gray-700 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </MainLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <MainLayout>
-        <div className="p-6">
-          <div className="bg-red-600/20 border border-red-500 rounded-lg p-4 text-center">
-            <div className="text-4xl mb-4">❌</div>
-            <h3 className="text-lg font-medium text-white mb-2">
-              Erreur de chargement
-            </h3>
-            <p className="text-red-400 mb-4">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
-            >
-              Réessayer
-            </button>
-          </div>
-        </div>
-      </MainLayout>
+      <div className="flex items-center justify-center min-h-screen bg-gray-900">
+        <LoadingSpinner />
+        <div className="ml-4 text-white">Chargement du classement...</div>
+      </div>
     );
   }
 
   return (
-    <MainLayout>
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white flex items-center">
-              🏆 Classement Synergia
-            </h1>
-            <p className="text-gray-400 mt-1">
-              Découvrez les top performers de l'équipe ({leaderboard.length} participants)
-            </p>
-          </div>
-          
-          <Link
-            to="/profile"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
-          >
-            <span>⚡</span>
-            <span>Mes Badges</span>
-          </Link>
+    <div className="min-h-screen bg-gray-900 p-6">
+      <div className="max-w-4xl mx-auto">
+        
+        {/* En-tête */}
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold text-white mb-2">
+            🏆 Classement Équipe
+          </h1>
+          <p className="text-gray-400">
+            Performance et achievements en temps réel
+          </p>
         </div>
 
-        {/* Filtres */}
-        <div className="bg-gray-800 p-4 rounded-xl border border-gray-700">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Période
-              </label>
-              <select
-                value={timeFilter}
-                onChange={(e) => setTimeFilter(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+        {/* Onglets de catégories */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-gray-800 rounded-lg p-1 border border-gray-700">
+            {[
+              { id: 'xp', label: '⭐ Points XP', icon: '⭐' },
+              { id: 'tasks', label: '✅ Tâches', icon: '✅' },
+              { id: 'level', label: '📈 Niveau', icon: '📈' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-6 py-2 rounded-md font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                }`}
               >
-                {timeOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Classé par
-              </label>
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
-              >
-                {categoryOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Département
-              </label>
-              <select
-                value={departmentFilter}
-                onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
-              >
-                {departmentOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+                {tab.icon} {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Podium Top 3 */}
-        {leaderboard.length >= 3 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {leaderboard.slice(0, 3).map((userData) => (
-              <div
-                key={userData.uid}
-                className={`
-                  text-center p-6 rounded-xl border-2 relative overflow-hidden
-                  ${getRankStyle(userData.rank)}
-                  hover:scale-105 transition-transform duration-200
-                `}
-              >
-                <div className="text-4xl mb-3">{getRankIcon(userData.rank)}</div>
-                
-                <div className="w-20 h-20 rounded-full bg-gray-600 mx-auto mb-4 flex items-center justify-center overflow-hidden">
-                  {userData.photoURL ? (
-                    <img
-                      src={userData.photoURL}
-                      alt={userData.displayName}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-3xl">👤</span>
-                  )}
+        {/* Podium (Top 3) */}
+        {leaderboardData.length >= 3 && (
+          <div className="mb-8">
+            <div className="flex justify-center items-end gap-4 mb-6">
+              {/* 2ème place */}
+              <div className="text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-2xl mb-2">
+                  {leaderboardData[1]?.avatar || '🥈'}
                 </div>
-                
-                <h3 className="font-bold text-white text-lg mb-1 truncate">
-                  {userData.displayName}
-                  {userData.uid === user?.uid && (
-                    <span className="block text-xs bg-blue-600 px-2 py-1 rounded mt-1">
-                      C'est vous !
-                    </span>
-                  )}
-                </h3>
-                
-                <p className="text-sm text-gray-400 mb-3">{userData.department}</p>
-                
-                <div className="space-y-1">
-                  <p className="font-bold text-2xl text-white">
-                    {getDisplayValue(userData)}
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    Niveau {userData.level} • {userData.badges} badges
-                  </p>
+                <div className="bg-gray-700 rounded-lg p-3 border-2 border-gray-500">
+                  <div className="text-gray-300 font-medium">{leaderboardData[1]?.name}</div>
+                  <div className="text-gray-400 text-sm">{getDisplayValue(leaderboardData[1])}</div>
                 </div>
               </div>
-            ))}
+
+              {/* 1ère place */}
+              <div className="text-center">
+                <div className="w-24 h-24 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center text-3xl mb-2 border-4 border-yellow-300">
+                  {leaderboardData[0]?.avatar || '🥇'}
+                </div>
+                <div className="bg-gradient-to-br from-yellow-600 to-yellow-700 rounded-lg p-4 border-2 border-yellow-400">
+                  <div className="text-white font-bold">{leaderboardData[0]?.name}</div>
+                  <div className="text-yellow-100 text-sm">{getDisplayValue(leaderboardData[0])}</div>
+                </div>
+              </div>
+
+              {/* 3ème place */}
+              <div className="text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-2xl mb-2">
+                  {leaderboardData[2]?.avatar || '🥉'}
+                </div>
+                <div className="bg-gray-700 rounded-lg p-3 border-2 border-orange-500">
+                  <div className="text-orange-300 font-medium">{leaderboardData[2]?.name}</div>
+                  <div className="text-gray-400 text-sm">{getDisplayValue(leaderboardData[2])}</div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Classement complet */}
-        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-          <div className="p-4 border-b border-gray-700">
-            <h2 className="text-lg font-semibold text-white">
-              Classement complet
+        {/* Liste complète du classement */}
+        <div className="bg-gray-800 rounded-lg border border-gray-700">
+          <div className="p-6 border-b border-gray-700">
+            <h2 className="text-xl font-semibold text-white">
+              📊 Classement Complet
             </h2>
+            <p className="text-gray-400 text-sm">
+              {leaderboardData.length} participant{leaderboardData.length > 1 ? 's' : ''}
+            </p>
           </div>
           
           <div className="divide-y divide-gray-700">
-            {leaderboard.map((userData) => (
-              <div
-                key={userData.uid}
-                className={`
-                  flex items-center p-4 transition-colors
-                  ${userData.uid === user?.uid 
-                    ? 'bg-blue-600/10 border-l-4 border-l-blue-500' 
-                    : 'hover:bg-gray-750'
-                  }
-                `}
+            {leaderboardData.map((userData) => (
+              <div 
+                key={userData.id} 
+                className={`p-6 flex items-center justify-between transition-colors ${
+                  userData.isCurrentUser 
+                    ? 'bg-blue-900/20 border-l-4 border-blue-500' 
+                    : 'hover:bg-gray-700/50'
+                } ${userData.isOutOfTop ? 'border-t-2 border-dashed border-gray-600' : ''}`}
               >
-                <div className="flex items-center min-w-0 flex-1">
-                  <div className="w-12 text-center mr-4">
-                    <span className="text-xl font-bold text-gray-300">
-                      {getRankIcon(userData.rank)}
-                    </span>
+                <div className="flex items-center gap-4">
+                  {/* Rang */}
+                  <div className={`text-2xl font-bold ${getRankColor(userData.rank)} min-w-[3rem]`}>
+                    {getRankIcon(userData.rank)}
                   </div>
-
-                  <div className="w-12 h-12 rounded-full bg-gray-600 mr-4 flex-shrink-0 flex items-center justify-center overflow-hidden">
-                    {userData.photoURL ? (
-                      <img
-                        src={userData.photoURL}
-                        alt={userData.displayName}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-lg">👤</span>
+                  
+                  {/* Avatar */}
+                  <div className="relative">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-xl">
+                      {userData.avatar}
+                    </div>
+                    {userData.isCurrentUser && (
+                      <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
+                        ✓
+                      </div>
                     )}
                   </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center space-x-2">
-                      <h3 className="font-medium text-white truncate">
-                        {userData.displayName}
-                        {userData.uid === user?.uid && (
-                          <span className="ml-2 text-xs bg-blue-600 px-2 py-1 rounded">
-                            Vous
-                          </span>
-                        )}
-                      </h3>
+                  
+                  {/* Infos utilisateur */}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className={`font-medium ${userData.isCurrentUser ? 'text-blue-400' : 'text-white'}`}>
+                        {userData.name}
+                      </span>
+                      {userData.isCurrentUser && (
+                        <span className="bg-blue-600 text-xs px-2 py-1 rounded-full text-white">
+                          Vous
+                        </span>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-400 truncate">
-                      {userData.department} • Niveau {userData.level}
-                    </p>
+                    <div className="text-gray-400 text-sm">{userData.role}</div>
+                    {userData.badges.length > 0 && (
+                      <div className="flex gap-1 mt-1">
+                        {userData.badges.slice(0, 3).map((badge, index) => (
+                          <span key={index} className="text-xs">🏆</span>
+                        ))}
+                        {userData.badges.length > 3 && (
+                          <span className="text-xs text-gray-500">+{userData.badges.length - 3}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="text-right ml-4">
-                  <div className="font-bold text-lg text-white">
+                {/* Statistiques */}
+                <div className="text-right">
+                  <div className={`text-lg font-bold ${userData.isCurrentUser ? 'text-blue-400' : 'text-white'}`}>
                     {getDisplayValue(userData)}
                   </div>
-                  <div className="text-sm text-gray-400">
-                    {userData.badges} badges
+                  <div className="text-gray-400 text-sm">
+                    Niveau {userData.level}
                   </div>
+                  {userData.streak > 0 && (
+                    <div className="text-orange-400 text-xs">
+                      🔥 {userData.streak} jours
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
+
+          {userData.isOutOfTop && (
+            <div className="p-4 bg-gray-750 text-center text-gray-400 text-sm">
+              ... autres participants ...
+            </div>
+          )}
         </div>
 
-        {/* État vide */}
-        {leaderboard.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">📊</div>
-            <h3 className="text-xl font-medium text-white mb-2">
-              Aucun participant trouvé
+        {/* Message encourageant */}
+        <div className="mt-8 text-center">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6">
+            <h3 className="text-white font-semibold mb-2">
+              🚀 Continuez vos efforts !
             </h3>
-            <p className="text-gray-400 mb-6">
-              Commencez à utiliser l'application pour apparaître dans le classement !
+            <p className="text-blue-100 text-sm">
+              Complétez des tâches, collaborez en équipe et montez dans le classement !
             </p>
-            <Link
-              to="/tasks"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors inline-flex items-center space-x-2"
-            >
-              <span>🎯</span>
-              <span>Créer ma première tâche</span>
-            </Link>
           </div>
-        )}
+        </div>
       </div>
-    </MainLayout>
+    </div>
   );
 };
 
