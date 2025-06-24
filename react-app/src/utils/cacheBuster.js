@@ -21,12 +21,14 @@ class CacheBuster {
     }
 
     // Écouter les messages du Service Worker
-    navigator.serviceWorker?.addEventListener('message', (event) => {
-      if (event.data?.type === 'SW_UPDATED') {
-        console.log('📱 Service Worker mis à jour:', event.data.version);
-        this.showUpdateNotification();
-      }
-    });
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'SW_UPDATED') {
+          console.log('📱 Service Worker mis à jour:', event.data.version);
+          this.showUpdateNotification();
+        }
+      });
+    }
   }
 
   // Méthode principale pour forcer le refresh
@@ -117,8 +119,9 @@ class CacheBuster {
       // Garder seulement les données essentielles
       const essentialKeys = [
         'synergia_version',
-        'firebase:authUser',
-        'firebase:persistence'
+        'synergia_app_version',
+        'firebase:authUser:AIzaSyApVQG_XnlgBF0sIsI95ynCbMj4F0qXp74:[DEFAULT]',
+        'firebase:persistence:AIzaSyApVQG_XnlgBF0sIsI95ynCbMj4F0qXp74:[DEFAULT]'
       ];
       
       // Vider localStorage en gardant l'essentiel
@@ -137,7 +140,7 @@ class CacheBuster {
       // Vider sessionStorage
       sessionStorage.clear();
       
-      console.log('✅ Stockage web nettoyé');
+      console.log('✅ Stockage web nettoyé (auth preservée)');
     } catch (error) {
       console.warn('⚠️ Erreur nettoyage stockage:', error);
     }
@@ -152,8 +155,9 @@ class CacheBuster {
     const url = new URL(window.location);
     url.searchParams.set('_t', timestamp);
     url.searchParams.set('_v', this.version);
+    url.searchParams.set('_cacheBust', 'true');
     
-    // Technique 1: location.replace avec cache-busting
+    // Technique: location.replace avec cache-busting
     window.location.replace(url.toString());
   }
 
@@ -174,7 +178,7 @@ class CacheBuster {
   // Méthode utilitaire pour vérifier les mises à jour
   async checkForUpdates() {
     try {
-      const response = await fetch('/version.json', { 
+      const response = await fetch('/version.json?_=' + Date.now(), { 
         cache: 'no-cache',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -210,6 +214,11 @@ class CacheBuster {
         const cache = await caches.open(cacheName);
         const requests = await cache.keys();
         console.log(`📂 Cache "${cacheName}": ${requests.length} entrées`);
+        
+        // Afficher quelques URLs d'exemple
+        if (requests.length > 0) {
+          console.log(`   Exemples:`, requests.slice(0, 3).map(req => req.url));
+        }
       }
     }
     
@@ -227,8 +236,59 @@ class CacheBuster {
     }
     
     // Stockage
-    console.log('💾 localStorage:', Object.keys(localStorage));
-    console.log('🔄 sessionStorage:', Object.keys(sessionStorage));
+    console.log('💾 localStorage entries:', Object.keys(localStorage).length);
+    console.log('🔄 sessionStorage entries:', Object.keys(sessionStorage).length);
+    
+    // Infos navigateur
+    console.log('🌐 User Agent:', navigator.userAgent.substring(0, 100) + '...');
+    console.log('🔗 URL actuelle:', window.location.href);
+    console.log('⏰ Timestamp:', new Date().toISOString());
+  }
+
+  // Méthode pour forcer un refresh simple
+  simpleRefresh() {
+    console.log('🔄 Simple refresh...');
+    window.location.reload(true);
+  }
+
+  // Méthode d'urgence pour tout nettoyer
+  emergencyClean() {
+    console.log('🚨 NETTOYAGE D\'URGENCE...');
+    
+    try {
+      // Vider tout le storage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Désinstaller tous les service workers
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          registrations.forEach(registration => {
+            registration.unregister();
+          });
+        });
+      }
+      
+      // Vider tous les caches
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.forEach(name => {
+            caches.delete(name);
+          });
+        });
+      }
+      
+      console.log('💥 Nettoyage d\'urgence terminé, redirection...');
+      
+      // Redirection complète
+      setTimeout(() => {
+        window.location.href = window.location.origin + '/?emergency_clean=true';
+      }, 1000);
+      
+    } catch (error) {
+      console.error('❌ Erreur nettoyage d\'urgence:', error);
+      window.location.reload(true);
+    }
   }
 }
 
@@ -236,18 +296,24 @@ class CacheBuster {
 const cacheBuster = new CacheBuster();
 
 // Exposer les méthodes en global pour utilisation console
-window.forceDashboardReload = () => cacheBuster.forceRefresh();
-window.debugCache = () => cacheBuster.debugCacheStatus();
-window.checkUpdates = () => cacheBuster.checkForUpdates();
+if (typeof window !== 'undefined') {
+  window.forceDashboardReload = () => cacheBuster.forceRefresh();
+  window.debugCache = () => cacheBuster.debugCacheStatus();
+  window.checkUpdates = () => cacheBuster.checkForUpdates();
+  window.simpleRefresh = () => cacheBuster.simpleRefresh();
+  window.emergencyClean = () => cacheBuster.emergencyClean();
+}
 
 // Auto-vérification périodique (toutes les 5 minutes)
-setInterval(() => {
-  cacheBuster.checkForUpdates().then(newVersion => {
-    if (newVersion) {
-      console.log('🔄 Mise à jour automatique vers', newVersion);
-      setTimeout(() => cacheBuster.forceRefresh(), 2000);
-    }
-  });
-}, 5 * 60 * 1000);
+if (typeof window !== 'undefined') {
+  setInterval(() => {
+    cacheBuster.checkForUpdates().then(newVersion => {
+      if (newVersion) {
+        console.log('🔄 Mise à jour automatique vers', newVersion);
+        setTimeout(() => cacheBuster.forceRefresh(), 2000);
+      }
+    });
+  }, 5 * 60 * 1000);
+}
 
 export default cacheBuster;
