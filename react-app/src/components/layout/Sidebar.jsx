@@ -13,22 +13,20 @@ import {
   LogOut,
   Menu,
   X,
-  BookOpen,
   Star,
   Zap
 } from 'lucide-react';
-import { useAuthStore } from '../../core/stores/authStore';
-import { useGameStore } from '../../core/stores/gameStore';
-import { authService } from '../../core/services/authService';
+import { useAuthStore } from '../../shared/stores/authStore';
+import { useGameStore } from '../../shared/stores/gameStore';
 
 const Sidebar = ({ isOpen, onToggle }) => {
-  const { user } = useAuthStore();
+  const { user, signOut } = useAuthStore();
   const { userStats } = useGameStore();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
-      await authService.logout();
+      await signOut();
       navigate('/login');
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
@@ -53,13 +51,6 @@ const Sidebar = ({ isOpen, onToggle }) => {
       href: '/projects',
       icon: FolderOpen,
       description: 'Gestion des projets'
-    },
-    {
-      name: 'Intégration',
-      href: '/onboarding',
-      icon: BookOpen,
-      description: 'Parcours d\'intégration Game Master',
-      highlight: true // Mettre en évidence le nouveau lien
     },
     {
       name: 'Analytics',
@@ -98,26 +89,13 @@ const Sidebar = ({ isOpen, onToggle }) => {
         `group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
           isActive
             ? 'bg-blue-600 text-white shadow-lg'
-            : item.highlight
-            ? 'text-purple-600 hover:bg-purple-50 hover:text-purple-700'
             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
         }`
       }
       onClick={() => window.innerWidth < 1024 && onToggle()}
     >
-      <item.icon 
-        className={`mr-3 h-5 w-5 transition-colors ${
-          item.highlight ? 'text-purple-500' : ''
-        }`} 
-      />
+      <item.icon className="mr-3 h-5 w-5" />
       <span className="flex-1">{item.name}</span>
-      
-      {/* Badge NEW pour l'intégration */}
-      {item.highlight && (
-        <span className="ml-2 px-2 py-1 text-xs font-bold text-white bg-purple-500 rounded-full animate-pulse">
-          NEW
-        </span>
-      )}
     </NavLink>
   );
 
