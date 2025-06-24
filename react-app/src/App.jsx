@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, Link, useLocation } from 'react-router-dom';
 
 // 🔧 IMPORT avec destructuration correcte
 import { useAuthStore } from './shared/stores/authStore.js';
@@ -20,9 +20,10 @@ function LoadingSpinner() {
   );
 }
 
-// Layout simple
-function SimpleLayout({ children }) {
+// Layout complet avec navigation
+function MainLayout() {
   const { user, signOut } = useAuthStore();
+  const location = useLocation();
 
   const handleLogout = async () => {
     try {
@@ -32,40 +33,116 @@ function SimpleLayout({ children }) {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-900">
-      {/* Header simple */}
-      <header className="bg-gray-800 shadow-lg border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2">
-              <span className="text-2xl">⚡</span>
-              <span className="text-xl font-bold text-white">Synergia</span>
-              <span className="text-sm bg-green-500 text-white px-2 py-1 rounded-full">
-                v3.3
-              </span>
-            </div>
+  const navItems = [
+    { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
+    { path: '/tasks', label: 'Tâches', icon: '✅' },
+    { path: '/projects', label: 'Projets', icon: '📁' },
+    { path: '/analytics', label: 'Analytics', icon: '📊' },
+    { path: '/leaderboard', label: 'Classement', icon: '🏆' },
+    { path: '/profile', label: 'Profil', icon: '👤' }
+  ];
 
-            <div className="flex items-center space-x-3">
-              <span className="text-white text-sm">
-                {user?.displayName || 'Utilisateur'}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-gray-700"
-                title="Déconnexion"
-              >
-                🚪
-              </button>
+  const isActive = (path) => location.pathname === path;
+
+  return (
+    <div className="min-h-screen bg-gray-900 flex">
+      {/* Sidebar Navigation */}
+      <div className="w-64 bg-gray-800 shadow-lg">
+        {/* Logo */}
+        <div className="p-6 border-b border-gray-700">
+          <div className="flex items-center space-x-3">
+            <span className="text-2xl">⚡</span>
+            <div>
+              <h1 className="text-xl font-bold text-white">Synergia</h1>
+              <p className="text-sm text-gray-400">v3.3 Production</p>
             </div>
           </div>
         </div>
-      </header>
+
+        {/* Navigation */}
+        <nav className="mt-6 px-3">
+          <div className="space-y-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`
+                  flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200
+                  ${isActive(item.path)
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                  }
+                `}
+              >
+                <span className="text-lg">{item.icon}</span>
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </div>
+        </nav>
+
+        {/* User Info & Logout */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
+          <div className="flex items-center space-x-3 mb-3">
+            <img
+              src={user?.photoURL || 'https://via.placeholder.com/40'}
+              alt="Profile"
+              className="w-10 h-10 rounded-full border-2 border-gray-600"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white truncate">
+                {user?.displayName || 'Utilisateur'}
+              </p>
+              <p className="text-xs text-gray-400 truncate">
+                {user?.email}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <span>🚪</span>
+            <span>Déconnexion</span>
+          </button>
+        </div>
+      </div>
 
       {/* Contenu principal */}
-      <main className="flex-1">
-        {children}
-      </main>
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="bg-gray-800 shadow-sm border-b border-gray-700">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-white">
+                  {navItems.find(item => isActive(item.path))?.label || 'Page'}
+                </h2>
+                <p className="text-sm text-gray-400">
+                  Gestion d'équipe et gamification
+                </p>
+              </div>
+              
+              {/* Stats utilisateur */}
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2 text-sm">
+                  <span className="text-yellow-400">⭐</span>
+                  <span className="text-white">Niveau 4</span>
+                </div>
+                <div className="flex items-center space-x-2 text-sm">
+                  <span className="text-blue-400">💎</span>
+                  <span className="text-white">535 XP</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Contenu de la page */}
+        <main className="flex-1 overflow-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
@@ -82,34 +159,51 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />;
   }
   
-  return <SimpleLayout>{children}</SimpleLayout>;
+  return children;
+}
+
+// Page par défaut pour les routes manquantes
+function DefaultPage({ title, icon, description }) {
+  return (
+    <div className="p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center py-12">
+          <span className="text-6xl mb-4 block">{icon}</span>
+          <h1 className="text-2xl font-bold text-white mb-2">{title}</h1>
+          <p className="text-gray-400 mb-6">{description}</p>
+          <div className="bg-gray-800 rounded-lg p-6">
+            <p className="text-gray-300">
+              Cette fonctionnalité est en cours de développement. 
+              Votre système de gamification et Firebase sont pleinement opérationnels !
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function App() {
-  // 🔧 CORRECTION : Utilisation de initializeAuth au lieu de checkAuth
+  // 🔧 CORRECTION : Utilisation simplifiée sans boucle
   const { user, loading, initializeAuth } = useAuthStore();
 
   useEffect(() => {
-    // 🔧 CORRECTION : Vérifier que initializeAuth existe avant de l'appeler
+    let unsubscribe;
+    
     if (initializeAuth && typeof initializeAuth === 'function') {
-      console.log('🔧 Initialisation de l\'authentification...');
-      const unsubscribe = initializeAuth();
-      
-      // Nettoyage à la destruction du composant
-      return () => {
-        if (unsubscribe && typeof unsubscribe === 'function') {
-          unsubscribe();
-        }
-      };
+      console.log('🔧 Initialisation unique de l\'authentification...');
+      unsubscribe = initializeAuth();
     } else {
-      console.warn('⚠️ initializeAuth non disponible dans authStore');
-      // Fallback : marquer comme non chargé
-      const { setLoading } = useAuthStore.getState();
-      if (setLoading) {
-        setLoading(false);
-      }
+      console.warn('⚠️ initializeAuth non disponible');
     }
-  }, [initializeAuth]);
+    
+    // Nettoyage
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, []); // 🔧 IMPORTANT : Dépendances vides pour éviter les boucles
 
   if (loading) {
     return <LoadingSpinner />;
@@ -124,25 +218,71 @@ function App() {
           element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
         />
 
-        {/* Routes protégées */}
+        {/* Routes protégées avec navigation */}
         <Route 
-          path="/dashboard"
+          path="/"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <MainLayout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route 
+            path="tasks" 
+            element={
+              <DefaultPage 
+                title="Gestion des Tâches" 
+                icon="✅" 
+                description="Interface de gestion des tâches avec gamification"
+              />
+            } 
+          />
+          <Route 
+            path="projects" 
+            element={
+              <DefaultPage 
+                title="Projets Collaboratifs" 
+                icon="📁" 
+                description="Gestion de projets d'équipe et collaboration"
+              />
+            } 
+          />
+          <Route 
+            path="analytics" 
+            element={
+              <DefaultPage 
+                title="Analytics & Métriques" 
+                icon="📊" 
+                description="Tableaux de bord et analyses de performance"
+              />
+            } 
+          />
+          <Route 
+            path="leaderboard" 
+            element={
+              <DefaultPage 
+                title="Classement de l'Équipe" 
+                icon="🏆" 
+                description="Leaderboard et compétitions gamifiées"
+              />
+            } 
+          />
+          <Route 
+            path="profile" 
+            element={
+              <DefaultPage 
+                title="Profil Utilisateur" 
+                icon="👤" 
+                description="Gestion du profil et préférences"
+              />
+            } 
+          />
+        </Route>
 
         {/* Route par défaut */}
-        <Route 
-          path="/" 
-          element={<Navigate to="/dashboard" replace />} 
-        />
-        <Route 
-          path="*" 
-          element={<Navigate to="/dashboard" replace />} 
-        />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Router>
   );
