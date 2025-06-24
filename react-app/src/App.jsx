@@ -8,9 +8,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useAuthStore } from './shared/stores/authStore.js';
 import { useGameStore } from './shared/stores/gameStore.js';
 
-// 🔧 Services
-import { authService } from './core/services/authService.js';
-import { gamificationService } from './core/services/gamificationService.js';
+// 🔧 Services - Utilisation de la structure existante
+import { authService, gamificationService } from './core/services/index.js';
 import BadgeIntegrationService from './core/services/badgeIntegrationService.js';
 
 // 📱 Pages
