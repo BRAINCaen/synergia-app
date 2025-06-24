@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// App principal avec routage CORRIGÉ - Plus de duplication
+// App principal avec routage CORRIGÉ - Navigation complète
 // ==========================================
 
 import React, { useEffect } from 'react';
@@ -17,7 +17,7 @@ import TeamPage from './pages/TeamPage';
 import Analytics from './pages/Analytics';
 import NotFound from './pages/NotFound';
 
-// Modules (SANS Layout imbriqué)
+// Modules
 import ProjectDashboard from './modules/projects/ProjectDashboard';
 import ProjectDetailView from './modules/projects/ProjectDetailView';
 import TaskList from './modules/tasks/TaskList';
@@ -75,23 +75,16 @@ const PublicRoute = ({ children }) => {
 function App() {
   const { initializeAuth } = useAuthStore();
 
-  // ✅ Initialiser Firebase Auth au démarrage
   useEffect(() => {
-    const unsubscribe = initializeAuth();
-    
-    // Nettoyer l'abonnement au démontage
-    return () => {
-      if (unsubscribe && typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
-    };
+    console.log('🚀 Initialisation de Synergia App...');
+    initializeAuth();
   }, [initializeAuth]);
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-900 transition-colors duration-200">
+      <div className="min-h-screen bg-gray-900">
         <Routes>
-          {/* ✅ Route publique */}
+          {/* ✅ Route publique - Login */}
           <Route 
             path="/login" 
             element={
@@ -100,109 +93,43 @@ function App() {
               </PublicRoute>
             } 
           />
-          
+
           {/* ✅ Routes protégées avec MainLayout */}
           <Route 
-            path="/dashboard" 
+            path="/" 
             element={
               <ProtectedRoute>
-                <MainLayout>
-                  <Dashboard />
-                </MainLayout>
+                <MainLayout />
               </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/tasks" 
-            element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <TaskList />
-                </MainLayout>
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/projects" 
-            element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <ProjectDashboard />
-                </MainLayout>
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/projects/:projectId" 
-            element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <ProjectDetailView />
-                </MainLayout>
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/gamification" 
-            element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <GamificationDashboard />
-                </MainLayout>
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/leaderboard" 
-            element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <Leaderboard />
-                </MainLayout>
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/team" 
-            element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <TeamDashboard />
-                </MainLayout>
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/analytics" 
-            element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <Analytics />
-                </MainLayout>
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/profile" 
-            element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <Profile />
-                </MainLayout>
-              </ProtectedRoute>
-            } 
-          />
+            }
+          >
+            {/* Dashboard par défaut */}
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            
+            {/* ✅ Pages principales */}
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="team" element={<TeamPage />} />
+            <Route path="analytics" element={<Analytics />} />
+            
+            {/* ✅ Modules Projets */}
+            <Route path="projects" element={<ProjectDashboard />} />
+            <Route path="projects/:id" element={<ProjectDetailView />} />
+            
+            {/* ✅ Modules Tâches */}
+            <Route path="tasks" element={<TaskList />} />
+            
+            {/* ✅ Gamification */}
+            <Route path="leaderboard" element={<Leaderboard />} />
+            <Route path="gamification" element={<GamificationDashboard />} />
+            
+            {/* ✅ Profil */}
+            <Route path="profile" element={<Profile />} />
+            
+            {/* ✅ Team Dashboard */}
+            <Route path="team-dashboard" element={<TeamDashboard />} />
+          </Route>
 
-          {/* ✅ Redirections */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          {/* ✅ Route 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
