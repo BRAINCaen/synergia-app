@@ -1,14 +1,8 @@
 // src/shared/hooks/useGameService.js
 import { useState, useEffect, useCallback } from 'react';
 
-// Import conditionnel du service de gamification
-let gamificationService = null;
-try {
-  const module = await import('../../core/services/gamificationService.js');
-  gamificationService = module.gamificationService || module.default;
-} catch (error) {
-  console.warn('⚠️ GamificationService non disponible:', error.message);
-}
+// Import direct du service de gamification
+import { gamificationService } from '../../core/services/gamificationService.js';
 
 const XP_CONFIG = {
   REWARDS: {
