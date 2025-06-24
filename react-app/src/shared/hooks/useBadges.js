@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/hooks/useBadges.js
-// Hook React personnalisé pour la gestion des badges
+// Hook React personnalisé pour la gestion des badges - EXPORTS CORRIGÉS
 // ==========================================
 
 import { useState, useEffect, useCallback } from 'react';
@@ -81,14 +81,14 @@ export const useBadges = () => {
    * 🔍 VÉRIFICATION MANUELLE DES BADGES
    */
   const checkBadges = useCallback(async () => {
-    if (!user?.uid || checking) return;
+    if (!user?.uid || checking) return [];
 
     try {
       setChecking(true);
       
       const newBadges = await BadgeIntegrationService.manualBadgeCheck(user.uid);
       
-      if (newBadges.length > 0) {
+      if (newBadges && newBadges.length > 0) {
         // Recharger les données après de nouveaux badges
         await loadBadgeData();
         return newBadges;
@@ -221,8 +221,18 @@ export const useBadges = () => {
     };
   }, [loadBadgeData]);
 
+  // Calculer les statistiques dérivées
+  const completionPercentage = badges.length > 0 
+    ? Math.round((userBadges.length / badges.length) * 100) 
+    : 0;
+
+  const nextBadge = getLockedBadges().find(badge => {
+    const progress = getBadgeProgress(badge.id);
+    return progress && progress.percentage > 0;
+  });
+
   return {
-    // États
+    // États principaux
     badges,
     userBadges,
     badgeProgress,
@@ -231,6 +241,10 @@ export const useBadges = () => {
     stats,
     recentBadges,
     error,
+
+    // Statistiques dérivées
+    completionPercentage,
+    nextBadge,
 
     // Actions
     checkBadges,
@@ -249,6 +263,11 @@ export const useBadges = () => {
     getStatsByRarity,
     getNearCompletionBadges
   };
+};
+
+// Export par défaut pour compatibilité
+const useBadges = () => {
+  return useBadges();
 };
 
 export default useBadges;
