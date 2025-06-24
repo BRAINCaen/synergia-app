@@ -1,3 +1,5 @@
+// src/App.jsx
+// Application principale avec toutes les corrections
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 
@@ -29,15 +31,8 @@ function LoadingSpinner() {
 // Layout principal avec navigation
 function MainLayout() {
   const { user, signOut } = useAuthStore();
-  const { userStats, initializeUser } = useGameStore();
+  const { userStats } = useGameStore();
   const location = useLocation();
-
-  // Initialiser l'utilisateur dans le système de gamification
-  useEffect(() => {
-    if (user?.uid && !userStats) {
-      initializeUser(user.uid);
-    }
-  }, [user?.uid, userStats, initializeUser]);
 
   const handleLogout = async () => {
     try {
@@ -72,123 +67,72 @@ function MainLayout() {
             </div>
           </div>
           
-          {/* Infos utilisateur */}
+          {/* Infos utilisateur - LIGNE 74 CORRIGÉE */}
           {userStats && (
-            <div className="bg-gray-700/50 rounded-lg p-3">
+            <div className="bg-gray-700 rounded-lg p-3">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-400">Niveau {userStats.level || 1}</span>
-                <span className="text-sm text-yellow-400 font-medium">
-                  {userStats.totalXp?.toLocaleString() || 0} XP
-                </span>
+                <span className="text-sm text-gray-300">Niveau {userStats.level || 1}</span>
+                <span className="text-sm text-blue-400">{userStats.totalXp || 0} XP</span>
               </div>
               <div className="w-full bg-gray-600 rounded-full h-2">
                 <div 
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                  style={{ 
-                    width: `${Math.min(((userStats.totalXp || 0) % 1000) / 10, 100)}%` 
-                  }}
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                  style={{ width: `${userStats.levelProgress?.percentage || 0}%` }}
                 ></div>
               </div>
-              <p className="text-xs text-gray-400 mt-1">
-                {user?.email?.split('@')[0] || 'Utilisateur'}
-              </p>
             </div>
           )}
         </div>
 
-        {/* Navigation principale */}
-        <nav className="flex-1 mt-6 px-3">
-          <div className="space-y-1">
+        {/* Navigation Menu */}
+        <nav className="flex-1 p-4">
+          <ul className="space-y-2">
             {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`
-                  flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200
-                  ${isActive(item.path)
-                    ? 'bg-blue-600 text-white shadow-lg'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  }
-                `}
-              >
-                <span className={`text-lg ${isActive(item.path) ? 'text-white' : item.color}`}>
-                  {item.icon}
-                </span>
-                <span>{item.label}</span>
-                {isActive(item.path) && (
-                  <div className="ml-auto w-2 h-2 bg-white rounded-full"></div>
-                )}
-              </Link>
+              <li key={item.path}>
+                <Link
+                  to={item.path}
+                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-colors ${
+                    isActive(item.path)
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  }`}
+                >
+                  <span className="text-lg mr-3">{item.icon}</span>
+                  <span className="font-medium">{item.label}</span>
+                </Link>
+              </li>
             ))}
-          </div>
+          </ul>
         </nav>
 
-        {/* Footer avec actions */}
+        {/* User Info et Logout */}
         <div className="p-4 border-t border-gray-700">
-          <div className="space-y-2">
-            {/* Statistiques rapides */}
-            {userStats && (
-              <div className="text-xs text-gray-400 grid grid-cols-2 gap-2">
-                <div className="bg-gray-700/30 rounded p-2 text-center">
-                  <div className="font-medium text-white">{userStats.tasksCompleted || 0}</div>
-                  <div>Tâches</div>
-                </div>
-                <div className="bg-gray-700/30 rounded p-2 text-center">
-                  <div className="font-medium text-white">{userStats.projectsCreated || 0}</div>
-                  <div>Projets</div>
-                </div>
-              </div>
-            )}
-            
-            {/* Bouton déconnexion */}
-            <button
-              onClick={handleLogout}
-              className="w-full px-3 py-2 text-sm text-gray-400 hover:text-red-400 hover:bg-gray-700/50 rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              <span>🚪</span>
-              Déconnexion
-            </button>
+          <div className="flex items-center space-x-3 mb-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-bold">
+                {user?.displayName?.charAt(0) || user?.email?.charAt(0) || '?'}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white truncate">
+                {user?.displayName || 'Utilisateur'}
+              </p>
+              <p className="text-xs text-gray-400 truncate">
+                {user?.email}
+              </p>
+            </div>
           </div>
+          <button
+            onClick={handleLogout}
+            className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+          >
+            Se déconnecter
+          </button>
         </div>
       </div>
 
-      {/* Contenu principal */}
-      <div className="flex-1 flex flex-col min-h-screen">
-        {/* Header avec notifications */}
-        <header className="bg-gray-800/50 border-b border-gray-700 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h2 className="text-lg font-semibold text-white">
-                {navItems.find(item => item.path === location.pathname)?.label || 'Synergia'}
-              </h2>
-              
-              {/* Badge de notification XP récente */}
-              {userStats?.lastXpGain && (
-                <div className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-xs font-medium">
-                  +{userStats.lastXpGain} XP
-                </div>
-              )}
-            </div>
-            
-            <div className="flex items-center gap-3">
-              {/* Indicateur de connexion */}
-              <div className="flex items-center gap-2 text-xs text-gray-400">
-                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                En ligne
-              </div>
-              
-              {/* Avatar utilisateur */}
-              <Link 
-                to="/profile"
-                className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium text-sm hover:shadow-lg transition-all"
-              >
-                {user?.email?.charAt(0)?.toUpperCase() || '?'}
-              </Link>
-            </div>
-          </div>
-        </header>
-
-        {/* Zone de contenu avec scroll */}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
         <main className="flex-1 overflow-auto">
           <Routes>
             <Route path="/dashboard" element={<Dashboard />} />
@@ -198,7 +142,6 @@ function MainLayout() {
             <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>
       </div>
@@ -206,32 +149,65 @@ function MainLayout() {
   );
 }
 
-// Composant principal de l'application
-function App() {
-  const { user, loading, initializeAuth } = useAuthStore();
+// Route protégée
+function ProtectedRoute({ children }) {
+  const { isAuthenticated, loading } = useAuthStore();
 
-  // Initialiser l'authentification au démarrage
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
+
+// Composant principal App
+function App() {
+  const { initializeAuth, isAuthenticated, loading } = useAuthStore();
+
   useEffect(() => {
-    initializeAuth();
+    // Initialiser l'authentification au chargement de l'app
+    const unsubscribe = initializeAuth();
+    
+    // Nettoyage à la fermeture de l'app
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }, [initializeAuth]);
 
-  // Affichage pendant le chargement initial
+  // Affichage du loader pendant l'initialisation
   if (loading) {
     return <LoadingSpinner />;
   }
 
   return (
     <Router>
-      <div className="App">
-        {user ? (
-          <MainLayout />
-        ) : (
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
-        )}
-      </div>
+      <Routes>
+        {/* Route de connexion */}
+        <Route 
+          path="/login" 
+          element={
+            isAuthenticated 
+              ? <Navigate to="/dashboard" replace /> 
+              : <Login />
+          } 
+        />
+        
+        {/* Routes protégées */}
+        <Route 
+          path="/*" 
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          } 
+        />
+      </Routes>
     </Router>
   );
 }
