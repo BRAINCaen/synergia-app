@@ -1,10 +1,7 @@
-// ==========================================
-// 📁 react-app/src/shared/hooks/useGameService.js
-// Hook React pour le service de gamification CORRIGÉ
-// ==========================================
-
+// src/shared/hooks/useGameService.js
+// Hook React pour le service de gamification - VERSION CORRIGÉE
 import { useState, useEffect, useCallback, useRef } from 'react';
-import gamificationService from '../../core/services/gamificationService';
+import { gamificationService } from '../../core/services/gamificationService.js';
 
 const XP_CONFIG = {
   REWARDS: {
@@ -47,7 +44,7 @@ const BADGES_CONFIG = {
   }
 };
 
-export const useGameService = (userId = 'demo-user') => {
+export const useGameService = (userId) => {
   const [gameData, setGameData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -62,7 +59,7 @@ export const useGameService = (userId = 'demo-user') => {
 
     const initializeGameData = async () => {
       // ✅ Éviter les initialisations multiples
-      if (initializationRef.current) return;
+      if (initializationRef.current || !userId) return;
       initializationRef.current = true;
 
       try {
@@ -102,7 +99,7 @@ export const useGameService = (userId = 'demo-user') => {
         setIsLoading(false);
         
         // Mode fallback
-        setGameData(gamificationService.getMockUserData());
+        setGameData(gamificationService.getDefaultUserData());
         setIsConnected(false);
       }
     };
@@ -159,7 +156,7 @@ export const useGameService = (userId = 'demo-user') => {
       setError(err.message);
       return false;
     }
-  }, [userId]);
+  }, []);
 
   const getLeaderboard = useCallback(async (limit = 10) => {
     try {
@@ -174,15 +171,25 @@ export const useGameService = (userId = 'demo-user') => {
     dailyLoginRef.current = false;
   }, []);
 
-  // ✅ Calculer les stats dérivées
+  // ✅ CORRIGÉ: Calculer les stats dérivées avec méthodes correctes
   const derivedStats = gameData ? {
     currentLevel: gameData.level || 1,
-    currentXP: gameData.xp || 0,
-    xpForNextLevel: gamificationService.getXPForNextLevel(gameData.level || 1),
-    progressPercentage: gameData.xp ? Math.round((gameData.xp / gamificationService.getXPForNextLevel(gameData.level || 1)) * 100) : 0,
+    currentXP: gameData.totalXp || 0,
+    // ✅ CORRECTION: Utiliser la bonne méthode du service
+    xpForNextLevel: gamificationService.getXpForLevel((gameData.level || 1) + 1),
+    // ✅ CORRECTION: Calcul correct du pourcentage
+    progressPercentage: (() => {
+      const currentLevel = gameData.level || 1;
+      const currentXP = gameData.totalXp || 0;
+      const currentLevelXP = gamificationService.getXpForLevel(currentLevel);
+      const nextLevelXP = gamificationService.getXpForLevel(currentLevel + 1);
+      const progressXP = currentXP - currentLevelXP;
+      const neededXP = nextLevelXP - currentLevelXP;
+      return neededXP > 0 ? Math.round((progressXP / neededXP) * 100) : 0;
+    })(),
     totalBadges: (gameData.badges || []).length,
     tasksCompleted: gameData.tasksCompleted || 0,
-    currentStreak: gameData.currentStreak || 0
+    loginStreak: gameData.loginStreak || 0
   } : null;
 
   // ✅ Fonctions utilitaires pour le Dashboard
@@ -199,7 +206,7 @@ export const useGameService = (userId = 'demo-user') => {
 
   const quickActions = {
     dailyLogin: useCallback(async () => {
-      if (!dailyLoginRef.current) {
+      if (!dailyLoginRef.current && userId) {
         dailyLoginRef.current = true;
         return await gamificationService.dailyLogin(userId);
       }
