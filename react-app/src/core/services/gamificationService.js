@@ -312,3 +312,5 @@ class GamificationService {
 }
 
 export default new GamificationService();
+// À ajouter à la fin de votre gamificationService.js existant
+export { XP_CONFIG, BADGES_CONFIG }
