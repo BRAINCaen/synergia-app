@@ -58,31 +58,42 @@ const AnalyticsPage = () => {
     }
   }, [user?.uid, timeRange]);
 
-  // Fonction utilitaire pour valider les données de graphiques
-  const validateChartData = (data, requiredFields = []) => {
-    if (!Array.isArray(data)) return [];
+  // Fonction utilitaire ULTRA-ROBUSTE pour nettoyer les données
+  const sanitizeChartValue = (value) => {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value);
+      return isNaN(parsed) || !isFinite(parsed) ? 0 : parsed;
+    }
+    if (typeof value === 'number') {
+      return isNaN(value) || !isFinite(value) ? 0 : value;
+    }
+    return 0;
+  };
+
+  const sanitizeChartData = (dataArray) => {
+    if (!Array.isArray(dataArray)) return [];
     
-    return data.filter(item => {
-      if (!item || typeof item !== 'object') return false;
+    return dataArray.map(item => {
+      if (!item || typeof item !== 'object') return null;
       
-      // Vérifier les champs requis
-      for (const field of requiredFields) {
-        if (!(field in item)) return false;
-        const value = item[field];
-        if (typeof value === 'number' && (isNaN(value) || !isFinite(value))) return false;
-      }
+      const sanitized = {};
       
-      // Nettoyer tous les champs numériques
+      // Nettoyer chaque propriété
       Object.keys(item).forEach(key => {
-        if (typeof item[key] === 'number') {
-          if (isNaN(item[key]) || !isFinite(item[key])) {
-            item[key] = 0;
-          }
+        const value = item[key];
+        
+        if (typeof value === 'string' && !['date', 'name', 'week'].includes(key)) {
+          sanitized[key] = value; // Garder les strings non-numériques
+        } else if (typeof value === 'number' || (typeof value === 'string' && /^\d*\.?\d+$/.test(value))) {
+          sanitized[key] = sanitizeChartValue(value);
+        } else {
+          sanitized[key] = value; // Garder autres types (strings, etc.)
         }
       });
       
-      return true;
-    });
+      return sanitized;
+    }).filter(Boolean);
   };
 
   const loadAnalyticsData = async () => {
@@ -94,44 +105,53 @@ const AnalyticsPage = () => {
         loadUserProjects(user.uid)
       ]);
 
-      // Calculer les analytics avec validation
+      // Calculer les analytics avec validation extrême
       const analyticsData = calculateAnalytics();
       
-      // Valider toutes les données de graphiques
-      analyticsData.charts.dailyActivity = validateChartData(
-        analyticsData.charts.dailyActivity, 
-        ['created', 'completed', 'productivity']
-      );
+      // NETTOYER TOUTES les données de graphiques avec validation ultra-stricte
+      const cleanedData = {
+        ...analyticsData,
+        charts: {
+          dailyActivity: sanitizeChartData(analyticsData.charts.dailyActivity || []),
+          tasksByPriority: sanitizeChartData(analyticsData.charts.tasksByPriority || []),
+          projectProgress: sanitizeChartData(analyticsData.charts.projectProgress || []),
+          weeklyProductivity: sanitizeChartData(analyticsData.charts.weeklyProductivity || []),
+          completionTrends: sanitizeChartData(analyticsData.charts.completionTrends || []),
+          timeDistribution: sanitizeChartData(analyticsData.charts.timeDistribution || [])
+        }
+      };
       
-      analyticsData.charts.tasksByPriority = validateChartData(
-        analyticsData.charts.tasksByPriority, 
-        ['value']
-      );
+      // VALIDATION FINALE - Vérifier qu'aucune valeur NaN n'existe
+      const validateFinalData = (obj) => {
+        if (Array.isArray(obj)) {
+          return obj.every(item => validateFinalData(item));
+        }
+        if (obj && typeof obj === 'object') {
+          return Object.values(obj).every(value => validateFinalData(value));
+        }
+        if (typeof obj === 'number') {
+          return !isNaN(obj) && isFinite(obj);
+        }
+        return true;
+      };
       
-      analyticsData.charts.projectProgress = validateChartData(
-        analyticsData.charts.projectProgress, 
-        ['progress']
-      );
+      // Si la validation échoue, utiliser des données par défaut
+      if (!validateFinalData(cleanedData.charts)) {
+        console.warn('⚠️ Données corrompues détectées, utilisation des données par défaut');
+        cleanedData.charts = {
+          dailyActivity: [],
+          tasksByPriority: [],
+          projectProgress: [],
+          weeklyProductivity: [],
+          completionTrends: [],
+          timeDistribution: []
+        };
+      }
       
-      analyticsData.charts.weeklyProductivity = validateChartData(
-        analyticsData.charts.weeklyProductivity, 
-        ['created', 'completed', 'efficiency']
-      );
-      
-      analyticsData.charts.completionTrends = validateChartData(
-        analyticsData.charts.completionTrends, 
-        ['completed', 'target']
-      );
-      
-      analyticsData.charts.timeDistribution = validateChartData(
-        analyticsData.charts.timeDistribution, 
-        ['hours']
-      );
-      
-      setAnalytics(analyticsData);
+      setAnalytics(cleanedData);
     } catch (error) {
       console.error('Erreur chargement analytics:', error);
-      // Définir des données par défaut en cas d'erreur
+      // Données par défaut en cas d'erreur
       setAnalytics({
         overview: {
           totalTasks: 0,
@@ -593,41 +613,55 @@ const AnalyticsPage = () => {
               Activité des 7 derniers jours
             </h3>
             
-            <ResponsiveContainer width="100%" height={300}>
-              <ComposedChart data={analytics.charts.dailyActivity}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="#9ca3af"
-                  tick={{ fontSize: 12 }}
-                />
-                <YAxis 
-                  stroke="#9ca3af"
-                  tick={{ fontSize: 12 }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1f2937', 
-                    border: '1px solid #374151',
-                    borderRadius: '8px',
-                    color: '#fff'
-                  }} 
-                />
-                <Legend />
-                <Bar 
-                  dataKey="created" 
-                  name="Créées" 
-                  fill="#3b82f6" 
-                  radius={[2, 2, 0, 0]}
-                />
-                <Bar 
-                  dataKey="completed" 
-                  name="Terminées" 
-                  fill="#10b981" 
-                  radius={[2, 2, 0, 0]}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
+            {analytics.charts.dailyActivity.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart 
+                  data={analytics.charts.dailyActivity}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#9ca3af"
+                    tick={{ fontSize: 12 }}
+                  />
+                  <YAxis 
+                    stroke="#9ca3af"
+                    tick={{ fontSize: 12 }}
+                    domain={[0, 'dataMax + 1']}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1f2937', 
+                      border: '1px solid #374151',
+                      borderRadius: '8px',
+                      color: '#fff'
+                    }} 
+                  />
+                  <Legend />
+                  <Bar 
+                    dataKey="created" 
+                    name="Créées" 
+                    fill="#3b82f6" 
+                    radius={[2, 2, 0, 0]}
+                  />
+                  <Bar 
+                    dataKey="completed" 
+                    name="Terminées" 
+                    fill="#10b981" 
+                    radius={[2, 2, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-80 text-gray-400">
+                <div className="text-center">
+                  <Calendar className="w-12 h-12 mx-auto mb-4" />
+                  <p>Pas encore d'activité</p>
+                  <p className="text-sm mt-2">Créez des tâches pour voir l'évolution</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Distribution par priorité */}
@@ -733,40 +767,47 @@ const AnalyticsPage = () => {
               Productivité hebdomadaire
             </h3>
             
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart 
-                data={analytics.charts.weeklyProductivity}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis 
-                  dataKey="week" 
-                  stroke="#9ca3af"
-                  tick={{ fontSize: 12 }}
-                />
-                <YAxis 
-                  stroke="#9ca3af"
-                  tick={{ fontSize: 12 }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1f2937', 
-                    border: '1px solid #374151',
-                    borderRadius: '8px',
-                    color: '#fff'
-                  }} 
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="efficiency" 
-                  name="Efficacité %" 
-                  stroke="#10b981" 
-                  strokeWidth={3}
-                  dot={{ fill: '#10b981', strokeWidth: 2, r: 6 }}
-                  activeDot={{ r: 8 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {analytics.charts.weeklyProductivity.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart 
+                  data={analytics.charts.weeklyProductivity}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis 
+                    dataKey="week" 
+                    stroke="#9ca3af"
+                    tick={{ fontSize: 12 }}
+                  />
+                  <YAxis 
+                    stroke="#9ca3af"
+                    tick={{ fontSize: 12 }}
+                    domain={[0, 100]}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1f2937', 
+                      border: '1px solid #374151',
+                      borderRadius: '8px',
+                      color: '#fff'
+                    }} 
+                  />
+                  <Bar 
+                    dataKey="efficiency" 
+                    name="Efficacité %" 
+                    fill="#10b981"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-64 text-gray-400">
+                <div className="text-center">
+                  <TrendingUp className="w-12 h-12 mx-auto mb-4" />
+                  <p>Pas de données hebdomadaires</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Distribution du temps */}
@@ -820,58 +861,55 @@ const AnalyticsPage = () => {
             Tendances de completion (30 derniers jours)
           </h3>
           
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart 
-              data={analytics.charts.completionTrends}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorTarget" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis 
-                dataKey="date" 
-                stroke="#9ca3af"
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis 
-                stroke="#9ca3af"
-                tick={{ fontSize: 12 }}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#1f2937', 
-                  border: '1px solid #374151',
-                  borderRadius: '8px',
-                  color: '#fff'
-                }} 
-              />
-              <Legend />
-              <Area 
-                type="monotone" 
-                dataKey="completed" 
-                name="Complétées"
-                stroke="#10b981" 
-                fillOpacity={1} 
-                fill="url(#colorCompleted)" 
-              />
-              <Area 
-                type="monotone" 
-                dataKey="target" 
-                name="Objectif"
-                stroke="#f59e0b" 
-                fillOpacity={1} 
-                fill="url(#colorTarget)" 
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {analytics.charts.completionTrends.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart 
+                data={analytics.charts.completionTrends}
+                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#9ca3af"
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  stroke="#9ca3af"
+                  tick={{ fontSize: 12 }}
+                  domain={[0, 'dataMax + 1']}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#1f2937', 
+                    border: '1px solid #374151',
+                    borderRadius: '8px',
+                    color: '#fff'
+                  }} 
+                />
+                <Legend />
+                <Bar 
+                  dataKey="completed" 
+                  name="Complétées"
+                  fill="#10b981"
+                  radius={[2, 2, 0, 0]}
+                />
+                <Bar 
+                  dataKey="target" 
+                  name="Objectif"
+                  fill="#f59e0b"
+                  radius={[2, 2, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-80 text-gray-400">
+              <div className="text-center">
+                <Target className="w-12 h-12 mx-auto mb-4" />
+                <p>Pas de tendances disponibles</p>
+                <p className="text-sm mt-2">Complétez des tâches pour voir l'évolution</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Informations additionnelles */}
