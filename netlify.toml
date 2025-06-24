@@ -1,7 +1,103 @@
-[build]
-  base = "react-app"
-  command = "npm run build"
-  publish = "dist"
+# ==========================================
+# 📁 netlify.toml
+# Configuration Netlify pour Synergia v3.5
+# ==========================================
 
+[build]
+  # Répertoire de base pour le build
+  base = "react-app"
+  
+  # Commande de build (Create React App génère dans 'build', pas 'dist')
+  command = "npm run build"
+  
+  # Répertoire à publier (Create React App utilise 'build')
+  publish = "react-app/build"
+
+# Variables d'environnement Firebase
 [build.environment]
-  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+  # Ces variables sont définies dans l'interface Netlify
+  GENERATE_SOURCEMAP = "false"
+  CI = "false"
+  DISABLE_ESLINT_PLUGIN = "true"
+
+# Redirections pour SPA (Single Page Application)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+
+# Headers de sécurité et performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Sécurité
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff" 
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    
+    # PWA et cache
+    Service-Worker-Allowed = "/"
+    
+    # CORS pour Firebase
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+
+# Cache statique pour assets
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache pour service worker
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# Cache pour manifest
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+# Optimisations Netlify
+[build.processing]
+  skip_processing = false
+
+[build.processing.css]
+  bundle = true
+  minify = true
+
+[build.processing.js]
+  bundle = true
+  minify = true
+
+[build.processing.html]
+  pretty_urls = true
+
+# Plugin Netlify pour React
+[[plugins]]
+  package = "@netlify/plugin-lighthouse"
+  
+  [plugins.inputs]
+    output_path = "lighthouse-report.html"
+
+# Configuration des déploiements
+[context.production]
+  command = "npm run build"
+  environment = { NODE_ENV = "production" }
+
+[context.deploy-preview]
+  command = "npm run build"
+  environment = { NODE_ENV = "development" }
+
+[context.branch-deploy]
+  command = "npm run build"
+
+# Configuration des fonctions (si nécessaire plus tard)
+[functions]
+  directory = "functions"
+  node_bundler = "nft"
