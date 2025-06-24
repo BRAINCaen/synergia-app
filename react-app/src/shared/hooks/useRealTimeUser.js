@@ -1,13 +1,11 @@
-// ===================================================================
-// 👤 HOOK UTILISATEUR TEMPS RÉEL COMPLET
-// Fichier: react-app/src/shared/hooks/useRealTimeUser.js
-// ===================================================================
-
+// src/shared/hooks/useRealTimeUser.js
+// Hook utilisateur temps réel avec fonctions de mise à jour
 import { useState, useEffect } from 'react';
 import { doc, onSnapshot, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../core/firebase.js'; // ✅ Chemin corrigé
+import { db } from '../../core/firebase.js';
 import { useAuthStore } from '../stores/authStore.js';
 
+// Hook principal pour les données utilisateur en temps réel
 export const useRealTimeUser = () => {
   const { user: authUser } = useAuthStore();
   const [userData, setUserData] = useState(null);
@@ -30,11 +28,14 @@ export const useRealTimeUser = () => {
         
         // Profil utilisateur
         profile: {
-          department: 'Non défini',
-          role: 'employee',
-          phone: '',
+          displayName: authData.displayName || authData.email?.split('@')[0] || 'Utilisateur',
           bio: '',
-          joinDate: new Date().toISOString().split('T')[0]
+          department: '',
+          preferences: {
+            notifications: true,
+            publicProfile: false,
+            emailUpdates: true
+          }
         },
         
         // Données de gamification
@@ -50,14 +51,6 @@ export const useRealTimeUser = () => {
           loginStreak: 1,
           lastLoginDate: new Date().toISOString().split('T')[0],
           xpHistory: []
-        },
-        
-        // Préférences
-        preferences: {
-          notifications: true,
-          emailUpdates: true,
-          theme: 'dark',
-          language: 'fr'
         }
       };
 
@@ -143,18 +136,23 @@ export const useRealTimeUser = () => {
 export const useUpdateUser = () => {
   const { user } = useAuthStore();
 
+  // ✅ CORRIGÉ: Fonction updateUserData avec gestion d'erreurs
   const updateUserData = async (updates) => {
     if (!user?.uid) {
       throw new Error('Utilisateur non connecté');
     }
 
     try {
+      console.log('🔄 Mise à jour données utilisateur:', updates);
+      
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {
         ...updates,
         updatedAt: serverTimestamp()
       });
-      console.log('✅ Données utilisateur mises à jour');
+      
+      console.log('✅ Données utilisateur mises à jour avec succès');
+      return { success: true };
     } catch (error) {
       console.error('❌ Erreur mise à jour utilisateur:', error);
       throw error;
@@ -242,7 +240,7 @@ export const useUpdateUser = () => {
   };
 };
 
-// ✅ Hook pour les statistiques utilisateur (MANQUANT DANS VOTRE FICHIER)
+// Hook pour les statistiques utilisateur
 export const useUserStats = () => {
   const { userData } = useRealTimeUser();
 
@@ -263,67 +261,36 @@ export const useUserStats = () => {
     const nextLevelXP = currentLevel * 100;
     const progressXP = totalXP - currentLevelXP;
     const neededXP = nextLevelXP - totalXP;
-    const percentage = Math.min(100, (progressXP / 100) * 100);
-
+    
     return {
-      current: Math.max(0, progressXP),
-      needed: Math.max(0, neededXP),
-      percentage: Math.max(0, percentage),
+      current: progressXP,
+      needed: 100, // 100 XP par niveau
+      percentage: Math.round((progressXP / 100) * 100),
       totalXP,
-      level: currentLevel
+      level: currentLevel,
+      remaining: Math.max(0, neededXP)
     };
   };
 
-  const getRecentActivity = () => {
-    if (!userData?.gamification?.xpHistory) return [];
-    
-    return userData.gamification.xpHistory
-      .slice(-5) // 5 dernières activités
-      .reverse() // Plus récent en premier
-      .map(entry => ({
-        ...entry,
-        timeAgo: getTimeAgo(entry.timestamp)
-      }));
+  const getBadges = () => {
+    return userData?.gamification?.badges || [];
   };
 
-  const getBadgeProgress = () => {
-    const badges = userData?.gamification?.badges || [];
-    const totalTasks = userData?.gamification?.tasksCompleted || 0;
-    
-    // Calculer la progression vers les prochains badges
-    const nextBadges = [
-      { name: 'Débutant', requirement: 5, type: 'tasks', current: totalTasks, icon: '🌱' },
-      { name: 'Productif', requirement: 25, type: 'tasks', current: totalTasks, icon: '⚡' },
-      { name: 'Expert', requirement: 50, type: 'tasks', current: totalTasks, icon: '🏆' },
-      { name: 'Maître', requirement: 100, type: 'tasks', current: totalTasks, icon: '👑' }
-    ].filter(badge => totalTasks < badge.requirement);
-
+  const getTaskStats = () => {
+    const gamification = userData?.gamification || {};
     return {
-      earnedBadges: badges.length,
-      nextBadge: nextBadges[0] || null,
-      allBadges: badges
+      completed: gamification.tasksCompleted || 0,
+      created: gamification.tasksCreated || 0,
+      completionRate: gamification.tasksCreated > 0 
+        ? Math.round((gamification.tasksCompleted / gamification.tasksCreated) * 100)
+        : 0
     };
   };
 
   return {
     getXPProgress,
-    getRecentActivity,
-    getBadgeProgress,
-    userData
+    getBadges,
+    getTaskStats,
+    userData: userData?.gamification
   };
-};
-
-// Utilitaire pour calculer le temps écoulé
-const getTimeAgo = (timestamp) => {
-  const now = new Date();
-  const time = new Date(timestamp);
-  const diffMs = now - time;
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'À l\'instant';
-  if (diffMins < 60) return `Il y a ${diffMins}m`;
-  if (diffHours < 24) return `Il y a ${diffHours}h`;
-  return `Il y a ${diffDays}j`;
 };
