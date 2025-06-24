@@ -11,7 +11,7 @@ import {
   doc,
   serverTimestamp 
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db } from '../core/firebase';
 import { useAuthStore } from '../shared/stores/authStore';
 import { useGameStore } from '../shared/stores/gameStore';
 import { taskService } from '../core/services/taskService';
