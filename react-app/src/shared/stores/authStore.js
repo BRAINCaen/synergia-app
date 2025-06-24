@@ -1,4 +1,5 @@
-// authStore.js - Store d'authentification complet avec Firebase
+// src/shared/stores/authStore.js
+// Store d'authentification complet avec Firebase
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { authService } from '../../core/firebase'
@@ -24,7 +25,11 @@ export const useAuthStore = create(
               displayName: firebaseUser.displayName,
               photoURL: firebaseUser.photoURL,
               emailVerified: firebaseUser.emailVerified,
-              loginAt: new Date().toISOString()
+              loginAt: new Date().toISOString(),
+              metadata: {
+                creationTime: firebaseUser.metadata?.creationTime,
+                lastSignInTime: firebaseUser.metadata?.lastSignInTime
+              }
             }
             
             set({ 
@@ -69,15 +74,48 @@ export const useAuthStore = create(
           const errorMessage = error.code === 'auth/popup-closed-by-user' 
             ? 'Connexion annulée par l\'utilisateur'
             : error.code === 'auth/popup-blocked'
-            ? 'Popup bloquée par le navigateur'
-            : 'Erreur de connexion'
+            ? 'Pop-up bloquée par le navigateur'
+            : error.code === 'auth/network-request-failed'
+            ? 'Erreur de connexion réseau'
+            : 'Erreur lors de la connexion'
           
           set({ 
-            loading: false, 
-            error: errorMessage 
+            error: errorMessage, 
+            loading: false 
           })
           
-          console.error('❌ Erreur connexion Google:', error)
+          return { success: false, error: errorMessage }
+        }
+      },
+
+      signInWithEmail: async (email, password) => {
+        set({ loading: true, error: null })
+        
+        try {
+          const userData = await authService.signInWithEmail(email, password)
+          
+          set({ 
+            user: userData, 
+            isAuthenticated: true, 
+            loading: false, 
+            error: null 
+          })
+          
+          return { success: true, user: userData }
+        } catch (error) {
+          const errorMessage = error.code === 'auth/user-not-found'
+            ? 'Aucun compte trouvé avec cet email'
+            : error.code === 'auth/wrong-password'
+            ? 'Mot de passe incorrect'
+            : error.code === 'auth/invalid-email'
+            ? 'Email invalide'
+            : 'Erreur lors de la connexion'
+          
+          set({ 
+            error: errorMessage, 
+            loading: false 
+          })
+          
           return { success: false, error: errorMessage }
         }
       },
@@ -95,30 +133,37 @@ export const useAuthStore = create(
             error: null 
           })
           
+          console.log('✅ Déconnexion réussie')
           return { success: true }
         } catch (error) {
-          set({ loading: false, error: 'Erreur lors de la déconnexion' })
+          set({ 
+            error: 'Erreur lors de la déconnexion', 
+            loading: false 
+          })
+          
           console.error('❌ Erreur déconnexion:', error)
           return { success: false, error: 'Erreur lors de la déconnexion' }
         }
       },
 
-      clearError: () => {
-        set({ error: null })
-      },
-
-      // Getters
-      getUser: () => get().user,
-      isLoading: () => get().loading,
-      getError: () => get().error,
-      isUserAuthenticated: () => get().isAuthenticated
+      // Fonctions utilitaires
+      clearError: () => set({ error: null }),
+      
+      setUser: (user) => set({ user, isAuthenticated: !!user }),
+      
+      setLoading: (loading) => set({ loading }),
+      
+      setInitialized: () => set({ loading: false })
     }),
     {
-      name: 'synergia-auth',
+      name: 'auth-storage',
       partialize: (state) => ({ 
-        user: state.user, 
-        isAuthenticated: state.isAuthenticated 
+        user: state.user,
+        isAuthenticated: state.isAuthenticated
       })
     }
   )
 )
+
+// Export par défaut pour compatibilité
+export default useAuthStore
