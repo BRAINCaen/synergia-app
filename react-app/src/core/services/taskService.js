@@ -13,8 +13,8 @@ import {
   onSnapshot 
 } from 'firebase/firestore'
 
-// 🔧 CORRECTION : Import Firebase sans isFirebaseConfigured
-import { db } from '../firebase.js'
+// 🔧 CORRECTION : Import Firebase avec les nouveaux noms d'export
+import { firebaseDb as db } from '../firebase.js'
 
 // Vérification simple si db existe
 const isFirebaseConfigured = !!db
