@@ -29,7 +29,7 @@ export const useProjectStore = create(
         set({ loading: true, error: null });
 
         try {
-          if (projectService && typeof projectService.getUserProjects === 'function') {
+          if (projectService) {
             const projects = await projectService.getUserProjects(userId);
             set({ projects, loading: false });
           } else {
@@ -54,7 +54,7 @@ export const useProjectStore = create(
         try {
           let newProject;
           
-          if (projectService && typeof projectService.createProject === 'function') {
+          if (projectService) {
             newProject = await projectService.createProject(projectData, userId);
           } else {
             // Mode démo
@@ -91,7 +91,7 @@ export const useProjectStore = create(
         try {
           let updatedProject;
           
-          if (projectService && typeof projectService.updateProject === 'function') {
+          if (projectService) {
             updatedProject = await projectService.updateProject(projectId, updates, userId);
           } else {
             // Mode démo
@@ -129,7 +129,7 @@ export const useProjectStore = create(
         set({ loading: true, error: null });
 
         try {
-          if (projectService && typeof projectService.deleteProject === 'function') {
+          if (projectService) {
             await projectService.deleteProject(projectId, userId);
           }
           
@@ -157,7 +157,7 @@ export const useProjectStore = create(
           currentUnsubscribe();
         }
 
-        if (projectService && typeof projectService.subscribeToUserProjects === 'function') {
+        if (projectService && projectService.subscribeToUserProjects) {
           const unsubscribe = projectService.subscribeToUserProjects(
             userId,
             (projects) => {
