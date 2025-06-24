@@ -17,7 +17,7 @@ import {
   Eye,
   MoreVertical,
   RefreshCw,
-  Grid3X3,
+  Grid,
   List,
   ChevronDown
 } from 'lucide-react';
@@ -363,7 +363,7 @@ const UsersPage = () => {
                       onClick={() => setViewMode('grid')}
                       className={`p-2 rounded transition-colors ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
                     >
-                      <Grid3X3 className="w-4 h-4" />
+                      <Grid className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setViewMode('list')}
