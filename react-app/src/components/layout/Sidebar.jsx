@@ -92,7 +92,12 @@ const Sidebar = ({ isOpen, onToggle }) => {
             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
         }`
       }
-      onClick={() => window.innerWidth < 1024 && onToggle()}
+      onClick={() => {
+        // Fermer la sidebar sur mobile après clic
+        if (window.innerWidth < 1024) {
+          onToggle();
+        }
+      }}
     >
       <item.icon className="mr-3 h-5 w-5" />
       <span className="flex-1">{item.name}</span>
@@ -101,23 +106,30 @@ const Sidebar = ({ isOpen, onToggle }) => {
 
   return (
     <>
-      {/* Mobile menu button */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <button
+      {/* Bouton menu mobile */}
+      <button
+        onClick={onToggle}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow-lg text-gray-600 hover:text-gray-900 transition-colors"
+      >
+        {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+      </button>
+
+      {/* Overlay mobile */}
+      {isOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 z-40 bg-black bg-opacity-50"
           onClick={onToggle}
-          className="p-2 rounded-lg bg-white shadow-lg text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
-      </div>
+        />
+      )}
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+        fixed top-0 left-0 z-50 h-full w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out
+        lg:relative lg:z-auto lg:translate-x-0 lg:shadow-none
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         
-        {/* Logo et titre */}
+        {/* Header avec logo */}
         <div className="flex items-center justify-center h-16 px-4 bg-gradient-to-r from-blue-600 to-purple-600">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
@@ -127,7 +139,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
           </div>
         </div>
 
-        {/* Profile section */}
+        {/* Section profil */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center">
             <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
@@ -150,7 +162,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
             </div>
           </div>
 
-          {/* Progress bar */}
+          {/* Barre de progression */}
           <div className="mt-3">
             <div className="flex justify-between text-xs text-gray-600 mb-1">
               <span>Progression</span>
@@ -166,13 +178,13 @@ const Sidebar = ({ isOpen, onToggle }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {navigationItems.map((item) => (
             <NavItem key={item.name} item={item} />
           ))}
         </nav>
 
-        {/* Logout button */}
+        {/* Bouton déconnexion */}
         <div className="p-4 border-t border-gray-200">
           <button
             onClick={handleLogout}
@@ -183,7 +195,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
           </button>
         </div>
 
-        {/* Gamification stats */}
+        {/* Stats de gamification */}
         <div className="p-4 bg-gradient-to-r from-gray-50 to-blue-50">
           <div className="text-xs text-gray-600 mb-2 font-semibold">
             Statistiques Gamification
