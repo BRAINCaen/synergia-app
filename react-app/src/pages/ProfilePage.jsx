@@ -117,44 +117,49 @@ const ProfilePage = () => {
       }
 
       // 3. Charger l'activité récente (dernières tâches complétées)
-      const tasksQuery = query(
-        collection(db, 'tasks'),
-        where('userId', '==', user.uid),
-        where('status', '==', 'completed'),
-        orderBy('completedAt', 'desc'),
-        limit(10)
-      );
-      
-      const tasksSnapshot = await getDocs(tasksQuery);
-      const recentTasks = tasksSnapshot.docs.map(doc => ({
-        id: doc.id,
-        type: 'task_completed',
-        ...doc.data(),
-        timestamp: doc.data().completedAt?.toDate() || new Date()
-      }));
+      try {
+        const tasksQuery = query(
+          collection(db, 'tasks'),
+          where('userId', '==', user.uid),
+          where('status', '==', 'completed'),
+          orderBy('completedAt', 'desc'),
+          limit(10)
+        );
+        
+        const tasksSnapshot = await getDocs(tasksQuery);
+        const recentTasks = tasksSnapshot.docs.map(doc => ({
+          id: doc.id,
+          type: 'task_completed',
+          ...doc.data(),
+          timestamp: doc.data().completedAt?.toDate() || new Date()
+        }));
 
-      // 4. Charger les projets récents
-      const projectsQuery = query(
-        collection(db, 'projects'),
-        where('ownerId', '==', user.uid),
-        orderBy('createdAt', 'desc'),
-        limit(5)
-      );
+        // 4. Charger les projets récents
+        const projectsQuery = query(
+          collection(db, 'projects'),
+          where('ownerId', '==', user.uid),
+          orderBy('createdAt', 'desc'),
+          limit(5)
+        );
 
-      const projectsSnapshot = await getDocs(projectsQuery);
-      const recentProjects = projectsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        type: 'project_created',
-        ...doc.data(),
-        timestamp: doc.data().createdAt?.toDate() || new Date()
-      }));
+        const projectsSnapshot = await getDocs(projectsQuery);
+        const recentProjects = projectsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          type: 'project_created',
+          ...doc.data(),
+          timestamp: doc.data().createdAt?.toDate() || new Date()
+        }));
 
-      // Combiner et trier l'activité
-      const combinedActivity = [...recentTasks, ...recentProjects]
-        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-        .slice(0, 10);
+        // Combiner et trier l'activité
+        const combinedActivity = [...recentTasks, ...recentProjects]
+          .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+          .slice(0, 10);
 
-      setRecentActivity(combinedActivity);
+        setRecentActivity(combinedActivity);
+      } catch (activityError) {
+        console.warn('Impossible de charger l\'activité récente:', activityError);
+        setRecentActivity([]);
+      }
 
       // 5. Générer les badges disponibles
       const availableBadges = generateBadges(statsSnap.data());
