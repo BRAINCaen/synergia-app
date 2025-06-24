@@ -1,122 +1,166 @@
-// react-app/src/App.jsx
+// ==========================================
+// 📁 react-app/src/App.jsx
+// Application principale avec système de badges automatiques
+// ==========================================
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './shared/stores/authStore';
-import { useGameStore } from './shared/stores/gameStore';
-
-// Components
-import Sidebar from './components/layout/Sidebar';
+import { Toaster } from 'react-hot-toast';
 
 // Pages
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import TasksPage from './pages/TasksPage';
-import ProjectsPage from './pages/ProjectsPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-import LeaderboardPage from './pages/LeaderboardPage';
-import ProfilePage from './pages/ProfilePage';
-import UsersPage from './pages/UsersPage';
+import LoginPage from './pages/LoginPage.jsx';
+import DashboardPage from './pages/DashboardPage.jsx';
+import TasksPage from './pages/TasksPage.jsx';
+import ProjectsPage from './pages/ProjectsPage.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import LeaderboardPage from './pages/LeaderboardPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
+import UsersPage from './pages/UsersPage.jsx';
 
-const App = () => {
+// Layout et composants
+import Layout from './components/layout/Layout.jsx';
+import LoadingSpinner from './components/ui/LoadingSpinner.jsx';
+import BadgeNotification from './components/gamification/BadgeNotification.jsx';
+
+// Hooks et stores
+import { useAuthStore } from './shared/stores/authStore.js';
+import { useRealTimeUser } from './hooks/useRealTimeUser.js';
+
+// Services
+import BadgeIntegrationService from './core/services/badgeIntegrationService.js';
+
+/**
+ * 🚀 COMPOSANT PRINCIPAL APPLICATION
+ * 
+ * Architecture centralisée avec :
+ * - Routing complet 7 pages
+ * - Système d'authentification Firebase
+ * - Gamification temps réel
+ * - Système de badges automatiques
+ * - Notifications et toast
+ */
+function App() {
   const { user, loading, initializeAuth } = useAuthStore();
-  const { initializeGameStore } = useGameStore();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Hook temps réel pour synchronisation données utilisateur
+  useRealTimeUser(user?.uid);
+
+  // Initialisation de l'application
   useEffect(() => {
-    const initializeApp = async () => {
-      try {
-        console.log('🚀 Initialisation de l\'application Synergia...');
-        
-        // Initialiser l'authentification
-        const unsubscribe = initializeAuth();
-        
-        return unsubscribe;
-      } catch (error) {
-        console.error('❌ Erreur initialisation app:', error);
-      }
-    };
+    console.log('🚀 App: Initialisation démarrée');
+    
+    // Initialiser l'authentification
+    initializeAuth();
 
-    initializeApp();
+    // Initialiser le service de badges
+    BadgeIntegrationService.init();
+
+    // Nettoyage au démontage
+    return () => {
+      BadgeIntegrationService.cleanup();
+    };
   }, [initializeAuth]);
 
-  // Initialiser la gamification quand l'utilisateur est connecté
+  // Synchronisation badges quand l'utilisateur se connecte
   useEffect(() => {
     if (user?.uid) {
-      console.log('🎮 Initialisation gamification pour:', user.email);
-      initializeGameStore(user.uid).catch(error => {
-        console.error('❌ Erreur init gamification:', error);
-      });
+      console.log('👤 Utilisateur connecté, synchronisation badges:', user.email);
+      
+      // Déclencher une vérification initiale des badges
+      setTimeout(() => {
+        BadgeIntegrationService.checkBadgesForUser(user.uid);
+      }, 2000); // Attendre 2s que les données soient chargées
     }
-  }, [user?.uid, initializeGameStore]);
+  }, [user?.uid]);
 
-  // Loading state
+  // État de chargement
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-white">Chargement de Synergia...</p>
+          <LoadingSpinner size="large" />
+          <div className="mt-4 text-white text-lg">
+            Chargement de Synergia...
+          </div>
         </div>
       </div>
     );
   }
 
-  // Not authenticated
-  if (!user) {
-    return (
+  return (
+    <div className="min-h-screen bg-gray-900">
       <Router>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          {/* Route publique - Login */}
+          <Route 
+            path="/login" 
+            element={!user ? <LoginPage /> : <Navigate to="/dashboard" replace />} 
+          />
+
+          {/* Routes protégées avec Layout */}
+          <Route path="/*" element={
+            user ? (
+              <Layout>
+                <Routes>
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/tasks" element={<TasksPage />} />
+                  <Route path="/projects" element={<ProjectsPage />} />
+                  <Route path="/analytics" element={<AnalyticsPage />} />
+                  <Route path="/leaderboard" element={<LeaderboardPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/users" element={<UsersPage />} />
+                  
+                  {/* Redirection par défaut */}
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+              </Layout>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          } />
         </Routes>
       </Router>
-    );
-  }
 
-  // Authenticated - Layout avec sidebar
-  return (
-    <Router>
-      <div className="min-h-screen bg-gray-50">
-        {/* Layout principal */}
-        <div className="flex h-screen">
-          
-          {/* Sidebar */}
-          <div className="hidden lg:block lg:w-64 lg:flex-shrink-0">
-            <Sidebar 
-              isOpen={true} // Toujours ouverte sur desktop
-              onToggle={() => {}} // Pas de toggle sur desktop
-            />
-          </div>
+      {/* Système de notifications */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#1f2937',
+            color: '#fff',
+            border: '1px solid #374151',
+            borderRadius: '0.75rem',
+            fontSize: '14px',
+            maxWidth: '400px'
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff'
+            }
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff'
+            }
+          }
+        }}
+      />
 
-          {/* Sidebar mobile */}
-          <div className="lg:hidden">
-            <Sidebar 
-              isOpen={sidebarOpen}
-              onToggle={() => setSidebarOpen(!sidebarOpen)}
-            />
-          </div>
-          
-          {/* Contenu principal */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <main className="flex-1 overflow-y-auto">
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/tasks" element={<TasksPage />} />
-                <Route path="/projects" element={<ProjectsPage />} />
-                <Route path="/analytics" element={<AnalyticsPage />} />
-                <Route path="/leaderboard" element={<LeaderboardPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/users" element={<UsersPage />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </Routes>
-            </main>
-          </div>
+      {/* Notifications de badges (overlay global) */}
+      <BadgeNotification />
+
+      {/* Indicateur de développement */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed bottom-4 left-4 bg-blue-600 text-white text-xs px-3 py-1 rounded-full opacity-50 z-40">
+          🔧 DEV MODE
         </div>
-      </div>
-    </Router>
+      )}
+    </div>
   );
-};
+}
 
 export default App;
