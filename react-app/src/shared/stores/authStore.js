@@ -1,5 +1,5 @@
 // src/shared/stores/authStore.js
-// Store d'authentification complet avec Firebase et initialisation GameStore
+// Store d'authentification avec méthodes gamification corrigées
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { authService } from '../../core/firebase'
@@ -90,11 +90,12 @@ export const useAuthStore = create(
             error: null 
           })
           
-          // Initialiser la gamification pour le nouvel utilisateur
+          // ✅ CORRIGÉ: Initialiser la gamification avec les bonnes méthodes
           try {
             const { gamificationService } = await import('../../core/services/gamificationService.js');
-            await gamificationService.initializeUserStats(userData.uid, userData.email);
-            await gamificationService.updateLoginStreak(userData.uid);
+            await gamificationService.initializeUserData(userData.uid);
+            await gamificationService.dailyLogin(userData.uid);
+            console.log('✅ Gamification initialisée pour:', userData.email);
           } catch (gamificationError) {
             console.warn('⚠️ Erreur initialisation gamification:', gamificationError);
           }
@@ -131,11 +132,12 @@ export const useAuthStore = create(
             error: null 
           })
           
-          // Initialiser la gamification pour le nouvel utilisateur
+          // ✅ CORRIGÉ: Initialiser la gamification avec les bonnes méthodes
           try {
             const { gamificationService } = await import('../../core/services/gamificationService.js');
-            await gamificationService.initializeUserStats(userData.uid, userData.email);
-            await gamificationService.updateLoginStreak(userData.uid);
+            await gamificationService.initializeUserData(userData.uid);
+            await gamificationService.dailyLogin(userData.uid);
+            console.log('✅ Gamification initialisée pour:', userData.email);
           } catch (gamificationError) {
             console.warn('⚠️ Erreur initialisation gamification:', gamificationError);
           }
