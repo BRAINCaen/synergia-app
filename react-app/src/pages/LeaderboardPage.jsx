@@ -5,6 +5,15 @@ import {
   Users, Award, Zap, Clock, Filter, RefreshCw, Download,
   ChevronUp, ChevronDown, Flame, Shield, Gem, Sword
 } from 'lucide-react';
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  limit, 
+  getDocs,
+  onSnapshot
+} from 'firebase/firestore';
+import { db } from '../core/firebase.js';
 import { useGameStore } from '../shared/stores/gameStore.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
@@ -227,12 +236,12 @@ const LeaderboardPage = () => {
     return Math.round(completionRate);
   };
 
-  if (loading) {
+  if (loading || loadingFirebase) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-white flex items-center gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
-          Chargement du classement...
+          {loadingFirebase ? 'Chargement données Firebase...' : 'Chargement du classement...'}
         </div>
       </div>
     );
@@ -250,7 +259,10 @@ const LeaderboardPage = () => {
                 Leaderboard
               </h1>
               <p className="text-gray-400 text-lg">
-                Compétition en temps réel • Performance équipe
+                Compétition en temps réel • Performance équipe • {realLeaderboard.length > 0 ? 
+                  `${realLeaderboard.length} utilisateurs Firebase` : 
+                  'Données simulées'
+                }
               </p>
             </div>
             
@@ -411,8 +423,9 @@ const LeaderboardPage = () => {
                   {/* Highlight utilisateur connecté */}
                   {userData.userId === user?.uid && (
                     <div className="absolute inset-0 rounded-xl border-2 border-blue-400 bg-blue-400/5 pointer-events-none">
-                      <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                        Vous
+                      <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                        <Star className="w-3 h-3" />
+                        Vous {userData.isRealUser && '(Firebase)'}
                       </div>
                     </div>
                   )}
@@ -468,7 +481,10 @@ const LeaderboardPage = () => {
                         <div className="flex items-center gap-2">
                           {getRankIcon(position)}
                           {isCurrentUser && (
-                            <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">Vous</span>
+                            <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full flex items-center gap-1">
+                              <Star className="w-3 h-3" />
+                              Vous {userData.isRealUser && '(FB)'}
+                            </span>
                           )}
                         </div>
                       </td>
@@ -567,7 +583,9 @@ const LeaderboardPage = () => {
           <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 text-center">
             <Users className="w-8 h-8 text-blue-400 mx-auto mb-2" />
             <div className="text-2xl font-bold text-white">{sortedLeaderboard.length}</div>
-            <div className="text-gray-400 text-sm">Participants actifs</div>
+            <div className="text-gray-400 text-sm">
+              Participants {realLeaderboard.length > 0 ? '(Firebase)' : '(Simulés)'}
+            </div>
           </div>
           
           <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 text-center">
@@ -598,23 +616,38 @@ const LeaderboardPage = () => {
         {/* Message motivationnel */}
         <div className="mt-8 bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-xl p-6 border border-purple-700/50">
           <div className="text-center">
-            <h3 className="text-xl font-bold text-white mb-2">🎯 Continuez sur votre lancée !</h3>
+            <h3 className="text-xl font-bold text-white mb-2">
+              🎯 {realLeaderboard.length > 0 ? 'Classement temps réel Firebase !' : 'Continuez sur votre lancée !'}
+            </h3>
             <p className="text-gray-300">
-              {user?.uid && sortedLeaderboard.find(u => u.userId === user.uid) ? (
-                `Vous êtes ${sortedLeaderboard.findIndex(u => u.userId === user.uid) + 1}${
-                  sortedLeaderboard.findIndex(u => u.userId === user.uid) + 1 === 1 ? 'er' : 'ème'
-                } au classement ! ${
-                  sortedLeaderboard.findIndex(u => u.userId === user.uid) + 1 === 1 ? 
-                    'Félicitations, vous dominez le leaderboard !' :
-                    `Plus que ${
-                      sortedLeaderboard[sortedLeaderboard.findIndex(u => u.userId === user.uid) - 1]?.totalXp - 
-                      (sortedLeaderboard.find(u => u.userId === user.uid)?.totalXp || 0)
-                    } XP pour rattraper la place suivante !`
-                }`
+              {realLeaderboard.length > 0 ? (
+                `Leaderboard connecté à Firebase avec ${realLeaderboard.length} utilisateurs réels ! 
+                 Les données se mettent à jour automatiquement.`
               ) : (
-                'Rejoignez la compétition en complétant des tâches et gagnez des points XP !'
+                user?.uid && sortedLeaderboard.find(u => u.userId === user.uid) ? (
+                  `Vous êtes ${sortedLeaderboard.findIndex(u => u.userId === user.uid) + 1}${
+                    sortedLeaderboard.findIndex(u => u.userId === user.uid) + 1 === 1 ? 'er' : 'ème'
+                  } au classement ! ${
+                    sortedLeaderboard.findIndex(u => u.userId === user.uid) + 1 === 1 ? 
+                      'Félicitations, vous dominez le leaderboard !' :
+                      `Plus que ${
+                        sortedLeaderboard[sortedLeaderboard.findIndex(u => u.userId === user.uid) - 1]?.totalXp - 
+                        (sortedLeaderboard.find(u => u.userId === user.uid)?.totalXp || 0)
+                      } XP pour rattraper la place suivante !`
+                  }`
+                ) : (
+                  'Rejoignez la compétition en complétant des tâches et gagnez des points XP !'
+                )
               )}
             </p>
+            {realLeaderboard.length === 0 && (
+              <div className="mt-4 p-3 bg-blue-900/30 rounded-lg border border-blue-700/30">
+                <p className="text-blue-200 text-sm">
+                  ℹ️ <strong>Mode démo actif</strong> - Les autres utilisateurs sont simulés pour la démonstration.
+                  Le leaderboard se connectera automatiquement quand d'autres utilisateurs rejoindront !
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
