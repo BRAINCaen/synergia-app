@@ -8,7 +8,7 @@ import { useGameStore } from './shared/stores/gameStore';
 // Components
 import Sidebar from './components/layout/Sidebar';
 
-// Pages - utiliser les vrais noms de fichiers
+// Pages - utiliser les vrais noms de fichiers existants
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import TasksPage from './pages/TasksPage';
@@ -26,16 +26,10 @@ const App = () => {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        console.log('🚀 Initialisation de l\'application...');
+        console.log('🚀 Initialisation de l\'application Synergia...');
         
         // Initialiser l'authentification
         const unsubscribe = initializeAuth();
-        
-        // Si utilisateur connecté, initialiser la gamification
-        if (user?.uid) {
-          await initializeGameStore(user.uid);
-          console.log('✅ Gamification initialisée pour:', user.email);
-        }
         
         return unsubscribe;
       } catch (error) {
@@ -44,7 +38,17 @@ const App = () => {
     };
 
     initializeApp();
-  }, [user?.uid, initializeAuth, initializeGameStore]);
+  }, [initializeAuth]);
+
+  // Initialiser la gamification quand l'utilisateur est connecté
+  useEffect(() => {
+    if (user?.uid) {
+      console.log('🎮 Initialisation gamification pour:', user.email);
+      initializeGameStore(user.uid).catch(error => {
+        console.error('❌ Erreur init gamification:', error);
+      });
+    }
+  }, [user?.uid, initializeGameStore]);
 
   // Loading state
   if (loading) {
