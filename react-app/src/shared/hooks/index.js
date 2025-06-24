@@ -9,3 +9,6 @@ export { useGameService } from './useGameService.js';
 export { useAuth } from './useAuth.js';
 export { useDebounce } from './useDebounce.js';
 export { useLocalStorage } from './useLocalStorage.js';
+// react-app/src/shared/hooks/index.js
+export { default as useTeam, useTeamStats, useTeamSearch, useOnlineMembers } from './useTeam.js';
+export { useAuth } from './useAuth.js';
