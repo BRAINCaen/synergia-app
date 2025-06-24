@@ -82,6 +82,12 @@ class GamificationService {
   // ✅ CORRECTION PRINCIPALE: Utiliser la bonne structure de collection
   async getUserData(userId) {
     try {
+      // ✅ VALIDATION CRITIQUE: S'assurer que userId est un string
+      if (!userId || typeof userId !== 'string') {
+        console.error('❌ ID utilisateur invalide:', userId, typeof userId);
+        return null;
+      }
+
       // ✅ CORRECTION: Utiliser 'userStats' au lieu de subcollection
       const docRef = doc(db, 'userStats', userId);
       const docSnap = await getDoc(docRef);
@@ -99,6 +105,12 @@ class GamificationService {
   // ✅ CORRECTION PRINCIPALE: Utiliser la bonne structure de collection
   async setUserData(userId, data) {
     try {
+      // ✅ VALIDATION CRITIQUE: S'assurer que userId est un string
+      if (!userId || typeof userId !== 'string') {
+        console.error('❌ ID utilisateur invalide pour setUserData:', userId, typeof userId);
+        return false;
+      }
+
       // ✅ CORRECTION: Utiliser 'userStats' au lieu de subcollection
       const docRef = doc(db, 'userStats', userId);
       await setDoc(docRef, {
@@ -115,6 +127,18 @@ class GamificationService {
   // ✅ CORRECTION PRINCIPALE: Ajouter XP sans boucle infinie
   async addXP(userId, amount, reason = 'Action') {
     try {
+      // ✅ VALIDATION CRITIQUE: S'assurer que userId est un string
+      if (!userId || typeof userId !== 'string') {
+        console.error('❌ ID utilisateur invalide pour addXP:', userId, typeof userId);
+        return { success: false, error: 'ID utilisateur invalide' };
+      }
+
+      // ✅ VALIDATION: S'assurer que amount est un nombre
+      if (typeof amount !== 'number' || isNaN(amount)) {
+        console.error('❌ Montant XP invalide:', amount);
+        return { success: false, error: 'Montant XP invalide' };
+      }
+
       // Éviter les doublons pour la connexion quotidienne
       const actionKey = `${userId}-${reason}-${new Date().toDateString()}`;
       
