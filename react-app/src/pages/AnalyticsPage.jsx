@@ -58,6 +58,33 @@ const AnalyticsPage = () => {
     }
   }, [user?.uid, timeRange]);
 
+  // Fonction utilitaire pour valider les données de graphiques
+  const validateChartData = (data, requiredFields = []) => {
+    if (!Array.isArray(data)) return [];
+    
+    return data.filter(item => {
+      if (!item || typeof item !== 'object') return false;
+      
+      // Vérifier les champs requis
+      for (const field of requiredFields) {
+        if (!(field in item)) return false;
+        const value = item[field];
+        if (typeof value === 'number' && (isNaN(value) || !isFinite(value))) return false;
+      }
+      
+      // Nettoyer tous les champs numériques
+      Object.keys(item).forEach(key => {
+        if (typeof item[key] === 'number') {
+          if (isNaN(item[key]) || !isFinite(item[key])) {
+            item[key] = 0;
+          }
+        }
+      });
+      
+      return true;
+    });
+  };
+
   const loadAnalyticsData = async () => {
     setLoading(true);
     try {
@@ -67,11 +94,70 @@ const AnalyticsPage = () => {
         loadUserProjects(user.uid)
       ]);
 
-      // Calculer les analytics
+      // Calculer les analytics avec validation
       const analyticsData = calculateAnalytics();
+      
+      // Valider toutes les données de graphiques
+      analyticsData.charts.dailyActivity = validateChartData(
+        analyticsData.charts.dailyActivity, 
+        ['created', 'completed', 'productivity']
+      );
+      
+      analyticsData.charts.tasksByPriority = validateChartData(
+        analyticsData.charts.tasksByPriority, 
+        ['value']
+      );
+      
+      analyticsData.charts.projectProgress = validateChartData(
+        analyticsData.charts.projectProgress, 
+        ['progress']
+      );
+      
+      analyticsData.charts.weeklyProductivity = validateChartData(
+        analyticsData.charts.weeklyProductivity, 
+        ['created', 'completed', 'efficiency']
+      );
+      
+      analyticsData.charts.completionTrends = validateChartData(
+        analyticsData.charts.completionTrends, 
+        ['completed', 'target']
+      );
+      
+      analyticsData.charts.timeDistribution = validateChartData(
+        analyticsData.charts.timeDistribution, 
+        ['hours']
+      );
+      
       setAnalytics(analyticsData);
     } catch (error) {
       console.error('Erreur chargement analytics:', error);
+      // Définir des données par défaut en cas d'erreur
+      setAnalytics({
+        overview: {
+          totalTasks: 0,
+          completedTasks: 0,
+          totalProjects: 0,
+          completedProjects: 0,
+          totalXP: 0,
+          currentLevel: 1,
+          streakDays: 0,
+          avgCompletionTime: 0
+        },
+        trends: {
+          tasksGrowth: 0,
+          projectsGrowth: 0,
+          xpGrowth: 0,
+          productivityScore: 0
+        },
+        charts: {
+          dailyActivity: [],
+          tasksByPriority: [],
+          projectProgress: [],
+          timeDistribution: [],
+          weeklyProductivity: [],
+          completionTrends: []
+        }
+      });
     } finally {
       setLoading(false);
     }
@@ -510,8 +596,15 @@ const AnalyticsPage = () => {
             <ResponsiveContainer width="100%" height={300}>
               <ComposedChart data={analytics.charts.dailyActivity}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="date" stroke="#9ca3af" />
-                <YAxis stroke="#9ca3af" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#9ca3af"
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  stroke="#9ca3af"
+                  tick={{ fontSize: 12 }}
+                />
                 <Tooltip 
                   contentStyle={{ 
                     backgroundColor: '#1f2937', 
@@ -521,15 +614,17 @@ const AnalyticsPage = () => {
                   }} 
                 />
                 <Legend />
-                <Bar dataKey="created" name="Créées" fill="#3b82f6" />
-                <Bar dataKey="completed" name="Terminées" fill="#10b981" />
-                <Line 
-                  type="monotone" 
-                  dataKey="productivity" 
-                  name="Productivité %" 
-                  stroke="#f59e0b" 
-                  strokeWidth={2}
-                  yAxisId="right"
+                <Bar 
+                  dataKey="created" 
+                  name="Créées" 
+                  fill="#3b82f6" 
+                  radius={[2, 2, 0, 0]}
+                />
+                <Bar 
+                  dataKey="completed" 
+                  name="Terminées" 
+                  fill="#10b981" 
+                  radius={[2, 2, 0, 0]}
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -585,10 +680,25 @@ const AnalyticsPage = () => {
           
           {analytics.charts.projectProgress.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={analytics.charts.projectProgress} layout="horizontal">
+              <BarChart 
+                data={analytics.charts.projectProgress} 
+                layout="horizontal"
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis type="number" domain={[0, 100]} stroke="#9ca3af" />
-                <YAxis dataKey="name" type="category" stroke="#9ca3af" width={150} />
+                <XAxis 
+                  type="number" 
+                  domain={[0, 100]} 
+                  stroke="#9ca3af"
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  dataKey="name" 
+                  type="category" 
+                  stroke="#9ca3af" 
+                  width={150}
+                  tick={{ fontSize: 12 }}
+                />
                 <Tooltip 
                   contentStyle={{ 
                     backgroundColor: '#1f2937', 
@@ -596,15 +706,20 @@ const AnalyticsPage = () => {
                     borderRadius: '8px',
                     color: '#fff'
                   }}
-                  formatter={(value, name) => [`${value}%`, 'Progression']}
+                  formatter={(value) => [`${value}%`, 'Progression']}
                 />
-                <Bar dataKey="progress" fill="#8b5cf6" />
+                <Bar 
+                  dataKey="progress" 
+                  fill="#8b5cf6"
+                  radius={[0, 4, 4, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           ) : (
             <div className="text-center py-12 text-gray-400">
               <FileText className="w-12 h-12 mx-auto mb-4" />
               <p>Aucun projet créé</p>
+              <p className="text-sm mt-2">Créez votre premier projet pour voir les statistiques</p>
             </div>
           )}
         </div>
@@ -619,10 +734,20 @@ const AnalyticsPage = () => {
             </h3>
             
             <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={analytics.charts.weeklyProductivity}>
+              <LineChart 
+                data={analytics.charts.weeklyProductivity}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="week" stroke="#9ca3af" />
-                <YAxis stroke="#9ca3af" />
+                <XAxis 
+                  dataKey="week" 
+                  stroke="#9ca3af"
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  stroke="#9ca3af"
+                  tick={{ fontSize: 12 }}
+                />
                 <Tooltip 
                   contentStyle={{ 
                     backgroundColor: '#1f2937', 
@@ -637,7 +762,8 @@ const AnalyticsPage = () => {
                   name="Efficacité %" 
                   stroke="#10b981" 
                   strokeWidth={3}
-                  dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                  dot={{ fill: '#10b981', strokeWidth: 2, r: 6 }}
+                  activeDot={{ r: 8 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -651,22 +777,38 @@ const AnalyticsPage = () => {
             </h3>
             
             <ResponsiveContainer width="100%" height={250}>
-              <RadialBarChart cx="50%" cy="50%" innerRadius="30%" outerRadius="90%" data={analytics.charts.timeDistribution}>
-                <RadialBar 
-                  dataKey="hours" 
-                  cornerRadius={10} 
-                  fill={analytics.charts.timeDistribution[0]?.fill || '#3b82f6'} 
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1f2937', 
-                    border: '1px solid #374151',
-                    borderRadius: '8px',
-                    color: '#fff'
-                  }}
-                  formatter={(value, name) => [`${value}h`, 'Temps']}
-                />
-              </RadialBarChart>
+              {analytics.charts.timeDistribution.length > 0 ? (
+                <PieChart>
+                  <Pie
+                    data={analytics.charts.timeDistribution}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    dataKey="hours"
+                    label={({ name, value }) => `${name}: ${value}h`}
+                  >
+                    {analytics.charts.timeDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1f2937', 
+                      border: '1px solid #374151',
+                      borderRadius: '8px',
+                      color: '#fff'
+                    }}
+                    formatter={(value) => [`${value}h`, 'Temps']}
+                  />
+                </PieChart>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400">
+                  <div className="text-center">
+                    <Clock className="w-12 h-12 mx-auto mb-4" />
+                    <p>Aucune donnée temporelle</p>
+                  </div>
+                </div>
+              )}
             </ResponsiveContainer>
           </div>
         </div>
@@ -679,7 +821,10 @@ const AnalyticsPage = () => {
           </h3>
           
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={analytics.charts.completionTrends}>
+            <AreaChart 
+              data={analytics.charts.completionTrends}
+              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+            >
               <defs>
                 <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
@@ -691,8 +836,15 @@ const AnalyticsPage = () => {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="date" stroke="#9ca3af" />
-              <YAxis stroke="#9ca3af" />
+              <XAxis 
+                dataKey="date" 
+                stroke="#9ca3af"
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis 
+                stroke="#9ca3af"
+                tick={{ fontSize: 12 }}
+              />
               <Tooltip 
                 contentStyle={{ 
                   backgroundColor: '#1f2937', 
