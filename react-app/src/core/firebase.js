@@ -19,7 +19,11 @@ const firebaseConfig = {
 const isFirebaseConfigured = Object.values(firebaseConfig).every(value => value && value !== 'undefined')
 
 // Initialisation Firebase
-let app, auth, db, storage, googleProvider
+let app = null
+let auth = null
+let db = null
+let storage = null
+let googleProvider = null
 
 if (isFirebaseConfigured) {
   try {
@@ -103,14 +107,12 @@ export const authService = {
   }
 }
 
-// Export avec fallback
-export { 
-  auth: auth || null, 
-  db: db || null, 
-  storage: storage || null,
-  googleProvider: googleProvider || null,
-  isFirebaseConfigured,
-  authService
-}
+// Exports séparés pour éviter les conflits de syntaxe
+export const firebaseAuth = auth
+export const firebaseDb = db
+export const firebaseStorage = storage
+export const firebaseGoogleProvider = googleProvider
+export { isFirebaseConfigured }
 
-export default app || null
+// Export par défaut
+export default app
