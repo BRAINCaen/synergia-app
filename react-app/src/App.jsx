@@ -8,6 +8,10 @@ import { useAuthStore } from './shared/stores/authStore.js';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
+import ProjectsPage from './pages/ProjectsPage.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import LeaderboardPage from './pages/LeaderboardPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
 
 // Component de chargement simple
 function LoadingSpinner() {
@@ -236,43 +240,19 @@ function App() {
           />
           <Route 
             path="projects" 
-            element={
-              <DefaultPage 
-                title="Projets Collaboratifs" 
-                icon="📁" 
-                description="Gestion de projets d'équipe et collaboration"
-              />
-            } 
+            element={<ProjectsPage />}
           />
           <Route 
             path="analytics" 
-            element={
-              <DefaultPage 
-                title="Analytics & Métriques" 
-                icon="📊" 
-                description="Tableaux de bord et analyses de performance"
-              />
-            } 
+            element={<AnalyticsPage />}
           />
           <Route 
             path="leaderboard" 
-            element={
-              <DefaultPage 
-                title="Classement de l'Équipe" 
-                icon="🏆" 
-                description="Leaderboard et compétitions gamifiées"
-              />
-            } 
+            element={<LeaderboardPage />}
           />
           <Route 
             path="profile" 
-            element={
-              <DefaultPage 
-                title="Profil Utilisateur" 
-                icon="👤" 
-                description="Gestion du profil et préférences"
-              />
-            } 
+            element={<ProfilePage />}
           />
         </Route>
 
