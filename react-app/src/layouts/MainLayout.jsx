@@ -1,14 +1,17 @@
 import React, { useState } from 'react'
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useAuthStore } from '../shared/stores/authStore'
 
 const MainLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
-  const navigate = useNavigate()
+  const { user, signOut } = useAuthStore()
 
-  const handleLogout = () => {
-    localStorage.removeItem('synergia-user')
-    navigate('/login')
+  const handleLogout = async () => {
+    const result = await signOut()
+    if (result.success) {
+      console.log('✅ Déconnexion réussie')
+    }
   }
 
   const navItems = [
@@ -77,12 +80,26 @@ const MainLayout = () => {
         {/* User section */}
         <div className="absolute bottom-0 w-full p-4 border-t border-gray-700">
           <div className="flex items-center space-x-3 mb-3">
-            <div className="bg-blue-600 rounded-full p-2 text-white text-sm">
-              👤
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-blue-600">
+              {user?.photoURL ? (
+                <img 
+                  src={user.photoURL} 
+                  alt={user.displayName || user.email}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white text-sm">
+                  👤
+                </div>
+              )}
             </div>
-            <div className="text-sm">
-              <p className="text-white font-medium">Utilisateur Synergia</p>
-              <p className="text-gray-400">Mode développement</p>
+            <div className="text-sm flex-1">
+              <p className="text-white font-medium truncate">
+                {user?.displayName || user?.email || 'Utilisateur'}
+              </p>
+              <p className="text-gray-400 text-xs">
+                {user?.email && user?.displayName ? user.email : 'Connecté avec Google'}
+              </p>
             </div>
           </div>
           <button
