@@ -7,6 +7,7 @@ import { useAuthStore } from './shared/stores/authStore.js';
 // Pages
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import TasksPage from './pages/TasksPage.jsx';
 
 // Component de chargement simple
 function LoadingSpinner() {
@@ -231,13 +232,7 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route 
             path="tasks" 
-            element={
-              <DefaultPage 
-                title="Gestion des Tâches" 
-                icon="✅" 
-                description="Interface de gestion des tâches avec gamification"
-              />
-            } 
+            element={<TasksPage />}
           />
           <Route 
             path="projects" 
