@@ -24,6 +24,8 @@ const LeaderboardPage = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('overall'); // overall, productivity, consistency
+  const [realLeaderboard, setRealLeaderboard] = useState([]);
+  const [loadingFirebase, setLoadingFirebase] = useState(true); // Variable manquante ajoutée
   
   // Stores
   const { 
@@ -35,8 +37,63 @@ const LeaderboardPage = () => {
   } = useGameStore();
   const { user } = useAuthStore();
 
-  // Charger le leaderboard
+  // Charger le leaderboard Firebase
   useEffect(() => {
+    const loadFirebaseLeaderboard = async () => {
+      if (!db) {
+        console.log('🔧 Mode déconnecté - Pas de Firebase');
+        setLoadingFirebase(false);
+        return;
+      }
+
+      try {
+        setLoadingFirebase(true);
+        console.log('📊 Chargement leaderboard Firebase...');
+
+        const usersQuery = query(
+          collection(db, 'users'),
+          orderBy('gamification.totalXp', 'desc'),
+          limit(20)
+        );
+
+        const snapshot = await getDocs(usersQuery);
+        const firebaseUsers = [];
+
+        snapshot.forEach((doc, index) => {
+          const userData = doc.data();
+          if (userData.email && userData.gamification) {
+            firebaseUsers.push({
+              userId: doc.id,
+              name: userData.displayName || userData.email?.split('@')[0] || 'Utilisateur',
+              email: userData.email,
+              avatar: userData.photoURL,
+              totalXp: userData.gamification.totalXp || 0,
+              level: userData.gamification.level || 1,
+              tasksCompleted: userData.gamification.tasksCompleted || 0,
+              tasksCreated: userData.gamification.tasksCreated || 0,
+              badges: userData.gamification.badges || [],
+              streakDays: userData.gamification.loginStreak || 0,
+              joinedAt: userData.createdAt || '2024-01-01',
+              lastActive: new Date().toISOString().split('T')[0],
+              monthlyXp: userData.gamification.monthlyXp || 0,
+              weeklyXp: userData.gamification.weeklyXp || 0,
+              position: index + 1,
+              trend: 'stable'
+            });
+          }
+        });
+
+        setRealLeaderboard(firebaseUsers);
+        console.log(`✅ ${firebaseUsers.length} utilisateurs Firebase chargés`);
+
+      } catch (error) {
+        console.error('❌ Erreur chargement Firebase:', error);
+      } finally {
+        setLoadingFirebase(false);
+      }
+    };
+
+    loadFirebaseLeaderboard();
     loadLeaderboard();
   }, [loadLeaderboard, timePeriod]);
 
@@ -94,12 +151,15 @@ const LeaderboardPage = () => {
       level: userStats?.level || 2,
       tasksCompleted: userStats?.tasksCompleted || 6,
       tasksCreated: 8,
-      badges: userStats?.badges || [],
-      streakDays: userStats?.streakDays || 1,
-      joinedAt: '2025-06-24',
+      badges: userStats?.badges || [
+        { id: 'first_task', name: 'Première tâche', icon: '🎯', earned: true },
+        { id: 'level_up', name: 'Montée niveau', icon: '📈', earned: true }
+      ],
+      streakDays: userStats?.loginStreak || 1,
+      joinedAt: '2024-03-01',
       lastActive: '2025-06-24',
       monthlyXp: userStats?.monthlyXp || 155,
-      weeklyXp: userStats?.weeklyXp || 155,
+      weeklyXp: userStats?.weeklyXp || 175,
       position: 3,
       trend: 'up'
     },
@@ -108,51 +168,52 @@ const LeaderboardPage = () => {
       name: 'Sophie Laurent',
       email: 'sophie.laurent@example.com',
       avatar: null,
-      totalXp: 1200,
-      level: 3,
-      tasksCompleted: 45,
-      tasksCreated: 60,
+      totalXp: 1950,
+      level: 4,
+      tasksCompleted: 78,
+      tasksCreated: 85,
       badges: [
-        { id: 'newcomer', name: 'Nouveau', icon: '🌟', earned: true }
+        { id: 'organizer', name: 'Organisateur', icon: '📋', earned: true }
       ],
-      streakDays: 3,
-      joinedAt: '2025-05-10',
-      lastActive: '2025-06-23',
-      monthlyXp: 600,
-      weeklyXp: 120,
+      streakDays: 5,
+      joinedAt: '2024-01-30',
+      lastActive: '2025-06-22',
+      monthlyXp: 580,
+      weeklyXp: 140,
       position: 4,
       trend: 'down'
     },
     {
       userId: 'user5',
-      name: 'Pierre Durand',
-      email: 'pierre.durand@example.com',
+      name: 'Lucas Bernard',
+      email: 'lucas.bernard@example.com',
       avatar: null,
-      totalXp: 890,
-      level: 2,
-      tasksCompleted: 28,
-      tasksCreated: 35,
+      totalXp: 1750,
+      level: 4,
+      tasksCompleted: 65,
+      tasksCreated: 72,
       badges: [
-        { id: 'first_steps', name: 'Premiers pas', icon: '👶', earned: true }
+        { id: 'collaborator', name: 'Collaborateur', icon: '🤝', earned: true }
       ],
-      streakDays: 1,
-      joinedAt: '2025-06-01',
+      streakDays: 12,
+      joinedAt: '2024-02-10',
       lastActive: '2025-06-24',
-      monthlyXp: 450,
-      weeklyXp: 95,
+      monthlyXp: 520,
+      weeklyXp: 120,
       position: 5,
       trend: 'stable'
     }
   ]);
 
-  // Fusionner données réelles et simulées
-  const getLeaderboardData = () => {
-    return mockUsers.sort((a, b) => {
+  // Fusion des données réelles et simulées
+  const allUsers = realLeaderboard.length > 0 ? realLeaderboard : mockUsers;
+
+  // Fonction de tri selon l'onglet actif
+  const getSortedLeaderboard = () => {
+    return [...allUsers].sort((a, b) => {
       switch (activeTab) {
         case 'xp':
-          return (timePeriod === 'week' ? b.weeklyXp - a.weeklyXp :
-                  timePeriod === 'month' ? b.monthlyXp - a.monthlyXp :
-                  b.totalXp - a.totalXp);
+          return b.totalXp - a.totalXp;
         case 'tasks':
           return b.tasksCompleted - a.tasksCompleted;
         case 'level':
@@ -165,72 +226,41 @@ const LeaderboardPage = () => {
     });
   };
 
-  const sortedLeaderboard = getLeaderboardData();
-
-  // Refresh leaderboard
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadLeaderboard();
-    setTimeout(() => setRefreshing(false), 1000);
-  };
-
-  // Obtenir le podium (top 3)
-  const getPodium = () => sortedLeaderboard.slice(0, 3);
-  const getRestOfLeaderboard = () => sortedLeaderboard.slice(3);
+  const sortedLeaderboard = getSortedLeaderboard();
 
   // Fonctions utilitaires
-  const getDisplayValue = (userData) => {
-    switch (activeTab) {
-      case 'xp':
-        if (timePeriod === 'week') return `${userData.weeklyXp.toLocaleString()} XP`;
-        if (timePeriod === 'month') return `${userData.monthlyXp.toLocaleString()} XP`;
-        return `${userData.totalXp.toLocaleString()} XP`;
-      case 'tasks':
-        return `${userData.tasksCompleted} tâches`;
-      case 'level':
-        return `Niveau ${userData.level}`;
-      case 'badges':
-        return `${userData.badges?.length || 0} badges`;
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+  };
+
+  const getPositionIcon = (position) => {
+    switch (position) {
+      case 1:
+        return <Crown className="w-6 h-6 text-yellow-400" />;
+      case 2:
+        return <Medal className="w-6 h-6 text-gray-400" />;
+      case 3:
+        return <Award className="w-6 h-6 text-amber-600" />;
       default:
-        return `${userData.totalXp.toLocaleString()} XP`;
+        return <span className="text-gray-400 font-bold">#{position}</span>;
     }
-  };
-
-  const getRankColor = (rank) => {
-    if (rank === 1) return 'text-yellow-400';
-    if (rank === 2) return 'text-gray-300';
-    if (rank === 3) return 'text-orange-400';
-    return 'text-gray-400';
-  };
-
-  const getRankIcon = (rank) => {
-    if (rank === 1) return <Crown className="w-6 h-6 text-yellow-400" />;
-    if (rank === 2) return <Medal className="w-6 h-6 text-gray-300" />;
-    if (rank === 3) return <Award className="w-6 h-6 text-orange-400" />;
-    return <span className="text-lg font-bold text-gray-400">#{rank}</span>;
   };
 
   const getTrendIcon = (trend) => {
     switch (trend) {
-      case 'up': return <ChevronUp className="w-4 h-4 text-green-400" />;
-      case 'down': return <ChevronDown className="w-4 h-4 text-red-400" />;
-      default: return <span className="w-4 h-4 text-gray-400">━</span>;
+      case 'up':
+        return <ChevronUp className="w-4 h-4 text-green-400" />;
+      case 'down':
+        return <ChevronDown className="w-4 h-4 text-red-400" />;
+      default:
+        return <span className="w-4 h-4 text-gray-400">-</span>;
     }
   };
 
-  const getLevelInfo = (level) => {
-    const levels = [
-      { name: 'Novice', color: '#9CA3AF', icon: '🌱' },
-      { name: 'Apprenti', color: '#10B981', icon: '🌿' },
-      { name: 'Compétent', color: '#3B82F6', icon: '⚡' },
-      { name: 'Expérimenté', color: '#8B5CF6', icon: '🔥' },
-      { name: 'Expert', color: '#F59E0B', icon: '💎' },
-      { name: 'Maître', color: '#EF4444', icon: '👑' }
-    ];
-    return levels[Math.min(level - 1, levels.length - 1)] || levels[0];
-  };
-
-  const getProductivityScore = (userData) => {
+  const getCompletionRate = (userData) => {
     const completionRate = userData.tasksCreated > 0 ? 
       (userData.tasksCompleted / userData.tasksCreated) * 100 : 0;
     return Math.round(completionRate);
@@ -287,367 +317,231 @@ const LeaderboardPage = () => {
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                 {refreshing ? 'Actualisation...' : 'Actualiser'}
               </button>
-
-              {/* Export */}
-              <button className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 transition-colors">
-                <Download className="w-4 h-4" />
-                Export
-              </button>
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Onglets de catégories */}
-        <div className="flex justify-center mb-8">
-          <div className="bg-gray-800 rounded-xl p-1 border border-gray-700 flex flex-wrap gap-1">
-            {[
-              { id: 'xp', label: 'Points XP', icon: Star },
-              { id: 'tasks', label: 'Tâches complétées', icon: Target },
-              { id: 'level', label: 'Niveau', icon: TrendingUp },
-              { id: 'badges', label: 'Badges', icon: Award }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
-                  activeTab === tab.id
-                    ? 'bg-yellow-600 text-white shadow-lg'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Colonne principale - Classement */}
+          <div className="lg:col-span-3">
+            {/* Onglets de tri */}
+            <div className="bg-gray-800 rounded-xl border border-gray-700 mb-6">
+              <div className="flex border-b border-gray-700">
+                {[
+                  { id: 'xp', label: 'Points XP', icon: Star },
+                  { id: 'tasks', label: 'Tâches', icon: Target },
+                  { id: 'level', label: 'Niveau', icon: Zap },
+                  { id: 'badges', label: 'Badges', icon: Award }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex-1 px-6 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                      activeTab === tab.id
+                        ? 'text-yellow-400 border-b-2 border-yellow-400 bg-gray-700/50'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-700/30'
+                    }`}
+                  >
+                    <tab.icon className="w-4 h-4" />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        {/* Podium (Top 3) */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-center text-white mb-8 flex items-center justify-center gap-2">
-            <Crown className="w-8 h-8 text-yellow-400" />
-            Podium des Champions
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {getPodium().map((userData, index) => {
-              const position = index + 1;
-              const levelInfo = getLevelInfo(userData.level);
-              
-              return (
-                <div
-                  key={userData.userId}
-                  className={`relative bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl p-6 border-2 transform transition-all duration-300 hover:scale-105 ${
-                    position === 1 ? 'border-yellow-400 shadow-yellow-400/20 shadow-2xl md:order-2' :
-                    position === 2 ? 'border-gray-300 shadow-gray-300/20 shadow-xl md:order-1 md:mt-8' :
-                    'border-orange-400 shadow-orange-400/20 shadow-xl md:order-3 md:mt-8'
-                  }`}
-                >
-                  {/* Badge position */}
-                  <div className={`absolute -top-4 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-full flex items-center justify-center ${
-                    position === 1 ? 'bg-yellow-500' :
-                    position === 2 ? 'bg-gray-400' :
-                    'bg-orange-500'
-                  }`}>
-                    {position === 1 ? '🥇' : position === 2 ? '🥈' : '🥉'}
-                  </div>
-
-                  {/* Avatar */}
-                  <div className="text-center mb-4 mt-4">
-                    <div className="w-20 h-20 mx-auto rounded-full bg-gray-700 flex items-center justify-center text-2xl font-bold border-4 border-gray-600">
-                      {userData.avatar ? (
-                        <img src={userData.avatar} alt={userData.name} className="w-full h-full rounded-full object-cover" />
-                      ) : (
-                        userData.name.charAt(0).toUpperCase()
-                      )}
-                    </div>
-                    <h3 className="text-lg font-bold text-white mt-3">{userData.name}</h3>
-                    <p className="text-gray-400 text-sm">{userData.email}</p>
-                  </div>
-
-                  {/* Stats principales */}
-                  <div className="text-center mb-4">
-                    <div className="text-3xl font-bold text-white mb-1">
-                      {getDisplayValue(userData)}
-                    </div>
-                    <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
-                      <span className="flex items-center gap-1">
-                        <span style={{ color: levelInfo.color }}>{levelInfo.icon}</span>
-                        Niveau {userData.level}
-                      </span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <Flame className="w-4 h-4 text-orange-400" />
-                        {userData.streakDays}j
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Badges */}
-                  <div className="flex justify-center gap-1 mb-4">
-                    {userData.badges?.slice(0, 3).map((badge, badgeIndex) => (
+            {/* Liste du classement */}
+            <div className="bg-gray-800 rounded-xl border border-gray-700">
+              <div className="p-6">
+                <div className="space-y-4">
+                  {sortedLeaderboard.map((userData, index) => {
+                    const position = index + 1;
+                    const isCurrentUser = userData.userId === user?.uid;
+                    
+                    return (
                       <div
-                        key={badgeIndex}
-                        className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center text-sm border border-gray-600"
-                        title={badge.name}
+                        key={userData.userId}
+                        className={`p-6 rounded-xl border transition-all hover:scale-[1.02] ${
+                          isCurrentUser
+                            ? 'bg-gradient-to-r from-blue-900/30 to-purple-900/30 border-blue-500/50 shadow-lg shadow-blue-500/20'
+                            : position <= 3
+                            ? 'bg-gradient-to-r from-yellow-900/20 to-orange-900/20 border-yellow-600/30'
+                            : 'bg-gray-700/50 border-gray-600/50 hover:bg-gray-700/70'
+                        }`}
                       >
-                        {badge.icon}
-                      </div>
-                    ))}
-                    {userData.badges?.length > 3 && (
-                      <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center text-xs text-gray-400 border border-gray-600">
-                        +{userData.badges.length - 3}
-                      </div>
-                    )}
-                  </div>
+                        <div className="flex items-center justify-between">
+                          {/* Utilisateur */}
+                          <div className="flex items-center gap-4">
+                            {/* Position */}
+                            <div className="flex items-center justify-center w-12 h-12 bg-gray-800 rounded-xl">
+                              {getPositionIcon(position)}
+                            </div>
 
-                  {/* Métriques additionnelles */}
-                  <div className="grid grid-cols-2 gap-4 text-center text-sm">
-                    <div>
-                      <div className="text-gray-400">Productivité</div>
-                      <div className="text-white font-semibold">{getProductivityScore(userData)}%</div>
-                    </div>
-                    <div>
-                      <div className="text-gray-400">Badges</div>
-                      <div className="text-white font-semibold">{userData.badges?.length || 0}</div>
-                    </div>
-                  </div>
+                            {/* Avatar */}
+                            <div className="relative">
+                              {userData.avatar ? (
+                                <img
+                                  src={userData.avatar}
+                                  alt={userData.name}
+                                  className="w-12 h-12 rounded-xl object-cover border-2 border-gray-600"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                                  {userData.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              {position <= 3 && (
+                                <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center">
+                                  <Crown className="w-3 h-3 text-gray-900" />
+                                </div>
+                              )}
+                            </div>
 
-                  {/* Trend */}
-                  <div className="absolute top-4 right-4">
-                    {getTrendIcon(userData.trend)}
-                  </div>
+                            {/* Infos utilisateur */}
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-white text-lg">
+                                  {userData.name}
+                                  {isCurrentUser && (
+                                    <span className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded-full">
+                                      Vous
+                                    </span>
+                                  )}
+                                </h3>
+                                {getTrendIcon(userData.trend)}
+                              </div>
+                              <p className="text-gray-400 text-sm">
+                                Niveau {userData.level} • {userData.badges?.length || 0} badges
+                              </p>
+                            </div>
+                          </div>
 
-                  {/* Highlight utilisateur connecté */}
-                  {userData.userId === user?.uid && (
-                    <div className="absolute inset-0 rounded-xl border-2 border-blue-400 bg-blue-400/5 pointer-events-none">
-                      <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                        <Star className="w-3 h-3" />
-                        Vous {userData.isRealUser && '(Firebase)'}
+                          {/* Statistiques */}
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-white mb-1">
+                              {activeTab === 'xp' && `${userData.totalXp.toLocaleString()} XP`}
+                              {activeTab === 'tasks' && `${userData.tasksCompleted} tâches`}
+                              {activeTab === 'level' && `Niveau ${userData.level}`}
+                              {activeTab === 'badges' && `${userData.badges?.length || 0} badges`}
+                            </div>
+                            <div className="text-gray-400 text-sm">
+                              {activeTab === 'xp' && `+${userData.weeklyXp} cette semaine`}
+                              {activeTab === 'tasks' && `${getCompletionRate(userData)}% de réussite`}
+                              {activeTab === 'level' && `${userData.totalXp} XP total`}
+                              {activeTab === 'badges' && `${userData.streakDays} jours de suite`}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Barre de progression pour l'XP */}
+                        {activeTab === 'xp' && (
+                          <div className="mt-4">
+                            <div className="flex justify-between text-xs text-gray-400 mb-1">
+                              <span>Progression niveau {userData.level}</span>
+                              <span>{userData.totalXp % 500}/500 XP</span>
+                            </div>
+                            <div className="w-full bg-gray-700 rounded-full h-2">
+                              <div
+                                className="bg-gradient-to-r from-yellow-400 to-orange-500 h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${(userData.totalXp % 500) / 5}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Classement complet */}
-        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-700">
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <Users className="w-6 h-6 text-blue-400" />
-              Classement Complet
-            </h2>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-700">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Rang</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Utilisateur</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">
-                    {activeTab === 'xp' ? 'Points XP' :
-                     activeTab === 'tasks' ? 'Tâches' :
-                     activeTab === 'level' ? 'Niveau' :
-                     'Badges'}
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Niveau</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Productivité</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Série</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Badges</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Tendance</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700">
-                {sortedLeaderboard.map((userData, index) => {
-                  const position = index + 1;
-                  const levelInfo = getLevelInfo(userData.level);
-                  const isCurrentUser = userData.userId === user?.uid;
-                  
-                  return (
-                    <tr
-                      key={userData.userId}
-                      className={`hover:bg-gray-700/50 transition-colors ${
-                        isCurrentUser ? 'bg-blue-900/20 border-l-4 border-blue-400' : ''
-                      }`}
-                    >
-                      {/* Rang */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          {getRankIcon(position)}
-                          {isCurrentUser && (
-                            <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full flex items-center gap-1">
-                              <Star className="w-3 h-3" />
-                              Vous {userData.isRealUser && '(FB)'}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Utilisateur */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold border border-gray-600">
-                            {userData.avatar ? (
-                              <img src={userData.avatar} alt={userData.name} className="w-full h-full rounded-full object-cover" />
-                            ) : (
-                              userData.name.charAt(0).toUpperCase()
-                            )}
-                          </div>
-                          <div>
-                            <div className="text-white font-medium">{userData.name}</div>
-                            <div className="text-gray-400 text-sm">{userData.email}</div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Valeur principale */}
-                      <td className="px-6 py-4">
-                        <div className="text-white font-semibold">
-                          {getDisplayValue(userData)}
-                        </div>
-                      </td>
-
-                      {/* Niveau */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span style={{ color: levelInfo.color }}>{levelInfo.icon}</span>
-                          <span className="text-white">{userData.level}</span>
-                          <span className="text-gray-400 text-sm">({levelInfo.name})</span>
-                        </div>
-                      </td>
-
-                      {/* Productivité */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-12 bg-gray-700 rounded-full h-2">
-                            <div
-                              className="bg-green-400 h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${Math.min(100, getProductivityScore(userData))}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-white text-sm font-medium">
-                            {getProductivityScore(userData)}%
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Série */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1 text-orange-400">
-                          <Flame className="w-4 h-4" />
-                          <span className="font-medium">{userData.streakDays}</span>
-                          <span className="text-gray-400 text-sm">jours</span>
-                        </div>
-                      </td>
-
-                      {/* Badges */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1">
-                          {userData.badges?.slice(0, 3).map((badge, badgeIndex) => (
-                            <div
-                              key={badgeIndex}
-                              className="w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center text-xs border border-gray-600"
-                              title={badge.name}
-                            >
-                              {badge.icon}
-                            </div>
-                          ))}
-                          {userData.badges?.length > 3 && (
-                            <div className="text-gray-400 text-sm ml-1">
-                              +{userData.badges.length - 3}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Tendance */}
-                      <td className="px-6 py-4">
-                        {getTrendIcon(userData.trend)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Statistiques globales */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
-          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 text-center">
-            <Users className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-white">{sortedLeaderboard.length}</div>
-            <div className="text-gray-400 text-sm">
-              Participants {realLeaderboard.length > 0 ? '(Firebase)' : '(Simulés)'}
+              </div>
             </div>
           </div>
-          
-          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 text-center">
-            <Star className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-white">
-              {sortedLeaderboard.reduce((sum, user) => sum + user.totalXp, 0).toLocaleString()}
-            </div>
-            <div className="text-gray-400 text-sm">XP total équipe</div>
-          </div>
-          
-          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 text-center">
-            <Target className="w-8 h-8 text-green-400 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-white">
-              {sortedLeaderboard.reduce((sum, user) => sum + user.tasksCompleted, 0)}
-            </div>
-            <div className="text-gray-400 text-sm">Tâches terminées</div>
-          </div>
-          
-          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 text-center">
-            <Award className="w-8 h-8 text-purple-400 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-white">
-              {sortedLeaderboard.reduce((sum, user) => sum + (user.badges?.length || 0), 0)}
-            </div>
-            <div className="text-gray-400 text-sm">Badges débloqués</div>
-          </div>
-        </div>
 
-        {/* Message motivationnel */}
-        <div className="mt-8 bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-xl p-6 border border-purple-700/50">
-          <div className="text-center">
-            <h3 className="text-xl font-bold text-white mb-2">
-              🎯 {realLeaderboard.length > 0 ? 'Classement temps réel Firebase !' : 'Continuez sur votre lancée !'}
-            </h3>
-            <p className="text-gray-300">
-              {realLeaderboard.length > 0 ? (
-                `Leaderboard connecté à Firebase avec ${realLeaderboard.length} utilisateurs réels ! 
-                 Les données se mettent à jour automatiquement.`
-              ) : (
-                user?.uid && sortedLeaderboard.find(u => u.userId === user.uid) ? (
-                  `Vous êtes ${sortedLeaderboard.findIndex(u => u.userId === user.uid) + 1}${
-                    sortedLeaderboard.findIndex(u => u.userId === user.uid) + 1 === 1 ? 'er' : 'ème'
-                  } au classement ! ${
-                    sortedLeaderboard.findIndex(u => u.userId === user.uid) + 1 === 1 ? 
-                      'Félicitations, vous dominez le leaderboard !' :
-                      `Plus que ${
-                        sortedLeaderboard[sortedLeaderboard.findIndex(u => u.userId === user.uid) - 1]?.totalXp - 
-                        (sortedLeaderboard.find(u => u.userId === user.uid)?.totalXp || 0)
-                      } XP pour rattraper la place suivante !`
-                  }`
-                ) : (
-                  'Rejoignez la compétition en complétant des tâches et gagnez des points XP !'
-                )
-              )}
-            </p>
-            {realLeaderboard.length === 0 && (
-              <div className="mt-4 p-3 bg-blue-900/30 rounded-lg border border-blue-700/30">
-                <p className="text-blue-200 text-sm">
-                  ℹ️ <strong>Mode démo actif</strong> - Les autres utilisateurs sont simulés pour la démonstration.
-                  Le leaderboard se connectera automatiquement quand d'autres utilisateurs rejoindront !
+          {/* Sidebar - Statistiques */}
+          <div className="space-y-6">
+            {/* Top 3 */}
+            <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-yellow-400" />
+                Top 3 {realLeaderboard.length > 0 ? '(Firebase)' : '(Simulés)'}
+              </h3>
+              <div className="space-y-3">
+                {sortedLeaderboard.slice(0, 3).map((userData, index) => (
+                  <div key={userData.userId} className="flex items-center gap-3">
+                    <div className="w-8 h-8 flex items-center justify-center">
+                      {getPositionIcon(index + 1)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-white">{userData.name}</div>
+                      <div className="text-sm text-gray-400">{userData.totalXp.toLocaleString()} XP</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Statistiques globales */}
+            <div className="grid grid-cols-1 gap-4">
+              <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 text-center">
+                <Users className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-white">{sortedLeaderboard.length}</div>
+                <div className="text-gray-400 text-sm">Participants actifs</div>
+              </div>
+              
+              <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 text-center">
+                <Star className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-white">
+                  {sortedLeaderboard.reduce((sum, user) => sum + user.totalXp, 0).toLocaleString()}
+                </div>
+                <div className="text-gray-400 text-sm">XP total équipe</div>
+              </div>
+              
+              <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 text-center">
+                <Target className="w-8 h-8 text-green-400 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-white">
+                  {sortedLeaderboard.reduce((sum, user) => sum + user.tasksCompleted, 0)}
+                </div>
+                <div className="text-gray-400 text-sm">Tâches terminées</div>
+              </div>
+              
+              <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 text-center">
+                <Award className="w-8 h-8 text-purple-400 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-white">
+                  {sortedLeaderboard.reduce((sum, user) => sum + (user.badges?.length || 0), 0)}
+                </div>
+                <div className="text-gray-400 text-sm">Badges débloqués</div>
+              </div>
+            </div>
+
+            {/* Message motivationnel */}
+            <div className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-xl p-6 border border-purple-700/50">
+              <div className="text-center">
+                <h3 className="text-xl font-bold text-white mb-2">
+                  🎯 {realLeaderboard.length > 0 ? 'Classement temps réel Firebase !' : 'Continuez sur votre lancée !'}
+                </h3>
+                <p className="text-gray-300">
+                  {realLeaderboard.length > 0 ? (
+                    `Leaderboard connecté à Firebase avec ${realLeaderboard.length} utilisateurs réels ! 
+                     Les données se mettent à jour automatiquement.`
+                  ) : (
+                    user?.uid && sortedLeaderboard.find(u => u.userId === user.uid) ? (
+                      `Vous êtes ${sortedLeaderboard.findIndex(u => u.userId === user.uid) + 1}${
+                        sortedLeaderboard.findIndex(u => u.userId === user.uid) + 1 === 1 ? 'er' : 'ème'
+                      } au classement ! ${
+                        sortedLeaderboard.findIndex(u => u.userId === user.uid) + 1 === 1 ? 
+                          'Félicitations, vous dominez le leaderboard !' :
+                          `Plus que ${
+                            sortedLeaderboard[sortedLeaderboard.findIndex(u => u.userId === user.uid) - 1]?.totalXp - 
+                            (sortedLeaderboard.find(u => u.userId === user.uid)?.totalXp || 0)
+                          } XP pour rattraper la place suivante !`
+                      }`
+                    ) : (
+                      'Rejoignez la compétition en complétant des tâches et gagnez des points XP !'
+                    )
+                  )}
                 </p>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
