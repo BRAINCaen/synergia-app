@@ -125,13 +125,13 @@ const ProfilePage = () => {
   ];
 
   const ProfileTab = () => (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* En-tête du profil */}
-      <div className="bg-white rounded-lg border p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-4">
+      <div className="bg-white rounded-lg border p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row items-start gap-4">
+          <div className="flex items-center space-x-4 w-full sm:w-auto">
             <div className="relative">
-              <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-2xl">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xl sm:text-2xl">
                 {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
               </div>
               <button className="absolute bottom-0 right-0 p-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
@@ -139,50 +139,50 @@ const ProfilePage = () => {
               </button>
             </div>
             
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               {editing ? (
                 <input
                   type="text"
                   value={formData.displayName}
                   onChange={(e) => setFormData({...formData, displayName: e.target.value})}
-                  className="text-xl font-bold text-gray-900 border-b border-gray-300 focus:border-blue-500 outline-none bg-transparent"
+                  className="text-lg sm:text-xl font-bold text-gray-900 border-b border-gray-300 focus:border-blue-500 outline-none bg-transparent w-full"
                   placeholder="Votre nom"
                 />
               ) : (
-                <h1 className="text-xl font-bold text-gray-900">
+                <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">
                   {formData.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
                 </h1>
               )}
               
-              <p className="text-gray-600">{user?.email}</p>
+              <p className="text-gray-600 text-sm truncate">{user?.email}</p>
               
-              <div className="flex items-center gap-4 mt-2">
-                <div className="flex items-center gap-1 text-sm text-gray-500">
-                  <Crown className="w-4 h-4 text-yellow-500" />
+              <div className="flex items-center gap-3 sm:gap-4 mt-2">
+                <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-500">
+                  <Crown className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />
                   <span>Niveau {levelData.currentLevel}</span>
                 </div>
                 
-                <div className="flex items-center gap-1 text-sm text-gray-500">
-                  <Star className="w-4 h-4 text-blue-500" />
+                <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-500">
+                  <Star className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500" />
                   <span>{levelData.totalXP} XP</span>
                 </div>
               </div>
             </div>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full sm:w-auto">
             {editing ? (
               <>
                 <button
                   onClick={() => setEditing(false)}
                   className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
                 <button
                   onClick={saveProfile}
                   disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm flex-1 sm:flex-none justify-center"
                 >
                   <Save className="w-4 h-4" />
                   {saving ? 'Sauvegarde...' : 'Sauvegarder'}
@@ -191,7 +191,7 @@ const ProfilePage = () => {
             ) : (
               <button
                 onClick={() => setEditing(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm flex-1 sm:flex-none justify-center"
               >
                 <Edit3 className="w-4 h-4" />
                 Modifier
@@ -201,18 +201,18 @@ const ProfilePage = () => {
         </div>
 
         {/* Bio */}
-        <div className="mt-6">
+        <div className="mt-4 sm:mt-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
           {editing ? (
             <textarea
               value={formData.bio}
               onChange={(e) => setFormData({...formData, bio: e.target.value})}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm"
               rows={3}
               placeholder="Parlez-nous de vous..."
             />
           ) : (
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-sm">
               {formData.bio || 'Aucune bio renseignée'}
             </p>
           )}
@@ -226,11 +226,11 @@ const ProfilePage = () => {
               type="text"
               value={formData.department}
               onChange={(e) => setFormData({...formData, department: e.target.value})}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
               placeholder="Votre département"
             />
           ) : (
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-sm">
               {formData.department || 'Aucun département renseigné'}
             </p>
           )}
@@ -238,25 +238,25 @@ const ProfilePage = () => {
       </div>
 
       {/* Informations du compte */}
-      <div className="bg-white rounded-lg border p-6">
+      <div className="bg-white rounded-lg border p-4 sm:p-6">
         <h2 className="text-lg font-bold text-gray-900 mb-4">Informations du compte</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Email</label>
-            <p className="text-gray-900">{user?.email}</p>
+            <p className="text-gray-900 text-sm truncate">{user?.email}</p>
           </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700">Membre depuis</label>
-            <p className="text-gray-900">
+            <p className="text-gray-900 text-sm">
               {formatDate(user?.metadata?.creationTime)}
             </p>
           </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700">Dernière connexion</label>
-            <p className="text-gray-900">
+            <p className="text-gray-900 text-sm">
               {formatDate(user?.metadata?.lastSignInTime)}
             </p>
           </div>
@@ -273,46 +273,46 @@ const ProfilePage = () => {
   );
 
   const GamificationTab = () => (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Progression du niveau */}
-      <div className="bg-white rounded-lg border p-6">
+      <div className="bg-white rounded-lg border p-4 sm:p-6">
         <h2 className="text-lg font-bold text-gray-900 mb-4">Progression</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-3 gap-4 sm:gap-6">
           {/* Niveau actuel */}
           <div className="text-center">
-            <div className="text-3xl font-bold text-blue-600 mb-2">
+            <div className="text-2xl sm:text-3xl font-bold text-blue-600 mb-1 sm:mb-2">
               {levelData.currentLevel}
             </div>
-            <div className="text-sm text-gray-600">Niveau actuel</div>
+            <div className="text-xs sm:text-sm text-gray-600">Niveau actuel</div>
           </div>
           
           {/* XP Total */}
           <div className="text-center">
-            <div className="text-3xl font-bold text-green-600 mb-2">
+            <div className="text-2xl sm:text-3xl font-bold text-green-600 mb-1 sm:mb-2">
               {levelData.totalXP}
             </div>
-            <div className="text-sm text-gray-600">XP Total</div>
+            <div className="text-xs sm:text-sm text-gray-600">XP Total</div>
           </div>
           
           {/* Badges */}
           <div className="text-center">
-            <div className="text-3xl font-bold text-purple-600 mb-2">
+            <div className="text-2xl sm:text-3xl font-bold text-purple-600 mb-1 sm:mb-2">
               {userStats?.badges?.length || 0}
             </div>
-            <div className="text-sm text-gray-600">Badges</div>
+            <div className="text-xs sm:text-sm text-gray-600">Badges</div>
           </div>
         </div>
 
         {/* Barre de progression */}
-        <div className="mt-6">
-          <div className="flex justify-between text-sm mb-2">
+        <div className="mt-4 sm:mt-6">
+          <div className="flex justify-between text-xs sm:text-sm mb-2">
             <span>Progrès vers le niveau {levelData.currentLevel + 1}</span>
             <span>{levelData.progressPercentage}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
+          <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
             <div 
-              className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500"
+              className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 sm:h-3 rounded-full transition-all duration-500"
               style={{ width: `${levelData.progressPercentage}%` }}
             />
           </div>
@@ -324,40 +324,40 @@ const ProfilePage = () => {
       </div>
 
       {/* Statistiques */}
-      <div className="bg-white rounded-lg border p-6">
+      <div className="bg-white rounded-lg border p-4 sm:p-6">
         <h2 className="text-lg font-bold text-gray-900 mb-4">Statistiques</h2>
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
-            <CheckCircle className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-blue-600">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="text-center p-3 sm:p-4 bg-blue-50 rounded-lg">
+            <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 mx-auto mb-2" />
+            <div className="text-lg sm:text-2xl font-bold text-blue-600">
               {userStats?.tasksCompleted || 0}
             </div>
-            <div className="text-sm text-gray-600">Tâches complétées</div>
+            <div className="text-xs sm:text-sm text-gray-600">Tâches complétées</div>
           </div>
           
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <Target className="w-8 h-8 text-green-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-green-600">
+          <div className="text-center p-3 sm:p-4 bg-green-50 rounded-lg">
+            <Target className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 mx-auto mb-2" />
+            <div className="text-lg sm:text-2xl font-bold text-green-600">
               {userStats?.projectsCompleted || 0}
             </div>
-            <div className="text-sm text-gray-600">Projets terminés</div>
+            <div className="text-xs sm:text-sm text-gray-600">Projets terminés</div>
           </div>
           
-          <div className="text-center p-4 bg-orange-50 rounded-lg">
-            <Calendar className="w-8 h-8 text-orange-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-orange-600">
+          <div className="text-center p-3 sm:p-4 bg-orange-50 rounded-lg">
+            <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600 mx-auto mb-2" />
+            <div className="text-lg sm:text-2xl font-bold text-orange-600">
               {userStats?.loginStreak || 0}
             </div>
-            <div className="text-sm text-gray-600">Série de connexions</div>
+            <div className="text-xs sm:text-sm text-gray-600">Série de connexions</div>
           </div>
           
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <BarChart3 className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-purple-600">
+          <div className="text-center p-3 sm:p-4 bg-purple-50 rounded-lg">
+            <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 mx-auto mb-2" />
+            <div className="text-lg sm:text-2xl font-bold text-purple-600">
               {levelData.currentLevel}
             </div>
-            <div className="text-sm text-gray-600">Niveau atteint</div>
+            <div className="text-xs sm:text-sm text-gray-600">Niveau atteint</div>
           </div>
         </div>
       </div>
@@ -365,15 +365,15 @@ const ProfilePage = () => {
   );
 
   const SettingsTab = () => (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg border p-6">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="bg-white rounded-lg border p-4 sm:p-6">
         <h2 className="text-lg font-bold text-gray-900 mb-4">Paramètres</h2>
         
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-medium text-gray-900">Notifications</h3>
-              <p className="text-sm text-gray-600">Recevoir des notifications sur les activités</p>
+            <div className="flex-1 min-w-0 mr-4">
+              <h3 className="font-medium text-gray-900 text-sm sm:text-base">Notifications</h3>
+              <p className="text-xs sm:text-sm text-gray-600">Recevoir des notifications sur les activités</p>
             </div>
             <input
               type="checkbox"
@@ -390,9 +390,9 @@ const ProfilePage = () => {
           </div>
           
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-medium text-gray-900">Profil public</h3>
-              <p className="text-sm text-gray-600">Autoriser les autres à voir votre profil</p>
+            <div className="flex-1 min-w-0 mr-4">
+              <h3 className="font-medium text-gray-900 text-sm sm:text-base">Profil public</h3>
+              <p className="text-xs sm:text-sm text-gray-600">Autoriser les autres à voir votre profil</p>
             </div>
             <input
               type="checkbox"
@@ -409,9 +409,9 @@ const ProfilePage = () => {
           </div>
           
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-medium text-gray-900">Emails de mise à jour</h3>
-              <p className="text-sm text-gray-600">Recevoir des emails sur les nouveautés</p>
+            <div className="flex-1 min-w-0 mr-4">
+              <h3 className="font-medium text-gray-900 text-sm sm:text-base">Emails de mise à jour</h3>
+              <p className="text-xs sm:text-sm text-gray-600">Recevoir des emails sur les nouveautés</p>
             </div>
             <input
               type="checkbox"
@@ -432,28 +432,29 @@ const ProfilePage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50">
+      {/* Container responsive */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
         {/* En-tête */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Mon Profil</h1>
-          <p className="text-gray-600">Gérez vos informations personnelles et vos paramètres</p>
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Mon Profil</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Gérez vos informations personnelles et vos paramètres</p>
         </div>
 
-        {/* Tabs */}
-        <div className="flex space-x-1 mb-6">
+        {/* Tabs - Responsive */}
+        <div className="flex space-x-1 mb-4 sm:mb-6 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap text-sm ${
                 activeTab === tab.id
                   ? 'bg-blue-600 text-white'
                   : 'bg-white text-gray-600 hover:bg-gray-100'
               }`}
             >
               <tab.icon className="w-4 h-4" />
-              {tab.name}
+              <span className="hidden sm:inline">{tab.name}</span>
             </button>
           ))}
         </div>
