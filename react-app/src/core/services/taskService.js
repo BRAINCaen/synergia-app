@@ -246,4 +246,7 @@ class TaskService {
 
 // ✅ Instance singleton
 const taskService = new TaskService();
+
+// ✅ Export multiple pour compatibilité
+export { taskService };
 export default taskService;
