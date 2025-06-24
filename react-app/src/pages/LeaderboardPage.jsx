@@ -18,14 +18,14 @@ import { useGameStore } from '../shared/stores/gameStore.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 const LeaderboardPage = () => {
-  // États locaux
+  // États locaux pour la page complète Firebase
   const [activeTab, setActiveTab] = useState('xp'); // xp, tasks, level, badges
   const [timePeriod, setTimePeriod] = useState('all'); // week, month, all
   const [showFilters, setShowFilters] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('overall'); // overall, productivity, consistency
   const [realLeaderboard, setRealLeaderboard] = useState([]);
-  const [loadingFirebase, setLoadingFirebase] = useState(true); // Variable manquante ajoutée
+  const [loadingFirebase, setLoadingFirebase] = useState(true);
   
   // Stores
   const { 
