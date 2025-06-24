@@ -1,6 +1,48 @@
 // Hook useGameService - Interface complète avec gamificationService
 import { useState, useEffect, useCallback } from 'react'
-import gamificationService, { XP_CONFIG, BADGES_CONFIG } from '../../core/services/gamificationService'
+import gamificationService from '../../core/services/gamificationService'
+
+// Configuration locale (évite les problèmes d'import)
+const XP_CONFIG = {
+  REWARDS: {
+    DAILY_LOGIN: 10,
+    TASK_COMPLETE_EASY: 20,
+    TASK_COMPLETE_NORMAL: 40,
+    TASK_COMPLETE_HARD: 60,
+    TASK_COMPLETE_EXPERT: 100,
+    PROJECT_COMPLETE: 200,
+    BADGE_UNLOCK: 50
+  },
+  LEVEL_FORMULA: (level) => Math.floor(100 * Math.pow(1.5, level - 1)),
+  MAX_LEVEL: 50
+}
+
+const BADGES_CONFIG = {
+  FIRST_TASK: { 
+    id: 'first_task', 
+    name: 'Premier Pas', 
+    description: 'Première tâche complétée',
+    icon: '🎯'
+  },
+  TASK_MASTER: { 
+    id: 'task_master', 
+    name: 'Maître des Tâches', 
+    description: '50 tâches complétées',
+    icon: '🏆'
+  },
+  STREAK_WARRIOR: { 
+    id: 'streak_warrior', 
+    name: 'Guerrier de la Constance', 
+    description: '7 jours consécutifs actif',
+    icon: '🔥'
+  },
+  LEVEL_CHAMPION: { 
+    id: 'level_champion', 
+    name: 'Champion des Niveaux', 
+    description: 'Atteindre le niveau 10',
+    icon: '⭐'
+  }
+}
 
 export const useGameService = (userId = 'demo-user') => {
   const [gameData, setGameData] = useState(null)
@@ -107,85 +149,3 @@ export const useGameService = (userId = 'demo-user') => {
 
     // Progression vers le prochain niveau (0-100%)
     getLevelProgress: () => {
-      if (!gameData) return 0
-      const currentLevel = gameData.level
-      const currentXP = gameData.xp
-      const xpForCurrentLevel = currentLevel > 1 ? XP_CONFIG.LEVEL_FORMULA(currentLevel) : 0
-      const xpForNextLevel = XP_CONFIG.LEVEL_FORMULA(currentLevel + 1)
-      const progress = ((currentXP - xpForCurrentLevel) / (xpForNextLevel - xpForCurrentLevel)) * 100
-      return Math.max(0, Math.min(100, progress))
-    },
-
-    // Badges débloqués avec leurs infos
-    getUnlockedBadges: () => {
-      if (!gameData || !gameData.badges) return []
-      return gameData.badges.map(badgeId => BADGES_CONFIG[badgeId.toUpperCase()] || { id: badgeId, name: badgeId, icon: '🎖️' })
-    },
-
-    // Badges disponibles à débloquer
-    getAvailableBadges: () => {
-      if (!gameData) return []
-      const unlockedBadges = gameData.badges || []
-      return Object.values(BADGES_CONFIG).filter(badge => !unlockedBadges.includes(badge.id))
-    },
-
-    // Statistiques générales
-    getStats: () => {
-      if (!gameData) return {}
-      return {
-        totalXP: gameData.xp || 0,
-        level: gameData.level || 1,
-        tasksCompleted: gameData.tasksCompleted || 0,
-        projectsCompleted: gameData.projectsCompleted || 0,
-        badgesCount: (gameData.badges || []).length,
-        currentStreak: gameData.currentStreak || 0
-      }
-    }
-  }
-
-  // Actions rapides pré-configurées
-  const quickActions = {
-    // Simuler différents types de tâches
-    completeEasyTask: () => completeTask('easy'),
-    completeNormalTask: () => completeTask('normal'),
-    completeHardTask: () => completeTask('hard'),
-    completeExpertTask: () => completeTask('expert'),
-
-    // Actions directes d'XP
-    addBonusXP: (amount) => addXP(amount, 'Bonus'),
-    addDailyBonus: () => addXP(XP_CONFIG.REWARDS.DAILY_LOGIN, 'Bonus quotidien'),
-
-    // Simuler événements
-    simulateLevelUp: async () => {
-      const currentLevel = gameData?.level || 1
-      const xpNeeded = gamificationService.getXPForNextLevel(currentLevel) - (gameData?.xp || 0)
-      return await addXP(xpNeeded + 10, 'Simulation level up')
-    }
-  }
-
-  return {
-    // État des données
-    gameData,
-    isLoading,
-    error,
-    isConnected,
-
-    // Actions principales
-    addXP,
-    completeTask,
-    dailyLogin,
-    unlockBadge,
-
-    // Actions rapides
-    quickActions,
-
-    // Calculs et utilitaires
-    calculations,
-
-    // Configuration
-    config: {
-      XP_CONFIG,
-      BADGES_CONFIG
-    }
-  }
-}
