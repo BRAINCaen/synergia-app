@@ -1,12 +1,12 @@
 // ==========================================
-// 📁 react-app/src/hooks/useBadges.js
+// 📁 react-app/src/shared/hooks/useBadges.js
 // Hook React personnalisé pour la gestion des badges
 // ==========================================
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuthStore } from '../shared/stores/authStore.js';
-import BadgeEngine from '../core/services/badgeEngine.js';
-import BadgeIntegrationService from '../core/services/badgeIntegrationService.js';
+import { useAuthStore } from '../stores/authStore.js';
+import BadgeEngine from '../../core/services/badgeEngine.js';
+import BadgeIntegrationService from '../../core/services/badgeIntegrationService.js';
 
 /**
  * 🏆 HOOK PERSONNALISÉ POUR LES BADGES
@@ -65,6 +65,10 @@ export const useBadges = () => {
       const badgeStats = await BadgeIntegrationService.getBadgeStats(user.uid);
       setStats(badgeStats);
 
+      // Charger les badges récents
+      const recent = await BadgeIntegrationService.getRecentBadges(user.uid, 5);
+      setRecentBadges(recent);
+
     } catch (err) {
       console.error('❌ Erreur loadBadgeData:', err);
       setError(err.message);
@@ -118,7 +122,7 @@ export const useBadges = () => {
   /**
    * 📈 OBTENIR LA PROGRESSION D'UN BADGE
    */
-  const getBadgeProgress = useCallback((badgeId) => {
+  const getBadgeProgressById = useCallback((badgeId) => {
     return badgeProgress[badgeId] || null;
   }, [badgeProgress]);
 
@@ -153,171 +157,97 @@ export const useBadges = () => {
   }, [badges, userBadges]);
 
   /**
-   * 📊 OBTENIR LES CATÉGORIES DISPONIBLES
+   * 📊 OBTENIR LES STATISTIQUES PAR CATÉGORIE
    */
-  const getCategories = useCallback(() => {
-    const categories = [...new Set(badges.map(badge => badge.category))];
-    return categories.sort();
-  }, [badges]);
+  const getStatsByCategory = useCallback(() => {
+    if (!stats?.byCategory) return {};
+    return stats.byCategory;
+  }, [stats]);
 
   /**
-   * 💫 OBTENIR LES RARETÉS DISPONIBLES
+   * 💎 OBTENIR LES STATISTIQUES PAR RARETÉ
    */
-  const getRarities = useCallback(() => {
-    const rarities = [...new Set(badges.map(badge => badge.rarity))];
-    const order = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
-    return rarities.sort((a, b) => order.indexOf(a) - order.indexOf(b));
-  }, [badges]);
+  const getStatsByRarity = useCallback(() => {
+    if (!stats?.byRarity) return {};
+    return stats.byRarity;
+  }, [stats]);
 
   /**
-   * 🎯 CALCULER LE POURCENTAGE DE COMPLÉTION GLOBAL
+   * 🎯 OBTENIR LES BADGES PROCHES DU DÉBLOCAGE
    */
-  const getCompletionPercentage = useCallback(() => {
-    if (badges.length === 0) return 0;
-    return Math.round((userBadges.length / badges.length) * 100);
-  }, [badges.length, userBadges.length]);
-
-  /**
-   * 🌟 OBTENIR LE PROCHAIN BADGE À DÉBLOQUER
-   */
-  const getNextBadge = useCallback(() => {
-    const lockedBadges = getLockedBadges();
+  const getNearCompletionBadges = useCallback(async (threshold = 80) => {
+    if (!user?.uid) return [];
     
-    // Trier par progression (plus proche de la complétion)
-    const sortedByProgress = lockedBadges
-      .map(badge => ({
-        ...badge,
-        progress: getBadgeProgress(badge.id)
-      }))
-      .filter(badge => badge.progress)
-      .sort((a, b) => b.progress.percentage - a.progress.percentage);
+    try {
+      return await BadgeIntegrationService.getNearCompletionBadges(user.uid, threshold);
+    } catch (error) {
+      console.error('❌ Erreur getNearCompletionBadges:', error);
+      return [];
+    }
+  }, [user?.uid]);
 
-    return sortedByProgress[0] || null;
-  }, [getLockedBadges, getBadgeProgress]);
+  /**
+   * 🔄 ACTUALISER LES DONNÉES
+   */
+  const refreshBadgeData = useCallback(async () => {
+    await loadBadgeData();
+  }, [loadBadgeData]);
 
-  // 🎧 ÉCOUTER LES ÉVÉNEMENTS DE BADGES
-  useEffect(() => {
-    const handleBadgeAwarded = (event) => {
-      const { badges: newBadges, userId } = event.detail;
-      
-      if (userId === user?.uid) {
-        console.log('🎉 Nouveaux badges reçus:', newBadges);
-        setRecentBadges(prev => [...newBadges, ...prev].slice(0, 10)); // Garder les 10 derniers
-        
-        // Recharger les données
-        loadBadgeData();
-      }
-    };
+  /**
+   * 📋 OBTENIR LE BADGE PROGRESS (alias pour compatibilité)
+   */
+  const getBadgeProgress = useCallback((badgeId) => {
+    return getBadgeProgressById(badgeId);
+  }, [getBadgeProgressById]);
 
-    const handleBadgeUnlocked = (event) => {
-      const { badge } = event.detail;
-      console.log('🏆 Badge débloqué:', badge);
-      
-      // Mettre à jour la liste des badges récents
-      setRecentBadges(prev => [badge, ...prev].slice(0, 10));
-    };
-
-    window.addEventListener('badgesAwarded', handleBadgeAwarded);
-    window.addEventListener('badgeUnlocked', handleBadgeUnlocked);
-
-    return () => {
-      window.removeEventListener('badgesAwarded', handleBadgeAwarded);
-      window.removeEventListener('badgeUnlocked', handleBadgeUnlocked);
-    };
-  }, [user?.uid, loadBadgeData]);
-
-  // 📊 CHARGER LES DONNÉES AU MONTAGE ET CHANGEMENT D'UTILISATEUR
+  // Charger les données au montage et quand l'utilisateur change
   useEffect(() => {
     loadBadgeData();
   }, [loadBadgeData]);
 
-  // 🔄 RAFRAÎCHISSEMENT PÉRIODIQUE (optionnel)
+  // Écouter les événements de badges débloqués pour actualiser
   useEffect(() => {
-    if (!user?.uid) return;
+    const handleBadgeUnlocked = () => {
+      // Recharger les données après un court délai pour laisser Firebase se synchroniser
+      setTimeout(() => {
+        loadBadgeData();
+      }, 1000);
+    };
 
-    const interval = setInterval(() => {
-      // Rafraîchir les statistiques toutes les 2 minutes
-      BadgeIntegrationService.getBadgeStats(user.uid).then(setStats);
-    }, 2 * 60 * 1000);
+    window.addEventListener('badgeUnlocked', handleBadgeUnlocked);
 
-    return () => clearInterval(interval);
-  }, [user?.uid]);
+    return () => {
+      window.removeEventListener('badgeUnlocked', handleBadgeUnlocked);
+    };
+  }, [loadBadgeData]);
 
   return {
-    // 📊 État des données
+    // États
     badges,
     userBadges,
     badgeProgress,
-    stats,
-    recentBadges,
     loading,
     checking,
+    stats,
+    recentBadges,
     error,
 
-    // 🔧 Actions
+    // Actions
     checkBadges,
-    loadBadgeData,
+    refreshBadgeData,
 
-    // 🔍 Fonctions utilitaires
+    // Getters
     getBadge,
     isBadgeUnlocked,
     getBadgeProgress,
+    getBadgeProgressById,
     getBadgesByCategory,
     getBadgesByRarity,
     getUnlockedBadges,
     getLockedBadges,
-    getCategories,
-    getRarities,
-    getCompletionPercentage,
-    getNextBadge,
-
-    // 📈 Statistiques calculées
-    unlockedCount: userBadges.length,
-    totalCount: badges.length,
-    completionPercentage: getCompletionPercentage(),
-    nextBadge: getNextBadge()
-  };
-};
-
-/**
- * 🎯 HOOK SIMPLIFIÉ POUR LES STATISTIQUES UNIQUEMENT
- * Utile pour les widgets ou composants légers
- */
-export const useBadgeStats = () => {
-  const { user } = useAuthStore();
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user?.uid) {
-      setLoading(false);
-      return;
-    }
-
-    BadgeIntegrationService.getBadgeStats(user.uid)
-      .then(setStats)
-      .finally(() => setLoading(false));
-  }, [user?.uid]);
-
-  return { stats, loading };
-};
-
-/**
- * 🏆 HOOK POUR UN BADGE SPÉCIFIQUE
- * Surveille l'état d'un badge particulier
- */
-export const useBadge = (badgeId) => {
-  const { getBadge, isBadgeUnlocked, getBadgeProgress } = useBadges();
-  
-  const badge = getBadge(badgeId);
-  const isUnlocked = isBadgeUnlocked(badgeId);
-  const progress = getBadgeProgress(badgeId);
-
-  return {
-    badge,
-    isUnlocked,
-    progress,
-    exists: !!badge
+    getStatsByCategory,
+    getStatsByRarity,
+    getNearCompletionBadges
   };
 };
 
