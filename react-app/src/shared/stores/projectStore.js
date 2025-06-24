@@ -2,14 +2,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 
-// Import conditionnel du service Firebase
-let projectService = null;
-try {
-  const module = await import('../../core/services/projectService.js');
-  projectService = module.projectService || module.default;
-} catch (error) {
-  console.warn('⚠️ ProjectService non disponible:', error.message);
-}
+// Import direct du service projet
+import { projectService } from '../../core/services/projectService.js';
 
 export const useProjectStore = create(
   devtools(
