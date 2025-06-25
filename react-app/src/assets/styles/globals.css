@@ -386,3 +386,386 @@ th {
     display: none;
   }
 }
+/* ==========================================
+   🔧 MODAL OVERLAYS - Amélioration contraste
+   ========================================== */
+
+.modal-overlay {
+  background-color: rgba(0, 0, 0, 0.85) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+/* ==========================================
+   📝 MODAL CONTENT - Fond et texte
+   ========================================== */
+
+.modal-content,
+.modal-dialog,
+[class*="modal"],
+.bg-gray-800 {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+  border: 1px solid #374151 !important;
+}
+
+/* ==========================================
+   🎯 TEXTES DANS LES MODALES
+   ========================================== */
+
+/* Textes principaux */
+.modal-content h1,
+.modal-content h2,
+.modal-content h3,
+.modal-content h4,
+.modal-content h5,
+.modal-content h6,
+[class*="modal"] h1,
+[class*="modal"] h2,
+[class*="modal"] h3,
+[class*="modal"] h4,
+[class*="modal"] h5,
+[class*="modal"] h6 {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+/* Textes de contenu */
+.modal-content p,
+.modal-content span,
+.modal-content div,
+[class*="modal"] p,
+[class*="modal"] span,
+[class*="modal"] div {
+  color: #e5e7eb !important;
+}
+
+/* Labels et textes secondaires */
+.modal-content label,
+.modal-content .text-gray-400,
+.modal-content .text-gray-300,
+[class*="modal"] label,
+[class*="modal"] .text-gray-400,
+[class*="modal"] .text-gray-300 {
+  color: #d1d5db !important;
+}
+
+/* ==========================================
+   📝 FORMULAIRES DANS LES MODALES
+   ========================================== */
+
+/* Inputs */
+.modal-content input,
+.modal-content textarea,
+.modal-content select,
+[class*="modal"] input,
+[class*="modal"] textarea,
+[class*="modal"] select {
+  background-color: #374151 !important;
+  border: 1px solid #4b5563 !important;
+  color: #ffffff !important;
+  padding: 0.75rem !important;
+  border-radius: 0.5rem !important;
+}
+
+.modal-content input:focus,
+.modal-content textarea:focus,
+.modal-content select:focus,
+[class*="modal"] input:focus,
+[class*="modal"] textarea:focus,
+[class*="modal"] select:focus {
+  outline: none !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Placeholders */
+.modal-content input::placeholder,
+.modal-content textarea::placeholder,
+[class*="modal"] input::placeholder,
+[class*="modal"] textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+/* ==========================================
+   🎨 COMMENTAIRES ET ZONES DE TEXTE
+   ========================================== */
+
+/* Zone de commentaires */
+.modal-content .comment-section,
+.modal-content .chat-area,
+[class*="modal"] .comment-section,
+[class*="modal"] .chat-area {
+  background-color: #111827 !important;
+  border: 1px solid #374151 !important;
+  border-radius: 0.5rem !important;
+  padding: 1rem !important;
+}
+
+/* Messages "Aucun commentaire" */
+.modal-content .empty-state,
+.modal-content .no-comments,
+[class*="modal"] .empty-state,
+[class*="modal"] .no-comments {
+  color: #9ca3af !important;
+  text-align: center !important;
+  font-style: italic !important;
+}
+
+/* ==========================================
+   🔴 BOUTONS DANS LES MODALES
+   ========================================== */
+
+/* Boutons primaires */
+.modal-content .btn-primary,
+.modal-content .bg-blue-600,
+[class*="modal"] .btn-primary,
+[class*="modal"] .bg-blue-600 {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.modal-content .btn-primary:hover,
+.modal-content .bg-blue-600:hover,
+[class*="modal"] .btn-primary:hover,
+[class*="modal"] .bg-blue-600:hover {
+  background-color: #1d4ed8 !important;
+}
+
+/* Boutons secondaires */
+.modal-content .btn-secondary,
+.modal-content .bg-gray-600,
+[class*="modal"] .btn-secondary,
+[class*="modal"] .bg-gray-600 {
+  background-color: #4b5563 !important;
+  color: #ffffff !important;
+  border: 1px solid #6b7280 !important;
+}
+
+/* Boutons de danger */
+.modal-content .btn-danger,
+.modal-content .bg-red-600,
+[class*="modal"] .btn-danger,
+[class*="modal"] .bg-red-600 {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+/* ==========================================
+   📊 BADGES ET STATUTS
+   ========================================== */
+
+/* Badges de priorité */
+.modal-content .badge,
+.modal-content .status-badge,
+[class*="modal"] .badge,
+[class*="modal"] .status-badge {
+  font-weight: 600 !important;
+  padding: 0.25rem 0.75rem !important;
+  border-radius: 9999px !important;
+  font-size: 0.75rem !important;
+}
+
+/* Badge priorité haute */
+.modal-content .priority-high,
+[class*="modal"] .priority-high {
+  background-color: rgba(220, 38, 38, 0.2) !important;
+  color: #fca5a5 !important;
+  border: 1px solid rgba(220, 38, 38, 0.3) !important;
+}
+
+/* Badge priorité moyenne */
+.modal-content .priority-medium,
+[class*="modal"] .priority-medium {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+/* Badge priorité basse */
+.modal-content .priority-low,
+[class*="modal"] .priority-low {
+  background-color: rgba(34, 197, 94, 0.2) !important;
+  color: #4ade80 !important;
+  border: 1px solid rgba(34, 197, 94, 0.3) !important;
+}
+
+/* ==========================================
+   📱 RESPONSIVE FIXES
+   ========================================== */
+
+@media (max-width: 640px) {
+  .modal-content,
+  [class*="modal"] {
+    margin: 1rem !important;
+    max-height: calc(100vh - 2rem) !important;
+    overflow-y: auto !important;
+  }
+  
+  .modal-content input,
+  .modal-content textarea,
+  [class*="modal"] input,
+  [class*="modal"] textarea {
+    font-size: 16px !important; /* Évite le zoom sur iOS */
+  }
+}
+
+/* ==========================================
+   🎯 CORRECTION SPÉCIFIQUE - Zone de saisie
+   ========================================== */
+
+/* Zone de texte en bas des modales */
+.modal-content .input-area,
+.modal-content .comment-input,
+[class*="modal"] .input-area,
+[class*="modal"] .comment-input {
+  background-color: #374151 !important;
+  border: 2px solid #4b5563 !important;
+  border-radius: 0.5rem !important;
+  padding: 0.75rem !important;
+  color: #ffffff !important;
+  min-height: 2.5rem !important;
+}
+
+.modal-content .input-area:focus,
+.modal-content .comment-input:focus,
+[class*="modal"] .input-area:focus,
+[class*="modal"] .comment-input:focus {
+  border-color: #3b82f6 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* ==========================================
+   🔧 BOUTON D'ENVOI
+   ========================================== */
+
+.modal-content .send-button,
+.modal-content .submit-button,
+[class*="modal"] .send-button,
+[class*="modal"] .submit-button {
+  background-color: #3b82f6 !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 0.375rem !important;
+  padding: 0.5rem 1rem !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+}
+
+.modal-content .send-button:hover,
+.modal-content .submit-button:hover,
+[class*="modal"] .send-button:hover,
+[class*="modal"] .submit-button:hover {
+  background-color: #2563eb !important;
+  transform: translateY(-1px) !important;
+}
+
+/* ==========================================
+   ⚡ ÉTAT DISABLED
+   ========================================== */
+
+.modal-content .send-button:disabled,
+.modal-content .submit-button:disabled,
+[class*="modal"] .send-button:disabled,
+[class*="modal"] .submit-button:disabled {
+  background-color: #6b7280 !important;
+  color: #9ca3af !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+/* ==========================================
+   🎨 SCROLL BARS DANS LES MODALES
+   ========================================== */
+
+.modal-content::-webkit-scrollbar,
+[class*="modal"]::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.modal-content::-webkit-scrollbar-track,
+[class*="modal"]::-webkit-scrollbar-track {
+  background: #1f2937 !important;
+}
+
+.modal-content::-webkit-scrollbar-thumb,
+[class*="modal"]::-webkit-scrollbar-thumb {
+  background: #4b5563 !important;
+  border-radius: 3px !important;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover,
+[class*="modal"]::-webkit-scrollbar-thumb:hover {
+  background: #6b7280 !important;
+}
+
+/* ==========================================
+   🌟 ICÔNES ET INDICATEURS
+   ========================================== */
+
+.modal-content .icon,
+.modal-content svg,
+[class*="modal"] .icon,
+[class*="modal"] svg {
+  color: #e5e7eb !important;
+}
+
+.modal-content .text-blue-400,
+[class*="modal"] .text-blue-400 {
+  color: #60a5fa !important;
+}
+
+.modal-content .text-green-400,
+[class*="modal"] .text-green-400 {
+  color: #4ade80 !important;
+}
+
+.modal-content .text-red-400,
+[class*="modal"] .text-red-400 {
+  color: #f87171 !important;
+}
+
+.modal-content .text-yellow-400,
+[class*="modal"] .text-yellow-400 {
+  color: #facc15 !important;
+}
+
+/* ==========================================
+   🎯 CORRECTION ULTIME - Force les couleurs
+   ========================================== */
+
+/* Pour tous les éléments de texte dans les modales */
+div[class*="modal"] *,
+div[class*="Modal"] *,
+div[class*="bg-gray-8"] * {
+  color: inherit !important;
+}
+
+/* Textes principaux */
+div[class*="modal"] h1,
+div[class*="modal"] h2,
+div[class*="modal"] h3,
+div[class*="Modal"] h1,
+div[class*="Modal"] h2,
+div[class*="Modal"] h3 {
+  color: #ffffff !important;
+}
+
+/* Textes de contenu */
+div[class*="modal"] p,
+div[class*="modal"] span:not([class*="icon"]),
+div[class*="Modal"] p,
+div[class*="Modal"] span:not([class*="icon"]) {
+  color: #e5e7eb !important;
+}
+
+/* Force l'affichage des inputs */
+div[class*="modal"] input,
+div[class*="modal"] textarea,
+div[class*="Modal"] input,
+div[class*="Modal"] textarea {
+  background-color: #374151 !important;
+  color: #ffffff !important;
+  border: 1px solid #4b5563 !important;
+}
