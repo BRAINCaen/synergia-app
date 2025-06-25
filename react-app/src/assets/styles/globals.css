@@ -1,4 +1,9 @@
-/* src/assets/styles/globals.css */
+/* ==========================================
+   🎨 GLOBALS CSS - SYNERGIA v3.5 - VERSION CORRIGÉE
+   ==========================================
+   Fichier: react-app/src/assets/styles/globals.css
+   ========================================== */
+
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
@@ -62,7 +67,210 @@ body {
   scrollbar-color: #4b5563 #1f2937;
 }
 
-/* Styles pour les animations */
+/* ==========================================
+   🎯 CORRECTIONS MODALES ET OVERLAYS
+   ========================================== */
+
+/* Modal overlays améliorés */
+.modal-overlay,
+.fixed.inset-0.bg-gray-500,
+.fixed.inset-0.bg-black {
+  background-color: rgba(0, 0, 0, 0.85) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+/* Contenu des modales */
+.modal-content,
+.bg-gray-800,
+.bg-white {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+  border: 1px solid #374151 !important;
+}
+
+/* ==========================================
+   📝 TEXTES DANS LES MODALES - FORCE VISIBILITY
+   ========================================== */
+
+/* Sélecteurs spécifiques pour les modales */
+[class*="fixed"][class*="inset-0"] div[class*="bg-gray-8"] *,
+[class*="fixed"][class*="inset-0"] div[class*="bg-white"] *,
+.modal-content *,
+div[class*="Modal"] * {
+  color: inherit;
+}
+
+/* Titres dans les modales */
+[class*="fixed"][class*="inset-0"] h1,
+[class*="fixed"][class*="inset-0"] h2,
+[class*="fixed"][class*="inset-0"] h3,
+[class*="fixed"][class*="inset-0"] h4,
+.modal-content h1,
+.modal-content h2,
+.modal-content h3,
+.modal-content h4 {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+/* Textes de contenu dans les modales */
+[class*="fixed"][class*="inset-0"] p,
+[class*="fixed"][class*="inset-0"] span,
+[class*="fixed"][class*="inset-0"] div,
+.modal-content p,
+.modal-content span,
+.modal-content div {
+  color: #e5e7eb !important;
+}
+
+/* Labels et textes secondaires */
+[class*="fixed"][class*="inset-0"] label,
+.modal-content label {
+  color: #d1d5db !important;
+  font-weight: 500 !important;
+}
+
+/* ==========================================
+   📝 FORMULAIRES ET INPUTS
+   ========================================== */
+
+/* Tous les inputs dans les modales */
+[class*="fixed"][class*="inset-0"] input,
+[class*="fixed"][class*="inset-0"] textarea,
+[class*="fixed"][class*="inset-0"] select,
+.modal-content input,
+.modal-content textarea,
+.modal-content select {
+  background-color: #374151 !important;
+  border: 1px solid #4b5563 !important;
+  color: #ffffff !important;
+  padding: 0.75rem !important;
+  border-radius: 0.5rem !important;
+  font-size: 14px !important;
+}
+
+/* Focus sur les inputs */
+[class*="fixed"][class*="inset-0"] input:focus,
+[class*="fixed"][class*="inset-0"] textarea:focus,
+[class*="fixed"][class*="inset-0"] select:focus,
+.modal-content input:focus,
+.modal-content textarea:focus,
+.modal-content select:focus {
+  outline: none !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Placeholders */
+[class*="fixed"][class*="inset-0"] input::placeholder,
+[class*="fixed"][class*="inset-0"] textarea::placeholder,
+.modal-content input::placeholder,
+.modal-content textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+/* ==========================================
+   🎨 ZONES DE COMMENTAIRES
+   ========================================== */
+
+/* Zone de saisie de commentaires */
+[class*="fixed"][class*="inset-0"] [class*="comment"],
+[class*="fixed"][class*="inset-0"] [class*="chat"],
+.modal-content [class*="comment"],
+.modal-content [class*="chat"] {
+  background-color: #111827 !important;
+  border: 1px solid #374151 !important;
+  border-radius: 0.5rem !important;
+  color: #ffffff !important;
+}
+
+/* Messages "Aucun commentaire" */
+[class*="fixed"][class*="inset-0"] .empty-state,
+.modal-content .empty-state {
+  color: #9ca3af !important;
+  text-align: center !important;
+  font-style: italic !important;
+  padding: 2rem !important;
+}
+
+/* ==========================================
+   🔴 BOUTONS DANS LES MODALES
+   ========================================== */
+
+/* Boutons primaires */
+[class*="fixed"][class*="inset-0"] .bg-blue-600,
+[class*="fixed"][class*="inset-0"] .bg-blue-500,
+.modal-content .bg-blue-600,
+.modal-content .bg-blue-500 {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 500 !important;
+}
+
+[class*="fixed"][class*="inset-0"] .bg-blue-600:hover,
+[class*="fixed"][class*="inset-0"] .bg-blue-500:hover,
+.modal-content .bg-blue-600:hover,
+.modal-content .bg-blue-500:hover {
+  background-color: #1d4ed8 !important;
+}
+
+/* Boutons secondaires */
+[class*="fixed"][class*="inset-0"] .bg-gray-600,
+[class*="fixed"][class*="inset-0"] .bg-gray-500,
+.modal-content .bg-gray-600,
+.modal-content .bg-gray-500 {
+  background-color: #4b5563 !important;
+  color: #ffffff !important;
+  border: 1px solid #6b7280 !important;
+}
+
+/* Boutons de danger */
+[class*="fixed"][class*="inset-0"] .bg-red-600,
+[class*="fixed"][class*="inset-0"] .bg-red-500,
+.modal-content .bg-red-600,
+.modal-content .bg-red-500 {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+/* ==========================================
+   📊 CORRECTIONS TEXTES COLORÉS
+   ========================================== */
+
+/* Force les couleurs dans les modales */
+[class*="fixed"][class*="inset-0"] .text-blue-400 {
+  color: #60a5fa !important;
+}
+
+[class*="fixed"][class*="inset-0"] .text-green-400 {
+  color: #4ade80 !important;
+}
+
+[class*="fixed"][class*="inset-0"] .text-red-400 {
+  color: #f87171 !important;
+}
+
+[class*="fixed"][class*="inset-0"] .text-yellow-400 {
+  color: #facc15 !important;
+}
+
+[class*="fixed"][class*="inset-0"] .text-gray-400 {
+  color: #9ca3af !important;
+}
+
+[class*="fixed"][class*="inset-0"] .text-gray-300 {
+  color: #d1d5db !important;
+}
+
+[class*="fixed"][class*="inset-0"] .text-white {
+  color: #ffffff !important;
+}
+
+/* ==========================================
+   🌟 ANIMATIONS
+   ========================================== */
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -94,7 +302,7 @@ body {
 
 @keyframes bounce {
   0%, 20%, 53%, 80%, 100% {
-    transform: translate3d(0,0,0);
+    transform: translate3d(0, 0, 0);
   }
   40%, 43% {
     transform: translate3d(0, -8px, 0);
@@ -124,7 +332,10 @@ body {
   animation: bounce 1s infinite;
 }
 
-/* Styles pour les focus et accessibilité */
+/* ==========================================
+   🎯 ACCESSIBILITÉ ET FOCUS
+   ========================================== */
+
 .focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
@@ -139,40 +350,10 @@ body {
   background-color: #1f2937;
 }
 
-/* Styles pour les toasts/notifications */
-.toast-enter {
-  opacity: 0;
-  transform: translateX(100%);
-}
+/* ==========================================
+   🔧 ÉLÉMENTS INTERACTIFS
+   ========================================== */
 
-.toast-enter-active {
-  opacity: 1;
-  transform: translateX(0);
-  transition: opacity 300ms, transform 300ms;
-}
-
-.toast-exit {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-.toast-exit-active {
-  opacity: 0;
-  transform: translateX(100%);
-  transition: opacity 300ms, transform 300ms;
-}
-
-/* Styles pour les modales */
-.modal-overlay {
-  background-color: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
-}
-
-.modal-content {
-  animation: fadeIn 0.2s ease-out;
-}
-
-/* Styles pour les éléments interactifs */
 .interactive {
   transition: all 0.2s ease;
 }
@@ -196,62 +377,10 @@ body {
               0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
-/* Styles pour les boutons avec effet glassmorphism */
-.glass-button {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
-}
+/* ==========================================
+   🎨 BADGES ET STATUTS
+   ========================================== */
 
-.glass-button:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-/* Styles pour les inputs avec focus amélioré */
-.input-focus {
-  transition: all 0.2s ease;
-}
-
-.input-focus:focus {
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  border-color: var(--color-primary);
-}
-
-/* Styles pour les loaders */
-.loader {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(59, 130, 246, 0.1);
-  border-left-color: var(--color-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-/* Styles pour les barres de progression */
-.progress-bar {
-  overflow: hidden;
-  background-color: #374151;
-  border-radius: 0.5rem;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
-  transition: width 0.5s ease;
-}
-
-/* Styles pour les badges */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -287,7 +416,10 @@ body {
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
-/* Amélioration de la lisibilité */
+/* ==========================================
+   📝 TYPOGRAPHIE
+   ========================================== */
+
 h1, h2, h3, h4, h5, h6 {
   line-height: 1.3;
   font-weight: 600;
@@ -308,57 +440,10 @@ a:hover {
   color: #60a5fa;
 }
 
-/* Styles pour les listes */
-ul, ol {
-  padding-left: 1.5rem;
-}
+/* ==========================================
+   📱 RESPONSIVE
+   ========================================== */
 
-li {
-  margin-bottom: 0.25rem;
-}
-
-/* Styles pour les codes */
-code {
-  font-family: 'Fira Code', 'Monaco', 'Consolas', 'Ubuntu Mono', monospace;
-  background-color: #374151;
-  padding: 0.125rem 0.25rem;
-  border-radius: 0.25rem;
-  font-size: 0.875em;
-}
-
-pre {
-  background-color: #1f2937;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  overflow-x: auto;
-  border: 1px solid #374151;
-}
-
-pre code {
-  background: transparent;
-  padding: 0;
-}
-
-/* Styles pour les tableaux */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1rem 0;
-}
-
-th, td {
-  padding: 0.75rem;
-  text-align: left;
-  border-bottom: 1px solid #374151;
-}
-
-th {
-  background-color: #1f2937;
-  font-weight: 600;
-  color: #f3f4f6;
-}
-
-/* Media queries pour la responsivité */
 @media (max-width: 640px) {
   body {
     font-size: 14px;
@@ -366,6 +451,20 @@ th {
   
   .container {
     padding: 1rem;
+  }
+  
+  /* Modales sur mobile */
+  [class*="fixed"][class*="inset-0"] div[class*="bg-gray-8"],
+  [class*="fixed"][class*="inset-0"] div[class*="bg-white"] {
+    margin: 1rem !important;
+    max-height: calc(100vh - 2rem) !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Inputs sur mobile */
+  [class*="fixed"][class*="inset-0"] input,
+  [class*="fixed"][class*="inset-0"] textarea {
+    font-size: 16px !important; /* Évite le zoom sur iOS */
   }
 }
 
@@ -375,7 +474,10 @@ th {
   }
 }
 
-/* Styles pour l'impression */
+/* ==========================================
+   🖨️ IMPRESSION
+   ========================================== */
+
 @media print {
   body {
     background: white;
@@ -385,387 +487,4 @@ th {
   .no-print {
     display: none;
   }
-}
-/* ==========================================
-   🔧 MODAL OVERLAYS - Amélioration contraste
-   ========================================== */
-
-.modal-overlay {
-  background-color: rgba(0, 0, 0, 0.85) !important;
-  backdrop-filter: blur(6px) !important;
-}
-
-/* ==========================================
-   📝 MODAL CONTENT - Fond et texte
-   ========================================== */
-
-.modal-content,
-.modal-dialog,
-[class*="modal"],
-.bg-gray-800 {
-  background-color: #1f2937 !important;
-  color: #f9fafb !important;
-  border: 1px solid #374151 !important;
-}
-
-/* ==========================================
-   🎯 TEXTES DANS LES MODALES
-   ========================================== */
-
-/* Textes principaux */
-.modal-content h1,
-.modal-content h2,
-.modal-content h3,
-.modal-content h4,
-.modal-content h5,
-.modal-content h6,
-[class*="modal"] h1,
-[class*="modal"] h2,
-[class*="modal"] h3,
-[class*="modal"] h4,
-[class*="modal"] h5,
-[class*="modal"] h6 {
-  color: #ffffff !important;
-  font-weight: 600 !important;
-}
-
-/* Textes de contenu */
-.modal-content p,
-.modal-content span,
-.modal-content div,
-[class*="modal"] p,
-[class*="modal"] span,
-[class*="modal"] div {
-  color: #e5e7eb !important;
-}
-
-/* Labels et textes secondaires */
-.modal-content label,
-.modal-content .text-gray-400,
-.modal-content .text-gray-300,
-[class*="modal"] label,
-[class*="modal"] .text-gray-400,
-[class*="modal"] .text-gray-300 {
-  color: #d1d5db !important;
-}
-
-/* ==========================================
-   📝 FORMULAIRES DANS LES MODALES
-   ========================================== */
-
-/* Inputs */
-.modal-content input,
-.modal-content textarea,
-.modal-content select,
-[class*="modal"] input,
-[class*="modal"] textarea,
-[class*="modal"] select {
-  background-color: #374151 !important;
-  border: 1px solid #4b5563 !important;
-  color: #ffffff !important;
-  padding: 0.75rem !important;
-  border-radius: 0.5rem !important;
-}
-
-.modal-content input:focus,
-.modal-content textarea:focus,
-.modal-content select:focus,
-[class*="modal"] input:focus,
-[class*="modal"] textarea:focus,
-[class*="modal"] select:focus {
-  outline: none !important;
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
-}
-
-/* Placeholders */
-.modal-content input::placeholder,
-.modal-content textarea::placeholder,
-[class*="modal"] input::placeholder,
-[class*="modal"] textarea::placeholder {
-  color: #9ca3af !important;
-}
-
-/* ==========================================
-   🎨 COMMENTAIRES ET ZONES DE TEXTE
-   ========================================== */
-
-/* Zone de commentaires */
-.modal-content .comment-section,
-.modal-content .chat-area,
-[class*="modal"] .comment-section,
-[class*="modal"] .chat-area {
-  background-color: #111827 !important;
-  border: 1px solid #374151 !important;
-  border-radius: 0.5rem !important;
-  padding: 1rem !important;
-}
-
-/* Messages "Aucun commentaire" */
-.modal-content .empty-state,
-.modal-content .no-comments,
-[class*="modal"] .empty-state,
-[class*="modal"] .no-comments {
-  color: #9ca3af !important;
-  text-align: center !important;
-  font-style: italic !important;
-}
-
-/* ==========================================
-   🔴 BOUTONS DANS LES MODALES
-   ========================================== */
-
-/* Boutons primaires */
-.modal-content .btn-primary,
-.modal-content .bg-blue-600,
-[class*="modal"] .btn-primary,
-[class*="modal"] .bg-blue-600 {
-  background-color: #2563eb !important;
-  color: #ffffff !important;
-  border: none !important;
-}
-
-.modal-content .btn-primary:hover,
-.modal-content .bg-blue-600:hover,
-[class*="modal"] .btn-primary:hover,
-[class*="modal"] .bg-blue-600:hover {
-  background-color: #1d4ed8 !important;
-}
-
-/* Boutons secondaires */
-.modal-content .btn-secondary,
-.modal-content .bg-gray-600,
-[class*="modal"] .btn-secondary,
-[class*="modal"] .bg-gray-600 {
-  background-color: #4b5563 !important;
-  color: #ffffff !important;
-  border: 1px solid #6b7280 !important;
-}
-
-/* Boutons de danger */
-.modal-content .btn-danger,
-.modal-content .bg-red-600,
-[class*="modal"] .btn-danger,
-[class*="modal"] .bg-red-600 {
-  background-color: #dc2626 !important;
-  color: #ffffff !important;
-}
-
-/* ==========================================
-   📊 BADGES ET STATUTS
-   ========================================== */
-
-/* Badges de priorité */
-.modal-content .badge,
-.modal-content .status-badge,
-[class*="modal"] .badge,
-[class*="modal"] .status-badge {
-  font-weight: 600 !important;
-  padding: 0.25rem 0.75rem !important;
-  border-radius: 9999px !important;
-  font-size: 0.75rem !important;
-}
-
-/* Badge priorité haute */
-.modal-content .priority-high,
-[class*="modal"] .priority-high {
-  background-color: rgba(220, 38, 38, 0.2) !important;
-  color: #fca5a5 !important;
-  border: 1px solid rgba(220, 38, 38, 0.3) !important;
-}
-
-/* Badge priorité moyenne */
-.modal-content .priority-medium,
-[class*="modal"] .priority-medium {
-  background-color: rgba(245, 158, 11, 0.2) !important;
-  color: #fbbf24 !important;
-  border: 1px solid rgba(245, 158, 11, 0.3) !important;
-}
-
-/* Badge priorité basse */
-.modal-content .priority-low,
-[class*="modal"] .priority-low {
-  background-color: rgba(34, 197, 94, 0.2) !important;
-  color: #4ade80 !important;
-  border: 1px solid rgba(34, 197, 94, 0.3) !important;
-}
-
-/* ==========================================
-   📱 RESPONSIVE FIXES
-   ========================================== */
-
-@media (max-width: 640px) {
-  .modal-content,
-  [class*="modal"] {
-    margin: 1rem !important;
-    max-height: calc(100vh - 2rem) !important;
-    overflow-y: auto !important;
-  }
-  
-  .modal-content input,
-  .modal-content textarea,
-  [class*="modal"] input,
-  [class*="modal"] textarea {
-    font-size: 16px !important; /* Évite le zoom sur iOS */
-  }
-}
-
-/* ==========================================
-   🎯 CORRECTION SPÉCIFIQUE - Zone de saisie
-   ========================================== */
-
-/* Zone de texte en bas des modales */
-.modal-content .input-area,
-.modal-content .comment-input,
-[class*="modal"] .input-area,
-[class*="modal"] .comment-input {
-  background-color: #374151 !important;
-  border: 2px solid #4b5563 !important;
-  border-radius: 0.5rem !important;
-  padding: 0.75rem !important;
-  color: #ffffff !important;
-  min-height: 2.5rem !important;
-}
-
-.modal-content .input-area:focus,
-.modal-content .comment-input:focus,
-[class*="modal"] .input-area:focus,
-[class*="modal"] .comment-input:focus {
-  border-color: #3b82f6 !important;
-  outline: none !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
-}
-
-/* ==========================================
-   🔧 BOUTON D'ENVOI
-   ========================================== */
-
-.modal-content .send-button,
-.modal-content .submit-button,
-[class*="modal"] .send-button,
-[class*="modal"] .submit-button {
-  background-color: #3b82f6 !important;
-  color: #ffffff !important;
-  border: none !important;
-  border-radius: 0.375rem !important;
-  padding: 0.5rem 1rem !important;
-  font-weight: 500 !important;
-  transition: all 0.2s ease !important;
-}
-
-.modal-content .send-button:hover,
-.modal-content .submit-button:hover,
-[class*="modal"] .send-button:hover,
-[class*="modal"] .submit-button:hover {
-  background-color: #2563eb !important;
-  transform: translateY(-1px) !important;
-}
-
-/* ==========================================
-   ⚡ ÉTAT DISABLED
-   ========================================== */
-
-.modal-content .send-button:disabled,
-.modal-content .submit-button:disabled,
-[class*="modal"] .send-button:disabled,
-[class*="modal"] .submit-button:disabled {
-  background-color: #6b7280 !important;
-  color: #9ca3af !important;
-  cursor: not-allowed !important;
-  transform: none !important;
-}
-
-/* ==========================================
-   🎨 SCROLL BARS DANS LES MODALES
-   ========================================== */
-
-.modal-content::-webkit-scrollbar,
-[class*="modal"]::-webkit-scrollbar {
-  width: 6px !important;
-}
-
-.modal-content::-webkit-scrollbar-track,
-[class*="modal"]::-webkit-scrollbar-track {
-  background: #1f2937 !important;
-}
-
-.modal-content::-webkit-scrollbar-thumb,
-[class*="modal"]::-webkit-scrollbar-thumb {
-  background: #4b5563 !important;
-  border-radius: 3px !important;
-}
-
-.modal-content::-webkit-scrollbar-thumb:hover,
-[class*="modal"]::-webkit-scrollbar-thumb:hover {
-  background: #6b7280 !important;
-}
-
-/* ==========================================
-   🌟 ICÔNES ET INDICATEURS
-   ========================================== */
-
-.modal-content .icon,
-.modal-content svg,
-[class*="modal"] .icon,
-[class*="modal"] svg {
-  color: #e5e7eb !important;
-}
-
-.modal-content .text-blue-400,
-[class*="modal"] .text-blue-400 {
-  color: #60a5fa !important;
-}
-
-.modal-content .text-green-400,
-[class*="modal"] .text-green-400 {
-  color: #4ade80 !important;
-}
-
-.modal-content .text-red-400,
-[class*="modal"] .text-red-400 {
-  color: #f87171 !important;
-}
-
-.modal-content .text-yellow-400,
-[class*="modal"] .text-yellow-400 {
-  color: #facc15 !important;
-}
-
-/* ==========================================
-   🎯 CORRECTION ULTIME - Force les couleurs
-   ========================================== */
-
-/* Pour tous les éléments de texte dans les modales */
-div[class*="modal"] *,
-div[class*="Modal"] *,
-div[class*="bg-gray-8"] * {
-  color: inherit !important;
-}
-
-/* Textes principaux */
-div[class*="modal"] h1,
-div[class*="modal"] h2,
-div[class*="modal"] h3,
-div[class*="Modal"] h1,
-div[class*="Modal"] h2,
-div[class*="Modal"] h3 {
-  color: #ffffff !important;
-}
-
-/* Textes de contenu */
-div[class*="modal"] p,
-div[class*="modal"] span:not([class*="icon"]),
-div[class*="Modal"] p,
-div[class*="Modal"] span:not([class*="icon"]) {
-  color: #e5e7eb !important;
-}
-
-/* Force l'affichage des inputs */
-div[class*="modal"] input,
-div[class*="modal"] textarea,
-div[class*="Modal"] input,
-div[class*="Modal"] textarea {
-  background-color: #374151 !important;
-  color: #ffffff !important;
-  border: 1px solid #4b5563 !important;
 }
