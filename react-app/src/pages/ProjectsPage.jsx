@@ -1,8 +1,8 @@
 // ==========================================
-// 📁 PROJECTS PAGE - SYNERGIA v3.5 - VERSION CORRIGÉE  
+// 📁 PROJECTS PAGE - SYNERGIA v3.5 - VERSION SIMPLIFIÉE CORRIGÉE
 // ==========================================
 // Fichier: react-app/src/pages/ProjectsPage.jsx
-// Page des projets avec modales visibles corrigées
+// Version avec bonnes méthodes des stores
 // ==========================================
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -10,7 +10,40 @@ import { Plus, Search, Filter, Eye, Edit, Trash2, Target, Calendar, User, Folder
 import { useProjectStore } from '../shared/stores/projectStore.js';
 import { useTaskStore } from '../shared/stores/taskStore.js';
 import { useGameStore } from '../shared/stores/gameStore.js';
-import { CollaborationModal } from '../components/collaboration/CollaborationPanel.jsx';
+import { useAuthStore } from '../shared/stores/authStore.js';
+
+// Modal simple pour la collaboration
+const CollaborationModal = ({ isOpen, onClose, entityType, entityId, entityTitle }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ backgroundColor: 'rgba(0, 0, 0, 0.85)' }}>
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="fixed inset-0" onClick={onClose}></div>
+        
+        <div 
+          className="relative rounded-lg shadow-xl p-6 max-w-md w-full"
+          style={{ backgroundColor: '#1f2937', border: '1px solid #374151' }}
+        >
+          <h3 className="text-lg font-semibold mb-4" style={{ color: '#ffffff' }}>
+            🤝 Collaboration - {entityTitle}
+          </h3>
+          <p className="mb-4" style={{ color: '#e5e7eb' }}>
+            Fonctionnalité de collaboration en cours de développement.
+          </p>
+          <div className="flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ProjectsPage = () => {
   // États
@@ -24,30 +57,33 @@ const ProjectsPage = () => {
   const [editingProject, setEditingProject] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 🤝 États pour la collaboration
+  // États pour la collaboration
   const [showCollaborationModal, setShowCollaborationModal] = useState(false);
   const [collaborationProject, setCollaborationProject] = useState(null);
 
   // Stores
   const { 
     projects, 
-    fetchProjects, 
-    addProject, 
+    loadUserProjects, 
+    createProject, 
     updateProject, 
     deleteProject 
   } = useProjectStore();
   
-  const { tasks, fetchTasks } = useTaskStore();
+  const { tasks, loadUserTasks } = useTaskStore();
+  const { user } = useAuthStore();
   const { addXP } = useGameStore();
 
   // Chargement initial
   useEffect(() => {
     const loadData = async () => {
+      if (!user?.uid) return;
+      
       setLoading(true);
       try {
         await Promise.all([
-          fetchProjects(),
-          fetchTasks()
+          loadUserProjects(user.uid),
+          loadUserTasks(user.uid)
         ]);
       } catch (error) {
         console.error('Erreur lors du chargement:', error);
@@ -57,7 +93,7 @@ const ProjectsPage = () => {
     };
 
     loadData();
-  }, [fetchProjects, fetchTasks]);
+  }, [user?.uid, loadUserProjects, loadUserTasks]);
 
   // Filtrage et tri des projets
   const filteredProjects = useMemo(() => {
@@ -111,12 +147,12 @@ const ProjectsPage = () => {
 
   const handleDeleteProject = async (projectId) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
-      await deleteProject(projectId);
+      await deleteProject(projectId, user.uid);
       addXP(5, 'Projet supprimé');
     }
   };
 
-  // 🤝 Handlers pour la collaboration
+  // Handlers pour la collaboration
   const handleOpenCollaboration = (project) => {
     setCollaborationProject(project);
     setShowCollaborationModal(true);
@@ -331,7 +367,7 @@ const ProjectsPage = () => {
                   onEdit={handleEditProject}
                   onDelete={handleDeleteProject}
                   onView={setSelectedProject}
-                  onCollaborate={handleOpenCollaboration} // 🤝 Nouvelle prop
+                  onCollaborate={handleOpenCollaboration}
                   formatDate={formatDate}
                   getPriorityColor={getPriorityColor}
                   getStatusColor={getStatusColor}
@@ -341,7 +377,7 @@ const ProjectsPage = () => {
           </div>
         )}
 
-        {/* 🤝 Modal de collaboration pour projet spécifique */}
+        {/* Modal de collaboration */}
         <CollaborationModal
           isOpen={showCollaborationModal}
           onClose={handleCloseCollaboration}
@@ -350,11 +386,11 @@ const ProjectsPage = () => {
           entityTitle={collaborationProject?.title}
         />
 
-        {/* Modal ProjectForm */}
+        {/* Modal ProjectForm - placeholder */}
         {showProjectForm && (
           <ProjectFormModal
             project={editingProject}
-            onSave={editingProject ? updateProject : addProject}
+            onSave={editingProject ? updateProject : createProject}
             onClose={() => {
               setShowProjectForm(false);
               setEditingProject(null);
@@ -370,7 +406,7 @@ const ProjectsPage = () => {
             onClose={() => setSelectedProject(null)}
             onEdit={handleEditProject}
             onDelete={handleDeleteProject}
-            onCollaborate={handleOpenCollaboration} // 🤝 Nouvelle prop
+            onCollaborate={handleOpenCollaboration}
             formatDate={formatDate}
             getPriorityColor={getPriorityColor}
             getStatusColor={getStatusColor}
@@ -391,7 +427,7 @@ const ProjectCard = ({
   onEdit, 
   onDelete, 
   onView, 
-  onCollaborate, // 🤝 Nouvelle prop
+  onCollaborate,
   formatDate, 
   getPriorityColor, 
   getStatusColor 
@@ -448,7 +484,6 @@ const ProjectCard = ({
           </div>
           
           <div className="flex items-center gap-2">
-            {/* 🤝 Bouton collaboration */}
             <button
               onClick={() => onCollaborate(project)}
               className="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1"
@@ -471,17 +506,14 @@ const ProjectCard = ({
   );
 };
 
-// ==========================================
-// 📋 MODAL DÉTAILS PROJET - VERSION CORRIGÉE
-// ==========================================
-
+// Modales placeholder (similaires à TasksPage)
 const ProjectDetailModal = ({ 
   project, 
   stats, 
   onClose, 
   onEdit, 
   onDelete, 
-  onCollaborate, // 🤝 Nouvelle prop
+  onCollaborate,
   formatDate, 
   getPriorityColor, 
   getStatusColor 
@@ -524,7 +556,6 @@ const ProjectDetailModal = ({
           </div>
 
           <div className="space-y-6">
-            {/* Description */}
             {project.description && (
               <div>
                 <h3 className="text-lg font-semibold mb-3" style={{ color: '#ffffff' }}>
@@ -534,7 +565,6 @@ const ProjectDetailModal = ({
               </div>
             )}
 
-            {/* Statistiques */}
             <div>
               <h3 className="text-lg font-semibold mb-3" style={{ color: '#ffffff' }}>
                 Progression
@@ -556,7 +586,6 @@ const ProjectDetailModal = ({
               </div>
             </div>
 
-            {/* Informations détaillées */}
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <h4 className="font-medium mb-2" style={{ color: '#d1d5db' }}>Date de création</h4>
@@ -568,7 +597,6 @@ const ProjectDetailModal = ({
               </div>
             </div>
 
-            {/* Zone de collaboration */}
             <div>
               <h4 className="font-medium mb-3" style={{ color: '#ffffff' }}>
                 Collaboration
@@ -584,7 +612,6 @@ const ProjectDetailModal = ({
                 <p className="text-center italic">Aucun commentaire pour le moment</p>
               </div>
               
-              {/* Zone de saisie */}
               <div className="mt-3 flex gap-2">
                 <input
                   type="text"
@@ -609,9 +636,7 @@ const ProjectDetailModal = ({
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex justify-end gap-3 pt-6 mt-6 border-t" style={{ borderColor: '#374151' }}>
-            {/* 🤝 Bouton collaboration avancée */}
             <button
               onClick={() => {
                 onCollaborate(project);
@@ -645,10 +670,6 @@ const ProjectDetailModal = ({
     </div>
   );
 };
-
-// ==========================================
-// 📝 MODAL FORMULAIRE PROJET - VERSION CORRIGÉE
-// ==========================================
 
 const ProjectFormModal = ({ project, onSave, onClose }) => {
   return (
