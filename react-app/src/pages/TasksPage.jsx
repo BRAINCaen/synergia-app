@@ -24,7 +24,7 @@ import {
   AlertCircle,
   ChevronDown,
   SortAsc,
-  Grid3X3,
+  LayoutGrid,
   List
 } from 'lucide-react';
 import { useTaskStore } from '../shared/stores/taskStore.js';
@@ -343,7 +343,7 @@ const TasksPage = () => {
                           : 'text-gray-400 hover:text-white'
                       }`}
                     >
-                      <Grid3X3 className="w-4 h-4" />
+                      <LayoutGrid className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setViewMode('list')}
