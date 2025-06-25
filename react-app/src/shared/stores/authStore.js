@@ -46,17 +46,11 @@ export const useAuthStore = create(
 
             // 🎮 CORRECTION : Initialiser le GameStore de manière sécurisée
             try {
-              // Import dynamique avec timeout et gestion d'erreur
-              const gameStoreModule = await Promise.race([
-                import('./gameStore.js'),
-                new Promise((_, reject) => 
-                  setTimeout(() => reject(new Error('Timeout import GameStore')), 5000)
-                )
-              ]);
+              // Import dynamique avec gestion d'erreur améliorée
+              const { useGameStore } = await import('./gameStore.js');
               
-              // Vérifier que le module et les exports existent
-              if (gameStoreModule && gameStoreModule.default) {
-                const gameStore = gameStoreModule.default.getState();
+              if (useGameStore) {
+                const gameStore = useGameStore.getState();
                 
                 // Vérifier que la méthode existe avant de l'appeler
                 if (typeof gameStore.initializeGameStore === 'function') {
@@ -66,7 +60,7 @@ export const useAuthStore = create(
                   console.warn('⚠️ Méthode initializeGameStore non disponible');
                 }
               } else {
-                console.warn('⚠️ GameStore module non disponible');
+                console.warn('⚠️ useGameStore non disponible');
               }
             } catch (gameStoreError) {
               console.warn('⚠️ Erreur initialisation GameStore:', gameStoreError.message);
@@ -85,9 +79,9 @@ export const useAuthStore = create(
 
             // 🎮 CORRECTION : Nettoyer le GameStore de manière sécurisée
             try {
-              const gameStoreModule = await import('./gameStore.js');
-              if (gameStoreModule && gameStoreModule.default) {
-                const gameStore = gameStoreModule.default.getState();
+              const { useGameStore } = await import('./gameStore.js');
+              if (useGameStore) {
+                const gameStore = useGameStore.getState();
                 if (typeof gameStore.cleanup === 'function') {
                   gameStore.cleanup();
                   console.log('🎮 GameStore nettoyé');
@@ -140,9 +134,9 @@ export const useAuthStore = create(
           
           // 🎮 Nettoyer GameStore avant déconnexion
           try {
-            const gameStoreModule = await import('./gameStore.js');
-            if (gameStoreModule && gameStoreModule.default) {
-              const gameStore = gameStoreModule.default.getState();
+            const { useGameStore } = await import('./gameStore.js');
+            if (useGameStore) {
+              const gameStore = useGameStore.getState();
               if (typeof gameStore.cleanup === 'function') {
                 gameStore.cleanup();
               }
