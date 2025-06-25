@@ -1,96 +1,53 @@
 // ==========================================
 // 📁 react-app/src/components/collaboration/CommentSection.jsx
-// Interface de commentaires temps réel avec mentions et réactions - VERSION COMPLÈTE
+// Section commentaires CORRIGÉE - Gestion d'erreurs améliorée
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import collaborationService from '../../core/services/collaborationService.js';
-import { toast } from 'react-hot-toast';
+import { collaborationService } from '../../core/services/collaborationService.js';
 
-/**
- * 💬 COMPOSANT SECTION COMMENTAIRES
- * 
- * Interface complète de collaboration :
- * - Commentaires temps réel
- * - Système de mentions @utilisateur
- * - Réactions et réponses
- * - Historique d'activité
- * - Notifications intelligentes
- */
 const CommentSection = ({ entityType, entityId, className = '' }) => {
-  const { user } = useAuthStore();
+  // États locaux
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [editingComment, setEditingComment] = useState(null);
+  const [replyTo, setReplyTo] = useState(null);
+  
+  // Mentions
   const [showMentions, setShowMentions] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
   const [availableUsers, setAvailableUsers] = useState([]);
   const [selectedMentions, setSelectedMentions] = useState([]);
-  const [replyTo, setReplyTo] = useState(null);
-
+  
+  const { user } = useAuthStore();
   const textareaRef = useRef(null);
-  const mentionListRef = useRef(null);
 
   // ========================
-  // 🔄 GESTION DES DONNÉES
+  // 🎧 CHARGEMENT INITIAL ET TEMPS RÉEL
   // ========================
 
   useEffect(() => {
     if (!entityType || !entityId) return;
 
-    loadComments();
-    
-    // Abonnement temps réel
+    setLoading(true);
+
+    // Écouter les commentaires en temps réel
     const unsubscribe = collaborationService.subscribeToComments(
       entityType, 
       entityId, 
-      handleCommentsUpdate
+      (updatedComments) => {
+        setComments(updatedComments);
+        setLoading(false);
+      }
     );
 
-    return unsubscribe;
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [entityType, entityId]);
-
-  const loadComments = async () => {
-    try {
-      setLoading(true);
-      const commentsData = await collaborationService.getComments(entityType, entityId);
-      setComments(commentsData);
-    } catch (error) {
-      console.error('Erreur chargement commentaires:', error);
-      toast.error('Erreur lors du chargement des commentaires');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCommentsUpdate = (newComments) => {
-    setComments(prev => {
-      const updated = [...prev];
-      
-      newComments.forEach(newComment => {
-        const existingIndex = updated.findIndex(c => c.id === newComment.id);
-        
-        if (existingIndex >= 0) {
-          // Mise à jour
-          updated[existingIndex] = newComment;
-        } else {
-          // Nouveau commentaire
-          updated.push(newComment);
-          
-          // Notification si ce n'est pas notre commentaire
-          if (newComment.userId !== user?.uid && newComment.changeType === 'added') {
-            toast.success(`Nouveau commentaire de ${newComment.user?.name}`);
-          }
-        }
-      });
-      
-      // Trier par date de création
-      return updated.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-    });
-  };
 
   // ========================
   // 💬 GESTION DES COMMENTAIRES
@@ -119,11 +76,12 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
       setSelectedMentions([]);
       setReplyTo(null);
       
-      toast.success('Commentaire ajouté');
+      // Success feedback
+      showToast('Commentaire ajouté avec succès', 'success');
 
     } catch (error) {
       console.error('Erreur ajout commentaire:', error);
-      toast.error('Erreur lors de l\'ajout du commentaire');
+      showToast('Erreur lors de l\'ajout du commentaire', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -133,21 +91,43 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
     if (!confirm('Supprimer ce commentaire ?')) return;
 
     try {
-      await collaborationService.deleteComment(commentId);
-      toast.success('Commentaire supprimé');
+      // ✅ CORRECTION: Passer l'userId pour vérification de permission
+      await collaborationService.deleteComment(commentId, user.uid);
+      showToast('Commentaire supprimé', 'success');
     } catch (error) {
       console.error('Erreur suppression commentaire:', error);
-      toast.error('Erreur lors de la suppression');
+      
+      // ✅ Gestion d'erreur spécifique pour permissions
+      if (error.message.includes('Permission refusée')) {
+        showToast('Vous ne pouvez supprimer que vos propres commentaires', 'warning');
+      } else {
+        showToast('Erreur lors de la suppression', 'error');
+      }
     }
   };
 
   const handleEditComment = async (commentId, newContent) => {
+    if (!newContent.trim()) return;
+
     try {
-      await collaborationService.updateComment(commentId, { content: newContent });
-      toast.success('Commentaire modifié');
+      // ✅ CORRECTION: Passer l'userId pour vérification de permission
+      await collaborationService.updateComment(
+        commentId, 
+        { content: newContent.trim() }, 
+        user.uid
+      );
+      
+      setEditingComment(null);
+      showToast('Commentaire modifié', 'success');
     } catch (error) {
       console.error('Erreur modification commentaire:', error);
-      toast.error('Erreur lors de la modification');
+      
+      // ✅ Gestion d'erreur spécifique pour permissions
+      if (error.message.includes('Permission refusée')) {
+        showToast('Vous ne pouvez modifier que vos propres commentaires', 'warning');
+      } else {
+        showToast('Erreur lors de la modification', 'error');
+      }
     }
   };
 
@@ -196,322 +176,268 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
   };
 
   // ========================
+  // 🎨 FONCTIONS UTILITAIRES
+  // ========================
+
+  const getUserInitials = (comment) => {
+    if (comment.user?.name) return comment.user.name.charAt(0).toUpperCase();
+    if (comment.userId === user?.uid) return user.displayName?.charAt(0) || user.email?.charAt(0) || '?';
+    return '?';
+  };
+
+  const isOwnComment = (comment) => {
+    return comment.userId === user?.uid || comment.authorId === user?.uid;
+  };
+
+  const formatDate = (date) => {
+    if (!date) return 'Date inconnue';
+    
+    try {
+      const commentDate = date instanceof Date ? date : new Date(date);
+      const now = new Date();
+      const diffMs = now - commentDate;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return 'À l\'instant';
+      if (diffMins < 60) return `Il y a ${diffMins} min`;
+      if (diffHours < 24) return `Il y a ${diffHours}h`;
+      if (diffDays < 7) return `Il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
+      
+      return commentDate.toLocaleDateString('fr-FR');
+    } catch (error) {
+      return 'Date invalide';
+    }
+  };
+
+  // ✅ Système de toast simple
+  const showToast = (message, type = 'info') => {
+    // Création d'un toast simple
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white font-medium transition-all duration-300 ${
+      type === 'success' ? 'bg-green-500' :
+      type === 'error' ? 'bg-red-500' :
+      type === 'warning' ? 'bg-yellow-500' :
+      'bg-blue-500'
+    }`;
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    // Animation d'entrée
+    setTimeout(() => toast.style.transform = 'translateX(0)', 10);
+    
+    // Suppression automatique
+    setTimeout(() => {
+      toast.style.transform = 'translateX(100%)';
+      setTimeout(() => document.body.removeChild(toast), 300);
+    }, 3000);
+  };
+
+  // ========================
   // 🎨 COMPOSANTS DE RENDU
   // ========================
 
   const renderComment = (comment) => (
-    <motion.div
+    <div
       key={comment.id}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
       className={`
-        p-4 rounded-lg border border-gray-200 bg-white
+        p-4 rounded-xl border border-white/20 bg-white/5 backdrop-blur-lg
         ${comment.replyTo ? 'ml-8 mt-2' : 'mb-4'}
+        ${comment.isDeleted ? 'opacity-50' : ''}
       `}
     >
       {/* En-tête du commentaire */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center space-x-3">
           {/* Avatar */}
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-            {comment.user?.name?.charAt(0)?.toUpperCase() || '?'}
+          <div className="w-8 h-8 bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] rounded-full flex items-center justify-center text-white text-sm font-bold">
+            {getUserInitials(comment)}
           </div>
           
           {/* Infos utilisateur */}
           <div>
-            <div className="font-medium text-gray-900">
-              {comment.user?.name || 'Utilisateur inconnu'}
-              {comment.user?.level && (
-                <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">
-                  Niv. {comment.user.level}
-                </span>
+            <div className="font-medium text-white">
+              {comment.user?.name || (comment.userId === user?.uid ? 'Vous' : 'Utilisateur')}
+              {comment.isEdited && (
+                <span className="ml-2 text-xs text-[#a5b4fc] opacity-60">(modifié)</span>
               )}
             </div>
-            <div className="text-xs text-gray-500">
-              {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : 'Maintenant'}
-              {comment.isEdited && <span className="ml-2">(modifié)</span>}
+            <div className="text-xs text-[#a5b4fc] opacity-80">
+              {formatDate(comment.createdAt)}
             </div>
           </div>
         </div>
-
-        {/* Actions */}
-        {comment.userId === user?.uid && (
-          <div className="flex space-x-2">
+        
+        {/* Actions (si c'est notre commentaire) */}
+        {isOwnComment(comment) && !comment.isDeleted && (
+          <div className="flex items-center space-x-2">
             <button
-              onClick={() => handleEditComment(comment.id, prompt('Nouveau contenu:', comment.content))}
-              className="text-xs text-blue-600 hover:text-blue-800"
+              onClick={() => setEditingComment(comment.id)}
+              className="text-xs text-[#a5b4fc] hover:text-white transition-colors"
             >
-              ✏️ Modifier
+              Modifier
             </button>
             <button
               onClick={() => handleDeleteComment(comment.id)}
-              className="text-xs text-red-600 hover:text-red-800"
+              className="text-xs text-red-400 hover:text-red-300 transition-colors"
             >
-              🗑️ Supprimer
+              Supprimer
             </button>
           </div>
         )}
       </div>
 
-      {/* Répondre à */}
-      {comment.replyTo && (
-        <div className="mb-2 text-xs text-gray-500 bg-gray-50 p-2 rounded">
-          💬 En réponse à un commentaire
+      {/* Contenu du commentaire */}
+      {editingComment === comment.id ? (
+        <EditCommentForm
+          comment={comment}
+          onSave={(newContent) => handleEditComment(comment.id, newContent)}
+          onCancel={() => setEditingComment(null)}
+        />
+      ) : (
+        <div className="text-[#a5b4fc] whitespace-pre-wrap">
+          {comment.content}
         </div>
       )}
 
-      {/* Contenu */}
-      <div className="text-gray-800 mb-3">
-        {renderCommentContent(comment.content)}
-      </div>
-
-      {/* Mentions */}
-      {comment.mentions && comment.mentions.length > 0 && (
-        <div className="mb-3">
-          <div className="text-xs text-gray-500 mb-1">Mentions :</div>
-          <div className="flex flex-wrap gap-1">
-            {comment.mentions.map(userId => (
-              <span key={userId} className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
-                @utilisateur
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Actions du commentaire */}
-      <div className="flex items-center space-x-4 text-sm">
+      {/* Bouton répondre */}
+      {!comment.isDeleted && (
         <button
           onClick={() => setReplyTo(comment)}
-          className="text-gray-500 hover:text-blue-600 flex items-center space-x-1"
+          className="mt-2 text-xs text-[#a5b4fc] hover:text-white transition-colors"
         >
-          <span>💬</span>
-          <span>Répondre</span>
+          Répondre
         </button>
-        
-        <button className="text-gray-500 hover:text-red-600 flex items-center space-x-1">
-          <span>❤️</span>
-          <span>Réagir</span>
-        </button>
-      </div>
-
-      {/* Réponses */}
-      {comments
-        .filter(reply => reply.replyTo === comment.id)
-        .map(reply => renderComment(reply))
-      }
-    </motion.div>
+      )}
+    </div>
   );
 
-  const renderCommentContent = (content) => {
-    // Traiter les mentions dans le contenu
-    const mentionPattern = /@(\w+)/g;
-    const parts = content.split(mentionPattern);
-    
+  // Formulaire d'édition
+  const EditCommentForm = ({ comment, onSave, onCancel }) => {
+    const [editContent, setEditContent] = useState(comment.content);
+
     return (
-      <span>
-        {parts.map((part, index) => {
-          if (index % 2 === 1) {
-            // C'est une mention
-            return (
-              <span key={index} className="bg-blue-100 text-blue-600 px-1 rounded font-medium">
-                @{part}
-              </span>
-            );
-          }
-          return part;
-        })}
-      </span>
+      <div className="space-y-2">
+        <textarea
+          value={editContent}
+          onChange={(e) => setEditContent(e.target.value)}
+          className="w-full p-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-[#a5b4fc] resize-none"
+          rows={3}
+        />
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => onSave(editContent)}
+            className="px-3 py-1 bg-[#6366f1] text-white text-sm rounded-lg hover:bg-[#5856eb] transition-colors"
+          >
+            Sauvegarder
+          </button>
+          <button
+            onClick={onCancel}
+            className="px-3 py-1 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            Annuler
+          </button>
+        </div>
+      </div>
     );
   };
 
-  const renderMentionDropdown = () => (
-    <AnimatePresence>
-      {showMentions && availableUsers.length > 0 && (
-        <motion.div
-          ref={mentionListRef}
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto"
-        >
-          {availableUsers.map(user => (
-            <button
-              key={user.id}
-              onClick={() => handleSelectMention(user)}
-              className="w-full px-3 py-2 text-left hover:bg-blue-50 flex items-center space-x-2"
-            >
-              <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                {user.name.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <div className="font-medium">{user.name}</div>
-                <div className="text-xs text-gray-500">{user.email}</div>
-              </div>
-            </button>
-          ))}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-
   // ========================
-  // 🎨 INTERFACE PRINCIPALE
+  // 🎨 RENDU PRINCIPAL
   // ========================
 
   if (loading) {
     return (
-      <div className={`${className}`}>
+      <div className={`bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/20 ${className}`}>
         <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-          <span className="ml-2 text-gray-600">Chargement des commentaires...</span>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366f1]"></div>
+          <span className="ml-3 text-[#a5b4fc]">Chargement des commentaires...</span>
         </div>
       </div>
     );
   }
 
-  const topLevelComments = comments.filter(comment => !comment.replyTo);
-
   return (
-    <div className={`${className}`}>
+    <div className={`bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/20 ${className}`}>
       {/* En-tête */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">
-          💬 Commentaires ({comments.length})
+        <h3 className="text-lg font-semibold text-white">
+          Commentaires ({comments.length})
         </h3>
-        <button
-          onClick={loadComments}
-          className="text-sm text-blue-600 hover:text-blue-800"
-        >
-          🔄 Actualiser
-        </button>
       </div>
 
-      {/* Répondre à */}
-      {replyTo && (
-        <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-blue-700">
-              💬 Répondre à {replyTo.user?.name}
-            </div>
-            <button
-              onClick={() => setReplyTo(null)}
-              className="text-blue-500 hover:text-blue-700"
-            >
-              ✕
-            </button>
+      {/* Liste des commentaires */}
+      <div className="space-y-4 mb-6">
+        {comments.length === 0 ? (
+          <div className="text-center py-8 text-[#a5b4fc]">
+            Aucun commentaire pour le moment
           </div>
-          <div className="text-xs text-blue-600 mt-1 italic">
-            "{replyTo.content.substring(0, 100)}..."
-          </div>
-        </div>
-      )}
-
-      {/* Formulaire de nouveau commentaire */}
-      <form onSubmit={handleSubmitComment} className="mb-6">
-        <div className="relative">
-          <textarea
-            ref={textareaRef}
-            value={newComment}
-            onChange={handleInputChange}
-            placeholder="Ajouter un commentaire... Utilisez @ pour mentionner quelqu'un"
-            rows={3}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-            disabled={submitting}
-          />
-          
-          {renderMentionDropdown()}
-        </div>
-
-        {/* Mentions sélectionnées */}
-        {selectedMentions.length > 0 && (
-          <div className="mt-2">
-            <div className="text-xs text-gray-500 mb-1">Mentions :</div>
-            <div className="flex flex-wrap gap-1">
-              {selectedMentions.map(userId => (
-                <span key={userId} className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
-                  @utilisateur
-                  <button
-                    onClick={() => setSelectedMentions(prev => prev.filter(id => id !== userId))}
-                    className="ml-1 text-blue-400 hover:text-blue-600"
-                  >
-                    ✕
-                  </button>
-                </span>
-              ))}
-            </div>
-          </div>
+        ) : (
+          comments.map(renderComment)
         )}
+      </div>
 
-        <div className="flex items-center justify-between mt-3">
-          <div className="text-xs text-gray-500">
-            💡 Utilisez @ pour mentionner un utilisateur
-          </div>
-          
-          <div className="flex space-x-2">
-            {replyTo && (
+      {/* Formulaire d'ajout */}
+      {user && (
+        <form onSubmit={handleSubmitComment} className="space-y-4">
+          {replyTo && (
+            <div className="flex items-center justify-between p-2 bg-white/5 rounded-lg border border-white/10">
+              <span className="text-sm text-[#a5b4fc]">
+                Réponse à {replyTo.user?.name || 'Utilisateur'}
+              </span>
               <button
                 type="button"
                 onClick={() => setReplyTo(null)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                className="text-sm text-red-400 hover:text-red-300"
               >
                 Annuler
               </button>
-            )}
+            </div>
+          )}
+
+          <div className="relative">
+            <textarea
+              ref={textareaRef}
+              value={newComment}
+              onChange={handleInputChange}
+              placeholder="Écrivez un commentaire... (utilisez @ pour mentionner)"
+              className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-[#a5b4fc] resize-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent"
+              rows={3}
+            />
             
+            {/* Liste des mentions */}
+            {showMentions && availableUsers.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white/90 backdrop-blur-lg rounded-lg border border-white/20 shadow-lg">
+                {availableUsers.map(user => (
+                  <button
+                    key={user.id}
+                    type="button"
+                    onClick={() => handleSelectMention(user)}
+                    className="w-full px-3 py-2 text-left hover:bg-white/20 first:rounded-t-lg last:rounded-b-lg"
+                  >
+                    <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                    <div className="text-xs text-gray-600">{user.email}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-[#a5b4fc]">
+              Vous commentez en tant que {user.displayName || user.email}
+            </div>
             <button
               type="submit"
               disabled={!newComment.trim() || submitting}
-              className="px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-medium rounded-lg hover:from-[#5856eb] hover:to-[#7c3aed] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
-              {submitting ? '⏳ Envoi...' : replyTo ? '↩️ Répondre' : '💬 Commenter'}
+              {submitting ? 'Envoi...' : 'Commenter'}
             </button>
           </div>
-        </div>
-      </form>
-
-      {/* Liste des commentaires */}
-      <div className="space-y-4">
-        <AnimatePresence>
-          {topLevelComments.map(comment => renderComment(comment))}
-        </AnimatePresence>
-        
-        {topLevelComments.length === 0 && (
-          <div className="text-center py-8">
-            <div className="text-gray-400 text-4xl mb-4">💬</div>
-            <p className="text-gray-500">
-              Aucun commentaire pour le moment
-            </p>
-            <p className="text-sm text-gray-400 mt-2">
-              Soyez le premier à commenter !
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Statistiques */}
-      {comments.length > 0 && (
-        <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">📊 Statistiques des commentaires</h4>
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-lg font-bold text-blue-600">{comments.length}</div>
-              <div className="text-xs text-gray-500">Total</div>
-            </div>
-            <div>
-              <div className="text-lg font-bold text-green-600">
-                {new Set(comments.map(c => c.userId)).size}
-              </div>
-              <div className="text-xs text-gray-500">Participants</div>
-            </div>
-            <div>
-              <div className="text-lg font-bold text-purple-600">
-                {comments.filter(c => c.mentions?.length > 0).length}
-              </div>
-              <div className="text-xs text-gray-500">Avec mentions</div>
-            </div>
-          </div>
-        </div>
+        </form>
       )}
     </div>
   );
