@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/collaborationService.js
-// Service de collaboration temps réel avec commentaires, mentions et notifications
+// Service de collaboration CORRIGÉ - Permissions flexibles
 // ==========================================
 
 import { 
@@ -25,15 +25,7 @@ import {
 import { db } from '../firebase.js';
 
 /**
- * 🤝 SERVICE DE COLLABORATION TEMPS RÉEL
- * 
- * Fonctionnalités complètes de collaboration :
- * - Commentaires temps réel sur tâches/projets
- * - Système de mentions (@utilisateur)
- * - Notifications intelligentes
- * - Activité en temps réel
- * - Historique des actions
- * - Gestion des permissions
+ * 🤝 SERVICE DE COLLABORATION TEMPS RÉEL - VERSION CORRIGÉE
  */
 class CollaborationService {
   constructor() {
@@ -42,7 +34,7 @@ class CollaborationService {
   }
 
   // ========================
-  // 💬 SYSTÈME DE COMMENTAIRES
+  // 💬 SYSTÈME DE COMMENTAIRES CORRIGÉ
   // ========================
 
   /**
@@ -52,11 +44,17 @@ class CollaborationService {
     try {
       const { entityType, entityId, userId, content, mentions = [] } = commentData;
 
+      // Validation des données
+      if (!entityType || !entityId || !userId || !content?.trim()) {
+        throw new Error('Données manquantes pour créer le commentaire');
+      }
+
       const comment = {
         entityType, // 'task' ou 'project'
         entityId,
         userId,
-        content,
+        authorId: userId, // ✅ CORRECTION: Dupliquer pour compatibilité
+        content: content.trim(),
         mentions,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -92,10 +90,14 @@ class CollaborationService {
   }
 
   /**
-   * 🔄 METTRE À JOUR UN COMMENTAIRE
+   * 🔄 METTRE À JOUR UN COMMENTAIRE - VERSION CORRIGÉE
    */
   async updateComment(commentId, updates, userId) {
     try {
+      if (!commentId || !userId) {
+        throw new Error('Paramètres manquants pour mettre à jour le commentaire');
+      }
+
       const commentRef = doc(db, 'comments', commentId);
       const commentSnap = await getDoc(commentRef);
 
@@ -105,16 +107,28 @@ class CollaborationService {
 
       const commentData = commentSnap.data();
       
-      // Vérifier les permissions
-      if (commentData.userId !== userId) {
-        throw new Error('Permission refusée');
+      // ✅ CORRECTION: Vérification de permission plus flexible
+      const isOwner = commentData.userId === userId || commentData.authorId === userId;
+      const isAdmin = false; // TODO: Implémenter vérification admin si nécessaire
+      
+      if (!isOwner && !isAdmin) {
+        console.warn('⚠️ Tentative de modification par:', userId, 'Propriétaire:', commentData.userId || commentData.authorId);
+        throw new Error('Permission refusée - Vous ne pouvez modifier que vos propres commentaires');
       }
 
+      // Préparer les données de mise à jour
       const updateData = {
         ...updates,
         updatedAt: serverTimestamp(),
-        isEdited: true
+        isEdited: true,
+        lastEditBy: userId // ✅ Tracer qui a fait la dernière modification
       };
+
+      // Nettoyer les champs qui ne doivent pas être modifiés
+      delete updateData.userId;
+      delete updateData.authorId;
+      delete updateData.createdAt;
+      delete updateData.id;
 
       await updateDoc(commentRef, updateData);
 
@@ -128,10 +142,14 @@ class CollaborationService {
   }
 
   /**
-   * 🗑️ SUPPRIMER UN COMMENTAIRE
+   * 🗑️ SUPPRIMER UN COMMENTAIRE - VERSION CORRIGÉE
    */
   async deleteComment(commentId, userId) {
     try {
+      if (!commentId || !userId) {
+        throw new Error('Paramètres manquants pour supprimer le commentaire');
+      }
+
       const commentRef = doc(db, 'comments', commentId);
       const commentSnap = await getDoc(commentRef);
 
@@ -141,12 +159,29 @@ class CollaborationService {
 
       const commentData = commentSnap.data();
       
-      // Vérifier les permissions
-      if (commentData.userId !== userId) {
-        throw new Error('Permission refusée');
+      // ✅ CORRECTION: Vérification de permission plus flexible
+      const isOwner = commentData.userId === userId || commentData.authorId === userId;
+      const isAdmin = false; // TODO: Implémenter vérification admin si nécessaire
+      
+      if (!isOwner && !isAdmin) {
+        console.warn('⚠️ Tentative de suppression par:', userId, 'Propriétaire:', commentData.userId || commentData.authorId);
+        throw new Error('Permission refusée - Vous ne pouvez supprimer que vos propres commentaires');
       }
 
-      await deleteDoc(commentRef);
+      // ✅ OPTION 1: Suppression douce (marquer comme supprimé)
+      if (true) { // Configurable
+        await updateDoc(commentRef, {
+          isDeleted: true,
+          deletedAt: serverTimestamp(),
+          deletedBy: userId,
+          content: '[Commentaire supprimé]'
+        });
+        console.log('✅ Commentaire marqué comme supprimé:', commentId);
+      } else {
+        // OPTION 2: Suppression définitive
+        await deleteDoc(commentRef);
+        console.log('✅ Commentaire supprimé définitivement:', commentId);
+      }
 
       // Logger l'activité
       await this.logActivity({
@@ -157,7 +192,6 @@ class CollaborationService {
         details: { commentId }
       });
 
-      console.log('✅ Commentaire supprimé:', commentId);
       return commentId;
 
     } catch (error) {
@@ -175,38 +209,36 @@ class CollaborationService {
         collection(db, 'comments'),
         where('entityType', '==', entityType),
         where('entityId', '==', entityId),
+        where('isDeleted', '!=', true), // ✅ Exclure les commentaires supprimés
         orderBy('createdAt', 'asc'),
         limit(limitCount)
       );
 
-      const querySnapshot = await getDocs(q);
+      const snapshot = await getDocs(q);
       const comments = [];
 
-      for (const doc of querySnapshot.docs) {
+      snapshot.forEach(doc => {
         const data = doc.data();
-        
-        // Enrichir avec les données utilisateur
-        const userData = await this.getUserData(data.userId);
-        
         comments.push({
           id: doc.id,
           ...data,
-          createdAt: data.createdAt?.toDate(),
-          updatedAt: data.updatedAt?.toDate(),
-          user: userData
+          // ✅ Convertir les timestamps pour compatibilité
+          createdAt: data.createdAt?.toDate?.() || new Date(),
+          updatedAt: data.updatedAt?.toDate?.() || new Date()
         });
-      }
+      });
 
+      console.log(`✅ ${comments.length} commentaires récupérés pour ${entityType}:${entityId}`);
       return comments;
 
     } catch (error) {
       console.error('❌ Erreur récupération commentaires:', error);
-      return [];
+      throw error;
     }
   }
 
   /**
-   * 👂 ÉCOUTER LES COMMENTAIRES EN TEMPS RÉEL
+   * 🎧 ÉCOUTER LES COMMENTAIRES EN TEMPS RÉEL
    */
   subscribeToComments(entityType, entityId, callback) {
     try {
@@ -214,29 +246,27 @@ class CollaborationService {
         collection(db, 'comments'),
         where('entityType', '==', entityType),
         where('entityId', '==', entityId),
+        where('isDeleted', '!=', true),
         orderBy('createdAt', 'asc')
       );
 
-      const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const unsubscribe = onSnapshot(q, (snapshot) => {
         const comments = [];
-
-        for (const change of snapshot.docChanges()) {
-          if (change.type === 'added' || change.type === 'modified') {
-            const data = change.doc.data();
-            const userData = await this.getUserData(data.userId);
-            
-            comments.push({
-              id: change.doc.id,
-              ...data,
-              createdAt: data.createdAt?.toDate(),
-              updatedAt: data.updatedAt?.toDate(),
-              user: userData,
-              changeType: change.type
-            });
-          }
-        }
+        
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          comments.push({
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate?.() || new Date(),
+            updatedAt: data.updatedAt?.toDate?.() || new Date()
+          });
+        });
 
         callback(comments);
+      }, (error) => {
+        console.error('❌ Erreur écoute commentaires:', error);
+        callback([]); // Fallback sur tableau vide
       });
 
       // Stocker le listener pour nettoyage
@@ -246,84 +276,46 @@ class CollaborationService {
       return unsubscribe;
 
     } catch (error) {
-      console.error('❌ Erreur abonnement commentaires:', error);
-      return () => {};
-    }
-  }
-
-  // ========================
-  // 🏷️ SYSTÈME DE MENTIONS
-  // ========================
-
-  /**
-   * 📧 CRÉER LES NOTIFICATIONS DE MENTION
-   */
-  async createMentionNotifications(commentId, mentions, fromUserId, entityType, entityId) {
-    try {
-      const batch = writeBatch(db);
-      const notificationsRef = collection(db, 'notifications');
-
-      for (const mentionedUserId of mentions) {
-        if (mentionedUserId === fromUserId) continue; // Pas de notification pour soi-même
-
-        const notification = {
-          type: 'mention',
-          fromUserId,
-          toUserId: mentionedUserId,
-          entityType,
-          entityId,
-          commentId,
-          message: `Vous avez été mentionné dans un commentaire`,
-          isRead: false,
-          createdAt: serverTimestamp()
-        };
-
-        const notificationRef = doc(notificationsRef);
-        batch.set(notificationRef, notification);
-      }
-
-      await batch.commit();
-      console.log(`✅ ${mentions.length} notifications de mention créées`);
-
-    } catch (error) {
-      console.error('❌ Erreur notifications mention:', error);
+      console.error('❌ Erreur souscription commentaires:', error);
+      return () => {}; // Fonction vide pour éviter les erreurs
     }
   }
 
   /**
    * 🔍 RECHERCHER DES UTILISATEURS POUR MENTIONS
    */
-  async searchUsersForMention(searchTerm, projectId = null) {
+  async searchUsersForMention(searchTerm, limitCount = 10) {
     try {
-      let q = collection(db, 'users');
-
-      if (projectId) {
-        // Filtrer par membres du projet si spécifié
-        const projectDoc = await getDoc(doc(db, 'projects', projectId));
-        if (projectDoc.exists()) {
-          const members = projectDoc.data().members || [];
-          q = query(q, where('uid', 'in', members));
-        }
+      if (!searchTerm || searchTerm.length < 2) {
+        return [];
       }
 
-      const querySnapshot = await getDocs(q);
+      // Recherche simple par nom/email
+      const q = query(
+        collection(db, 'users'),
+        orderBy('displayName'),
+        limit(limitCount)
+      );
+
+      const snapshot = await getDocs(q);
       const users = [];
 
-      querySnapshot.forEach((doc) => {
+      snapshot.forEach(doc => {
         const data = doc.data();
-        const displayName = data.displayName || data.email || 'Utilisateur';
+        const name = data.displayName || data.email || '';
         
-        if (displayName.toLowerCase().includes(searchTerm.toLowerCase())) {
+        // Filtrer par terme de recherche (case insensitive)
+        if (name.toLowerCase().includes(searchTerm.toLowerCase())) {
           users.push({
-            id: data.uid,
-            name: displayName,
+            id: doc.id,
+            name: data.displayName || data.email,
             email: data.email,
-            avatar: data.photoURL
+            photoURL: data.photoURL
           });
         }
       });
 
-      return users.slice(0, 10); // Limiter à 10 résultats
+      return users;
 
     } catch (error) {
       console.error('❌ Erreur recherche utilisateurs:', error);
@@ -331,208 +323,53 @@ class CollaborationService {
     }
   }
 
-  // ========================
-  // 🔔 SYSTÈME DE NOTIFICATIONS
-  // ========================
-
   /**
-   * 📬 RÉCUPÉRER LES NOTIFICATIONS D'UN UTILISATEUR
+   * 📬 CRÉER DES NOTIFICATIONS POUR LES MENTIONS
    */
-  async getUserNotifications(userId, limitCount = 20) {
+  async createMentionNotifications(commentId, mentions, fromUserId, entityType, entityId) {
     try {
-      const q = query(
-        collection(db, 'notifications'),
-        where('toUserId', '==', userId),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
-      );
+      const batch = writeBatch(db);
 
-      const querySnapshot = await getDocs(q);
-      const notifications = [];
+      for (const mentionedUserId of mentions) {
+        if (mentionedUserId === fromUserId) continue; // Pas de notification pour soi-même
 
-      for (const doc of querySnapshot.docs) {
-        const data = doc.data();
-        
-        // Enrichir avec les données de l'expéditeur
-        const fromUserData = await this.getUserData(data.fromUserId);
-        
-        notifications.push({
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate(),
-          fromUser: fromUserData
+        const notificationRef = doc(collection(db, 'notifications'));
+        batch.set(notificationRef, {
+          userId: mentionedUserId,
+          type: 'mention',
+          title: 'Vous avez été mentionné',
+          message: `Vous avez été mentionné dans un commentaire`,
+          data: {
+            commentId,
+            entityType,
+            entityId,
+            fromUserId
+          },
+          read: false,
+          createdAt: serverTimestamp()
         });
       }
 
-      return notifications;
-
-    } catch (error) {
-      console.error('❌ Erreur récupération notifications:', error);
-      return [];
-    }
-  }
-
-  /**
-   * 👁️ MARQUER UNE NOTIFICATION COMME LUE
-   */
-  async markNotificationAsRead(notificationId) {
-    try {
-      const notificationRef = doc(db, 'notifications', notificationId);
-      await updateDoc(notificationRef, {
-        isRead: true,
-        readAt: serverTimestamp()
-      });
-
-      console.log('✅ Notification marquée comme lue:', notificationId);
-
-    } catch (error) {
-      console.error('❌ Erreur marquer notification:', error);
-    }
-  }
-
-  /**
-   * 👀 MARQUER TOUTES LES NOTIFICATIONS COMME LUES
-   */
-  async markAllNotificationsAsRead(userId) {
-    try {
-      const q = query(
-        collection(db, 'notifications'),
-        where('toUserId', '==', userId),
-        where('isRead', '==', false)
-      );
-
-      const querySnapshot = await getDocs(q);
-      const batch = writeBatch(db);
-
-      querySnapshot.forEach((doc) => {
-        batch.update(doc.ref, {
-          isRead: true,
-          readAt: serverTimestamp()
-        });
-      });
-
       await batch.commit();
-      console.log(`✅ ${querySnapshot.size} notifications marquées comme lues`);
+      console.log(`✅ ${mentions.length} notifications de mention créées`);
 
     } catch (error) {
-      console.error('❌ Erreur marquer toutes notifications:', error);
+      console.error('❌ Erreur création notifications mention:', error);
     }
   }
 
-  // ========================
-  // 📊 ACTIVITÉ ET HISTORIQUE
-  // ========================
-
   /**
-   * 📝 LOGGER UNE ACTIVITÉ
+   * 📝 LOGGER L'ACTIVITÉ
    */
   async logActivity(activityData) {
     try {
-      const activity = {
+      await addDoc(collection(db, 'activities'), {
         ...activityData,
-        timestamp: serverTimestamp(),
-        id: doc(collection(db, 'activities')).id
-      };
-
-      await addDoc(collection(db, 'activities'), activity);
-
+        timestamp: serverTimestamp()
+      });
     } catch (error) {
-      console.error('❌ Erreur log activité:', error);
-    }
-  }
-
-  /**
-   * 📈 RÉCUPÉRER L'ACTIVITÉ D'UNE ENTITÉ
-   */
-  async getEntityActivity(entityType, entityId, limitCount = 20) {
-    try {
-      const q = query(
-        collection(db, 'activities'),
-        where('entityType', '==', entityType),
-        where('entityId', '==', entityId),
-        orderBy('timestamp', 'desc'),
-        limit(limitCount)
-      );
-
-      const querySnapshot = await getDocs(q);
-      const activities = [];
-
-      for (const doc of querySnapshot.docs) {
-        const data = doc.data();
-        const userData = await this.getUserData(data.userId);
-        
-        activities.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp?.toDate(),
-          user: userData
-        });
-      }
-
-      return activities;
-
-    } catch (error) {
-      console.error('❌ Erreur récupération activité:', error);
-      return [];
-    }
-  }
-
-  // ========================
-  // 🛠️ MÉTHODES UTILITAIRES
-  // ========================
-
-  /**
-   * 👤 RÉCUPÉRER LES DONNÉES D'UN UTILISATEUR
-   */
-  async getUserData(userId) {
-    try {
-      // Cache simple pour éviter les requêtes répétées
-      if (this.userCache && this.userCache[userId]) {
-        return this.userCache[userId];
-      }
-
-      const q = query(
-        collection(db, 'users'),
-        where('uid', '==', userId),
-        limit(1)
-      );
-
-      const querySnapshot = await getDocs(q);
-      
-      if (!querySnapshot.empty) {
-        const userData = querySnapshot.docs[0].data();
-        
-        // Mettre en cache
-        if (!this.userCache) this.userCache = {};
-        this.userCache[userId] = {
-          id: userId,
-          name: userData.displayName || userData.email || 'Utilisateur',
-          email: userData.email,
-          avatar: userData.photoURL,
-          level: userData.level || 1
-        };
-
-        return this.userCache[userId];
-      }
-
-      // Fallback si utilisateur non trouvé
-      return {
-        id: userId,
-        name: 'Utilisateur inconnu',
-        email: '',
-        avatar: null,
-        level: 1
-      };
-
-    } catch (error) {
-      console.error('❌ Erreur récupération utilisateur:', error);
-      return {
-        id: userId,
-        name: 'Utilisateur',
-        email: '',
-        avatar: null,
-        level: 1
-      };
+      console.warn('⚠️ Erreur log activité:', error);
+      // Ne pas faire échouer l'opération principale
     }
   }
 
@@ -540,66 +377,39 @@ class CollaborationService {
    * 🧹 NETTOYER LES LISTENERS
    */
   cleanup() {
-    this.listeners.forEach((unsubscribe, listenerId) => {
-      unsubscribe();
-      console.log('🧹 Listener nettoyé:', listenerId);
+    this.listeners.forEach((unsubscribe) => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
     });
-    
     this.listeners.clear();
-    this.userCache = {};
+    console.log('✅ Listeners collaboration nettoyés');
   }
 
   /**
-   * 📊 STATISTIQUES DE COLLABORATION
+   * 🔧 OBTENIR LES STATISTIQUES D'UNE ENTITÉ
    */
-  async getCollaborationStats(entityType, entityId) {
+  async getEntityStats(entityType, entityId) {
     try {
-      const [comments, activities] = await Promise.all([
-        this.getComments(entityType, entityId),
-        this.getEntityActivity(entityType, entityId)
-      ]);
-
-      const uniqueContributors = new Set();
-      comments.forEach(comment => uniqueContributors.add(comment.userId));
-      activities.forEach(activity => uniqueContributors.add(activity.userId));
-
+      const comments = await this.getComments(entityType, entityId, 1000);
+      
       return {
-        totalComments: comments.length,
-        totalActivities: activities.length,
-        uniqueContributors: uniqueContributors.size,
-        lastActivity: activities[0]?.timestamp || null,
-        mostActiveContributor: this.getMostActiveContributor(comments, activities)
+        commentCount: comments.length,
+        uniqueCommenters: new Set(comments.map(c => c.userId)).size,
+        lastActivity: comments.length > 0 ? Math.max(...comments.map(c => c.createdAt)) : null
       };
 
     } catch (error) {
-      console.error('❌ Erreur stats collaboration:', error);
+      console.error('❌ Erreur statistiques entité:', error);
       return {
-        totalComments: 0,
-        totalActivities: 0,
-        uniqueContributors: 0,
-        lastActivity: null,
-        mostActiveContributor: null
+        commentCount: 0,
+        uniqueCommenters: 0,
+        lastActivity: null
       };
     }
   }
-
-  /**
-   * 🏆 OBTENIR LE CONTRIBUTEUR LE PLUS ACTIF
-   */
-  getMostActiveContributor(comments, activities) {
-    const contributorCount = {};
-
-    [...comments, ...activities].forEach(item => {
-      contributorCount[item.userId] = (contributorCount[item.userId] || 0) + 1;
-    });
-
-    const mostActive = Object.entries(contributorCount)
-      .sort(([,a], [,b]) => b - a)[0];
-
-    return mostActive ? { userId: mostActive[0], count: mostActive[1] } : null;
-  }
 }
 
-// Instance singleton
-const collaborationService = new CollaborationService();
+// Export singleton
+export const collaborationService = new CollaborationService();
 export default collaborationService;
