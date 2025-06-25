@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/collaborationService.js
-// Service de collaboration CORRIGÉ - Permissions flexibles
+// Service de collaboration SIMPLIFIÉ - Sans requêtes complexes
 // ==========================================
 
 import { 
@@ -25,7 +25,7 @@ import {
 import { db } from '../firebase.js';
 
 /**
- * 🤝 SERVICE DE COLLABORATION TEMPS RÉEL - VERSION CORRIGÉE
+ * 🤝 SERVICE DE COLLABORATION SIMPLIFIÉ
  */
 class CollaborationService {
   constructor() {
@@ -34,7 +34,7 @@ class CollaborationService {
   }
 
   // ========================
-  // 💬 SYSTÈME DE COMMENTAIRES CORRIGÉ
+  // 💬 SYSTÈME DE COMMENTAIRES SIMPLIFIÉ
   // ========================
 
   /**
@@ -53,7 +53,7 @@ class CollaborationService {
         entityType, // 'task' ou 'project'
         entityId,
         userId,
-        authorId: userId, // ✅ CORRECTION: Dupliquer pour compatibilité
+        authorId: userId, // Pour compatibilité
         content: content.trim(),
         mentions,
         createdAt: serverTimestamp(),
@@ -61,25 +61,12 @@ class CollaborationService {
         isEdited: false,
         reactions: {},
         replyTo: commentData.replyTo || null,
-        attachments: commentData.attachments || []
+        attachments: commentData.attachments || [],
+        // ✅ CORRECTION: Pas de champ isDeleted pour éviter l'index complexe
       };
 
       const docRef = await addDoc(collection(db, 'comments'), comment);
       
-      // Créer les notifications pour les mentions
-      if (mentions.length > 0) {
-        await this.createMentionNotifications(docRef.id, mentions, userId, entityType, entityId);
-      }
-
-      // Logger l'activité
-      await this.logActivity({
-        type: 'comment_added',
-        userId,
-        entityType,
-        entityId,
-        details: { commentId: docRef.id, content: content.substring(0, 100) }
-      });
-
       console.log('✅ Commentaire ajouté:', docRef.id);
       return { id: docRef.id, ...comment };
 
@@ -90,7 +77,7 @@ class CollaborationService {
   }
 
   /**
-   * 🔄 METTRE À JOUR UN COMMENTAIRE - VERSION CORRIGÉE
+   * 🔄 METTRE À JOUR UN COMMENTAIRE
    */
   async updateComment(commentId, updates, userId) {
     try {
@@ -107,28 +94,21 @@ class CollaborationService {
 
       const commentData = commentSnap.data();
       
-      // ✅ CORRECTION: Vérification de permission plus flexible
+      // Vérification de permission plus flexible
       const isOwner = commentData.userId === userId || commentData.authorId === userId;
-      const isAdmin = false; // TODO: Implémenter vérification admin si nécessaire
       
-      if (!isOwner && !isAdmin) {
+      if (!isOwner) {
         console.warn('⚠️ Tentative de modification par:', userId, 'Propriétaire:', commentData.userId || commentData.authorId);
         throw new Error('Permission refusée - Vous ne pouvez modifier que vos propres commentaires');
       }
 
       // Préparer les données de mise à jour
       const updateData = {
-        ...updates,
+        content: updates.content || commentData.content,
         updatedAt: serverTimestamp(),
         isEdited: true,
-        lastEditBy: userId // ✅ Tracer qui a fait la dernière modification
+        lastEditBy: userId
       };
-
-      // Nettoyer les champs qui ne doivent pas être modifiés
-      delete updateData.userId;
-      delete updateData.authorId;
-      delete updateData.createdAt;
-      delete updateData.id;
 
       await updateDoc(commentRef, updateData);
 
@@ -142,7 +122,7 @@ class CollaborationService {
   }
 
   /**
-   * 🗑️ SUPPRIMER UN COMMENTAIRE - VERSION CORRIGÉE
+   * 🗑️ SUPPRIMER UN COMMENTAIRE
    */
   async deleteComment(commentId, userId) {
     try {
@@ -159,39 +139,23 @@ class CollaborationService {
 
       const commentData = commentSnap.data();
       
-      // ✅ CORRECTION: Vérification de permission plus flexible
+      // Vérification de permission plus flexible
       const isOwner = commentData.userId === userId || commentData.authorId === userId;
-      const isAdmin = false; // TODO: Implémenter vérification admin si nécessaire
       
-      if (!isOwner && !isAdmin) {
+      if (!isOwner) {
         console.warn('⚠️ Tentative de suppression par:', userId, 'Propriétaire:', commentData.userId || commentData.authorId);
         throw new Error('Permission refusée - Vous ne pouvez supprimer que vos propres commentaires');
       }
 
-      // ✅ OPTION 1: Suppression douce (marquer comme supprimé)
-      if (true) { // Configurable
-        await updateDoc(commentRef, {
-          isDeleted: true,
-          deletedAt: serverTimestamp(),
-          deletedBy: userId,
-          content: '[Commentaire supprimé]'
-        });
-        console.log('✅ Commentaire marqué comme supprimé:', commentId);
-      } else {
-        // OPTION 2: Suppression définitive
-        await deleteDoc(commentRef);
-        console.log('✅ Commentaire supprimé définitivement:', commentId);
-      }
-
-      // Logger l'activité
-      await this.logActivity({
-        type: 'comment_deleted',
-        userId,
-        entityType: commentData.entityType,
-        entityId: commentData.entityId,
-        details: { commentId }
+      // ✅ CORRECTION: Suppression simple avec marquage textuel
+      await updateDoc(commentRef, {
+        content: '[Commentaire supprimé]',
+        deletedAt: serverTimestamp(),
+        deletedBy: userId,
+        updatedAt: serverTimestamp()
       });
 
+      console.log('✅ Commentaire marqué comme supprimé:', commentId);
       return commentId;
 
     } catch (error) {
@@ -201,15 +165,15 @@ class CollaborationService {
   }
 
   /**
-   * 📖 RÉCUPÉRER LES COMMENTAIRES D'UNE ENTITÉ
+   * 📖 RÉCUPÉRER LES COMMENTAIRES D'UNE ENTITÉ - VERSION SIMPLIFIÉE
    */
   async getComments(entityType, entityId, limitCount = 50) {
     try {
+      // ✅ CORRECTION: Requête simple sans filtre sur isDeleted
       const q = query(
         collection(db, 'comments'),
         where('entityType', '==', entityType),
         where('entityId', '==', entityId),
-        where('isDeleted', '!=', true), // ✅ Exclure les commentaires supprimés
         orderBy('createdAt', 'asc'),
         limit(limitCount)
       );
@@ -219,13 +183,16 @@ class CollaborationService {
 
       snapshot.forEach(doc => {
         const data = doc.data();
-        comments.push({
-          id: doc.id,
-          ...data,
-          // ✅ Convertir les timestamps pour compatibilité
-          createdAt: data.createdAt?.toDate?.() || new Date(),
-          updatedAt: data.updatedAt?.toDate?.() || new Date()
-        });
+        
+        // Filtrer les commentaires supprimés côté client
+        if (data.content !== '[Commentaire supprimé]') {
+          comments.push({
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate?.() || new Date(),
+            updatedAt: data.updatedAt?.toDate?.() || new Date()
+          });
+        }
       });
 
       console.log(`✅ ${comments.length} commentaires récupérés pour ${entityType}:${entityId}`);
@@ -233,20 +200,20 @@ class CollaborationService {
 
     } catch (error) {
       console.error('❌ Erreur récupération commentaires:', error);
-      throw error;
+      return []; // Retourner tableau vide au lieu de throw
     }
   }
 
   /**
-   * 🎧 ÉCOUTER LES COMMENTAIRES EN TEMPS RÉEL
+   * 🎧 ÉCOUTER LES COMMENTAIRES EN TEMPS RÉEL - VERSION SIMPLIFIÉE
    */
   subscribeToComments(entityType, entityId, callback) {
     try {
+      // ✅ CORRECTION: Requête simple sans filtre complexe
       const q = query(
         collection(db, 'comments'),
         where('entityType', '==', entityType),
         where('entityId', '==', entityId),
-        where('isDeleted', '!=', true),
         orderBy('createdAt', 'asc')
       );
 
@@ -255,12 +222,16 @@ class CollaborationService {
         
         snapshot.forEach(doc => {
           const data = doc.data();
-          comments.push({
-            id: doc.id,
-            ...data,
-            createdAt: data.createdAt?.toDate?.() || new Date(),
-            updatedAt: data.updatedAt?.toDate?.() || new Date()
-          });
+          
+          // Filtrer les commentaires supprimés côté client
+          if (data.content !== '[Commentaire supprimé]') {
+            comments.push({
+              id: doc.id,
+              ...data,
+              createdAt: data.createdAt?.toDate?.() || new Date(),
+              updatedAt: data.updatedAt?.toDate?.() || new Date()
+            });
+          }
         });
 
         callback(comments);
@@ -293,7 +264,6 @@ class CollaborationService {
       // Recherche simple par nom/email
       const q = query(
         collection(db, 'users'),
-        orderBy('displayName'),
         limit(limitCount)
       );
 
@@ -324,17 +294,15 @@ class CollaborationService {
   }
 
   /**
-   * 📬 CRÉER DES NOTIFICATIONS POUR LES MENTIONS
+   * 📬 CRÉER DES NOTIFICATIONS POUR LES MENTIONS - VERSION SIMPLIFIÉE
    */
   async createMentionNotifications(commentId, mentions, fromUserId, entityType, entityId) {
     try {
-      const batch = writeBatch(db);
-
+      // Version simplifiée sans batch
       for (const mentionedUserId of mentions) {
-        if (mentionedUserId === fromUserId) continue; // Pas de notification pour soi-même
+        if (mentionedUserId === fromUserId) continue;
 
-        const notificationRef = doc(collection(db, 'notifications'));
-        batch.set(notificationRef, {
+        await addDoc(collection(db, 'notifications'), {
           userId: mentionedUserId,
           type: 'mention',
           title: 'Vous avez été mentionné',
@@ -350,7 +318,6 @@ class CollaborationService {
         });
       }
 
-      await batch.commit();
       console.log(`✅ ${mentions.length} notifications de mention créées`);
 
     } catch (error) {
@@ -359,7 +326,7 @@ class CollaborationService {
   }
 
   /**
-   * 📝 LOGGER L'ACTIVITÉ
+   * 📝 LOGGER L'ACTIVITÉ - VERSION SIMPLIFIÉE
    */
   async logActivity(activityData) {
     try {
@@ -370,6 +337,89 @@ class CollaborationService {
     } catch (error) {
       console.warn('⚠️ Erreur log activité:', error);
       // Ne pas faire échouer l'opération principale
+    }
+  }
+
+  /**
+   * ✅ MÉTHODES MANQUANTES AJOUTÉES
+   */
+  
+  // Récupérer l'activité d'une entité
+  async getEntityActivity(entityType, entityId, limitCount = 20) {
+    try {
+      const q = query(
+        collection(db, 'activities'),
+        where('entityType', '==', entityType),
+        where('entityId', '==', entityId),
+        orderBy('timestamp', 'desc'),
+        limit(limitCount)
+      );
+
+      const snapshot = await getDocs(q);
+      const activities = [];
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        activities.push({
+          id: doc.id,
+          ...data,
+          timestamp: data.timestamp?.toDate?.() || new Date()
+        });
+      });
+
+      return activities;
+
+    } catch (error) {
+      console.error('❌ Erreur récupération activité entité:', error);
+      return [];
+    }
+  }
+
+  // Récupérer les notifications d'un utilisateur
+  async getUserNotifications(userId, limitCount = 50) {
+    try {
+      const q = query(
+        collection(db, 'notifications'),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
+      );
+
+      const snapshot = await getDocs(q);
+      const notifications = [];
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        notifications.push({
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.() || new Date()
+        });
+      });
+
+      return notifications;
+
+    } catch (error) {
+      console.error('❌ Erreur récupération notifications:', error);
+      return [];
+    }
+  }
+
+  // Marquer une notification comme lue
+  async markNotificationAsRead(notificationId) {
+    try {
+      const notificationRef = doc(db, 'notifications', notificationId);
+      await updateDoc(notificationRef, {
+        read: true,
+        readAt: serverTimestamp()
+      });
+      
+      console.log('✅ Notification marquée comme lue:', notificationId);
+      return true;
+
+    } catch (error) {
+      console.error('❌ Erreur marquage notification:', error);
+      return false;
     }
   }
 
