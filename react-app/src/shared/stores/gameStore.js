@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/gameStore.js
-// Store de gamification SIMPLIFIÉ - Sans imports qui causent des erreurs
+// Store de gamification SIMPLIFIÉ - Avec export window
 // ==========================================
 
 import { create } from 'zustand'
