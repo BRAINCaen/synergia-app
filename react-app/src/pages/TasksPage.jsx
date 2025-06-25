@@ -65,24 +65,27 @@ const TasksPage = () => {
   // Stores
   const { 
     tasks, 
-    fetchTasks, 
-    addTask, 
+    loadUserTasks, 
+    createTask, 
     updateTask, 
     deleteTask,
-    toggleTaskStatus 
+    completeTask 
   } = useTaskStore();
   
-  const { projects, fetchProjects } = useProjectStore();
+  const { projects, loadUserProjects } = useProjectStore();
+  const { user } = useAuthStore();
   const { addXP } = useGameStore();
 
   // Chargement initial
   useEffect(() => {
     const loadData = async () => {
+      if (!user?.uid) return;
+      
       setLoading(true);
       try {
         await Promise.all([
-          fetchTasks(),
-          fetchProjects()
+          loadUserTasks(user.uid),
+          loadUserProjects(user.uid)
         ]);
       } catch (error) {
         console.error('Erreur lors du chargement:', error);
@@ -92,7 +95,7 @@ const TasksPage = () => {
     };
 
     loadData();
-  }, [fetchTasks, fetchProjects]);
+  }, [user?.uid, loadUserTasks, loadUserProjects]);
 
   // Filtrage et tri des tâches
   const filteredTasks = useMemo(() => {
@@ -141,10 +144,12 @@ const TasksPage = () => {
   const handleCompleteTask = async (taskId) => {
     const task = tasks.find(t => t.id === taskId);
     if (task && task.status !== 'completed') {
-      await toggleTaskStatus(taskId);
+      await completeTask(taskId, user.uid);
       addXP(10, 'Tâche terminée');
     } else if (task) {
-      await toggleTaskStatus(taskId);
+      await updateTask(taskId, { 
+        status: task.status === 'completed' ? 'todo' : 'completed' 
+      }, user.uid);
     }
   };
 
@@ -413,7 +418,7 @@ const TasksPage = () => {
           <TaskFormModal
             task={editingTask}
             projects={projects}
-            onSave={editingTask ? updateTask : addTask}
+            onSave={editingTask ? updateTask : createTask}
             onClose={() => {
               setShowTaskForm(false);
               setEditingTask(null);
