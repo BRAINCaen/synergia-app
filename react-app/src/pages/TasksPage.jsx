@@ -1,8 +1,8 @@
 // ==========================================
-// 📋 TASKS PAGE - SYNERGIA v3.5 - VERSION CORRIGÉE
+// 📋 TASKS PAGE - SYNERGIA v3.5 - VERSION SIMPLIFIÉE
 // ==========================================
 // Fichier: react-app/src/pages/TasksPage.jsx
-// Page des tâches avec modales visibles corrigées
+// Version sans dépendances problématiques
 // ==========================================
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -10,7 +10,39 @@ import { Plus, Search, Filter, List, Grid, Eye, Edit, Trash2, Target, Calendar, 
 import { useTaskStore } from '../shared/stores/taskStore.js';
 import { useProjectStore } from '../shared/stores/projectStore.js';
 import { useGameStore } from '../shared/stores/gameStore.js';
-import { CollaborationModal } from '../components/collaboration/CollaborationPanel.jsx';
+
+// Import de la modal simple (sans dépendances externes)
+const CollaborationModal = ({ isOpen, onClose, entityType, entityId, entityTitle }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ backgroundColor: 'rgba(0, 0, 0, 0.85)' }}>
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="fixed inset-0" onClick={onClose}></div>
+        
+        <div 
+          className="relative rounded-lg shadow-xl p-6 max-w-md w-full"
+          style={{ backgroundColor: '#1f2937', border: '1px solid #374151' }}
+        >
+          <h3 className="text-lg font-semibold mb-4" style={{ color: '#ffffff' }}>
+            🤝 Collaboration - {entityTitle}
+          </h3>
+          <p className="mb-4" style={{ color: '#e5e7eb' }}>
+            Fonctionnalité de collaboration en cours de développement.
+          </p>
+          <div className="flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const TasksPage = () => {
   // États
@@ -26,7 +58,7 @@ const TasksPage = () => {
   const [editingTask, setEditingTask] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 🤝 États pour la collaboration
+  // États pour la collaboration
   const [showCollaborationModal, setShowCollaborationModal] = useState(false);
   const [collaborationTask, setCollaborationTask] = useState(null);
 
@@ -116,7 +148,7 @@ const TasksPage = () => {
     }
   };
 
-  // 🤝 Handlers pour la collaboration
+  // Handlers pour la collaboration
   const handleOpenCollaboration = (task) => {
     setCollaborationTask(task);
     setShowCollaborationModal(true);
@@ -357,7 +389,7 @@ const TasksPage = () => {
                 onDelete={handleDeleteTask}
                 onComplete={handleCompleteTask}
                 onView={setSelectedTask}
-                onCollaborate={handleOpenCollaboration} // 🤝 Nouvelle prop
+                onCollaborate={handleOpenCollaboration}
                 getProjectName={getProjectName}
                 getPriorityColor={getPriorityColor}
                 getStatusColor={getStatusColor}
@@ -367,7 +399,7 @@ const TasksPage = () => {
           </div>
         )}
 
-        {/* 🤝 Modal de collaboration pour tâche spécifique */}
+        {/* Modal de collaboration */}
         <CollaborationModal
           isOpen={showCollaborationModal}
           onClose={handleCloseCollaboration}
@@ -376,7 +408,7 @@ const TasksPage = () => {
           entityTitle={collaborationTask?.title}
         />
 
-        {/* Modal TaskForm */}
+        {/* Modal TaskForm - placeholder */}
         {showTaskForm && (
           <TaskFormModal
             task={editingTask}
@@ -419,7 +451,7 @@ const TaskCard = ({
   onDelete, 
   onComplete, 
   onView, 
-  onCollaborate, // 🤝 Nouvelle prop
+  onCollaborate,
   getProjectName, 
   getPriorityColor, 
   getStatusColor, 
@@ -456,7 +488,6 @@ const TaskCard = ({
           </div>
           
           <div className="flex items-center gap-2">
-            {/* 🤝 Bouton collaboration */}
             <button
               onClick={() => onCollaborate(task)}
               className="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1"
@@ -538,7 +569,6 @@ const TaskCard = ({
           </div>
           
           <div className="flex items-center gap-2">
-            {/* 🤝 Bouton collaboration */}
             <button
               onClick={() => onCollaborate(task)}
               className="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1"
@@ -572,10 +602,7 @@ const TaskCard = ({
   );
 };
 
-// ==========================================
-// 📋 MODAL DÉTAILS TÂCHE - VERSION CORRIGÉE
-// ==========================================
-
+// Modales placeholder (mêmes que les versions corrigées précédentes)
 const TaskDetailModal = ({ 
   task, 
   onClose, 
@@ -624,7 +651,6 @@ const TaskDetailModal = ({
           </div>
 
           <div className="space-y-6">
-            {/* Description */}
             {task.description && (
               <div>
                 <h3 className="text-lg font-semibold mb-3" style={{ color: '#ffffff' }}>
@@ -634,7 +660,6 @@ const TaskDetailModal = ({
               </div>
             )}
 
-            {/* Informations détaillées */}
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <h4 className="font-medium mb-2" style={{ color: '#d1d5db' }}>Projet</h4>
@@ -646,7 +671,6 @@ const TaskDetailModal = ({
               </div>
             </div>
 
-            {/* Zone de commentaires */}
             <div>
               <h4 className="font-medium mb-3" style={{ color: '#ffffff' }}>
                 Commentaires
@@ -662,7 +686,6 @@ const TaskDetailModal = ({
                 <p className="text-center italic">Aucun commentaire pour le moment</p>
               </div>
               
-              {/* Zone de saisie */}
               <div className="mt-3 flex gap-2">
                 <input
                   type="text"
@@ -687,7 +710,6 @@ const TaskDetailModal = ({
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex justify-end gap-3 pt-6 mt-6 border-t" style={{ borderColor: '#374151' }}>
             <button
               onClick={() => onToggleStatus(task.id)}
@@ -723,10 +745,6 @@ const TaskDetailModal = ({
     </div>
   );
 };
-
-// ==========================================
-// 📝 MODAL FORMULAIRE TÂCHE - VERSION CORRIGÉE
-// ==========================================
 
 const TaskFormModal = ({ task, projects, onSave, onClose }) => {
   return (
