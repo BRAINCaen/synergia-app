@@ -1,7 +1,8 @@
 /* ==========================================
-   🎨 GLOBALS CSS - SYNERGIA v3.5 - VERSION CORRIGÉE
+   🎨 GLOBALS CSS - SYNERGIA v3.5 - VERSION FINALE CORRIGÉE
    ==========================================
    Fichier: react-app/src/assets/styles/globals.css
+   CSS global avec corrections modales visibles
    ========================================== */
 
 @import 'tailwindcss/base';
@@ -68,23 +69,23 @@ body {
 }
 
 /* ==========================================
-   🎯 CORRECTIONS MODALES ET OVERLAYS
+   🎯 CORRECTIONS MODALES - PRIORITÉ ABSOLUE
    ========================================== */
 
-/* Modal overlays améliorés */
-.modal-overlay,
-.fixed.inset-0.bg-gray-500,
-.fixed.inset-0.bg-black {
+/* Tous les overlays de modales */
+div[class*="fixed"][class*="inset-0"][class*="z-50"],
+div[class*="fixed"][class*="inset-0"][class*="z-40"],
+.modal-overlay {
   background-color: rgba(0, 0, 0, 0.85) !important;
   backdrop-filter: blur(6px) !important;
 }
 
-/* Contenu des modales */
-.modal-content,
-.bg-gray-800,
-.bg-white {
+/* Contenu des modales - Force le fond sombre */
+div[class*="fixed"][class*="inset-0"] div[class*="bg-white"],
+div[class*="fixed"][class*="inset-0"] div[class*="bg-gray-8"],
+div[class*="fixed"][class*="inset-0"] div[class*="relative"],
+.modal-content {
   background-color: #1f2937 !important;
-  color: #f9fafb !important;
   border: 1px solid #374151 !important;
 }
 
@@ -92,105 +93,57 @@ body {
    📝 TEXTES DANS LES MODALES - FORCE VISIBILITY
    ========================================== */
 
-/* Sélecteurs spécifiques pour les modales */
-[class*="fixed"][class*="inset-0"] div[class*="bg-gray-8"] *,
-[class*="fixed"][class*="inset-0"] div[class*="bg-white"] *,
-.modal-content *,
-div[class*="Modal"] * {
-  color: inherit;
+/* Tous les textes dans les modales */
+div[class*="fixed"][class*="inset-0"] *:not(svg):not(path):not(button):not(input):not(textarea) {
+  color: #e5e7eb !important;
 }
 
 /* Titres dans les modales */
-[class*="fixed"][class*="inset-0"] h1,
-[class*="fixed"][class*="inset-0"] h2,
-[class*="fixed"][class*="inset-0"] h3,
-[class*="fixed"][class*="inset-0"] h4,
-.modal-content h1,
-.modal-content h2,
-.modal-content h3,
-.modal-content h4 {
+div[class*="fixed"][class*="inset-0"] h1,
+div[class*="fixed"][class*="inset-0"] h2,
+div[class*="fixed"][class*="inset-0"] h3,
+div[class*="fixed"][class*="inset-0"] h4,
+div[class*="fixed"][class*="inset-0"] h5,
+div[class*="fixed"][class*="inset-0"] h6 {
   color: #ffffff !important;
   font-weight: 600 !important;
 }
 
-/* Textes de contenu dans les modales */
-[class*="fixed"][class*="inset-0"] p,
-[class*="fixed"][class*="inset-0"] span,
-[class*="fixed"][class*="inset-0"] div,
-.modal-content p,
-.modal-content span,
-.modal-content div {
-  color: #e5e7eb !important;
-}
-
-/* Labels et textes secondaires */
-[class*="fixed"][class*="inset-0"] label,
-.modal-content label {
+/* Labels et textes importants */
+div[class*="fixed"][class*="inset-0"] label,
+div[class*="fixed"][class*="inset-0"] [class*="font-medium"],
+div[class*="fixed"][class*="inset-0"] [class*="font-semibold"] {
   color: #d1d5db !important;
-  font-weight: 500 !important;
 }
 
 /* ==========================================
-   📝 FORMULAIRES ET INPUTS
+   📝 INPUTS ET FORMULAIRES DANS LES MODALES
    ========================================== */
 
 /* Tous les inputs dans les modales */
-[class*="fixed"][class*="inset-0"] input,
-[class*="fixed"][class*="inset-0"] textarea,
-[class*="fixed"][class*="inset-0"] select,
-.modal-content input,
-.modal-content textarea,
-.modal-content select {
+div[class*="fixed"][class*="inset-0"] input,
+div[class*="fixed"][class*="inset-0"] textarea,
+div[class*="fixed"][class*="inset-0"] select {
   background-color: #374151 !important;
   border: 1px solid #4b5563 !important;
   color: #ffffff !important;
   padding: 0.75rem !important;
   border-radius: 0.5rem !important;
-  font-size: 14px !important;
 }
 
 /* Focus sur les inputs */
-[class*="fixed"][class*="inset-0"] input:focus,
-[class*="fixed"][class*="inset-0"] textarea:focus,
-[class*="fixed"][class*="inset-0"] select:focus,
-.modal-content input:focus,
-.modal-content textarea:focus,
-.modal-content select:focus {
+div[class*="fixed"][class*="inset-0"] input:focus,
+div[class*="fixed"][class*="inset-0"] textarea:focus,
+div[class*="fixed"][class*="inset-0"] select:focus {
   outline: none !important;
   border-color: #3b82f6 !important;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
 }
 
 /* Placeholders */
-[class*="fixed"][class*="inset-0"] input::placeholder,
-[class*="fixed"][class*="inset-0"] textarea::placeholder,
-.modal-content input::placeholder,
-.modal-content textarea::placeholder {
+div[class*="fixed"][class*="inset-0"] input::placeholder,
+div[class*="fixed"][class*="inset-0"] textarea::placeholder {
   color: #9ca3af !important;
-}
-
-/* ==========================================
-   🎨 ZONES DE COMMENTAIRES
-   ========================================== */
-
-/* Zone de saisie de commentaires */
-[class*="fixed"][class*="inset-0"] [class*="comment"],
-[class*="fixed"][class*="inset-0"] [class*="chat"],
-.modal-content [class*="comment"],
-.modal-content [class*="chat"] {
-  background-color: #111827 !important;
-  border: 1px solid #374151 !important;
-  border-radius: 0.5rem !important;
-  color: #ffffff !important;
-}
-
-/* Messages "Aucun commentaire" */
-[class*="fixed"][class*="inset-0"] .empty-state,
-.modal-content .empty-state {
-  color: #9ca3af !important;
-  text-align: center !important;
-  font-style: italic !important;
-  padding: 2rem !important;
 }
 
 /* ==========================================
@@ -198,72 +151,97 @@ div[class*="Modal"] * {
    ========================================== */
 
 /* Boutons primaires */
-[class*="fixed"][class*="inset-0"] .bg-blue-600,
-[class*="fixed"][class*="inset-0"] .bg-blue-500,
-.modal-content .bg-blue-600,
-.modal-content .bg-blue-500 {
+div[class*="fixed"][class*="inset-0"] button[class*="bg-blue"] {
   background-color: #2563eb !important;
   color: #ffffff !important;
   border: none !important;
-  font-weight: 500 !important;
 }
 
-[class*="fixed"][class*="inset-0"] .bg-blue-600:hover,
-[class*="fixed"][class*="inset-0"] .bg-blue-500:hover,
-.modal-content .bg-blue-600:hover,
-.modal-content .bg-blue-500:hover {
+div[class*="fixed"][class*="inset-0"] button[class*="bg-blue"]:hover {
   background-color: #1d4ed8 !important;
 }
 
 /* Boutons secondaires */
-[class*="fixed"][class*="inset-0"] .bg-gray-600,
-[class*="fixed"][class*="inset-0"] .bg-gray-500,
-.modal-content .bg-gray-600,
-.modal-content .bg-gray-500 {
+div[class*="fixed"][class*="inset-0"] button[class*="bg-gray"] {
   background-color: #4b5563 !important;
   color: #ffffff !important;
-  border: 1px solid #6b7280 !important;
 }
 
 /* Boutons de danger */
-[class*="fixed"][class*="inset-0"] .bg-red-600,
-[class*="fixed"][class*="inset-0"] .bg-red-500,
-.modal-content .bg-red-600,
-.modal-content .bg-red-500 {
+div[class*="fixed"][class*="inset-0"] button[class*="bg-red"] {
   background-color: #dc2626 !important;
   color: #ffffff !important;
 }
 
+/* Boutons verts */
+div[class*="fixed"][class*="inset-0"] button[class*="bg-green"] {
+  background-color: #059669 !important;
+  color: #ffffff !important;
+}
+
+/* Boutons violets */
+div[class*="fixed"][class*="inset-0"] button[class*="bg-purple"] {
+  background-color: #7c3aed !important;
+  color: #ffffff !important;
+}
+
 /* ==========================================
-   📊 CORRECTIONS TEXTES COLORÉS
+   🎨 ZONES SPÉCIALES DANS LES MODALES
    ========================================== */
 
-/* Force les couleurs dans les modales */
-[class*="fixed"][class*="inset-0"] .text-blue-400 {
-  color: #60a5fa !important;
-}
-
-[class*="fixed"][class*="inset-0"] .text-green-400 {
-  color: #4ade80 !important;
-}
-
-[class*="fixed"][class*="inset-0"] .text-red-400 {
-  color: #f87171 !important;
-}
-
-[class*="fixed"][class*="inset-0"] .text-yellow-400 {
-  color: #facc15 !important;
-}
-
-[class*="fixed"][class*="inset-0"] .text-gray-400 {
+/* Zones de commentaires et chat */
+div[class*="fixed"][class*="inset-0"] div[style*="background-color: #111827"],
+div[class*="fixed"][class*="inset-0"] [class*="comment"],
+div[class*="fixed"][class*="inset-0"] [class*="chat"] {
+  background-color: #111827 !important;
+  border: 1px solid #374151 !important;
   color: #9ca3af !important;
 }
 
-[class*="fixed"][class*="inset-0"] .text-gray-300 {
+/* Messages d'état vide */
+div[class*="fixed"][class*="inset-0"] [class*="italic"] {
+  color: #9ca3af !important;
+}
+
+/* ==========================================
+   📊 COULEURS SPÉCIFIQUES DANS LES MODALES
+   ========================================== */
+
+/* Force les couleurs dans les modales */
+div[class*="fixed"][class*="inset-0"] .text-blue-400,
+div[class*="fixed"][class*="inset-0"] .text-blue-600 {
+  color: #60a5fa !important;
+}
+
+div[class*="fixed"][class*="inset-0"] .text-green-400,
+div[class*="fixed"][class*="inset-0"] .text-green-600 {
+  color: #4ade80 !important;
+}
+
+div[class*="fixed"][class*="inset-0"] .text-red-400,
+div[class*="fixed"][class*="inset-0"] .text-red-600 {
+  color: #f87171 !important;
+}
+
+div[class*="fixed"][class*="inset-0"] .text-yellow-400,
+div[class*="fixed"][class*="inset-0"] .text-yellow-600 {
+  color: #facc15 !important;
+}
+
+div[class*="fixed"][class*="inset-0"] .text-purple-400,
+div[class*="fixed"][class*="inset-0"] .text-purple-600 {
+  color: #c084fc !important;
+}
+
+div[class*="fixed"][class*="inset-0"] .text-gray-400 {
+  color: #9ca3af !important;
+}
+
+div[class*="fixed"][class*="inset-0"] .text-gray-300 {
   color: #d1d5db !important;
 }
 
-[class*="fixed"][class*="inset-0"] .text-white {
+div[class*="fixed"][class*="inset-0"] .text-white {
   color: #ffffff !important;
 }
 
@@ -440,6 +418,56 @@ a:hover {
   color: #60a5fa;
 }
 
+/* Styles pour les listes */
+ul, ol {
+  padding-left: 1.5rem;
+}
+
+li {
+  margin-bottom: 0.25rem;
+}
+
+/* Styles pour les codes */
+code {
+  font-family: 'Fira Code', 'Monaco', 'Consolas', 'Ubuntu Mono', monospace;
+  background-color: #374151;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+
+pre {
+  background-color: #1f2937;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  border: 1px solid #374151;
+}
+
+pre code {
+  background: transparent;
+  padding: 0;
+}
+
+/* Styles pour les tableaux */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+th, td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #374151;
+}
+
+th {
+  background-color: #1f2937;
+  font-weight: 600;
+  color: #f3f4f6;
+}
+
 /* ==========================================
    📱 RESPONSIVE
    ========================================== */
@@ -454,16 +482,15 @@ a:hover {
   }
   
   /* Modales sur mobile */
-  [class*="fixed"][class*="inset-0"] div[class*="bg-gray-8"],
-  [class*="fixed"][class*="inset-0"] div[class*="bg-white"] {
+  div[class*="fixed"][class*="inset-0"] div[class*="relative"] {
     margin: 1rem !important;
     max-height: calc(100vh - 2rem) !important;
     overflow-y: auto !important;
   }
   
   /* Inputs sur mobile */
-  [class*="fixed"][class*="inset-0"] input,
-  [class*="fixed"][class*="inset-0"] textarea {
+  div[class*="fixed"][class*="inset-0"] input,
+  div[class*="fixed"][class*="inset-0"] textarea {
     font-size: 16px !important; /* Évite le zoom sur iOS */
   }
 }
@@ -487,4 +514,37 @@ a:hover {
   .no-print {
     display: none;
   }
+}
+
+/* ==========================================
+   🎯 CORRECTION ULTIME - DERNIÈRE LIGNE DE DÉFENSE
+   ========================================== */
+
+/* Si rien d'autre ne fonctionne, force brutalement */
+div[class*="fixed"] div[class*="bg-white"] *,
+div[class*="fixed"] div[class*="bg-gray-8"] *,
+div[style*="background-color: #1f2937"] *,
+div[style*="background-color:#1f2937"] * {
+  color: #e5e7eb !important;
+}
+
+div[class*="fixed"] div[class*="bg-white"] h1,
+div[class*="fixed"] div[class*="bg-white"] h2,
+div[class*="fixed"] div[class*="bg-white"] h3,
+div[class*="fixed"] div[class*="bg-gray-8"] h1,
+div[class*="fixed"] div[class*="bg-gray-8"] h2,
+div[class*="fixed"] div[class*="bg-gray-8"] h3,
+div[style*="background-color: #1f2937"] h1,
+div[style*="background-color: #1f2937"] h2,
+div[style*="background-color: #1f2937"] h3 {
+  color: #ffffff !important;
+}
+
+/* Force les inputs */
+div[class*="fixed"] input,
+div[class*="fixed"] textarea,
+div[style*="background-color: #374151"] {
+  background-color: #374151 !important;
+  color: #ffffff !important;
+  border: 1px solid #4b5563 !important;
 }
