@@ -22,7 +22,7 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  Grid3X3,
+  LayoutGrid,
   List,
   TrendingUp,
   Briefcase,
@@ -329,7 +329,7 @@ const ProjectsPage = () => {
                           : 'text-gray-400 hover:text-white'
                       }`}
                     >
-                      <Grid3X3 className="w-4 h-4" />
+                      <LayoutGrid className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setViewMode('list')}
