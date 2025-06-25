@@ -1,6 +1,6 @@
 // ==========================================
-// 📁 react-app/src/App.jsx
-// Application principale CORRIGÉE - Chargement non bloquant
+// 📁 react-app/src/App.jsx  
+// Application principale avec design premium ORIGINAL restauré
 // ==========================================
 
 import React, { useEffect, useState } from 'react';
@@ -17,106 +17,118 @@ import LeaderboardPage from './pages/LeaderboardPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 
+// Authentification
+import { authService } from './core/firebase.js';
+
 /**
- * 🎨 ÉCRAN DE CHARGEMENT PREMIUM
+ * 🎨 ÉCRAN DE CHARGEMENT PREMIUM (ORIGINAL)
  */
 const PremiumLoadingScreen = () => (
-  <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto mb-6"></div>
-      <h1 className="text-2xl font-bold text-white mb-2">🚀 Synergia v3.5.1</h1>
-      <p className="text-indigo-200">Chargement de votre espace collaboratif...</p>
+  <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
+    <div className="fixed inset-0 bg-gradient-to-br from-gray-900/90 via-blue-900/90 to-purple-900/90"></div>
+    <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-500/10 via-transparent to-transparent"></div>
+    
+    <div className="relative z-10 text-center">
+      <div className="mb-8">
+        <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold shadow-2xl">
+          ⚡
+        </div>
+      </div>
+      
+      <h1 className="text-4xl font-bold text-white mb-2">
+        Synergia
+        <span className="ml-3 px-3 py-1 text-sm bg-gradient-to-r from-blue-500 to-purple-600 rounded-full">
+          v3.5.1
+        </span>
+      </h1>
+      
+      <p className="text-xl text-blue-200 mb-8">
+        Collaboration & Gamification
+      </p>
+      
+      <div className="flex items-center justify-center space-x-2 mb-6">
+        <div className="w-3 h-3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+        <div className="w-3 h-3 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+        <div className="w-3 h-3 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+      </div>
+      
+      <p className="text-blue-300 text-sm">
+        Initialisation de l'application...
+      </p>
     </div>
   </div>
 );
 
 /**
- * 🔐 PAGE DE CONNEXION PREMIUM
+ * 🔐 PAGE DE CONNEXION PREMIUM (ORIGINAL)
  */
 const PremiumLoginPage = () => {
-  const [connecting, setConnecting] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    setConnecting(true);
-    console.log('🔐 Début de la connexion...');
-    
+  const handleGoogleSignIn = async () => {
     try {
-      // Simuler une connexion avec un délai
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      setLoading(true);
+      console.log('🔐 Tentative de connexion Google...');
       
-      // Données utilisateur simulées
-      const mockUser = {
-        uid: 'alan-boehme-123',
-        email: 'alan.boehme61@gmail.com',
-        displayName: 'Alan Boehme',
-        photoURL: null,
-        emailVerified: true,
-        loginAt: new Date().toISOString()
-      };
+      // Utiliser authService pour connexion Google
+      const result = await authService.signInWithGoogle();
+      console.log('✅ Connexion Google réussie:', result);
       
-      // Mettre à jour le store directement
-      useAuthStore.setState({ 
-        user: mockUser, 
-        isAuthenticated: true, 
-        loading: false, 
-        error: null 
-      });
-      
-      // Initialiser le GameStore pour cet utilisateur
-      const gameStore = useGameStore.getState();
-      if (gameStore.initializeGameStore) {
-        await gameStore.initializeGameStore(mockUser.uid);
-      }
-      
-      console.log('✅ Connexion simulée réussie pour:', mockUser.email);
-      setConnecting(false);
+      // Le store sera mis à jour automatiquement par initializeAuth
     } catch (error) {
-      console.error('❌ Erreur connexion:', error);
-      setConnecting(false);
+      console.error('❌ Erreur de connexion Google:', error);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
-        {/* Logo et titre */}
-        <div className="text-center mb-8">
-          <div className="mx-auto w-20 h-20 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-2xl">
-            <span className="text-3xl">🚀</span>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center p-6">
+      <div className="fixed inset-0 bg-gradient-to-br from-gray-900/90 via-blue-900/90 to-purple-900/90"></div>
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-500/10 via-transparent to-transparent"></div>
+      
+      <div className="relative z-10 w-full max-w-md">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold shadow-lg">
+              ⚡
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Bienvenue dans Synergia
+            </h1>
+            <p className="text-blue-200">
+              Plateforme de collaboration et gamification
+            </p>
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2">Synergia</h1>
-          <p className="text-indigo-200 text-lg">Collaboration & Gamification</p>
-        </div>
-
-        {/* Bouton de connexion */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+          
           <button
-            onClick={handleLogin}
-            disabled={connecting}
-            className="w-full bg-white hover:bg-gray-50 text-gray-900 font-semibold py-4 px-6 rounded-xl flex items-center justify-center space-x-3 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3"
           >
-            {connecting ? (
+            {loading ? (
               <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                 <span>Connexion...</span>
               </>
             ) : (
               <>
                 <span>🔐</span>
-                <span>Se connecter</span>
+                <span>Se connecter avec Google</span>
               </>
             )}
           </button>
           
           <div className="mt-6 text-center">
-            <p className="text-sm text-indigo-200/80">
-              Accédez à vos projets, tâches<br />et système de gamification
+            <p className="text-sm text-blue-200/80">
+              Connectez-vous pour accéder à vos projets,
+              <br />
+              tâches et système de gamification
             </p>
           </div>
         </div>
         
         <div className="text-center mt-6">
-          <p className="text-sm text-indigo-300/60">
+          <p className="text-sm text-blue-300/60">
             Synergia v3.5.1 • Premium Edition
           </p>
         </div>
@@ -126,10 +138,10 @@ const PremiumLoginPage = () => {
 };
 
 /**
- * 🎨 SIDEBAR PREMIUM SIMPLE
+ * 🎨 SIDEBAR PREMIUM AVEC GAMIFICATION
  */
-const SimpleSidebar = () => {
-  const { user } = useAuthStore();
+const PremiumSidebar = () => {
+  const { user, signOut } = useAuthStore();
   const { userStats } = useGameStore();
   const location = useLocation();
 
@@ -144,53 +156,67 @@ const SimpleSidebar = () => {
   ];
 
   const getUserInitials = () => {
-    if (!user?.displayName && !user?.email) return '?';
+    if (!user?.displayName && !user?.email) return 'U';
     const name = user.displayName || user.email;
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const handleLogout = () => {
-    console.log('🚪 Déconnexion...');
-    useAuthStore.setState({ 
-      user: null, 
-      isAuthenticated: false, 
-      loading: false, 
-      error: null 
-    });
-    
-    // Nettoyer le GameStore
-    const gameStore = useGameStore.getState();
-    if (gameStore.cleanup) {
-      gameStore.cleanup();
+  const handleLogout = async () => {
+    try {
+      console.log('🚪 Déconnexion...');
+      await signOut();
+      console.log('✅ Déconnexion réussie');
+    } catch (error) {
+      console.error('❌ Erreur déconnexion:', error);
     }
-    
-    console.log('✅ Déconnexion réussie');
   };
 
   return (
-    <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen">
-      {/* Header */}
-      <div className="p-6 border-b border-gray-200">
+    <div className="w-72 bg-gradient-to-b from-gray-50 to-white border-r border-gray-200 flex flex-col h-screen shadow-lg">
+      {/* Header avec logo */}
+      <div className="p-6 border-b border-gray-100">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <span className="text-lg">🚀</span>
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+            <span className="text-white font-bold">⚡</span>
           </div>
           <div>
-            <h1 className="font-bold text-gray-900">Synergia</h1>
-            <p className="text-sm text-gray-500">v3.5.1</p>
+            <h1 className="font-bold text-gray-900 text-lg">Synergia</h1>
+            <p className="text-xs text-gray-500">v3.5.1 • Premium</p>
           </div>
         </div>
       </div>
 
-      {/* User Stats */}
-      <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 mx-4 mt-4 rounded-lg">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-            <span className="text-xs font-medium text-indigo-600">{getUserInitials()}</span>
+      {/* Stats utilisateur avec gamification */}
+      <div className="p-4 mx-4 mt-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-100">
+        <div className="flex items-center space-x-3 mb-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+            <span className="text-xs font-bold text-white">{getUserInitials()}</span>
           </div>
           <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900">Niveau {userStats?.level || 2}</p>
-            <p className="text-xs text-gray-500">{userStats?.totalXp || 175} XP</p>
+            <p className="font-semibold text-gray-900 text-sm">{user?.displayName || 'Utilisateur'}</p>
+            <p className="text-xs text-gray-500">{user?.email}</p>
+          </div>
+        </div>
+        
+        {/* Stats gamification */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-600">Niveau</span>
+            <span className="text-sm font-bold text-blue-600">{userStats?.level || 2}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-600">XP Total</span>
+            <span className="text-sm font-bold text-purple-600">{userStats?.totalXp || 175}</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${((userStats?.totalXp || 175) % 100)}%` }}
+            ></div>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-600">Tâches</span>
+            <span className="text-sm font-bold text-green-600">{userStats?.tasksCompleted || 12}</span>
           </div>
         </div>
       </div>
@@ -203,24 +229,25 @@ const SimpleSidebar = () => {
             <a
               key={item.path}
               href={item.path}
-              className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                 isActive 
-                  ? 'bg-indigo-100 text-indigo-700' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105' 
                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
               }`}
             >
               <span className="text-lg">{item.icon}</span>
               <span>{item.label}</span>
+              {isActive && <div className="ml-auto w-2 h-2 bg-white rounded-full"></div>}
             </a>
           );
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-gray-200">
+      {/* Footer avec déconnexion */}
+      <div className="p-4 border-t border-gray-100">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-600 hover:bg-gray-100 rounded-xl transition-all duration-200"
         >
           <span>🚪</span>
           <span>Déconnexion</span>
@@ -236,8 +263,8 @@ const SimpleSidebar = () => {
 const PremiumLayout = ({ children }) => {
   return (
     <div className="flex h-screen bg-gray-50">
-      <SimpleSidebar />
-      <main className="flex-1 overflow-y-auto">
+      <PremiumSidebar />
+      <main className="flex-1 overflow-y-auto bg-gradient-to-br from-gray-50 to-white">
         {children}
       </main>
     </div>
@@ -245,60 +272,46 @@ const PremiumLayout = ({ children }) => {
 };
 
 /**
- * 🚀 COMPOSANT APP PRINCIPAL CORRIGÉ
+ * 🚀 COMPOSANT APP PRINCIPAL
  */
 const App = () => {
-  const { user, loading } = useAuthStore();
-  const [appInitialized, setAppInitialized] = useState(false);
+  const { user, loading, initializeAuth } = useAuthStore();
+  const [appReady, setAppReady] = useState(false);
 
   useEffect(() => {
     console.log('🚀 SYNERGIA v3.5.1 - INITIALISATION');
     
-    const initializeApp = async () => {
+    const initApp = async () => {
       try {
-        // Initialiser GameStore avec données par défaut
-        const gameStore = useGameStore.getState();
-        if (gameStore.initializeGameStore) {
-          await gameStore.initializeGameStore('default-user');
-        }
-
-        // Définir l'état initial d'auth (pas connecté par défaut)
-        useAuthStore.setState({ 
-          user: null, 
-          isAuthenticated: false, 
-          loading: false, 
-          error: null 
-        });
-
+        // ✅ RESTAURER l'initialisation d'auth originale
+        const unsubscribe = initializeAuth();
+        
         // Commandes globales pour debug
         window.forceDashboardReload = () => {
           console.log('🔄 Force reload dashboard');
           window.location.reload();
         };
 
-        window.emergencyLogout = () => {
+        window.emergencyLogout = async () => {
           console.log('🚨 Emergency logout');
-          useAuthStore.setState({ 
-            user: null, 
-            isAuthenticated: false, 
-            loading: false, 
-            error: null 
-          });
+          await authService.signOut();
         };
 
-        setAppInitialized(true);
+        setAppReady(true);
         console.log('🎉 Application entièrement chargée et prête !');
+        
+        return unsubscribe;
       } catch (error) {
-        console.error('❌ Erreur initialisation:', error);
-        setAppInitialized(true); // Continuer même en cas d'erreur
+        console.error('❌ Erreur initialisation app:', error);
+        setAppReady(true); // Continuer même en cas d'erreur
       }
     };
 
-    initializeApp();
-  }, []);
+    initApp();
+  }, [initializeAuth]);
 
-  // Écran de chargement seulement si pas encore initialisé
-  if (!appInitialized) {
+  // Écran de chargement premium
+  if (loading || !appReady) {
     return <PremiumLoadingScreen />;
   }
 
