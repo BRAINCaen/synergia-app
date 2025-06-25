@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/authStore.js
-// Store d'authentification SIMPLIFIÉ - Sans GameStore pour éviter l'erreur
+// Store d'authentification PREMIUM ORIGINAL restauré
 // ==========================================
 
 import { create } from 'zustand'
@@ -16,7 +16,7 @@ export const useAuthStore = create(
       error: null,
       isAuthenticated: false,
 
-      // Actions
+      // ✅ FONCTION INITIALIZEAUTH ORIGINALE RESTAURÉE
       initializeAuth: () => {
         set({ loading: true })
         
@@ -44,15 +44,26 @@ export const useAuthStore = create(
             
             console.log('✅ Utilisateur connecté:', userData.email)
 
-            // 🚫 TEMPORAIREMENT DÉSACTIVÉ: Import GameStore qui cause l'erreur
-            // try {
-            //   const { useGameStore } = await import('./gameStore.js');
-            //   const gameStore = useGameStore.getState();
-            //   await gameStore.initializeGameStore(userData.uid);
-            //   console.log('🎮 GameStore initialisé pour:', userData.uid);
-            // } catch (gameStoreError) {
-            //   console.warn('⚠️ Erreur initialisation GameStore:', gameStoreError);
-            // }
+            // 🎮 INITIALISATION GAMESTORE SÉCURISÉE (sans import dynamique)
+            try {
+              // Initialiser avec un délai pour éviter les conflits
+              setTimeout(async () => {
+                try {
+                  // Utiliser le GameStore directement depuis le window si disponible
+                  if (window.useGameStore) {
+                    const gameStore = window.useGameStore.getState();
+                    if (gameStore.initializeGameStore) {
+                      await gameStore.initializeGameStore(userData.uid);
+                      console.log('🎮 GameStore initialisé pour:', userData.uid);
+                    }
+                  }
+                } catch (gameError) {
+                  console.warn('⚠️ GameStore non disponible:', gameError);
+                }
+              }, 500);
+            } catch (error) {
+              console.warn('⚠️ Erreur initialisation GameStore:', error);
+            }
             
           } else {
             set({ 
@@ -63,21 +74,26 @@ export const useAuthStore = create(
             })
             
             console.log('ℹ️ Aucun utilisateur connecté')
-
-            // 🚫 TEMPORAIREMENT DÉSACTIVÉ: Nettoyage GameStore
-            // try {
-            //   const { useGameStore } = await import('./gameStore.js');
-            //   const gameStore = useGameStore.getState();
-            //   gameStore.cleanup();
-            //   console.log('🎮 GameStore nettoyé');
-            // } catch (gameStoreError) {
-            //   console.warn('⚠️ Erreur nettoyage GameStore:', gameStoreError);
-            // }
           }
         })
 
         // Retourner la fonction de désabonnement
         return unsubscribe
+      },
+
+      // ✅ CONNEXION GOOGLE ORIGINALE
+      signInWithGoogle: async () => {
+        try {
+          set({ loading: true, error: null })
+          const result = await authService.signInWithGoogle()
+          
+          console.log('✅ Connexion Google réussie')
+          return { success: true, user: result }
+        } catch (error) {
+          console.error('❌ Erreur connexion Google:', error)
+          set({ error: error.message, loading: false })
+          throw error
+        }
       },
 
       signIn: async (email, password) => {
@@ -115,14 +131,18 @@ export const useAuthStore = create(
         try {
           set({ loading: true })
           
-          // 🚫 TEMPORAIREMENT DÉSACTIVÉ: Nettoyage GameStore
-          // try {
-          //   const { useGameStore } = await import('./gameStore.js');
-          //   const gameStore = useGameStore.getState();
-          //   gameStore.cleanup();
-          // } catch (cleanupError) {
-          //   console.warn('⚠️ Erreur nettoyage GameStore:', cleanupError);
-          // }
+          // 🎮 Nettoyer GameStore avant déconnexion (sécurisé)
+          try {
+            if (window.useGameStore) {
+              const gameStore = window.useGameStore.getState();
+              if (gameStore.cleanup) {
+                gameStore.cleanup();
+                console.log('🎮 GameStore nettoyé');
+              }
+            }
+          } catch (cleanupError) {
+            console.warn('⚠️ Erreur nettoyage GameStore:', cleanupError);
+          }
           
           await authService.signOut()
           
