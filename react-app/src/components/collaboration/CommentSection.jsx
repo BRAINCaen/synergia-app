@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/collaboration/CommentSection.jsx
-// Section commentaires CORRIGÉE - Gestion d'erreurs améliorée
+// Section commentaires SIMPLIFIÉE - Compatible sans index
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -15,39 +15,38 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
   const [submitting, setSubmitting] = useState(false);
   const [editingComment, setEditingComment] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
-  
-  // Mentions
-  const [showMentions, setShowMentions] = useState(false);
-  const [mentionSearch, setMentionSearch] = useState('');
-  const [availableUsers, setAvailableUsers] = useState([]);
-  const [selectedMentions, setSelectedMentions] = useState([]);
+  const [error, setError] = useState(null);
   
   const { user } = useAuthStore();
   const textareaRef = useRef(null);
 
   // ========================
-  // 🎧 CHARGEMENT INITIAL ET TEMPS RÉEL
+  // 🎧 CHARGEMENT INITIAL SIMPLIFIÉ
   // ========================
 
   useEffect(() => {
     if (!entityType || !entityId) return;
 
-    setLoading(true);
-
-    // Écouter les commentaires en temps réel
-    const unsubscribe = collaborationService.subscribeToComments(
-      entityType, 
-      entityId, 
-      (updatedComments) => {
-        setComments(updatedComments);
-        setLoading(false);
-      }
-    );
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
+    loadComments();
   }, [entityType, entityId]);
+
+  const loadComments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // ✅ Chargement simple sans écoute temps réel pour éviter l'erreur d'index
+      const fetchedComments = await collaborationService.getComments(entityType, entityId);
+      setComments(fetchedComments);
+      
+    } catch (error) {
+      console.error('Erreur chargement commentaires:', error);
+      setError('Impossible de charger les commentaires');
+      setComments([]); // Fallback sur tableau vide
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ========================
   // 💬 GESTION DES COMMENTAIRES
@@ -59,28 +58,37 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
 
     try {
       setSubmitting(true);
+      setError(null);
 
       const commentData = {
         entityType,
         entityId,
         userId: user.uid,
         content: newComment.trim(),
-        mentions: selectedMentions,
+        mentions: [], // Simplifié sans mentions pour éviter complexité
         replyTo: replyTo?.id || null
       };
 
-      await collaborationService.addComment(commentData);
+      const addedComment = await collaborationService.addComment(commentData);
+      
+      // Ajouter le commentaire à la liste locale
+      setComments(prev => [...prev, {
+        ...addedComment,
+        user: {
+          name: user.displayName || user.email,
+          email: user.email
+        }
+      }]);
       
       // Reset du formulaire
       setNewComment('');
-      setSelectedMentions([]);
       setReplyTo(null);
       
-      // Success feedback
       showToast('Commentaire ajouté avec succès', 'success');
 
     } catch (error) {
       console.error('Erreur ajout commentaire:', error);
+      setError('Erreur lors de l\'ajout du commentaire');
       showToast('Erreur lors de l\'ajout du commentaire', 'error');
     } finally {
       setSubmitting(false);
@@ -91,13 +99,19 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
     if (!confirm('Supprimer ce commentaire ?')) return;
 
     try {
-      // ✅ CORRECTION: Passer l'userId pour vérification de permission
       await collaborationService.deleteComment(commentId, user.uid);
+      
+      // Mettre à jour la liste locale
+      setComments(prev => prev.map(comment => 
+        comment.id === commentId 
+          ? { ...comment, content: '[Commentaire supprimé]', deletedAt: new Date() }
+          : comment
+      ));
+      
       showToast('Commentaire supprimé', 'success');
     } catch (error) {
       console.error('Erreur suppression commentaire:', error);
       
-      // ✅ Gestion d'erreur spécifique pour permissions
       if (error.message.includes('Permission refusée')) {
         showToast('Vous ne pouvez supprimer que vos propres commentaires', 'warning');
       } else {
@@ -110,69 +124,30 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
     if (!newContent.trim()) return;
 
     try {
-      // ✅ CORRECTION: Passer l'userId pour vérification de permission
       await collaborationService.updateComment(
         commentId, 
         { content: newContent.trim() }, 
         user.uid
       );
       
+      // Mettre à jour la liste locale
+      setComments(prev => prev.map(comment => 
+        comment.id === commentId 
+          ? { ...comment, content: newContent.trim(), isEdited: true, updatedAt: new Date() }
+          : comment
+      ));
+      
       setEditingComment(null);
       showToast('Commentaire modifié', 'success');
     } catch (error) {
       console.error('Erreur modification commentaire:', error);
       
-      // ✅ Gestion d'erreur spécifique pour permissions
       if (error.message.includes('Permission refusée')) {
         showToast('Vous ne pouvez modifier que vos propres commentaires', 'warning');
       } else {
         showToast('Erreur lors de la modification', 'error');
       }
     }
-  };
-
-  // ========================
-  // 🏷️ GESTION DES MENTIONS
-  // ========================
-
-  const handleInputChange = async (e) => {
-    const value = e.target.value;
-    setNewComment(value);
-
-    // Détecter les mentions (@utilisateur)
-    const mentionPattern = /@(\w+)$/;
-    const match = value.match(mentionPattern);
-
-    if (match) {
-      const searchTerm = match[1];
-      setMentionSearch(searchTerm);
-      setShowMentions(true);
-
-      // Rechercher les utilisateurs
-      try {
-        const users = await collaborationService.searchUsersForMention(searchTerm);
-        setAvailableUsers(users);
-      } catch (error) {
-        console.error('Erreur recherche utilisateurs:', error);
-      }
-    } else {
-      setShowMentions(false);
-      setMentionSearch('');
-    }
-  };
-
-  const handleSelectMention = (user) => {
-    // Remplacer la mention en cours par le nom d'utilisateur
-    const updatedComment = newComment.replace(/@\w+$/, `@${user.name} `);
-    setNewComment(updatedComment);
-    
-    // Ajouter à la liste des mentions
-    if (!selectedMentions.includes(user.id)) {
-      setSelectedMentions(prev => [...prev, user.id]);
-    }
-    
-    setShowMentions(false);
-    textareaRef.current?.focus();
   };
 
   // ========================
@@ -211,17 +186,23 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
     }
   };
 
-  // ✅ Système de toast simple
+  // Système de toast simple
   const showToast = (message, type = 'info') => {
-    // Création d'un toast simple
+    const toastId = 'synergia-toast-' + Date.now();
     const toast = document.createElement('div');
-    toast.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white font-medium transition-all duration-300 ${
-      type === 'success' ? 'bg-green-500' :
-      type === 'error' ? 'bg-red-500' :
-      type === 'warning' ? 'bg-yellow-500' :
-      'bg-blue-500'
+    toast.id = toastId;
+    toast.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-xl text-white font-medium transition-all duration-300 transform translate-x-full ${
+      type === 'success' ? 'bg-gradient-to-r from-[#10b981] to-[#059669]' :
+      type === 'error' ? 'bg-gradient-to-r from-[#ef4444] to-[#dc2626]' :
+      type === 'warning' ? 'bg-gradient-to-r from-[#f59e0b] to-[#d97706]' :
+      'bg-gradient-to-r from-[#6366f1] to-[#8b5cf6]'
     }`;
-    toast.textContent = message;
+    toast.innerHTML = `
+      <div class="flex items-center space-x-2">
+        <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+        <span>${message}</span>
+      </div>
+    `;
     
     document.body.appendChild(toast);
     
@@ -231,7 +212,10 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
     // Suppression automatique
     setTimeout(() => {
       toast.style.transform = 'translateX(100%)';
-      setTimeout(() => document.body.removeChild(toast), 300);
+      setTimeout(() => {
+        const existingToast = document.getElementById(toastId);
+        if (existingToast) existingToast.remove();
+      }, 300);
     }, 3000);
   };
 
@@ -239,103 +223,110 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
   // 🎨 COMPOSANTS DE RENDU
   // ========================
 
-  const renderComment = (comment) => (
-    <div
-      key={comment.id}
-      className={`
-        p-4 rounded-xl border border-white/20 bg-white/5 backdrop-blur-lg
-        ${comment.replyTo ? 'ml-8 mt-2' : 'mb-4'}
-        ${comment.isDeleted ? 'opacity-50' : ''}
-      `}
-    >
-      {/* En-tête du commentaire */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center space-x-3">
-          {/* Avatar */}
-          <div className="w-8 h-8 bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] rounded-full flex items-center justify-center text-white text-sm font-bold">
-            {getUserInitials(comment)}
+  const renderComment = (comment) => {
+    // Ne pas afficher les commentaires supprimés
+    if (comment.content === '[Commentaire supprimé]' || comment.deletedAt) {
+      return null;
+    }
+
+    return (
+      <div
+        key={comment.id}
+        className={`
+          p-4 rounded-xl border border-white/20 bg-white/5 backdrop-blur-lg
+          ${comment.replyTo ? 'ml-8 mt-2' : 'mb-4'}
+          hover:bg-white/10 transition-all duration-200
+        `}
+      >
+        {/* En-tête du commentaire */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-3">
+            {/* Avatar */}
+            <div className="w-8 h-8 bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] rounded-full flex items-center justify-center text-white text-sm font-bold">
+              {getUserInitials(comment)}
+            </div>
+            
+            {/* Infos utilisateur */}
+            <div>
+              <div className="font-medium text-white">
+                {comment.user?.name || (comment.userId === user?.uid ? 'Vous' : 'Utilisateur')}
+                {comment.isEdited && (
+                  <span className="ml-2 text-xs text-[#a5b4fc] opacity-60">(modifié)</span>
+                )}
+              </div>
+              <div className="text-xs text-[#a5b4fc] opacity-80">
+                {formatDate(comment.createdAt)}
+              </div>
+            </div>
           </div>
           
-          {/* Infos utilisateur */}
-          <div>
-            <div className="font-medium text-white">
-              {comment.user?.name || (comment.userId === user?.uid ? 'Vous' : 'Utilisateur')}
-              {comment.isEdited && (
-                <span className="ml-2 text-xs text-[#a5b4fc] opacity-60">(modifié)</span>
-              )}
+          {/* Actions (si c'est notre commentaire) */}
+          {isOwnComment(comment) && (
+            <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={() => setEditingComment(comment.id)}
+                className="text-xs text-[#a5b4fc] hover:text-white transition-colors px-2 py-1 rounded"
+              >
+                Modifier
+              </button>
+              <button
+                onClick={() => handleDeleteComment(comment.id)}
+                className="text-xs text-red-400 hover:text-red-300 transition-colors px-2 py-1 rounded"
+              >
+                Supprimer
+              </button>
             </div>
-            <div className="text-xs text-[#a5b4fc] opacity-80">
-              {formatDate(comment.createdAt)}
-            </div>
-          </div>
+          )}
         </div>
-        
-        {/* Actions (si c'est notre commentaire) */}
-        {isOwnComment(comment) && !comment.isDeleted && (
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setEditingComment(comment.id)}
-              className="text-xs text-[#a5b4fc] hover:text-white transition-colors"
-            >
-              Modifier
-            </button>
-            <button
-              onClick={() => handleDeleteComment(comment.id)}
-              className="text-xs text-red-400 hover:text-red-300 transition-colors"
-            >
-              Supprimer
-            </button>
+
+        {/* Contenu du commentaire */}
+        {editingComment === comment.id ? (
+          <EditCommentForm
+            comment={comment}
+            onSave={(newContent) => handleEditComment(comment.id, newContent)}
+            onCancel={() => setEditingComment(null)}
+          />
+        ) : (
+          <div className="text-[#a5b4fc] whitespace-pre-wrap leading-relaxed">
+            {comment.content}
           </div>
         )}
-      </div>
 
-      {/* Contenu du commentaire */}
-      {editingComment === comment.id ? (
-        <EditCommentForm
-          comment={comment}
-          onSave={(newContent) => handleEditComment(comment.id, newContent)}
-          onCancel={() => setEditingComment(null)}
-        />
-      ) : (
-        <div className="text-[#a5b4fc] whitespace-pre-wrap">
-          {comment.content}
-        </div>
-      )}
-
-      {/* Bouton répondre */}
-      {!comment.isDeleted && (
+        {/* Bouton répondre */}
         <button
           onClick={() => setReplyTo(comment)}
-          className="mt-2 text-xs text-[#a5b4fc] hover:text-white transition-colors"
+          className="mt-3 text-xs text-[#a5b4fc] hover:text-white transition-colors opacity-75 hover:opacity-100"
         >
           Répondre
         </button>
-      )}
-    </div>
-  );
+      </div>
+    );
+  };
 
   // Formulaire d'édition
   const EditCommentForm = ({ comment, onSave, onCancel }) => {
     const [editContent, setEditContent] = useState(comment.content);
 
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         <textarea
           value={editContent}
           onChange={(e) => setEditContent(e.target.value)}
-          className="w-full p-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-[#a5b4fc] resize-none"
+          className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-[#a5b4fc] resize-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent"
           rows={3}
+          placeholder="Modifier votre commentaire..."
         />
         <div className="flex items-center space-x-2">
           <button
             onClick={() => onSave(editContent)}
-            className="px-3 py-1 bg-[#6366f1] text-white text-sm rounded-lg hover:bg-[#5856eb] transition-colors"
+            disabled={!editContent.trim()}
+            className="px-4 py-2 bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white text-sm rounded-lg hover:from-[#5856eb] hover:to-[#7c3aed] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
           >
             Sauvegarder
           </button>
           <button
             onClick={onCancel}
-            className="px-3 py-1 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors"
+            className="px-4 py-2 bg-white/10 text-white text-sm rounded-lg hover:bg-white/20 transition-colors"
           >
             Annuler
           </button>
@@ -352,7 +343,7 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
     return (
       <div className={`bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/20 ${className}`}>
         <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366f1]"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#6366f1] border-t-transparent"></div>
           <span className="ml-3 text-[#a5b4fc]">Chargement des commentaires...</span>
         </div>
       </div>
@@ -363,19 +354,41 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
     <div className={`bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/20 ${className}`}>
       {/* En-tête */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-white">
-          Commentaires ({comments.length})
+        <h3 className="text-lg font-semibold text-white flex items-center">
+          <span className="mr-2">💬</span>
+          Commentaires ({comments.filter(c => c.content !== '[Commentaire supprimé]').length})
         </h3>
+        <button
+          onClick={loadComments}
+          className="text-sm text-[#a5b4fc] hover:text-white transition-colors"
+          title="Actualiser les commentaires"
+        >
+          🔄
+        </button>
       </div>
 
+      {/* Gestion des erreurs */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
+          <p className="text-red-300 text-sm">{error}</p>
+          <button
+            onClick={loadComments}
+            className="mt-2 text-xs text-red-200 hover:text-white transition-colors"
+          >
+            Réessayer
+          </button>
+        </div>
+      )}
+
       {/* Liste des commentaires */}
-      <div className="space-y-4 mb-6">
+      <div className="space-y-4 mb-6 group">
         {comments.length === 0 ? (
-          <div className="text-center py-8 text-[#a5b4fc]">
+          <div className="text-center py-8 text-[#a5b4fc] opacity-75">
+            <span className="text-2xl mb-2 block">💭</span>
             Aucun commentaire pour le moment
           </div>
         ) : (
-          comments.map(renderComment)
+          comments.map(renderComment).filter(Boolean) // Filtrer les null
         )}
       </div>
 
@@ -383,14 +396,15 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
       {user && (
         <form onSubmit={handleSubmitComment} className="space-y-4">
           {replyTo && (
-            <div className="flex items-center justify-between p-2 bg-white/5 rounded-lg border border-white/10">
-              <span className="text-sm text-[#a5b4fc]">
-                Réponse à {replyTo.user?.name || 'Utilisateur'}
+            <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
+              <span className="text-sm text-[#a5b4fc] flex items-center">
+                <span className="mr-2">↳</span>
+                Réponse à <strong className="ml-1">{replyTo.user?.name || 'Utilisateur'}</strong>
               </span>
               <button
                 type="button"
                 onClick={() => setReplyTo(null)}
-                className="text-sm text-red-400 hover:text-red-300"
+                className="text-sm text-red-400 hover:text-red-300 transition-colors"
               >
                 Annuler
               </button>
@@ -401,40 +415,30 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
             <textarea
               ref={textareaRef}
               value={newComment}
-              onChange={handleInputChange}
-              placeholder="Écrivez un commentaire... (utilisez @ pour mentionner)"
-              className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-[#a5b4fc] resize-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent"
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Écrivez un commentaire..."
+              className="w-full p-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-[#a5b4fc] resize-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent transition-all duration-200"
               rows={3}
             />
-            
-            {/* Liste des mentions */}
-            {showMentions && availableUsers.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white/90 backdrop-blur-lg rounded-lg border border-white/20 shadow-lg">
-                {availableUsers.map(user => (
-                  <button
-                    key={user.id}
-                    type="button"
-                    onClick={() => handleSelectMention(user)}
-                    className="w-full px-3 py-2 text-left hover:bg-white/20 first:rounded-t-lg last:rounded-b-lg"
-                  >
-                    <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                    <div className="text-xs text-gray-600">{user.email}</div>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           <div className="flex items-center justify-between">
-            <div className="text-sm text-[#a5b4fc]">
-              Vous commentez en tant que {user.displayName || user.email}
+            <div className="text-sm text-[#a5b4fc] opacity-75">
+              Vous commentez en tant que <strong>{user.displayName || user.email}</strong>
             </div>
             <button
               type="submit"
               disabled={!newComment.trim() || submitting}
-              className="px-4 py-2 bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-medium rounded-lg hover:from-[#5856eb] hover:to-[#7c3aed] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              className="px-6 py-2 bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-medium rounded-xl hover:from-[#5856eb] hover:to-[#7c3aed] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
             >
-              {submitting ? 'Envoi...' : 'Commenter'}
+              {submitting ? (
+                <span className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  <span>Envoi...</span>
+                </span>
+              ) : (
+                'Commenter'
+              )}
             </button>
           </div>
         </form>
