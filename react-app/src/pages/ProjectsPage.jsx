@@ -679,4 +679,10 @@ const ProjectFormModal = ({ project, onSave, onClose }) => {
               {project ? 'Modifier' : 'Créer'}
             </button>
           </div>
-        </div
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProjectsPage;
