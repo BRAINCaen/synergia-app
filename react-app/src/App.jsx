@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// Application principale CORRIGÉE - Sans erreurs GameStore
+// Application principale CORRIGÉE - Chargement non bloquant
 // ==========================================
 
 import React, { useEffect, useState } from 'react';
@@ -34,34 +34,42 @@ const PremiumLoadingScreen = () => (
  * 🔐 PAGE DE CONNEXION PREMIUM
  */
 const PremiumLoginPage = () => {
-  const { loading } = useAuthStore();
   const [connecting, setConnecting] = useState(false);
 
-  const handleGoogleLogin = async () => {
+  const handleLogin = async () => {
     setConnecting(true);
+    console.log('🔐 Début de la connexion...');
+    
     try {
-      // Simuler une connexion réussie pour éviter l'erreur Firebase
-      setTimeout(() => {
-        // Données mock utilisateur
-        const mockUser = {
-          uid: 'mock-user-123',
-          email: 'alan.boehme61@gmail.com',
-          displayName: 'Alan Boehme',
-          photoURL: null,
-          emailVerified: true
-        };
-        
-        // Utiliser directement le store sans initializeAuth qui cause l'erreur
-        useAuthStore.setState({ 
-          user: mockUser, 
-          isAuthenticated: true, 
-          loading: false, 
-          error: null 
-        });
-        
-        console.log('✅ Connexion simulée réussie');
-        setConnecting(false);
-      }, 2000);
+      // Simuler une connexion avec un délai
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Données utilisateur simulées
+      const mockUser = {
+        uid: 'alan-boehme-123',
+        email: 'alan.boehme61@gmail.com',
+        displayName: 'Alan Boehme',
+        photoURL: null,
+        emailVerified: true,
+        loginAt: new Date().toISOString()
+      };
+      
+      // Mettre à jour le store directement
+      useAuthStore.setState({ 
+        user: mockUser, 
+        isAuthenticated: true, 
+        loading: false, 
+        error: null 
+      });
+      
+      // Initialiser le GameStore pour cet utilisateur
+      const gameStore = useGameStore.getState();
+      if (gameStore.initializeGameStore) {
+        await gameStore.initializeGameStore(mockUser.uid);
+      }
+      
+      console.log('✅ Connexion simulée réussie pour:', mockUser.email);
+      setConnecting(false);
     } catch (error) {
       console.error('❌ Erreur connexion:', error);
       setConnecting(false);
@@ -83,8 +91,8 @@ const PremiumLoginPage = () => {
         {/* Bouton de connexion */}
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
           <button
-            onClick={handleGoogleLogin}
-            disabled={connecting || loading}
+            onClick={handleLogin}
+            disabled={connecting}
             className="w-full bg-white hover:bg-gray-50 text-gray-900 font-semibold py-4 px-6 rounded-xl flex items-center justify-center space-x-3 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {connecting ? (
@@ -142,12 +150,20 @@ const SimpleSidebar = () => {
   };
 
   const handleLogout = () => {
+    console.log('🚪 Déconnexion...');
     useAuthStore.setState({ 
       user: null, 
       isAuthenticated: false, 
       loading: false, 
       error: null 
     });
+    
+    // Nettoyer le GameStore
+    const gameStore = useGameStore.getState();
+    if (gameStore.cleanup) {
+      gameStore.cleanup();
+    }
+    
     console.log('✅ Déconnexion réussie');
   };
 
@@ -232,46 +248,57 @@ const PremiumLayout = ({ children }) => {
  * 🚀 COMPOSANT APP PRINCIPAL CORRIGÉ
  */
 const App = () => {
-  const { user, loading, initializeAuth } = useAuthStore();
-  const [appReady, setAppReady] = useState(false);
+  const { user, loading } = useAuthStore();
+  const [appInitialized, setAppInitialized] = useState(false);
 
   useEffect(() => {
     console.log('🚀 SYNERGIA v3.5.1 - INITIALISATION');
     
-    // ✅ CORRECTION: Ne pas appeler initializeAuth qui cause l'erreur
-    // Initialiser directement les stores sans Firebase problématique
-    try {
-      // Initialiser GameStore avec données par défaut
-      const gameStore = useGameStore.getState();
-      if (gameStore.initializeGameStore) {
-        gameStore.initializeGameStore('mock-user-123');
+    const initializeApp = async () => {
+      try {
+        // Initialiser GameStore avec données par défaut
+        const gameStore = useGameStore.getState();
+        if (gameStore.initializeGameStore) {
+          await gameStore.initializeGameStore('default-user');
+        }
+
+        // Définir l'état initial d'auth (pas connecté par défaut)
+        useAuthStore.setState({ 
+          user: null, 
+          isAuthenticated: false, 
+          loading: false, 
+          error: null 
+        });
+
+        // Commandes globales pour debug
+        window.forceDashboardReload = () => {
+          console.log('🔄 Force reload dashboard');
+          window.location.reload();
+        };
+
+        window.emergencyLogout = () => {
+          console.log('🚨 Emergency logout');
+          useAuthStore.setState({ 
+            user: null, 
+            isAuthenticated: false, 
+            loading: false, 
+            error: null 
+          });
+        };
+
+        setAppInitialized(true);
+        console.log('🎉 Application entièrement chargée et prête !');
+      } catch (error) {
+        console.error('❌ Erreur initialisation:', error);
+        setAppInitialized(true); // Continuer même en cas d'erreur
       }
-    } catch (error) {
-      console.warn('⚠️ Erreur initialisation GameStore:', error);
-    }
-
-    // Commandes globales pour debug
-    window.forceDashboardReload = () => {
-      console.log('🔄 Force reload dashboard');
-      window.location.reload();
     };
 
-    window.emergencyLogout = () => {
-      console.log('🚨 Emergency logout');
-      useAuthStore.setState({ 
-        user: null, 
-        isAuthenticated: false, 
-        loading: false, 
-        error: null 
-      });
-    };
-
-    setAppReady(true);
-    console.log('🎉 Application entièrement chargée et prête !');
+    initializeApp();
   }, []);
 
-  // Écran de chargement premium
-  if (loading || !appReady) {
+  // Écran de chargement seulement si pas encore initialisé
+  if (!appInitialized) {
     return <PremiumLoadingScreen />;
   }
 
