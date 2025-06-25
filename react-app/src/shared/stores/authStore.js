@@ -1,5 +1,8 @@
-// src/shared/stores/authStore.js
-// Store d'authentification avec méthodes gamification corrigées
+// ==========================================
+// 📁 react-app/src/shared/stores/authStore.js
+// Store d'authentification avec import GameStore corrigé
+// ==========================================
+
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { authService } from '../../core/firebase'
@@ -41,14 +44,33 @@ export const useAuthStore = create(
             
             console.log('✅ Utilisateur connecté:', userData.email)
 
-            // 🎮 Initialiser le GameStore une fois que l'utilisateur est connecté
+            // 🎮 CORRECTION : Initialiser le GameStore de manière sécurisée
             try {
-              const { useGameStore } = await import('./gameStore.js');
-              const gameStore = useGameStore.getState();
-              await gameStore.initializeGameStore(userData.uid);
-              console.log('🎮 GameStore initialisé pour:', userData.uid);
+              // Import dynamique avec timeout et gestion d'erreur
+              const gameStoreModule = await Promise.race([
+                import('./gameStore.js'),
+                new Promise((_, reject) => 
+                  setTimeout(() => reject(new Error('Timeout import GameStore')), 5000)
+                )
+              ]);
+              
+              // Vérifier que le module et les exports existent
+              if (gameStoreModule && gameStoreModule.default) {
+                const gameStore = gameStoreModule.default.getState();
+                
+                // Vérifier que la méthode existe avant de l'appeler
+                if (typeof gameStore.initializeGameStore === 'function') {
+                  await gameStore.initializeGameStore(userData.uid);
+                  console.log('🎮 GameStore initialisé pour:', userData.uid);
+                } else {
+                  console.warn('⚠️ Méthode initializeGameStore non disponible');
+                }
+              } else {
+                console.warn('⚠️ GameStore module non disponible');
+              }
             } catch (gameStoreError) {
-              console.warn('⚠️ Erreur initialisation GameStore:', gameStoreError);
+              console.warn('⚠️ Erreur initialisation GameStore:', gameStoreError.message);
+              // Ne pas bloquer l'authentification si GameStore échoue
             }
             
           } else {
@@ -61,119 +83,74 @@ export const useAuthStore = create(
             
             console.log('ℹ️ Aucun utilisateur connecté')
 
-            // 🎮 Nettoyer le GameStore lors de la déconnexion
+            // 🎮 CORRECTION : Nettoyer le GameStore de manière sécurisée
             try {
-              const { useGameStore } = await import('./gameStore.js');
-              const gameStore = useGameStore.getState();
-              gameStore.cleanup();
-              console.log('🎮 GameStore nettoyé');
+              const gameStoreModule = await import('./gameStore.js');
+              if (gameStoreModule && gameStoreModule.default) {
+                const gameStore = gameStoreModule.default.getState();
+                if (typeof gameStore.cleanup === 'function') {
+                  gameStore.cleanup();
+                  console.log('🎮 GameStore nettoyé');
+                }
+              }
             } catch (gameStoreError) {
-              console.warn('⚠️ Erreur nettoyage GameStore:', gameStoreError);
+              console.warn('⚠️ Erreur nettoyage GameStore:', gameStoreError.message);
             }
           }
         })
 
-        // Retourner la fonction de nettoyage
+        // Retourner la fonction de désabonnement
         return unsubscribe
       },
 
-      signInWithGoogle: async () => {
-        set({ loading: true, error: null })
-        
+      signIn: async (email, password) => {
         try {
-          const userData = await authService.signInWithGoogle()
-          
-          set({ 
-            user: userData, 
-            isAuthenticated: true, 
-            loading: false, 
-            error: null 
-          })
-          
-          // ✅ CORRIGÉ: Initialiser la gamification avec les bonnes méthodes
-          try {
-            const { gamificationService } = await import('../../core/services/gamificationService.js');
-            await gamificationService.initializeUserData(userData.uid);
-            await gamificationService.dailyLogin(userData.uid);
-            console.log('✅ Gamification initialisée pour:', userData.email);
-          } catch (gamificationError) {
-            console.warn('⚠️ Erreur initialisation gamification:', gamificationError);
-          }
-          
-          return { success: true, user: userData }
+          set({ loading: true, error: null })
+          const result = await authService.signInWithEmailAndPassword(email, password)
+          console.log('✅ Connexion réussie')
+          return result
         } catch (error) {
-          const errorMessage = error.code === 'auth/popup-closed-by-user' 
-            ? 'Connexion annulée par l\'utilisateur'
-            : error.code === 'auth/popup-blocked'
-            ? 'Pop-up bloquée par le navigateur'
-            : error.code === 'auth/network-request-failed'
-            ? 'Erreur de connexion réseau'
-            : 'Erreur lors de la connexion'
-          
-          set({ 
-            error: errorMessage, 
-            loading: false 
-          })
-          
-          return { success: false, error: errorMessage }
+          console.error('❌ Erreur de connexion:', error)
+          set({ error: error.message, loading: false })
+          throw error
         }
       },
 
-      signInWithEmail: async (email, password) => {
-        set({ loading: true, error: null })
-        
+      signUp: async (email, password, displayName) => {
         try {
-          const userData = await authService.signInWithEmail(email, password)
+          set({ loading: true, error: null })
+          const result = await authService.createUserWithEmailAndPassword(email, password)
           
-          set({ 
-            user: userData, 
-            isAuthenticated: true, 
-            loading: false, 
-            error: null 
-          })
-          
-          // ✅ CORRIGÉ: Initialiser la gamification avec les bonnes méthodes
-          try {
-            const { gamificationService } = await import('../../core/services/gamificationService.js');
-            await gamificationService.initializeUserData(userData.uid);
-            await gamificationService.dailyLogin(userData.uid);
-            console.log('✅ Gamification initialisée pour:', userData.email);
-          } catch (gamificationError) {
-            console.warn('⚠️ Erreur initialisation gamification:', gamificationError);
+          if (displayName && result.user) {
+            await authService.updateProfile(result.user, { displayName })
           }
           
-          return { success: true, user: userData }
+          console.log('✅ Inscription réussie')
+          return result
         } catch (error) {
-          const errorMessage = error.code === 'auth/user-not-found'
-            ? 'Aucun compte trouvé avec cet email'
-            : error.code === 'auth/wrong-password'
-            ? 'Mot de passe incorrect'
-            : error.code === 'auth/invalid-email'
-            ? 'Email invalide'
-            : 'Erreur lors de la connexion'
-          
-          set({ 
-            error: errorMessage, 
-            loading: false 
-          })
-          
-          return { success: false, error: errorMessage }
+          console.error('❌ Erreur d\'inscription:', error)
+          set({ error: error.message, loading: false })
+          throw error
         }
       },
 
       signOut: async () => {
-        set({ loading: true })
-        
         try {
-          // 🎮 Nettoyer le GameStore avant la déconnexion
+          set({ loading: true })
+          
+          // 🎮 Nettoyer GameStore avant déconnexion
           try {
-            const { useGameStore } = await import('./gameStore.js');
-            const gameStore = useGameStore.getState();
-            gameStore.cleanup();
-          } catch (gameStoreError) {
-            console.warn('⚠️ Erreur nettoyage GameStore:', gameStoreError);
+            const gameStoreModule = await import('./gameStore.js');
+            if (gameStoreModule && gameStoreModule.default) {
+              const gameStore = gameStoreModule.default.getState();
+              if (typeof gameStore.cleanup === 'function') {
+                gameStore.cleanup();
+              }
+            }
+          } catch (cleanupError) {
+            console.warn('⚠️ Erreur nettoyage GameStore lors déconnexion:', cleanupError.message);
           }
-
+          
           await authService.signOut()
           
           set({ 
@@ -184,36 +161,59 @@ export const useAuthStore = create(
           })
           
           console.log('✅ Déconnexion réussie')
-          return { success: true }
         } catch (error) {
-          set({ 
-            error: 'Erreur lors de la déconnexion', 
-            loading: false 
-          })
-          
-          console.error('❌ Erreur déconnexion:', error)
-          return { success: false, error: 'Erreur lors de la déconnexion' }
+          console.error('❌ Erreur de déconnexion:', error)
+          set({ error: error.message, loading: false })
+          throw error
         }
       },
 
-      // Fonctions utilitaires
-      clearError: () => set({ error: null }),
-      
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
-      
-      getCurrentUser: () => get().user,
-      
-      isUserAuthenticated: () => get().isAuthenticated && !!get().user?.uid
+      resetPassword: async (email) => {
+        try {
+          set({ loading: true, error: null })
+          await authService.sendPasswordResetEmail(email)
+          set({ loading: false })
+          console.log('✅ Email de réinitialisation envoyé')
+        } catch (error) {
+          console.error('❌ Erreur réinitialisation:', error)
+          set({ error: error.message, loading: false })
+          throw error
+        }
+      },
+
+      updateProfile: async (updates) => {
+        try {
+          const currentUser = authService.currentUser
+          if (!currentUser) throw new Error('Aucun utilisateur connecté')
+
+          set({ loading: true, error: null })
+          await authService.updateProfile(currentUser, updates)
+          
+          // Mettre à jour le store local
+          const currentState = get()
+          if (currentState.user) {
+            set({
+              user: { ...currentState.user, ...updates },
+              loading: false
+            })
+          }
+          
+          console.log('✅ Profil mis à jour')
+        } catch (error) {
+          console.error('❌ Erreur mise à jour profil:', error)
+          set({ error: error.message, loading: false })
+          throw error
+        }
+      },
+
+      clearError: () => set({ error: null })
     }),
     {
       name: 'auth-store',
-      // Ne pas persister les états de chargement et d'erreur
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated
       })
     }
   )
-);
-
-export default useAuthStore;
+)
