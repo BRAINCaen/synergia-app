@@ -3,20 +3,45 @@
 // SYNTAXE CORRIGÉE - ProfilePage avec export default
 // ==========================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuthStore, useGameStore } from '../shared/stores';
 import { User, Mail, Calendar, Award, Star, Settings, Edit, LogOut } from 'lucide-react';
 import profileService from '../core/services/profileService.js';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../core/firebase.js';
 
 const ProfilePage = () => {
-  const { user, signOut, updateProfile } = useAuthStore();
+  const { user, signOut } = useAuthStore();
   const { userStats, badges } = useGameStore();
   const [isEditMode, setIsEditMode] = useState(false);
+  const [userProfile, setUserProfile] = useState(null); // Données Firebase en temps réel
   const [formData, setFormData] = useState({
-    displayName: user?.displayName || '',
-    bio: user?.bio || '',
-    department: user?.department || ''
+    displayName: '',
+    bio: '',
+    department: ''
   });
+
+  // Écouter les changements du profil Firebase en temps réel
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const userRef = doc(db, 'users', user.uid);
+    const unsubscribe = onSnapshot(userRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        setUserProfile(data);
+        
+        // Mettre à jour le formulaire avec les données Firebase
+        setFormData({
+          displayName: data.displayName || '',
+          bio: data.profile?.bio || '',
+          department: data.profile?.department || ''
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   const handleSignOut = async () => {
     try {
@@ -107,13 +132,14 @@ const ProfilePage = () => {
             <div className="flex items-center gap-6 mb-6">
               <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                 <span className="text-2xl font-bold text-white">
-                  {user?.displayName ? user.displayName.charAt(0).toUpperCase() : 
+                  {userProfile?.displayName ? userProfile.displayName.charAt(0).toUpperCase() : 
+                   user?.displayName ? user.displayName.charAt(0).toUpperCase() :
                    user?.email ? user.email.charAt(0).toUpperCase() : '?'}
                 </span>
               </div>
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">
-                  {user?.displayName || 'Nom non défini'}
+                  {userProfile?.displayName || user?.displayName || 'Nom non défini'}
                 </h3>
                 <div className="flex items-center gap-2 text-gray-600 mt-1">
                   <Mail size={16} />
@@ -122,7 +148,9 @@ const ProfilePage = () => {
                 <div className="flex items-center gap-2 text-gray-600 mt-1">
                   <Calendar size={16} />
                   <span>
-                    Membre depuis {user?.metadata?.creationTime 
+                    Membre depuis {userProfile?.createdAt
+                      ? new Date(userProfile.createdAt.toDate()).toLocaleDateString('fr-FR')
+                      : user?.metadata?.creationTime 
                       ? new Date(user.metadata.creationTime).toLocaleDateString('fr-FR')
                       : new Date().toLocaleDateString('fr-FR')
                     }
@@ -148,7 +176,7 @@ const ProfilePage = () => {
                     placeholder="Votre nom d'affichage"
                   />
                 ) : (
-                  <p className="mt-1 text-gray-900">{user?.displayName || 'Non défini'}</p>
+                  <p className="mt-1 text-gray-900">{userProfile?.displayName || user?.displayName || 'Non défini'}</p>
                 )}
               </div>
 
@@ -163,7 +191,7 @@ const ProfilePage = () => {
                     placeholder="Parlez-nous de vous..."
                   />
                 ) : (
-                  <p className="mt-1 text-gray-900">{user?.bio || 'Aucune bio définie'}</p>
+                  <p className="mt-1 text-gray-900">{userProfile?.profile?.bio || 'Aucune bio définie'}</p>
                 )}
               </div>
 
@@ -178,7 +206,7 @@ const ProfilePage = () => {
                     placeholder="Votre département"
                   />
                 ) : (
-                  <p className="mt-1 text-gray-900">{user?.department || 'Non défini'}</p>
+                  <p className="mt-1 text-gray-900">{userProfile?.profile?.department || 'Non défini'}</p>
                 )}
               </div>
               
