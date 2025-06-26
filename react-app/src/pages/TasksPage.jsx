@@ -1,34 +1,26 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// Page Tâches AUTONOME - Version finale sans dépendances
+// Page Tâches MINIMAL - Sans GameStore pour éviter l'erreur
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
   Search, 
-  Filter, 
   Clock, 
   CheckCircle2, 
   Circle, 
   Calendar,
-  Star,
   Trash2,
-  Edit3,
   MoreVertical,
   RefreshCw,
   Target,
-  Zap,
-  Trophy,
-  Users,
   AlertCircle,
-  ChevronDown,
-  SortAsc,
   LayoutGrid,
   List
 } from 'lucide-react';
 
-// IMPORTS BASIQUES UNIQUEMENT
+// IMPORTS MINIMAUX UNIQUEMENT
 import { useTaskStore } from '../shared/stores/taskStore.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
@@ -42,7 +34,6 @@ const TasksPage = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
-  const [sortBy, setSortBy] = useState('created');
   const [refreshing, setRefreshing] = useState(false);
 
   // Nouvelle tâche form
@@ -60,9 +51,9 @@ const TasksPage = () => {
     }
   }, [user, fetchTasks]);
 
-  // Filtrer et trier les tâches
+  // Filtrer les tâches
   const getFilteredTasks = () => {
-    let filtered = tasks.filter(task => {
+    return tasks.filter(task => {
       const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            task.description?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
@@ -70,28 +61,11 @@ const TasksPage = () => {
       
       return matchesSearch && matchesStatus && matchesPriority;
     });
-
-    // Tri simple
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'priority':
-          const priorityOrder = { high: 3, medium: 2, low: 1 };
-          return priorityOrder[b.priority] - priorityOrder[a.priority];
-        case 'dueDate':
-          if (!a.dueDate) return 1;
-          if (!b.dueDate) return -1;
-          return new Date(a.dueDate) - new Date(b.dueDate);
-        default:
-          return new Date(b.createdAt) - new Date(a.createdAt);
-      }
-    });
-
-    return filtered;
   };
 
   const filteredTasks = getFilteredTasks();
 
-  // Statistiques
+  // Statistiques simples
   const stats = {
     total: tasks.length,
     completed: tasks.filter(t => t.status === 'completed').length,
@@ -100,7 +74,7 @@ const TasksPage = () => {
     overdue: tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'completed').length
   };
 
-  // Handlers
+  // Handlers sans GameStore
   const handleCreateTask = async () => {
     if (!newTask.title.trim()) return;
 
@@ -187,7 +161,7 @@ const TasksPage = () => {
                 Mes Tâches
               </h1>
               <p className="text-gray-400 text-lg">
-                Gestion intelligente • Productivité maximale • {stats.total} tâches
+                Gestion intelligente • {stats.total} tâches
               </p>
             </div>
             
@@ -269,7 +243,6 @@ const TasksPage = () => {
         {/* Contrôles */}
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-8">
           <div className="flex flex-col lg:flex-row gap-4">
-            
             {/* Recherche */}
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -304,16 +277,6 @@ const TasksPage = () => {
                 <option value="high">Haute</option>
                 <option value="medium">Moyenne</option>
                 <option value="low">Basse</option>
-              </select>
-
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 transition-all"
-              >
-                <option value="created">Date création</option>
-                <option value="priority">Priorité</option>
-                <option value="dueDate">Échéance</option>
               </select>
 
               {/* Toggle vue */}
