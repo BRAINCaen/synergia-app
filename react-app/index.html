@@ -4,40 +4,15 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Synergia v3.5.3 - Mode Urgence</title>
+  <title>Synergia v3.5.3 - Stable</title>
   
   <!-- Meta tags -->
   <meta name="description" content="Synergia - Plateforme collaborative gamifiée">
   <meta name="theme-color" content="#3B82F6">
-  
-  <!-- 🚨 DÉSACTIVATION COMPLÈTE SERVICE WORKER -->
-  <script>
-    // Désinstaller immédiatement tout Service Worker existant
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        console.log('🚨 URGENCE: Désinstallation de tous les Service Workers...');
-        for(let registration of registrations) {
-          registration.unregister().then(() => {
-            console.log('🚨 Service Worker désinstallé:', registration.scope);
-          });
-        }
-      });
-      
-      // Vider tous les caches
-      if ('caches' in window) {
-        caches.keys().then(function(names) {
-          console.log('🚨 URGENCE: Suppression de tous les caches...');
-          for (let name of names) {
-            caches.delete(name);
-          }
-        });
-      }
-    }
-  </script>
 </head>
 <body>
   <div id="root">
-    <!-- Fallback en cas de problème -->
+    <!-- Fallback simple -->
     <div style="
       display: flex; 
       align-items: center; 
@@ -49,8 +24,8 @@
       text-align: center;
     ">
       <div>
-        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">🚨 Synergia - Mode Urgence</h1>
-        <p style="font-size: 1.2rem; margin-bottom: 2rem;">Chargement sécurisé en cours...</p>
+        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">🚀 Synergia</h1>
+        <p style="font-size: 1.2rem; margin-bottom: 2rem;">Chargement de l'application...</p>
         <div style="
           width: 50px; 
           height: 50px; 
@@ -66,75 +41,51 @@
             100% { transform: rotate(360deg); }
           }
         </style>
+        <p style="font-size: 0.9rem; margin-top: 2rem; opacity: 0.8;">
+          v3.5.3 - Mode Stable | Service Worker désactivé
+        </p>
       </div>
     </div>
   </div>
 
-  <!-- 🚨 LOGS D'URGENCE -->
+  <!-- Logs de debug -->
   <script>
-    console.log('%c🚨 SYNERGIA MODE URGENCE v3.5.3', 'color: #ef4444; font-size: 20px; font-weight: bold;');
-    console.log('%c🚫 SERVICE WORKER COMPLÈTEMENT DÉSACTIVÉ', 'color: #ef4444; font-size: 16px;');
-    console.log('%c🧹 NETTOYAGE AUTOMATIQUE DES CACHES', 'color: #f59e0b; font-size: 14px;');
-    
-    // Forcer le nettoyage du localStorage problématique
-    try {
-      const keys = Object.keys(localStorage);
-      console.log('🧹 Nettoyage localStorage...', keys.length, 'entrées');
-      
-      // Garder seulement Firebase Auth
-      keys.forEach(key => {
-        if (!key.includes('firebase:authUser')) {
-          localStorage.removeItem(key);
-        }
-      });
-      
-      console.log('✅ localStorage nettoyé');
-    } catch (error) {
-      console.warn('⚠️ Erreur nettoyage localStorage:', error);
-    }
-    
-    // Nettoyer sessionStorage
-    try {
-      sessionStorage.clear();
-      console.log('✅ sessionStorage nettoyé');
-    } catch (error) {
-      console.warn('⚠️ Erreur nettoyage sessionStorage:', error);
-    }
+    console.log('%c🚀 SYNERGIA v3.5.3 - MODE STABLE', 'color: #22c55e; font-size: 20px; font-weight: bold;');
+    console.log('%c✅ Service Worker désactivé définitivement', 'color: #22c55e; font-size: 16px;');
+    console.log('%c🧹 Nettoyage automatique terminé', 'color: #3b82f6; font-size: 14px;');
   </script>
   
-  <!-- 🚨 FONCTION D'URGENCE GLOBALE -->
+  <!-- Fonction d'urgence simple -->
   <script>
-    window.emergencyReset = () => {
-      console.log('🚨 RESET D\'URGENCE TOTAL...');
-      
-      // Vider tout
+    window.forceReload = () => {
+      console.log('🔄 Force reload...');
+      window.location.reload(true);
+    };
+    
+    window.emergencyClean = () => {
+      console.log('🧹 Emergency clean...');
       localStorage.clear();
       sessionStorage.clear();
       
-      // Désinstaller SW
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(regs => {
           regs.forEach(reg => reg.unregister());
         });
       }
       
-      // Vider caches
       if ('caches' in window) {
         caches.keys().then(names => {
           names.forEach(name => caches.delete(name));
         });
       }
       
-      console.log('✅ Reset terminé, rechargement...');
-      setTimeout(() => {
-        window.location.href = window.location.origin + '?emergency=true&t=' + Date.now();
-      }, 1000);
+      setTimeout(() => window.location.reload(true), 1000);
     };
     
-    console.log('✅ Fonction d\'urgence chargée: emergencyReset()');
+    console.log('✅ Fonctions debug: forceReload(), emergencyClean()');
   </script>
   
-  <!-- 🚨 Main App Script -->
+  <!-- Script principal React -->
   <script type="module" src="/src/index.jsx"></script>
 </body>
 </html>
