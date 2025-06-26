@@ -1,9 +1,15 @@
+// ==========================================
+// 📁 react-app/src/pages/TestDashboard.jsx
+// TestDashboard CORRIGÉ - Import authStore fix
+// ==========================================
+
 import React from 'react'
 import Button from '../shared/components/ui/Button'
-import useAuthStore from '../shared/stores/authStore'
+// 🚀 CORRECTION: Import nommé pour authStore
+import { useAuthStore } from '../shared/stores/authStore'
 
 const TestDashboard = () => {
-  const { user, logout } = useAuthStore()
+  const { user, signOut } = useAuthStore()
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -15,10 +21,10 @@ const TestDashboard = () => {
                 Dashboard Synergia
               </h1>
               <p className="text-gray-600">
-                Bienvenue {user?.name || 'Utilisateur'} !
+                Bienvenue {user?.displayName || user?.email || 'Utilisateur'} !
               </p>
             </div>
-            <Button onClick={logout} variant="secondary">
+            <Button onClick={signOut} variant="secondary">
               Déconnexion
             </Button>
           </div>
