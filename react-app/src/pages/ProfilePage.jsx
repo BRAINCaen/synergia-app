@@ -1,4 +1,47 @@
-// ==========================================
+<div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Email</label>
+                <p className="mt-1 text-gray-900">{user?.email}</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Nom d'affichage</label>
+                {isEditMode ? (
+                  <input
+                    type="text"
+                    value={formData.displayName}
+                    onChange={(e) => handleInputChange('displayName', e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Votre nom d'affichage"
+                  />
+                ) : (
+                  <p className="mt-1 text-gray-900">{user?.displayName || 'Non défini'}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Bio</label>
+                {isEditMode ? (
+                  <textarea
+                    value={formData.bio}
+                    onChange={(e) => handleInputChange('bio', e.target.value)}
+                    rows={3}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Parlez-nous de vous..."
+                  />
+                ) : (
+                  <p className="mt-1 text-gray-900">{user?.bio || 'Aucune bio définie'}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Département</label>
+                {isEditMode ? (
+                  <input
+                    type="text"
+                    value={formData.department}
+                    onChange={(e) => handleInputChange('department', e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"// ==========================================
 // 📁 react-app/src/pages/ProfilePage.jsx
 // RÉPARATION COMPLÈTE - ProfilePage avec export default
 // ==========================================
@@ -11,6 +54,11 @@ const ProfilePage = () => {
   const { user, signOut } = useAuthStore();
   const { userStats, badges } = useGameStore();
   const [isEditMode, setIsEditMode] = useState(false);
+  const [formData, setFormData] = useState({
+    displayName: user?.displayName || '',
+    bio: user?.bio || '',
+    department: user?.department || ''
+  });
 
   const handleSignOut = async () => {
     try {
@@ -18,6 +66,30 @@ const ProfilePage = () => {
     } catch (error) {
       console.error('Erreur déconnexion:', error);
     }
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      // Ici on simule la sauvegarde
+      console.log('Sauvegarde profil:', formData);
+      
+      // Animation de succès
+      const button = document.querySelector('[data-save-btn]');
+      if (button) {
+        button.textContent = '✅ Sauvegardé !';
+        setTimeout(() => {
+          button.innerHTML = '<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M7.707 10.293a1 1 0 10-1.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 00-1.414-1.414L9 11.586l-1.293-1.293z"/></svg>Sauvegarder';
+        }, 2000);
+      }
+      
+      setIsEditMode(false);
+    } catch (error) {
+      console.error('Erreur sauvegarde profil:', error);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -36,13 +108,34 @@ const ProfilePage = () => {
           <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-gray-900">Informations personnelles</h2>
-              <button
-                onClick={() => setIsEditMode(!isEditMode)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Edit size={16} />
-                Modifier
-              </button>
+              {!isEditMode ? (
+                <button
+                  onClick={() => setIsEditMode(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Edit size={16} />
+                  Modifier
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setIsEditMode(false)}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleSaveProfile}
+                    data-save-btn
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M7.707 10.293a1 1 0 10-1.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 00-1.414-1.414L9 11.586l-1.293-1.293z"/>
+                    </svg>
+                    Sauvegarder
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Avatar et informations de base */}
@@ -73,15 +166,11 @@ const ProfilePage = () => {
               </div>
             </div>
             
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Email</label>
-                <p className="mt-1 text-gray-900">{user?.email}</p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Nom d'affichage</label>
-                <p className="mt-1 text-gray-900">{user?.displayName || 'Non défini'}</p>
+                    placeholder="Votre département"
+                  />
+                ) : (
+                  <p className="mt-1 text-gray-900">{user?.department || 'Non défini'}</p>
+                )}
               </div>
               
               <div>
