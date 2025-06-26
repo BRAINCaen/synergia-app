@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/authStore.js
-// Store d'authentification PREMIUM ORIGINAL restauré
+// Store d'authentification TEMPORAIRE SANS GAMESTORE
 // ==========================================
 
 import { create } from 'zustand'
@@ -16,7 +16,7 @@ export const useAuthStore = create(
       error: null,
       isAuthenticated: false,
 
-      // ✅ FONCTION INITIALIZEAUTH ORIGINALE RESTAURÉE
+      // ✅ FONCTION INITIALIZEAUTH SANS GAMESTORE
       initializeAuth: () => {
         set({ loading: true })
         
@@ -44,26 +44,8 @@ export const useAuthStore = create(
             
             console.log('✅ Utilisateur connecté:', userData.email)
 
-            // 🎮 INITIALISATION GAMESTORE SÉCURISÉE (sans import dynamique)
-            try {
-              // Initialiser avec un délai pour éviter les conflits
-              setTimeout(async () => {
-                try {
-                  // Utiliser le GameStore directement depuis le window si disponible
-                  if (window.useGameStore) {
-                    const gameStore = window.useGameStore.getState();
-                    if (gameStore.initializeGameStore) {
-                      await gameStore.initializeGameStore(userData.uid);
-                      console.log('🎮 GameStore initialisé pour:', userData.uid);
-                    }
-                  }
-                } catch (gameError) {
-                  console.warn('⚠️ GameStore non disponible:', gameError);
-                }
-              }, 500);
-            } catch (error) {
-              console.warn('⚠️ Erreur initialisation GameStore:', error);
-            }
+            // 🚨 GAMESTORE TEMPORAIREMENT DÉSACTIVÉ
+            console.log('ℹ️ GameStore désactivé temporairement pour debug')
             
           } else {
             set({ 
@@ -131,18 +113,8 @@ export const useAuthStore = create(
         try {
           set({ loading: true })
           
-          // 🎮 Nettoyer GameStore avant déconnexion (sécurisé)
-          try {
-            if (window.useGameStore) {
-              const gameStore = window.useGameStore.getState();
-              if (gameStore.cleanup) {
-                gameStore.cleanup();
-                console.log('🎮 GameStore nettoyé');
-              }
-            }
-          } catch (cleanupError) {
-            console.warn('⚠️ Erreur nettoyage GameStore:', cleanupError);
-          }
+          // 🚨 NETTOYAGE GAMESTORE DÉSACTIVÉ TEMPORAIREMENT
+          console.log('ℹ️ Nettoyage GameStore désactivé temporairement')
           
           await authService.signOut()
           
