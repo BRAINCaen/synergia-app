@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/ProjectsPage.jsx
-// Page Projets avec design premium sombre - Version autonome sans collaboration
+// Page Projets AUTONOME - Version finale sans dépendances
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -30,18 +30,18 @@ import {
   Progress,
   ChevronRight
 } from 'lucide-react';
+
+// IMPORTS BASIQUES UNIQUEMENT
 import { useProjectStore } from '../shared/stores/projectStore.js';
 import { useTaskStore } from '../shared/stores/taskStore.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useGameStore } from '../shared/stores/gameStore.js';
 
 const ProjectsPage = () => {
   const { user } = useAuthStore();
   const { projects, loading, fetchProjects, addProject, updateProject } = useProjectStore();
   const { tasks } = useTaskStore();
-  const { addXP, checkAchievements } = useGameStore();
   
-  // États locaux
+  // États locaux simplifiés
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -91,7 +91,7 @@ const ProjectsPage = () => {
       return matchesSearch && matchesStatus;
     });
 
-    // Tri
+    // Tri simple
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'name':
@@ -136,10 +136,6 @@ const ProjectsPage = () => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
-
-      // Gamification
-      addXP(20, '🚀 Nouveau projet créé');
-      checkAchievements('project_created');
 
       // Reset form
       setNewProject({
@@ -230,388 +226,250 @@ const ProjectsPage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+        {/* Statistiques rapides */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Total projets</p>
+                <p className="text-2xl font-bold text-white">{stats.total}</p>
+              </div>
+              <Folder className="w-8 h-8 text-purple-400" />
+            </div>
+          </div>
           
-          {/* Panel principal */}
-          <div className="xl:col-span-3 space-y-6">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Actifs</p>
+                <p className="text-2xl font-bold text-green-400">{stats.active}</p>
+              </div>
+              <Rocket className="w-8 h-8 text-green-400" />
+            </div>
+          </div>
+          
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Terminés</p>
+                <p className="text-2xl font-bold text-blue-400">{stats.completed}</p>
+              </div>
+              <CheckCircle2 className="w-8 h-8 text-blue-400" />
+            </div>
+          </div>
+          
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Progression moy.</p>
+                <p className="text-2xl font-bold text-yellow-400">{stats.avgCompletion}%</p>
+              </div>
+              <TrendingUp className="w-8 h-8 text-yellow-400" />
+            </div>
+          </div>
+        </div>
+
+        {/* Contrôles */}
+        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-8">
+          <div className="flex flex-col lg:flex-row gap-4">
             
-            {/* Statistiques rapides */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-400 text-sm">Total projets</p>
-                    <p className="text-2xl font-bold text-white">{stats.total}</p>
-                  </div>
-                  <Folder className="w-8 h-8 text-purple-400" />
-                </div>
-              </div>
-              
-              <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-400 text-sm">Actifs</p>
-                    <p className="text-2xl font-bold text-green-400">{stats.active}</p>
-                  </div>
-                  <Rocket className="w-8 h-8 text-green-400" />
-                </div>
-              </div>
-              
-              <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-400 text-sm">Terminés</p>
-                    <p className="text-2xl font-bold text-blue-400">{stats.completed}</p>
-                  </div>
-                  <CheckCircle2 className="w-8 h-8 text-blue-400" />
-                </div>
-              </div>
-              
-              <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-400 text-sm">Progression moy.</p>
-                    <p className="text-2xl font-bold text-yellow-400">{stats.avgCompletion}%</p>
-                  </div>
-                  <TrendingUp className="w-8 h-8 text-yellow-400" />
-                </div>
-              </div>
+            {/* Recherche */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Rechercher un projet..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all"
+              />
             </div>
 
-            {/* Contrôles */}
-            <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-              <div className="flex flex-col lg:flex-row gap-4">
+            {/* Filtres */}
+            <div className="flex gap-3">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all"
+              >
+                <option value="all">Tous statuts</option>
+                <option value="active">Actif</option>
+                <option value="completed">Terminé</option>
+                <option value="on_hold">En pause</option>
+                <option value="cancelled">Annulé</option>
+              </select>
+
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all"
+              >
+                <option value="created">Date création</option>
+                <option value="name">Nom</option>
+                <option value="progress">Progression</option>
+                <option value="tasks">Nombre tâches</option>
+              </select>
+
+              {/* Toggle vue */}
+              <div className="flex bg-gray-700 rounded-xl border border-gray-600 p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-lg transition-all ${
+                    viewMode === 'grid'
+                      ? 'bg-purple-600 text-white'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded-lg transition-all ${
+                    viewMode === 'list'
+                      ? 'bg-purple-600 text-white'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Liste des projets */}
+        <div className="bg-gray-800 rounded-xl border border-gray-700">
+          {filteredProjects.length === 0 ? (
+            <div className="p-12 text-center">
+              <Briefcase className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-400 mb-2">
+                {projects.length === 0 ? 'Aucun projet créé' : 'Aucun projet trouvé'}
+              </h3>
+              <p className="text-gray-500 mb-6">
+                {projects.length === 0 
+                  ? 'Lancez votre premier projet et organisez votre travail !'
+                  : 'Essayez de modifier vos filtres de recherche.'
+                }
+              </p>
+              {projects.length === 0 && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 mx-auto"
+                >
+                  <Plus className="w-5 h-5" />
+                  Créer mon premier projet
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className={`p-6 ${
+              viewMode === 'grid' 
+                ? 'grid grid-cols-1 md:grid-cols-2 gap-6'
+                : 'space-y-4'
+            }`}>
+              {filteredProjects.map((project) => {
+                const metrics = getProjectMetrics(project);
                 
-                {/* Recherche */}
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher un projet..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all"
-                  />
-                </div>
-
-                {/* Filtres */}
-                <div className="flex gap-3">
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all"
+                return (
+                  <div
+                    key={project.id}
+                    className="bg-gray-700/50 border border-gray-600/50 rounded-xl p-6 hover:bg-gray-700/70 transition-all group cursor-pointer"
                   >
-                    <option value="all">Tous statuts</option>
-                    <option value="active">Actif</option>
-                    <option value="completed">Terminé</option>
-                    <option value="on_hold">En pause</option>
-                    <option value="cancelled">Annulé</option>
-                  </select>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-xl font-semibold text-white mb-2 truncate">
+                          {project.name}
+                        </h3>
+                        
+                        {project.description && (
+                          <p className="text-gray-400 text-sm mb-3 line-clamp-2">
+                            {project.description}
+                          </p>
+                        )}
 
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all"
-                  >
-                    <option value="created">Date création</option>
-                    <option value="name">Nom</option>
-                    <option value="progress">Progression</option>
-                    <option value="tasks">Nombre tâches</option>
-                  </select>
-
-                  {/* Toggle vue */}
-                  <div className="flex bg-gray-700 rounded-xl border border-gray-600 p-1">
-                    <button
-                      onClick={() => setViewMode('grid')}
-                      className={`p-2 rounded-lg transition-all ${
-                        viewMode === 'grid'
-                          ? 'bg-purple-600 text-white'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      <LayoutGrid className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={`p-2 rounded-lg transition-all ${
-                        viewMode === 'list'
-                          ? 'bg-purple-600 text-white'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      <List className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Liste des projets */}
-            <div className="bg-gray-800 rounded-xl border border-gray-700">
-              {filteredProjects.length === 0 ? (
-                <div className="p-12 text-center">
-                  <Briefcase className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-400 mb-2">
-                    {projects.length === 0 ? 'Aucun projet créé' : 'Aucun projet trouvé'}
-                  </h3>
-                  <p className="text-gray-500 mb-6">
-                    {projects.length === 0 
-                      ? 'Lancez votre premier projet et organisez votre travail !'
-                      : 'Essayez de modifier vos filtres de recherche.'
-                    }
-                  </p>
-                  {projects.length === 0 && (
-                    <button
-                      onClick={() => setShowCreateModal(true)}
-                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 mx-auto"
-                    >
-                      <Plus className="w-5 h-5" />
-                      Créer mon premier projet
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className={`p-6 ${
-                  viewMode === 'grid' 
-                    ? 'grid grid-cols-1 md:grid-cols-2 gap-6'
-                    : 'space-y-4'
-                }`}>
-                  {filteredProjects.map((project) => {
-                    const metrics = getProjectMetrics(project);
-                    
-                    return (
-                      <div
-                        key={project.id}
-                        className="bg-gray-700/50 border border-gray-600/50 rounded-xl p-6 hover:bg-gray-700/70 transition-all group cursor-pointer"
-                      >
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-xl font-semibold text-white mb-2 truncate">
-                              {project.name}
-                            </h3>
-                            
-                            {project.description && (
-                              <p className="text-gray-400 text-sm mb-3 line-clamp-2">
-                                {project.description}
-                              </p>
-                            )}
-
-                            {/* Badges */}
-                            <div className="flex items-center gap-2 mb-4">
-                              <span className={`px-3 py-1 text-xs rounded-full border ${getStatusColor(project.status)}`}>
-                                {project.status === 'active' && '🟢 Actif'}
-                                {project.status === 'completed' && '✅ Terminé'}
-                                {project.status === 'on_hold' && '⏸️ En pause'}
-                                {project.status === 'cancelled' && '❌ Annulé'}
-                              </span>
-                              
-                              <span className={`px-3 py-1 text-xs rounded-full border ${getPriorityColor(project.priority)}`}>
-                                {project.priority === 'high' && '🔥 Haute'}
-                                {project.priority === 'medium' && '⚡ Moyenne'}
-                                {project.priority === 'low' && '📋 Basse'}
-                              </span>
-                            </div>
-                          </div>
+                        {/* Badges */}
+                        <div className="flex items-center gap-2 mb-4">
+                          <span className={`px-3 py-1 text-xs rounded-full border ${getStatusColor(project.status)}`}>
+                            {project.status === 'active' && '🟢 Actif'}
+                            {project.status === 'completed' && '✅ Terminé'}
+                            {project.status === 'on_hold' && '⏸️ En pause'}
+                            {project.status === 'cancelled' && '❌ Annulé'}
+                          </span>
                           
-                          <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-600 rounded">
-                            <MoreVertical className="w-4 h-4 text-gray-400" />
-                          </button>
+                          <span className={`px-3 py-1 text-xs rounded-full border ${getPriorityColor(project.priority)}`}>
+                            {project.priority === 'high' && '🔥 Haute'}
+                            {project.priority === 'medium' && '⚡ Moyenne'}
+                            {project.priority === 'low' && '📋 Basse'}
+                          </span>
                         </div>
+                      </div>
+                      
+                      <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-600 rounded">
+                        <MoreVertical className="w-4 h-4 text-gray-400" />
+                      </button>
+                    </div>
 
-                        {/* Métriques */}
-                        <div className="space-y-4">
-                          {/* Progression */}
-                          <div>
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="text-sm text-gray-400">Progression</span>
-                              <span className="text-sm font-medium text-white">
-                                {metrics.completionRate}%
-                              </span>
-                            </div>
-                            <div className="w-full bg-gray-600 rounded-full h-2">
-                              <div
-                                className="bg-gradient-to-r from-purple-400 to-pink-500 h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${metrics.completionRate}%` }}
-                              ></div>
-                            </div>
-                          </div>
+                    {/* Métriques */}
+                    <div className="space-y-4">
+                      {/* Progression */}
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm text-gray-400">Progression</span>
+                          <span className="text-sm font-medium text-white">
+                            {metrics.completionRate}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-600 rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-purple-400 to-pink-500 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${metrics.completionRate}%` }}
+                          ></div>
+                        </div>
+                      </div>
 
-                          {/* Statistiques tâches */}
-                          <div className="grid grid-cols-4 gap-4">
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-white">{metrics.totalTasks}</div>
-                              <div className="text-xs text-gray-400">Total</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-green-400">{metrics.completedTasks}</div>
-                              <div className="text-xs text-gray-400">Terminées</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-blue-400">{metrics.inProgressTasks}</div>
-                              <div className="text-xs text-gray-400">En cours</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-yellow-400">{metrics.todoTasks}</div>
-                              <div className="text-xs text-gray-400">À faire</div>
-                            </div>
-                          </div>
+                      {/* Statistiques tâches */}
+                      <div className="grid grid-cols-4 gap-4">
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-white">{metrics.totalTasks}</div>
+                          <div className="text-xs text-gray-400">Total</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-green-400">{metrics.completedTasks}</div>
+                          <div className="text-xs text-gray-400">Terminées</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-blue-400">{metrics.inProgressTasks}</div>
+                          <div className="text-xs text-gray-400">En cours</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-yellow-400">{metrics.todoTasks}</div>
+                          <div className="text-xs text-gray-400">À faire</div>
+                        </div>
+                      </div>
 
-                          {/* Dates */}
-                          {(project.startDate || project.endDate) && (
-                            <div className="flex items-center gap-4 text-xs text-gray-400 pt-2 border-t border-gray-600">
-                              {project.startDate && (
-                                <div className="flex items-center gap-1">
-                                  <Calendar className="w-3 h-3" />
-                                  Début: {new Date(project.startDate).toLocaleDateString('fr-FR')}
-                                </div>
-                              )}
-                              {project.endDate && (
-                                <div className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  Fin: {new Date(project.endDate).toLocaleDateString('fr-FR')}
-                                </div>
-                              )}
+                      {/* Dates */}
+                      {(project.startDate || project.endDate) && (
+                        <div className="flex items-center gap-4 text-xs text-gray-400 pt-2 border-t border-gray-600">
+                          {project.startDate && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              Début: {new Date(project.startDate).toLocaleDateString('fr-FR')}
+                            </div>
+                          )}
+                          {project.endDate && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              Fin: {new Date(project.endDate).toLocaleDateString('fr-FR')}
                             </div>
                           )}
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Sidebar - Statistiques et raccourcis */}
-          <div className="space-y-6">
-            
-            {/* Performance globale */}
-            <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-yellow-400" />
-                Performance
-              </h3>
-              
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Projets terminés</span>
-                  <span className="text-green-400 font-bold">{stats.completed}</span>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Taux de complétion</span>
-                  <span className="text-purple-400 font-bold">{stats.avgCompletion}%</span>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Total tâches</span>
-                  <span className="text-blue-400 font-bold">{stats.totalTasks}</span>
-                </div>
-                
-                <div className="w-full bg-gray-700 rounded-full h-2 mt-4">
-                  <div
-                    className="bg-gradient-to-r from-purple-400 to-pink-500 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${stats.avgCompletion}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Projets prioritaires */}
-            <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Zap className="w-5 h-5 text-red-400" />
-                Projets prioritaires
-              </h3>
-              
-              <div className="space-y-3">
-                {projects.filter(p => p.priority === 'high' && p.status === 'active').slice(0, 3).map(project => {
-                  const metrics = getProjectMetrics(project);
-                  return (
-                    <div key={project.id} className="bg-gray-700/50 rounded-lg p-3 border border-red-500/20">
-                      <div className="font-medium text-white text-sm truncate mb-1">
-                        {project.name}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="text-red-400 text-xs">
-                          🔥 Priorité haute
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          {metrics.completionRate}% terminé
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                
-                {projects.filter(p => p.priority === 'high' && p.status === 'active').length === 0 && (
-                  <div className="text-center py-4">
-                    <div className="text-gray-500 text-sm">
-                      Aucun projet prioritaire
+                      )}
                     </div>
                   </div>
-                )}
-              </div>
+                );
+              })}
             </div>
-
-            {/* Projets récents */}
-            <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-blue-400" />
-                Récemment créés
-              </h3>
-              
-              <div className="space-y-3">
-                {projects.slice(0, 3).map(project => (
-                  <div key={project.id} className="bg-gray-700/50 rounded-lg p-3">
-                    <div className="font-medium text-white text-sm truncate mb-1">
-                      {project.name}
-                    </div>
-                    <div className="text-blue-400 text-xs">
-                      📅 {new Date(project.createdAt).toLocaleDateString('fr-FR')}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Actions rapides */}
-            <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Actions rapides</h3>
-              
-              <div className="space-y-3">
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="w-full bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-lg p-3 text-left hover:from-purple-600/30 hover:to-pink-600/30 transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <Plus className="w-5 h-5 text-purple-400" />
-                    <span className="text-white font-medium">Nouveau projet</span>
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => setFilterStatus('active')}
-                  className="w-full bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-500/30 rounded-lg p-3 text-left hover:from-green-600/30 hover:to-emerald-600/30 transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <Rocket className="w-5 h-5 text-green-400" />
-                    <span className="text-white font-medium">Voir projets actifs</span>
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => setFilterStatus('completed')}
-                  className="w-full bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-500/30 rounded-lg p-3 text-left hover:from-blue-600/30 hover:to-cyan-600/30 transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-blue-400" />
-                    <span className="text-white font-medium">Voir terminés</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
