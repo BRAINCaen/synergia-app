@@ -1,16 +1,27 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// App.jsx SIMPLE ET FONCTIONNEL - Version de base
+// App.jsx COMPLET avec toutes les routes fonctionnelles
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './shared/stores';
 
-// Pages - imports directs simples
+// Pages principales
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import NotFound from './pages/NotFound.jsx';
+
+// Pages manquantes à créer
+import TasksPage from './pages/TasksPage.jsx';
+import ProjectsPage from './pages/ProjectsPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import LeaderboardPage from './pages/LeaderboardPage.jsx';
+import UsersPage from './pages/UsersPage.jsx';
+
+// Layout
+import DashboardLayout from './layouts/DashboardLayout.jsx';
 
 /**
  * 🔄 COMPOSANT LOADING SIMPLE
@@ -30,7 +41,7 @@ const LoadingScreen = ({ message = "Chargement Synergia" }) => {
 };
 
 /**
- * 🛡️ PROTECTED ROUTE SIMPLE
+ * 🛡️ PROTECTED ROUTE AVEC LAYOUT
  */
 const ProtectedRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuthStore();
@@ -43,39 +54,38 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
   
-  return children;
+  return (
+    <DashboardLayout>
+      {children}
+    </DashboardLayout>
+  );
 };
 
 /**
- * 🚀 COMPOSANT PRINCIPAL APP SIMPLE
+ * 🚀 COMPOSANT PRINCIPAL APP AVEC TOUTES LES ROUTES
  */
 function App() {
   const { user, isAuthenticated, loading, initializeAuth } = useAuthStore();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    console.log('🚀 SYNERGIA v3.5.3 - INITIALISATION SIMPLE');
+    console.log('🚀 SYNERGIA v3.5.3 - INITIALISATION COMPLÈTE');
     
     const initialize = async () => {
       try {
-        // Initialiser l'authentification
         const unsubscribe = initializeAuth();
-        
         setIsInitialized(true);
-        console.log('✅ App initialisée avec succès');
-        
-        // Retourner la fonction de nettoyage
+        console.log('✅ App initialisée avec toutes les routes');
         return unsubscribe;
       } catch (error) {
         console.error('❌ Erreur initialisation:', error);
-        setIsInitialized(true); // Continuer même en cas d'erreur
+        setIsInitialized(true);
       }
     };
 
     initialize();
   }, [initializeAuth]);
 
-  // Afficher le loading pendant l'initialisation
   if (!isInitialized || loading) {
     return <LoadingScreen />;
   }
@@ -85,11 +95,11 @@ function App() {
       <div className="App">
         {/* Banner de succès */}
         <div className="bg-green-600 text-white p-2 text-center text-sm font-medium">
-          ✅ SYNERGIA v3.5.3 STABLE | Service Worker désactivé | Application fonctionnelle
+          ✅ SYNERGIA v3.5.3 COMPLET | Toutes les pages disponibles | Application fonctionnelle
         </div>
         
         <Routes>
-          {/* Routes publiques */}
+          {/* Route publique */}
           <Route 
             path="/login" 
             element={
@@ -97,12 +107,66 @@ function App() {
             } 
           />
           
-          {/* Routes protégées */}
+          {/* Routes protégées avec layout */}
           <Route 
             path="/dashboard" 
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/tasks" 
+            element={
+              <ProtectedRoute>
+                <TasksPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/projects" 
+            element={
+              <ProtectedRoute>
+                <ProjectsPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/analytics" 
+            element={
+              <ProtectedRoute>
+                <AnalyticsPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/leaderboard" 
+            element={
+              <ProtectedRoute>
+                <LeaderboardPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/users" 
+            element={
+              <ProtectedRoute>
+                <UsersPage />
               </ProtectedRoute>
             } 
           />
