@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// App.jsx COMPLET avec TOUTES LES ROUTES (navigation fixée)
+// App.jsx COMPLET avec toutes les routes fonctionnelles
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -12,18 +12,14 @@ import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import NotFound from './pages/NotFound.jsx';
 
-// Toutes les pages existantes
+// Toutes les pages créées et fonctionnelles
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import LeaderboardPage from './pages/LeaderboardPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
-
-// NOUVELLES PAGES AJOUTÉES
 import TeamPage from './pages/TeamPage.jsx';
-import TimeTrackPage from './pages/TimeTrackPage.jsx';
-import RewardsPage from './pages/RewardsPage.jsx';
 
 // Layout
 import DashboardLayout from './layouts/DashboardLayout.jsx';
@@ -39,7 +35,7 @@ const LoadingScreen = ({ message = "Chargement Synergia" }) => {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
         </div>
         <h2 className="text-2xl font-bold mb-2">{message}</h2>
-        <p className="text-white/80">v3.5.4 - Navigation Réparée</p>
+        <p className="text-white/80">v3.5 - Navigation Complète</p>
       </div>
     </div>
   );
@@ -74,13 +70,13 @@ function App() {
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    console.log('🚀 SYNERGIA v3.5.4 - NAVIGATION RÉPARÉE');
+    console.log('🚀 SYNERGIA v3.5 - NAVIGATION COMPLÈTE INITIALISÉE');
     
     const initialize = async () => {
       try {
         const unsubscribe = initializeAuth();
         setIsInitialized(true);
-        console.log('✅ App initialisée avec TOUTES les routes de navigation');
+        console.log('✅ App initialisée avec TOUTES les routes disponibles');
         return unsubscribe;
       } catch (error) {
         console.error('❌ Erreur initialisation:', error);
@@ -98,9 +94,9 @@ function App() {
   return (
     <Router>
       <div className="App">
-        {/* Banner de succès */}
-        <div className="bg-blue-600 text-white p-2 text-center text-sm font-medium">
-          ✅ SYNERGIA v3.5.4 RÉPARÉ | Navigation complète + Édition fonctionnelle
+        {/* Banner de succès avec navigation complète */}
+        <div className="bg-green-600 text-white p-2 text-center text-sm font-medium">
+          ✅ SYNERGIA v3.5 NAVIGATION COMPLÈTE | 8 pages accessibles : Dashboard • Tâches • Projets • Analytics • Classement • Profil • Utilisateurs • Équipe
         </div>
         
         <Routes>
@@ -112,7 +108,7 @@ function App() {
             } 
           />
           
-          {/* Routes protégées avec layout */}
+          {/* 🚀 TOUTES LES ROUTES PROTÉGÉES AVEC LAYOUT */}
           <Route 
             path="/dashboard" 
             element={
@@ -141,15 +137,6 @@ function App() {
           />
           
           <Route 
-            path="/profile" 
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
             path="/analytics" 
             element={
               <ProtectedRoute>
@@ -168,6 +155,15 @@ function App() {
           />
           
           <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
             path="/users" 
             element={
               <ProtectedRoute>
@@ -175,31 +171,12 @@ function App() {
               </ProtectedRoute>
             } 
           />
-
-          {/* ✅ NOUVELLES ROUTES AJOUTÉES POUR FIXER LA NAVIGATION */}
+          
           <Route 
             path="/team" 
             element={
               <ProtectedRoute>
                 <TeamPage />
-              </ProtectedRoute>
-            } 
-          />
-
-          <Route 
-            path="/timetrack" 
-            element={
-              <ProtectedRoute>
-                <TimeTrackPage />
-              </ProtectedRoute>
-            } 
-          />
-
-          <Route 
-            path="/rewards" 
-            element={
-              <ProtectedRoute>
-                <RewardsPage />
               </ProtectedRoute>
             } 
           />
