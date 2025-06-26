@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/AnalyticsPage.jsx
-// Page Analytics avec design premium sombre - Style Leaderboard
+// Page Analytics avec design premium sombre - Version autonome sans dépendances
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
