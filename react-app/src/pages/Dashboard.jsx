@@ -1,15 +1,13 @@
 // ==========================================
 // 📁 react-app/src/pages/Dashboard.jsx
-// Dashboard EXACT design Synergia v3.5
+// Dashboard TEMPORAIRE SANS GAMESTORE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useGameStore } from '../shared/stores/gameStore.js';
 
 const Dashboard = () => {
   const { user } = useAuthStore();
-  const { userStats } = useGameStore();
   
   const [greeting, setGreeting] = useState('');
   const [currentDate, setCurrentDate] = useState('');
@@ -36,6 +34,15 @@ const Dashboard = () => {
     if (user?.displayName) return user.displayName;
     if (user?.email) return user.email.split('@')[0];
     return 'Utilisateur';
+  };
+
+  // 🚨 DONNÉES GAMIFICATION TEMPORAIRES
+  const mockUserStats = {
+    level: 2,
+    totalXp: 175,
+    currentXp: 75,
+    tasksCompleted: 12,
+    loginStreak: 3
   };
 
   return (
@@ -70,257 +77,193 @@ const Dashboard = () => {
             {greeting}, {getUserName()} ! 👋
           </h1>
           <p className="text-xl text-white/90 mb-6">
-            Bienvenue dans Synergia v3.5 avec la nouvelle architecture premium ! 🚀
+            Bienvenue dans Synergia v3.5 avec la nouvelle architecture premium !
           </p>
-          
-          {/* Stats en ligne */}
-          <div className="flex items-center space-x-8 text-sm">
-            <div className="flex items-center space-x-2">
-              <span>📅</span>
-              <span className="text-white/90">{currentDate}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span>🎯</span>
-              <span className="text-white/90">Niveau {userStats?.level || 2}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span>⭐</span>
-              <span className="text-white/90">{userStats?.totalXp || 175} XP</span>
-            </div>
-          </div>
+          <p className="text-lg text-white/80">
+            📅 {currentDate}
+          </p>
         </div>
       </div>
 
-      {/* Stats cards - EXACT comme l'image */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* STATUT */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-[#a5b4fc] text-sm uppercase tracking-wide mb-2">STATUT</p>
-              <p className="text-2xl font-bold text-[#10b981]">Actif</p>
-            </div>
-            <div className="w-12 h-12 bg-[#10b981]/20 rounded-xl flex items-center justify-center">
-              <span className="text-2xl">✅</span>
-            </div>
-          </div>
-        </div>
-
-        {/* NIVEAU */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-[#a5b4fc] text-sm uppercase tracking-wide mb-2">NIVEAU</p>
-              <p className="text-2xl font-bold text-[#6366f1]">{userStats?.level || 2}</p>
-            </div>
-            <div className="w-12 h-12 bg-[#6366f1]/20 rounded-xl flex items-center justify-center">
+      {/* Grid principal - 3 colonnes */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Colonne gauche - Statistiques */}
+        <div className="space-y-6">
+          {/* Card Level - EXACT design */}
+          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Niveau & XP</h3>
               <span className="text-2xl">🎯</span>
             </div>
-          </div>
-        </div>
-
-        {/* EXPÉRIENCE */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-[#a5b4fc] text-sm uppercase tracking-wide mb-2">EXPÉRIENCE</p>
-              <p className="text-2xl font-bold text-[#8b5cf6]">{userStats?.totalXp || 175} XP</p>
-            </div>
-            <div className="w-12 h-12 bg-[#8b5cf6]/20 rounded-xl flex items-center justify-center">
-              <span className="text-2xl">⭐</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Sections principales - EXACT comme l'image */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Architecture Modulaire */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-          <div className="flex items-center space-x-3 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] rounded-xl flex items-center justify-center">
-              <span className="text-xl">🏗</span>
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-white">Architecture Premium</h3>
-              <p className="text-[#a5b4fc] text-sm">Fondations solides pour l'évolution</p>
-            </div>
-          </div>
-          
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3">
-              <span className="text-[#10b981] text-lg">✓</span>
-              <span className="text-[#a5b4fc]">Services d'authentification optimisés</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <span className="text-[#10b981] text-lg">✓</span>
-              <span className="text-[#a5b4fc]">Interface utilisateur moderne</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <span className="text-[#f59e0b] text-lg">⏳</span>
-              <span className="text-[#a5b4fc]">Modules avancés en développement</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Roadmap 2025 */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-          <div className="flex items-center space-x-3 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#ec4899] to-[#be185d] rounded-xl flex items-center justify-center">
-              <span className="text-xl">🎯</span>
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-white">Roadmap 2025</h3>
-              <p className="text-[#a5b4fc] text-sm">Prochaines fonctionnalités</p>
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-[#a5b4fc]">Phase 1 - Architecture</span>
-              <span className="px-3 py-1 bg-[#10b981] text-white text-xs rounded-full font-medium">
-                Terminé
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[#a5b4fc]">Phase 2 - Gamification</span>
-              <span className="px-3 py-1 bg-[#6366f1] text-white text-xs rounded-full font-medium">
-                En cours
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[#a5b4fc]">Phase 3 - Collaboration</span>
-              <span className="px-3 py-1 bg-[#6b7280] text-white text-xs rounded-full font-medium">
-                Planifiée
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Modules en Développement - EXACT comme l'image */}
-      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-        <div className="flex items-center space-x-3 mb-6">
-          <span className="text-2xl">🚀</span>
-          <h2 className="text-2xl font-bold text-white">Modules en Développement</h2>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Gamification */}
-          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-            <div className="text-center mb-4">
-              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-[#8b5cf6] to-[#a855f7] rounded-2xl flex items-center justify-center mb-3">
-                <span className="text-2xl">🎮</span>
+            
+            <div className="space-y-4">
+              {/* Badge niveau */}
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">{mockUserStats.level}</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">Niveau {mockUserStats.level}</p>
+                  <p className="text-sm text-gray-600">{mockUserStats.currentXp}/100 XP</p>
+                </div>
               </div>
-              <h4 className="font-bold text-white mb-1">Gamification</h4>
-              <p className="text-[#a5b4fc] text-xs mb-3">Points, badges, niveaux</p>
-              
+
               {/* Barre de progression */}
-              <div className="w-full bg-white/10 rounded-full h-2 mb-2">
-                <div className="bg-gradient-to-r from-[#8b5cf6] to-[#a855f7] h-2 rounded-full" style={{ width: '75%' }}></div>
+              <div className="w-full">
+                <div className="flex justify-between text-xs text-gray-600 mb-1">
+                  <span>Progression</span>
+                  <span>{mockUserStats.currentXp}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${mockUserStats.currentXp}%` }}
+                  ></div>
+                </div>
               </div>
-              <p className="text-xs text-[#a5b4fc] mb-3">75%</p>
-              
-              <span className="px-3 py-1 bg-[#6366f1] text-white text-xs rounded-full font-medium">
-                En développement
-              </span>
             </div>
           </div>
 
-          {/* Pointage */}
-          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-            <div className="text-center mb-4">
-              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-[#f59e0b] to-[#d97706] rounded-2xl flex items-center justify-center mb-3">
-                <span className="text-2xl">⏰</span>
-              </div>
-              <h4 className="font-bold text-white mb-1">Pointage</h4>
-              <p className="text-[#a5b4fc] text-xs mb-3">Gestion du temps</p>
-              
-              <div className="w-full bg-white/10 rounded-full h-2 mb-2">
-                <div className="bg-gradient-to-r from-[#f59e0b] to-[#d97706] h-2 rounded-full" style={{ width: '0%' }}></div>
-              </div>
-              <p className="text-xs text-[#a5b4fc] mb-3">0%</p>
-              
-              <span className="px-3 py-1 bg-[#6b7280] text-white text-xs rounded-full font-medium">
-                Planifié
+          {/* Card Statistiques */}
+          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              📊 Statistiques 
+              <span className="ml-2 text-xs bg-[#22c55e] text-white px-2 py-1 rounded-full">
+                TEMPORAIRE
               </span>
-            </div>
-          </div>
-
-          {/* Messagerie */}
-          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-            <div className="text-center mb-4">
-              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-[#06b6d4] to-[#0891b2] rounded-2xl flex items-center justify-center mb-3">
-                <span className="text-2xl">💬</span>
+            </h3>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Tâches complétées</span>
+                <span className="font-semibold text-[#22c55e]">{mockUserStats.tasksCompleted}</span>
               </div>
-              <h4 className="font-bold text-white mb-1">Messagerie</h4>
-              <p className="text-[#a5b4fc] text-xs mb-3">Chat d'équipe</p>
-              
-              <div className="w-full bg-white/10 rounded-full h-2 mb-2">
-                <div className="bg-gradient-to-r from-[#06b6d4] to-[#0891b2] h-2 rounded-full" style={{ width: '0%' }}></div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Série de connexions</span>
+                <span className="font-semibold text-[#f59e0b]">{mockUserStats.loginStreak} jours</span>
               </div>
-              <p className="text-xs text-[#a5b4fc] mb-3">0%</p>
-              
-              <span className="px-3 py-1 bg-[#6b7280] text-white text-xs rounded-full font-medium">
-                Planifié
-              </span>
-            </div>
-          </div>
-
-          {/* Boutique */}
-          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-            <div className="text-center mb-4">
-              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-[#10b981] to-[#059669] rounded-2xl flex items-center justify-center mb-3">
-                <span className="text-2xl">🛒</span>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">XP Total</span>
+                <span className="font-semibold text-[#6366f1]">{mockUserStats.totalXp}</span>
               </div>
-              <h4 className="font-bold text-white mb-1">Boutique</h4>
-              <p className="text-[#a5b4fc] text-xs mb-3">Récompenses</p>
-              
-              <div className="w-full bg-white/10 rounded-full h-2 mb-2">
-                <div className="bg-gradient-to-r from-[#10b981] to-[#059669] h-2 rounded-full" style={{ width: '0%' }}></div>
-              </div>
-              <p className="text-xs text-[#a5b4fc] mb-3">0%</p>
-              
-              <span className="px-3 py-1 bg-[#6b7280] text-white text-xs rounded-full font-medium">
-                Planifié
-              </span>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Annonce finale - EXACT comme l'image */}
-      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 text-center">
-        <div className="flex items-center justify-center space-x-2 mb-4">
-          <span className="text-2xl">🎉</span>
-          <h2 className="text-2xl font-bold text-white">Synergia v3.5 est maintenant en ligne !</h2>
-        </div>
-        
-        <p className="text-[#a5b4fc] text-lg mb-6">
-          Architecture premium déployée avec succès. Les prochaines fonctionnalités arriveront progressivement.
-        </p>
-        
-        <div className="flex items-center justify-center space-x-8 text-sm">
-          <div className="flex items-center space-x-2">
-            <span>✨</span>
-            <span className="text-[#a5b4fc]">Interface moderne</span>
+        {/* Colonne centrale - Activités */}
+        <div className="space-y-6">
+          {/* Card Actions rapides */}
+          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions rapides</h3>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <button className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 transform hover:scale-105">
+                <div className="text-2xl mb-1">✅</div>
+                <div className="text-sm font-medium">Nouvelle tâche</div>
+              </button>
+              
+              <button className="p-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 transform hover:scale-105">
+                <div className="text-2xl mb-1">📁</div>
+                <div className="text-sm font-medium">Nouveau projet</div>
+              </button>
+              
+              <button className="p-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 transform hover:scale-105">
+                <div className="text-2xl mb-1">📊</div>
+                <div className="text-sm font-medium">Analytics</div>
+              </button>
+              
+              <button className="p-4 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 transform hover:scale-105">
+                <div className="text-2xl mb-1">🏆</div>
+                <div className="text-sm font-medium">Classement</div>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <span>🔧</span>
-            <span className="text-[#a5b4fc]">Architecture évolutive</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span>🚀</span>
-            <span className="text-[#a5b4fc]">Prêt pour la gamification</span>
+
+          {/* Card Debug */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border-2 border-amber-200">
+            <h3 className="text-lg font-semibold text-amber-800 mb-2 flex items-center">
+              🔧 Mode Debug
+            </h3>
+            <p className="text-sm text-amber-700 mb-3">
+              Application en mode temporaire sans GameStore pour résoudre l'erreur.
+            </p>
+            <div className="text-xs text-amber-600 space-y-1">
+              <div>✅ AuthStore: Fonctionnel</div>
+              <div>⚠️ GameStore: Désactivé temporairement</div>
+              <div>📊 Données: Simulées</div>
+            </div>
           </div>
         </div>
 
-        {/* Bouton d'installation PWA */}
-        <div className="mt-6">
-          <button className="px-6 py-3 bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold rounded-xl hover:from-[#5856eb] hover:to-[#7c3aed] transition-all duration-200 shadow-lg flex items-center space-x-2 mx-auto">
-            <span>📱</span>
-            <span>Installer l'app</span>
-          </button>
+        {/* Colonne droite - Activité récente */}
+        <div className="space-y-6">
+          {/* Card Activité récente */}
+          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              🕒 Activité récente
+            </h3>
+            
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">Application démarrée</p>
+                  <p className="text-xs text-gray-600">Il y a quelques instants</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">Connexion réussie</p>
+                  <p className="text-xs text-gray-600">Utilisateur connecté</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">Mode debug activé</p>
+                  <p className="text-xs text-gray-600">GameStore temporairement désactivé</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card Status système */}
+          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">🔧 Status Système</h3>
+            
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Firebase</span>
+                <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                  ✅ Connecté
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Authentification</span>
+                <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                  ✅ Active
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">GameStore</span>
+                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                  ⚠️ Debug
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Version</span>
+                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                  v3.5.1
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
