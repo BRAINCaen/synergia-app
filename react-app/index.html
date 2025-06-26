@@ -1,133 +1,140 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Synergia v3.5.3 - Mode Urgence</title>
   
-  <!-- PWA Meta tags -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="theme-color" content="#3b82f6">
+  <!-- Meta tags -->
+  <meta name="description" content="Synergia - Plateforme collaborative gamifiée">
+  <meta name="theme-color" content="#3B82F6">
   
-  <!-- Manifest -->
-  <link rel="manifest" href="/manifest.json">
-  
-  <title>Synergia - Plateforme de gestion collaborative</title>
-  
-  <!-- Prefetch DNS -->
-  <link rel="dns-prefetch" href="//fonts.googleapis.com">
-  <link rel="dns-prefetch" href="//firebaseapp.com">
+  <!-- 🚨 DÉSACTIVATION COMPLÈTE SERVICE WORKER -->
+  <script>
+    // Désinstaller immédiatement tout Service Worker existant
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        console.log('🚨 URGENCE: Désinstallation de tous les Service Workers...');
+        for(let registration of registrations) {
+          registration.unregister().then(() => {
+            console.log('🚨 Service Worker désinstallé:', registration.scope);
+          });
+        }
+      });
+      
+      // Vider tous les caches
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          console.log('🚨 URGENCE: Suppression de tous les caches...');
+          for (let name of names) {
+            caches.delete(name);
+          }
+        });
+      }
+    }
+  </script>
 </head>
 <body>
-  <div id="root"></div>
-  
-  <!-- Version et debug -->
+  <div id="root">
+    <!-- Fallback en cas de problème -->
+    <div style="
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      min-height: 100vh; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    ">
+      <div>
+        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">🚨 Synergia - Mode Urgence</h1>
+        <p style="font-size: 1.2rem; margin-bottom: 2rem;">Chargement sécurisé en cours...</p>
+        <div style="
+          width: 50px; 
+          height: 50px; 
+          border: 4px solid rgba(255,255,255,0.3); 
+          border-top: 4px solid white; 
+          border-radius: 50%; 
+          animation: spin 1s linear infinite;
+          margin: 0 auto;
+        "></div>
+        <style>
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        </style>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🚨 LOGS D'URGENCE -->
   <script>
-    // ⭐ VERSION TRACKING
-    const storedVersion = localStorage.getItem('synergia_app_version');
-    if (storedVersion && storedVersion !== '3.5.1') {
-      console.log('🔄 Nouvelle version détectée, nettoyage...');
-    }
-    localStorage.setItem('synergia_app_version', '3.5.1');
+    console.log('%c🚨 SYNERGIA MODE URGENCE v3.5.3', 'color: #ef4444; font-size: 20px; font-weight: bold;');
+    console.log('%c🚫 SERVICE WORKER COMPLÈTEMENT DÉSACTIVÉ', 'color: #ef4444; font-size: 16px;');
+    console.log('%c🧹 NETTOYAGE AUTOMATIQUE DES CACHES', 'color: #f59e0b; font-size: 14px;');
     
-    // Console welcome
-    console.log('%c🚀 SYNERGIA v3.5.1', 'color: #3b82f6; font-size: 20px; font-weight: bold;');
-    console.log('%cCommandes disponibles:', 'color: #10b981; font-weight: bold;');
-    console.log('%c• forceDashboardReload() - Force le rechargement', 'color: #6b7280;');
-    console.log('%c• window.location.reload(true) - Rechargement dur', 'color: #6b7280;');
-    
-    // ⭐ MODE DEBUG - SERVICE WORKER DÉSACTIVÉ
-    console.log('%c🚫 SERVICE WORKER DÉSACTIVÉ POUR DEBUG', 'color: #ef4444; font-size: 16px; font-weight: bold;');
-    console.log('%c⚠️ Erreur "TypeError: r is not a function" en cours de résolution', 'color: #f59e0b;');
-  </script>
-  
-  <!-- 🚨 SERVICE WORKER REGISTRATION COMMENTÉ POUR DEBUG -->
-  <!--
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js', {
-          scope: '/',
-          updateViaCache: 'none'
-        })
-        .then(registration => {
-          console.log('📱 SW registered:', registration.scope);
-          
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing;
-            console.log('🔄 Nouvelle version SW détectée');
-            
-            newWorker?.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('📱 SW mis à jour, rechargement...');
-                window.location.reload();
-              }
-            });
-          });
-          
-          registration.update();
-          
-          setInterval(() => {
-            registration.update();
-          }, 60000);
-        })
-        .catch(error => {
-          console.log('❌ SW registration failed:', error);
-        });
+    // Forcer le nettoyage du localStorage problématique
+    try {
+      const keys = Object.keys(localStorage);
+      console.log('🧹 Nettoyage localStorage...', keys.length, 'entrées');
+      
+      // Garder seulement Firebase Auth
+      keys.forEach(key => {
+        if (!key.includes('firebase:authUser')) {
+          localStorage.removeItem(key);
+        }
       });
+      
+      console.log('✅ localStorage nettoyé');
+    } catch (error) {
+      console.warn('⚠️ Erreur nettoyage localStorage:', error);
     }
-  </script>
-  -->
-  
-  <!-- ⭐ VERSION TRACKER -->
-  <script type="application/json" id="version-info">
-    {
-      "version": "3.5.1",
-      "buildTime": "{{BUILD_TIME}}",
-      "features": ["cache-busting", "auto-refresh", "sw-disabled-debug"],
-      "debug": true,
-      "serviceWorker": false
-    }
-  </script>
-  
-  <!-- ⭐ FONCTIONS DEBUG GLOBALES -->
-  <script>
-    // Fonctions de debug disponibles dans la console
-    window.forceDashboardReload = () => {
-      console.log('🔄 Force reload dashboard...');
-      window.location.href = '/dashboard';
-      setTimeout(() => window.location.reload(true), 100);
-    };
     
-    window.emergencyClean = () => {
-      console.log('🚨 NETTOYAGE D\'URGENCE...');
+    // Nettoyer sessionStorage
+    try {
+      sessionStorage.clear();
+      console.log('✅ sessionStorage nettoyé');
+    } catch (error) {
+      console.warn('⚠️ Erreur nettoyage sessionStorage:', error);
+    }
+  </script>
+  
+  <!-- 🚨 FONCTION D'URGENCE GLOBALE -->
+  <script>
+    window.emergencyReset = () => {
+      console.log('🚨 RESET D\'URGENCE TOTAL...');
+      
+      // Vider tout
       localStorage.clear();
       sessionStorage.clear();
+      
+      // Désinstaller SW
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          regs.forEach(reg => reg.unregister());
+        });
+      }
+      
+      // Vider caches
       if ('caches' in window) {
         caches.keys().then(names => {
           names.forEach(name => caches.delete(name));
         });
       }
-      console.log('✅ Nettoyage terminé, rechargement...');
-      setTimeout(() => window.location.reload(true), 1000);
+      
+      console.log('✅ Reset terminé, rechargement...');
+      setTimeout(() => {
+        window.location.href = window.location.origin + '?emergency=true&t=' + Date.now();
+      }, 1000);
     };
     
-    window.debugInfo = () => {
-      console.log('🔍 DEBUG INFO:');
-      console.log('- Version:', '3.5.1');
-      console.log('- URL:', window.location.href);
-      console.log('- Service Worker:', 'DÉSACTIVÉ');
-      console.log('- LocalStorage keys:', Object.keys(localStorage).length);
-      console.log('- User Agent:', navigator.userAgent);
-    };
-    
-    // Logs automatiques
-    console.log('✅ Fonctions debug chargées: forceDashboardReload(), emergencyClean(), debugInfo()');
+    console.log('✅ Fonction d\'urgence chargée: emergencyReset()');
   </script>
   
-  <!-- ⭐ Main App Script -->
+  <!-- 🚨 Main App Script -->
   <script type="module" src="/src/index.jsx"></script>
 </body>
 </html>
