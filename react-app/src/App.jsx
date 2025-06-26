@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// Application principale SIMPLIFIÉE - Sans GameStore
+// Application principale SANS SERVICE WORKER
 // ==========================================
 
 import React, { useEffect, useState } from 'react';
@@ -62,7 +62,7 @@ const SimpleSidebar = () => {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Synergia</h1>
-            <p className="text-xs text-green-600 font-medium">v3.5.1 - Debug</p>
+            <p className="text-xs text-red-600 font-medium">v3.5.1 - NO SW</p>
           </div>
         </div>
       </div>
@@ -143,7 +143,7 @@ const LoginPage = () => {
             <span className="text-white font-bold text-2xl">S</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Bienvenue dans Synergia</h1>
-          <p className="text-gray-600 mt-2">v3.5.1 - Mode Debug</p>
+          <p className="text-gray-600 mt-2">v3.5.1 - Sans Service Worker</p>
         </div>
 
         {error && (
@@ -177,7 +177,7 @@ const LoginPage = () => {
 
         <div className="mt-6 text-center">
           <p className="text-xs text-gray-500">
-            🔧 Mode debug actif - GameStore désactivé
+            🚫 Service Worker désactivé pour debug
           </p>
         </div>
       </div>
@@ -200,15 +200,22 @@ const AppLayout = ({ children }) => {
 };
 
 /**
- * 🚀 COMPOSANT PRINCIPAL APP
+ * 🚀 COMPOSANT PRINCIPAL APP - SANS SERVICE WORKER
  */
 function App() {
   const { user, isAuthenticated, loading, initializeAuth } = useAuthStore();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    console.log('🚀 SYNERGIA v3.5.1 - INITIALISATION MODE DEBUG');
+    console.log('🚀 SYNERGIA v3.5.1 - INITIALISATION SANS SERVICE WORKER');
+    console.log('🚫 Service Worker désactivé pour éliminer erreur');
     console.log('⚠️ GameStore temporairement désactivé');
+    
+    // 🚫 NE PAS ENREGISTRER LE SERVICE WORKER
+    // Cette ligne est commentée pour éviter l'erreur "r is not a function"
+    // if ('serviceWorker' in navigator) {
+    //   navigator.serviceWorker.register('/sw.js');
+    // }
     
     // Initialiser l'authentification
     const unsubscribe = initializeAuth();
@@ -229,7 +236,7 @@ function App() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
           </div>
           <h2 className="text-2xl font-bold mb-2">Chargement Synergia</h2>
-          <p className="text-white/80">v3.5.1 - Mode Debug</p>
+          <p className="text-white/80">v3.5.1 - Sans Service Worker</p>
         </div>
       </div>
     );
@@ -238,6 +245,11 @@ function App() {
   return (
     <Router>
       <div className="App">
+        {/* Banner d'avertissement visible */}
+        <div className="bg-red-600 text-white p-2 text-center text-sm font-medium">
+          🚫 MODE DEBUG: Service Worker désactivé | GameStore désactivé | Test correction erreur "r is not a function"
+        </div>
+        
         {!isAuthenticated ? (
           <LoginPage />
         ) : (
