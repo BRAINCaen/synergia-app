@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// App.jsx COMPLET avec toutes les routes fonctionnelles
+// App.jsx COMPLET avec TOUTES LES ROUTES (navigation fixée)
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -12,13 +12,18 @@ import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import NotFound from './pages/NotFound.jsx';
 
-// Pages manquantes à créer
+// Toutes les pages existantes
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import LeaderboardPage from './pages/LeaderboardPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
+
+// NOUVELLES PAGES AJOUTÉES
+import TeamPage from './pages/TeamPage.jsx';
+import TimeTrackPage from './pages/TimeTrackPage.jsx';
+import RewardsPage from './pages/RewardsPage.jsx';
 
 // Layout
 import DashboardLayout from './layouts/DashboardLayout.jsx';
@@ -34,7 +39,7 @@ const LoadingScreen = ({ message = "Chargement Synergia" }) => {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
         </div>
         <h2 className="text-2xl font-bold mb-2">{message}</h2>
-        <p className="text-white/80">v3.5.3 - Mode Stable</p>
+        <p className="text-white/80">v3.5.4 - Navigation Réparée</p>
       </div>
     </div>
   );
@@ -69,13 +74,13 @@ function App() {
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    console.log('🚀 SYNERGIA v3.5.3 - INITIALISATION COMPLÈTE');
+    console.log('🚀 SYNERGIA v3.5.4 - NAVIGATION RÉPARÉE');
     
     const initialize = async () => {
       try {
         const unsubscribe = initializeAuth();
         setIsInitialized(true);
-        console.log('✅ App initialisée avec toutes les routes');
+        console.log('✅ App initialisée avec TOUTES les routes de navigation');
         return unsubscribe;
       } catch (error) {
         console.error('❌ Erreur initialisation:', error);
@@ -94,8 +99,8 @@ function App() {
     <Router>
       <div className="App">
         {/* Banner de succès */}
-        <div className="bg-green-600 text-white p-2 text-center text-sm font-medium">
-          ✅ SYNERGIA v3.5.3 COMPLET | Toutes les pages disponibles | Application fonctionnelle
+        <div className="bg-blue-600 text-white p-2 text-center text-sm font-medium">
+          ✅ SYNERGIA v3.5.4 RÉPARÉ | Navigation complète + Édition fonctionnelle
         </div>
         
         <Routes>
@@ -167,6 +172,34 @@ function App() {
             element={
               <ProtectedRoute>
                 <UsersPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* ✅ NOUVELLES ROUTES AJOUTÉES POUR FIXER LA NAVIGATION */}
+          <Route 
+            path="/team" 
+            element={
+              <ProtectedRoute>
+                <TeamPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/timetrack" 
+            element={
+              <ProtectedRoute>
+                <TimeTrackPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/rewards" 
+            element={
+              <ProtectedRoute>
+                <RewardsPage />
               </ProtectedRoute>
             } 
           />
