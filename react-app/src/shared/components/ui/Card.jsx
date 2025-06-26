@@ -1,83 +1,144 @@
-// src/shared/components/ui/Card.jsx
-import React from 'react'
-import { clsx } from 'clsx'
+// ==========================================
+// 📁 react-app/src/shared/components/ui/Card.jsx
+// Composants Card CRÉÉS pour résoudre erreur build
+// ==========================================
 
-const Card = React.forwardRef(({ className, children, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={clsx(
-      'rounded-lg border border-gray-200 bg-white shadow-sm',
-      className
-    )}
-    {...props}
-  >
-    {children}
-  </div>
-))
+import React from 'react';
 
-Card.displayName = 'Card'
+/**
+ * 🃏 COMPOSANT CARD PRINCIPAL
+ */
+const Card = React.forwardRef(({ 
+  className = '', 
+  children, 
+  ...props 
+}, ref) => {
+  return (
+    <div
+      ref={ref}
+      className={`bg-white rounded-lg border border-gray-200 shadow-sm ${className}`}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+});
 
-const CardHeader = React.forwardRef(({ className, children, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={clsx('flex flex-col space-y-1.5 p-6', className)}
-    {...props}
-  >
-    {children}
-  </div>
-))
+Card.displayName = 'Card';
 
-CardHeader.displayName = 'CardHeader'
+/**
+ * 📄 CARD HEADER
+ */
+const CardHeader = React.forwardRef(({ 
+  className = '', 
+  children, 
+  ...props 
+}, ref) => {
+  return (
+    <div
+      ref={ref}
+      className={`p-6 pb-3 ${className}`}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+});
 
-const CardTitle = React.forwardRef(({ className, children, ...props }, ref) => (
-  <h3
-    ref={ref}
-    className={clsx(
-      'text-lg font-semibold leading-none tracking-tight',
-      className
-    )}
-    {...props}
-  >
-    {children}
-  </h3>
-))
+CardHeader.displayName = 'CardHeader';
 
-CardTitle.displayName = 'CardTitle'
+/**
+ * 📝 CARD TITLE
+ */
+const CardTitle = React.forwardRef(({ 
+  className = '', 
+  children, 
+  ...props 
+}, ref) => {
+  return (
+    <h3
+      ref={ref}
+      className={`text-lg font-semibold text-gray-900 ${className}`}
+      {...props}
+    >
+      {children}
+    </h3>
+  );
+});
 
-const CardDescription = React.forwardRef(({ className, children, ...props }, ref) => (
-  <p
-    ref={ref}
-    className={clsx('text-sm text-gray-600', className)}
-    {...props}
-  >
-    {children}
-  </p>
-))
+CardTitle.displayName = 'CardTitle';
 
-CardDescription.displayName = 'CardDescription'
+/**
+ * 📖 CARD DESCRIPTION
+ */
+const CardDescription = React.forwardRef(({ 
+  className = '', 
+  children, 
+  ...props 
+}, ref) => {
+  return (
+    <p
+      ref={ref}
+      className={`text-sm text-gray-600 mt-1 ${className}`}
+      {...props}
+    >
+      {children}
+    </p>
+  );
+});
 
-const CardContent = React.forwardRef(({ className, children, ...props }, ref) => (
-  <div ref={ref} className={clsx('p-6 pt-0', className)} {...props}>
-    {children}
-  </div>
-))
+CardDescription.displayName = 'CardDescription';
 
-CardContent.displayName = 'CardContent'
+/**
+ * 📚 CARD CONTENT
+ */
+const CardContent = React.forwardRef(({ 
+  className = '', 
+  children, 
+  ...props 
+}, ref) => {
+  return (
+    <div
+      ref={ref}
+      className={`p-6 pt-3 ${className}`}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+});
 
-const CardFooter = React.forwardRef(({ className, children, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={clsx('flex items-center p-6 pt-0', className)}
-    {...props}
-  >
-    {children}
-  </div>
-))
+CardContent.displayName = 'CardContent';
 
-CardFooter.displayName = 'CardFooter'
+/**
+ * 🦶 CARD FOOTER
+ */
+const CardFooter = React.forwardRef(({ 
+  className = '', 
+  children, 
+  ...props 
+}, ref) => {
+  return (
+    <div
+      ref={ref}
+      className={`p-6 pt-3 border-t border-gray-200 ${className}`}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+});
 
-// Exports nommés
-export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
+CardFooter.displayName = 'CardFooter';
 
-// Export par défaut pour compatibilité
-export default Card
+// Exports
+export { 
+  Card, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription, 
+  CardContent, 
+  CardFooter 
+};
+
+export default Card;
