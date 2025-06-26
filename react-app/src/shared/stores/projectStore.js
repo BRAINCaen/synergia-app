@@ -1,306 +1,107 @@
-// src/shared/stores/projectStore.js
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
+// ==========================================
+// 📁 react-app/src/shared/stores/projectStore.js
+// ProjectStore STABLE - Version sans conflit
+// ==========================================
 
-// Import direct du service projet
-import { projectService } from '../../core/services/projectService.js';
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export const useProjectStore = create(
-  devtools(
+  persist(
     (set, get) => ({
-      // État
+      // 📁 ÉTAT INITIAL
       projects: [],
-      selectedProject: null,
       loading: false,
       error: null,
-      filters: {
-        status: 'all'
-      },
-      unsubscribe: null,
+      currentProject: null,
 
-      // Actions
-      setLoading: (loading) => set({ loading }),
-      setError: (error) => set({ error }),
-      clearError: () => set({ error: null }),
-      setSelectedProject: (project) => set({ selectedProject: project }),
-
-      // Charger les projets utilisateur
-      loadUserProjects: async (userId) => {
-        set({ loading: true, error: null });
-
-        try {
-          if (projectService) {
-            const projects = await projectService.getUserProjects(userId);
-            set({ projects, loading: false });
-          } else {
-            // Mode démo
-            const mockProjects = get().getMockProjects(userId);
-            set({ projects: mockProjects, loading: false });
-          }
-        } catch (error) {
-          console.error('❌ Erreur chargement projets:', error);
-          set({ error: error.message, loading: false });
-          
-          // Fallback avec données de démo
-          const mockProjects = get().getMockProjects(userId);
-          set({ projects: mockProjects });
-        }
-      },
-
-      // Créer un projet
-      createProject: async (projectData, userId) => {
-        set({ loading: true, error: null });
-
-        try {
-          let newProject;
-          
-          if (projectService) {
-            newProject = await projectService.createProject(projectData, userId);
-          } else {
-            // Mode démo
-            newProject = {
-              id: `demo-${Date.now()}`,
-              ...projectData,
-              ownerId: userId,
-              members: [userId],
-              progress: 0,
-              taskCount: 0,
-              completedTaskCount: 0,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            };
-          }
-          
-          set(state => ({
-            projects: [newProject, ...state.projects],
-            loading: false
-          }));
-          
-          return { success: true, project: newProject };
-        } catch (error) {
-          console.error('❌ Erreur création projet:', error);
-          set({ loading: false, error: error.message });
-          return { success: false, error: error.message };
-        }
-      },
-
-      // Mettre à jour un projet
-      updateProject: async (projectId, updates, userId) => {
-        set({ loading: true, error: null });
-
-        try {
-          let updatedProject;
-          
-          if (projectService) {
-            updatedProject = await projectService.updateProject(projectId, updates, userId);
-          } else {
-            // Mode démo
-            const projects = get().projects;
-            const projectIndex = projects.findIndex(p => p.id === projectId);
-            if (projectIndex === -1) throw new Error('Projet non trouvé');
-            
-            updatedProject = {
-              ...projects[projectIndex],
-              ...updates,
-              updatedAt: new Date()
-            };
-          }
-          
-          set(state => ({
-            projects: state.projects.map(p => 
-              p.id === projectId ? updatedProject : p
-            ),
-            selectedProject: state.selectedProject?.id === projectId 
-              ? updatedProject 
-              : state.selectedProject,
-            loading: false
-          }));
-          
-          return { success: true, project: updatedProject };
-        } catch (error) {
-          console.error('❌ Erreur mise à jour projet:', error);
-          set({ loading: false, error: error.message });
-          return { success: false, error: error.message };
-        }
-      },
-
-      // Supprimer un projet
-      deleteProject: async (projectId, userId) => {
-        set({ loading: true, error: null });
-
-        try {
-          if (projectService) {
-            await projectService.deleteProject(projectId, userId);
-          }
-          
-          set(state => ({
-            projects: state.projects.filter(p => p.id !== projectId),
-            selectedProject: state.selectedProject?.id === projectId 
-              ? null 
-              : state.selectedProject,
-            loading: false
-          }));
-          
-          return { success: true };
-        } catch (error) {
-          console.error('❌ Erreur suppression projet:', error);
-          set({ loading: false, error: error.message });
-          return { success: false, error: error.message };
-        }
-      },
-
-      // Écouter les changements en temps réel
-      subscribeToProjects: (userId) => {
-        const { unsubscribe: currentUnsubscribe } = get();
+      // 📝 ACTIONS CRUD
+      addProject: (project) => {
+        const newProject = {
+          id: Date.now().toString(),
+          ...project,
+          createdAt: new Date().toISOString(),
+          status: 'active',
+          progress: 0,
+          tasksCount: 0,
+          completedTasks: 0
+        };
         
-        if (currentUnsubscribe) {
-          currentUnsubscribe();
-        }
-
-        if (projectService && projectService.subscribeToUserProjects) {
-          const unsubscribe = projectService.subscribeToUserProjects(
-            userId,
-            (projects) => {
-              set({ projects });
-            }
-          );
-          
-          set({ unsubscribe });
-          return unsubscribe;
-        } else {
-          // Mode démo - pas de sync temps réel
-          console.warn('⚠️ Mode démo - Pas de synchronisation temps réel');
-          return () => {};
-        }
-      },
-
-      // Nettoyer l'abonnement
-      cleanup: () => {
-        const { unsubscribe } = get();
-        if (unsubscribe) {
-          unsubscribe();
-          set({ unsubscribe: null });
-        }
-      },
-
-      // Obtenir les projets filtrés
-      getFilteredProjects: () => {
-        const { projects, filters } = get();
-        
-        return projects.filter(project => {
-          if (filters.status !== 'all' && project.status !== filters.status) {
-            return false;
-          }
-          return true;
-        });
-      },
-
-      // Mettre à jour les filtres
-      setFilters: (newFilters) => {
         set(state => ({
-          filters: { ...state.filters, ...newFilters }
+          projects: [...state.projects, newProject]
+        }));
+        
+        console.log('✅ Projet créé:', newProject.name);
+      },
+
+      updateProject: (projectId, updates) => {
+        set(state => ({
+          projects: state.projects.map(project =>
+            project.id === projectId ? { ...project, ...updates } : project
+          )
         }));
       },
 
-      // Statistiques des projets
+      deleteProject: (projectId) => {
+        set(state => ({
+          projects: state.projects.filter(project => project.id !== projectId)
+        }));
+      },
+
+      setCurrentProject: (projectId) => {
+        const project = get().projects.find(p => p.id === projectId);
+        set({ currentProject: project });
+      },
+
+      // 📊 CALCUL PROGRESSION AUTOMATIQUE
+      updateProjectProgress: (projectId) => {
+        // Cette méthode sera appelée quand une tâche du projet change
+        try {
+          // Récupérer les tâches du projet depuis TaskStore
+          const taskStore = window?.useTaskStore?.getState?.();
+          if (taskStore) {
+            const projectTasks = taskStore.tasks.filter(task => task.projectId === projectId);
+            const completedTasks = projectTasks.filter(task => task.status === 'completed');
+            const progress = projectTasks.length > 0 ? (completedTasks.length / projectTasks.length) * 100 : 0;
+            
+            get().updateProject(projectId, {
+              tasksCount: projectTasks.length,
+              completedTasks: completedTasks.length,
+              progress: Math.round(progress)
+            });
+          }
+        } catch (error) {
+          console.log('ℹ️ Impossible de calculer progression:', error.message);
+        }
+      },
+
+      // 📈 STATISTIQUES
       getProjectStats: () => {
         const projects = get().projects;
-        
         return {
           total: projects.length,
-          active: projects.filter(project => project.status === 'active').length,
-          completed: projects.filter(project => project.status === 'completed').length,
-          paused: projects.filter(project => project.status === 'paused').length,
-          avgProgress: projects.length > 0 
-            ? Math.round(projects.reduce((sum, project) => sum + (project.progress || 0), 0) / projects.length)
-            : 0
+          active: projects.filter(p => p.status === 'active').length,
+          completed: projects.filter(p => p.status === 'completed').length,
+          paused: projects.filter(p => p.status === 'paused').length
         };
       },
 
-      // Données de démonstration
-      getMockProjects: (userId) => [
-        {
-          id: 'demo-1',
-          name: '🚀 Projet Synergia v3',
-          description: 'Développement de l\'application de productivité avec gamification complète',
-          status: 'active',
-          progress: 75,
-          taskCount: 12,
-          completedTaskCount: 9,
-          ownerId: userId,
-          members: [userId],
-          tags: ['développement', 'productivité', 'firebase'],
-          createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Il y a 7 jours
-          updatedAt: new Date(),
-          dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // Dans 14 jours
-        },
-        {
-          id: 'demo-2',
-          name: '📊 Dashboard Analytics',
-          description: 'Création d\'un tableau de bord avec métriques avancées et visualisations',
-          status: 'active',
-          progress: 45,
-          taskCount: 8,
-          completedTaskCount: 4,
-          ownerId: userId,
-          members: [userId],
-          tags: ['analytics', 'dashboard', 'charts'],
-          createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // Il y a 3 jours
-          updatedAt: new Date(),
-          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Dans 7 jours
-        },
-        {
-          id: 'demo-3',
-          name: '✅ Migration Firebase',
-          description: 'Migration complète vers Firebase pour la persistence et synchronisation temps réel',
-          status: 'completed',
-          progress: 100,
-          taskCount: 15,
-          completedTaskCount: 15,
-          ownerId: userId,
-          members: [userId],
-          tags: ['firebase', 'migration', 'database'],
-          createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), // Il y a 14 jours
-          updatedAt: new Date(),
-          dueDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) // Il y a 1 jour
-        },
-        {
-          id: 'demo-4',
-          name: '🎮 Système Gamification',
-          description: 'Implémentation complète du système XP, badges et leaderboard',
-          status: 'active',
-          progress: 90,
-          taskCount: 10,
-          completedTaskCount: 9,
-          ownerId: userId,
-          members: [userId],
-          tags: ['gamification', 'xp', 'badges'],
-          createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // Il y a 10 jours
-          updatedAt: new Date(),
-          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // Dans 3 jours
-        }
-      ],
+      getActiveProjects: () => {
+        return get().projects.filter(p => p.status === 'active');
+      },
 
-      // Rechercher des projets
-      searchProjects: (searchTerm) => {
-        const projects = get().projects;
-        
-        if (!searchTerm.trim()) {
-          return projects;
-        }
-        
-        const term = searchTerm.toLowerCase();
-        return projects.filter(project => 
-          project.name?.toLowerCase().includes(term) ||
-          project.description?.toLowerCase().includes(term) ||
-          project.tags?.some(tag => tag.toLowerCase().includes(term))
-        );
+      getProjectById: (projectId) => {
+        return get().projects.find(p => p.id === projectId);
       }
     }),
     {
-      name: 'project-store'
+      name: 'project-store-v3',
+      partialize: (state) => ({
+        projects: state.projects,
+        currentProject: state.currentProject
+      })
     }
   )
 );
 
-export default useProjectStore;
+console.log('✅ ProjectStore initialisé et stable');
