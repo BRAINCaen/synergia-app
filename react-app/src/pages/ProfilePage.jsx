@@ -6,9 +6,10 @@
 import React, { useState } from 'react';
 import { useAuthStore, useGameStore } from '../shared/stores';
 import { User, Mail, Calendar, Award, Star, Settings, Edit, LogOut } from 'lucide-react';
+import profileService from '../core/services/profileService.js';
 
 const ProfilePage = () => {
-  const { user, signOut } = useAuthStore();
+  const { user, signOut, updateProfile } = useAuthStore();
   const { userStats, badges } = useGameStore();
   const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({
@@ -27,8 +28,10 @@ const ProfilePage = () => {
 
   const handleSaveProfile = async () => {
     try {
-      console.log('Sauvegarde profil:', formData);
+      // Sauvegarder dans Firebase
+      await profileService.updateUserProfile(user.uid, formData);
       
+      // Feedback visuel de succès
       const button = document.querySelector('[data-save-btn]');
       if (button) {
         button.textContent = '✅ Sauvegardé !';
@@ -38,8 +41,18 @@ const ProfilePage = () => {
       }
       
       setIsEditMode(false);
+      console.log('✅ Profil sauvegardé avec succès');
     } catch (error) {
-      console.error('Erreur sauvegarde profil:', error);
+      console.error('❌ Erreur sauvegarde profil:', error);
+      
+      // Feedback d'erreur
+      const button = document.querySelector('[data-save-btn]');
+      if (button) {
+        button.textContent = '❌ Erreur';
+        setTimeout(() => {
+          button.innerHTML = '<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M7.707 10.293a1 1 0 10-1.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 00-1.414-1.414L9 11.586l-1.293-1.293z"/></svg>Sauvegarder';
+        }, 2000);
+      }
     }
   };
 
