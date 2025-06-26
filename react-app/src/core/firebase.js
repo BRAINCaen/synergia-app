@@ -1,10 +1,18 @@
 // ==========================================
 // 📁 react-app/src/core/firebase.js
-// Configuration Firebase avec exports corrigés pour le build
+// Configuration Firebase SIMPLIFIÉE - Sans persistence IndexedDB
 // ==========================================
 
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut,
+  onAuthStateChanged,
+  setPersistence,
+  inMemoryPersistence  // ⭐ UTILISER MÉMOIRE AU LIEU D'INDEXEDDB
+} from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -26,15 +34,11 @@ console.log('🔧 Configuration Firebase:', {
   configured: isFirebaseConfigured,
   env: import.meta.env.MODE,
   apiKey: firebaseConfig.apiKey ? '✅' : '❌',
-  projectId: firebaseConfig.projectId || '❌'
+  projectId: firebaseConfig.projectId || 'non défini'
 });
 
 // Initialisation Firebase
-let app = null;
-let auth = null;
-let db = null;
-let storage = null;
-let googleProvider = null;
+let app, auth, db, storage;
 
 if (isFirebaseConfigured) {
   try {
@@ -43,43 +47,44 @@ if (isFirebaseConfigured) {
     db = getFirestore(app);
     storage = getStorage(app);
     
-    // Configuration Google Auth Provider
-    googleProvider = new GoogleAuthProvider();
-    googleProvider.addScope('email');
-    googleProvider.addScope('profile');
-    googleProvider.setCustomParameters({
-      prompt: 'select_account'
-    });
+    // ⭐ FORCER LA PERSISTENCE EN MÉMOIRE POUR ÉVITER INDEXEDDB
+    console.log('🔧 Configuration persistence Firebase en mémoire...');
+    setPersistence(auth, inMemoryPersistence)
+      .then(() => {
+        console.log('✅ Persistence Firebase configurée en mémoire');
+      })
+      .catch((error) => {
+        console.warn('⚠️ Impossible de configurer persistence:', error);
+        // Continuer même si la persistence échoue
+      });
     
     console.log('✅ Firebase initialisé avec succès');
   } catch (error) {
     console.error('❌ Erreur initialisation Firebase:', error);
   }
 } else {
-  console.warn('⚠️ Firebase non configuré - Variables d\'environnement manquantes');
+  console.warn('⚠️ Firebase non configuré - variables d\'environnement manquantes');
 }
 
-// Services d'authentification
+// ⭐ SERVICE D'AUTHENTIFICATION SIMPLIFIÉ
 export const authService = {
-  // Connexion avec Google
-  async signInWithGoogle() {
-    if (!auth || !googleProvider) {
-      throw new Error('Firebase non configuré');
-    }
+  // Authentification avec Google
+  signInWithGoogle: async () => {
+    if (!auth) throw new Error('Firebase Auth non initialisé');
     
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
+      console.log('🔐 Tentative de connexion Google...');
+      const provider = new GoogleAuthProvider();
       
-      console.log('✅ Connexion Google réussie:', user.email);
+      // ⭐ OPTIONS SIMPLIFIÉES POUR ÉVITER LES ERREURS
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
       
-      return {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-        emailVerified: user.emailVerified
-      };
+      const result = await signInWithPopup(auth, provider);
+      console.log('✅ Connexion Google réussie:', result.user.email);
+      
+      return result;
     } catch (error) {
       console.error('❌ Erreur connexion Google:', error);
       throw error;
@@ -87,12 +92,11 @@ export const authService = {
   },
 
   // Déconnexion
-  async signOut() {
-    if (!auth) {
-      throw new Error('Firebase non configuré');
-    }
+  signOut: async () => {
+    if (!auth) throw new Error('Firebase Auth non initialisé');
     
     try {
+      console.log('🚪 Déconnexion...');
       await signOut(auth);
       console.log('✅ Déconnexion réussie');
     } catch (error) {
@@ -101,35 +105,69 @@ export const authService = {
     }
   },
 
-  // Écouter les changements d'état auth
-  onAuthStateChanged(callback) {
+  // Observer les changements d'état d'authentification
+  onAuthStateChanged: (callback) => {
     if (!auth) {
-      console.warn('⚠️ Firebase non configuré - Mode mock');
-      callback(null);
-      return () => {};
+      console.warn('⚠️ Firebase Auth non initialisé');
+      return () => {}; // Retourner une fonction vide
     }
     
-    return auth.onAuthStateChanged(callback);
+    console.log('👀 Écoute des changements d\'authentification...');
+    return onAuthStateChanged(auth, (user) => {
+      console.log('🔄 État auth changé:', user ? `Connecté: ${user.email}` : 'Déconnecté');
+      callback(user);
+    });
   },
 
-  // Obtenir l'utilisateur actuel
-  getCurrentUser() {
+  // Utilisateur actuel
+  get currentUser() {
     return auth?.currentUser || null;
   }
 };
 
-// ✅ CORRECTION: Exports multiples pour compatibilité
-export { isFirebaseConfigured };
-export { auth };
-export { db }; // ✅ Export direct de db
-export { storage };
-export { googleProvider };
-
-// ✅ Exports avec alias pour compatibilité
-export const firebaseAuth = auth;
-export const firebaseDb = db;
-export const firebaseStorage = storage;
-export const firebaseGoogleProvider = googleProvider;
-
-// Export par défaut
+// ⭐ EXPORTS SÉCURISÉS
+export { auth, db, storage };
 export default app;
+
+// ⭐ NETTOYAGE GLOBAL D'URGENCE
+window.emergencyFirebaseClean = async () => {
+  console.log('🚨 NETTOYAGE D\'URGENCE FIREBASE...');
+  
+  try {
+    // Vider IndexedDB Firebase
+    if ('indexedDB' in window) {
+      const databases = ['firebaseLocalStorageDb'];
+      for (const dbName of databases) {
+        try {
+          const deleteReq = indexedDB.deleteDatabase(dbName);
+          deleteReq.onsuccess = () => console.log(`✅ DB ${dbName} supprimée`);
+          deleteReq.onerror = () => console.log(`❌ Erreur suppression ${dbName}`);
+        } catch (error) {
+          console.warn('⚠️ Erreur suppression DB:', error);
+        }
+      }
+    }
+    
+    // Vider localStorage Firebase
+    const firebaseKeys = Object.keys(localStorage).filter(key => 
+      key.includes('firebase') || key.includes('firebaseui')
+    );
+    firebaseKeys.forEach(key => {
+      localStorage.removeItem(key);
+      console.log(`🗑️ Clé localStorage supprimée: ${key}`);
+    });
+    
+    console.log('✅ Nettoyage Firebase terminé');
+    
+    // Recharger la page après nettoyage
+    setTimeout(() => {
+      console.log('🔄 Rechargement de la page...');
+      window.location.reload(true);
+    }, 2000);
+    
+  } catch (error) {
+    console.error('❌ Erreur nettoyage Firebase:', error);
+  }
+};
+
+console.log('🔧 Firebase configuré - emergencyFirebaseClean() disponible en console');
