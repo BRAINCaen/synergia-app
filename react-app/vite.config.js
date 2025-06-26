@@ -1,52 +1,70 @@
 // ==========================================
 // 📁 react-app/vite.config.js
-// Configuration Vite ULTRA-SIMPLIFIÉE
+// Configuration Vite D'URGENCE - Version qui fonctionne
 // ==========================================
 
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { resolve } from 'path'
 
-// Configuration MINIMALE pour éviter TOUTE erreur
 export default defineConfig({
-  plugins: [
-    react({
-      // ⭐ DÉSACTIVER TOUTES LES OPTIMISATIONS QUI PEUVENT CAUSER DES ERREURS
-      fastRefresh: false,
-      jsxRuntime: 'automatic'
-    })
-  ],
+  plugins: [react()],
   
-  // Build ultra-simple
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, './src'),
+      '@components': resolve(__dirname, './src/components'),
+      '@pages': resolve(__dirname, './src/pages'),
+      '@shared': resolve(__dirname, './src/shared'),
+      '@core': resolve(__dirname, './src/core'),
+      '@hooks': resolve(__dirname, './src/hooks'),
+      '@utils': resolve(__dirname, './src/shared/utils'),
+      '@stores': resolve(__dirname, './src/shared/stores'),
+      '@services': resolve(__dirname, './src/core/services')
+    }
+  },
+
+  server: {
+    port: 3000,
+    open: true,
+    host: true
+  },
+
   build: {
     outDir: 'dist',
     sourcemap: false,
-    minify: false, // ⭐ DÉSACTIVER MINIFICATION
-    target: 'es2015', // ⭐ TARGET PLUS SIMPLE
+    minify: 'terser',
+    target: 'esnext',
     
     rollupOptions: {
       output: {
-        // ⭐ CHUNKING COMPLÈTEMENT DÉSACTIVÉ
-        manualChunks: undefined,
-        inlineDynamicImports: true // ⭐ TOUT EN UN SEUL FICHIER
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
       }
-    }
+    },
+    
+    chunkSizeWarningLimit: 1000
   },
-  
-  // Server simple
-  server: {
-    port: 3000,
-    host: true
+
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version)
   },
-  
-  // ⭐ OPTIMISATION COMPLÈTEMENT DÉSACTIVÉE
+
+  css: {
+    devSourcemap: true
+  },
+
   optimizeDeps: {
-    disabled: false,
-    include: [],
-    exclude: []
-  },
-  
-  // ⭐ DÉSACTIVER TOUTES LES TRANSFORMATIONS
-  esbuild: {
-    logOverride: { 'this-is-undefined-in-esm': 'silent' }
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      'firebase/app',
+      'firebase/firestore',
+      'firebase/auth',
+      'zustand',
+      'lucide-react'
+    ]
   }
 })
