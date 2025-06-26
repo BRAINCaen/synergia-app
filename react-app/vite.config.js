@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/vite.config.js
-// Configuration Vite D'URGENCE - Version qui fonctionne
+// Configuration Vite SANS Terser pour éviter l'erreur
 // ==========================================
 
 import { defineConfig } from 'vite'
@@ -33,7 +33,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    minify: 'terser',
+    // 🚀 CORRECTION : Désactiver terser pour éviter l'erreur
+    minify: 'esbuild', // Utiliser esbuild au lieu de terser
     target: 'esnext',
     
     rollupOptions: {
