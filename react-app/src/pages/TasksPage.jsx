@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// Page Tâches avec design premium sombre - Style Leaderboard
+// Page Tâches avec design premium sombre - Version autonome sans collaboration
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
