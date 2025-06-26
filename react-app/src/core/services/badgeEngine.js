@@ -1,556 +1,563 @@
 // ==========================================
 // 📁 react-app/src/core/services/badgeEngine.js
-// Badge Engine - VERSION COMPLÈTE ET CORRIGÉE
+// Badge Engine Intelligent - Détection automatique des badges
 // ==========================================
 
-import { collection, doc, updateDoc, arrayUnion, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
 /**
- * 🏆 BADGE ENGINE SYNERGIA v3.5 - COMPLET
+ * 🏆 DÉFINITION DES BADGES INTELLIGENTS
+ */
+const BADGE_DEFINITIONS = {
+  // 🌅 Badges de productivité temporelle
+  EARLY_BIRD: {
+    id: 'early_bird',
+    name: 'Lève-tôt',
+    description: 'Créer 5 tâches avant 9h du matin',
+    icon: '🌅',
+    xp: 50,
+    rarity: 'common',
+    condition: 'early_tasks',
+    threshold: 5
+  },
+  
+  NIGHT_OWL: {
+    id: 'night_owl',
+    name: 'Oiseau de nuit',
+    description: 'Compléter 5 tâches après 18h',
+    icon: '🦉',
+    xp: 50,
+    rarity: 'common',
+    condition: 'late_tasks',
+    threshold: 5
+  },
+  
+  // ⚡ Badges de performance
+  SPRINT_MASTER: {
+    id: 'sprint_master',
+    name: 'Maître du Sprint',
+    description: 'Compléter 10 tâches en une journée',
+    icon: '⚡',
+    xp: 100,
+    rarity: 'rare',
+    condition: 'daily_tasks',
+    threshold: 10
+  },
+  
+  SPEED_DEMON: {
+    id: 'speed_demon',
+    name: 'Démon de vitesse',
+    description: 'Compléter une tâche en moins de 30 minutes',
+    icon: '💨',
+    xp: 75,
+    rarity: 'uncommon',
+    condition: 'quick_completion',
+    threshold: 30 // minutes
+  },
+  
+  // 🔥 Badges de consistance
+  CONSISTENCY_KING: {
+    id: 'consistency_king',
+    name: 'Roi de la Régularité',
+    description: '7 jours consécutifs avec au moins une tâche',
+    icon: '🔥',
+    xp: 200,
+    rarity: 'epic',
+    condition: 'consecutive_days',
+    threshold: 7
+  },
+  
+  WEEK_WARRIOR: {
+    id: 'week_warrior',
+    name: 'Guerrier de la Semaine',
+    description: 'Être actif tous les jours de la semaine',
+    icon: '⚔️',
+    xp: 150,
+    rarity: 'rare',
+    condition: 'weekly_activity',
+    threshold: 7
+  },
+  
+  // 🎯 Badges de volume
+  TASK_DESTROYER: {
+    id: 'task_destroyer_25',
+    name: 'Destructeur de Tâches',
+    description: 'Compléter 25 tâches au total',
+    icon: '🎯',
+    xp: 100,
+    rarity: 'common',
+    condition: 'total_tasks',
+    threshold: 25
+  },
+  
+  TASK_ANNIHILATOR: {
+    id: 'task_annihilator_100',
+    name: 'Annihilateur de Tâches',
+    description: 'Compléter 100 tâches au total',
+    icon: '💥',
+    xp: 300,
+    rarity: 'legendary',
+    condition: 'total_tasks',
+    threshold: 100
+  },
+  
+  // 📊 Badges de qualité
+  PERFECTIONIST: {
+    id: 'perfectionist',
+    name: 'Perfectionniste',
+    description: '95% de taux de completion sur 20 tâches',
+    icon: '⭐',
+    xp: 150,
+    rarity: 'rare',
+    condition: 'completion_rate',
+    threshold: 0.95,
+    minTasks: 20
+  },
+  
+  DEADLINE_NINJA: {
+    id: 'deadline_ninja',
+    name: 'Ninja des Deadlines',
+    description: 'Terminer 10 tâches avant leur deadline',
+    icon: '🥷',
+    xp: 125,
+    rarity: 'uncommon',
+    condition: 'deadline_respect',
+    threshold: 10
+  },
+  
+  // 🚀 Badges de milestone
+  FIRST_WEEK: {
+    id: 'first_week',
+    name: 'Première Semaine',
+    description: 'Utiliser Synergia pendant 7 jours',
+    icon: '🚀',
+    xp: 75,
+    rarity: 'common',
+    condition: 'usage_days',
+    threshold: 7
+  },
+  
+  COMEBACK_KID: {
+    id: 'comeback_kid',
+    name: 'Retour en Force',
+    description: 'Revenir après 7+ jours d\'inactivité',
+    icon: '🔄',
+    xp: 100,
+    rarity: 'uncommon',
+    condition: 'comeback',
+    threshold: 7
+  }
+};
+
+/**
+ * 🤖 CLASSE BADGE ENGINE PRINCIPALE
  */
 class BadgeEngine {
-  
-  static BADGE_DEFINITIONS = {
-    'task_destroyer_25': {
-      id: 'task_destroyer_25',
-      name: 'Task Destroyer',
-      icon: '💥',
-      description: 'Complété 25 tâches',
-      condition: 'completedTasks >= 25',
-      category: 'progression',
-      rarity: 'common',
-      xpReward: 100
-    },
-    'task_destroyer_50': {
-      id: 'task_destroyer_50',
-      name: 'Task Annihilator',
-      icon: '🔥',
-      description: 'Complété 50 tâches',
-      condition: 'completedTasks >= 50',
-      category: 'progression',
-      rarity: 'rare',
-      xpReward: 250
-    },
-    'task_destroyer_100': {
-      id: 'task_destroyer_100',
-      name: 'Task Obliterator',
-      icon: '💀',
-      description: 'Complété 100 tâches',
-      condition: 'completedTasks >= 100',
-      category: 'progression',
-      rarity: 'epic',
-      xpReward: 500
-    },
-    'early_bird': {
-      id: 'early_bird',
-      name: 'Early Bird',
-      icon: '🌅',
-      description: 'Complété 5 tâches avant 8h du matin',
-      condition: 'earlyMorningTasks >= 5',
-      category: 'temporal',
-      rarity: 'uncommon',
-      xpReward: 150
-    },
-    'night_owl': {
-      id: 'night_owl',
-      name: 'Night Owl',
-      icon: '🦉',
-      description: 'Complété 5 tâches après 22h',
-      condition: 'lateNightTasks >= 5',
-      category: 'temporal',
-      rarity: 'uncommon',
-      xpReward: 150
-    },
-    'weekend_warrior': {
-      id: 'weekend_warrior',
-      name: 'Weekend Warrior',
-      icon: '⚔️',
-      description: 'Complété 10 tâches le weekend',
-      condition: 'weekendTasks >= 10',
-      category: 'temporal',
-      rarity: 'rare',
-      xpReward: 200
-    },
-    'perfectionist': {
-      id: 'perfectionist',
-      name: 'Perfectionist',
-      icon: '✨',
-      description: 'Complété 10 tâches priorité HAUTE sans retard',
-      condition: 'perfectHighPriorityTasks >= 10',
-      category: 'performance',
-      rarity: 'rare',
-      xpReward: 300
-    },
-    'speed_demon': {
-      id: 'speed_demon',
-      name: 'Speed Demon',
-      icon: '💨',
-      description: 'Complété 5 tâches en moins de 1h chacune',
-      condition: 'fastCompletions >= 5',
-      category: 'performance',
-      rarity: 'uncommon',
-      xpReward: 175
-    },
-    'deadline_ninja': {
-      id: 'deadline_ninja',
-      name: 'Deadline Ninja',
-      icon: '🥷',
-      description: 'Complété 15 tâches le jour de la deadline',
-      condition: 'lastMinuteTasks >= 15',
-      category: 'performance',
-      rarity: 'rare',
-      xpReward: 250
-    },
-    'consistency_king': {
-      id: 'consistency_king',
-      name: 'Consistency King',
-      icon: '👑',
-      description: 'Streak de 7 jours consécutifs',
-      condition: 'maxStreak >= 7',
-      category: 'consistency',
-      rarity: 'epic',
-      xpReward: 400
-    },
-    'streak_master': {
-      id: 'streak_master',
-      name: 'Streak Master',
-      icon: '🔥',
-      description: 'Streak de 14 jours consécutifs',
-      condition: 'maxStreak >= 14',
-      category: 'consistency',
-      rarity: 'legendary',
-      xpReward: 750
-    },
-    'sprint_master': {
-      id: 'sprint_master',
-      name: 'Sprint Master',
-      icon: '🏃‍♂️',
-      description: 'Complété 8 tâches en une seule journée',
-      condition: 'maxTasksInDay >= 8',
-      category: 'sprint',
-      rarity: 'rare',
-      xpReward: 200
-    },
-    'project_finisher': {
-      id: 'project_finisher',
-      name: 'Project Finisher',
-      icon: '🏁',
-      description: 'Terminé votre premier projet à 100%',
-      condition: 'completedProjects >= 1',
-      category: 'projects',
-      rarity: 'uncommon',
-      xpReward: 300
-    },
-    'multitasker': {
-      id: 'multitasker',
-      name: 'Multitasker',
-      icon: '🎭',
-      description: 'Travaillé sur 3 projets différents en une journée',
-      condition: 'maxProjectsInDay >= 3',
-      category: 'projects',
-      rarity: 'rare',
-      xpReward: 250
-    }
-  };
+  constructor() {
+    this.userId = null;
+    this.userBadges = new Set();
+    this.pendingNotifications = [];
+  }
 
-  static async checkAndAwardBadges(userId) {
+  /**
+   * 🔧 Initialiser le moteur pour un utilisateur
+   */
+  async initialize(userId) {
+    this.userId = userId;
+    await this.loadUserBadges();
+    console.log('🏆 Badge Engine initialisé pour:', userId);
+  }
+
+  /**
+   * 📊 Charger les badges existants de l'utilisateur
+   */
+  async loadUserBadges() {
     try {
-      console.log('🏆 Badge Engine: Analyse démarré pour', userId);
-
-      const userData = await this.getUserAnalytics(userId);
-      const newBadges = [];
+      const userDoc = await getDocs(
+        query(collection(db, 'users'), where('uid', '==', this.userId))
+      );
       
-      for (const badgeId in this.BADGE_DEFINITIONS) {
-        const badge = this.BADGE_DEFINITIONS[badgeId];
-        
-        if (userData.badges && userData.badges.includes(badgeId)) {
-          continue;
-        }
-        
-        if (await this.evaluateBadgeCondition(badge, userData, userId)) {
+      if (!userDoc.empty) {
+        const userData = userDoc.docs[0].data();
+        this.userBadges = new Set(userData.badges || []);
+        console.log('🏆 Badges existants chargés:', this.userBadges.size);
+      }
+    } catch (error) {
+      console.error('❌ Erreur chargement badges:', error);
+    }
+  }
+
+  /**
+   * 🎯 MÉTHODE PRINCIPALE - Vérifier tous les badges
+   */
+  async checkAllBadges() {
+    if (!this.userId) {
+      console.warn('⚠️ Badge Engine non initialisé');
+      return [];
+    }
+
+    console.log('🔍 Vérification automatique des badges...');
+    const newBadges = [];
+
+    for (const [key, badge] of Object.entries(BADGE_DEFINITIONS)) {
+      if (!this.userBadges.has(badge.id)) {
+        const earned = await this.checkBadgeCondition(badge);
+        if (earned) {
           newBadges.push(badge);
+          this.userBadges.add(badge.id);
+          console.log(`🏆 Nouveau badge débloqué: ${badge.name}`);
         }
       }
-
-      if (newBadges.length > 0) {
-        await this.awardBadges(userId, newBadges);
-        console.log(`🎉 ${newBadges.length} nouveaux badges débloqués!`);
-        return newBadges;
-      }
-
-      return [];
-
-    } catch (error) {
-      console.error('❌ Erreur Badge Engine:', error);
-      return [];
     }
+
+    return newBadges;
   }
 
-  static async getUserAnalytics(userId) {
+  /**
+   * 🧮 Vérifier une condition de badge spécifique
+   */
+  async checkBadgeCondition(badge) {
     try {
-      const tasksQuery = query(
-        collection(db, 'tasks'),
-        where('userId', '==', userId)
-      );
-      const tasksSnapshot = await getDocs(tasksQuery);
-      const tasks = tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-      const projectsQuery = query(
-        collection(db, 'projects'),
-        where('ownerId', '==', userId)
-      );
-      const projectsSnapshot = await getDocs(projectsQuery);
-      const projects = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-      const userQuery = query(
-        collection(db, 'users'),
-        where('uid', '==', userId),
-        limit(1)
-      );
-      const userSnapshot = await getDocs(userQuery);
-      const userProfile = userSnapshot.docs[0]?.data() || {};
-
-      const analytics = this.calculateAdvancedMetrics(tasks, projects, userProfile);
-      
-      return {
-        ...userProfile,
-        ...analytics,
-        totalTasks: tasks.length,
-        totalProjects: projects.length
-      };
-
+      switch (badge.condition) {
+        case 'early_tasks':
+          return await this.checkEarlyTasks(badge.threshold);
+        
+        case 'late_tasks':
+          return await this.checkLateTasks(badge.threshold);
+        
+        case 'daily_tasks':
+          return await this.checkDailyTasks(badge.threshold);
+        
+        case 'total_tasks':
+          return await this.checkTotalTasks(badge.threshold);
+        
+        case 'consecutive_days':
+          return await this.checkConsecutiveDays(badge.threshold);
+        
+        case 'completion_rate':
+          return await this.checkCompletionRate(badge.threshold, badge.minTasks);
+        
+        case 'deadline_respect':
+          return await this.checkDeadlineRespect(badge.threshold);
+        
+        case 'usage_days':
+          return await this.checkUsageDays(badge.threshold);
+        
+        case 'quick_completion':
+          return await this.checkQuickCompletion(badge.threshold);
+        
+        case 'comeback':
+          return await this.checkComeback(badge.threshold);
+        
+        default:
+          console.warn(`⚠️ Condition inconnue: ${badge.condition}`);
+          return false;
+      }
     } catch (error) {
-      console.error('❌ Erreur getUserAnalytics:', error);
-      return {};
-    }
-  }
-
-  static calculateAdvancedMetrics(tasks, projects, userProfile) {
-    const now = new Date();
-    const completedTasks = tasks.filter(task => task.status === 'completed');
-    
-    const metrics = {
-      completedTasks: completedTasks.length,
-      completedProjects: projects.filter(p => p.status === 'completed').length,
-      badges: userProfile.badges || [],
-      maxStreak: userProfile.streak || 0
-    };
-
-    // 🌅 Analyse temporelle - Early Bird (avec gestion sécurisée des dates)
-    metrics.earlyMorningTasks = completedTasks.filter(task => {
-      if (!task.completedAt) return false;
-      try {
-        let completedDate;
-        if (task.completedAt.toDate) {
-          completedDate = task.completedAt.toDate();
-        } else if (task.completedAt instanceof Date) {
-          completedDate = task.completedAt;
-        } else if (typeof task.completedAt === 'string') {
-          completedDate = new Date(task.completedAt);
-        } else {
-          return false;
-        }
-        
-        const completedHour = completedDate.getHours();
-        return completedHour >= 5 && completedHour < 8;
-      } catch (error) {
-        console.warn('⚠️ Erreur traitement date earlyMorningTasks:', error);
-        return false;
-      }
-    }).length;
-
-    // 🦉 Analyse temporelle - Night Owl
-    metrics.lateNightTasks = completedTasks.filter(task => {
-      if (!task.completedAt) return false;
-      try {
-        let completedDate;
-        if (task.completedAt.toDate) {
-          completedDate = task.completedAt.toDate();
-        } else if (task.completedAt instanceof Date) {
-          completedDate = task.completedAt;
-        } else if (typeof task.completedAt === 'string') {
-          completedDate = new Date(task.completedAt);
-        } else {
-          return false;
-        }
-        
-        const completedHour = completedDate.getHours();
-        return completedHour >= 22 || completedHour < 2;
-      } catch (error) {
-        console.warn('⚠️ Erreur traitement date lateNightTasks:', error);
-        return false;
-      }
-    }).length;
-
-    // ⚔️ Weekend Warrior
-    metrics.weekendTasks = completedTasks.filter(task => {
-      if (!task.completedAt) return false;
-      try {
-        let completedDate;
-        if (task.completedAt.toDate) {
-          completedDate = task.completedAt.toDate();
-        } else if (task.completedAt instanceof Date) {
-          completedDate = task.completedAt;
-        } else if (typeof task.completedAt === 'string') {
-          completedDate = new Date(task.completedAt);
-        } else {
-          return false;
-        }
-        
-        const dayOfWeek = completedDate.getDay();
-        return dayOfWeek === 0 || dayOfWeek === 6; // Dimanche = 0, Samedi = 6
-      } catch (error) {
-        console.warn('⚠️ Erreur traitement date weekendTasks:', error);
-        return false;
-      }
-    }).length;
-
-    // ✨ Perfectionist - tâches haute priorité sans retard
-    metrics.perfectHighPriorityTasks = completedTasks.filter(task => {
-      if (task.priority !== 'high') return false;
-      if (!task.dueDate || !task.completedAt) return false;
-      
-      try {
-        let dueDate, completedDate;
-        
-        if (task.dueDate.toDate) {
-          dueDate = task.dueDate.toDate();
-        } else {
-          dueDate = new Date(task.dueDate);
-        }
-        
-        if (task.completedAt.toDate) {
-          completedDate = task.completedAt.toDate();
-        } else {
-          completedDate = new Date(task.completedAt);
-        }
-        
-        return completedDate <= dueDate;
-      } catch (error) {
-        console.warn('⚠️ Erreur traitement date perfectHighPriorityTasks:', error);
-        return false;
-      }
-    }).length;
-
-    // 💨 Speed Demon - tâches complétées rapidement
-    metrics.fastCompletions = completedTasks.filter(task => {
-      if (!task.createdAt || !task.completedAt) return false;
-      
-      try {
-        let createdDate, completedDate;
-        
-        if (task.createdAt.toDate) {
-          createdDate = task.createdAt.toDate();
-        } else {
-          createdDate = new Date(task.createdAt);
-        }
-        
-        if (task.completedAt.toDate) {
-          completedDate = task.completedAt.toDate();
-        } else {
-          completedDate = new Date(task.completedAt);
-        }
-        
-        const timeSpent = completedDate.getTime() - createdDate.getTime();
-        return timeSpent < (60 * 60 * 1000); // Moins d'1 heure
-      } catch (error) {
-        console.warn('⚠️ Erreur traitement date fastCompletions:', error);
-        return false;
-      }
-    }).length;
-
-    // 🥷 Deadline Ninja - tâches complétées le jour de la deadline
-    metrics.lastMinuteTasks = completedTasks.filter(task => {
-      if (!task.dueDate || !task.completedAt) return false;
-      
-      try {
-        let dueDate, completedDate;
-        
-        if (task.dueDate.toDate) {
-          dueDate = task.dueDate.toDate();
-        } else {
-          dueDate = new Date(task.dueDate);
-        }
-        
-        if (task.completedAt.toDate) {
-          completedDate = task.completedAt.toDate();
-        } else {
-          completedDate = new Date(task.completedAt);
-        }
-        
-        return dueDate.toDateString() === completedDate.toDateString();
-      } catch (error) {
-        console.warn('⚠️ Erreur traitement date lastMinuteTasks:', error);
-        return false;
-      }
-    }).length;
-
-    // 🏃‍♂️ Sprint Master - max tâches en une journée
-    const tasksByDay = {};
-    completedTasks.forEach(task => {
-      if (!task.completedAt) return;
-      try {
-        let completedDate;
-        if (task.completedAt.toDate) {
-          completedDate = task.completedAt.toDate();
-        } else {
-          completedDate = new Date(task.completedAt);
-        }
-        
-        const dateKey = completedDate.toDateString();
-        tasksByDay[dateKey] = (tasksByDay[dateKey] || 0) + 1;
-      } catch (error) {
-        console.warn('⚠️ Erreur traitement date tasksByDay:', error);
-      }
-    });
-    metrics.maxTasksInDay = Math.max(0, ...Object.values(tasksByDay));
-
-    // 🎭 Multitasker - max projets différents en une journée
-    const projectsByDay = {};
-    completedTasks.forEach(task => {
-      if (!task.completedAt || !task.projectId) return;
-      try {
-        let completedDate;
-        if (task.completedAt.toDate) {
-          completedDate = task.completedAt.toDate();
-        } else {
-          completedDate = new Date(task.completedAt);
-        }
-        
-        const dateKey = completedDate.toDateString();
-        if (!projectsByDay[dateKey]) projectsByDay[dateKey] = new Set();
-        projectsByDay[dateKey].add(task.projectId);
-      } catch (error) {
-        console.warn('⚠️ Erreur traitement date projectsByDay:', error);
-      }
-    });
-    
-    metrics.maxProjectsInDay = Math.max(0, ...Object.values(projectsByDay).map(set => set.size));
-
-    return metrics;
-  }
-
-  static async evaluateBadgeCondition(badge, userData, userId) {
-    try {
-      const condition = badge.condition;
-      let evaluableCondition = condition;
-      
-      const metrics = [
-        'completedTasks', 'earlyMorningTasks', 'lateNightTasks', 'weekendTasks',
-        'perfectHighPriorityTasks', 'fastCompletions', 'lastMinuteTasks',
-        'maxStreak', 'maxTasksInDay', 'completedProjects', 'maxProjectsInDay'
-      ];
-      
-      metrics.forEach(metric => {
-        const value = userData[metric] || 0;
-        evaluableCondition = evaluableCondition.replace(
-          new RegExp(metric, 'g'), 
-          value.toString()
-        );
-      });
-
-      const result = eval(evaluableCondition);
-      console.log(`🔍 Badge ${badge.id}: ${condition} → ${evaluableCondition} = ${result}`);
-      return result;
-
-    } catch (error) {
-      console.error(`❌ Erreur évaluation condition ${badge.id}:`, error);
+      console.error(`❌ Erreur vérification badge ${badge.id}:`, error);
       return false;
     }
   }
 
-  static async awardBadges(userId, newBadges) {
-    try {
-      const userQuery = query(
-        collection(db, 'users'),
-        where('uid', '==', userId),
-        limit(1)
-      );
-      const userSnapshot = await getDocs(userQuery);
+  /**
+   * 🌅 Vérifier les tâches créées tôt le matin
+   */
+  async checkEarlyTasks(threshold) {
+    const tasksRef = collection(db, 'tasks');
+    const q = query(
+      tasksRef,
+      where('userId', '==', this.userId),
+      orderBy('createdAt', 'desc'),
+      limit(100)
+    );
+    
+    const snapshot = await getDocs(q);
+    let earlyTasksCount = 0;
+    
+    snapshot.forEach(doc => {
+      const task = doc.data();
+      const createdAt = new Date(task.createdAt);
+      const hour = createdAt.getHours();
       
-      if (userSnapshot.empty) {
-        console.error('❌ Utilisateur non trouvé:', userId);
-        return;
+      if (hour >= 5 && hour < 9) {
+        earlyTasksCount++;
       }
-
-      const userDoc = userSnapshot.docs[0];
-      const userData = userDoc.data();
-
-      const totalXpBonus = newBadges.reduce((sum, badge) => sum + badge.xpReward, 0);
-      const newBadgeIds = newBadges.map(badge => badge.id);
-
-      await updateDoc(doc(db, 'users', userDoc.id), {
-        badges: arrayUnion(...newBadgeIds),
-        xp: (userData.xp || 0) + totalXpBonus,
-        lastBadgeUnlock: new Date()
-      });
-
-      this.triggerBadgeNotifications(newBadges);
-
-      console.log(`✅ ${newBadges.length} badges attribués à l'utilisateur ${userId}`);
-      console.log(`🎯 XP bonus total: +${totalXpBonus}`);
-
-    } catch (error) {
-      console.error('❌ Erreur awardBadges:', error);
-    }
+    });
+    
+    return earlyTasksCount >= threshold;
   }
 
-  static triggerBadgeNotifications(badges) {
-    badges.forEach(badge => {
-      window.dispatchEvent(new CustomEvent('badgeUnlocked', {
-        detail: {
-          badge,
-          timestamp: new Date()
+  /**
+   * 🦉 Vérifier les tâches complétées tard le soir
+   */
+  async checkLateTasks(threshold) {
+    const tasksRef = collection(db, 'tasks');
+    const q = query(
+      tasksRef,
+      where('userId', '==', this.userId),
+      where('status', '==', 'completed'),
+      orderBy('completedAt', 'desc'),
+      limit(100)
+    );
+    
+    const snapshot = await getDocs(q);
+    let lateTasksCount = 0;
+    
+    snapshot.forEach(doc => {
+      const task = doc.data();
+      if (task.completedAt) {
+        const completedAt = new Date(task.completedAt);
+        const hour = completedAt.getHours();
+        
+        if (hour >= 18 || hour < 6) {
+          lateTasksCount++;
         }
-      }));
-    });
-  }
-
-  static getAllBadges() {
-    return Object.values(this.BADGE_DEFINITIONS);
-  }
-
-  static getBadgesByCategory() {
-    const badges = this.getAllBadges();
-    const categories = {};
-
-    badges.forEach(badge => {
-      if (!categories[badge.category]) {
-        categories[badge.category] = [];
       }
-      categories[badge.category].push(badge);
     });
-
-    return categories;
+    
+    return lateTasksCount >= threshold;
   }
 
-  static async getBadgeProgress(badgeId, userId) {
-    try {
-      const badge = this.BADGE_DEFINITIONS[badgeId];
-      if (!badge) return null;
+  /**
+   * ⚡ Vérifier les tâches complétées en une journée
+   */
+  async checkDailyTasks(threshold) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const tasksRef = collection(db, 'tasks');
+    const q = query(
+      tasksRef,
+      where('userId', '==', this.userId),
+      where('status', '==', 'completed'),
+      where('completedAt', '>=', today.toISOString()),
+      where('completedAt', '<', tomorrow.toISOString())
+    );
+    
+    const snapshot = await getDocs(q);
+    return snapshot.size >= threshold;
+  }
 
-      const userData = await this.getUserAnalytics(userId);
+  /**
+   * 🎯 Vérifier le nombre total de tâches complétées
+   */
+  async checkTotalTasks(threshold) {
+    const tasksRef = collection(db, 'tasks');
+    const q = query(
+      tasksRef,
+      where('userId', '==', this.userId),
+      where('status', '==', 'completed')
+    );
+    
+    const snapshot = await getDocs(q);
+    return snapshot.size >= threshold;
+  }
+
+  /**
+   * 🔥 Vérifier les jours consécutifs d'activité
+   */
+  async checkConsecutiveDays(threshold) {
+    const tasksRef = collection(db, 'tasks');
+    const q = query(
+      tasksRef,
+      where('userId', '==', this.userId),
+      orderBy('createdAt', 'desc'),
+      limit(200)
+    );
+    
+    const snapshot = await getDocs(q);
+    const activeDays = new Set();
+    
+    snapshot.forEach(doc => {
+      const task = doc.data();
+      const date = new Date(task.createdAt);
+      const dayKey = date.toDateString();
+      activeDays.add(dayKey);
+    });
+    
+    // Vérifier la séquence de jours consécutifs
+    const sortedDays = Array.from(activeDays)
+      .map(day => new Date(day))
+      .sort((a, b) => b - a);
+    
+    let consecutiveCount = 0;
+    let currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+    
+    for (let i = 0; i < threshold; i++) {
+      const checkDate = new Date(currentDate);
+      checkDate.setDate(checkDate.getDate() - i);
       
-      const conditionMatch = badge.condition.match(/(\w+)\s*>=\s*(\d+)/);
-      if (!conditionMatch) return null;
-
-      const [, metric, targetValue] = conditionMatch;
-      const currentValue = userData[metric] || 0;
-      const target = parseInt(targetValue);
-
-      return {
-        current: currentValue,
-        target,
-        percentage: Math.min(100, Math.round((currentValue / target) * 100)),
-        completed: currentValue >= target
-      };
-
-    } catch (error) {
-      console.error('❌ Erreur getBadgeProgress:', error);
-      return null;
+      const hasActivity = sortedDays.some(day => 
+        day.toDateString() === checkDate.toDateString()
+      );
+      
+      if (hasActivity) {
+        consecutiveCount++;
+      } else {
+        break;
+      }
     }
+    
+    return consecutiveCount >= threshold;
+  }
+
+  /**
+   * ⭐ Vérifier le taux de completion
+   */
+  async checkCompletionRate(threshold, minTasks) {
+    const tasksRef = collection(db, 'tasks');
+    const q = query(
+      tasksRef,
+      where('userId', '==', this.userId),
+      orderBy('createdAt', 'desc'),
+      limit(minTasks + 50)
+    );
+    
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.size < minTasks) {
+      return false;
+    }
+    
+    let completedCount = 0;
+    let totalCount = 0;
+    
+    snapshot.forEach(doc => {
+      const task = doc.data();
+      totalCount++;
+      if (task.status === 'completed') {
+        completedCount++;
+      }
+    });
+    
+    const completionRate = completedCount / totalCount;
+    return completionRate >= threshold && totalCount >= minTasks;
+  }
+
+  /**
+   * 🥷 Vérifier le respect des deadlines
+   */
+  async checkDeadlineRespect(threshold) {
+    const tasksRef = collection(db, 'tasks');
+    const q = query(
+      tasksRef,
+      where('userId', '==', this.userId),
+      where('status', '==', 'completed'),
+      orderBy('completedAt', 'desc'),
+      limit(100)
+    );
+    
+    const snapshot = await getDocs(q);
+    let onTimeCount = 0;
+    
+    snapshot.forEach(doc => {
+      const task = doc.data();
+      if (task.dueDate && task.completedAt) {
+        const dueDate = new Date(task.dueDate);
+        const completedAt = new Date(task.completedAt);
+        
+        if (completedAt <= dueDate) {
+          onTimeCount++;
+        }
+      }
+    });
+    
+    return onTimeCount >= threshold;
+  }
+
+  /**
+   * 🚀 Vérifier les jours d'utilisation
+   */
+  async checkUsageDays(threshold) {
+    // Calculer depuis la première connexion
+    const userDoc = await getDocs(
+      query(collection(db, 'users'), where('uid', '==', this.userId))
+    );
+    
+    if (userDoc.empty) return false;
+    
+    const userData = userDoc.docs[0].data();
+    const createdAt = new Date(userData.createdAt || userData.metadata?.creationTime);
+    const now = new Date();
+    
+    const daysDiff = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+    return daysDiff >= threshold;
+  }
+
+  /**
+   * 💨 Vérifier les complétions rapides
+   */
+  async checkQuickCompletion(thresholdMinutes) {
+    const tasksRef = collection(db, 'tasks');
+    const q = query(
+      tasksRef,
+      where('userId', '==', this.userId),
+      where('status', '==', 'completed'),
+      orderBy('completedAt', 'desc'),
+      limit(50)
+    );
+    
+    const snapshot = await getDocs(q);
+    
+    return snapshot.docs.some(doc => {
+      const task = doc.data();
+      if (task.createdAt && task.completedAt) {
+        const created = new Date(task.createdAt);
+        const completed = new Date(task.completedAt);
+        const diffMinutes = (completed - created) / (1000 * 60);
+        
+        return diffMinutes <= thresholdMinutes;
+      }
+      return false;
+    });
+  }
+
+  /**
+   * 🔄 Vérifier le retour après inactivité
+   */
+  async checkComeback(thresholdDays) {
+    // Vérifier s'il y a eu une période d'inactivité puis un retour
+    const tasksRef = collection(db, 'tasks');
+    const q = query(
+      tasksRef,
+      where('userId', '==', this.userId),
+      orderBy('createdAt', 'desc'),
+      limit(100)
+    );
+    
+    const snapshot = await getDocs(q);
+    const activities = [];
+    
+    snapshot.forEach(doc => {
+      activities.push(new Date(doc.data().createdAt));
+    });
+    
+    if (activities.length < 2) return false;
+    
+    activities.sort((a, b) => b - a);
+    
+    // Chercher un gap de plus de thresholdDays
+    for (let i = 0; i < activities.length - 1; i++) {
+      const gap = (activities[i] - activities[i + 1]) / (1000 * 60 * 60 * 24);
+      if (gap >= thresholdDays) {
+        // Vérifier qu'il y a eu une activité récente (moins de 24h)
+        const lastActivity = activities[0];
+        const now = new Date();
+        const hoursSinceLastActivity = (now - lastActivity) / (1000 * 60 * 60);
+        
+        return hoursSinceLastActivity <= 24;
+      }
+    }
+    
+    return false;
   }
 }
 
-export default BadgeEngine;
+// Export de l'instance singleton
+export const badgeEngine = new BadgeEngine();
+export { BADGE_DEFINITIONS };
+export default badgeEngine;
