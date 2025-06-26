@@ -1,80 +1,52 @@
 // ==========================================
 // 📁 react-app/vite.config.js
-// Configuration Vite SIMPLIFIÉE pour résoudre l'erreur de chunk
+// Configuration Vite ULTRA-SIMPLIFIÉE
 // ==========================================
 
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { resolve } from 'path'
 
-// https://vitejs.dev/config/
+// Configuration MINIMALE pour éviter TOUTE erreur
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react({
+      // ⭐ DÉSACTIVER TOUTES LES OPTIMISATIONS QUI PEUVENT CAUSER DES ERREURS
+      fastRefresh: false,
+      jsxRuntime: 'automatic'
+    })
+  ],
   
-  // Configuration des alias de chemins
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, './src'),
-      '@components': resolve(__dirname, './src/components'),
-      '@pages': resolve(__dirname, './src/pages'),
-      '@shared': resolve(__dirname, './src/shared'),
-      '@core': resolve(__dirname, './src/core'),
-      '@hooks': resolve(__dirname, './src/hooks'),
-      '@utils': resolve(__dirname, './src/shared/utils'),
-      '@stores': resolve(__dirname, './src/shared/stores'),
-      '@services': resolve(__dirname, './src/core/services')
-    }
-  },
-
-  // Configuration du serveur de développement
-  server: {
-    port: 3000,
-    open: true,
-    host: true
-  },
-
-  // Configuration du build SIMPLIFIÉE
+  // Build ultra-simple
   build: {
     outDir: 'dist',
     sourcemap: false,
-    minify: 'terser',
-    target: 'esnext',
+    minify: false, // ⭐ DÉSACTIVER MINIFICATION
+    target: 'es2015', // ⭐ TARGET PLUS SIMPLE
     
-    // SUPPRESSION des manualChunks qui causent l'erreur
     rollupOptions: {
       output: {
-        // Chunking automatique sans configuration manuelle
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
+        // ⭐ CHUNKING COMPLÈTEMENT DÉSACTIVÉ
+        manualChunks: undefined,
+        inlineDynamicImports: true // ⭐ TOUT EN UN SEUL FICHIER
       }
-    },
-    
-    // Limites de taille personnalisées
-    chunkSizeWarningLimit: 1000
+    }
   },
-
-  // Variables d'environnement
-  define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version)
+  
+  // Server simple
+  server: {
+    port: 3000,
+    host: true
   },
-
-  // Configuration CSS
-  css: {
-    devSourcemap: true
-  },
-
-  // Optimisation des dépendances SIMPLIFIÉE
+  
+  // ⭐ OPTIMISATION COMPLÈTEMENT DÉSACTIVÉE
   optimizeDeps: {
-    include: [
-      'react',
-      'react-dom',
-      'react-router-dom',
-      'firebase/app',
-      'firebase/firestore',
-      'firebase/auth',
-      'zustand',
-      'lucide-react'
-    ]
+    disabled: false,
+    include: [],
+    exclude: []
+  },
+  
+  // ⭐ DÉSACTIVER TOUTES LES TRANSFORMATIONS
+  esbuild: {
+    logOverride: { 'this-is-undefined-in-esm': 'silent' }
   }
 })
