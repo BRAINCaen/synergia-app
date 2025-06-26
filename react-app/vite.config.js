@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/vite.config.js
-// Configuration Vite pour Synergia v3.5
+// Configuration Vite SIMPLIFIÉE pour résoudre l'erreur de chunk
 // ==========================================
 
 import { defineConfig } from 'vite'
@@ -33,24 +33,20 @@ export default defineConfig({
     host: true
   },
 
-  // Configuration du build
+  // Configuration du build SIMPLIFIÉE
   build: {
     outDir: 'dist',
     sourcemap: false,
     minify: 'terser',
+    target: 'esnext',
     
-    // Optimisation des chunks
+    // SUPPRESSION des manualChunks qui causent l'erreur
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          firebase: ['firebase/app', 'firebase/firestore', 'firebase/auth'],
-          router: ['react-router-dom'],
-          ui: ['framer-motion', 'react-hot-toast', 'lucide-react'],
-          charts: ['recharts'],
-          utils: ['date-fns', 'clsx', 'tailwind-merge'],
-          stores: ['zustand']
-        }
+        // Chunking automatique sans configuration manuelle
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
       }
     },
     
@@ -68,7 +64,7 @@ export default defineConfig({
     devSourcemap: true
   },
 
-  // Optimisation des dépendances
+  // Optimisation des dépendances SIMPLIFIÉE
   optimizeDeps: {
     include: [
       'react',
@@ -78,11 +74,7 @@ export default defineConfig({
       'firebase/firestore',
       'firebase/auth',
       'zustand',
-      'framer-motion',
-      'react-hot-toast',
-      'lucide-react',
-      'recharts',
-      'date-fns'
+      'lucide-react'
     ]
   }
 })
