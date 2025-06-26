@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/ProjectsPage.jsx
-// Page Projets avec design premium sombre - Style Leaderboard
+// Page Projets avec design premium sombre - Version autonome sans collaboration
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
