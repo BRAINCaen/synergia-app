@@ -13,10 +13,11 @@ import {
 } from '@heroicons/react/24/outline';
 import teamService from '../core/services/teamService';
 import { useAuthStore } from '../core/stores/authStore';
-import toast from 'react-hot-toast';
+import { useToast } from '../shared/components/ui/Toast.jsx';
 
 const XPValidationManager = ({ teamId }) => {
   const { user } = useAuthStore();
+  const { success, error } = useToast();
   const [pendingRequests, setPendingRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -41,9 +42,9 @@ const XPValidationManager = ({ teamId }) => {
     try {
       const requests = await teamService.getPendingXPRequests(teamId);
       setPendingRequests(requests);
-    } catch (error) {
-      console.error('Erreur chargement demandes XP:', error);
-      toast.error('Erreur lors du chargement des demandes');
+    } catch (err) {
+      console.error('Erreur chargement demandes XP:', err);
+      error('Erreur lors du chargement des demandes');
     }
   };
 
@@ -52,7 +53,7 @@ const XPValidationManager = ({ teamId }) => {
     try {
       await teamService.validateXPRequest(requestId, user.uid, decision, feedback);
       
-      toast.success(
+      success(
         decision === 'approved' 
           ? '✅ XP validés et attribués!' 
           : '❌ Demande refusée'
@@ -61,9 +62,9 @@ const XPValidationManager = ({ teamId }) => {
       setShowModal(false);
       setSelectedRequest(null);
       setFeedback('');
-    } catch (error) {
-      console.error('Erreur validation XP:', error);
-      toast.error('Erreur lors de la validation');
+    } catch (err) {
+      console.error('Erreur validation XP:', err);
+      error('Erreur lors de la validation');
     } finally {
       setLoading(false);
     }
@@ -83,128 +84,102 @@ const XPValidationManager = ({ teamId }) => {
 
   const getTimeAgo = (timestamp) => {
     const now = new Date();
-    const requestTime = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
-    const diffMinutes = Math.floor((now - requestTime) / (1000 * 60));
-    
-    if (diffMinutes < 60) return `${diffMinutes}min`;
-    if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)}h`;
-    return `${Math.floor(diffMinutes / 1440)}j`;
+    const requestTime = timestamp?.toDate ? timestamp.toDate() : timestamp;
+    const diffMs = now - requestTime;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    return `${diffDays}j`;
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending': return 'text-yellow-500 bg-yellow-100';
+      case 'approved': return 'text-green-500 bg-green-100';
+      case 'rejected': return 'text-red-500 bg-red-100';
+      default: return 'text-gray-500 bg-gray-100';
+    }
   };
 
   if (pendingRequests.length === 0) {
     return (
-      <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-gray-700">
-        <div className="text-center py-8">
-          <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">
-            Toutes les demandes traitées!
-          </h3>
-          <p className="text-gray-400">
-            Aucune demande de validation XP en attente.
-          </p>
-        </div>
+      <div className="bg-white rounded-lg shadow p-6 text-center">
+        <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-3" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          Aucune demande XP en attente
+        </h3>
+        <p className="text-gray-600">
+          Toutes les demandes d'XP ont été traitées.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* En-tête */}
-      <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-white mb-2">
-              Validation XP
-            </h2>
-            <p className="text-purple-100">
-              {pendingRequests.length} demande{pendingRequests.length > 1 ? 's' : ''} en attente
-            </p>
-          </div>
-          <div className="bg-white/20 rounded-full p-3">
-            <ClockIcon className="w-8 h-8 text-white" />
-          </div>
+    <div className="space-y-4">
+      <div className="bg-white rounded-lg shadow">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900 flex items-center">
+            <ClockIcon className="w-5 h-5 mr-2 text-orange-500" />
+            Demandes XP en attente ({pendingRequests.length})
+          </h3>
         </div>
-      </div>
 
-      {/* Liste des demandes */}
-      <div className="space-y-4">
-        {pendingRequests.map((request, index) => (
-          <motion.div
-            key={request.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="bg-gray-800/50 backdrop-blur-lg rounded-xl border border-gray-700 overflow-hidden hover:border-gray-600 transition-colors"
-          >
-            <div className="p-6">
-              <div className="flex items-start justify-between">
-                {/* Informations utilisateur */}
-                <div className="flex items-start space-x-4">
+        <div className="divide-y divide-gray-200">
+          {pendingRequests.map((request) => (
+            <div key={request.id} className="p-6 hover:bg-gray-50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0">
-                    {request.user?.photoURL ? (
-                      <img
-                        src={request.user.photoURL}
-                        alt={request.user.displayName}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                    ) : (
-                      <UserCircleIcon className="w-12 h-12 text-gray-400" />
-                    )}
+                    <UserCircleIcon className="w-10 h-10 text-gray-400" />
                   </div>
                   
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <h3 className="font-semibold text-white">
-                        {request.user?.displayName || request.user?.email || 'Utilisateur inconnu'}
-                      </h3>
-                      <span className="text-sm text-gray-400">
-                        • {getTimeAgo(request.requestedAt)}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {request.memberName || request.memberId}
+                      </p>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
+                        {request.status === 'pending' ? 'En attente' : request.status}
                       </span>
                     </div>
                     
-                    <p className="text-gray-300 mb-3">
-                      {request.description || 'Aucune description fournie'}
-                    </p>
-                    
-                    {request.evidence && (
-                      <div className="bg-gray-700/50 rounded-lg p-3 mb-3">
-                        <p className="text-sm text-gray-300">
-                          <strong>Preuves:</strong> {request.evidence}
-                        </p>
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center space-x-4 text-sm">
-                      <div className="flex items-center space-x-1">
-                        <StarIcon className={`w-4 h-4 ${getRequestPriorityColor(request.xpAmount)}`} />
-                        <span className={`font-semibold ${getRequestPriorityColor(request.xpAmount)}`}>
-                          +{request.xpAmount} XP
-                        </span>
-                      </div>
-                      
-                      {request.taskId && (
-                        <span className="text-gray-400">
-                          Tâche #{request.taskId.slice(-6)}
-                        </span>
-                      )}
+                    <div className="flex items-center space-x-4 mt-1">
+                      <p className={`text-sm font-semibold ${getRequestPriorityColor(request.xpAmount)}`}>
+                        +{request.xpAmount} XP
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {request.taskTitle || request.reason || 'Tâche complétée'}
+                      </p>
+                      <p className="text-sm text-gray-400">
+                        il y a {getTimeAgo(request.createdAt)}
+                      </p>
                     </div>
+                    
+                    {request.description && (
+                      <p className="text-sm text-gray-600 mt-2">
+                        {request.description}
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center space-x-2 ml-4">
+                <div className="flex items-center space-x-2">
                   <button
                     onClick={() => openValidationModal(request)}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
-                    <EyeIcon className="w-4 h-4" />
-                    <span>Examiner</span>
+                    <EyeIcon className="w-4 h-4 mr-1" />
+                    Examiner
                   </button>
                 </div>
               </div>
             </div>
-          </motion.div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Modal de validation */}
@@ -214,108 +189,81 @@ const XPValidationManager = ({ teamId }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50"
             onClick={() => setShowModal(false)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-gray-800 rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6">
-                {/* En-tête modal */}
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-white">
-                    Validation de demande XP
-                  </h3>
-                  <button
-                    onClick={() => setShowModal(false)}
-                    className="text-gray-400 hover:text-white transition-colors"
-                  >
-                    <XCircleIcon className="w-6 h-6" />
-                  </button>
-                </div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Valider la demande XP
+                </h3>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircleIcon className="w-6 h-6" />
+                </button>
+              </div>
 
-                {/* Détails de la demande */}
-                <div className="space-y-4 mb-6">
-                  <div className="flex items-center space-x-3">
-                    {selectedRequest.user?.photoURL ? (
-                      <img
-                        src={selectedRequest.user.photoURL}
-                        alt={selectedRequest.user.displayName}
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      <UserCircleIcon className="w-10 h-10 text-gray-400" />
-                    )}
+              <div className="space-y-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="font-semibold text-white">
-                        {selectedRequest.user?.displayName || selectedRequest.user?.email}
-                      </p>
-                      <p className="text-sm text-gray-400">
-                        Demandé {getTimeAgo(selectedRequest.requestedAt)}
-                      </p>
+                      <span className="text-gray-500">Membre:</span>
+                      <p className="font-medium">{selectedRequest.memberName}</p>
                     </div>
-                  </div>
-
-                  <div className="bg-gray-700/50 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-gray-300">XP demandés:</span>
-                      <span className={`font-bold text-lg ${getRequestPriorityColor(selectedRequest.xpAmount)}`}>
-                        +{selectedRequest.xpAmount} XP
-                      </span>
+                    <div>
+                      <span className="text-gray-500">XP demandés:</span>
+                      <p className="font-medium text-blue-600">+{selectedRequest.xpAmount}</p>
                     </div>
-                    
+                    <div className="col-span-2">
+                      <span className="text-gray-500">Raison:</span>
+                      <p className="font-medium">{selectedRequest.taskTitle || selectedRequest.reason}</p>
+                    </div>
                     {selectedRequest.description && (
-                      <div className="mb-3">
-                        <span className="text-gray-300 block mb-1">Description:</span>
-                        <p className="text-white">{selectedRequest.description}</p>
-                      </div>
-                    )}
-                    
-                    {selectedRequest.evidence && (
-                      <div>
-                        <span className="text-gray-300 block mb-1">Preuves:</span>
-                        <p className="text-white">{selectedRequest.evidence}</p>
+                      <div className="col-span-2">
+                        <span className="text-gray-500">Description:</span>
+                        <p className="text-sm">{selectedRequest.description}</p>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Feedback admin */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Commentaire (optionnel)
                   </label>
                   <textarea
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
-                    placeholder="Ajouter un commentaire sur cette validation..."
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows={3}
+                    placeholder="Ajoutez un commentaire..."
                   />
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center space-x-3">
+                <div className="flex space-x-3">
                   <button
                     onClick={() => handleValidation(selectedRequest.id, 'approved')}
                     disabled={loading}
-                    className="flex-1 flex items-center justify-center space-x-2 px-4 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg transition-colors"
+                    className="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
-                    <CheckCircleIcon className="w-5 h-5" />
-                    <span>{loading ? 'Validation...' : 'Approuver'}</span>
+                    <CheckCircleIcon className="w-4 h-4 mr-2" />
+                    Approuver
                   </button>
-                  
                   <button
                     onClick={() => handleValidation(selectedRequest.id, 'rejected')}
                     disabled={loading}
-                    className="flex-1 flex items-center justify-center space-x-2 px-4 py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg transition-colors"
+                    className="flex-1 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
-                    <XCircleIcon className="w-5 h-5" />
-                    <span>{loading ? 'Rejet...' : 'Rejeter'}</span>
+                    <XCircleIcon className="w-4 h-4 mr-2" />
+                    Refuser
                   </button>
                 </div>
               </div>
