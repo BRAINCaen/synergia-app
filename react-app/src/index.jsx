@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/index.jsx
-// Point d'entrée SANS React Strict Mode
+// Point d'entrée D'URGENCE - Version qui marche
 // ==========================================
 
 import React from 'react'
@@ -8,15 +8,10 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
 
-console.log('🚀 SYNERGIA v3.5.1 - DÉMARRAGE SANS STRICT MODE');
-console.log('🚫 React Strict Mode DÉSACTIVÉ pour éviter erreur "r is not a function"');
+console.log('🚀 SYNERGIA v3.5.1 - DÉMARRAGE SANS STRICT MODE (VERSION D\'URGENCE)');
 
 const root = ReactDOM.createRoot(document.getElementById('root'))
 
-// ⭐ RENDER SANS STRICT MODE - SOLUTION RADICALE
-root.render(
-  // 🚫 React.StrictMode COMPLÈTEMENT SUPPRIMÉ
-  <App />
-)
+root.render(<App />)
 
-console.log('✅ Application React montée SANS Strict Mode');
+console.log('✅ Application React montée sans erreur');
