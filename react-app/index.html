@@ -19,9 +19,6 @@
   <!-- Prefetch DNS -->
   <link rel="dns-prefetch" href="//fonts.googleapis.com">
   <link rel="dns-prefetch" href="//firebaseapp.com">
-  
-  <!-- Preload critical resources -->
-  <link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
 </head>
 <body>
   <div id="root"></div>
@@ -32,7 +29,6 @@
     const storedVersion = localStorage.getItem('synergia_app_version');
     if (storedVersion && storedVersion !== '3.5.1') {
       console.log('🔄 Nouvelle version détectée, nettoyage...');
-      // Ne pas vider immédiatement, laisser l'app se charger
     }
     localStorage.setItem('synergia_app_version', '3.5.1');
     
