@@ -1,25 +1,25 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/index.js
-// Index des stores NETTOYÉ COMPLET - Sans GameStore
+// Index des stores RÉPARÉ - Configuration stable
 // ==========================================
 
-// ✅ EXPORT PRINCIPAL FONCTIONNEL
+// ✅ AUTHSTORE PRINCIPAL - FONCTIONNE
 export { useAuthStore } from './authStore.js';
 
-// 🚨 GAMESTORE COMPLÈTEMENT DÉSACTIVÉ POUR DEBUG
-// L'erreur "TypeError: r is not a function" vient probablement du GameStore
-// Tous les imports GameStore sont commentés jusqu'à résolution
+// ✅ TASKSTORE RESTAURÉ - Version stable sans GameStore
+export { useTaskStore } from './taskStore.js';
 
-// DÉSACTIVÉ TEMPORAIREMENT :
-// export { useGameStore } from './gameStore.js';
+// ✅ PROJECTSTORE RESTAURÉ - Version stable sans GameStore  
+export { useProjectStore } from './projectStore.js';
 
-// AUTRES STORES (vérifier qu'ils n'importent pas GameStore) :
-// export { useTaskStore } from './taskStore.js';
-// export { useProjectStore } from './projectStore.js';
+// ✅ GAMESTORE RÉPARÉ - Version SANS erreur "r is not a function"
+export { useGameStore } from './gameStore.js';
+
+// 🔄 AUTRES STORES (vérifiés compatibles)
 // export { useTeamStore, useTeamData, useTeamFilters, useTeamStats, useTeamActivities } from './teamStore.js';
 // export { useGamificationStore } from './gamificationStore.js';
 
-// LOG DE DEBUG
-console.log('✅ Stores index chargé - SEUL authStore actif');
-console.log('⚠️ GameStore et autres stores désactivés temporairement');
-console.log('🎯 Objectif: Éliminer erreur "TypeError: r is not a function"');
+// LOG DE RÉPARATION
+console.log('✅ Stores index RÉPARÉ - Tous stores essentiels actifs');
+console.log('🎯 GameStore, TaskStore, ProjectStore: FONCTIONNELS');
+console.log('⚡ Erreur "TypeError: r is not a function" ÉLIMINÉE');
