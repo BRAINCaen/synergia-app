@@ -1,27 +1,29 @@
 # ==========================================
 # 📁 netlify.toml
-# Configuration Netlify AVEC NETTOYAGE FORCÉ
+# Configuration Netlify RÉPARÉE - Vite build fix
 # ==========================================
 
 [build]
   # Répertoire de base pour le build
   base = "react-app"
   
-  # Commande de build AVEC NETTOYAGE FORCÉ
-  command = "rm -rf node_modules package-lock.json && npm install && npm run build"
+  # 🚀 COMMANDE BUILD RÉPARÉE - Force l'installation des devDependencies
+  command = "rm -rf node_modules package-lock.json && NODE_ENV=development npm install && npm run build"
   
   # Répertoire à publier (VITE génère dans 'dist', pas 'build')
   publish = "dist"
 
-# Variables d'environnement
+# Variables d'environnement RÉPARÉES
 [build.environment]
+  # 🚨 NODE_ENV RETIRÉ pour permettre installation devDependencies
+  # NODE_ENV sera défini seulement dans les contextes spécifiques
+  
   # Désactiver le scan de secrets qui causait des erreurs
   SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
   
   # Variables de build
   GENERATE_SOURCEMAP = "false"
   CI = "false"
-  # NODE_ENV retiré pour permettre installation de Vite (devDependencies)
 
 # Redirections pour SPA (Single Page Application)
 [[redirects]]
@@ -66,14 +68,13 @@
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
-# Configuration des déploiements
+# 🚀 CONTEXTES RÉPARÉS - NODE_ENV défini correctement
 [context.production]
-  command = "rm -rf node_modules package-lock.json && npm install && npm run build"
-  environment = { NODE_ENV = "production" }
+  command = "rm -rf node_modules package-lock.json && NODE_ENV=development npm install && NODE_ENV=production npm run build"
+  # On installe en development puis on build en production
 
 [context.deploy-preview]
   command = "rm -rf node_modules package-lock.json && npm install && npm run build"
-  environment = { NODE_ENV = "development" }
 
 [context.branch-deploy]
   command = "rm -rf node_modules package-lock.json && npm install && npm run build"
