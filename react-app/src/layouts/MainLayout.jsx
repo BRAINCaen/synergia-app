@@ -13,12 +13,16 @@ const MainLayout = () => {
     navigate('/login');
   };
 
+  // 🚀 NAVIGATION COMPLÈTE AVEC TOUTES LES PAGES
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
     { path: '/tasks', label: 'Tâches', icon: '✅' },
     { path: '/projects', label: 'Projets', icon: '📁' },
-    { path: '/analytics', label: 'Analytics', icon: '📊' }, // 🆕 Nouveau lien
-    { path: '/leaderboard', label: 'Classement', icon: '🏆' }
+    { path: '/analytics', label: 'Analytics', icon: '📊' },
+    { path: '/leaderboard', label: 'Classement', icon: '🏆' },
+    { path: '/profile', label: 'Profil', icon: '👤' },
+    { path: '/users', label: 'Utilisateurs', icon: '👥' },
+    { path: '/team', label: 'Équipe', icon: '👨‍👩‍👧‍👦' }
   ];
 
   return (
@@ -33,7 +37,7 @@ const MainLayout = () => {
                 <span className="text-2xl">⚡</span>
                 <span className="text-xl font-bold text-white">Synergia</span>
                 <span className="text-sm bg-green-500 text-white px-2 py-1 rounded-full">
-                  v3.3
+                  v3.5 Complete
                 </span>
               </div>
 
@@ -109,17 +113,17 @@ const MainLayout = () => {
         </div>
       </header>
 
-      {/* Navigation mobile */}
+      {/* Navigation mobile COMPLÈTE */}
       <nav className="md:hidden bg-gray-800 border-t border-gray-700">
-        <div className="flex justify-around py-2">
+        <div className="grid grid-cols-4 gap-1 py-2">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex flex-col items-center p-2 rounded-lg transition-all duration-200 ${
+                `flex flex-col items-center p-2 rounded-lg transition-all duration-200 text-xs ${
                   isActive
-                    ? 'text-blue-500'
+                    ? 'bg-blue-600 text-white'
                     : 'text-gray-400 hover:text-white'
                 }`
               }
