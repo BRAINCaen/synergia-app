@@ -1,19 +1,30 @@
+// ==========================================
+// 📁 react-app/src/layouts/DashboardLayout.jsx
+// DashboardLayout CORRIGÉ - Imports fixes pour authStore
+// ==========================================
+
 import React, { useState } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import useAuthStore from '../shared/stores/authStore'
+// 🚀 CORRECTION: Import nommé pour authStore
+import { useAuthStore } from '../shared/stores/authStore'
+// ✅ Ces imports sont corrects (default exports)
 import useUserStore from '../shared/stores/userStore'
 import useNotificationStore from '../shared/stores/notificationStore'
 import { Button } from '../shared/components/ui'
 
 const DashboardLayout = ({ children }) => {
-  const { user, logout } = useAuthStore()
+  const { user, signOut } = useAuthStore()
   const { stats } = useUserStore()
   const { unreadCount } = useNotificationStore()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const handleLogout = async () => {
-    await logout()
+    try {
+      await signOut()
+    } catch (error) {
+      console.error('Erreur déconnexion:', error)
+    }
   }
 
   const navigation = [
@@ -54,10 +65,9 @@ const DashboardLayout = ({ children }) => {
                 to={item.href}
                 className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
                   item.current
-                    ? 'bg-primary-100 text-primary-900'
+                    ? 'bg-primary-100 text-primary-700'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
-                onClick={() => setSidebarOpen(false)}
               >
                 <span className="mr-3 text-lg">{item.icon}</span>
                 {item.name}
@@ -69,7 +79,7 @@ const DashboardLayout = ({ children }) => {
 
       {/* Sidebar desktop */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
+        <div className="flex flex-col bg-white border-r border-gray-200">
           <div className="flex h-16 items-center px-4 border-b border-gray-200">
             <h1 className="text-xl font-bold text-primary-600">Synergia</h1>
           </div>
@@ -78,9 +88,9 @@ const DashboardLayout = ({ children }) => {
               <Link
                 key={item.name}
                 to={item.href}
-                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
                   item.current
-                    ? 'bg-primary-100 text-primary-900'
+                    ? 'bg-primary-100 text-primary-700'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
@@ -97,47 +107,28 @@ const DashboardLayout = ({ children }) => {
         {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex h-16 items-center justify-between">
-              {/* Bouton menu mobile */}
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="lg:hidden text-gray-400 hover:text-gray-600"
-              >
-                <span className="sr-only">Ouvrir sidebar</span>
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-
-              {/* Titre de la page (desktop) */}
-              <div className="hidden lg:block">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {navigation.find(item => item.current)?.name || 'Dashboard'}
-                </h2>
+            <div className="flex justify-between h-16">
+              <div className="flex items-center">
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="lg:hidden -ml-0.5 -mt-0.5 h-12 w-12 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900"
+                >
+                  <span className="sr-only">Ouvrir sidebar</span>
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
               </div>
 
-              {/* Actions de droite */}
               <div className="flex items-center space-x-4">
-                {/* Statistiques rapides */}
-                <div className="hidden sm:flex items-center space-x-4 text-sm">
-                  <div className="flex items-center space-x-1">
-                    <span className="text-yellow-500">⭐</span>
-                    <span className="font-medium text-gray-700">{stats.level}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="text-blue-500">💎</span>
-                    <span className="font-medium text-gray-700">{stats.points}</span>
-                  </div>
-                </div>
-
                 {/* Notifications */}
-                <button className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                  <span className="sr-only">Notifications</span>
+                <button className="relative p-2 text-gray-400 hover:text-gray-500">
+                  <span className="sr-only">Voir notifications</span>
                   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-5 5h5m-5-5v-5a6 6 0 1 0-12 0v5H3l5 5H3" />
                   </svg>
                   {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
+                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
