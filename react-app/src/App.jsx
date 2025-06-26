@@ -1,58 +1,21 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// App.jsx SÉCURISÉ - Version anti-crash d'urgence
+// App.jsx SIMPLE ET FONCTIONNEL - Version de base
 // ==========================================
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthStore } from './shared/stores';
 
-// 🚨 IMPORTS SÉCURISÉS AVEC TRY/CATCH
-let useAuthStore;
-let useGameStore;
-
-try {
-  const authStoreModule = await import('./shared/stores/authStore');
-  useAuthStore = authStoreModule.useAuthStore;
-} catch (error) {
-  console.error('🚨 Erreur import authStore:', error);
-  useAuthStore = () => ({
-    user: null,
-    isAuthenticated: false,
-    loading: false,
-    error: null,
-    initializeAuth: () => () => {},
-    signOut: () => Promise.resolve()
-  });
-}
-
-try {
-  const gameStoreModule = await import('./shared/stores/gameStore');
-  useGameStore = gameStoreModule.useGameStore;
-} catch (error) {
-  console.error('🚨 Erreur import gameStore:', error);
-  useGameStore = () => ({
-    initializeGameStore: () => Promise.resolve(),
-    userStats: { level: 1, totalXp: 0 }
-  });
-}
-
-// Pages avec chargement sécurisé
-const Login = React.lazy(() => import('./pages/Login.jsx').catch(() => ({
-  default: () => <div>Erreur chargement Login</div>
-})));
-
-const Dashboard = React.lazy(() => import('./pages/Dashboard.jsx').catch(() => ({
-  default: () => <div>Erreur chargement Dashboard</div>
-})));
-
-const NotFound = React.lazy(() => import('./pages/NotFound.jsx').catch(() => ({
-  default: () => <div>Page non trouvée</div>
-})));
+// Pages - imports directs simples
+import Login from './pages/Login.jsx';
+import Dashboard from './pages/Dashboard.jsx';
+import NotFound from './pages/NotFound.jsx';
 
 /**
- * 🔄 COMPOSANT LOADING SÉCURISÉ
+ * 🔄 COMPOSANT LOADING SIMPLE
  */
-const SafeLoadingScreen = ({ message = "Chargement Synergia" }) => {
+const LoadingScreen = ({ message = "Chargement Synergia" }) => {
   return (
     <div className="h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-cyan-600">
       <div className="text-center text-white">
@@ -60,170 +23,99 @@ const SafeLoadingScreen = ({ message = "Chargement Synergia" }) => {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
         </div>
         <h2 className="text-2xl font-bold mb-2">{message}</h2>
-        <p className="text-white/80">v3.5.3 - Mode Sécurisé</p>
-        <button 
-          onClick={() => window.emergencyReset?.()} 
-          className="mt-4 px-4 py-2 bg-red-500 hover:bg-red-600 rounded text-white text-sm"
-        >
-          🚨 Reset d'urgence
-        </button>
+        <p className="text-white/80">v3.5.3 - Mode Stable</p>
       </div>
     </div>
   );
 };
 
 /**
- * 🛡️ PROTECTED ROUTE SÉCURISÉ
+ * 🛡️ PROTECTED ROUTE SIMPLE
  */
-const SafeProtectedRoute = ({ children }) => {
-  const authStore = useAuthStore();
-  
-  if (!authStore) {
-    return <SafeLoadingScreen message="Erreur stores" />;
-  }
-  
-  const { user, isAuthenticated, loading } = authStore;
+const ProtectedRoute = ({ children }) => {
+  const { user, isAuthenticated, loading } = useAuthStore();
   
   if (loading) {
-    return <SafeLoadingScreen message="Vérification authentification" />;
+    return <LoadingScreen message="Vérification authentification" />;
   }
   
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
   }
   
-  return (
-    <React.Suspense fallback={<SafeLoadingScreen message="Chargement page" />}>
-      {children}
-    </React.Suspense>
-  );
+  return children;
 };
 
 /**
- * 🚨 COMPOSANT PRINCIPAL APP SÉCURISÉ
+ * 🚀 COMPOSANT PRINCIPAL APP SIMPLE
  */
 function App() {
+  const { user, isAuthenticated, loading, initializeAuth } = useAuthStore();
   const [isInitialized, setIsInitialized] = useState(false);
-  const [error, setError] = useState(null);
-  const initRef = useRef(false);
-  
-  // Hooks sécurisés
-  const authStore = useAuthStore();
-  const gameStore = useGameStore();
 
   useEffect(() => {
-    // Éviter les double-initialisations
-    if (initRef.current) return;
-    initRef.current = true;
-
-    console.log('🚨 SYNERGIA v3.5.3 - INITIALISATION SÉCURISÉE');
+    console.log('🚀 SYNERGIA v3.5.3 - INITIALISATION SIMPLE');
     
-    const initializeApp = async () => {
+    const initialize = async () => {
       try {
-        // 1️⃣ Vérifier que les stores sont disponibles
-        if (!authStore || !gameStore) {
-          throw new Error('Stores non disponibles');
-        }
-
-        // 2️⃣ Initialiser l'authentification avec timeout
-        const authPromise = authStore.initializeAuth?.();
-        const timeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout auth')), 10000)
-        );
+        // Initialiser l'authentification
+        const unsubscribe = initializeAuth();
         
-        const unsubscribe = await Promise.race([authPromise, timeout]);
-        
-        // 3️⃣ Marquer comme initialisé
         setIsInitialized(true);
-        
         console.log('✅ App initialisée avec succès');
         
         // Retourner la fonction de nettoyage
         return unsubscribe;
       } catch (error) {
-        console.error('🚨 Erreur initialisation app:', error);
-        setError(error.message);
+        console.error('❌ Erreur initialisation:', error);
         setIsInitialized(true); // Continuer même en cas d'erreur
       }
     };
 
-    initializeApp().catch(err => {
-      console.error('🚨 Erreur critique:', err);
-      setError(err.message);
-      setIsInitialized(true);
-    });
+    initialize();
+  }, [initializeAuth]);
 
-    // Cleanup automatique après 30 secondes
-    const cleanup = setTimeout(() => {
-      setIsInitialized(true);
-    }, 30000);
-
-    return () => {
-      clearTimeout(cleanup);
-    };
-  }, []);
-
-  // Afficher erreur critique
-  if (error) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-red-900 text-white">
-        <div className="text-center p-8">
-          <h1 className="text-3xl font-bold mb-4">🚨 Erreur Critique</h1>
-          <p className="mb-4">{error}</p>
-          <button 
-            onClick={() => window.emergencyReset?.()} 
-            className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded text-white"
-          >
-            🚨 Reset d'urgence
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Afficher loading pendant l'initialisation
-  if (!isInitialized) {
-    return <SafeLoadingScreen />;
+  // Afficher le loading pendant l'initialisation
+  if (!isInitialized || loading) {
+    return <LoadingScreen />;
   }
 
   return (
     <Router>
       <div className="App">
-        {/* Banner de mode sécurisé */}
-        <div className="bg-orange-600 text-white p-2 text-center text-sm font-medium">
-          🚨 SYNERGIA MODE SÉCURISÉ v3.5.3 | Service Worker désactivé | Anti-crash activé
+        {/* Banner de succès */}
+        <div className="bg-green-600 text-white p-2 text-center text-sm font-medium">
+          ✅ SYNERGIA v3.5.3 STABLE | Service Worker désactivé | Application fonctionnelle
         </div>
         
-        <React.Suspense fallback={<SafeLoadingScreen message="Chargement route" />}>
-          <Routes>
-            {/* Routes publiques */}
-            <Route 
-              path="/login" 
-              element={
-                !authStore?.isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />
-              } 
-            />
-            
-            {/* Routes protégées */}
-            <Route 
-              path="/dashboard" 
-              element={
-                <SafeProtectedRoute>
-                  <Dashboard />
-                </SafeProtectedRoute>
-              } 
-            />
-            
-            {/* Redirection par défaut */}
-            <Route 
-              path="/" 
-              element={<Navigate to={authStore?.isAuthenticated ? "/dashboard" : "/login"} replace />} 
-            />
-            
-            {/* Page 404 */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </React.Suspense>
+        <Routes>
+          {/* Routes publiques */}
+          <Route 
+            path="/login" 
+            element={
+              !isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />
+            } 
+          />
+          
+          {/* Routes protégées */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Redirection par défaut */}
+          <Route 
+            path="/" 
+            element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} 
+          />
+          
+          {/* Page 404 */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </div>
     </Router>
   );
