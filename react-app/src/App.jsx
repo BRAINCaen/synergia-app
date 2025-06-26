@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// App.jsx COMPLET avec toutes les routes fonctionnelles
+// App.jsx ULTRA-COMPLET avec toutes les 17 routes
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -12,7 +12,7 @@ import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import NotFound from './pages/NotFound.jsx';
 
-// Toutes les pages créées et fonctionnelles
+// 🚀 TOUTES LES 17 PAGES EXISTANTES
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
@@ -20,6 +20,13 @@ import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import LeaderboardPage from './pages/LeaderboardPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 import TeamPage from './pages/TeamPage.jsx';
+import BadgesPage from './pages/BadgesPage.jsx';
+import GamificationPage from './pages/GamificationPage.jsx';
+import OnboardingPage from './pages/OnboardingPage.jsx';
+import RewardsPage from './pages/RewardsPage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
+import TimeTrackPage from './pages/TimeTrackPage.jsx';
+import TestDashboard from './pages/TestDashboard.jsx';
 
 // Layout
 import DashboardLayout from './layouts/DashboardLayout.jsx';
@@ -35,7 +42,7 @@ const LoadingScreen = ({ message = "Chargement Synergia" }) => {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
         </div>
         <h2 className="text-2xl font-bold mb-2">{message}</h2>
-        <p className="text-white/80">v3.5 - Navigation Complète</p>
+        <p className="text-white/80">v3.5 Ultimate - 17 pages disponibles</p>
       </div>
     </div>
   );
@@ -63,20 +70,20 @@ const ProtectedRoute = ({ children }) => {
 };
 
 /**
- * 🚀 COMPOSANT PRINCIPAL APP AVEC TOUTES LES ROUTES
+ * 🚀 COMPOSANT PRINCIPAL APP AVEC TOUTES LES 17 ROUTES
  */
 function App() {
   const { user, isAuthenticated, loading, initializeAuth } = useAuthStore();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    console.log('🚀 SYNERGIA v3.5 - NAVIGATION COMPLÈTE INITIALISÉE');
+    console.log('🚀 SYNERGIA v3.5 ULTIMATE - 17 PAGES INITIALISÉES');
     
     const initialize = async () => {
       try {
         const unsubscribe = initializeAuth();
         setIsInitialized(true);
-        console.log('✅ App initialisée avec TOUTES les routes disponibles');
+        console.log('✅ App initialisée avec les 17 routes disponibles');
         return unsubscribe;
       } catch (error) {
         console.error('❌ Erreur initialisation:', error);
@@ -94,9 +101,9 @@ function App() {
   return (
     <Router>
       <div className="App">
-        {/* Banner de succès avec navigation complète */}
-        <div className="bg-green-600 text-white p-2 text-center text-sm font-medium">
-          ✅ SYNERGIA v3.5 NAVIGATION COMPLÈTE | 8 pages accessibles : Dashboard • Tâches • Projets • Analytics • Classement • Profil • Utilisateurs • Équipe
+        {/* Banner de succès avec navigation ultra-complète */}
+        <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white p-2 text-center text-sm font-medium">
+          ✅ SYNERGIA v3.5 ULTIMATE | 17 PAGES ACCESSIBLES | Navigation complète active !
         </div>
         
         <Routes>
@@ -108,7 +115,7 @@ function App() {
             } 
           />
           
-          {/* 🚀 TOUTES LES ROUTES PROTÉGÉES AVEC LAYOUT */}
+          {/* 🏠 PAGES PRINCIPALES */}
           <Route 
             path="/dashboard" 
             element={
@@ -145,6 +152,7 @@ function App() {
             } 
           />
           
+          {/* 🎮 GAMIFICATION */}
           <Route 
             path="/leaderboard" 
             element={
@@ -155,10 +163,38 @@ function App() {
           />
           
           <Route 
-            path="/profile" 
+            path="/badges" 
             element={
               <ProtectedRoute>
-                <ProfilePage />
+                <BadgesPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/gamification" 
+            element={
+              <ProtectedRoute>
+                <GamificationPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/rewards" 
+            element={
+              <ProtectedRoute>
+                <RewardsPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 👥 ÉQUIPE & SOCIAL */}
+          <Route 
+            path="/team" 
+            element={
+              <ProtectedRoute>
+                <TeamPage />
               </ProtectedRoute>
             } 
           />
@@ -172,11 +208,50 @@ function App() {
             } 
           />
           
+          {/* 👤 PROFIL & PARAMÈTRES */}
           <Route 
-            path="/team" 
+            path="/profile" 
             element={
               <ProtectedRoute>
-                <TeamPage />
+                <ProfilePage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 🚀 FONCTIONNALITÉS SPÉCIALISÉES */}
+          <Route 
+            path="/onboarding" 
+            element={
+              <ProtectedRoute>
+                <OnboardingPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/timetrack" 
+            element={
+              <ProtectedRoute>
+                <TimeTrackPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 🧪 PAGES TEST/DEV */}
+          <Route 
+            path="/test-dashboard" 
+            element={
+              <ProtectedRoute>
+                <TestDashboard />
               </ProtectedRoute>
             } 
           />
