@@ -1,14 +1,14 @@
 # ==========================================
 # 📁 netlify.toml
-# Configuration Netlify pour Synergia v3.5 (VITE)
+# Configuration Netlify AVEC NETTOYAGE FORCÉ
 # ==========================================
 
 [build]
   # Répertoire de base pour le build
   base = "react-app"
   
-  # Commande de build (VITE utilise 'vite build', pas 'react-scripts build')
-  command = "npm run build"
+  # Commande de build AVEC NETTOYAGE FORCÉ
+  command = "rm -rf node_modules package-lock.json && npm install && npm run build"
   
   # Répertoire à publier (VITE génère dans 'dist', pas 'build')
   publish = "dist"
@@ -68,12 +68,12 @@
 
 # Configuration des déploiements
 [context.production]
-  command = "npm run build"
+  command = "rm -rf node_modules package-lock.json && npm install && npm run build"
   environment = { NODE_ENV = "production" }
 
 [context.deploy-preview]
-  command = "npm run build"
+  command = "rm -rf node_modules package-lock.json && npm install && npm run build"
   environment = { NODE_ENV = "development" }
 
 [context.branch-deploy]
-  command = "npm run build"
+  command = "rm -rf node_modules package-lock.json && npm install && npm run build"
