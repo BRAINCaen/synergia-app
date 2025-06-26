@@ -125,8 +125,10 @@ export const authService = {
   }
 };
 
-// ⭐ EXPORTS SÉCURISÉS
+// ⭐ EXPORTS SÉCURISÉS - Compatibilité avec les anciens noms
 export { auth, db, storage };
+export { db as firebaseDb }; // ⭐ ALIAS pour compatibilité
+export { auth as firebaseAuth }; // ⭐ ALIAS pour compatibilité  
 export default app;
 
 // ⭐ NETTOYAGE GLOBAL D'URGENCE
