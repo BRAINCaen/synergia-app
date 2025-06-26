@@ -1,13 +1,11 @@
 // ==========================================
 // 📁 react-app/src/layouts/DashboardLayout.jsx
-// DashboardLayout CORRIGÉ - Imports fixes pour authStore
+// DashboardLayout COMPLET avec toutes les pages
 // ==========================================
 
 import React, { useState } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
-// 🚀 CORRECTION: Import nommé pour authStore
 import { useAuthStore } from '../shared/stores/authStore'
-// ✅ Ces imports sont corrects (default exports)
 import useUserStore from '../shared/stores/userStore'
 import useNotificationStore from '../shared/stores/notificationStore'
 import { Button } from '../shared/components/ui'
@@ -27,13 +25,16 @@ const DashboardLayout = ({ children }) => {
     }
   }
 
+  // 🚀 NAVIGATION COMPLÈTE AVEC TOUTES LES PAGES CRÉÉES
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: '🏠', current: location.pathname === '/dashboard' },
-    { name: 'Mon Profil', href: '/profile', icon: '👤', current: location.pathname === '/profile' },
-    { name: 'Mon Équipe', href: '/team', icon: '👥', current: location.pathname === '/team' },
     { name: 'Tâches', href: '/tasks', icon: '✅', current: location.pathname === '/tasks' },
-    { name: 'Pointage', href: '/timetrack', icon: '⏰', current: location.pathname === '/timetrack' },
-    { name: 'Récompenses', href: '/rewards', icon: '🏆', current: location.pathname === '/rewards' },
+    { name: 'Projets', href: '/projects', icon: '📁', current: location.pathname === '/projects' },
+    { name: 'Analytics', href: '/analytics', icon: '📊', current: location.pathname === '/analytics' },
+    { name: 'Classement', href: '/leaderboard', icon: '🏆', current: location.pathname === '/leaderboard' },
+    { name: 'Mon Profil', href: '/profile', icon: '👤', current: location.pathname === '/profile' },
+    { name: 'Utilisateurs', href: '/users', icon: '👥', current: location.pathname === '/users' },
+    { name: 'Mon Équipe', href: '/team', icon: '👨‍👩‍👧‍👦', current: location.pathname === '/team' },
   ]
 
   const userInitials = user?.displayName 
@@ -47,7 +48,7 @@ const DashboardLayout = ({ children }) => {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="relative flex w-64 flex-col bg-white">
           <div className="flex h-16 items-center justify-between px-4 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-primary-600">Synergia</h1>
+            <h1 className="text-xl font-bold text-primary-600">Synergia v3.5</h1>
             <button
               onClick={() => setSidebarOpen(false)}
               className="text-gray-400 hover:text-gray-600"
@@ -81,7 +82,10 @@ const DashboardLayout = ({ children }) => {
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex flex-col bg-white border-r border-gray-200">
           <div className="flex h-16 items-center px-4 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-primary-600">Synergia</h1>
+            <h1 className="text-xl font-bold text-primary-600">Synergia v3.5</h1>
+            <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
+              Complet
+            </span>
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item) => (
@@ -118,6 +122,16 @@ const DashboardLayout = ({ children }) => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
                 </button>
+                
+                {/* Indicateur de page actuelle */}
+                <div className="ml-4 lg:ml-0">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    {navigation.find(item => item.current)?.name || 'Dashboard'}
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    Bienvenue dans Synergia v3.5 - Toutes les pages disponibles
+                  </p>
+                </div>
               </div>
 
               <div className="flex items-center space-x-4">
@@ -141,26 +155,27 @@ const DashboardLayout = ({ children }) => {
                       {user?.photoURL ? (
                         <img 
                           src={user.photoURL} 
-                          alt={user.displayName} 
+                          alt="Avatar" 
                           className="w-8 h-8 rounded-full"
                         />
                       ) : (
-                        <span className="text-white text-sm font-medium">
-                          {userInitials}
-                        </span>
+                        <span className="text-white text-sm font-medium">{userInitials}</span>
                       )}
                     </div>
                     <div className="hidden sm:block">
-                      <span className="text-sm font-medium text-gray-700">
-                        {user?.displayName || user?.email}
-                      </span>
+                      <p className="text-sm font-medium text-gray-900">
+                        {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Niveau {stats?.level || 1} • {stats?.xp || 0} XP
+                      </p>
                     </div>
                   </div>
                   
                   <Button
-                    variant="ghost"
-                    size="sm"
                     onClick={handleLogout}
+                    variant="outline"
+                    size="sm"
                     className="text-gray-500 hover:text-gray-700"
                   >
                     Déconnexion
@@ -172,7 +187,7 @@ const DashboardLayout = ({ children }) => {
         </header>
 
         {/* Contenu principal */}
-        <main className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="flex-1">
           {children || <Outlet />}
         </main>
       </div>
