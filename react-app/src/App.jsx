@@ -1,11 +1,14 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// App.jsx ULTRA-COMPLET avec toutes les 17 routes
+// App.jsx AMÉLIORÉ avec synchronisation automatique des données
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './shared/stores';
+
+// Services et composants de synchronisation
+import DataInitializer from './components/core/DataInitializer.jsx';
 
 // Pages principales
 import Login from './pages/Login.jsx';
@@ -32,9 +35,9 @@ import TestDashboard from './pages/TestDashboard.jsx';
 import DashboardLayout from './layouts/DashboardLayout.jsx';
 
 /**
- * 🔄 COMPOSANT LOADING SIMPLE
+ * 🔄 COMPOSANT LOADING AMÉLIORÉ
  */
-const LoadingScreen = ({ message = "Chargement Synergia" }) => {
+const LoadingScreen = ({ message = "Chargement Synergia", showSync = false }) => {
   return (
     <div className="h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-cyan-600">
       <div className="text-center text-white">
@@ -42,20 +45,27 @@ const LoadingScreen = ({ message = "Chargement Synergia" }) => {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
         </div>
         <h2 className="text-2xl font-bold mb-2">{message}</h2>
-        <p className="text-white/80">v3.5 Ultimate - 17 pages disponibles</p>
+        <p className="text-white/80">v3.5 Ultimate - 17 pages + Sync automatique</p>
+        
+        {showSync && (
+          <div className="mt-4 flex items-center justify-center space-x-2 text-sm">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            <span>Synchronisation des données...</span>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 /**
- * 🛡️ PROTECTED ROUTE AVEC LAYOUT
+ * 🛡️ PROTECTED ROUTE AVEC LAYOUT ET SYNC
  */
 const ProtectedRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuthStore();
   
   if (loading) {
-    return <LoadingScreen message="Vérification authentification" />;
+    return <LoadingScreen message="Vérification authentification" showSync={true} />;
   }
   
   if (!isAuthenticated || !user) {
@@ -63,206 +73,159 @@ const ProtectedRoute = ({ children }) => {
   }
   
   return (
-    <DashboardLayout>
-      {children}
-    </DashboardLayout>
+    <DataInitializer>
+      <DashboardLayout>
+        {children}
+      </DashboardLayout>
+    </DataInitializer>
   );
 };
 
 /**
- * 🚀 COMPOSANT PRINCIPAL APP AVEC TOUTES LES 17 ROUTES
+ * 🚀 COMPOSANT APP PRINCIPAL AVEC SYNC
  */
 function App() {
-  const { user, isAuthenticated, loading, initializeAuth } = useAuthStore();
-  const [isInitialized, setIsInitialized] = useState(false);
+  const { initializeAuth, loading: authLoading } = useAuthStore();
+  const [appInitialized, setAppInitialized] = useState(false);
 
+  // ✅ INITIALISATION DE L'AUTHENTIFICATION
   useEffect(() => {
-    console.log('🚀 SYNERGIA v3.5 ULTIMATE - 17 PAGES INITIALISÉES');
-    
-    const initialize = async () => {
+    const initializeApp = async () => {
       try {
-        const unsubscribe = initializeAuth();
-        setIsInitialized(true);
-        console.log('✅ App initialisée avec les 17 routes disponibles');
-        return unsubscribe;
+        console.log('🚀 Initialisation Synergia v3.5 avec synchronisation...');
+        
+        // Initialiser l'authentification
+        await initializeAuth();
+        
+        // Marquer l'app comme initialisée
+        setAppInitialized(true);
+        
+        console.log('✅ Synergia v3.5 initialisé avec succès');
+        
       } catch (error) {
-        console.error('❌ Erreur initialisation:', error);
-        setIsInitialized(true);
+        console.error('❌ Erreur initialisation app:', error);
+        setAppInitialized(true); // Continuer même en cas d'erreur
       }
     };
 
-    initialize();
+    initializeApp();
   }, [initializeAuth]);
 
-  if (!isInitialized || loading) {
-    return <LoadingScreen />;
+  // Affichage du loading pendant l'initialisation
+  if (!appInitialized || authLoading) {
+    return <LoadingScreen message="Initialisation Synergia" showSync={true} />;
   }
 
   return (
     <Router>
       <div className="App">
-        {/* Banner de succès avec navigation ultra-complète */}
-        <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white p-2 text-center text-sm font-medium">
-          ✅ SYNERGIA v3.5 ULTIMATE | 17 PAGES ACCESSIBLES | Navigation complète active !
-        </div>
-        
         <Routes>
-          {/* Route publique */}
-          <Route 
-            path="/login" 
-            element={
-              !isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />
-            } 
-          />
+          {/* 🔓 Route publique */}
+          <Route path="/login" element={<Login />} />
           
-          {/* 🏠 PAGES PRINCIPALES */}
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } 
-          />
+          {/* 🛡️ Routes protégées avec synchronisation automatique */}
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Navigate to="/dashboard" replace />
+            </ProtectedRoute>
+          } />
           
-          <Route 
-            path="/tasks" 
-            element={
-              <ProtectedRoute>
-                <TasksPage />
-              </ProtectedRoute>
-            } 
-          />
+          {/* 📊 Pages principales */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
           
-          <Route 
-            path="/projects" 
-            element={
-              <ProtectedRoute>
-                <ProjectsPage />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/tasks" element={
+            <ProtectedRoute>
+              <TasksPage />
+            </ProtectedRoute>
+          } />
           
-          <Route 
-            path="/analytics" 
-            element={
-              <ProtectedRoute>
-                <AnalyticsPage />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/projects" element={
+            <ProtectedRoute>
+              <ProjectsPage />
+            </ProtectedRoute>
+          } />
           
-          {/* 🎮 GAMIFICATION */}
-          <Route 
-            path="/leaderboard" 
-            element={
-              <ProtectedRoute>
-                <LeaderboardPage />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/analytics" element={
+            <ProtectedRoute>
+              <AnalyticsPage />
+            </ProtectedRoute>
+          } />
+
+          {/* 🎮 Pages gamification */}
+          <Route path="/gamification" element={
+            <ProtectedRoute>
+              <GamificationPage />
+            </ProtectedRoute>
+          } />
           
-          <Route 
-            path="/badges" 
-            element={
-              <ProtectedRoute>
-                <BadgesPage />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/rewards" element={
+            <ProtectedRoute>
+              <RewardsPage />
+            </ProtectedRoute>
+          } />
           
-          <Route 
-            path="/gamification" 
-            element={
-              <ProtectedRoute>
-                <GamificationPage />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/badges" element={
+            <ProtectedRoute>
+              <BadgesPage />
+            </ProtectedRoute>
+          } />
           
-          <Route 
-            path="/rewards" 
-            element={
-              <ProtectedRoute>
-                <RewardsPage />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/leaderboard" element={
+            <ProtectedRoute>
+              <LeaderboardPage />
+            </ProtectedRoute>
+          } />
+
+          {/* 👥 Pages collaboration */}
+          <Route path="/users" element={
+            <ProtectedRoute>
+              <UsersPage />
+            </ProtectedRoute>
+          } />
           
-          {/* 👥 ÉQUIPE & SOCIAL */}
-          <Route 
-            path="/team" 
-            element={
-              <ProtectedRoute>
-                <TeamPage />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/team" element={
+            <ProtectedRoute>
+              <TeamPage />
+            </ProtectedRoute>
+          } />
           
-          <Route 
-            path="/users" 
-            element={
-              <ProtectedRoute>
-                <UsersPage />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/onboarding" element={
+            <ProtectedRoute>
+              <OnboardingPage />
+            </ProtectedRoute>
+          } />
+
+          {/* ⚙️ Pages outils */}
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          } />
           
-          {/* 👤 PROFIL & PARAMÈTRES */}
-          <Route 
-            path="/profile" 
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <SettingsPage />
+            </ProtectedRoute>
+          } />
           
-          <Route 
-            path="/settings" 
-            element={
-              <ProtectedRoute>
-                <SettingsPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* 🚀 FONCTIONNALITÉS SPÉCIALISÉES */}
-          <Route 
-            path="/onboarding" 
-            element={
-              <ProtectedRoute>
-                <OnboardingPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/timetrack" 
-            element={
-              <ProtectedRoute>
-                <TimeTrackPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* 🧪 PAGES TEST/DEV */}
-          <Route 
-            path="/test-dashboard" 
-            element={
-              <ProtectedRoute>
-                <TestDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* Redirection par défaut */}
-          <Route 
-            path="/" 
-            element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} 
-          />
-          
-          {/* Page 404 */}
+          <Route path="/timetrack" element={
+            <ProtectedRoute>
+              <TimeTrackPage />
+            </ProtectedRoute>
+          } />
+
+          {/* 🧪 Pages de test */}
+          <Route path="/test-dashboard" element={
+            <ProtectedRoute>
+              <TestDashboard />
+            </ProtectedRoute>
+          } />
+
+          {/* 🚫 Page 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
@@ -271,3 +234,8 @@ function App() {
 }
 
 export default App;
+
+// 🚀 LOG DE CHARGEMENT AVEC SYNC
+console.log('✅ App Synergia v3.5 chargé avec synchronisation automatique');
+console.log('🎯 17 pages disponibles + DataSync + Auto-repair');
+console.log('📡 Synchronisation temps réel Firebase activée');
