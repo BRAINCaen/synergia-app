@@ -14,7 +14,7 @@ import {
   Users,
   TrendingUp,
   Zap,
-  Tool,
+  Wrench,
   Shield
 } from 'lucide-react';
 import dataSyncService from '../../core/services/dataSyncService.js';
@@ -296,7 +296,7 @@ const DataHealthMonitor = ({ isAdmin = false, showAdvanced = false }) => {
                   disabled={actionInProgress === 'repair'}
                   className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
                 >
-                  <Tool className={`w-4 h-4 ${actionInProgress === 'repair' ? 'animate-spin' : ''}`} />
+                  <Wrench className={`w-4 h-4 ${actionInProgress === 'repair' ? 'animate-spin' : ''}`} />
                   <span>Réparer</span>
                 </button>
                 
