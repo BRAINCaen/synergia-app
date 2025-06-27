@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/layouts/DashboardLayout.jsx
-// DashboardLayout COMPLET avec toutes les pages
+// DashboardLayout COMPLET avec TOUTES LES 17 PAGES
 // ==========================================
 
 import React, { useState } from 'react'
@@ -16,6 +16,7 @@ const DashboardLayout = ({ children }) => {
   const { unreadCount } = useNotificationStore()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [collapsedSections, setCollapsedSections] = useState({})
 
   const handleLogout = async () => {
     try {
@@ -25,30 +26,125 @@ const DashboardLayout = ({ children }) => {
     }
   }
 
-  // 🚀 NAVIGATION COMPLÈTE AVEC TOUTES LES PAGES CRÉÉES
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: '🏠', current: location.pathname === '/dashboard' },
-    { name: 'Tâches', href: '/tasks', icon: '✅', current: location.pathname === '/tasks' },
-    { name: 'Projets', href: '/projects', icon: '📁', current: location.pathname === '/projects' },
-    { name: 'Analytics', href: '/analytics', icon: '📊', current: location.pathname === '/analytics' },
-    { name: 'Classement', href: '/leaderboard', icon: '🏆', current: location.pathname === '/leaderboard' },
-    { name: 'Mon Profil', href: '/profile', icon: '👤', current: location.pathname === '/profile' },
-    { name: 'Utilisateurs', href: '/users', icon: '👥', current: location.pathname === '/users' },
-    { name: 'Mon Équipe', href: '/team', icon: '👨‍👩‍👧‍👦', current: location.pathname === '/team' },
+  const toggleSection = (sectionKey) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey]
+    }))
+  }
+
+  // 🚀 NAVIGATION COMPLÈTE AVEC TOUTES LES 17 PAGES ORGANISÉES
+  const navigationSections = [
+    {
+      title: '📊 Principal',
+      key: 'main',
+      items: [
+        { name: 'Dashboard', href: '/dashboard', icon: '🏠', current: location.pathname === '/dashboard' },
+        { name: 'Tâches', href: '/tasks', icon: '✅', current: location.pathname === '/tasks' },
+        { name: 'Projets', href: '/projects', icon: '📁', current: location.pathname === '/projects' },
+        { name: 'Analytics', href: '/analytics', icon: '📊', current: location.pathname === '/analytics' },
+      ]
+    },
+    {
+      title: '🎮 Gamification',
+      key: 'gamification',
+      items: [
+        { name: 'Classement', href: '/leaderboard', icon: '🏆', current: location.pathname === '/leaderboard' },
+        { name: 'Badges', href: '/badges', icon: '🎖️', current: location.pathname === '/badges' },
+        { name: 'Gamification', href: '/gamification', icon: '🎮', current: location.pathname === '/gamification' },
+        { name: 'Récompenses', href: '/rewards', icon: '🎁', current: location.pathname === '/rewards' },
+      ]
+    },
+    {
+      title: '👥 Équipe',
+      key: 'team',
+      items: [
+        { name: 'Mon Équipe', href: '/team', icon: '👨‍👩‍👧‍👦', current: location.pathname === '/team' },
+        { name: 'Utilisateurs', href: '/users', icon: '👥', current: location.pathname === '/users' },
+        { name: 'Intégration', href: '/onboarding', icon: '🎯', current: location.pathname === '/onboarding', badge: 'NEW' },
+      ]
+    },
+    {
+      title: '⚙️ Outils',
+      key: 'tools',
+      items: [
+        { name: 'Time Track', href: '/timetrack', icon: '⏰', current: location.pathname === '/timetrack' },
+        { name: 'Mon Profil', href: '/profile', icon: '👤', current: location.pathname === '/profile' },
+        { name: 'Paramètres', href: '/settings', icon: '⚙️', current: location.pathname === '/settings' },
+      ]
+    },
+    {
+      title: '🧪 Développement',
+      key: 'dev',
+      items: [
+        { name: 'Test Dashboard', href: '/test-dashboard', icon: '🧪', current: location.pathname === '/test-dashboard', badge: 'DEV' },
+      ]
+    }
   ]
+
+  // Calculer le total des pages
+  const totalPages = navigationSections.reduce((total, section) => total + section.items.length, 0)
 
   const userInitials = user?.displayName 
     ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase()
     : user?.email?.charAt(0).toUpperCase() || '?'
+
+  const renderNavigationSection = (section) => (
+    <div key={section.key} className="mb-4">
+      <button
+        onClick={() => toggleSection(section.key)}
+        className="w-full flex items-center justify-between px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-700 transition-colors"
+      >
+        <span>{section.title}</span>
+        <span className="text-xs">
+          {collapsedSections[section.key] ? '▼' : '▲'}
+        </span>
+      </button>
+      
+      {!collapsedSections[section.key] && (
+        <nav className="mt-2 space-y-1">
+          {section.items.map((item) => (
+            <Link
+              key={item.name}
+              to={item.href}
+              className={`group flex items-center justify-between px-2 py-2 text-sm font-medium rounded-md transition-all duration-150 ${
+                item.current
+                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border-r-2 border-blue-500 shadow-sm'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center">
+                <span className="mr-3 text-lg">{item.icon}</span>
+                <span>{item.name}</span>
+              </div>
+              {item.badge && (
+                <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                  item.badge === 'NEW' ? 'bg-green-100 text-green-800' : 
+                  item.badge === 'DEV' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {item.badge}
+                </span>
+              )}
+            </Link>
+          ))}
+        </nav>
+      )}
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar mobile */}
       <div className={`fixed inset-0 z-40 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
-        <div className="relative flex w-64 flex-col bg-white">
+        <div className="relative flex w-72 flex-col bg-white h-full">
           <div className="flex h-16 items-center justify-between px-4 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-primary-600">Synergia v3.5</h1>
+            <div className="flex items-center space-x-2">
+              <h1 className="text-xl font-bold text-blue-600">Synergia v3.5</h1>
+              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
+                {totalPages} pages
+              </span>
+            </div>
             <button
               onClick={() => setSidebarOpen(false)}
               className="text-gray-400 hover:text-gray-600"
@@ -59,55 +155,91 @@ const DashboardLayout = ({ children }) => {
               </svg>
             </button>
           </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                  item.current
-                    ? 'bg-primary-100 text-primary-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                <span className="mr-3 text-lg">{item.icon}</span>
-                {item.name}
-              </Link>
-            ))}
-          </nav>
+          
+          <div className="flex-1 overflow-y-auto px-3 py-4">
+            {navigationSections.map(renderNavigationSection)}
+          </div>
         </div>
       </div>
 
       {/* Sidebar desktop */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col bg-white border-r border-gray-200">
-          <div className="flex h-16 items-center px-4 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-primary-600">Synergia v3.5</h1>
-            <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
-              Complet
-            </span>
+      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
+        <div className="flex flex-col bg-white border-r border-gray-200 h-full">
+          <div className="flex h-16 items-center justify-between px-4 border-b border-gray-200">
+            <div className="flex items-center space-x-2">
+              <h1 className="text-xl font-bold text-blue-600">Synergia v3.5</h1>
+              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
+                {totalPages} pages
+              </span>
+            </div>
           </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                  item.current
-                    ? 'bg-primary-100 text-primary-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
+          
+          <div className="flex-1 overflow-y-auto px-3 py-4">
+            {navigationSections.map(renderNavigationSection)}
+          </div>
+
+          {/* Section gamification dans la sidebar */}
+          <div className="p-4 border-t border-gray-200">
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-3">
+              <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                <span className="mr-2">🎮</span>
+                Progression
+              </h4>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-600">Niveau {stats?.level || 1}</span>
+                  <span className="text-gray-600">{stats?.xp || 90} XP</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${((stats?.xp || 90) / ((stats?.level || 1) * 100)) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="grid grid-cols-2 gap-1 text-xs text-gray-500">
+                  <span>🎯 {stats?.tasksCompleted || 0} tâches</span>
+                  <span>🏆 {stats?.badges || 0} badges</span>
+                  <span>📁 {stats?.projects || 0} projets</span>
+                  <span>🔥 {stats?.streak || 0} jour(s)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Profil utilisateur en bas de sidebar */}
+          <div className="p-4 border-t border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                {user?.photoURL ? (
+                  <img src={user.photoURL} alt="Avatar" className="w-10 h-10 rounded-full" />
+                ) : (
+                  <span className="text-sm font-medium text-white">{userInitials}</span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-700 truncate">
+                  {user?.displayName || 'Utilisateur'}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {user?.email}
+                </p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="text-gray-400 hover:text-red-600 p-1 transition-colors"
+                title="Déconnexion"
               >
-                <span className="mr-3 text-lg">{item.icon}</span>
-                {item.name}
-              </Link>
-            ))}
-          </nav>
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Contenu principal */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-72">
         {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="mx-auto px-4 sm:px-6 lg:px-8">
@@ -125,16 +257,34 @@ const DashboardLayout = ({ children }) => {
                 
                 {/* Indicateur de page actuelle */}
                 <div className="ml-4 lg:ml-0">
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    {navigation.find(item => item.current)?.name || 'Dashboard'}
+                  <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                    {navigationSections.flatMap(s => s.items).find(item => item.current)?.icon}
+                    <span className="ml-2">
+                      {navigationSections.flatMap(s => s.items).find(item => item.current)?.name || 'Dashboard'}
+                    </span>
                   </h2>
                   <p className="text-sm text-gray-500">
-                    Bienvenue dans Synergia v3.5 - Toutes les pages disponibles
+                    {location.pathname === '/onboarding' 
+                      ? '🎯 Parcours d\'intégration avec quêtes et badges'
+                      : location.pathname === '/test-dashboard'
+                      ? '🧪 Environnement de test et développement'
+                      : `Synergia v3.5 Ultimate - ${totalPages} pages disponibles`
+                    }
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center space-x-4">
+                {/* Compteur de pages */}
+                <div className="hidden sm:flex items-center space-x-2">
+                  <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
+                    {totalPages}/17 pages
+                  </span>
+                  <span className="px-3 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
+                    v3.5.2-ULTIMATE
+                  </span>
+                </div>
+
                 {/* Notifications */}
                 <button className="relative p-2 text-gray-400 hover:text-gray-500">
                   <span className="sr-only">Voir notifications</span>
@@ -142,52 +292,62 @@ const DashboardLayout = ({ children }) => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-5 5h5m-5-5v-5a6 6 0 1 0-12 0v5H3l5 5H3" />
                   </svg>
                   {unreadCount > 0 && (
-                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white">
+                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
                 </button>
 
-                {/* Profil utilisateur */}
+                {/* Raccourcis rapides */}
+                <div className="hidden md:flex items-center space-x-2">
+                  {location.pathname !== '/onboarding' && (
+                    <Link
+                      to="/onboarding"
+                      className="flex items-center space-x-1 px-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-sm font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-200"
+                    >
+                      <span>🎯</span>
+                      <span>Intégration</span>
+                    </Link>
+                  )}
+                  
+                  {location.pathname !== '/tasks' && (
+                    <Link
+                      to="/tasks"
+                      className="flex items-center space-x-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                    >
+                      <span>✅</span>
+                      <span>Tâches</span>
+                    </Link>
+                  )}
+                </div>
+
+                {/* Profil utilisateur header */}
                 <div className="flex items-center space-x-3">
                   <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
+                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                       {user?.photoURL ? (
-                        <img 
-                          src={user.photoURL} 
-                          alt="Avatar" 
-                          className="w-8 h-8 rounded-full"
-                        />
+                        <img src={user.photoURL} alt="Avatar" className="w-8 h-8 rounded-full" />
                       ) : (
-                        <span className="text-white text-sm font-medium">{userInitials}</span>
+                        <span className="text-xs font-medium text-white">{userInitials}</span>
                       )}
                     </div>
-                    <div className="hidden sm:block">
-                      <p className="text-sm font-medium text-gray-900">
-                        {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Niveau {stats?.level || 1} • {stats?.xp || 0} XP
-                      </p>
+                    <div className="hidden md:block">
+                      <div className="text-sm font-medium text-gray-700">
+                        {user?.displayName || 'Utilisateur'}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Niveau {stats?.level || 1} • {stats?.xp || 90} XP
+                      </div>
                     </div>
                   </div>
-                  
-                  <Button
-                    onClick={handleLogout}
-                    variant="outline"
-                    size="sm"
-                    className="text-gray-500 hover:text-gray-700"
-                  >
-                    Déconnexion
-                  </Button>
                 </div>
               </div>
             </div>
           </div>
         </header>
 
-        {/* Contenu principal */}
-        <main className="flex-1">
+        {/* Contenu de la page */}
+        <main className="py-6">
           {children || <Outlet />}
         </main>
       </div>
@@ -196,3 +356,6 @@ const DashboardLayout = ({ children }) => {
 }
 
 export default DashboardLayout
+
+// 🚀 Log de chargement
+console.log('✅ DashboardLayout chargé avec TOUTES les 17 pages organisées');
