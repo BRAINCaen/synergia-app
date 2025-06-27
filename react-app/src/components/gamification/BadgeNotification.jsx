@@ -1,263 +1,252 @@
 // ==========================================
 // 📁 react-app/src/components/gamification/BadgeNotification.jsx
-// NOTIFICATION ANIMÉE DE BADGE DÉBLOQUÉ
-// Pop-up épique avec animations et effets visuels
+// NOTIFICATIONS VISUELLES ÉPIQUES POUR LES BADGES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Award, X, Star, Zap } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Star, Trophy, Zap, Crown, Award, Target } from 'lucide-react';
 
 /**
- * 🎉 COMPOSANT NOTIFICATION BADGE
- * Animation épique lors du déblocage d'un badge
+ * 🎊 COMPOSANT DE NOTIFICATION DE BADGE AVEC ANIMATIONS
  */
-const BadgeNotification = ({ 
-  badge, 
-  isVisible, 
-  onClose, 
-  autoClose = true, 
-  autoCloseDelay = 5000 
-}) => {
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [showParticles, setShowParticles] = useState(false);
+const BadgeNotification = ({ badge, isVisible, onClose }) => {
+  const [particles, setParticles] = useState([]);
+  const [showDetails, setShowDetails] = useState(false);
 
+  // Générer des particules d'animation
   useEffect(() => {
     if (isVisible) {
-      // Démarrer l'animation d'entrée
-      setTimeout(() => setIsAnimating(true), 100);
+      const newParticles = Array.from({ length: 12 }, (_, i) => ({
+        id: i,
+        x: Math.random() * 400,
+        y: Math.random() * 400,
+        rotation: Math.random() * 360,
+        scale: 0.5 + Math.random() * 0.5,
+        delay: Math.random() * 0.5
+      }));
+      setParticles(newParticles);
       
-      // Déclencher les particules
-      setTimeout(() => setShowParticles(true), 500);
+      // Auto-close après 5 secondes
+      const timer = setTimeout(() => {
+        onClose();
+      }, 5000);
       
-      // Auto-fermeture
-      if (autoClose) {
-        const timer = setTimeout(() => {
-          handleClose();
-        }, autoCloseDelay);
-        
-        return () => clearTimeout(timer);
-      }
+      return () => clearTimeout(timer);
     }
-  }, [isVisible, autoClose, autoCloseDelay]);
+  }, [isVisible, onClose]);
 
-  const handleClose = () => {
-    setIsAnimating(false);
-    setTimeout(() => {
-      setShowParticles(false);
-      onClose();
-    }, 300);
+  if (!badge || !isVisible) return null;
+
+  // Couleurs selon la rareté/importance du badge
+  const getBadgeColor = (xpReward) => {
+    if (xpReward >= 200) return 'from-purple-500 to-pink-500'; // Légendaire
+    if (xpReward >= 100) return 'from-blue-500 to-cyan-500';   // Rare
+    if (xpReward >= 50) return 'from-green-500 to-emerald-500'; // Commun
+    return 'from-gray-500 to-slate-500'; // Basique
   };
 
-  // Ne pas rendre si pas visible ou pas de badge
-  if (!isVisible || !badge) return null;
-
-  // Couleurs basées sur la catégorie du badge
-  const getCategoryColors = (category) => {
-    const colorMap = {
-      premiers_pas: 'from-blue-400 via-blue-500 to-blue-600',
-      productivite: 'from-green-400 via-green-500 to-green-600',
-      regularite: 'from-red-400 via-red-500 to-red-600',
-      temporel: 'from-yellow-400 via-orange-500 to-red-500',
-      xp: 'from-purple-400 via-purple-500 to-purple-600',
-      special: 'from-pink-400 via-pink-500 to-purple-600'
-    };
-    return colorMap[category] || 'from-gray-400 via-gray-500 to-gray-600';
+  const getRarityText = (xpReward) => {
+    if (xpReward >= 200) return 'LÉGENDAIRE';
+    if (xpReward >= 100) return 'RARE';
+    if (xpReward >= 50) return 'COMMUN';
+    return 'BRONZE';
   };
 
-  // Particules animées
-  const renderParticles = () => {
-    if (!showParticles) return null;
-    
-    return (
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {[...Array(12)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute animate-ping"
-            style={{
-              left: `${20 + Math.random() * 60}%`,
-              top: `${20 + Math.random() * 60}%`,
-              animationDelay: `${Math.random() * 2}s`,
-              animationDuration: `${1 + Math.random() * 2}s`
-            }}
-          >
-            <Star className="w-3 h-3 text-yellow-400" />
-          </div>
-        ))}
-        
-        {[...Array(8)].map((_, i) => (
-          <div
-            key={`spark-${i}`}
-            className="absolute animate-bounce"
-            style={{
-              left: `${30 + Math.random() * 40}%`,
-              top: `${30 + Math.random() * 40}%`,
-              animationDelay: `${Math.random() * 1.5}s`,
-              animationDuration: `${0.5 + Math.random() * 1}s`
-            }}
-          >
-            <Zap className="w-2 h-2 text-yellow-300" />
-          </div>
-        ))}
-      </div>
-    );
-  };
+  const badgeColor = getBadgeColor(badge.xpReward || 50);
+  const rarityText = getRarityText(badge.xpReward || 50);
 
-  const notificationContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      {/* Overlay sombre */}
-      <div 
-        className={`absolute inset-0 bg-black transition-opacity duration-300 ${
-          isAnimating ? 'opacity-50' : 'opacity-0'
-        }`}
-        onClick={handleClose}
-      />
-      
-      {/* Notification principale */}
-      <div 
-        className={`relative bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all duration-500 ${
-          isAnimating 
-            ? 'scale-100 opacity-100 translate-y-0' 
-            : 'scale-75 opacity-0 translate-y-8'
-        }`}
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
       >
-        {/* Particules d'arrière-plan */}
-        {renderParticles()}
-        
-        {/* Header avec gradient */}
-        <div className={`relative px-6 py-4 bg-gradient-to-r ${getCategoryColors(badge.category)} rounded-t-2xl text-white overflow-hidden`}>
-          
-          {/* Effet de brillance animé */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 transform -skew-x-12 animate-pulse" />
-          
-          <div className="relative flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                <span className="text-2xl">{badge.icon}</span>
-              </div>
-              <div>
-                <h3 className="text-lg font-bold">Badge Débloqué !</h3>
-                <p className="text-sm opacity-90">Félicitations 🎉</p>
-              </div>
-            </div>
-            
-            <button
-              onClick={handleClose}
-              className="p-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Contenu du badge */}
-        <div className="p-6">
-          <div className="text-center">
-            
-            {/* Icône du badge avec animation */}
-            <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br ${badge.color || getCategoryColors(badge.category)} text-white text-3xl mb-4 transform transition-all duration-700 ${
-              isAnimating ? 'scale-100 rotate-0' : 'scale-50 rotate-180'
-            }`}>
-              <span className="animate-pulse">{badge.icon}</span>
-            </div>
-
-            {/* Nom du badge */}
-            <h2 className="text-xl font-bold text-gray-800 mb-2">
-              {badge.name}
-            </h2>
-
-            {/* Description */}
-            <p className="text-gray-600 mb-4">
-              {badge.description}
-            </p>
-
-            {/* Récompense XP */}
-            <div className="flex items-center justify-center space-x-2 bg-yellow-50 rounded-lg p-3 mb-4">
-              <Star className="w-5 h-5 text-yellow-500" />
-              <span className="font-bold text-yellow-700">+{badge.xpReward} XP</span>
-              <Zap className="w-5 h-5 text-yellow-500" />
-            </div>
-
-            {/* Catégorie */}
-            <div className="flex items-center justify-center space-x-2 mb-4">
-              <span className={`px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r ${getCategoryColors(badge.category)} text-white`}>
-                {badge.category?.replace('_', ' ').toUpperCase()}
-              </span>
-            </div>
-
-            {/* Date de déblocage */}
-            <p className="text-xs text-gray-500">
-              Débloqué le {new Date(badge.unlockedAt || Date.now()).toLocaleDateString('fr-FR', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
-            </p>
-          </div>
-        </div>
-
-        {/* Footer avec actions */}
-        <div className="px-6 py-4 bg-gray-50 rounded-b-2xl">
-          <div className="flex space-x-3">
-            <button
-              onClick={handleClose}
-              className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
-            >
-              Fermer
-            </button>
-            <button
-              onClick={() => {
-                // Navigation vers la page des badges
-                window.location.href = '/gamification';
+        {/* Particules d'animation */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {particles.map(particle => (
+            <motion.div
+              key={particle.id}
+              initial={{ 
+                opacity: 0, 
+                scale: 0,
+                x: particle.x,
+                y: particle.y,
+                rotate: 0
               }}
-              className={`flex-1 px-4 py-2 bg-gradient-to-r ${getCategoryColors(badge.category)} text-white rounded-lg hover:opacity-90 transition-opacity font-medium`}
+              animate={{ 
+                opacity: [0, 1, 0],
+                scale: [0, particle.scale, 0],
+                y: particle.y - 100,
+                rotate: particle.rotation
+              }}
+              transition={{
+                duration: 2,
+                delay: particle.delay,
+                ease: "easeOut"
+              }}
+              className="absolute"
             >
-              Voir mes badges
-            </button>
-          </div>
+              <Star className="w-4 h-4 text-yellow-400 fill-current" />
+            </motion.div>
+          ))}
         </div>
 
-        {/* Effet de pulsation sur les bords */}
-        <div className={`absolute inset-0 rounded-2xl bg-gradient-to-r ${getCategoryColors(badge.category)} opacity-20 animate-pulse pointer-events-none`} />
-      </div>
-    </div>
-  );
+        {/* Conteneur principal de la notification */}
+        <motion.div
+          initial={{ scale: 0, rotate: -180 }}
+          animate={{ scale: 1, rotate: 0 }}
+          exit={{ scale: 0, rotate: 180 }}
+          transition={{ type: "spring", damping: 15, stiffness: 300 }}
+          className="relative max-w-md mx-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Carte du badge */}
+          <div className={`relative bg-gradient-to-br ${badgeColor} p-8 rounded-2xl shadow-2xl border-2 border-white/20`}>
+            
+            {/* Lueur externe */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${badgeColor} rounded-2xl blur-xl opacity-50 scale-110`}></div>
+            
+            {/* Contenu */}
+            <div className="relative text-center text-white">
+              
+              {/* Header avec animation */}
+              <motion.div
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="mb-4"
+              >
+                <div className="inline-flex items-center space-x-2 bg-white/20 rounded-full px-4 py-2 backdrop-blur-sm">
+                  <Trophy className="w-5 h-5" />
+                  <span className="text-sm font-bold tracking-wider">{rarityText}</span>
+                </div>
+              </motion.div>
 
-  // Utiliser un portal pour rendre au niveau racine
-  return createPortal(notificationContent, document.body);
+              {/* Icône du badge avec animation de rotation */}
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.3, type: "spring", damping: 10 }}
+                className="mb-6"
+              >
+                <div className="w-24 h-24 mx-auto bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border-4 border-white/30">
+                  <span className="text-4xl">{badge.icon}</span>
+                </div>
+              </motion.div>
+
+              {/* Titre du badge */}
+              <motion.h3
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-2xl font-bold mb-2"
+              >
+                {badge.name}
+              </motion.h3>
+
+              {/* Description */}
+              <motion.p
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-white/90 mb-4"
+              >
+                {badge.description}
+              </motion.p>
+
+              {/* Récompense XP */}
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.6, type: "spring" }}
+                className="inline-flex items-center space-x-2 bg-white/20 rounded-full px-4 py-2 backdrop-blur-sm"
+              >
+                <Zap className="w-5 h-5 text-yellow-400" />
+                <span className="font-bold">+{badge.xpReward || 50} XP</span>
+              </motion.div>
+
+              {/* Rôle badge */}
+              {badge.role && badge.role !== 'Général' && (
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.7 }}
+                  className="mt-4"
+                >
+                  <span className="text-xs bg-white/20 rounded-full px-3 py-1 backdrop-blur-sm">
+                    {badge.role}
+                  </span>
+                </motion.div>
+              )}
+
+              {/* Bouton de fermeture */}
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1 }}
+                onClick={onClose}
+                className="mt-6 bg-white/20 hover:bg-white/30 transition-colors rounded-full px-6 py-2 backdrop-blur-sm font-medium"
+              >
+                Continuer
+              </motion.button>
+            </div>
+
+            {/* Décoration coins */}
+            <div className="absolute top-2 left-2">
+              <Star className="w-6 h-6 text-white/30 fill-current" />
+            </div>
+            <div className="absolute top-2 right-2">
+              <Crown className="w-6 h-6 text-white/30 fill-current" />
+            </div>
+            <div className="absolute bottom-2 left-2">
+              <Target className="w-6 h-6 text-white/30 fill-current" />
+            </div>
+            <div className="absolute bottom-2 right-2">
+              <Award className="w-6 h-6 text-white/30 fill-current" />
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
 };
 
 /**
- * 🎊 COMPOSANT GESTIONNAIRE DE NOTIFICATIONS
- * Gère la file d'attente des notifications de badges
+ * 🎯 GESTIONNAIRE GLOBAL DES NOTIFICATIONS DE BADGES
  */
 export const BadgeNotificationManager = () => {
   const [notifications, setNotifications] = useState([]);
 
-  // Fonction pour ajouter une notification
-  const showBadgeNotification = (badge) => {
-    const id = Date.now();
-    const notification = { id, badge, isVisible: true };
-    
-    setNotifications(prev => [...prev, notification]);
-  };
-
-  // Fonction pour supprimer une notification
-  const removeBadgeNotification = (id) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
-
-  // Exposer la fonction globalement
   useEffect(() => {
-    window.showBadgeNotification = showBadgeNotification;
+    // Écouter les événements de badges
+    const handleBadgeEarned = (event) => {
+      const { badge } = event.detail;
+      
+      setNotifications(prev => [...prev, {
+        id: Date.now(),
+        badge,
+        visible: true
+      }]);
+    };
+
+    window.addEventListener('badgeEarned', handleBadgeEarned);
     
     return () => {
-      delete window.showBadgeNotification;
+      window.removeEventListener('badgeEarned', handleBadgeEarned);
     };
   }, []);
+
+  const closeNotification = (id) => {
+    setNotifications(prev => 
+      prev.map(notif => 
+        notif.id === id ? { ...notif, visible: false } : notif
+      ).filter(notif => notif.visible)
+    );
+  };
 
   return (
     <>
@@ -265,10 +254,8 @@ export const BadgeNotificationManager = () => {
         <BadgeNotification
           key={notification.id}
           badge={notification.badge}
-          isVisible={notification.isVisible}
-          onClose={() => removeBadgeNotification(notification.id)}
-          autoClose={true}
-          autoCloseDelay={6000}
+          isVisible={notification.visible}
+          onClose={() => closeNotification(notification.id)}
         />
       ))}
     </>
@@ -276,18 +263,63 @@ export const BadgeNotificationManager = () => {
 };
 
 /**
- * 🎯 HOOK POUR UTILISER LES NOTIFICATIONS DE BADGES
+ * 🧪 COMPOSANT DE TEST POUR LES NOTIFICATIONS
  */
-export const useBadgeNotifications = () => {
-  const showNotification = (badge) => {
-    if (window.showBadgeNotification) {
-      window.showBadgeNotification(badge);
-    } else {
-      console.warn('BadgeNotificationManager not initialized');
+export const BadgeNotificationTester = () => {
+  const [showNotification, setShowNotification] = useState(false);
+
+  const testBadges = [
+    {
+      id: "test_1",
+      name: "Premier Test",
+      description: "Vous avez testé le système de badges !",
+      icon: "🧪",
+      role: "Test",
+      xpReward: 50
+    },
+    {
+      id: "test_2", 
+      name: "Badge Légendaire",
+      description: "Un badge ultra rare pour les testeurs !",
+      icon: "🏆",
+      role: "Test",
+      xpReward: 250
+    },
+    {
+      id: "test_3",
+      name: "Speed Tester",
+      description: "Test rapide du système",
+      icon: "⚡",
+      role: "Test", 
+      xpReward: 100
     }
+  ];
+
+  const triggerTestNotification = (badge) => {
+    const event = new CustomEvent('badgeEarned', {
+      detail: { badge }
+    });
+    window.dispatchEvent(event);
   };
 
-  return { showNotification };
+  return (
+    <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+      <h3 className="font-bold text-amber-800 mb-3">🧪 Test des Notifications</h3>
+      <div className="space-y-2">
+        {testBadges.map(badge => (
+          <button
+            key={badge.id}
+            onClick={() => triggerTestNotification(badge)}
+            className="block w-full text-left p-2 bg-amber-100 hover:bg-amber-200 rounded transition-colors"
+          >
+            <span className="mr-2">{badge.icon}</span>
+            <span className="font-medium">{badge.name}</span>
+            <span className="text-sm text-amber-600 ml-2">(+{badge.xpReward} XP)</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 };
 
 export default BadgeNotification;
