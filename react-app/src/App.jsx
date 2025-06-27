@@ -1,9 +1,15 @@
-// react-app/src/App.jsx
+// ==========================================
+// 📁 react-app/src/App.jsx
+// CODE COMPLET - Remplacer entièrement le fichier existant
+// ==========================================
+
 import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './shared/stores/authStore.js'
-// Firebase est déjà initialisé dans firebase.js - pas besoin d'un service séparé
 import LoadingScreen from './components/ui/LoadingScreen.jsx'
+
+// ✅ IMPORT LAYOUT PRINCIPAL
+import DashboardLayout from './layouts/DashboardLayout.jsx'
 
 // 🎊 IMPORT NOUVEAU : Gestionnaire de notifications de badges
 import { BadgeNotificationManager } from './components/gamification/BadgeNotification.jsx'
@@ -24,7 +30,7 @@ import ProfilePage from './pages/ProfilePage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
 import TestDashboard from './pages/TestDashboard.jsx'
 
-// Component protégé
+// ✅ Component protégé AVEC LAYOUT
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuthStore()
   
@@ -36,7 +42,12 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />
   }
   
-  return children
+  // ✅ WRAPPER AVEC DASHBOARDLAYOUT pour toutes les pages protégées
+  return (
+    <DashboardLayout>
+      {children}
+    </DashboardLayout>
+  )
 }
 
 // Component route publique  
@@ -75,41 +86,43 @@ function App() {
         console.log('🎉 Synergia prêt !');
         
       } catch (error) {
-        console.error('❌ Erreur initialisation app:', error);
+        console.error('❌ Erreur initialisation:', error);
         setAppInitialized(true); // Continuer même en cas d'erreur
       }
-    };
+    }
 
-    initializeApp();
-  }, [initializeAuth]);
+    initializeApp()
+  }, [initializeAuth])
 
-  // Affichage du loading pendant l'initialisation
+  // Écran de chargement pendant l'initialisation
   if (!appInitialized || authLoading) {
-    return <LoadingScreen message="Initialisation Synergia" showSync={true} />;
+    return <LoadingScreen message="Chargement de Synergia v3.5..." />
   }
 
   return (
     <Router>
-      <div className="App">
-        {/* 🎊 AJOUT : Gestionnaire global des notifications de badges */}
+      <div className="min-h-screen bg-gray-50">
+        {/* ✅ NOUVEAU: Gestionnaire global des notifications de badges */}
         <BadgeNotificationManager />
         
         <Routes>
-          {/* 🔓 Route publique */}
-          <Route path="/login" element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          } />
-          
-          {/* 🛡️ Routes protégées avec synchronisation globale automatique */}
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Navigate to="/dashboard" replace />
-            </ProtectedRoute>
-          } />
-          
-          {/* 📊 Pages principales avec sync global */}
+          {/* 🌐 Route publique : Login */}
+          <Route 
+            path="/login" 
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            } 
+          />
+
+          {/* 🏠 Redirection racine vers dashboard */}
+          <Route 
+            path="/" 
+            element={<Navigate to="/dashboard" replace />} 
+          />
+
+          {/* 📊 Pages principales - AVEC LAYOUT */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
@@ -134,7 +147,7 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* 🎮 Pages gamification avec sync global */}
+          {/* 🎮 Pages gamification - AVEC LAYOUT */}
           <Route path="/gamification" element={
             <ProtectedRoute>
               <GamificationPage />
@@ -146,14 +159,14 @@ function App() {
               <RewardsPage />
             </ProtectedRoute>
           } />
-          
+
           <Route path="/badges" element={
             <ProtectedRoute>
               <BadgesPage />
             </ProtectedRoute>
           } />
 
-          {/* 👥 Pages collaboration */}
+          {/* 👥 Pages collaboration - AVEC LAYOUT */}
           <Route path="/users" element={
             <ProtectedRoute>
               <UsersPage />
@@ -166,7 +179,7 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* ⚙️ Pages outils */}
+          {/* ⚙️ Pages outils - AVEC LAYOUT */}
           <Route path="/timetrack" element={
             <ProtectedRoute>
               <TimeTrackPage />
@@ -185,7 +198,7 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* 🧪 Pages de développement */}
+          {/* 🧪 Pages de développement - AVEC LAYOUT */}
           <Route path="/test-dashboard" element={
             <ProtectedRoute>
               <TestDashboard />
