@@ -1,404 +1,416 @@
 // ==========================================
 // 📁 react-app/src/pages/RewardsPage.jsx
-// Page Récompenses - Système de gamification et badges
+// REWARDS PAGE MIGRÉE - Firebase comme source unique
+// REMPLACE COMPLÈTEMENT le RewardsPage.jsx existant
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
-import { useAuthStore, useGameStore } from '../shared/stores';
+import React, { useState } from 'react';
 import { 
+  Gift, 
   Award, 
   Star, 
+  Crown, 
   Trophy, 
   Target, 
-  Zap, 
-  Gift,
-  Crown,
-  Medal,
+  CheckCircle, 
+  Lock, 
+  Zap,
+  Gem,
+  Shield,
   Flame,
-  CheckCircle,
-  Lock,
-  Sparkles
+  TrendingUp
 } from 'lucide-react';
 
+// ✅ NOUVEAU: Import du hook unifié Firebase
+import { useUnifiedUser } from '../shared/hooks/useUnifiedUser.js';
+
 const RewardsPage = () => {
-  const { user } = useAuthStore();
-  const { userStats, badges } = useGameStore();
+  // ✅ NOUVEAU: Hook unifié - source unique Firebase
+  const {
+    stats,
+    xpProgress,
+    badges,
+    loading,
+    isReady
+  } = useUnifiedUser();
+
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [availableRewards, setAvailableRewards] = useState([]);
 
-  // Système de récompenses
-  useEffect(() => {
-    const rewardsData = {
-      badges: [
-        {
-          id: 'first_login',
-          name: 'Premier Pas',
-          description: 'Première connexion à Synergia',
-          icon: '🎯',
-          category: 'milestone',
-          xpReward: 10,
-          earned: true,
-          earnedDate: '2025-06-20'
-        },
-        {
-          id: 'task_master',
-          name: 'Maître des Tâches',
-          description: 'Complétez 10 tâches',
-          icon: '✅',
-          category: 'productivity',
-          xpReward: 50,
-          earned: userStats?.tasksCompleted >= 10,
-          progress: Math.min(userStats?.tasksCompleted || 0, 10),
-          maxProgress: 10
-        },
-        {
-          id: 'week_warrior',
-          name: 'Guerrier de la Semaine',
-          description: 'Connexion 7 jours consécutifs',
-          icon: '🔥',
-          category: 'consistency',
-          xpReward: 100,
-          earned: (userStats?.loginStreak || 0) >= 7,
-          progress: Math.min(userStats?.loginStreak || 0, 7),
-          maxProgress: 7
-        },
-        {
-          id: 'level_up',
-          name: 'Montée en Grade',
-          description: 'Atteignez le niveau 5',
-          icon: '⭐',
-          category: 'advancement',
-          xpReward: 200,
-          earned: (userStats?.level || 1) >= 5,
-          progress: Math.min(userStats?.level || 1, 5),
-          maxProgress: 5
-        },
-        {
-          id: 'xp_collector',
-          name: 'Collectionneur XP',
-          description: 'Accumulez 1000 XP',
-          icon: '💎',
-          category: 'achievement',
-          xpReward: 150,
-          earned: (userStats?.totalXp || 0) >= 1000,
-          progress: Math.min(userStats?.totalXp || 0, 1000),
-          maxProgress: 1000
-        },
-        {
-          id: 'perfectionist',
-          name: 'Perfectionniste',
-          description: 'Terminez 5 tâches sans erreur',
-          icon: '🎨',
-          category: 'quality',
-          xpReward: 75,
-          earned: false,
-          progress: 3,
-          maxProgress: 5
-        },
-        {
-          id: 'team_player',
-          name: 'Joueur d\'Équipe',
-          description: 'Collaborez sur 3 projets',
-          icon: '🤝',
-          category: 'social',
-          xpReward: 120,
-          earned: false,
-          progress: 1,
-          maxProgress: 3
-        },
-        {
-          id: 'speed_demon',
-          name: 'Démon de Vitesse',
-          description: 'Complétez 5 tâches en 1 jour',
-          icon: '⚡',
-          category: 'speed',
-          xpReward: 80,
-          earned: false,
-          progress: 0,
-          maxProgress: 5
-        }
-      ],
-      
-      levels: [
-        { level: 1, name: 'Débutant', xpRequired: 0, rewards: ['🎯'] },
-        { level: 2, name: 'Novice', xpRequired: 100, rewards: ['📚'] },
-        { level: 3, name: 'Apprenti', xpRequired: 250, rewards: ['🔧'] },
-        { level: 4, name: 'Pratiquant', xpRequired: 500, rewards: ['⚙️'] },
-        { level: 5, name: 'Expert', xpRequired: 1000, rewards: ['⭐'] },
-        { level: 6, name: 'Maître', xpRequired: 2000, rewards: ['👑'] }
-      ],
-
-      achievements: [
-        {
-          id: 'early_bird',
-          name: 'Lève-tôt',
-          description: 'Connectez-vous avant 7h',
-          icon: '🌅',
-          rarity: 'rare',
-          earned: false
-        },
-        {
-          id: 'night_owl',
-          name: 'Oiseau de Nuit',
-          description: 'Travaillez après 22h',
-          icon: '🦉',
-          rarity: 'rare',
-          earned: false
-        },
-        {
-          id: 'weekend_warrior',
-          name: 'Guerrier du Weekend',
-          description: 'Complétez des tâches le weekend',
-          icon: '🏖️',
-          rarity: 'epic',
-          earned: false
-        }
-      ]
-    };
-
-    setAvailableRewards(rewardsData);
-  }, [userStats]);
-
-  const categories = [
-    { id: 'all', name: 'Toutes', icon: Star },
-    { id: 'milestone', name: 'Étapes', icon: Target },
-    { id: 'productivity', name: 'Productivité', icon: Zap },
-    { id: 'consistency', name: 'Régularité', icon: Flame },
-    { id: 'advancement', name: 'Progression', icon: Crown },
-    { id: 'achievement', name: 'Succès', icon: Trophy },
-    { id: 'quality', name: 'Qualité', icon: Sparkles },
-    { id: 'social', name: 'Social', icon: Medal },
-    { id: 'speed', name: 'Rapidité', icon: Zap }
+  // ✅ NOUVEAU: Niveaux avec récompenses calculées depuis Firebase
+  const levelRewards = [
+    {
+      level: 1,
+      title: 'Débutant',
+      description: 'Bienvenue dans Synergia !',
+      xpRequired: 0,
+      icon: Target,
+      color: 'bg-gray-500',
+      rewards: ['Accès aux tâches de base', 'Profil utilisateur'],
+      unlocked: stats.level >= 1
+    },
+    {
+      level: 2,
+      title: 'Novice',
+      description: 'Vous commencez à maîtriser les bases',
+      xpRequired: 100,
+      icon: Star,
+      color: 'bg-blue-500',
+      rewards: ['Badge "Premiers pas"', 'Statistiques détaillées'],
+      unlocked: stats.level >= 2
+    },
+    {
+      level: 3,
+      title: 'Apprenti',
+      description: 'Votre progression est notable',
+      xpRequired: 250,
+      icon: Award,
+      color: 'bg-green-500',
+      rewards: ['Badge "En progression"', 'Classement équipe', '+25 XP bonus'],
+      unlocked: stats.level >= 3
+    },
+    {
+      level: 4,
+      title: 'Confirmé',
+      description: 'Vous maîtrisez bien Synergia',
+      xpRequired: 500,
+      icon: Shield,
+      color: 'bg-purple-500',
+      rewards: ['Badge "Confirmé"', 'Fonctions avancées', '+50 XP bonus'],
+      unlocked: stats.level >= 4
+    },
+    {
+      level: 5,
+      title: 'Expert',
+      description: 'Votre expertise est reconnue',
+      xpRequired: 1000,
+      icon: Crown,
+      color: 'bg-yellow-500',
+      rewards: ['Badge "Expert"', 'Titre spécial', '+100 XP bonus'],
+      unlocked: stats.level >= 5
+    }
   ];
 
-  const getRarityColor = (rarity) => {
-    switch (rarity) {
-      case 'common': return 'bg-gray-100 text-gray-800 border-gray-300';
-      case 'rare': return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'epic': return 'bg-purple-100 text-purple-800 border-purple-300';
-      case 'legendary': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+  // ✅ NOUVEAU: Badges disponibles (intégrés avec Firebase)
+  const availableBadges = [
+    {
+      id: 'early_adopter',
+      name: 'Early Adopter',
+      description: 'Parmi les premiers utilisateurs de Synergia',
+      icon: Flame,
+      color: 'from-orange-400 to-red-500',
+      xpReward: 50,
+      condition: 'Être inscrit dans les 100 premiers',
+      unlocked: badges.badges.some(b => b.id === 'early_adopter' || b.type === 'early_adopter')
+    },
+    {
+      id: 'first_task',
+      name: 'Première Tâche',
+      description: 'Compléter votre première tâche',
+      icon: CheckCircle,
+      color: 'from-green-400 to-green-600',
+      xpReward: 25,
+      condition: 'Terminer 1 tâche',
+      unlocked: badges.badges.some(b => b.id === 'first_task' || b.type === 'first_task') || stats.tasksCompleted >= 1
+    },
+    {
+      id: 'task_master',
+      name: 'Maître des Tâches',
+      description: 'Compléter 10 tâches',
+      icon: Target,
+      color: 'from-blue-400 to-blue-600',
+      xpReward: 100,
+      condition: 'Terminer 10 tâches',
+      unlocked: stats.tasksCompleted >= 10
+    },
+    {
+      id: 'streak_warrior',
+      name: 'Guerrier de la Série',
+      description: 'Maintenir une série de 7 jours',
+      icon: Flame,
+      color: 'from-orange-400 to-red-500',
+      xpReward: 75,
+      condition: '7 jours consécutifs actif',
+      unlocked: stats.loginStreak >= 7
+    },
+    {
+      id: 'xp_collector',
+      name: 'Collectionneur d\'XP',
+      description: 'Atteindre 500 XP',
+      icon: Star,
+      color: 'from-yellow-400 to-yellow-600',
+      xpReward: 100,
+      condition: 'Atteindre 500 XP total',
+      unlocked: stats.totalXp >= 500
+    },
+    {
+      id: 'perfectionist',
+      name: 'Perfectionniste',
+      description: 'Atteindre 95% de taux de réussite',
+      icon: Crown,
+      color: 'from-purple-400 to-purple-600',
+      xpReward: 150,
+      condition: '95% taux de réussite sur 20+ tâches',
+      unlocked: stats.completionRate >= 95 && stats.tasksCompleted >= 20
     }
-  };
+  ];
 
-  const getProgressColor = (earned) => {
-    return earned ? 'bg-green-500' : 'bg-blue-500';
-  };
+  // Filtrer les badges selon la catégorie
+  const filteredBadges = availableBadges.filter(badge => {
+    if (selectedCategory === 'all') return true;
+    if (selectedCategory === 'unlocked') return badge.unlocked;
+    if (selectedCategory === 'locked') return !badge.unlocked;
+    return true;
+  });
 
-  const filteredBadges = selectedCategory === 'all' 
-    ? availableRewards.badges 
-    : availableRewards.badges?.filter(badge => badge.category === selectedCategory);
-
-  const earnedBadges = availableRewards.badges?.filter(badge => badge.earned) || [];
-  const totalXP = earnedBadges.reduce((sum, badge) => sum + badge.xpReward, 0);
+  // Loading state
+  if (loading || !isReady) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-700">Synchronisation récompenses Firebase...</h2>
+          <p className="text-gray-500 mt-2">Chargement des données unifiées</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
+      <div className="max-w-7xl mx-auto">
+        
+        {/* En-tête */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Récompenses</h1>
-          <p className="text-gray-600">
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+            <Gift className="w-8 h-8 mr-3 text-purple-500" />
+            Récompenses
+          </h1>
+          <p className="text-gray-600 mt-2">
             Débloquez des badges et suivez votre progression
           </p>
         </div>
 
-        {/* Statistiques globales */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <Award className="w-8 h-8 text-yellow-600 mr-3" />
+        {/* ✅ NOUVEAU: Aperçu des récompenses Firebase */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          
+          {/* Badges obtenus */}
+          <div className="bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl shadow-lg p-6 text-white">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Badges obtenus</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {earnedBadges.length}/{availableRewards.badges?.length || 0}
+                <p className="text-yellow-100 text-sm font-medium">Badges obtenus</p>
+                <p className="text-3xl font-bold">{badges.count}/20</p>
+                <p className="text-yellow-100 text-xs mt-1">Badges disponibles</p>
+              </div>
+              <Award className="w-8 h-8 text-yellow-200" />
+            </div>
+          </div>
+
+          {/* ✅ NOUVEAU: XP des badges calculé depuis Firebase */}
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-100 text-sm font-medium">XP des badges</p>
+                <p className="text-3xl font-bold">
+                  {badges.badges.reduce((sum, badge) => sum + (badge.xpReward || 25), 0)}
                 </p>
+                <p className="text-blue-100 text-xs mt-1">Points gagnés via badges</p>
               </div>
+              <Zap className="w-8 h-8 text-blue-200" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <Zap className="w-8 h-8 text-purple-600 mr-3" />
+          {/* ✅ NOUVEAU: Niveau actuel depuis Firebase */}
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">XP des badges</p>
-                <p className="text-2xl font-bold text-gray-900">{totalXP}</p>
+                <p className="text-purple-100 text-sm font-medium">Niveau actuel</p>
+                <p className="text-3xl font-bold">{stats.level}</p>
+                <p className="text-purple-100 text-xs mt-1">Rang atteint</p>
               </div>
+              <Crown className="w-8 h-8 text-purple-200" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <Crown className="w-8 h-8 text-blue-600 mr-3" />
+          {/* ✅ NOUVEAU: XP Total depuis Firebase */}
+          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Niveau actuel</p>
-                <p className="text-2xl font-bold text-gray-900">{userStats?.level || 1}</p>
+                <p className="text-green-100 text-sm font-medium">XP Total</p>
+                <p className="text-3xl font-bold">{stats.totalXp}</p>
+                <p className="text-green-100 text-xs mt-1">Expérience totale</p>
               </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <Star className="w-8 h-8 text-green-600 mr-3" />
-              <div>
-                <p className="text-sm text-gray-600">XP Total</p>
-                <p className="text-2xl font-bold text-gray-900">{userStats?.totalXp || 0}</p>
-              </div>
+              <Star className="w-8 h-8 text-green-200" />
             </div>
           </div>
         </div>
 
-        {/* Progression de niveau */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Progression de Niveau</h3>
-          <div className="space-y-4">
-            {availableRewards.levels?.map((levelData) => {
-              const isUnlocked = (userStats?.level || 1) >= levelData.level;
-              const isCurrent = (userStats?.level || 1) === levelData.level;
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* Colonne principale - Progression des niveaux */}
+          <div className="lg:col-span-2 space-y-8">
+            
+            {/* ✅ NOUVEAU: Progression de niveau Firebase */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <TrendingUp className="w-6 h-6 mr-2 text-purple-500" />
+                Progression de Niveau
+              </h2>
               
-              return (
-                <div key={levelData.level} className={`flex items-center p-4 rounded-lg border-2 ${
-                  isCurrent ? 'border-blue-500 bg-blue-50' : 
-                  isUnlocked ? 'border-green-500 bg-green-50' : 
-                  'border-gray-200 bg-gray-50'
-                }`}>
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mr-4 ${
-                    isUnlocked ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white' : 'bg-gray-300 text-gray-600'
-                  }`}>
-                    {levelData.level}
-                  </div>
-                  
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900">{levelData.name}</h4>
-                    <p className="text-sm text-gray-600">{levelData.xpRequired} XP requis</p>
-                  </div>
-                  
-                  <div className="flex gap-1">
-                    {levelData.rewards.map((reward, index) => (
-                      <span key={index} className="text-2xl" title={`Récompense niveau ${levelData.level}`}>
-                        {reward}
-                      </span>
-                    ))}
-                  </div>
-                  
-                  {isUnlocked ? (
-                    <CheckCircle className="w-6 h-6 text-green-500 ml-2" />
-                  ) : (
-                    <Lock className="w-6 h-6 text-gray-400 ml-2" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Filtres des badges */}
-        <div className="mb-6">
-          <div className="flex flex-wrap gap-2">
-            {categories.map((category) => {
-              const IconComponent = category.icon;
-              return (
-                <button
-                  key={category.id}
-                  onClick={() => setSelectedCategory(category.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                    selectedCategory === category.id
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                  }`}
-                >
-                  <IconComponent size={16} />
-                  {category.name}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Grille des badges */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredBadges?.map((badge) => (
-            <div
-              key={badge.id}
-              className={`bg-white rounded-lg shadow-lg overflow-hidden transition-transform hover:scale-105 ${
-                badge.earned ? 'ring-2 ring-green-500' : ''
-              }`}
-            >
-              <div className={`p-6 ${badge.earned ? 'bg-gradient-to-br from-green-50 to-blue-50' : 'bg-gray-50'}`}>
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`text-4xl ${badge.earned ? '' : 'grayscale opacity-50'}`}>
-                    {badge.icon}
-                  </div>
-                  {badge.earned ? (
-                    <CheckCircle className="w-6 h-6 text-green-500" />
-                  ) : (
-                    <Lock className="w-6 h-6 text-gray-400" />
-                  )}
-                </div>
-                
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{badge.name}</h3>
-                <p className="text-sm text-gray-600 mb-4">{badge.description}</p>
-                
-                {/* Progression */}
-                {!badge.earned && badge.progress !== undefined && (
-                  <div className="mb-4">
-                    <div className="flex justify-between text-xs text-gray-600 mb-1">
-                      <span>Progression</span>
-                      <span>{badge.progress}/{badge.maxProgress}</span>
+              <div className="space-y-4">
+                {levelRewards.map((reward) => {
+                  const Icon = reward.icon;
+                  return (
+                    <div 
+                      key={reward.level}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        reward.unlocked 
+                          ? 'border-green-200 bg-green-50' 
+                          : stats.level === reward.level - 1
+                          ? 'border-blue-200 bg-blue-50'
+                          : 'border-gray-200 bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                            reward.unlocked ? reward.color : 'bg-gray-400'
+                          }`}>
+                            {reward.unlocked ? (
+                              <Icon className="w-6 h-6 text-white" />
+                            ) : (
+                              <Lock className="w-6 h-6 text-white" />
+                            )}
+                          </div>
+                          
+                          <div>
+                            <h3 className="font-bold text-gray-800">
+                              Niveau {reward.level} - {reward.title}
+                            </h3>
+                            <p className="text-gray-600 text-sm">{reward.description}</p>
+                            <p className="text-gray-500 text-xs mt-1">
+                              {reward.xpRequired} XP requis
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="text-right">
+                          {reward.unlocked ? (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Débloqué
+                            </span>
+                          ) : stats.level === reward.level - 1 ? (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                              Prochain
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                              <Lock className="w-4 h-4 mr-1" />
+                              Verrouillé
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="mt-3">
+                        <h4 className="font-medium text-gray-700 mb-2">Récompenses :</h4>
+                        <ul className="text-sm text-gray-600 space-y-1">
+                          {reward.rewards.map((rewardItem, index) => (
+                            <li key={index} className="flex items-center">
+                              <Gem className="w-3 h-3 mr-2 text-purple-500" />
+                              {rewardItem}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full transition-all duration-300 ${getProgressColor(badge.earned)}`}
-                        style={{ width: `${(badge.progress / badge.maxProgress) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-600">
-                    +{badge.xpReward} XP
-                  </span>
-                  {badge.earned && badge.earnedDate && (
-                    <span className="text-xs text-gray-500">
-                      Obtenu le {new Date(badge.earnedDate).toLocaleDateString('fr-FR')}
-                    </span>
-                  )}
-                </div>
+                  );
+                })}
               </div>
             </div>
-          ))}
-        </div>
+          </div>
 
-        {/* Succès spéciaux */}
-        {availableRewards.achievements?.length > 0 && (
-          <div className="mt-8 bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Succès Spéciaux</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {availableRewards.achievements.map((achievement) => (
-                <div
-                  key={achievement.id}
-                  className={`p-4 rounded-lg border-2 ${
-                    achievement.earned ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200 bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className={`text-2xl ${achievement.earned ? '' : 'grayscale opacity-50'}`}>
-                      {achievement.icon}
-                    </span>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900">{achievement.name}</h4>
-                      <p className="text-xs text-gray-600">{achievement.description}</p>
-                      <span className={`inline-block px-2 py-1 rounded text-xs font-medium mt-1 ${getRarityColor(achievement.rarity)}`}>
-                        {achievement.rarity}
-                      </span>
+          {/* Colonne latérale - Badges */}
+          <div className="space-y-6">
+            
+            {/* Filtres badges */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Filtrer les badges</h3>
+              
+              <div className="space-y-2">
+                {[
+                  { key: 'all', label: 'Tous les badges', count: availableBadges.length },
+                  { key: 'unlocked', label: 'Débloqués', count: availableBadges.filter(b => b.unlocked).length },
+                  { key: 'locked', label: 'Verrouillés', count: availableBadges.filter(b => !b.unlocked).length }
+                ].map((filter) => (
+                  <button
+                    key={filter.key}
+                    onClick={() => setSelectedCategory(filter.key)}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                      selectedCategory === filter.key
+                        ? 'bg-purple-100 text-purple-800'
+                        : 'hover:bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    <div className="flex justify-between">
+                      <span>{filter.label}</span>
+                      <span className="text-sm opacity-75">({filter.count})</span>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Liste des badges */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">
+                Badges ({filteredBadges.filter(b => b.unlocked).length}/{filteredBadges.length})
+              </h3>
+              
+              <div className="space-y-4">
+                {filteredBadges.map((badge) => {
+                  const Icon = badge.icon;
+                  return (
+                    <div key={badge.id} className={`p-4 rounded-lg border ${
+                      badge.unlocked 
+                        ? 'border-yellow-200 bg-yellow-50' 
+                        : 'border-gray-200 bg-gray-50'
+                    }`}>
+                      <div className="flex items-start space-x-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          badge.unlocked 
+                            ? `bg-gradient-to-br ${badge.color}` 
+                            : 'bg-gray-300'
+                        }`}>
+                          {badge.unlocked ? (
+                            <Icon className="w-5 h-5 text-white" />
+                          ) : (
+                            <Lock className="w-5 h-5 text-white" />
+                          )}
+                        </div>
+                        
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-800">{badge.name}</h4>
+                          <p className="text-gray-600 text-sm mt-1">{badge.description}</p>
+                          <p className="text-gray-500 text-xs mt-2">{badge.condition}</p>
+                          
+                          {badge.unlocked && (
+                            <div className="flex items-center mt-2">
+                              <Star className="w-4 h-4 text-yellow-500 mr-1" />
+                              <span className="text-yellow-600 text-sm font-medium">
+                                +{badge.xpReward} XP
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
