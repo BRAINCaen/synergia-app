@@ -1,10 +1,9 @@
 // ==========================================
 // 📁 react-app/src/pages/RewardsPage.jsx
-// REWARDS PAGE MIGRÉE - Firebase comme source unique
-// REMPLACE COMPLÈTEMENT le RewardsPage.jsx existant
+// CODE COMPLET - Remplacer entièrement le fichier existant
 // ==========================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Gift, 
   Award, 
@@ -21,76 +20,58 @@ import {
   TrendingUp
 } from 'lucide-react';
 
-// ✅ NOUVEAU: Import du hook unifié Firebase
-import { useUnifiedUser } from '../shared/hooks/useUnifiedUser.js';
+// ✅ Hook temporaire direct Firebase
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../core/firebase.js';
+import { useAuthStore } from '../shared/stores/authStore.js';
 
 const RewardsPage = () => {
-  // ✅ NOUVEAU: Hook unifié - source unique Firebase
-  const {
-    stats,
-    xpProgress,
-    badges,
-    loading,
-    isReady
-  } = useUnifiedUser();
-
+  const { user } = useAuthStore();
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  // ✅ NOUVEAU: Niveaux avec récompenses calculées depuis Firebase
-  const levelRewards = [
-    {
-      level: 1,
-      title: 'Débutant',
-      description: 'Bienvenue dans Synergia !',
-      xpRequired: 0,
-      icon: Target,
-      color: 'bg-gray-500',
-      rewards: ['Accès aux tâches de base', 'Profil utilisateur'],
-      unlocked: stats.level >= 1
-    },
-    {
-      level: 2,
-      title: 'Novice',
-      description: 'Vous commencez à maîtriser les bases',
-      xpRequired: 100,
-      icon: Star,
-      color: 'bg-blue-500',
-      rewards: ['Badge "Premiers pas"', 'Statistiques détaillées'],
-      unlocked: stats.level >= 2
-    },
-    {
-      level: 3,
-      title: 'Apprenti',
-      description: 'Votre progression est notable',
-      xpRequired: 250,
-      icon: Award,
-      color: 'bg-green-500',
-      rewards: ['Badge "En progression"', 'Classement équipe', '+25 XP bonus'],
-      unlocked: stats.level >= 3
-    },
-    {
-      level: 4,
-      title: 'Confirmé',
-      description: 'Vous maîtrisez bien Synergia',
-      xpRequired: 500,
-      icon: Shield,
-      color: 'bg-purple-500',
-      rewards: ['Badge "Confirmé"', 'Fonctions avancées', '+50 XP bonus'],
-      unlocked: stats.level >= 4
-    },
-    {
-      level: 5,
-      title: 'Expert',
-      description: 'Votre expertise est reconnue',
-      xpRequired: 1000,
-      icon: Crown,
-      color: 'bg-yellow-500',
-      rewards: ['Badge "Expert"', 'Titre spécial', '+100 XP bonus'],
-      unlocked: stats.level >= 5
-    }
-  ];
+  // ✅ Écoute directe Firebase (synchronisation temps réel)
+  useEffect(() => {
+    if (!user?.uid) return;
 
-  // ✅ NOUVEAU: Badges disponibles (intégrés avec Firebase)
+    console.log('🔄 RewardsPage - Écoute Firebase pour:', user.uid);
+    
+    const userRef = doc(db, 'users', user.uid);
+    const unsubscribe = onSnapshot(userRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        setUserData(data);
+        console.log('✅ RewardsPage - Données Firebase mises à jour:', data.gamification?.totalXp);
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error('❌ Erreur Firebase RewardsPage:', error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  // ✅ Calcul des données depuis Firebase
+  const gamificationData = userData?.gamification || {};
+  const stats = {
+    level: gamificationData.level || 1,
+    totalXp: gamificationData.totalXp || 0,
+    tasksCompleted: gamificationData.tasksCompleted || 0,
+    loginStreak: gamificationData.loginStreak || 0,
+    completionRate: gamificationData.completionRate || 0,
+    projectsCreated: gamificationData.projectsCreated || 0
+  };
+
+  const badges = {
+    badges: gamificationData.badges || [],
+    count: (gamificationData.badges || []).length
+  };
+
+  const isReady = !loading && userData !== null;
+
+  // ✅ Badges disponibles (intégrés avec Firebase)
   const availableBadges = [
     {
       id: 'early_adopter',
@@ -162,6 +143,60 @@ const RewardsPage = () => {
     return true;
   });
 
+  // ✅ Niveaux avec récompenses calculées depuis Firebase
+  const levelRewards = [
+    {
+      level: 1,
+      title: 'Débutant',
+      description: 'Bienvenue dans Synergia !',
+      xpRequired: 0,
+      icon: Target,
+      color: 'bg-gray-500',
+      rewards: ['Accès aux tâches de base', 'Profil utilisateur'],
+      unlocked: stats.level >= 1
+    },
+    {
+      level: 2,
+      title: 'Novice',
+      description: 'Vous commencez à maîtriser les bases',
+      xpRequired: 100,
+      icon: Star,
+      color: 'bg-blue-500',
+      rewards: ['Badge "Premiers pas"', 'Statistiques détaillées'],
+      unlocked: stats.level >= 2
+    },
+    {
+      level: 3,
+      title: 'Apprenti',
+      description: 'Votre progression est notable',
+      xpRequired: 250,
+      icon: Award,
+      color: 'bg-green-500',
+      rewards: ['Badge "En progression"', 'Classement équipe', '+25 XP bonus'],
+      unlocked: stats.level >= 3
+    },
+    {
+      level: 4,
+      title: 'Confirmé',
+      description: 'Vous maîtrisez bien Synergia',
+      xpRequired: 500,
+      icon: Shield,
+      color: 'bg-purple-500',
+      rewards: ['Badge "Confirmé"', 'Fonctions avancées', '+50 XP bonus'],
+      unlocked: stats.level >= 4
+    },
+    {
+      level: 5,
+      title: 'Expert',
+      description: 'Votre expertise est reconnue',
+      xpRequired: 1000,
+      icon: Crown,
+      color: 'bg-yellow-500',
+      rewards: ['Badge "Expert"', 'Titre spécial', '+100 XP bonus'],
+      unlocked: stats.level >= 5
+    }
+  ];
+
   // Loading state
   if (loading || !isReady) {
     return (
@@ -169,7 +204,7 @@ const RewardsPage = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold text-gray-700">Synchronisation récompenses Firebase...</h2>
-          <p className="text-gray-500 mt-2">Chargement des données unifiées</p>
+          <p className="text-gray-500 mt-2">Chargement des données temps réel</p>
         </div>
       </div>
     );
@@ -190,7 +225,7 @@ const RewardsPage = () => {
           </p>
         </div>
 
-        {/* ✅ NOUVEAU: Aperçu des récompenses Firebase */}
+        {/* ✅ NOUVEAU: Aperçu des récompenses Firebase synchronisées */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           
           {/* Badges obtenus */}
@@ -205,7 +240,7 @@ const RewardsPage = () => {
             </div>
           </div>
 
-          {/* ✅ NOUVEAU: XP des badges calculé depuis Firebase */}
+          {/* XP des badges */}
           <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
@@ -219,28 +254,38 @@ const RewardsPage = () => {
             </div>
           </div>
 
-          {/* ✅ NOUVEAU: Niveau actuel depuis Firebase */}
+          {/* ✅ Niveau actuel - FIREBASE SYNCHRONISÉ */}
           <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-100 text-sm font-medium">Niveau actuel</p>
                 <p className="text-3xl font-bold">{stats.level}</p>
-                <p className="text-purple-100 text-xs mt-1">Rang atteint</p>
+                <p className="text-purple-100 text-xs mt-1">Synchronisé Firebase</p>
               </div>
               <Crown className="w-8 h-8 text-purple-200" />
             </div>
           </div>
 
-          {/* ✅ NOUVEAU: XP Total depuis Firebase */}
+          {/* ✅ XP Total - FIREBASE SYNCHRONISÉ */}
           <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-green-100 text-sm font-medium">XP Total</p>
                 <p className="text-3xl font-bold">{stats.totalXp}</p>
-                <p className="text-green-100 text-xs mt-1">Expérience totale</p>
+                <p className="text-green-100 text-xs mt-1">Synchronisé Firebase</p>
               </div>
               <Star className="w-8 h-8 text-green-200" />
             </div>
+          </div>
+        </div>
+
+        {/* Message de synchronisation */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+            <p className="text-green-800 font-medium">
+              ✅ Page synchronisée avec Firebase - Niveau {stats.level}, {stats.totalXp} XP - Données temps réel
+            </p>
           </div>
         </div>
 
@@ -249,7 +294,7 @@ const RewardsPage = () => {
           {/* Colonne principale - Progression des niveaux */}
           <div className="lg:col-span-2 space-y-8">
             
-            {/* ✅ NOUVEAU: Progression de niveau Firebase */}
+            {/* ✅ Progression de niveau Firebase */}
             <div className="bg-white rounded-xl shadow-lg p-6">
               <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
                 <TrendingUp className="w-6 h-6 mr-2 text-purple-500" />
@@ -259,6 +304,8 @@ const RewardsPage = () => {
               <div className="space-y-4">
                 {levelRewards.map((reward) => {
                   const Icon = reward.icon;
+                  const xpToNext = stats.level === reward.level - 1 ? (reward.level * 100) - stats.totalXp : 0;
+                  
                   return (
                     <div 
                       key={reward.level}
@@ -300,9 +347,14 @@ const RewardsPage = () => {
                               Débloqué
                             </span>
                           ) : stats.level === reward.level - 1 ? (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                              Prochain
-                            </span>
+                            <div className="text-center">
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                Prochain
+                              </span>
+                              <p className="text-xs text-blue-600 mt-1">
+                                {xpToNext} XP manquants
+                              </p>
+                            </div>
                           ) : (
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
                               <Lock className="w-4 h-4 mr-1" />
