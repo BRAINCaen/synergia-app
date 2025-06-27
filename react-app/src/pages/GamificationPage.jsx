@@ -1,7 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/GamificationPage.jsx
-// GAMIFICATION PAGE MIGRÉE - Firebase comme source unique
-// REMPLACE COMPLÈTEMENT le GamificationPage.jsx existant
+// Page Gamification avec intégration BadgeGallery
 // ==========================================
 
 import React, { useState } from 'react';
@@ -21,8 +20,12 @@ import {
   CheckCircle,
   Plus
 } from 'lucide-react';
+import DashboardLayout from '../layouts/DashboardLayout.jsx';
 
-// ✅ NOUVEAU: Import du hook unifié Firebase
+// ✅ NOUVEAU: Import de la BadgeGallery
+import BadgeGallery from '../components/gamification/BadgeGallery.jsx';
+
+// ✅ NOUVEAU: Import du hook unifié Firebase  
 import { useUnifiedUser, useUnifiedGamification } from '../shared/hooks/useUnifiedUser.js';
 
 const GamificationPage = () => {
@@ -97,57 +100,51 @@ const GamificationPage = () => {
     notification.className = 'fixed top-4 right-4 z-50 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg';
     notification.textContent = message;
     document.body.appendChild(notification);
-    setTimeout(() => document.body.removeChild(notification), 3000);
+    setTimeout(() => document.body.removeChild(notification), 4000);
   };
 
-  // Loading state
+  // Affichage loading pendant le chargement Firebase
   if (loading || !isReady) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-700">Synchronisation gamification Firebase...</h2>
-          <p className="text-gray-500 mt-2">Chargement des données unifiées</p>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <span className="ml-3 text-gray-600">Chargement des données de gamification...</span>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* En-tête */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-            <Trophy className="w-8 h-8 mr-3 text-yellow-500" />
-            Gamification
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Suivez votre progression, débloquez des badges et montez de niveau !
-          </p>
+    <DashboardLayout>
+      <div className="space-y-8">
+        {/* Header principal */}
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">🎮 Gamification</h1>
+          <p className="text-gray-600">Votre progression et vos achievements dans Synergia</p>
         </div>
 
-        {/* ✅ NOUVEAU: Statistiques principales Firebase */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          
-          {/* Niveau */}
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+        {/* Cartes de statistiques principales */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {/* ✅ NOUVEAU: Niveau depuis Firebase */}
+          <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-lg p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-100 text-sm font-medium">Niveau</p>
                 <p className="text-3xl font-bold">{level}</p>
-                <p className="text-purple-100 text-xs mt-1">{(level - 1) * 100} XP pour niveau {level}</p>
+                <p className="text-purple-100 text-xs mt-1">
+                  {xpProgress.progressXP}/100 XP
+                </p>
               </div>
               <Crown className="w-8 h-8 text-purple-200" />
             </div>
           </div>
 
-          {/* ✅ NOUVEAU: Expérience depuis Firebase */}
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+          {/* ✅ NOUVEAU: XP total depuis Firebase */}
+          <div className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl shadow-lg p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm font-medium">Expérience</p>
+                <p className="text-blue-100 text-sm font-medium">XP Total</p>
                 <p className="text-3xl font-bold">{totalXp}</p>
                 <p className="text-blue-100 text-xs mt-1">Points d'expérience totaux</p>
               </div>
@@ -186,7 +183,7 @@ const GamificationPage = () => {
             <nav className="flex space-x-8 px-6">
               {[
                 { id: 'overview', name: '📊 Vue d\'ensemble', icon: TrendingUp },
-                { id: 'badges', name: '🏆 Badges', icon: Award },
+                { id: 'badges', name: '🏆 Galerie de Badges', icon: Award },
                 { id: 'statistics', name: '📈 Statistiques', icon: Target }
               ].map((tab) => (
                 <button
@@ -280,47 +277,10 @@ const GamificationPage = () => {
               </div>
             )}
 
-            {/* Onglet Badges */}
+            {/* ✅ NOUVEAU: Onglet Badges avec BadgeGallery */}
             {activeTab === 'badges' && (
               <div>
-                <h3 className="text-lg font-bold text-gray-800 mb-6">Mes Badges ({badges.length})</h3>
-                
-                {badges.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {badges.map((badge, index) => (
-                      <div key={index} className="bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-6">
-                        <div className="text-center">
-                          <Award className="w-12 h-12 mx-auto mb-3 text-yellow-600" />
-                          <h4 className="font-bold text-gray-800 capitalize">
-                            {badge.name || badge.type?.replace('_', ' ') || 'Badge Spécial'}
-                          </h4>
-                          <p className="text-gray-600 text-sm mt-1">
-                            {badge.description || 'Badge débloqué'}
-                          </p>
-                          <div className="mt-3 flex items-center justify-center space-x-2 text-sm">
-                            <Star className="w-4 h-4 text-yellow-500" />
-                            <span className="text-yellow-700 font-medium">
-                              +{badge.xpReward || 25} XP
-                            </span>
-                          </div>
-                          {badge.unlockedAt && (
-                            <p className="text-xs text-gray-500 mt-2">
-                              Débloqué le {new Date(badge.unlockedAt).toLocaleDateString('fr-FR')}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Award className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                    <h4 className="text-xl font-medium text-gray-600 mb-2">Aucun badge encore</h4>
-                    <p className="text-gray-500">
-                      Complétez des tâches et restez actif pour débloquer vos premiers badges !
-                    </p>
-                  </div>
-                )}
+                <BadgeGallery />
               </div>
             )}
 
@@ -342,7 +302,7 @@ const GamificationPage = () => {
                     <div className="space-y-3">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Badges débloqués</span>
-                        <span className="font-medium">{badges.length}%</span>
+                        <span className="font-medium">{badges.length}</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
@@ -375,13 +335,59 @@ const GamificationPage = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Évolution XP */}
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-800 mb-4 flex items-center">
+                      <Zap className="w-5 h-5 mr-2 text-yellow-500" />
+                      Évolution XP
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">XP cette semaine</span>
+                        <span className="font-medium text-green-600">+125</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">XP ce mois</span>
+                        <span className="font-medium text-blue-600">+{totalXp}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Moyenne quotidienne</span>
+                        <span className="font-medium text-purple-600">18 XP</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Badges par catégorie */}
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-800 mb-4 flex items-center">
+                      <Award className="w-5 h-5 mr-2 text-purple-500" />
+                      Badges par catégorie
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Productivité</span>
+                        <span className="font-medium">3/8</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Collaboration</span>
+                        <span className="font-medium">2/6</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Apprentissage</span>
+                        <span className="font-medium">1/4</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
           </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
 
