@@ -1,14 +1,15 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// App.jsx AMÉLIORÉ avec synchronisation automatique des données
+// App.jsx avec SYNCHRONISATION GLOBALE AUTOMATIQUE
+// Firebase = Source unique de vérité pour TOUS les utilisateurs
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './shared/stores';
 
-// Services et composants de synchronisation
-import DataInitializer from './components/core/DataInitializer.jsx';
+// 🌐 COMPOSANTS DE SYNCHRONISATION GLOBALE
+import GlobalSyncInitializer from './components/core/GlobalSyncInitializer.jsx';
 
 // Pages principales
 import Login from './pages/Login.jsx';
@@ -35,22 +36,27 @@ import TestDashboard from './pages/TestDashboard.jsx';
 import DashboardLayout from './layouts/DashboardLayout.jsx';
 
 /**
- * 🔄 COMPOSANT LOADING AMÉLIORÉ
+ * 🔄 COMPOSANT LOADING AVEC SYNC
  */
 const LoadingScreen = ({ message = "Chargement Synergia", showSync = false }) => {
   return (
     <div className="h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-cyan-600">
       <div className="text-center text-white">
-        <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+        <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white"></div>
         </div>
-        <h2 className="text-2xl font-bold mb-2">{message}</h2>
-        <p className="text-white/80">v3.5 Ultimate - 17 pages + Sync automatique</p>
+        <h2 className="text-3xl font-bold mb-3">{message}</h2>
+        <p className="text-white/80 text-lg">v3.5 Ultimate - Synchronisation Firebase</p>
         
         {showSync && (
-          <div className="mt-4 flex items-center justify-center space-x-2 text-sm">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-            <span>Synchronisation des données...</span>
+          <div className="mt-6 space-y-2">
+            <div className="flex items-center justify-center space-x-3 text-sm">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+              <span>Synchronisation automatique en cours...</span>
+            </div>
+            <div className="text-xs text-white/60">
+              Uniformisation des données pour tous les utilisateurs
+            </div>
           </div>
         )}
       </div>
@@ -59,7 +65,7 @@ const LoadingScreen = ({ message = "Chargement Synergia", showSync = false }) =>
 };
 
 /**
- * 🛡️ PROTECTED ROUTE AVEC LAYOUT ET SYNC
+ * 🛡️ PROTECTED ROUTE AVEC SYNC GLOBAL
  */
 const ProtectedRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuthStore();
@@ -73,16 +79,16 @@ const ProtectedRoute = ({ children }) => {
   }
   
   return (
-    <DataInitializer>
+    <GlobalSyncInitializer>
       <DashboardLayout>
         {children}
       </DashboardLayout>
-    </DataInitializer>
+    </GlobalSyncInitializer>
   );
 };
 
 /**
- * 🚀 COMPOSANT APP PRINCIPAL AVEC SYNC
+ * 🚀 COMPOSANT APP PRINCIPAL AVEC SYNC GLOBAL
  */
 function App() {
   const { initializeAuth, loading: authLoading } = useAuthStore();
@@ -92,7 +98,7 @@ function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        console.log('🚀 Initialisation Synergia v3.5 avec synchronisation...');
+        console.log('🚀 Initialisation Synergia v3.5 avec synchronisation globale...');
         
         // Initialiser l'authentification
         await initializeAuth();
@@ -100,7 +106,7 @@ function App() {
         // Marquer l'app comme initialisée
         setAppInitialized(true);
         
-        console.log('✅ Synergia v3.5 initialisé avec succès');
+        console.log('✅ Synergia v3.5 initialisé - Synchronisation globale activée');
         
       } catch (error) {
         console.error('❌ Erreur initialisation app:', error);
@@ -123,14 +129,14 @@ function App() {
           {/* 🔓 Route publique */}
           <Route path="/login" element={<Login />} />
           
-          {/* 🛡️ Routes protégées avec synchronisation automatique */}
+          {/* 🛡️ Routes protégées avec synchronisation globale automatique */}
           <Route path="/" element={
             <ProtectedRoute>
               <Navigate to="/dashboard" replace />
             </ProtectedRoute>
           } />
           
-          {/* 📊 Pages principales */}
+          {/* 📊 Pages principales avec sync global */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
@@ -155,7 +161,7 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* 🎮 Pages gamification */}
+          {/* 🎮 Pages gamification avec sync global */}
           <Route path="/gamification" element={
             <ProtectedRoute>
               <GamificationPage />
@@ -180,7 +186,7 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* 👥 Pages collaboration */}
+          {/* 👥 Pages collaboration avec sync global */}
           <Route path="/users" element={
             <ProtectedRoute>
               <UsersPage />
@@ -199,7 +205,7 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* ⚙️ Pages outils */}
+          {/* ⚙️ Pages outils avec sync global */}
           <Route path="/profile" element={
             <ProtectedRoute>
               <ProfilePage />
@@ -218,7 +224,7 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* 🧪 Pages de test */}
+          {/* 🧪 Pages de test avec sync global */}
           <Route path="/test-dashboard" element={
             <ProtectedRoute>
               <TestDashboard />
@@ -235,7 +241,8 @@ function App() {
 
 export default App;
 
-// 🚀 LOG DE CHARGEMENT AVEC SYNC
-console.log('✅ App Synergia v3.5 chargé avec synchronisation automatique');
-console.log('🎯 17 pages disponibles + DataSync + Auto-repair');
-console.log('📡 Synchronisation temps réel Firebase activée');
+// 🚀 LOG DE CHARGEMENT AVEC SYNC GLOBAL
+console.log('🌐 App Synergia v3.5 chargé avec synchronisation globale automatique');
+console.log('🎯 17 pages disponibles + Firebase sync + Auto-correction');
+console.log('📡 TOUS les utilisateurs synchronisés automatiquement');
+console.log('✨ Firebase = Source unique de vérité pour toute l\'application');
