@@ -1,4 +1,8 @@
-// src/core/services/projectService.js
+// ==========================================
+// 📁 react-app/src/core/services/projectService.js
+// SERVICE DES PROJETS - MIS À JOUR AVEC VALIDATION OBLIGATOIRE
+// ==========================================
+
 import { 
   collection, 
   doc, 
@@ -10,75 +14,107 @@ import {
   query, 
   where, 
   orderBy, 
-  limit,
   onSnapshot,
   serverTimestamp,
   arrayUnion,
   arrayRemove
 } from 'firebase/firestore';
-import { firebaseDb } from '../firebase.js';
-import { taskService } from './taskService.js';
+import { db } from '../firebase.js';
 
-const PROJECTS_COLLECTION = 'projects';
+// Constantes pour les statuts des projets
+export const PROJECT_STATUS = {
+  ACTIVE: 'active',
+  ON_HOLD: 'on_hold',
+  VALIDATION_PENDING: 'validation_pending', // ✅ NOUVEAU STATUT
+  COMPLETED: 'completed',
+  REJECTED: 'rejected', // ✅ NOUVEAU STATUT
+  CANCELLED: 'cancelled'
+};
 
+export const PROJECT_PRIORITIES = {
+  LOW: 'low',
+  NORMAL: 'normal',
+  HIGH: 'high',
+  URGENT: 'urgent'
+};
+
+/**
+ * 📂 SERVICE DES PROJETS AVEC VALIDATION OBLIGATOIRE
+ */
 class ProjectService {
   constructor() {
-    this.db = firebaseDb;
+    this.listeners = new Map();
   }
 
-  // Créer un projet
+  /**
+   * ✅ CRÉER UN NOUVEAU PROJET
+   */
   async createProject(projectData, userId) {
-    if (!this.db) {
-      throw new Error('Firebase non configuré');
-    }
-
     try {
       const project = {
-        ...projectData,
+        title: projectData.title || '',
+        description: projectData.description || '',
+        status: PROJECT_STATUS.ACTIVE,
+        priority: projectData.priority || PROJECT_PRIORITIES.NORMAL,
         ownerId: userId,
         members: [userId], // Le créateur est automatiquement membre
-        status: projectData.status || 'active',
         progress: 0,
         taskCount: 0,
         completedTaskCount: 0,
+        tags: projectData.tags || [],
+        startDate: projectData.startDate || null,
+        endDate: projectData.endDate || null,
+        budget: projectData.budget || null,
+        
+        // 🆕 NOUVEAUX CHAMPS POUR LA VALIDATION
+        requiresValidation: true, // Toujours true maintenant
+        xpReward: this.calculateProjectXPReward(projectData.estimatedDuration),
+        estimatedDuration: projectData.estimatedDuration || null,
+        
+        // Métadonnées
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        tags: projectData.tags || [],
+        createdBy: userId,
+        
+        // Paramètres
         settings: {
           isPublic: projectData.settings?.isPublic || false,
           allowJoin: projectData.settings?.allowJoin || false,
+          autoTaskValidation: false, // ✅ Validation manuelle obligatoire
           ...projectData.settings
         }
       };
 
-      const docRef = await addDoc(collection(this.db, PROJECTS_COLLECTION), project);
+      const docRef = await addDoc(collection(db, 'projects'), project);
       
-      console.log('✅ Projet créé:', docRef.id);
-      return { id: docRef.id, ...project };
+      console.log('✅ Projet créé:', docRef.id, '- XP en attente de validation:', project.xpReward);
+      
+      return { 
+        id: docRef.id, 
+        ...project,
+        success: true 
+      };
+      
     } catch (error) {
       console.error('❌ Erreur création projet:', error);
       throw error;
     }
   }
 
-  // Mettre à jour un projet
+  /**
+   * 📝 METTRE À JOUR UN PROJET
+   */
   async updateProject(projectId, updates, userId) {
-    if (!this.db) {
-      throw new Error('Firebase non configuré');
-    }
-
     try {
-      const projectRef = doc(this.db, PROJECTS_COLLECTION, projectId);
-      
-      // Vérifier les permissions (propriétaire ou membre)
-      const projectSnap = await getDoc(projectRef);
+      // Vérifier les permissions
+      const projectSnap = await getDoc(doc(db, 'projects', projectId));
       if (!projectSnap.exists()) {
         throw new Error('Projet non trouvé');
       }
 
       const projectData = projectSnap.data();
-      if (projectData.ownerId !== userId && !projectData.members?.includes(userId)) {
-        throw new Error('Accès refusé');
+      if (projectData.ownerId !== userId && !projectData.members.includes(userId)) {
+        throw new Error('Permissions insuffisantes');
       }
 
       const updateData = {
@@ -86,338 +122,407 @@ class ProjectService {
         updatedAt: serverTimestamp()
       };
 
+      // 🚨 NOUVELLE LOGIQUE: Pas d'XP automatique pour completion
+      if (updates.status === PROJECT_STATUS.COMPLETED) {
+        // ✅ Nouveau comportement: Marquer comme en validation
+        updateData.status = PROJECT_STATUS.VALIDATION_PENDING;
+        updateData.submittedForValidationAt = serverTimestamp();
+        
+        console.log('📋 Projet soumis pour validation au lieu d\'être auto-complété');
+      }
+
+      const projectRef = doc(db, 'projects', projectId);
       await updateDoc(projectRef, updateData);
       
-      console.log('✅ Projet mis à jour:', projectId);
-      return { id: projectId, ...projectData, ...updateData };
+      return { success: true };
+      
     } catch (error) {
       console.error('❌ Erreur mise à jour projet:', error);
       throw error;
     }
   }
 
-  // Supprimer un projet
-  async deleteProject(projectId, userId) {
-    if (!this.db) {
-      throw new Error('Firebase non configuré');
-    }
-
+  /**
+   * 🎯 SOUMETTRE UN PROJET POUR VALIDATION
+   */
+  async submitProjectForValidation(projectId, submissionData) {
     try {
-      const projectRef = doc(this.db, PROJECTS_COLLECTION, projectId);
+      const { 
+        completionComment, 
+        deliverables, 
+        photoFiles,
+        finalReport 
+      } = submissionData;
       
-      // Vérifier que l'utilisateur est le propriétaire
-      const projectSnap = await getDoc(projectRef);
-      if (!projectSnap.exists() || projectSnap.data().ownerId !== userId) {
-        throw new Error('Projet non trouvé ou accès refusé');
+      // Mettre à jour le statut du projet
+      await this.updateProject(projectId, {
+        status: PROJECT_STATUS.VALIDATION_PENDING,
+        completionComment: completionComment,
+        deliverables: deliverables || [],
+        hasPhotos: !!(photoFiles && photoFiles.length > 0),
+        finalReport: finalReport,
+        submittedAt: serverTimestamp()
+      });
+      
+      console.log('📝 Projet soumis pour validation:', projectId);
+      
+      return {
+        success: true,
+        message: 'Projet soumis pour validation admin',
+        status: PROJECT_STATUS.VALIDATION_PENDING
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur soumission validation projet:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ✅ VALIDER UN PROJET (Admin seulement)
+   */
+  async validateProject(projectId, adminId, approved, adminComment = '') {
+    try {
+      const updateData = {
+        status: approved ? PROJECT_STATUS.COMPLETED : PROJECT_STATUS.REJECTED,
+        validatedBy: adminId,
+        validatedAt: serverTimestamp(),
+        adminComment: adminComment,
+        updatedAt: serverTimestamp()
+      };
+      
+      if (approved) {
+        updateData.completedAt = serverTimestamp();
+        updateData.progress = 100; // Marquer comme 100% complété
+      }
+      
+      const projectRef = doc(db, 'projects', projectId);
+      await updateDoc(projectRef, updateData);
+      
+      console.log(`✅ Projet ${approved ? 'validé' : 'rejeté'}:`, projectId);
+      
+      return { 
+        success: true, 
+        approved,
+        message: `Projet ${approved ? 'validé' : 'rejeté'} avec succès`
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur validation projet:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🎯 CALCULER L'XP SELON LA DURÉE ESTIMÉE
+   */
+  calculateProjectXPReward(estimatedDuration) {
+    // XP basé sur la durée en jours
+    if (!estimatedDuration) return 100; // Projet standard
+    
+    if (estimatedDuration <= 7) return 100;      // 1 semaine
+    if (estimatedDuration <= 30) return 200;     // 1 mois
+    if (estimatedDuration <= 90) return 500;     // 3 mois
+    if (estimatedDuration <= 180) return 1000;   // 6 mois
+    return 1500; // Projets longs (6+ mois)
+  }
+
+  /**
+   * 📊 OBTENIR LES PROJETS D'UN UTILISATEUR
+   */
+  async getUserProjects(userId) {
+    try {
+      const q = query(
+        collection(db, 'projects'),
+        where('members', 'array-contains', userId),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const projects = [];
+      
+      querySnapshot.forEach((doc) => {
+        projects.push({ id: doc.id, ...doc.data() });
+      });
+      
+      return projects;
+      
+    } catch (error) {
+      console.error('❌ Erreur récupération projets:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 📋 OBTENIR LES PROJETS EN ATTENTE DE VALIDATION
+   */
+  async getProjectsPendingValidation() {
+    try {
+      const q = query(
+        collection(db, 'projects'),
+        where('status', '==', PROJECT_STATUS.VALIDATION_PENDING),
+        orderBy('submittedAt', 'desc')
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const projects = [];
+      
+      querySnapshot.forEach((doc) => {
+        projects.push({ id: doc.id, ...doc.data() });
+      });
+      
+      console.log('📋 Projets en validation:', projects.length);
+      return projects;
+      
+    } catch (error) {
+      console.error('❌ Erreur récupération projets validation:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 🗑️ SUPPRIMER UN PROJET
+   */
+  async deleteProject(projectId, userId) {
+    try {
+      // Vérifier les permissions
+      const projectSnap = await getDoc(doc(db, 'projects', projectId));
+      if (!projectSnap.exists()) {
+        throw new Error('Projet non trouvé');
       }
 
-      // Supprimer toutes les tâches associées au projet
-      const projectTasks = await taskService.getUserTasks(userId, { projectId });
-      for (const task of projectTasks) {
-        await taskService.deleteTask(task.id, userId);
+      const projectData = projectSnap.data();
+      if (projectData.ownerId !== userId) {
+        throw new Error('Seul le propriétaire peut supprimer ce projet');
       }
-
+      
+      const projectRef = doc(db, 'projects', projectId);
       await deleteDoc(projectRef);
       
-      console.log('✅ Projet supprimé:', projectId);
-      return projectId;
+      return { success: true };
+      
     } catch (error) {
       console.error('❌ Erreur suppression projet:', error);
       throw error;
     }
   }
 
-  // Récupérer les projets d'un utilisateur
-  async getUserProjects(userId, filters = {}) {
-    if (!this.db) {
-      throw new Error('Firebase non configuré');
-    }
-
+  /**
+   * 👥 AJOUTER UN MEMBRE AU PROJET
+   */
+  async addMember(projectId, userId, newMemberId) {
     try {
-      let q = query(
-        collection(this.db, PROJECTS_COLLECTION),
-        where('members', 'array-contains', userId)
-      );
-
-      // Appliquer les filtres
-      if (filters.status) {
-        q = query(q, where('status', '==', filters.status));
-      }
-
-      // Trier par date de création (plus récent en premier)
-      q = query(q, orderBy('createdAt', 'desc'));
-
-      if (filters.limit) {
-        q = query(q, limit(filters.limit));
-      }
-
-      const querySnapshot = await getDocs(q);
-      const projects = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        projects.push({
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate(),
-          updatedAt: data.updatedAt?.toDate(),
-          dueDate: data.dueDate?.toDate()
-        });
-      });
-
-      // Calculer les statistiques pour chaque projet
-      const projectsWithStats = await Promise.all(
-        projects.map(async (project) => {
-          const stats = await this.getProjectStats(project.id, userId);
-          return { ...project, ...stats };
-        })
-      );
-
-      console.log(`✅ ${projects.length} projets récupérés pour l'utilisateur ${userId}`);
-      return projectsWithStats;
-    } catch (error) {
-      console.error('❌ Erreur récupération projets:', error);
-      throw error;
-    }
-  }
-
-  // Écouter les changements de projets en temps réel
-  subscribeToUserProjects(userId, callback, filters = {}) {
-    if (!this.db) {
-      console.warn('Firebase non configuré - Mode offline');
-      return () => {};
-    }
-
-    try {
-      let q = query(
-        collection(this.db, PROJECTS_COLLECTION),
-        where('members', 'array-contains', userId),
-        orderBy('createdAt', 'desc')
-      );
-
-      const unsubscribe = onSnapshot(q, async (snapshot) => {
-        const projects = [];
-        
-        for (const doc of snapshot.docs) {
-          const data = doc.data();
-          const stats = await this.getProjectStats(doc.id, userId);
-          
-          projects.push({
-            id: doc.id,
-            ...data,
-            ...stats,
-            createdAt: data.createdAt?.toDate(),
-            updatedAt: data.updatedAt?.toDate(),
-            dueDate: data.dueDate?.toDate()
-          });
-        }
-
-        callback(projects);
-      }, (error) => {
-        console.error('❌ Erreur écoute projets:', error);
-      });
-
-      return unsubscribe;
-    } catch (error) {
-      console.error('❌ Erreur abonnement projets:', error);
-      return () => {};
-    }
-  }
-
-  // Récupérer un projet par ID
-  async getProjectById(projectId, userId) {
-    if (!this.db) {
-      throw new Error('Firebase non configuré');
-    }
-
-    try {
-      const projectRef = doc(this.db, PROJECTS_COLLECTION, projectId);
-      const projectSnap = await getDoc(projectRef);
-
-      if (!projectSnap.exists()) {
-        throw new Error('Projet non trouvé');
-      }
-
-      const data = projectSnap.data();
-      
       // Vérifier les permissions
-      if (!data.members?.includes(userId) && data.ownerId !== userId) {
-        throw new Error('Accès refusé');
-      }
-
-      const stats = await this.getProjectStats(projectId, userId);
-
-      return {
-        id: projectSnap.id,
-        ...data,
-        ...stats,
-        createdAt: data.createdAt?.toDate(),
-        updatedAt: data.updatedAt?.toDate(),
-        dueDate: data.dueDate?.toDate()
-      };
-    } catch (error) {
-      console.error('❌ Erreur récupération projet:', error);
-      throw error;
-    }
-  }
-
-  // Statistiques d'un projet
-  async getProjectStats(projectId, userId) {
-    try {
-      // Récupérer toutes les tâches du projet
-      const projectTasks = await taskService.getUserTasks(userId, { projectId });
-      
-      const stats = {
-        taskCount: projectTasks.length,
-        completedTaskCount: projectTasks.filter(task => task.status === 'completed').length,
-        inProgressTaskCount: projectTasks.filter(task => task.status === 'in_progress').length,
-        todoTaskCount: projectTasks.filter(task => task.status === 'todo').length,
-        progress: 0,
-        totalXpEarned: projectTasks
-          .filter(task => task.status === 'completed')
-          .reduce((sum, task) => sum + (task.xpReward || 0), 0)
-      };
-
-      // Calculer le pourcentage de progression
-      stats.progress = stats.taskCount > 0 
-        ? Math.round((stats.completedTaskCount / stats.taskCount) * 100) 
-        : 0;
-
-      return stats;
-    } catch (error) {
-      console.error('❌ Erreur statistiques projet:', error);
-      return {
-        taskCount: 0,
-        completedTaskCount: 0,
-        inProgressTaskCount: 0,
-        todoTaskCount: 0,
-        progress: 0,
-        totalXpEarned: 0
-      };
-    }
-  }
-
-  // Ajouter un membre au projet
-  async addMember(projectId, memberUserId, currentUserId) {
-    if (!this.db) {
-      throw new Error('Firebase non configuré');
-    }
-
-    try {
-      const projectRef = doc(this.db, PROJECTS_COLLECTION, projectId);
-      const projectSnap = await getDoc(projectRef);
-
+      const projectSnap = await getDoc(doc(db, 'projects', projectId));
       if (!projectSnap.exists()) {
         throw new Error('Projet non trouvé');
       }
 
       const projectData = projectSnap.data();
-      
-      // Vérifier que l'utilisateur actuel est le propriétaire
-      if (projectData.ownerId !== currentUserId) {
+      if (projectData.ownerId !== userId) {
         throw new Error('Seul le propriétaire peut ajouter des membres');
       }
-
-      // Vérifier que le membre n'est pas déjà dans le projet
-      if (projectData.members?.includes(memberUserId)) {
-        throw new Error('L\'utilisateur est déjà membre du projet');
-      }
-
+      
+      const projectRef = doc(db, 'projects', projectId);
       await updateDoc(projectRef, {
-        members: arrayUnion(memberUserId),
+        members: arrayUnion(newMemberId),
         updatedAt: serverTimestamp()
       });
-
-      console.log('✅ Membre ajouté au projet:', memberUserId);
-      return true;
+      
+      return { success: true };
+      
     } catch (error) {
       console.error('❌ Erreur ajout membre:', error);
       throw error;
     }
   }
 
-  // Retirer un membre du projet
-  async removeMember(projectId, memberUserId, currentUserId) {
-    if (!this.db) {
-      throw new Error('Firebase non configuré');
-    }
-
+  /**
+   * 👥 RETIRER UN MEMBRE DU PROJET
+   */
+  async removeMember(projectId, userId, memberToRemove) {
     try {
-      const projectRef = doc(this.db, PROJECTS_COLLECTION, projectId);
-      const projectSnap = await getDoc(projectRef);
-
+      // Vérifier les permissions
+      const projectSnap = await getDoc(doc(db, 'projects', projectId));
       if (!projectSnap.exists()) {
         throw new Error('Projet non trouvé');
       }
 
       const projectData = projectSnap.data();
+      if (projectData.ownerId !== userId) {
+        throw new Error('Seul le propriétaire peut retirer des membres');
+      }
+
+      // Empêcher de retirer le propriétaire
+      if (memberToRemove === projectData.ownerId) {
+        throw new Error('Impossible de retirer le propriétaire du projet');
+      }
       
-      // Vérifier les permissions (propriétaire ou se retirer soi-même)
-      if (projectData.ownerId !== currentUserId && memberUserId !== currentUserId) {
-        throw new Error('Permission refusée');
-      }
-
-      // Empêcher le propriétaire de se retirer
-      if (memberUserId === projectData.ownerId) {
-        throw new Error('Le propriétaire ne peut pas être retiré du projet');
-      }
-
+      const projectRef = doc(db, 'projects', projectId);
       await updateDoc(projectRef, {
-        members: arrayRemove(memberUserId),
+        members: arrayRemove(memberToRemove),
         updatedAt: serverTimestamp()
       });
-
-      console.log('✅ Membre retiré du projet:', memberUserId);
-      return true;
+      
+      return { success: true };
+      
     } catch (error) {
-      console.error('❌ Erreur retrait membre:', error);
+      console.error('❌ Erreur suppression membre:', error);
       throw error;
     }
   }
 
-  // Rechercher des projets publics
-  async searchPublicProjects(searchTerm, limit = 10) {
-    if (!this.db) {
-      throw new Error('Firebase non configuré');
-    }
-
+  /**
+   * 📊 METTRE À JOUR LA PROGRESSION AUTOMATIQUEMENT
+   */
+  async updateProjectProgress(projectId) {
     try {
-      let q = query(
-        collection(this.db, PROJECTS_COLLECTION),
-        where('settings.isPublic', '==', true),
-        orderBy('createdAt', 'desc'),
-        limit(limit)
+      // Récupérer les tâches du projet
+      const tasksQuery = query(
+        collection(db, 'tasks'),
+        where('projectId', '==', projectId)
       );
-
-      const querySnapshot = await getDocs(q);
-      const projects = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        
-        // Filtrer par terme de recherche si fourni
-        if (!searchTerm || 
-            data.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            data.description?.toLowerCase().includes(searchTerm.toLowerCase())) {
-          
-          projects.push({
-            id: doc.id,
-            ...data,
-            createdAt: data.createdAt?.toDate(),
-            updatedAt: data.updatedAt?.toDate()
-          });
+      
+      const tasksSnapshot = await getDocs(tasksQuery);
+      
+      let totalTasks = 0;
+      let completedTasks = 0;
+      
+      tasksSnapshot.forEach((doc) => {
+        const task = doc.data();
+        totalTasks++;
+        if (task.status === 'completed') {
+          completedTasks++;
         }
       });
-
-      console.log(`✅ ${projects.length} projets publics trouvés`);
-      return projects;
+      
+      const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+      
+      // Mettre à jour le projet
+      const projectRef = doc(db, 'projects', projectId);
+      await updateDoc(projectRef, {
+        progress: progress,
+        taskCount: totalTasks,
+        completedTaskCount: completedTasks,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log(`📊 Progression projet ${projectId}: ${progress}%`);
+      
+      return { success: true, progress };
+      
     } catch (error) {
-      console.error('❌ Erreur recherche projets publics:', error);
+      console.error('❌ Erreur mise à jour progression:', error);
       throw error;
     }
+  }
+
+  /**
+   * 🎧 ÉCOUTER LES PROJETS EN TEMPS RÉEL
+   */
+  subscribeToUserProjects(userId, callback) {
+    try {
+      const q = query(
+        collection(db, 'projects'),
+        where('members', 'array-contains', userId),
+        orderBy('createdAt', 'desc')
+      );
+
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const projects = [];
+        querySnapshot.forEach((doc) => {
+          projects.push({ id: doc.id, ...doc.data() });
+        });
+        callback(projects);
+      });
+
+      this.listeners.set(userId, unsubscribe);
+      return unsubscribe;
+      
+    } catch (error) {
+      console.error('❌ Erreur écoute projets:', error);
+      callback([]);
+      return () => {};
+    }
+  }
+
+  /**
+   * 🎧 ÉCOUTER LES VALIDATIONS DE PROJETS (Admin)
+   */
+  subscribeToValidationProjects(callback) {
+    try {
+      const q = query(
+        collection(db, 'projects'),
+        where('status', '==', PROJECT_STATUS.VALIDATION_PENDING),
+        orderBy('submittedAt', 'desc')
+      );
+
+      return onSnapshot(q, (querySnapshot) => {
+        const projects = [];
+        querySnapshot.forEach((doc) => {
+          projects.push({ id: doc.id, ...doc.data() });
+        });
+        callback(projects);
+      });
+      
+    } catch (error) {
+      console.error('❌ Erreur écoute validations projets:', error);
+      callback([]);
+      return () => {};
+    }
+  }
+
+  /**
+   * 📊 STATISTIQUES DES PROJETS
+   */
+  async getProjectStats(userId) {
+    try {
+      const projects = await this.getUserProjects(userId);
+      
+      const stats = {
+        total: projects.length,
+        active: projects.filter(p => p.status === PROJECT_STATUS.ACTIVE).length,
+        validationPending: projects.filter(p => p.status === PROJECT_STATUS.VALIDATION_PENDING).length,
+        completed: projects.filter(p => p.status === PROJECT_STATUS.COMPLETED).length,
+        rejected: projects.filter(p => p.status === PROJECT_STATUS.REJECTED).length,
+        
+        // XP stats
+        totalPotentialXP: projects.reduce((sum, project) => sum + (project.xpReward || 0), 0),
+        pendingXP: projects
+          .filter(p => p.status === PROJECT_STATUS.VALIDATION_PENDING)
+          .reduce((sum, project) => sum + (project.xpReward || 0), 0),
+        earnedXP: projects
+          .filter(p => p.status === PROJECT_STATUS.COMPLETED)
+          .reduce((sum, project) => sum + (project.xpReward || 0), 0)
+      };
+      
+      return stats;
+      
+    } catch (error) {
+      console.error('❌ Erreur stats projets:', error);
+      return {
+        total: 0, active: 0, validationPending: 0, completed: 0, rejected: 0,
+        totalPotentialXP: 0, pendingXP: 0, earnedXP: 0
+      };
+    }
+  }
+
+  /**
+   * 🧹 NETTOYER LES LISTENERS
+   */
+  unsubscribeAll() {
+    this.listeners.forEach(unsubscribe => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    });
+    this.listeners.clear();
   }
 }
 
-// Instance singleton
-export const projectService = new ProjectService();
+// ✅ Instance singleton
+const projectService = new ProjectService();
+
+// ✅ Export multiple pour compatibilité
+export { projectService };
 export default projectService;
