@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/layouts/DashboardLayout.jsx
-// DashboardLayout COMPLET avec TOUTES LES 17 PAGES
+// DashboardLayout OPTIMISÉ avec 13 pages uniques (sans doublons)
 // ==========================================
 
 import React, { useState } from 'react'
@@ -33,7 +33,7 @@ const DashboardLayout = ({ children }) => {
     }))
   }
 
-  // 🚀 NAVIGATION COMPLÈTE AVEC TOUTES LES 17 PAGES ORGANISÉES
+  // 🚀 NAVIGATION OPTIMISÉE - 13 PAGES UNIQUES (DOUBLONS SUPPRIMÉS)
   const navigationSections = [
     {
       title: '📊 Principal',
@@ -49,18 +49,15 @@ const DashboardLayout = ({ children }) => {
       title: '🎮 Gamification',
       key: 'gamification',
       items: [
-        { name: 'Classement', href: '/leaderboard', icon: '🏆', current: location.pathname === '/leaderboard' },
-        { name: 'Badges', href: '/badges', icon: '🎖️', current: location.pathname === '/badges' },
-        { name: 'Gamification', href: '/gamification', icon: '🎮', current: location.pathname === '/gamification' },
+        { name: 'Gamification', href: '/gamification', icon: '🎮', current: location.pathname === '/gamification', description: 'XP, badges, classement' },
         { name: 'Récompenses', href: '/rewards', icon: '🎁', current: location.pathname === '/rewards' },
       ]
     },
     {
-      title: '👥 Équipe',
-      key: 'team',
+      title: '👥 Collaboration',
+      key: 'collaboration',
       items: [
-        { name: 'Mon Équipe', href: '/team', icon: '👨‍👩‍👧‍👦', current: location.pathname === '/team' },
-        { name: 'Utilisateurs', href: '/users', icon: '👥', current: location.pathname === '/users' },
+        { name: 'Utilisateurs', href: '/users', icon: '👥', current: location.pathname === '/users', description: 'Équipe & classement' },
         { name: 'Intégration', href: '/onboarding', icon: '🎯', current: location.pathname === '/onboarding', badge: 'NEW' },
       ]
     },
@@ -71,13 +68,6 @@ const DashboardLayout = ({ children }) => {
         { name: 'Time Track', href: '/timetrack', icon: '⏰', current: location.pathname === '/timetrack' },
         { name: 'Mon Profil', href: '/profile', icon: '👤', current: location.pathname === '/profile' },
         { name: 'Paramètres', href: '/settings', icon: '⚙️', current: location.pathname === '/settings' },
-      ]
-    },
-    {
-      title: '🧪 Développement',
-      key: 'dev',
-      items: [
-        { name: 'Test Dashboard', href: '/test-dashboard', icon: '🧪', current: location.pathname === '/test-dashboard', badge: 'DEV' },
       ]
     }
   ]
@@ -115,12 +105,17 @@ const DashboardLayout = ({ children }) => {
             >
               <div className="flex items-center">
                 <span className="mr-3 text-lg">{item.icon}</span>
-                <span>{item.name}</span>
+                <div>
+                  <div>{item.name}</div>
+                  {item.description && (
+                    <div className="text-xs text-gray-500">{item.description}</div>
+                  )}
+                </div>
               </div>
               {item.badge && (
                 <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
                   item.badge === 'NEW' ? 'bg-green-100 text-green-800' : 
-                  item.badge === 'DEV' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-800'
+                  item.badge === 'HOT' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
                 }`}>
                   {item.badge}
                 </span>
@@ -266,22 +261,24 @@ const DashboardLayout = ({ children }) => {
                   <p className="text-sm text-gray-500">
                     {location.pathname === '/onboarding' 
                       ? '🎯 Parcours d\'intégration avec quêtes et badges'
-                      : location.pathname === '/test-dashboard'
-                      ? '🧪 Environnement de test et développement'
-                      : `Synergia v3.5 Ultimate - ${totalPages} pages disponibles`
+                      : location.pathname === '/gamification'
+                      ? '🎮 XP, badges, classement et système de niveaux'
+                      : location.pathname === '/users'
+                      ? '👥 Gestion équipe avec classement intégré'
+                      : `Synergia v3.5 Optimisé - ${totalPages} pages essentielles`
                     }
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center space-x-4">
-                {/* Compteur de pages */}
+                {/* Compteur de pages optimisé */}
                 <div className="hidden sm:flex items-center space-x-2">
                   <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
-                    {totalPages}/17 pages
+                    {totalPages} pages
                   </span>
                   <span className="px-3 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
-                    v3.5.2-ULTIMATE
+                    v3.5.2-CLEAN
                   </span>
                 </div>
 
@@ -298,7 +295,7 @@ const DashboardLayout = ({ children }) => {
                   )}
                 </button>
 
-                {/* Raccourcis rapides */}
+                {/* Raccourcis rapides optimisés */}
                 <div className="hidden md:flex items-center space-x-2">
                   {location.pathname !== '/onboarding' && (
                     <Link
@@ -310,13 +307,13 @@ const DashboardLayout = ({ children }) => {
                     </Link>
                   )}
                   
-                  {location.pathname !== '/tasks' && (
+                  {location.pathname !== '/gamification' && (
                     <Link
-                      to="/tasks"
-                      className="flex items-center space-x-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                      to="/gamification"
+                      className="flex items-center space-x-1 px-3 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
                     >
-                      <span>✅</span>
-                      <span>Tâches</span>
+                      <span>🎮</span>
+                      <span>Badges</span>
                     </Link>
                   )}
                 </div>
@@ -358,4 +355,4 @@ const DashboardLayout = ({ children }) => {
 export default DashboardLayout
 
 // 🚀 Log de chargement
-console.log('✅ DashboardLayout chargé avec TOUTES les 17 pages organisées');
+console.log('✅ DashboardLayout optimisé chargé - 13 pages uniques sans doublons');
