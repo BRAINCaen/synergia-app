@@ -21,6 +21,9 @@ import {
   Plus
 } from 'lucide-react';
 
+// ✅ IMPORT OBLIGATOIRE: DashboardLayout
+import DashboardLayout from '../layouts/DashboardLayout.jsx';
+
 // Import de la BadgeGallery
 import BadgeGallery from '../components/gamification/BadgeGallery.jsx';
 
@@ -102,15 +105,18 @@ const GamificationPage = () => {
   // Affichage loading pendant le chargement 
   if (loading || !isReady) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-        <span className="ml-3 text-gray-600">Chargement des données de gamification...</span>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <span className="ml-3 text-gray-600">Chargement des données de gamification...</span>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <DashboardLayout>
+      <div className="space-y-8">
       {/* Header principal */}
       <div className="text-center">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">🎮 Gamification</h1>
@@ -379,7 +385,7 @@ const GamificationPage = () => {
           )}
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
 
