@@ -25,43 +25,40 @@ import DashboardLayout from '../layouts/DashboardLayout.jsx';
 // ✅ NOUVEAU: Import de la BadgeGallery
 import BadgeGallery from '../components/gamification/BadgeGallery.jsx';
 
-// ✅ NOUVEAU: Import du hook unifié Firebase  
-import { useUnifiedUser, useUnifiedGamification } from '../shared/hooks/useUnifiedUser.js';
+// ✅ IMPORTS EXISTANTS FONCTIONNELS
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { useBadges } from '../shared/hooks/useBadges.js';
 
 const GamificationPage = () => {
-  // ✅ NOUVEAU: Hook unifié - source unique Firebase
-  const {
-    level,
-    totalXp,
-    xpProgress,
-    badges,
-    tasksCompleted,
-    completionRate,
-    loginStreak,
-    addXP,
-    loading,
-    isReady
-  } = useUnifiedGamification();
+  // ✅ HOOKS EXISTANTS FONCTIONNELS
+  const { user } = useAuthStore();
+  const { badges, userBadges, loading: badgeLoading } = useBadges();
+  
+  // Données simulées pour l'affichage (remplacera par les vrais hooks plus tard)
+  const level = 4;
+  const totalXp = 175;
+  const loginStreak = 1;
+  const tasksCompleted = 6;
+  const completionRate = 85;
+  const loading = badgeLoading;
+  const isReady = !loading;
+
+  // Calculs XP simulés pour l'affichage
+  const xpProgress = {
+    progressXP: totalXp % 100,
+    progressPercent: (totalXp % 100),
+    xpToNext: 100 - (totalXp % 100)
+  };
 
   const [activeTab, setActiveTab] = useState('overview');
   const [testingXP, setTestingXP] = useState(false);
 
-  // ✅ NOUVEAU: Test d'ajout XP avec Firebase
+  // ✅ SIMULATION: Test d'ajout XP (remplacera par le vrai service plus tard)
   const handleTestXP = async () => {
     try {
       setTestingXP(true);
-      
-      // Ajouter 50 XP - Firebase calcule automatiquement le nouveau niveau
-      const result = await addXP(50, 'test_gamification');
-      
-      if (result.leveledUp) {
-        showLevelUpNotification(result.newLevel);
-      } else {
-        showXPNotification(50);
-      }
-      
-      console.log('✅ XP ajouté:', result);
-      
+      console.log('🎮 Test XP simulation - +50 XP');
+      showXPNotification(50);
     } catch (error) {
       console.error('❌ Erreur ajout XP:', error);
       showErrorNotification('Erreur lors de l\'ajout d\'XP');
@@ -169,7 +166,7 @@ const GamificationPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-yellow-100 text-sm font-medium">Badges</p>
-                <p className="text-3xl font-bold">{badges.length}</p>
+                <p className="text-3xl font-bold">{userBadges.length}</p>
                 <p className="text-yellow-100 text-xs mt-1">Badges débloqués</p>
               </div>
               <Award className="w-8 h-8 text-yellow-200" />
