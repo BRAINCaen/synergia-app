@@ -1,475 +1,555 @@
 // ==========================================
-// 📁 react-app/src/pages/OnboardingPage.jsx
-// OnboardingPage CORRIGÉ - Import authStore fix
+// 📁 react-app/src/core/services/onboardingService.js
+// Service Onboarding CORRIGÉ - Import Firebase réparé
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
 import { 
-  User, 
-  Calendar, 
-  Trophy, 
-  Star, 
-  CheckCircle, 
-  Clock, 
-  Lock, 
-  Play, 
-  BookOpen, 
-  Users, 
-  Award,
-  TrendingUp,
-  Target,
-  MessageSquare,
-  UserCheck
-} from 'lucide-react';
-// 🚀 CORRECTION: Import depuis shared/stores au lieu de core/stores
-import { useAuthStore } from '../shared/stores/authStore';
-import { onboardingService, ONBOARDING_PHASES, ONBOARDING_BADGES } from '../core/services/onboardingService';
+  collection, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  getDoc, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy, 
+  arrayUnion, 
+  serverTimestamp 
+} from 'firebase/firestore';
 
-const OnboardingPage = () => {
-  const { user } = useAuthStore();
-  const [onboardingData, setOnboardingData] = useState(null);
-  const [allJourneys, setAllJourneys] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('mon-parcours');
-  const [isInitializing, setIsInitializing] = useState(false);
+// ✅ CORRECTION : Import depuis le bon chemin
+import { db } from '../firebase.js';
+import { gamificationService } from './gamificationService.js';
 
-  useEffect(() => {
-    if (user) {
-      loadOnboardingData();
-    }
-  }, [user]);
-
-  const loadOnboardingData = async () => {
-    try {
-      setLoading(true);
-      
-      // Charger le parcours de l'utilisateur actuel
-      const journey = await onboardingService.getOnboardingJourney(user.uid);
-      setOnboardingData(journey);
-      
-      // Si l'utilisateur est admin/mentor, charger tous les parcours
-      if (user.role === 'admin' || user.role === 'mentor') {
-        const allJourneysData = await onboardingService.getAllOnboardingJourneys();
-        setAllJourneys(allJourneysData);
-        
-        const statsData = await onboardingService.getOnboardingStats();
-        setStats(statsData);
-      }
-    } catch (error) {
-      console.error('Erreur chargement données intégration:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const initializeOnboarding = async () => {
-    try {
-      setIsInitializing(true);
-      await onboardingService.createOnboardingJourney(user.uid, user.email);
-      await loadOnboardingData();
-    } catch (error) {
-      console.error('Erreur initialisation intégration:', error);
-    } finally {
-      setIsInitializing(false);
-    }
-  };
-
-  const startQuest = async (questId) => {
-    try {
-      await onboardingService.startQuest(user.uid, questId);
-      await loadOnboardingData();
-    } catch (error) {
-      console.error('Erreur démarrage quête:', error);
-    }
-  };
-
-  const completeQuest = async (questId, notes = '') => {
-    try {
-      const result = await onboardingService.completeQuest(user.uid, questId, user.uid, notes);
-      
-      if (result.success) {
-        // Afficher notification de succès
-        console.log('Quête complétée!', result);
-        await loadOnboardingData();
-      }
-    } catch (error) {
-      console.error('Erreur complétion quête:', error);
-    }
-  };
-
-  const getPhaseIcon = (phase) => {
-    const icons = {
-      'accueil': '🎯',
-      'quiz_formation': '❓',
-      'escape_formation': '🔓',
-      'autonomie': '⭐',
-      'completed': '🏆'
-    };
-    return icons[phase] || '📚';
-  };
-
-  const getPhaseColor = (phase) => {
-    const colors = {
-      'accueil': '#3B82F6',
-      'quiz_formation': '#8B5CF6',
-      'escape_formation': '#F59E0B',
-      'autonomie': '#10B981',
-      'completed': '#EF4444'
-    };
-    return colors[phase] || '#6B7280';
-  };
-
-  const getQuestStatusIcon = (status) => {
-    switch (status) {
-      case 'completed': return <CheckCircle className="text-green-500" size={20} />;
-      case 'in_progress': return <Clock className="text-blue-500" size={20} />;
-      case 'locked': return <Lock className="text-gray-400" size={20} />;
-      default: return <Play className="text-gray-500" size={20} />;
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            <span className="ml-4 text-lg text-gray-600">Chargement du parcours d'intégration...</span>
-          </div>
-        </div>
-      </div>
-    );
+// Définition des phases d'intégration
+export const ONBOARDING_PHASES = {
+  ACCUEIL: {
+    id: 'accueil',
+    name: 'Accueil',
+    description: 'Découverte de l\'environnement de travail',
+    duration: 1, // en jours
+    color: '#8B5CF6',
+    icon: '👋'
+  },
+  QUIZ_FORMATION: {
+    id: 'quiz_formation',
+    name: 'Formation Quiz Game',
+    description: 'Apprentissage du Quiz Game',
+    duration: 3,
+    color: '#10B981',
+    icon: '🧠'
+  },
+  ESCAPE_FORMATION: {
+    id: 'escape_formation',
+    name: 'Formation Escape Game',
+    description: 'Maîtrise de l\'Escape Game',
+    duration: 12,
+    color: '#F59E0B',
+    icon: '🔐'
+  },
+  AUTONOMIE: {
+    id: 'autonomie',
+    name: 'Autonomie & Expertise',
+    description: 'Développement de l\'expertise',
+    duration: null, // illimité
+    color: '#EF4444',
+    icon: '⭐'
   }
-
-  // Si aucun parcours d'intégration n'existe
-  if (!onboardingData) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-            <div className="mb-6">
-              <span className="text-6xl block mb-4">🚀</span>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Bienvenue dans votre parcours d'intégration !
-              </h1>
-              <p className="text-gray-600 text-lg">
-                Commencez votre aventure avec nous et découvrez tout ce que nous avons à offrir.
-              </p>
-            </div>
-            
-            <button
-              onClick={initializeOnboarding}
-              disabled={isInitializing}
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isInitializing ? (
-                <span className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Initialisation...
-                </span>
-              ) : (
-                'Commencer mon parcours'
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* En-tête */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Parcours d'Intégration
-          </h1>
-          <p className="text-gray-600">
-            Suivez votre progression et débloquez de nouvelles compétences
-          </p>
-        </div>
-
-        {/* Onglets */}
-        <div className="mb-8">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              {[
-                { key: 'mon-parcours', label: 'Mon Parcours', icon: User },
-                { key: 'equipe', label: 'Équipe', icon: Users, adminOnly: true },
-                { key: 'statistiques', label: 'Statistiques', icon: TrendingUp, adminOnly: true }
-              ].map((tab) => {
-                // Masquer les onglets admin si l'utilisateur n'est pas admin/mentor
-                if (tab.adminOnly && user?.role !== 'admin' && user?.role !== 'mentor') {
-                  return null;
-                }
-
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key)}
-                    className={`group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
-                      activeTab === tab.key
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5 mr-2" />
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-        </div>
-
-        {/* Contenu des onglets */}
-        {activeTab === 'mon-parcours' && (
-          <div className="space-y-6">
-            {/* Progression générale */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Votre Progression
-                </h2>
-                <span className="text-2xl">
-                  {getPhaseIcon(onboardingData.currentPhase)}
-                </span>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-600 mb-2">
-                    {onboardingData.progressPercentage}%
-                  </div>
-                  <div className="text-sm text-gray-600">Progression globale</div>
-                </div>
-                
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600 mb-2">
-                    {onboardingData.totalXpEarned || 0}
-                  </div>
-                  <div className="text-sm text-gray-600">XP gagnés</div>
-                </div>
-                
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-600 mb-2">
-                    {onboardingData.totalBadgesEarned || 0}
-                  </div>
-                  <div className="text-sm text-gray-600">Badges obtenus</div>
-                </div>
-              </div>
-
-              {/* Barre de progression */}
-              <div className="mt-6">
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div 
-                    className="bg-blue-600 h-3 rounded-full transition-all duration-300"
-                    style={{ width: `${onboardingData.progressPercentage}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Quêtes du jour */}
-            {onboardingData.currentQuests && onboardingData.currentQuests.length > 0 && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Quêtes Disponibles
-                </h2>
-                
-                <div className="space-y-4">
-                  {onboardingData.currentQuests.map((quest) => (
-                    <div 
-                      key={quest.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          {getQuestStatusIcon(quest.status)}
-                          <div>
-                            <h3 className="font-medium text-gray-900">
-                              {quest.title}
-                            </h3>
-                            <p className="text-sm text-gray-600">
-                              {quest.description}
-                            </p>
-                            {quest.xpReward && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">
-                                +{quest.xpReward} XP
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          {quest.status === 'available' && (
-                            <button
-                              onClick={() => startQuest(quest.id)}
-                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                            >
-                              Commencer
-                            </button>
-                          )}
-                          
-                          {quest.status === 'in_progress' && (
-                            <button
-                              onClick={() => completeQuest(quest.id)}
-                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                            >
-                              Terminer
-                            </button>
-                          )}
-                          
-                          {quest.status === 'completed' && (
-                            <span className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg">
-                              Terminé
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Onglet Équipe (Admin/Mentor uniquement) */}
-        {activeTab === 'equipe' && (user?.role === 'admin' || user?.role === 'mentor') && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Parcours de l'Équipe
-                </h2>
-              </div>
-              
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Membre
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Phase Actuelle
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Progression
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        XP Total
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Badges
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Début
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {allJourneys.map((journey) => (
-                      <tr key={journey.userId}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                              <User className="text-gray-500" size={20} />
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
-                                {journey.memberName || journey.userId}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {journey.memberEmail}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span 
-                            className="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
-                            style={{ 
-                              backgroundColor: `${getPhaseColor(journey.currentPhase)}20`,
-                              color: getPhaseColor(journey.currentPhase)
-                            }}
-                          >
-                            {ONBOARDING_PHASES[journey.currentPhase]?.name || journey.currentPhase}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                              <div 
-                                className="bg-blue-600 h-2 rounded-full"
-                                style={{ width: `${journey.progressPercentage}%` }}
-                              />
-                            </div>
-                            <span className="text-sm text-gray-900">
-                              {journey.progressPercentage}%
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {journey.totalXpEarned}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {journey.totalBadgesEarned}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {journey.startDate?.toDate?.()?.toLocaleDateString('fr-FR') || 'N/A'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Onglet Statistiques (Admin/Mentor uniquement) */}
-        {activeTab === 'statistiques' && stats && (user?.role === 'admin' || user?.role === 'mentor') && (
-          <div className="space-y-6">
-            {/* Vue d'ensemble */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-white rounded-lg border p-6 text-center">
-                <div className="text-3xl font-bold text-blue-600 mb-2">
-                  {stats.totalJourneys}
-                </div>
-                <div className="text-sm text-gray-600">Total Parcours</div>
-              </div>
-              
-              <div className="bg-white rounded-lg border p-6 text-center">
-                <div className="text-3xl font-bold text-green-600 mb-2">
-                  {stats.activeJourneys}
-                </div>
-                <div className="text-sm text-gray-600">Parcours Actifs</div>
-              </div>
-              
-              <div className="bg-white rounded-lg border p-6 text-center">
-                <div className="text-3xl font-bold text-purple-600 mb-2">
-                  {stats.completedJourneys}
-                </div>
-                <div className="text-sm text-gray-600">Parcours Terminés</div>
-              </div>
-              
-              <div className="bg-white rounded-lg border p-6 text-center">
-                <div className="text-3xl font-bold text-orange-600 mb-2">
-                  {Math.round(stats.averageProgress)}%
-                </div>
-                <div className="text-sm text-gray-600">Progression Moyenne</div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
 };
 
-export default OnboardingPage;
+// Définition des quêtes d'intégration
+export const ONBOARDING_QUESTS = {
+  // Phase Accueil (Jour 1)
+  VISITE_LOCAUX: {
+    id: 'visite_locaux',
+    phase: 'accueil',
+    title: 'Visite des locaux',
+    description: 'Tour complet des lieux avec explication des espaces',
+    xpReward: 50,
+    badge: 'explorateur',
+    duration: 60, // minutes
+    dayTarget: 1,
+    autoValidation: false
+  },
+  PRESENTATION_EQUIPE: {
+    id: 'presentation_equipe',
+    phase: 'accueil',
+    title: 'Présentation de l\'équipe',
+    description: 'Rencontrer tous les membres et comprendre leurs rôles',
+    xpReward: 30,
+    badge: 'membre_equipe',
+    duration: 45,
+    dayTarget: 1,
+    autoValidation: false
+  },
+  REGLEMENT_INTERIEUR: {
+    id: 'reglement_interieur',
+    phase: 'accueil',
+    title: 'Règlement intérieur',
+    description: 'Lecture et signature du règlement',
+    xpReward: 20,
+    badge: null,
+    duration: 30,
+    dayTarget: 1,
+    autoValidation: true
+  },
+  PROCEDURES_SECURITE: {
+    id: 'procedures_securite',
+    phase: 'accueil',
+    title: 'Procédures & Sécurité',
+    description: 'Consultation du dossier de prévention',
+    xpReward: 15,
+    badge: null,
+    duration: 20,
+    dayTarget: 1,
+    autoValidation: true
+  },
+  
+  // Phase Quiz Formation (Jours 2-4)
+  FORMATION_QUIZ_THEORIQUE: {
+    id: 'formation_quiz_theorique',
+    phase: 'quiz_formation',
+    title: 'Formation théorique Quiz Game',
+    description: 'Apprendre les règles et mécaniques du Quiz Game',
+    xpReward: 75,
+    badge: 'etudiant',
+    duration: 120,
+    dayTarget: 2,
+    autoValidation: false
+  },
+  PRATIQUE_QUIZ_SUPERVISE: {
+    id: 'pratique_quiz_supervise',
+    phase: 'quiz_formation',
+    title: 'Pratique supervisée Quiz',
+    description: 'Animer des quiz sous supervision',
+    xpReward: 100,
+    badge: 'apprenti_animateur',
+    duration: 180,
+    dayTarget: 3,
+    autoValidation: false
+  },
+  AUTONOMIE_QUIZ: {
+    id: 'autonomie_quiz',
+    phase: 'quiz_formation',
+    title: 'Autonomie Quiz Game',
+    description: 'Animer des quiz en autonomie complète',
+    xpReward: 150,
+    badge: 'quiz_master',
+    duration: 240,
+    dayTarget: 4,
+    autoValidation: false
+  },
+  
+  // Phase Escape Formation (Jours 5-16)
+  FORMATION_ESCAPE_THEORIQUE: {
+    id: 'formation_escape_theorique',
+    phase: 'escape_formation',
+    title: 'Formation théorique Escape Game',
+    description: 'Comprendre les mécaniques et scénarios',
+    xpReward: 125,
+    badge: 'explorateur_debutant',
+    duration: 240,
+    dayTarget: 5,
+    autoValidation: false
+  },
+  ASSISTANCE_ESCAPE: {
+    id: 'assistance_escape',
+    phase: 'escape_formation',
+    title: 'Assistance Escape Games',
+    description: 'Assister et observer les sessions',
+    xpReward: 100,
+    badge: 'observateur',
+    duration: 300,
+    dayTarget: 8,
+    autoValidation: false
+  },
+  ANIMATION_ESCAPE_SUPERVISE: {
+    id: 'animation_escape_supervise',
+    phase: 'escape_formation',
+    title: 'Animation supervisée Escape',
+    description: 'Animer sous supervision experte',
+    xpReward: 200,
+    badge: 'apprenti_maitre_jeu',
+    duration: 360,
+    dayTarget: 12,
+    autoValidation: false
+  },
+  MAITRISE_ESCAPE: {
+    id: 'maitrise_escape',
+    phase: 'escape_formation',
+    title: 'Maîtrise Escape Game',
+    description: 'Animation autonome et expert',
+    xpReward: 300,
+    badge: 'maitre_jeu',
+    duration: 480,
+    dayTarget: 16,
+    autoValidation: false
+  },
+  
+  // Phase Autonomie (Illimitée)
+  INNOVATION_SCENARIO: {
+    id: 'innovation_scenario',
+    phase: 'autonomie',
+    title: 'Innovation & Création',
+    description: 'Créer de nouveaux scénarios et mécaniques',
+    xpReward: 500,
+    badge: 'innovateur',
+    duration: null,
+    dayTarget: null,
+    autoValidation: false
+  },
+  FORMATION_COLLEGUES: {
+    id: 'formation_collegues',
+    phase: 'autonomie',
+    title: 'Formation Collègues',
+    description: 'Former et encadrer les nouveaux arrivants',
+    xpReward: 400,
+    badge: 'mentor',
+    duration: null,
+    dayTarget: null,
+    autoValidation: false
+  }
+};
+
+// Service principal d'onboarding
+export class OnboardingService {
+  
+  /**
+   * 📋 Créer le profil d'onboarding pour un nouveau membre
+   */
+  static async createOnboardingProfile(userId, userData = {}) {
+    try {
+      const onboardingProfile = {
+        userId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        
+        // Informations personnelles
+        personalInfo: {
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          email: userData.email || '',
+          startDate: userData.startDate || new Date().toISOString().split('T')[0],
+          position: userData.position || '',
+          department: userData.department || '',
+          manager: userData.manager || ''
+        },
+        
+        // Progression phases
+        phases: {
+          current: 'accueil',
+          completed: [],
+          progress: {
+            accueil: { started: false, completed: false, startDate: null, endDate: null },
+            quiz_formation: { started: false, completed: false, startDate: null, endDate: null },
+            escape_formation: { started: false, completed: false, startDate: null, endDate: null },
+            autonomie: { started: false, completed: false, startDate: null, endDate: null }
+          }
+        },
+        
+        // Quêtes et progression
+        quests: {
+          completed: [],
+          inProgress: [],
+          unlocked: Object.keys(ONBOARDING_QUESTS).filter(questId => 
+            ONBOARDING_QUESTS[questId].phase === 'accueil'
+          )
+        },
+        
+        // Gamification
+        gamification: {
+          totalXP: 0,
+          badgesEarned: [],
+          level: 1,
+          currentPhaseXP: 0
+        },
+        
+        // Feedback et évaluations
+        feedback: {
+          managerNotes: [],
+          selfAssessments: [],
+          peerReviews: []
+        },
+        
+        // Métriques
+        metrics: {
+          totalDaysActive: 0,
+          averageQuestCompletionTime: 0,
+          satisfactionScore: null,
+          integrationScore: 0
+        }
+      };
+      
+      const docRef = doc(db, 'onboarding', userId);
+      await setDoc(docRef, onboardingProfile);
+      
+      console.log('✅ Profil onboarding créé pour:', userId);
+      return { success: true, profileId: userId };
+      
+    } catch (error) {
+      console.error('❌ Erreur création profil onboarding:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  
+  /**
+   * 📊 Récupérer le profil d'onboarding
+   */
+  static async getOnboardingProfile(userId) {
+    try {
+      const docRef = doc(db, 'onboarding', userId);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        return { success: true, profile: docSnap.data() };
+      } else {
+        console.warn('⚠️ Profil onboarding non trouvé pour:', userId);
+        return { success: false, error: 'Profil non trouvé' };
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur récupération profil onboarding:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  
+  /**
+   * 🎯 Valider une quête et mettre à jour la progression
+   */
+  static async completeQuest(userId, questId, validatorId = null, notes = '') {
+    try {
+      const quest = ONBOARDING_QUESTS[questId];
+      if (!quest) {
+        throw new Error(`Quête ${questId} non trouvée`);
+      }
+      
+      const profileResult = await this.getOnboardingProfile(userId);
+      if (!profileResult.success) {
+        throw new Error('Profil onboarding non trouvé');
+      }
+      
+      const profile = profileResult.profile;
+      const now = new Date().toISOString();
+      
+      // Mettre à jour les quêtes
+      const updatedProfile = {
+        ...profile,
+        updatedAt: serverTimestamp(),
+        quests: {
+          ...profile.quests,
+          completed: [...profile.quests.completed, questId],
+          inProgress: profile.quests.inProgress.filter(id => id !== questId)
+        },
+        gamification: {
+          ...profile.gamification,
+          totalXP: profile.gamification.totalXP + quest.xpReward,
+          currentPhaseXP: profile.gamification.currentPhaseXP + quest.xpReward
+        }
+      };
+      
+      // Ajouter badge si applicable
+      if (quest.badge && !profile.gamification.badgesEarned.includes(quest.badge)) {
+        updatedProfile.gamification.badgesEarned.push(quest.badge);
+      }
+      
+      // Enregistrer la validation
+      const validation = {
+        questId,
+        completedAt: now,
+        validatorId,
+        notes,
+        xpAwarded: quest.xpReward
+      };
+      
+      updatedProfile.validations = [...(profile.validations || []), validation];
+      
+      // Sauvegarder
+      const docRef = doc(db, 'onboarding', userId);
+      await updateDoc(docRef, updatedProfile);
+      
+      // Synchroniser avec le système de gamification principal
+      await gamificationService.addExperience(userId, quest.xpReward, `Quête: ${quest.title}`);
+      
+      console.log(`✅ Quête ${questId} validée pour ${userId} (+${quest.xpReward} XP)`);
+      return { success: true, xpAwarded: quest.xpReward, badge: quest.badge };
+      
+    } catch (error) {
+      console.error('❌ Erreur validation quête:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  
+  /**
+   * 🔄 Passer à la phase suivante
+   */
+  static async advanceToNextPhase(userId, currentPhase) {
+    try {
+      const phaseOrder = ['accueil', 'quiz_formation', 'escape_formation', 'autonomie'];
+      const currentIndex = phaseOrder.indexOf(currentPhase);
+      const nextPhase = phaseOrder[currentIndex + 1];
+      
+      if (!nextPhase) {
+        console.log('🎉 Toutes les phases complétées!');
+        return { success: true, completed: true };
+      }
+      
+      const profileResult = await this.getOnboardingProfile(userId);
+      if (!profileResult.success) {
+        throw new Error('Profil non trouvé');
+      }
+      
+      const profile = profileResult.profile;
+      const now = new Date().toISOString();
+      
+      // Mettre à jour les phases
+      const updatedPhases = {
+        ...profile.phases,
+        current: nextPhase,
+        completed: [...profile.phases.completed, currentPhase],
+        progress: {
+          ...profile.phases.progress,
+          [currentPhase]: {
+            ...profile.phases.progress[currentPhase],
+            completed: true,
+            endDate: now
+          },
+          [nextPhase]: {
+            ...profile.phases.progress[nextPhase],
+            started: true,
+            startDate: now
+          }
+        }
+      };
+      
+      // Débloquer les quêtes de la nouvelle phase
+      const newQuests = Object.keys(ONBOARDING_QUESTS).filter(questId => 
+        ONBOARDING_QUESTS[questId].phase === nextPhase
+      );
+      
+      const updatedQuests = {
+        ...profile.quests,
+        unlocked: [...profile.quests.unlocked, ...newQuests]
+      };
+      
+      // Sauvegarder
+      const docRef = doc(db, 'onboarding', userId);
+      await updateDoc(docRef, {
+        phases: updatedPhases,
+        quests: updatedQuests,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log(`✅ Progression vers phase: ${nextPhase}`);
+      return { success: true, newPhase: nextPhase, unlockedQuests: newQuests };
+      
+    } catch (error) {
+      console.error('❌ Erreur progression phase:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  
+  /**
+   * 📈 Obtenir les statistiques d'onboarding
+   */
+  static async getOnboardingStats(userId) {
+    try {
+      const profileResult = await this.getOnboardingProfile(userId);
+      if (!profileResult.success) {
+        return { success: false, error: 'Profil non trouvé' };
+      }
+      
+      const profile = profileResult.profile;
+      const totalQuests = Object.keys(ONBOARDING_QUESTS).length;
+      const completedQuests = profile.quests.completed.length;
+      const progressPercent = Math.round((completedQuests / totalQuests) * 100);
+      
+      const stats = {
+        currentPhase: profile.phases.current,
+        totalXP: profile.gamification.totalXP,
+        badgesCount: profile.gamification.badgesEarned.length,
+        questsCompleted: completedQuests,
+        totalQuests,
+        progressPercent,
+        daysSinceStart: profile.personalInfo.startDate ? 
+          Math.floor((new Date() - new Date(profile.personalInfo.startDate)) / (1000 * 60 * 60 * 24)) : 0
+      };
+      
+      return { success: true, stats };
+      
+    } catch (error) {
+      console.error('❌ Erreur statistiques onboarding:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  
+  /**
+   * 👥 Récupérer tous les profils d'onboarding (pour managers)
+   */
+  static async getAllOnboardingProfiles() {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'onboarding'));
+      const profiles = [];
+      
+      querySnapshot.forEach((doc) => {
+        profiles.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+      
+      return { success: true, profiles };
+      
+    } catch (error) {
+      console.error('❌ Erreur récupération profils onboarding:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  
+  /**
+   * 📝 Ajouter feedback manager
+   */
+  static async addManagerFeedback(userId, managerId, feedback) {
+    try {
+      const profileResult = await this.getOnboardingProfile(userId);
+      if (!profileResult.success) {
+        throw new Error('Profil non trouvé');
+      }
+      
+      const profile = profileResult.profile;
+      const newFeedback = {
+        id: Date.now().toString(),
+        managerId,
+        content: feedback.content,
+        rating: feedback.rating,
+        date: new Date().toISOString(),
+        phase: profile.phases.current
+      };
+      
+      const updatedFeedback = {
+        ...profile.feedback,
+        managerNotes: [...profile.feedback.managerNotes, newFeedback]
+      };
+      
+      const docRef = doc(db, 'onboarding', userId);
+      await updateDoc(docRef, {
+        feedback: updatedFeedback,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Feedback manager ajouté');
+      return { success: true };
+      
+    } catch (error) {
+      console.error('❌ Erreur ajout feedback:', error);
+      return { success: false, error: error.message };
+    }
+  }
+}
+
+// Export par défaut
+export default OnboardingService;
+
+// 🚀 Logs de chargement
+console.log('✅ OnboardingService chargé - Import Firebase corrigé');
+console.log('📋 Phases disponibles:', Object.keys(ONBOARDING_PHASES));
+console.log('🎯 Quêtes disponibles:', Object.keys(ONBOARDING_QUESTS).length);
