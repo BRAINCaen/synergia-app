@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './shared/stores/authStore.js'
-import { firebaseService } from './core/services/firebaseService.js'
+// Firebase est déjà initialisé dans firebase.js - pas besoin d'un service séparé
 import LoadingScreen from './components/ui/LoadingScreen.jsx'
 
 // 🎊 IMPORT NOUVEAU : Gestionnaire de notifications de badges
@@ -64,9 +64,8 @@ function App() {
       try {
         console.log('🚀 Initialisation Synergia v3.5...');
         
-        // Initialiser Firebase
-        await firebaseService.initialize()
-        console.log('✅ Firebase initialisé');
+        // Firebase est déjà initialisé dans firebase.js
+        console.log('✅ Firebase déjà configuré');
         
         // Initialiser l'authentification
         await initializeAuth()
