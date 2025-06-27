@@ -20,7 +20,6 @@ import {
   CheckCircle,
   Plus
 } from 'lucide-react';
-import DashboardLayout from '../layouts/DashboardLayout.jsx';
 
 // ✅ NOUVEAU: Import de la BadgeGallery
 import BadgeGallery from '../components/gamification/BadgeGallery.jsx';
@@ -100,21 +99,18 @@ const GamificationPage = () => {
     setTimeout(() => document.body.removeChild(notification), 4000);
   };
 
-  // Affichage loading pendant le chargement Firebase
+  // Affichage loading pendant le chargement 
   if (loading || !isReady) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-          <span className="ml-3 text-gray-600">Chargement des données de gamification...</span>
-        </div>
-      </DashboardLayout>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <span className="ml-3 text-gray-600">Chargement des données de gamification...</span>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-8">
+    <div className="space-y-8">
         {/* Header principal */}
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">🎮 Gamification</h1>
@@ -384,7 +380,7 @@ const GamificationPage = () => {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 };
 
