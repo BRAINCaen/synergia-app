@@ -1,112 +1,79 @@
-// ==========================================
-// 📁 react-app/src/App.jsx
-// App.jsx avec SYNCHRONISATION GLOBALE AUTOMATIQUE
-// Firebase = Source unique de vérité pour TOUS les utilisateurs
-// ==========================================
+// react-app/src/App.jsx
+import React, { useEffect, useState } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { useAuthStore } from './shared/stores/authStore.js'
+import { firebaseService } from './core/services/firebaseService.js'
+import LoadingScreen from './components/ui/LoadingScreen.jsx'
 
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './shared/stores';
+// 🎊 IMPORT NOUVEAU : Gestionnaire de notifications de badges
+import { BadgeNotificationManager } from './components/gamification/BadgeNotification.jsx'
 
-// 🌐 COMPOSANTS DE SYNCHRONISATION GLOBALE
-import GlobalSyncInitializer from './components/core/GlobalSyncInitializer.jsx';
+// Pages imports
+import Login from './pages/Login.jsx'
+import Dashboard from './pages/Dashboard.jsx'
+import TasksPage from './pages/TasksPage.jsx'
+import ProjectsPage from './pages/ProjectsPage.jsx'
+import AnalyticsPage from './pages/AnalyticsPage.jsx'
+import GamificationPage from './pages/GamificationPage.jsx'
+import RewardsPage from './pages/RewardsPage.jsx'
+import BadgesPage from './pages/BadgesPage.jsx'
+import UsersPage from './pages/UsersPage.jsx'
+import OnboardingPage from './pages/OnboardingPage.jsx'
+import TimeTrackPage from './pages/TimeTrackPage.jsx'
+import ProfilePage from './pages/ProfilePage.jsx'
+import SettingsPage from './pages/SettingsPage.jsx'
+import TestDashboard from './pages/TestDashboard.jsx'
 
-// Pages principales
-import Login from './pages/Login.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import NotFound from './pages/NotFound.jsx';
-
-// 🚀 TOUTES LES 17 PAGES EXISTANTES
-import TasksPage from './pages/TasksPage.jsx';
-import ProjectsPage from './pages/ProjectsPage.jsx';
-import ProfilePage from './pages/ProfilePage.jsx';
-import AnalyticsPage from './pages/AnalyticsPage.jsx';
-import LeaderboardPage from './pages/LeaderboardPage.jsx';
-import UsersPage from './pages/UsersPage.jsx';
-import TeamPage from './pages/TeamPage.jsx';
-import BadgesPage from './pages/BadgesPage.jsx';
-import GamificationPage from './pages/GamificationPage.jsx';
-import OnboardingPage from './pages/OnboardingPage.jsx';
-import RewardsPage from './pages/RewardsPage.jsx';
-import SettingsPage from './pages/SettingsPage.jsx';
-import TimeTrackPage from './pages/TimeTrackPage.jsx';
-import TestDashboard from './pages/TestDashboard.jsx';
-
-// Layout
-import DashboardLayout from './layouts/DashboardLayout.jsx';
-
-/**
- * 🔄 COMPOSANT LOADING AVEC SYNC
- */
-const LoadingScreen = ({ message = "Chargement Synergia", showSync = false }) => {
-  return (
-    <div className="h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-cyan-600">
-      <div className="text-center text-white">
-        <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white"></div>
-        </div>
-        <h2 className="text-3xl font-bold mb-3">{message}</h2>
-        <p className="text-white/80 text-lg">v3.5 Ultimate - Synchronisation Firebase</p>
-        
-        {showSync && (
-          <div className="mt-6 space-y-2">
-            <div className="flex items-center justify-center space-x-3 text-sm">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-              <span>Synchronisation automatique en cours...</span>
-            </div>
-            <div className="text-xs text-white/60">
-              Uniformisation des données pour tous les utilisateurs
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-/**
- * 🛡️ PROTECTED ROUTE AVEC SYNC GLOBAL
- */
-const ProtectedRoute = ({ children }) => {
-  const { user, isAuthenticated, loading } = useAuthStore();
+// Component protégé
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuthStore()
   
   if (loading) {
-    return <LoadingScreen message="Vérification authentification" showSync={true} />;
+    return <LoadingScreen message="Vérification de l'authentification..." />
   }
   
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />
   }
   
-  return (
-    <GlobalSyncInitializer>
-      <DashboardLayout>
-        {children}
-      </DashboardLayout>
-    </GlobalSyncInitializer>
-  );
-};
+  return children
+}
 
-/**
- * 🚀 COMPOSANT APP PRINCIPAL AVEC SYNC GLOBAL
- */
+// Component route publique  
+function PublicRoute({ children }) {
+  const { user, loading } = useAuthStore()
+  
+  if (loading) {
+    return <LoadingScreen message="Chargement de l'application..." />
+  }
+  
+  if (user) {
+    return <Navigate to="/dashboard" replace />
+  }
+  
+  return children
+}
+
 function App() {
-  const { initializeAuth, loading: authLoading } = useAuthStore();
-  const [appInitialized, setAppInitialized] = useState(false);
+  const { initializeAuth, user, loading: authLoading } = useAuthStore()
+  const [appInitialized, setAppInitialized] = useState(false)
 
-  // ✅ INITIALISATION DE L'AUTHENTIFICATION
+  // 🚀 Initialisation de l'application
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        console.log('🚀 Initialisation Synergia v3.5 avec synchronisation globale...');
+        console.log('🚀 Initialisation Synergia v3.5...');
+        
+        // Initialiser Firebase
+        await firebaseService.initialize()
+        console.log('✅ Firebase initialisé');
         
         // Initialiser l'authentification
-        await initializeAuth();
+        await initializeAuth()
+        console.log('✅ Auth initialisé');
         
-        // Marquer l'app comme initialisée
-        setAppInitialized(true);
-        
-        console.log('✅ Synergia v3.5 initialisé - Synchronisation globale activée');
+        setAppInitialized(true)
+        console.log('🎉 Synergia prêt !');
         
       } catch (error) {
         console.error('❌ Erreur initialisation app:', error);
@@ -125,9 +92,16 @@ function App() {
   return (
     <Router>
       <div className="App">
+        {/* 🎊 AJOUT : Gestionnaire global des notifications de badges */}
+        <BadgeNotificationManager />
+        
         <Routes>
           {/* 🔓 Route publique */}
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          } />
           
           {/* 🛡️ Routes protégées avec synchronisation globale automatique */}
           <Route path="/" element={
@@ -179,23 +153,11 @@ function App() {
               <BadgesPage />
             </ProtectedRoute>
           } />
-          
-          <Route path="/leaderboard" element={
-            <ProtectedRoute>
-              <LeaderboardPage />
-            </ProtectedRoute>
-          } />
 
-          {/* 👥 Pages collaboration avec sync global */}
+          {/* 👥 Pages collaboration */}
           <Route path="/users" element={
             <ProtectedRoute>
               <UsersPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/team" element={
-            <ProtectedRoute>
-              <TeamPage />
             </ProtectedRoute>
           } />
           
@@ -205,7 +167,13 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* ⚙️ Pages outils avec sync global */}
+          {/* ⚙️ Pages outils */}
+          <Route path="/timetrack" element={
+            <ProtectedRoute>
+              <TimeTrackPage />
+            </ProtectedRoute>
+          } />
+          
           <Route path="/profile" element={
             <ProtectedRoute>
               <ProfilePage />
@@ -217,32 +185,28 @@ function App() {
               <SettingsPage />
             </ProtectedRoute>
           } />
-          
-          <Route path="/timetrack" element={
-            <ProtectedRoute>
-              <TimeTrackPage />
-            </ProtectedRoute>
-          } />
 
-          {/* 🧪 Pages de test avec sync global */}
+          {/* 🧪 Pages de développement */}
           <Route path="/test-dashboard" element={
             <ProtectedRoute>
               <TestDashboard />
             </ProtectedRoute>
           } />
 
-          {/* 🚫 Page 404 */}
-          <Route path="*" element={<NotFound />} />
+          {/* 🚫 Page 404 pour les routes non trouvées */}
+          <Route path="*" element={
+            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+              <div className="text-center">
+                <h1 className="text-4xl font-bold text-white mb-4">404</h1>
+                <p className="text-gray-400 mb-8">Page non trouvée</p>
+                <Navigate to="/dashboard" replace />
+              </div>
+            </div>
+          } />
         </Routes>
       </div>
     </Router>
-  );
+  )
 }
 
-export default App;
-
-// 🚀 LOG DE CHARGEMENT AVEC SYNC GLOBAL
-console.log('🌐 App Synergia v3.5 chargé avec synchronisation globale automatique');
-console.log('🎯 17 pages disponibles + Firebase sync + Auto-correction');
-console.log('📡 TOUS les utilisateurs synchronisés automatiquement');
-console.log('✨ Firebase = Source unique de vérité pour toute l\'application');
+export default App
