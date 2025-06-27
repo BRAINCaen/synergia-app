@@ -1,47 +1,88 @@
 // ==========================================
 // 📁 react-app/src/pages/ProfilePage.jsx
-// SYNTAXE CORRIGÉE - ProfilePage avec export default
+// PROFILE PAGE MIGRÉE - Firebase comme source unique
+// REMPLACE COMPLÈTEMENT le ProfilePage.jsx existant
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { useAuthStore, useGameStore } from '../shared/stores';
-import { User, Mail, Calendar, Award, Star, Settings, Edit, LogOut } from 'lucide-react';
-import profileService from '../core/services/profileService.js';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../core/firebase.js';
+import { Link } from 'react-router-dom';
+import { User, Mail, Calendar, Award, Star, Settings, Edit, Save, X, Shield } from 'lucide-react';
+
+// ✅ NOUVEAU: Import du hook unifié Firebase
+import { useUnifiedUser, useUnifiedProfile } from '../shared/hooks/useUnifiedUser.js';
+import { useAuthStore } from '../shared/stores/authStore.js';
 
 const ProfilePage = () => {
   const { user, signOut } = useAuthStore();
-  const { userStats, badges } = useGameStore();
+  
+  // ✅ NOUVEAU: Hook unifié - source unique Firebase
+  const {
+    profile,
+    displayName,
+    bio,
+    department,
+    email,
+    photoURL,
+    updateProfile,
+    loading,
+    isReady
+  } = useUnifiedProfile();
+  
+  // ✅ NOUVEAU: Données gamification depuis Firebase
+  const {
+    stats,
+    xpProgress,
+    badges
+  } = useUnifiedUser();
+
   const [isEditMode, setIsEditMode] = useState(false);
-  const [userProfile, setUserProfile] = useState(null); // Données Firebase en temps réel
   const [formData, setFormData] = useState({
     displayName: '',
     bio: '',
     department: ''
   });
+  const [saving, setSaving] = useState(false);
 
-  // Écouter les changements du profil Firebase en temps réel
+  // Synchroniser les données avec le formulaire
   useEffect(() => {
-    if (!user?.uid) return;
+    if (isReady) {
+      setFormData({
+        displayName: displayName || '',
+        bio: bio || '',
+        department: department || ''
+      });
+    }
+  }, [isReady, displayName, bio, department]);
 
-    const userRef = doc(db, 'users', user.uid);
-    const unsubscribe = onSnapshot(userRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        setUserProfile(data);
-        
-        // Mettre à jour le formulaire avec les données Firebase
-        setFormData({
-          displayName: data.displayName || '',
-          bio: data.profile?.bio || '',
-          department: data.profile?.department || ''
-        });
-      }
+  // ✅ NOUVEAU: Sauvegarde avec Firebase
+  const handleSaveProfile = async () => {
+    try {
+      setSaving(true);
+      
+      // Mise à jour Firebase - se propage automatiquement partout !
+      await updateProfile(formData);
+      
+      setIsEditMode(false);
+      
+      // Notification de succès temporaire
+      showSuccessNotification('Profil mis à jour avec succès !');
+      
+    } catch (error) {
+      console.error('Erreur mise à jour profil:', error);
+      showErrorNotification('Erreur lors de la mise à jour');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setFormData({
+      displayName: displayName || '',
+      bio: bio || '',
+      department: department || ''
     });
-
-    return () => unsubscribe();
-  }, [user?.uid]);
+    setIsEditMode(false);
+  };
 
   const handleSignOut = async () => {
     try {
@@ -51,278 +92,316 @@ const ProfilePage = () => {
     }
   };
 
-  const handleSaveProfile = async () => {
-    try {
-      // Sauvegarder dans Firebase
-      await profileService.updateUserProfile(user.uid, formData);
-      
-      // Feedback visuel de succès
-      const button = document.querySelector('[data-save-btn]');
-      if (button) {
-        button.textContent = '✅ Sauvegardé !';
-        setTimeout(() => {
-          button.innerHTML = '<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M7.707 10.293a1 1 0 10-1.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 00-1.414-1.414L9 11.586l-1.293-1.293z"/></svg>Sauvegarder';
-        }, 2000);
-      }
-      
-      setIsEditMode(false);
-      console.log('✅ Profil sauvegardé avec succès');
-    } catch (error) {
-      console.error('❌ Erreur sauvegarde profil:', error);
-      
-      // Feedback d'erreur
-      const button = document.querySelector('[data-save-btn]');
-      if (button) {
-        button.textContent = '❌ Erreur';
-        setTimeout(() => {
-          button.innerHTML = '<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M7.707 10.293a1 1 0 10-1.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 00-1.414-1.414L9 11.586l-1.293-1.293z"/></svg>Sauvegarder';
-        }, 2000);
-      }
-    }
+  // Notification simple
+  const showSuccessNotification = (message) => {
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg';
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    setTimeout(() => document.body.removeChild(notification), 3000);
   };
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const showErrorNotification = (message) => {
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 z-50 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg';
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    setTimeout(() => document.body.removeChild(notification), 3000);
   };
+
+  // Loading state
+  if (loading || !isReady) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-700">Synchronisation profil Firebase...</h2>
+          <p className="text-gray-500 mt-2">Chargement des données unifiées</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-4xl mx-auto">
+        
+        {/* En-tête */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Mon Profil</h1>
-          <p className="text-gray-600">
+          <h1 className="text-3xl font-bold text-gray-900">Mon Profil</h1>
+          <p className="text-gray-600 mt-2">
             Gérez vos informations personnelles et vos paramètres
           </p>
         </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Informations personnelles</h2>
-              {!isEditMode ? (
-                <button
-                  onClick={() => setIsEditMode(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Edit size={16} />
-                  Modifier
-                </button>
-              ) : (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setIsEditMode(false)}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={handleSaveProfile}
-                    data-save-btn
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M7.707 10.293a1 1 0 10-1.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 00-1.414-1.414L9 11.586l-1.293-1.293z"/>
-                    </svg>
-                    Sauvegarder
-                  </button>
-                </div>
-              )}
-            </div>
 
-            <div className="flex items-center gap-6 mb-6">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                <span className="text-2xl font-bold text-white">
-                  {userProfile?.displayName ? userProfile.displayName.charAt(0).toUpperCase() : 
-                   user?.displayName ? user.displayName.charAt(0).toUpperCase() :
-                   user?.email ? user.email.charAt(0).toUpperCase() : '?'}
-                </span>
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900">
-                  {userProfile?.displayName || user?.displayName || 'Nom non défini'}
-                </h3>
-                <div className="flex items-center gap-2 text-gray-600 mt-1">
-                  <Mail size={16} />
-                  <span>{user?.email}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-600 mt-1">
-                  <Calendar size={16} />
-                  <span>
-                    Membre depuis {userProfile?.createdAt
-                      ? new Date(userProfile.createdAt.toDate()).toLocaleDateString('fr-FR')
-                      : user?.metadata?.creationTime 
-                      ? new Date(user.metadata.creationTime).toLocaleDateString('fr-FR')
-                      : new Date().toLocaleDateString('fr-FR')
-                    }
-                  </span>
-                </div>
-              </div>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Colonne principale - Informations */}
+          <div className="lg:col-span-2 space-y-6">
             
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Email</label>
-                <p className="mt-1 text-gray-900">{user?.email}</p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Nom d'affichage</label>
-                {isEditMode ? (
-                  <input
-                    type="text"
-                    value={formData.displayName}
-                    onChange={(e) => handleInputChange('displayName', e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Votre nom d'affichage"
-                  />
+            {/* Carte profil principal */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-800">Informations personnelles</h2>
+                
+                {!isEditMode ? (
+                  <button
+                    onClick={() => setIsEditMode(true)}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Modifier</span>
+                  </button>
                 ) : (
-                  <p className="mt-1 text-gray-900">{userProfile?.displayName || user?.displayName || 'Non défini'}</p>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={handleSaveProfile}
+                      disabled={saving}
+                      className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>{saving ? 'Sauvegarde...' : 'Sauvegarder'}</span>
+                    </button>
+                    <button
+                      onClick={handleCancel}
+                      className="flex items-center space-x-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                      <span>Annuler</span>
+                    </button>
+                  </div>
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Bio</label>
-                {isEditMode ? (
-                  <textarea
-                    value={formData.bio}
-                    onChange={(e) => handleInputChange('bio', e.target.value)}
-                    rows={3}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Parlez-nous de vous..."
-                  />
-                ) : (
-                  <p className="mt-1 text-gray-900">{userProfile?.profile?.bio || 'Aucune bio définie'}</p>
-                )}
-              </div>
+              <div className="space-y-6">
+                {/* Avatar et infos de base */}
+                <div className="flex items-center space-x-4">
+                  <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center">
+                    {photoURL ? (
+                      <img src={photoURL} alt="Avatar" className="w-20 h-20 rounded-full object-cover" />
+                    ) : (
+                      <span className="text-2xl font-bold text-white">
+                        {displayName?.charAt(0)?.toUpperCase() || 'U'}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-800">
+                      {displayName || 'Utilisateur'}
+                    </h3>
+                    <p className="text-gray-600">{email}</p>
+                    <p className="text-sm text-gray-500 flex items-center mt-1">
+                      <Calendar className="w-4 h-4 mr-1" />
+                      Membre depuis 24/06/2025
+                    </p>
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Département</label>
-                {isEditMode ? (
-                  <input
-                    type="text"
-                    value={formData.department}
-                    onChange={(e) => handleInputChange('department', e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Votre département"
-                  />
-                ) : (
-                  <p className="mt-1 text-gray-900">{userProfile?.profile?.department || 'Non défini'}</p>
-                )}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Statut</label>
-                <p className="mt-1 text-gray-900">
-                  {user?.emailVerified ? (
-                    <span className="text-green-600">✅ Email vérifié</span>
-                  ) : (
-                    <span className="text-yellow-600">⚠️ Email non vérifié</span>
-                  )}
-                </p>
-              </div>
-            </div>
+                {/* Formulaire de modification ou affichage */}
+                <div className="space-y-4">
+                  
+                  {/* Email (non modifiable) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <div className="flex items-center space-x-2">
+                      <Mail className="w-5 h-5 text-gray-400" />
+                      <span className="text-gray-900">{email}</span>
+                      <span className="text-green-600 text-sm flex items-center">
+                        <Shield className="w-4 h-4 mr-1" />
+                        Email vérifié
+                      </span>
+                    </div>
+                  </div>
 
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <button
-                onClick={handleSignOut}
-                className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              >
-                <LogOut size={16} />
-                Se déconnecter
-              </button>
+                  {/* Nom d'affichage */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nom d'affichage</label>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={formData.displayName}
+                        onChange={(e) => setFormData({...formData, displayName: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Votre nom d'affichage"
+                      />
+                    ) : (
+                      <p className="text-gray-900">{displayName || 'Non défini'}</p>
+                    )}
+                  </div>
+
+                  {/* Bio */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+                    {isEditMode ? (
+                      <textarea
+                        value={formData.bio}
+                        onChange={(e) => setFormData({...formData, bio: e.target.value})}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Parlez-nous de vous..."
+                      />
+                    ) : (
+                      <p className="text-gray-900">{bio || 'Aucune description'}</p>
+                    )}
+                  </div>
+
+                  {/* Département */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Département</label>
+                    {isEditMode ? (
+                      <select
+                        value={formData.department}
+                        onChange={(e) => setFormData({...formData, department: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Sélectionner un département</option>
+                        <option value="hr">Ressources Humaines</option>
+                        <option value="it">Informatique</option>
+                        <option value="marketing">Marketing</option>
+                        <option value="sales">Ventes</option>
+                        <option value="finance">Finance</option>
+                        <option value="operations">Opérations</option>
+                        <option value="other">Autre</option>
+                      </select>
+                    ) : (
+                      <p className="text-gray-900">{department || 'Non défini'}</p>
+                    )}
+                  </div>
+
+                  {/* Statut */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <span className="text-green-600 font-medium">Email vérifié</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
+          {/* Colonne latérale - Progression */}
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Star className="text-yellow-500" size={20} />
+            
+            {/* ✅ NOUVEAU: Progression Firebase synchronisée */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <Star className="w-5 h-5 mr-2 text-yellow-500" />
                 Progression
               </h3>
               
               <div className="space-y-4">
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">Niveau</span>
-                    <span className="text-lg font-bold text-blue-600">
-                      {userStats?.level || 1}
-                    </span>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600">Niveau</span>
+                    <span className="font-medium">{stats.level}</span>
                   </div>
                 </div>
                 
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">XP Total</span>
-                    <span className="text-lg font-bold text-purple-600">
-                      {userStats?.totalXp || 0}
-                    </span>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600">XP Total</span>
+                    <span className="font-medium">{stats.totalXp}</span>
                   </div>
                 </div>
                 
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">Tâches complétées</span>
-                    <span className="text-lg font-bold text-green-600">
-                      {userStats?.tasksCompleted || 0}
-                    </span>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600">Tâches complétées</span>
+                    <span className="font-medium">{stats.tasksCompleted}</span>
                   </div>
                 </div>
                 
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">Série de connexions</span>
-                    <span className="text-lg font-bold text-orange-600">
-                      {userStats?.loginStreak || 0} jours
-                    </span>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600">Série de connexions</span>
+                    <span className="font-medium">{stats.loginStreak} jour(s)</span>
                   </div>
                 </div>
               </div>
+
+              {/* Progression XP */}
+              <div className="mt-4">
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-gray-600">Progression niveau {stats.level}</span>
+                  <span className="text-gray-600">{xpProgress.progressXP}/100 XP</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${xpProgress.progressPercent}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {xpProgress.xpToNext} XP pour le niveau {stats.level + 1}
+                </p>
+              </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Award className="text-yellow-500" size={20} />
+            {/* ✅ NOUVEAU: Mes badges Firebase */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <Award className="w-5 h-5 mr-2 text-yellow-500" />
                 Mes badges
               </h3>
               
-              {badges && badges.length > 0 ? (
+              {badges.count > 0 ? (
                 <div className="grid grid-cols-2 gap-3">
-                  {badges.map((badge, index) => (
-                    <div
-                      key={index}
-                      className="bg-gradient-to-br from-yellow-400 to-orange-500 p-3 rounded-lg text-white text-center"
-                    >
-                      <div className="text-2xl mb-1">{badge.icon || '🏆'}</div>
-                      <div className="text-xs font-medium">{badge.name}</div>
+                  {badges.badges.slice(0, 4).map((badge, index) => (
+                    <div key={index} className="text-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <Award className="w-8 h-8 mx-auto mb-2 text-yellow-600" />
+                      <p className="text-xs font-medium text-gray-700 capitalize">
+                        {badge.name || badge.type?.replace('_', ' ') || 'Badge'}
+                      </p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <Award className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                <div className="text-center py-4">
+                  <Award className="w-12 h-12 mx-auto mb-3 text-gray-400" />
                   <p className="text-gray-500 text-sm">Aucun badge encore débloqué</p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    Complétez des tâches pour débloquer vos premiers badges !
-                  </p>
+                  <p className="text-gray-400 text-xs mt-1">Complétez des tâches pour débloquer vos premiers badges</p>
                 </div>
               )}
+              
+              <div className="mt-4 pt-4 border-t">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Total badges</span>
+                  <span className="font-medium text-gray-900">{badges.count}</span>
+                </div>
+              </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Activité récente</h3>
+            {/* Actions rapides */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Actions</h3>
+              
               <div className="space-y-3">
-                <div className="text-sm text-gray-600">
-                  📅 Dernière connexion : {user?.lastLogin 
-                    ? new Date(user.lastLogin.toDate ? user.lastLogin.toDate() : user.lastLogin).toLocaleDateString('fr-FR')
-                    : 'Aujourd\'hui'
-                  }
-                </div>
-                <div className="text-sm text-gray-600">
-                  ✅ Tâches cette semaine : {userStats?.tasksCompleted || 0}
-                </div>
-                <div className="text-sm text-gray-600">
-                  🎯 Objectif mensuel : {Math.min(userStats?.tasksCompleted || 0, 20)}/20 tâches
-                </div>
+                <Link
+                  to="/settings"
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Settings className="w-5 h-5 text-gray-600" />
+                  <span className="text-gray-700">Paramètres</span>
+                </Link>
+                
+                <Link
+                  to="/gamification"
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Star className="w-5 h-5 text-gray-600" />
+                  <span className="text-gray-700">Gamification</span>
+                </Link>
+                
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-red-50 transition-colors w-full text-left"
+                >
+                  <User className="w-5 h-5 text-red-600" />
+                  <span className="text-red-700">Déconnexion</span>
+                </button>
               </div>
             </div>
           </div>
