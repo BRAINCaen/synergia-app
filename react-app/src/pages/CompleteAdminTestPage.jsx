@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/CompleteAdminTestPage.jsx
-// PAGE COMPLÈTE DE TEST ET CONFIGURATION ADMIN
+// PAGE COMPLÈTE DE TEST ET CONFIGURATION ADMIN - IMPORTS CORRIGÉS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -31,7 +31,8 @@ import {
 
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { adminBadgeService, isAdmin } from '../core/services/adminBadgeService.js';
-import { userService } from '../core/services/userService.js';
+// 🔥 CORRECTION : Import par défaut au lieu d'import nommé
+import userService from '../core/services/userService.js';
 import { taskValidationService } from '../core/services/taskValidationService.js';
 import { xpValidationService } from '../core/services/xpValidationService.js';
 import adminSetupService from '../core/services/adminSetupService.js';
