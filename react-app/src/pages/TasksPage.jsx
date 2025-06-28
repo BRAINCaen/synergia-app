@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// VERSION CORRIGÉE - Utilise les composants existants
+// VERSION ULTRA-SIMPLE - Sans erreurs JavaScript
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -27,10 +27,6 @@ const TasksPage = () => {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // États pour le nouveau système de validation
-  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
-  const [taskToSubmit, setTaskToSubmit] = useState(null);
-
   // Charger les tâches au montage
   useEffect(() => {
     if (user?.uid) {
@@ -43,41 +39,47 @@ const TasksPage = () => {
     const matchesFilter = filter === 'all' || task.status === filter;
     const matchesSearch = !searchTerm || 
       task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()));
     
     return matchesFilter && matchesSearch;
   });
 
-  // ✅ NOUVELLE FONCTION: Soumettre pour validation
+  // ✅ FONCTION SIMPLE: Soumettre pour validation
   const handleSubmitTask = async (task) => {
     try {
-      // Pour l'instant, on change juste le statut
-      // Plus tard, on ouvrira le modal de soumission avec preuve
+      console.log('🔄 Soumission tâche pour validation:', task.title);
+      
+      // Simplement changer le statut - pas d'XP automatique
       await updateTask(task.id, {
         status: 'validation_pending',
-        submittedAt: new Date(),
-        submissionComment: 'Tâche soumise pour validation'
+        submittedAt: new Date().toISOString(),
+        submissionComment: 'Tâche soumise pour validation admin',
+        xpReward: getXPForDifficulty(task.difficulty || 'normal')
       });
       
-      console.log('✅ Tâche soumise pour validation:', task.title);
+      // Notification simple
+      alert(`✅ Tâche "${task.title}" soumise pour validation admin !`);
+      
     } catch (error) {
       console.error('❌ Erreur soumission:', error);
+      alert('❌ Erreur lors de la soumission');
     }
   };
 
-  // Gestionnaires d'événements existants
+  // Gestionnaires d'événements
   const handleCreateTask = async (taskData) => {
     try {
-      // ✅ NOUVEAU: Ajouter les champs pour la validation
       const enhancedTask = {
         ...taskData,
         difficulty: taskData.difficulty || 'normal',
-        xpReward: calculateXPReward(taskData.difficulty || 'normal'),
-        requiresValidation: true
+        xpReward: getXPForDifficulty(taskData.difficulty || 'normal'),
+        requiresValidation: true,
+        status: 'todo'
       };
       
       await createTask(enhancedTask, user.uid);
       setShowForm(false);
+      setEditingTask(null);
     } catch (error) {
       console.error('Erreur création tâche:', error);
     }
@@ -103,8 +105,8 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ NOUVELLE FONCTION: Calculer XP selon difficulté
-  const calculateXPReward = (difficulty) => {
+  // ✅ FONCTION SIMPLE: Calculer XP
+  const getXPForDifficulty = (difficulty) => {
     const xpMap = {
       'easy': 25,
       'normal': 50,
@@ -114,7 +116,7 @@ const TasksPage = () => {
     return xpMap[difficulty] || 50;
   };
 
-  // Fonctions utilitaires mises à jour
+  // Fonctions utilitaires
   const getPriorityColor = (priority) => {
     switch (priority) {
       case 'high': return 'bg-red-100 text-red-800';
@@ -127,8 +129,8 @@ const TasksPage = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed': return 'bg-green-100 text-green-800';
-      case 'validation_pending': return 'bg-orange-100 text-orange-800'; // ✅ NOUVEAU
-      case 'rejected': return 'bg-red-100 text-red-800'; // ✅ NOUVEAU
+      case 'validation_pending': return 'bg-orange-100 text-orange-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
       case 'in_progress': return 'bg-blue-100 text-blue-800';
       case 'todo': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -138,8 +140,8 @@ const TasksPage = () => {
   const getStatusLabel = (status) => {
     switch (status) {
       case 'completed': return 'Validée';
-      case 'validation_pending': return 'En validation'; // ✅ NOUVEAU
-      case 'rejected': return 'Rejetée'; // ✅ NOUVEAU
+      case 'validation_pending': return 'En validation';
+      case 'rejected': return 'Rejetée';
       case 'in_progress': return 'En cours';
       case 'todo': return 'À faire';
       default: return status;
@@ -155,81 +157,58 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ NOUVELLE FONCTION: Bouton de soumission intelligent
-  const renderSubmitButton = (task) => {
-    const getButtonConfig = () => {
-      switch (task.status) {
-        case 'todo':
-        case 'in_progress':
-          return {
-            text: 'Soumettre',
-            icon: Send,
-            className: 'bg-blue-600 hover:bg-blue-700 text-white',
-            disabled: false,
-            onClick: () => handleSubmitTask(task)
-          };
-          
-        case 'validation_pending':
-          return {
-            text: 'En validation',
-            icon: Clock,
-            className: 'bg-orange-100 text-orange-700 cursor-not-allowed',
-            disabled: true
-          };
-          
-        case 'completed':
-          return {
-            text: 'Validée',
-            icon: CheckCircle,
-            className: 'bg-green-100 text-green-700 cursor-not-allowed',
-            disabled: true
-          };
-          
-        case 'rejected':
-          return {
-            text: 'Rejetée',
-            icon: Clock,
-            className: 'bg-red-100 text-red-700 hover:bg-red-200',
-            disabled: false,
-            onClick: () => handleSubmitTask(task)
-          };
-          
-        default:
-          return {
-            text: 'Soumettre',
-            icon: Send,
-            className: 'bg-gray-100 text-gray-500 cursor-not-allowed',
-            disabled: true
-          };
-      }
-    };
-
-    const config = getButtonConfig();
-    const IconComponent = config.icon;
-
+  // ✅ BOUTON SIMPLE sans erreurs
+  const SimpleSubmitButton = ({ task }) => {
+    if (task.status === 'validation_pending') {
+      return (
+        <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-lg text-xs font-medium">
+          <Clock className="w-3 h-3 inline mr-1" />
+          En validation
+        </span>
+      );
+    }
+    
+    if (task.status === 'completed') {
+      return (
+        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-medium">
+          <CheckCircle className="w-3 h-3 inline mr-1" />
+          Validée
+        </span>
+      );
+    }
+    
+    if (task.status === 'rejected') {
+      return (
+        <button
+          onClick={() => handleSubmitTask(task)}
+          className="px-3 py-1 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-xs font-medium transition-colors"
+        >
+          Resoummettre
+        </button>
+      );
+    }
+    
+    // Pour todo et in_progress
     return (
       <button
-        onClick={config.onClick}
-        disabled={config.disabled}
-        className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors flex items-center space-x-1 ${config.className}`}
+        onClick={() => handleSubmitTask(task)}
+        className="px-3 py-1 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-xs font-medium transition-colors flex items-center space-x-1"
       >
-        <IconComponent className="w-3 h-3" />
-        <span>{config.text}</span>
-        {task.xpReward && !config.disabled && (
-          <span className="bg-white/20 rounded px-1">+{task.xpReward}</span>
-        )}
+        <Send className="w-3 h-3" />
+        <span>Soumettre</span>
+        {task.xpReward && <span className="bg-white/20 rounded px-1">+{task.xpReward}</span>}
       </button>
     );
   };
 
-  // Stats rapides mises à jour
+  // Stats
   const taskStats = {
     total: tasks.length,
     todo: tasks.filter(t => t.status === 'todo').length,
     inProgress: tasks.filter(t => t.status === 'in_progress').length,
-    validationPending: tasks.filter(t => t.status === 'validation_pending').length, // ✅ NOUVEAU
+    validationPending: tasks.filter(t => t.status === 'validation_pending').length,
     completed: tasks.filter(t => t.status === 'completed').length,
-    rejected: tasks.filter(t => t.status === 'rejected').length // ✅ NOUVEAU
+    rejected: tasks.filter(t => t.status === 'rejected').length
   };
 
   if (loading) {
@@ -251,9 +230,8 @@ const TasksPage = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Mes Tâches</h1>
             <p className="text-gray-600">Gérez et organisez votre travail quotidien</p>
-            {/* ✅ NOUVEAU: Mention validation */}
             <p className="text-sm text-purple-600 mt-1">
-              💡 Les XP sont attribués après validation admin
+              💡 Nouveau : XP attribués après validation admin
             </p>
           </div>
           
@@ -269,7 +247,7 @@ const TasksPage = () => {
           </button>
         </div>
 
-        {/* Stats rapides mises à jour */}
+        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           <div className="bg-gray-50 rounded-lg p-3 text-center">
             <div className="text-lg font-bold text-gray-900">{taskStats.total}</div>
@@ -283,7 +261,6 @@ const TasksPage = () => {
             <div className="text-lg font-bold text-blue-600">{taskStats.inProgress}</div>
             <div className="text-xs text-blue-600">En cours</div>
           </div>
-          {/* ✅ NOUVEAU: Stats validation */}
           <div className="bg-orange-50 rounded-lg p-3 text-center">
             <div className="text-lg font-bold text-orange-600">{taskStats.validationPending}</div>
             <div className="text-xs text-orange-600">En validation</div>
@@ -325,9 +302,9 @@ const TasksPage = () => {
               <option value="all">Toutes les tâches</option>
               <option value="todo">À faire</option>
               <option value="in_progress">En cours</option>
-              <option value="validation_pending">En validation</option> {/* ✅ NOUVEAU */}
+              <option value="validation_pending">En validation</option>
               <option value="completed">Validées</option>
-              <option value="rejected">Rejetées</option> {/* ✅ NOUVEAU */}
+              <option value="rejected">Rejetées</option>
             </select>
           </div>
         </div>
@@ -370,10 +347,9 @@ const TasksPage = () => {
                         {getStatusLabel(task.status)}
                       </span>
                       
-                      {/* ✅ NOUVEAU: Affichage XP */}
-                      {task.xpReward && (
+                      {(task.xpReward || task.difficulty) && (
                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                          +{task.xpReward} XP
+                          +{task.xpReward || getXPForDifficulty(task.difficulty || 'normal')} XP
                         </span>
                       )}
                     </div>
@@ -384,30 +360,23 @@ const TasksPage = () => {
                     
                     <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                       <span>Créée le {new Date(task.createdAt).toLocaleDateString('fr-FR')}</span>
-                      {task.dueDate && (
-                        <span className={new Date(task.dueDate) < new Date() && !['completed', 'validation_pending'].includes(task.status) ? 'text-red-500 font-medium' : ''}>
-                          {new Date(task.dueDate) < new Date() && !['completed', 'validation_pending'].includes(task.status) ? '⚠️ ' : ''}
-                          Échéance: {new Date(task.dueDate).toLocaleDateString('fr-FR')}
-                        </span>
-                      )}
                       
-                      {/* ✅ NOUVEAU: Informations de validation */}
                       {task.status === 'validation_pending' && (
                         <span className="text-orange-600">
                           <Clock className="w-3 h-3 inline mr-1" />
-                          En attente de validation
+                          En attente de validation admin
                         </span>
                       )}
                       
-                      {task.status === 'rejected' && task.adminComment && (
+                      {task.status === 'rejected' && (
                         <span className="text-red-600">
-                          💬 {task.adminComment}
+                          ❌ Rejetée - Resoumettez avec corrections
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Actions mises à jour */}
+                  {/* Actions */}
                   <div className="flex items-center space-x-2 ml-4">
                     {/* Bouton de modification */}
                     <button
@@ -423,8 +392,8 @@ const TasksPage = () => {
                       </svg>
                     </button>
 
-                    {/* ✅ NOUVEAU: Bouton de soumission intelligent */}
-                    {renderSubmitButton(task)}
+                    {/* Bouton de soumission */}
+                    <SimpleSubmitButton task={task} />
 
                     {/* Bouton de suppression */}
                     <button
@@ -444,7 +413,7 @@ const TasksPage = () => {
         )}
       </div>
 
-      {/* ✅ FORMULAIRE SIMPLE EN OVERLAY (utilise les composants existants) */}
+      {/* Formulaire simple modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
@@ -453,7 +422,6 @@ const TasksPage = () => {
                 {editingTask ? 'Modifier la tâche' : 'Nouvelle tâche'}
               </h2>
               
-              {/* Formulaire simple */}
               <form onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
@@ -544,6 +512,13 @@ const TasksPage = () => {
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
+                </div>
+
+                {/* Aperçu XP */}
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                  <p className="text-sm text-purple-800">
+                    🏆 Cette tâche rapportera des XP après validation admin
+                  </p>
                 </div>
                 
                 <div className="flex justify-end space-x-4 pt-4">
