@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminProfileTestPage.jsx
-// PAGE DE TEST POUR VÉRIFIER LE PROFIL ADMIN
+// PAGE DE TEST PROFIL ADMIN - IMPORT CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -29,7 +29,8 @@ import {
 
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { adminBadgeService, isAdmin } from '../core/services/adminBadgeService.js';
-import { userService } from '../core/services/userService.js';
+// 🔥 CORRECTION : Import par défaut au lieu d'import nommé
+import userService from '../core/services/userService.js';
 import { taskValidationService } from '../core/services/taskValidationService.js';
 import { xpValidationService } from '../core/services/xpValidationService.js';
 import AdminBadgePanel from '../components/admin/AdminBadgePanel.jsx';
