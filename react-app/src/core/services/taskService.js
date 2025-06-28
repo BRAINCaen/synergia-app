@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskService.js
-// SERVICE DES TÂCHES - MIS À JOUR AVEC VALIDATION OBLIGATOIRE
+// SERVICE DES TÂCHES - VERSION PROPRE POUR BUILD
 // ==========================================
 
 import { 
@@ -19,16 +19,13 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
-// 🚨 IMPORTANT: XP automatique supprimé - validation admin obligatoire
-// import { gamificationService } from './gamificationService.js'; // ❌ RETIRÉ
-
 // Constantes pour les statuts des tâches
 export const TASK_STATUS = {
   TODO: 'todo',
   IN_PROGRESS: 'in_progress',
-  VALIDATION_PENDING: 'validation_pending', // ✅ NOUVEAU STATUT
+  VALIDATION_PENDING: 'validation_pending',
   COMPLETED: 'completed',
-  REJECTED: 'rejected', // ✅ NOUVEAU STATUT
+  REJECTED: 'rejected',
   BLOCKED: 'blocked',
   CANCELLED: 'cancelled'
 };
@@ -74,8 +71,8 @@ class TaskService {
         tags: taskData.tags || [],
         dueDate: taskData.dueDate || null,
         
-        // 🆕 NOUVEAUX CHAMPS POUR LA VALIDATION
-        requiresValidation: true, // Toujours true maintenant
+        // Nouveaux champs pour la validation
+        requiresValidation: true,
         xpReward: this.calculateXPReward(taskData.difficulty || TASK_DIFFICULTIES.NORMAL),
         
         // Métadonnées
@@ -86,7 +83,7 @@ class TaskService {
 
       const docRef = await addDoc(collection(db, 'tasks'), task);
       
-      console.log('✅ Tâche créée:', docRef.id, '- XP en attente de validation:', task.xpReward);
+      console.log('✅ Tâche créée:', docRef.id);
       
       return { 
         id: docRef.id, 
@@ -110,17 +107,11 @@ class TaskService {
         updatedAt: serverTimestamp()
       };
 
-      // 🚨 NOUVELLE LOGIQUE: Pas d'XP automatique
+      // Nouvelle logique: Pas d'XP automatique
       if (updates.status === TASK_STATUS.COMPLETED) {
-        // ❌ Ancien comportement supprimé:
-        // updateData.completedAt = serverTimestamp();
-        // await gamificationService.completeTask(userId, updates.difficulty);
-        
-        // ✅ Nouveau comportement: Marquer comme en validation
         updateData.status = TASK_STATUS.VALIDATION_PENDING;
         updateData.submittedForValidationAt = serverTimestamp();
-        
-        console.log('📋 Tâche soumise pour validation au lieu d\'être auto-complétée');
+        console.log('📋 Tâche soumise pour validation');
       }
 
       const taskRef = doc(db, 'tasks', taskId);
@@ -135,16 +126,15 @@ class TaskService {
   }
 
   /**
-   * 🎯 SOUMETTRE UNE TÂCHE POUR VALIDATION (REMPLACE completeTask)
+   * 🎯 SOUMETTRE UNE TÂCHE POUR VALIDATION
    */
   async submitTaskForValidation(taskId, submissionData) {
     try {
-      const { comment, photoFile } = submissionData;
+      const { comment, photoFile } = submissionData || {};
       
-      // Mettre à jour le statut de la tâche
       await this.updateTask(taskId, {
         status: TASK_STATUS.VALIDATION_PENDING,
-        submissionComment: comment,
+        submissionComment: comment || '',
         submittedAt: serverTimestamp(),
         hasPhoto: !!photoFile
       });
@@ -303,6 +293,32 @@ class TaskService {
       return unsubscribe;
       
     } catch (error) {
+      console.error('❌ Erreur écoute tâches:', error);
+      callback([]);
+      return () => {};
+    }
+  }
+
+  /**
+   * 🎧 ÉCOUTER LES VALIDATIONS EN ATTENTE (Admin)
+   */
+  subscribeToValidationTasks(callback) {
+    try {
+      const q = query(
+        collection(db, 'tasks'),
+        where('status', '==', TASK_STATUS.VALIDATION_PENDING),
+        orderBy('submittedAt', 'desc')
+      );
+
+      return onSnapshot(q, (querySnapshot) => {
+        const tasks = [];
+        querySnapshot.forEach((doc) => {
+          tasks.push({ id: doc.id, ...doc.data() });
+        });
+        callback(tasks);
+      });
+      
+    } catch (error) {
       console.error('❌ Erreur écoute validations:', error);
       callback([]);
       return () => {};
@@ -351,12 +367,11 @@ class TaskService {
   async restartTask(taskId, userId) {
     try {
       await this.updateTask(taskId, {
-        status: TASK_STATUS.IN_PROGRESS,
-        rejectionHandled: true,
-        restartedAt: serverTimestamp()
+        status: TASK_STATUS.TODO,
+        rejectedAt: null,
+        adminComment: null,
+        validatedBy: null
       });
-      
-      console.log('🔄 Tâche remise en cours:', taskId);
       
       return { success: true };
       
@@ -367,180 +382,22 @@ class TaskService {
   }
 
   /**
-   * 📊 OBTENIR LES TÂCHES PAR PROJET
-   */
-  async getProjectTasks(projectId) {
-    try {
-      const q = query(
-        collection(db, 'tasks'),
-        where('projectId', '==', projectId),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const tasks = [];
-      
-      querySnapshot.forEach((doc) => {
-        tasks.push({ id: doc.id, ...doc.data() });
-      });
-      
-      return tasks;
-      
-    } catch (error) {
-      console.error('❌ Erreur récupération tâches projet:', error);
-      return [];
-    }
-  }
-
-  /**
-   * 🎯 OBTENIR UNE TÂCHE SPÉCIFIQUE
-   */
-  async getTask(taskId) {
-    try {
-      const taskRef = doc(db, 'tasks', taskId);
-      const taskSnap = await getDoc(taskRef);
-      
-      if (taskSnap.exists()) {
-        return { id: taskSnap.id, ...taskSnap.data() };
-      } else {
-        throw new Error('Tâche introuvable');
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur récupération tâche:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🏷️ OBTENIR LES TÂCHES PAR STATUT
-   */
-  async getTasksByStatus(status, userId = null) {
-    try {
-      let q;
-      if (userId) {
-        q = query(
-          collection(db, 'tasks'),
-          where('userId', '==', userId),
-          where('status', '==', status),
-          orderBy('createdAt', 'desc')
-        );
-      } else {
-        q = query(
-          collection(db, 'tasks'),
-          where('status', '==', status),
-          orderBy('createdAt', 'desc')
-        );
-      }
-      
-      const querySnapshot = await getDocs(q);
-      const tasks = [];
-      
-      querySnapshot.forEach((doc) => {
-        tasks.push({ id: doc.id, ...doc.data() });
-      });
-      
-      return tasks;
-      
-    } catch (error) {
-      console.error('❌ Erreur récupération tâches par statut:', error);
-      return [];
-    }
-  }
-
-  /**
    * 🧹 NETTOYER LES LISTENERS
    */
-  unsubscribeAll() {
-    this.listeners.forEach(unsubscribe => {
+  cleanup() {
+    this.listeners.forEach((unsubscribe, key) => {
       if (typeof unsubscribe === 'function') {
         unsubscribe();
       }
     });
     this.listeners.clear();
-  }
-
-  /**
-   * 📊 DONNÉES MOCK POUR LE DÉVELOPPEMENT
-   */
-  getMockTasks() {
-    return [
-      {
-        id: 'mock-1',
-        title: 'Finaliser le rapport mensuel',
-        description: 'Compiler les données et rédiger le rapport de performance',
-        status: TASK_STATUS.IN_PROGRESS,
-        priority: TASK_PRIORITIES.HIGH,
-        difficulty: TASK_DIFFICULTIES.NORMAL,
-        xpReward: 50,
-        requiresValidation: true,
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: 'mock-2',
-        title: 'Révision du code frontend',
-        description: 'Revoir et optimiser les composants React',
-        status: TASK_STATUS.TODO,
-        priority: TASK_PRIORITIES.NORMAL,
-        difficulty: TASK_DIFFICULTIES.HARD,
-        xpReward: 100,
-        requiresValidation: true,
-        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: 'mock-3',
-        title: 'Tests unitaires validés',
-        description: 'Tests pour les nouveaux composants - Validé par admin',
-        status: TASK_STATUS.COMPLETED,
-        priority: TASK_PRIORITIES.NORMAL,
-        difficulty: TASK_DIFFICULTIES.NORMAL,
-        xpReward: 50,
-        requiresValidation: true,
-        validatedBy: 'admin',
-        validatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        completedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        adminComment: 'Excellent travail !',
-        dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-    ];
+    console.log('🧹 TaskService listeners nettoyés');
   }
 }
 
 // ✅ Instance singleton
 const taskService = new TaskService();
 
-// ✅ Export multiple pour compatibilité
+// ✅ Exports propres
 export { taskService };
-export default taskService; tâches:', error);
-      callback([]);
-      return () => {};
-    }
-  }
-
-  /**
-   * 🎧 ÉCOUTER LES VALIDATIONS EN ATTENTE (Admin)
-   */
-  subscribeToValidationTasks(callback) {
-    try {
-      const q = query(
-        collection(db, 'tasks'),
-        where('status', '==', TASK_STATUS.VALIDATION_PENDING),
-        orderBy('submittedAt', 'desc')
-      );
-
-      return onSnapshot(q, (querySnapshot) => {
-        const tasks = [];
-        querySnapshot.forEach((doc) => {
-          tasks.push({ id: doc.id, ...doc.data() });
-        });
-        callback(tasks);
-      });
-      
-    } catch (error) {
-      console.error('❌ Erreur écoute
+export default taskService;
