@@ -5,7 +5,9 @@
 
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+
+// 🍞 Système de notifications intégré
+import { ToastProvider } from './shared/components/ToastNotification.jsx';
 
 // 🔐 Auth & Protection
 import { useAuthStore } from './shared/stores/authStore.js';
@@ -91,9 +93,10 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <Router>
-        <div className="App">
-          <Routes>
+      <ToastProvider>
+        <Router>
+          <div className="App">
+            <Routes>
             
             {/* 🔐 ROUTES PUBLIQUES (sans layout) */}
             <Route 
@@ -371,34 +374,9 @@ function App() {
             />
 
           </Routes>
-
-          {/* 🍞 Notifications Toast */}
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#1F2937',
-                color: '#F3F4F6',
-                border: '1px solid #374151',
-                borderRadius: '8px',
-              },
-              success: {
-                iconTheme: {
-                  primary: '#10B981',
-                  secondary: '#F3F4F6',
-                },
-              },
-              error: {
-                iconTheme: {
-                  primary: '#EF4444',
-                  secondary: '#F3F4F6',
-                },
-              },
-            }}
-          />
         </div>
       </Router>
+      </ToastProvider>
     </ErrorBoundary>
   );
 }
