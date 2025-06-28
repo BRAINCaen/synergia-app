@@ -30,6 +30,10 @@ import ProfilePage from './pages/ProfilePage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
 import TestDashboard from './pages/TestDashboard.jsx'
 
+// 🛡️ NOUVEAUX IMPORTS ADMIN
+import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx'
+import AdminProfileTestPage from './pages/AdminProfileTestPage.jsx'
+
 // ✅ Component protégé AVEC LAYOUT
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuthStore()
@@ -94,41 +98,37 @@ function App() {
     initializeApp()
   }, [initializeAuth])
 
-  // Écran de chargement pendant l'initialisation
+  // Affichage du loading pendant l'initialisation
   if (!appInitialized || authLoading) {
-    return <LoadingScreen message="Chargement de Synergia v3.5..." />
+    return <LoadingScreen message="Initialisation de Synergia v3.5..." />
   }
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
-        {/* ✅ NOUVEAU: Gestionnaire global des notifications de badges */}
+      <div className="App">
+        {/* 🎊 Manager global des notifications de badges */}
         <BadgeNotificationManager />
         
         <Routes>
-          {/* 🌐 Route publique : Login */}
-          <Route 
-            path="/login" 
-            element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            } 
-          />
+          {/* ================== ROUTES PUBLIQUES ================== */}
+          
+          {/* 🔓 Page de connexion */}
+          <Route path="/login" element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          } />
 
-          {/* 🏠 Redirection racine vers dashboard */}
-          <Route 
-            path="/" 
-            element={<Navigate to="/dashboard" replace />} 
-          />
-
-          {/* 📊 Pages principales - AVEC LAYOUT */}
+          {/* ================== ROUTES PROTÉGÉES AVEC LAYOUT ================== */}
+          
+          {/* 🏠 Dashboard principal */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
           } />
-          
+
+          {/* 📋 Pages principales - AVEC LAYOUT */}
           <Route path="/tasks" element={
             <ProtectedRoute>
               <TasksPage />
@@ -154,25 +154,26 @@ function App() {
             </ProtectedRoute>
           } />
           
+          <Route path="/badges" element={
+            <ProtectedRoute>
+              <BadgesPage />
+            </ProtectedRoute>
+          } />
+          
           <Route path="/rewards" element={
             <ProtectedRoute>
               <RewardsPage />
             </ProtectedRoute>
           } />
 
-          <Route path="/badges" element={
-            <ProtectedRoute>
-              <BadgesPage />
-            </ProtectedRoute>
-          } />
-
-          {/* 👥 Pages collaboration - AVEC LAYOUT */}
+          {/* 👥 Pages équipe - AVEC LAYOUT */}
           <Route path="/users" element={
             <ProtectedRoute>
               <UsersPage />
             </ProtectedRoute>
           } />
-          
+
+          {/* 🎯 Page onboarding - AVEC LAYOUT */}
           <Route path="/onboarding" element={
             <ProtectedRoute>
               <OnboardingPage />
@@ -198,6 +199,19 @@ function App() {
             </ProtectedRoute>
           } />
 
+          {/* 🛡️ NOUVELLES ROUTES ADMIN - AVEC LAYOUT */}
+          <Route path="/admin-test" element={
+            <ProtectedRoute>
+              <CompleteAdminTestPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin-profile-test" element={
+            <ProtectedRoute>
+              <AdminProfileTestPage />
+            </ProtectedRoute>
+          } />
+
           {/* 🧪 Pages de développement - AVEC LAYOUT */}
           <Route path="/test-dashboard" element={
             <ProtectedRoute>
@@ -205,13 +219,23 @@ function App() {
             </ProtectedRoute>
           } />
 
+          {/* ================== ROUTES SPÉCIALES ================== */}
+          
+          {/* 🏠 Redirection racine vers dashboard */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
           {/* 🚫 Page 404 pour les routes non trouvées */}
           <Route path="*" element={
             <div className="min-h-screen bg-gray-900 flex items-center justify-center">
               <div className="text-center">
                 <h1 className="text-4xl font-bold text-white mb-4">404</h1>
                 <p className="text-gray-400 mb-8">Page non trouvée</p>
-                <Navigate to="/dashboard" replace />
+                <button 
+                  onClick={() => window.location.href = '/dashboard'}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Retour au Dashboard
+                </button>
               </div>
             </div>
           } />
@@ -222,3 +246,60 @@ function App() {
 }
 
 export default App
+
+// ==========================================
+// 📝 DOCUMENTATION DES ROUTES
+// ==========================================
+
+/*
+🏠 ROUTES PRINCIPALES :
+- /dashboard - Dashboard principal avec widgets
+- /tasks - Gestion des tâches
+- /projects - Gestion des projets
+- /analytics - Rapports et analyses
+
+🎮 GAMIFICATION :
+- /gamification - Page gamification principale
+- /badges - Collection de badges
+- /rewards - Système de récompenses
+
+👥 ÉQUIPE :
+- /users - Gestion des utilisateurs
+- /onboarding - Processus d'intégration
+
+⚙️ OUTILS :
+- /timetrack - Suivi du temps
+- /profile - Profil utilisateur
+- /settings - Paramètres
+
+🛡️ ADMINISTRATION :
+- /admin-test - Page complète de test et config admin
+- /admin-profile-test - Page de test basique admin
+
+🧪 DÉVELOPPEMENT :
+- /test-dashboard - Dashboard de test
+*/
+
+// ==========================================
+// 🚀 INTÉGRATION RAPIDE
+// ==========================================
+
+/*
+POUR AJOUTER CETTE NOUVELLE ROUTE ADMIN :
+
+1. Remplacer complètement le contenu de react-app/src/App.jsx par ce code
+
+2. Créer les nouveaux fichiers dans react-app/src/pages/ :
+   - CompleteAdminTestPage.jsx
+   - AdminProfileTestPage.jsx
+
+3. Créer les services dans react-app/src/core/services/ :
+   - adminSetupService.js
+
+4. Créer les composants dans react-app/src/components/admin/ :
+   - AdminSetupComponent.jsx
+
+5. Tester en accédant à : /admin-test
+
+6. Optionnel : Ajouter AdminQuickAccess dans votre DashboardLayout
+*/
