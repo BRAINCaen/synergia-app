@@ -1,19 +1,22 @@
 // ==========================================
 // 📁 react-app/src/core/services/adminBadgeService.js
-// SERVICE ADMIN POUR LA GESTION COMPLÈTE DES BADGES
+// SERVICE ADMIN DES BADGES - FONCTION isAdmin CORRIGÉE
 // ==========================================
 
 import { 
   collection, 
   doc, 
-  getDocs, 
-  setDoc, 
+  addDoc, 
   updateDoc, 
   deleteDoc, 
-  arrayUnion, 
+  getDoc,
+  getDocs,
   query, 
-  where,
-  orderBy 
+  where, 
+  orderBy, 
+  limit,
+  onSnapshot,
+  serverTimestamp
 } from 'firebase/firestore';
 import { 
   ref, 
@@ -27,87 +30,90 @@ import { db, storage } from '../firebase.js';
  * 🛡️ SERVICE ADMIN POUR LA GESTION DES BADGES
  */
 class AdminBadgeService {
-  
-  /**
-   * 🎖️ Obtenir TOUS les badges (tous rôles confondus) - ADMIN ONLY
-   */
-  async getAllBadges() {
-    try {
-      console.log('🔍 Admin: Récupération de tous les badges...');
-      
-      const badgesRef = collection(db, 'badges');
-      const querySnapshot = await getDocs(badgesRef);
-      
-      const badges = [];
-      querySnapshot.forEach((doc) => {
-        badges.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
-      
-      console.log('✅ Admin: Badges récupérés:', badges.length);
-      return badges;
-      
-    } catch (error) {
-      console.error('❌ Erreur récupération badges admin:', error);
-      throw error;
-    }
+  constructor() {
+    this.COLLECTION_NAME = 'badges';
+    this.USERS_COLLECTION = 'users';
   }
 
   /**
-   * 🎨 Créer un nouveau badge custom
+   * 🛡️ VÉRIFIER LES PERMISSIONS ADMIN (FONCTION CORRIGÉE)
+   */
+  checkAdminPermissions(user) {
+    if (!user) {
+      console.warn('⚠️ checkAdminPermissions: user manquant');
+      return false;
+    }
+
+    // Vérifier toutes les méthodes possibles d'admin
+    const isRoleAdmin = user.role === 'admin';
+    const isProfileRoleAdmin = user.profile?.role === 'admin';
+    const hasAdminFlag = user.isAdmin === true;
+    const hasAdminPermissions = user.permissions?.includes('admin_access');
+
+    const isAdmin = isRoleAdmin || isProfileRoleAdmin || hasAdminFlag || hasAdminPermissions;
+
+    console.log('🔍 checkAdminPermissions détails:', {
+      userEmail: user.email,
+      isRoleAdmin,
+      isProfileRoleAdmin,
+      hasAdminFlag,
+      hasAdminPermissions,
+      finalResult: isAdmin
+    });
+
+    return isAdmin;
+  }
+
+  /**
+   * 🏆 CRÉER UN BADGE PERSONNALISÉ
    */
   async createCustomBadge(badgeData, imageFile = null) {
     try {
-      console.log('🎨 Admin: Création badge custom...', badgeData);
+      console.log('🏆 Création badge personnalisé:', badgeData.name);
       
-      let imageUrl = badgeData.icon; // Fallback sur l'emoji/icône
-      
-      // Upload de l'image si fournie
+      let imageUrl = null;
       if (imageFile) {
-        imageUrl = await this.uploadBadgeImage(imageFile, badgeData.id);
+        imageUrl = await this.uploadBadgeImage(imageFile, badgeData.name);
       }
-      
-      const badge = {
+
+      const newBadge = {
         ...badgeData,
-        id: badgeData.id || `custom_${Date.now()}`,
-        icon: imageUrl,
+        imageUrl,
         isCustom: true,
-        createdAt: new Date(),
-        createdBy: badgeData.createdBy || 'admin'
+        createdAt: serverTimestamp(),
+        createdBy: 'admin',
+        isActive: badgeData.isActive !== undefined ? badgeData.isActive : true,
+        version: '1.0'
       };
+
+      const docRef = await addDoc(collection(db, this.COLLECTION_NAME), newBadge);
       
-      // Sauvegarder dans Firebase
-      const badgeRef = doc(db, 'badges', badge.id);
-      await setDoc(badgeRef, badge);
+      console.log(`✅ Badge créé avec ID: ${docRef.id}`);
       
-      console.log('✅ Badge custom créé:', badge.id);
-      return badge;
-      
+      return {
+        id: docRef.id,
+        ...newBadge,
+        success: true
+      };
+
     } catch (error) {
-      console.error('❌ Erreur création badge custom:', error);
+      console.error('❌ Erreur création badge:', error);
       throw error;
     }
   }
 
   /**
-   * 📷 Upload d'image pour badge
+   * 📸 UPLOAD D'IMAGE DE BADGE
    */
-  async uploadBadgeImage(imageFile, badgeId) {
+  async uploadBadgeImage(imageFile, badgeName) {
     try {
-      console.log('📷 Upload image badge:', badgeId);
+      const fileName = `badges/${badgeName}-${Date.now()}.png`;
+      const imageRef = ref(storage, fileName);
       
-      // Créer une référence unique
-      const timestamp = Date.now();
-      const fileName = `badges/${badgeId}_${timestamp}.${imageFile.name.split('.').pop()}`;
-      const storageRef = ref(storage, fileName);
+      await uploadBytes(imageRef, imageFile);
+      const downloadURL = await getDownloadURL(imageRef);
       
-      // Upload du fichier
-      const snapshot = await uploadBytes(storageRef, imageFile);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      
-      console.log('✅ Image badge uploadée:', downloadURL);
+      console.log('📸 Image badge uploadée:', downloadURL);
       return downloadURL;
       
     } catch (error) {
@@ -117,91 +123,72 @@ class AdminBadgeService {
   }
 
   /**
-   * ✏️ Modifier un badge existant
+   * 🎖️ ATTRIBUER UN BADGE À UN UTILISATEUR
    */
-  async updateBadge(badgeId, updates, newImageFile = null) {
+  async awardBadgeToUser(userId, badgeId, reason = 'Attribution manuelle') {
     try {
-      console.log('✏️ Admin: Modification badge:', badgeId);
+      console.log(`🎖️ Attribution badge ${badgeId} à ${userId}`);
       
-      let updateData = { ...updates };
-      
-      // Upload nouvelle image si fournie
-      if (newImageFile) {
-        updateData.icon = await this.uploadBadgeImage(newImageFile, badgeId);
-      }
-      
-      updateData.updatedAt = new Date();
-      
-      const badgeRef = doc(db, 'badges', badgeId);
-      await updateDoc(badgeRef, updateData);
-      
-      console.log('✅ Badge modifié:', badgeId);
-      return updateData;
-      
-    } catch (error) {
-      console.error('❌ Erreur modification badge:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🗑️ Supprimer un badge
-   */
-  async deleteBadge(badgeId) {
-    try {
-      console.log('🗑️ Admin: Suppression badge:', badgeId);
-      
-      const badgeRef = doc(db, 'badges', badgeId);
-      await deleteDoc(badgeRef);
-      
-      console.log('✅ Badge supprimé:', badgeId);
-      
-    } catch (error) {
-      console.error('❌ Erreur suppression badge:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🎁 Attribuer manuellement un badge à un utilisateur
-   */
-  async awardBadgeToUser(userId, badgeId, reason = 'Attribution manuelle admin') {
-    try {
-      console.log('🎁 Admin: Attribution badge:', badgeId, 'à', userId);
-      
-      // Récupérer les infos du badge
-      const badgeRef = doc(db, 'badges', badgeId);
-      const badgeDoc = await getDoc(badgeRef);
-      
+      // Vérifier que le badge existe
+      const badgeDoc = await getDoc(doc(db, this.COLLECTION_NAME, badgeId));
       if (!badgeDoc.exists()) {
         throw new Error('Badge introuvable');
       }
-      
+
       const badgeData = badgeDoc.data();
       
-      // Créer l'objet badge pour l'utilisateur
-      const userBadge = {
-        ...badgeData,
-        earnedAt: new Date(),
-        earnedBy: userId,
-        reason,
-        awardedByAdmin: true
+      // Récupérer le profil utilisateur
+      const userRef = doc(db, this.USERS_COLLECTION, userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        throw new Error('Utilisateur introuvable');
+      }
+
+      const userData = userDoc.data();
+      const currentBadges = userData.gamification?.badges || [];
+      
+      // Vérifier si l'utilisateur a déjà ce badge
+      const alreadyHas = currentBadges.some(badge => badge.badgeId === badgeId);
+      if (alreadyHas) {
+        throw new Error('L\'utilisateur possède déjà ce badge');
+      }
+
+      // Ajouter le badge
+      const newBadge = {
+        badgeId,
+        name: badgeData.name,
+        description: badgeData.description,
+        icon: badgeData.icon,
+        xpReward: badgeData.xpReward || 0,
+        awardedAt: new Date(),
+        awardedBy: 'admin',
+        reason
       };
+
+      const updatedBadges = [...currentBadges, newBadge];
       
-      // Ajouter le badge à l'utilisateur
-      const userRef = doc(db, 'users', userId);
+      // Calculer les nouveaux XP
+      const newXpAmount = badgeData.xpReward || 0;
+      const currentXp = userData.gamification?.totalXp || 0;
+      const newTotalXp = currentXp + newXpAmount;
+
+      // Mettre à jour l'utilisateur
       await updateDoc(userRef, {
-        badges: arrayUnion(userBadge),
-        'gamification.totalXp': increment(badgeData.xpReward || 0),
-        'gamification.lastBadgeEarned': new Date()
+        'gamification.badges': updatedBadges,
+        'gamification.totalXp': newTotalXp,
+        'gamification.badgesUnlocked': updatedBadges.length,
+        updatedAt: serverTimestamp()
       });
+
+      console.log(`✅ Badge attribué avec succès: +${newXpAmount} XP`);
       
-      // Déclencher notification
-      this.triggerBadgeNotification(userBadge);
-      
-      console.log('✅ Badge attribué avec succès');
-      return userBadge;
-      
+      return {
+        success: true,
+        message: `Badge "${badgeData.name}" attribué avec succès`,
+        xpAwarded: newXpAmount
+      };
+
     } catch (error) {
       console.error('❌ Erreur attribution badge:', error);
       throw error;
@@ -209,17 +196,49 @@ class AdminBadgeService {
   }
 
   /**
-   * 📊 Obtenir les statistiques globales des badges
+   * 📊 OBTENIR TOUTES LES BADGES
+   */
+  async getAllBadges() {
+    try {
+      console.log('📊 Récupération de tous les badges...');
+      
+      const badgesQuery = query(
+        collection(db, this.COLLECTION_NAME),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const snapshot = await getDocs(badgesQuery);
+      const badges = [];
+      
+      snapshot.forEach(doc => {
+        badges.push({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate()
+        });
+      });
+      
+      console.log(`✅ ${badges.length} badges récupérés`);
+      return badges;
+      
+    } catch (error) {
+      console.error('❌ Erreur récupération badges:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📈 OBTENIR LES STATISTIQUES DES BADGES
    */
   async getBadgeStatistics() {
     try {
-      console.log('📊 Admin: Récupération statistiques badges...');
+      console.log('📊 Calcul statistiques badges...');
       
       // Tous les badges
       const allBadges = await this.getAllBadges();
       
       // Tous les utilisateurs
-      const usersRef = collection(db, 'users');
+      const usersRef = collection(db, this.USERS_COLLECTION);
       const usersSnapshot = await getDocs(usersRef);
       
       const stats = {
@@ -247,7 +266,7 @@ class AdminBadgeService {
       let totalAwarded = 0;
       usersSnapshot.forEach(doc => {
         const userData = doc.data();
-        const userBadges = userData.badges || [];
+        const userBadges = userData.gamification?.badges || [];
         totalAwarded += userBadges.length;
       });
       
@@ -266,13 +285,13 @@ class AdminBadgeService {
   }
 
   /**
-   * 👥 Obtenir tous les utilisateurs avec leurs badges
+   * 👥 OBTENIR TOUS LES UTILISATEURS AVEC LEURS BADGES
    */
   async getAllUsersWithBadges() {
     try {
-      console.log('👥 Admin: Récupération utilisateurs avec badges...');
+      console.log('👥 Récupération utilisateurs avec badges...');
       
-      const usersRef = collection(db, 'users');
+      const usersRef = collection(db, this.USERS_COLLECTION);
       const querySnapshot = await getDocs(usersRef);
       
       const users = [];
@@ -281,7 +300,7 @@ class AdminBadgeService {
         users.push({
           id: doc.id,
           ...userData,
-          badgeCount: (userData.badges || []).length
+          badgeCount: (userData.gamification?.badges || []).length
         });
       });
       
@@ -298,7 +317,30 @@ class AdminBadgeService {
   }
 
   /**
-   * 🔍 Rechercher des badges
+   * 🗑️ SUPPRIMER UN BADGE
+   */
+  async deleteBadge(badgeId) {
+    try {
+      console.log(`🗑️ Suppression badge: ${badgeId}`);
+      
+      // Supprimer le badge
+      await deleteDoc(doc(db, this.COLLECTION_NAME, badgeId));
+      
+      console.log('✅ Badge supprimé avec succès');
+      
+      return {
+        success: true,
+        message: 'Badge supprimé avec succès'
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur suppression badge:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🔍 RECHERCHER DES BADGES
    */
   async searchBadges(searchTerm, filters = {}) {
     try {
@@ -341,11 +383,11 @@ class AdminBadgeService {
   }
 
   /**
-   * 🚀 Importer des badges en lot
+   * 🚀 IMPORTER DES BADGES EN LOT
    */
   async importBadges(badgesArray) {
     try {
-      console.log('🚀 Admin: Import badges en lot...', badgesArray.length);
+      console.log('🚀 Import badges en lot...', badgesArray.length);
       
       const results = {
         success: 0,
@@ -374,20 +416,13 @@ class AdminBadgeService {
   }
 
   /**
-   * 🔔 Déclencher une notification de badge
+   * 🔔 DÉCLENCHER UNE NOTIFICATION DE BADGE
    */
   triggerBadgeNotification(badge) {
     const event = new CustomEvent('badgeEarned', {
       detail: { badge }
     });
     window.dispatchEvent(event);
-  }
-
-  /**
-   * 🛡️ Vérifier les permissions admin
-   */
-  checkAdminPermissions(user) {
-    return user?.role === 'admin' || user?.isAdmin === true;
   }
 }
 
