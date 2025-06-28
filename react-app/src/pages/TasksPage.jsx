@@ -1,15 +1,12 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// MISE À JOUR : Intégration du système de validation
+// VERSION CORRIGÉE - Utilise les composants existants
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Filter, Search, Target, Clock, CheckCircle, Calendar, Flag } from 'lucide-react';
+import { Plus, Filter, Search, Target, Clock, CheckCircle, Calendar, Flag, Send } from 'lucide-react';
 import { useTaskStore } from '../shared/stores/taskStore.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import TaskForm from '../components/tasks/TaskForm.jsx';
-// ✅ NOUVEAU: Import du bouton de soumission
-import SubmitTaskButton from '../components/tasks/SubmitTaskButton.jsx';
 
 const TasksPage = () => {
   const { user } = useAuthStore();
@@ -30,6 +27,10 @@ const TasksPage = () => {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
+  // États pour le nouveau système de validation
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [taskToSubmit, setTaskToSubmit] = useState(null);
+
   // Charger les tâches au montage
   useEffect(() => {
     if (user?.uid) {
@@ -47,10 +48,35 @@ const TasksPage = () => {
     return matchesFilter && matchesSearch;
   });
 
-  // Gestionnaires d'événements
+  // ✅ NOUVELLE FONCTION: Soumettre pour validation
+  const handleSubmitTask = async (task) => {
+    try {
+      // Pour l'instant, on change juste le statut
+      // Plus tard, on ouvrira le modal de soumission avec preuve
+      await updateTask(task.id, {
+        status: 'validation_pending',
+        submittedAt: new Date(),
+        submissionComment: 'Tâche soumise pour validation'
+      });
+      
+      console.log('✅ Tâche soumise pour validation:', task.title);
+    } catch (error) {
+      console.error('❌ Erreur soumission:', error);
+    }
+  };
+
+  // Gestionnaires d'événements existants
   const handleCreateTask = async (taskData) => {
     try {
-      await createTask(taskData, user.uid);
+      // ✅ NOUVEAU: Ajouter les champs pour la validation
+      const enhancedTask = {
+        ...taskData,
+        difficulty: taskData.difficulty || 'normal',
+        xpReward: calculateXPReward(taskData.difficulty || 'normal'),
+        requiresValidation: true
+      };
+      
+      await createTask(enhancedTask, user.uid);
       setShowForm(false);
     } catch (error) {
       console.error('Erreur création tâche:', error);
@@ -77,14 +103,18 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ NOUVEAU: Gestionnaire de soumission réussie
-  const handleSubmissionSuccess = (result) => {
-    console.log('✅ Tâche soumise avec succès:', result);
-    // Optionnel: Afficher une notification
-    // toast.success(`Tâche soumise ! +${result.xpAmount} XP en attente de validation`);
+  // ✅ NOUVELLE FONCTION: Calculer XP selon difficulté
+  const calculateXPReward = (difficulty) => {
+    const xpMap = {
+      'easy': 25,
+      'normal': 50,
+      'hard': 100,
+      'expert': 200
+    };
+    return xpMap[difficulty] || 50;
   };
 
-  // Fonctions utilitaires
+  // Fonctions utilitaires mises à jour
   const getPriorityColor = (priority) => {
     switch (priority) {
       case 'high': return 'bg-red-100 text-red-800';
@@ -97,8 +127,8 @@ const TasksPage = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed': return 'bg-green-100 text-green-800';
-      case 'validation_pending': return 'bg-orange-100 text-orange-800'; // ✅ NOUVEAU STATUT
-      case 'rejected': return 'bg-red-100 text-red-800'; // ✅ NOUVEAU STATUT
+      case 'validation_pending': return 'bg-orange-100 text-orange-800'; // ✅ NOUVEAU
+      case 'rejected': return 'bg-red-100 text-red-800'; // ✅ NOUVEAU
       case 'in_progress': return 'bg-blue-100 text-blue-800';
       case 'todo': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -125,7 +155,74 @@ const TasksPage = () => {
     }
   };
 
-  // Stats rapides
+  // ✅ NOUVELLE FONCTION: Bouton de soumission intelligent
+  const renderSubmitButton = (task) => {
+    const getButtonConfig = () => {
+      switch (task.status) {
+        case 'todo':
+        case 'in_progress':
+          return {
+            text: 'Soumettre',
+            icon: Send,
+            className: 'bg-blue-600 hover:bg-blue-700 text-white',
+            disabled: false,
+            onClick: () => handleSubmitTask(task)
+          };
+          
+        case 'validation_pending':
+          return {
+            text: 'En validation',
+            icon: Clock,
+            className: 'bg-orange-100 text-orange-700 cursor-not-allowed',
+            disabled: true
+          };
+          
+        case 'completed':
+          return {
+            text: 'Validée',
+            icon: CheckCircle,
+            className: 'bg-green-100 text-green-700 cursor-not-allowed',
+            disabled: true
+          };
+          
+        case 'rejected':
+          return {
+            text: 'Rejetée',
+            icon: Clock,
+            className: 'bg-red-100 text-red-700 hover:bg-red-200',
+            disabled: false,
+            onClick: () => handleSubmitTask(task)
+          };
+          
+        default:
+          return {
+            text: 'Soumettre',
+            icon: Send,
+            className: 'bg-gray-100 text-gray-500 cursor-not-allowed',
+            disabled: true
+          };
+      }
+    };
+
+    const config = getButtonConfig();
+    const IconComponent = config.icon;
+
+    return (
+      <button
+        onClick={config.onClick}
+        disabled={config.disabled}
+        className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors flex items-center space-x-1 ${config.className}`}
+      >
+        <IconComponent className="w-3 h-3" />
+        <span>{config.text}</span>
+        {task.xpReward && !config.disabled && (
+          <span className="bg-white/20 rounded px-1">+{task.xpReward}</span>
+        )}
+      </button>
+    );
+  };
+
+  // Stats rapides mises à jour
   const taskStats = {
     total: tasks.length,
     todo: tasks.filter(t => t.status === 'todo').length,
@@ -154,6 +251,10 @@ const TasksPage = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Mes Tâches</h1>
             <p className="text-gray-600">Gérez et organisez votre travail quotidien</p>
+            {/* ✅ NOUVEAU: Mention validation */}
+            <p className="text-sm text-purple-600 mt-1">
+              💡 Les XP sont attribués après validation admin
+            </p>
           </div>
           
           <button
@@ -168,7 +269,7 @@ const TasksPage = () => {
           </button>
         </div>
 
-        {/* Stats rapides */}
+        {/* Stats rapides mises à jour */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           <div className="bg-gray-50 rounded-lg p-3 text-center">
             <div className="text-lg font-bold text-gray-900">{taskStats.total}</div>
@@ -289,22 +390,12 @@ const TasksPage = () => {
                           Échéance: {new Date(task.dueDate).toLocaleDateString('fr-FR')}
                         </span>
                       )}
-                      {task.estimatedTime && (
-                        <span>Temps estimé: {task.estimatedTime}h</span>
-                      )}
-
+                      
                       {/* ✅ NOUVEAU: Informations de validation */}
-                      {task.status === 'validation_pending' && task.submittedAt && (
+                      {task.status === 'validation_pending' && (
                         <span className="text-orange-600">
                           <Clock className="w-3 h-3 inline mr-1" />
-                          Soumise le {new Date(task.submittedAt.toDate()).toLocaleDateString('fr-FR')}
-                        </span>
-                      )}
-                      
-                      {task.status === 'completed' && task.validatedAt && (
-                        <span className="text-green-600">
-                          <CheckCircle className="w-3 h-3 inline mr-1" />
-                          Validée le {new Date(task.validatedAt.toDate()).toLocaleDateString('fr-FR')}
+                          En attente de validation
                         </span>
                       )}
                       
@@ -316,7 +407,7 @@ const TasksPage = () => {
                     </div>
                   </div>
 
-                  {/* ✅ NOUVEAU: Actions avec bouton de soumission */}
+                  {/* Actions mises à jour */}
                   <div className="flex items-center space-x-2 ml-4">
                     {/* Bouton de modification */}
                     <button
@@ -332,12 +423,8 @@ const TasksPage = () => {
                       </svg>
                     </button>
 
-                    {/* ✅ REMPLACEMENT: Nouveau bouton de soumission */}
-                    <SubmitTaskButton
-                      task={task}
-                      onSubmissionSuccess={handleSubmissionSuccess}
-                      size="small"
-                    />
+                    {/* ✅ NOUVEAU: Bouton de soumission intelligent */}
+                    {renderSubmitButton(task)}
 
                     {/* Bouton de suppression */}
                     <button
@@ -357,17 +444,131 @@ const TasksPage = () => {
         )}
       </div>
 
-      {/* Modal de formulaire */}
+      {/* ✅ FORMULAIRE SIMPLE EN OVERLAY (utilise les composants existants) */}
       {showForm && (
-        <TaskForm
-          task={editingTask}
-          onSubmit={editingTask ? handleEditTask : handleCreateTask}
-          onCancel={() => {
-            setShowForm(false);
-            setEditingTask(null);
-          }}
-          loading={creating || updating}
-        />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">
+                {editingTask ? 'Modifier la tâche' : 'Nouvelle tâche'}
+              </h2>
+              
+              {/* Formulaire simple */}
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const taskData = {
+                  title: formData.get('title'),
+                  description: formData.get('description'),
+                  priority: formData.get('priority'),
+                  difficulty: formData.get('difficulty'),
+                  dueDate: formData.get('dueDate') || null,
+                  estimatedTime: formData.get('estimatedTime') || null
+                };
+                
+                if (editingTask) {
+                  handleEditTask(taskData);
+                } else {
+                  handleCreateTask(taskData);
+                }
+              }} className="space-y-4">
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Titre *</label>
+                  <input
+                    name="title"
+                    type="text"
+                    defaultValue={editingTask?.title || ''}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    name="description"
+                    defaultValue={editingTask?.description || ''}
+                    rows={3}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
+                    <select
+                      name="priority"
+                      defaultValue={editingTask?.priority || 'normal'}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="low">Basse</option>
+                      <option value="normal">Normale</option>
+                      <option value="high">Haute</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Difficulté</label>
+                    <select
+                      name="difficulty"
+                      defaultValue={editingTask?.difficulty || 'normal'}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="easy">Facile (+25 XP)</option>
+                      <option value="normal">Normal (+50 XP)</option>
+                      <option value="hard">Difficile (+100 XP)</option>
+                      <option value="expert">Expert (+200 XP)</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date d'échéance</label>
+                    <input
+                      name="dueDate"
+                      type="date"
+                      defaultValue={editingTask?.dueDate ? new Date(editingTask.dueDate).toISOString().split('T')[0] : ''}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Temps estimé (h)</label>
+                    <input
+                      name="estimatedTime"
+                      type="number"
+                      step="0.5"
+                      defaultValue={editingTask?.estimatedTime || ''}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex justify-end space-x-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForm(false);
+                      setEditingTask(null);
+                    }}
+                    className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creating || updating}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+                  >
+                    {creating || updating ? 'Sauvegarde...' : editingTask ? 'Modifier' : 'Créer'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
