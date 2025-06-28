@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/Dashboard.jsx
-// DASHBOARD PRINCIPAL AVEC SECTION ADMIN INTÉGRÉE
+// VERSION CORRIGÉE - Sans imports manquants
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -15,15 +15,12 @@ import {
   Trophy,
   Target,
   BarChart3,
-  AlertTriangle
+  AlertTriangle,
+  Shield,
+  Eye
 } from 'lucide-react';
 
-// ✅ NOUVEAUX IMPORTS pour le système de validation
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { isAdmin } from '../core/services/adminBadgeService.js';
-import AdminDashboardSection from '../components/admin/AdminDashboardSection.jsx';
-
-// Hooks existants
 import { useTaskStore } from '../shared/stores/taskStore.js';
 import { useProjectStore } from '../shared/stores/projectStore.js';
 
@@ -34,7 +31,6 @@ const Dashboard = () => {
   
   // États
   const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState(null);
   const [isUserAdmin, setIsUserAdmin] = useState(false);
 
   // Charger les données au montage
@@ -50,10 +46,10 @@ const Dashboard = () => {
           loadUserProjects(user.uid)
         ]);
         
-        // Vérifier les permissions admin
-        setIsUserAdmin(isAdmin(user));
+        // ✅ SIMPLE: Vérifier si admin (basique pour l'instant)
+        setIsUserAdmin(user?.email === 'alan.boehme61@gmail.com');
         
-        console.log('✅ Dashboard chargé - Admin:', isAdmin(user));
+        console.log('✅ Dashboard chargé - Admin:', user?.email === 'alan.boehme61@gmail.com');
         
       } catch (error) {
         console.error('❌ Erreur chargement dashboard:', error);
@@ -92,6 +88,78 @@ const Dashboard = () => {
 
   const stats = getStats();
 
+  // ✅ SECTION ADMIN SIMPLE (intégrée directement)
+  const AdminQuickStats = () => {
+    if (!isUserAdmin) return null;
+
+    return (
+      <div className="bg-gradient-to-r from-red-600 to-purple-600 rounded-xl shadow-lg p-6 text-white mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <Shield className="w-8 h-8" />
+            <div>
+              <h2 className="text-xl font-bold">Administration</h2>
+              <p className="opacity-90">Gestion système Synergia</p>
+            </div>
+          </div>
+          
+          <div className="bg-white/20 backdrop-blur-sm rounded-lg px-3 py-1 text-sm font-medium">
+            🛡️ Administrateur
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Validations en attente */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white/80 text-sm">Validations en attente</p>
+                <p className="text-2xl font-bold">{stats.tasks.validationPending}</p>
+              </div>
+              <Clock className="w-6 h-6 text-orange-300" />
+            </div>
+          </div>
+
+          {/* Tâches validées */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white/80 text-sm">Tâches validées</p>
+                <p className="text-2xl font-bold">{stats.tasks.completed}</p>
+              </div>
+              <CheckSquare className="w-6 h-6 text-green-300" />
+            </div>
+          </div>
+
+          {/* Panel admin */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white/80 text-sm">Panel admin</p>
+                <p className="text-sm">Gestion badges</p>
+              </div>
+              <button className="text-white hover:text-white/80 transition-colors">
+                <Eye className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ✅ ALERTE SI VALIDATIONS EN ATTENTE */}
+        {stats.tasks.validationPending > 0 && (
+          <div className="mt-4 bg-orange-500/20 border border-orange-300/30 rounded-lg p-3">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-5 h-5 text-orange-200" />
+              <span className="text-orange-100 text-sm font-medium">
+                {stats.tasks.validationPending} tâche(s) en attente de validation
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Rendu conditionnel du loading
   if (loading) {
     return (
@@ -119,6 +187,10 @@ const Dashboard = () => {
               <p className="text-gray-600 mt-1">
                 Voici un aperçu de votre activité sur Synergia
               </p>
+              {/* ✅ NOUVEAU: Mention système de validation */}
+              <p className="text-sm text-purple-600 mt-2">
+                🔄 Nouveau : Système de validation des tâches intégré
+              </p>
             </div>
             
             {/* Badge admin si applicable */}
@@ -131,10 +203,8 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* ✅ SECTION ADMIN (SI PERMISSIONS) */}
-        {isUserAdmin && (
-          <AdminDashboardSection />
-        )}
+        {/* ✅ SECTION ADMIN (SIMPLIFIÉE) */}
+        <AdminQuickStats />
 
         {/* STATISTIQUES RAPIDES */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -150,17 +220,6 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Taux de réussite */}
-          <div className="bg-white rounded-lg p-6 border shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm">Taux de réussite</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.tasks.completionRate}%</p>
-              </div>
-              <TrendingUp className="w-8 h-8 text-green-500" />
-            </div>
-          </div>
-
           {/* ✅ NOUVEAU: Validations en attente */}
           <div className="bg-white rounded-lg p-6 border shadow-sm">
             <div className="flex items-center justify-between">
@@ -169,6 +228,17 @@ const Dashboard = () => {
                 <p className="text-2xl font-bold text-orange-600">{stats.tasks.validationPending}</p>
               </div>
               <Clock className="w-8 h-8 text-orange-500" />
+            </div>
+          </div>
+
+          {/* Taux de réussite */}
+          <div className="bg-white rounded-lg p-6 border shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm">Taux de réussite</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.tasks.completionRate}%</p>
+              </div>
+              <TrendingUp className="w-8 h-8 text-green-500" />
             </div>
           </div>
 
@@ -207,7 +277,7 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* ACTIONS RAPIDES */}
+        {/* ACTIONS RAPIDES MISES À JOUR */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
           {/* Créer une tâche */}
@@ -385,7 +455,7 @@ const Dashboard = () => {
         <div className="text-center text-gray-500 text-sm">
           <p>
             Dernière synchronisation : {new Date().toLocaleTimeString()} •
-            Synergia v3.5 - Système de validation intégré
+            Synergia v3.5 - Système de validation intégré ✅
           </p>
         </div>
       </div>
