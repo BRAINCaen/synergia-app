@@ -20,7 +20,8 @@ import {
 
 // ✅ IMPORTS CORRECTS : Services Firebase + Store Auth seulement
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { taskService } from '../core/services/taskService.js';
+import taskService from '../core/services/taskService.js';
+import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
 
 // ✅ COMPOSANT MODAL RAPIDE DE CRÉATION
 const QuickTaskForm = ({ onSubmit, onCancel }) => {
@@ -129,6 +130,8 @@ const TasksPage = () => {
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [taskToSubmit, setTaskToSubmit] = useState(null);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -177,15 +180,20 @@ const TasksPage = () => {
     }
   };
 
+  // ✅ OUVRIR LE MODAL DE SOUMISSION
+  const handleSubmitTaskClick = (task) => {
+    setTaskToSubmit(task);
+    setShowSubmissionModal(true);
+  };
+
   // ✅ SOUMETTRE POUR VALIDATION AVEC SERVICE FIREBASE
-  const handleSubmitTask = async (task) => {
+  const handleSubmitTask = async (task, submissionData) => {
     setUpdating(true);
     try {
       console.log('🎯 Soumission tâche pour validation:', task.title);
+      console.log('📎 Données soumission:', submissionData);
       
-      const updatedTask = await taskService.submitTaskForValidation(task.id, {
-        comment: 'Tâche terminée et soumise pour validation'
-      });
+      const updatedTask = await taskService.submitTaskForValidation(task.id, submissionData);
       
       // Mettre à jour la liste locale
       setTasks(prev => prev.map(t => 
@@ -193,6 +201,10 @@ const TasksPage = () => {
           ? { ...t, status: 'validation_pending', submittedAt: new Date().toISOString() }
           : t
       ));
+      
+      // Fermer le modal
+      setShowSubmissionModal(false);
+      setTaskToSubmit(null);
       
       alert('✅ Tâche soumise pour validation admin ! Vous recevrez vos XP une fois validée.');
       
@@ -502,7 +514,7 @@ const TasksPage = () => {
                       {/* Bouton de soumission conditionnel */}
                       {(task.status === 'todo' || task.status === 'in_progress') && (
                         <button
-                          onClick={() => handleSubmitTask(task)}
+                          onClick={() => handleSubmitTaskClick(task)}
                           disabled={updating}
                           className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                         >
@@ -514,7 +526,7 @@ const TasksPage = () => {
                       {/* Bouton de resoumission pour tâches rejetées */}
                       {task.status === 'rejected' && (
                         <button
-                          onClick={() => handleSubmitTask(task)}
+                          onClick={() => handleSubmitTaskClick(task)}
                           disabled={updating}
                           className="inline-flex items-center gap-2 px-3 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors"
                         >
@@ -562,6 +574,19 @@ const TasksPage = () => {
         <QuickTaskForm
           onSubmit={handleCreateTask}
           onCancel={() => setShowForm(false)}
+        />
+      )}
+
+      {/* Modal de soumission avancé */}
+      {showSubmissionModal && taskToSubmit && (
+        <TaskSubmissionModal
+          task={taskToSubmit}
+          onSubmit={handleSubmitTask}
+          onCancel={() => {
+            setShowSubmissionModal(false);
+            setTaskToSubmit(null);
+          }}
+          submitting={updating}
         />
       )}
     </div>
