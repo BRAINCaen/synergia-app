@@ -1,6 +1,6 @@
 // ==========================================
-// 📁 react-app/src/App.jsx
-// CODE COMPLET - Remplacer entièrement le fichier existant
+// 📁 react-app/src/App.jsx  
+// APP.JSX MODIFIÉ - Ajout route admin-fix
 // ==========================================
 
 import React, { useEffect, useState } from 'react'
@@ -30,9 +30,11 @@ import ProfilePage from './pages/ProfilePage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
 import TestDashboard from './pages/TestDashboard.jsx'
 
-// 🛡️ NOUVEAUX IMPORTS ADMIN
+// 🛡️ NOUVEAUX IMPORTS ADMIN  
 import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx'
 import AdminProfileTestPage from './pages/AdminProfileTestPage.jsx'
+// 🚀 NOUVEAU : Page de correctif admin
+import AdminQuickFixPage from './pages/AdminQuickFixPage.jsx'
 
 // ✅ Component protégé AVEC LAYOUT
 function ProtectedRoute({ children }) {
@@ -91,44 +93,41 @@ function App() {
         
       } catch (error) {
         console.error('❌ Erreur initialisation:', error);
-        setAppInitialized(true); // Continuer même en cas d'erreur
+        setAppInitialized(true) // Permettre l'accès même en cas d'erreur
       }
     }
 
     initializeApp()
-  }, [initializeAuth])
+  }, [])
 
-  // Affichage du loading pendant l'initialisation
+  // 🔄 Affichage du loading pendant l'initialisation
   if (!appInitialized || authLoading) {
-    return <LoadingScreen message="Initialisation de Synergia v3.5..." />
+    return <LoadingScreen message="Initialisation de Synergia..." />
   }
 
   return (
     <Router>
-      <div className="App">
-        {/* 🎊 Manager global des notifications de badges */}
-        <BadgeNotificationManager />
+      <div className="min-h-screen bg-gray-50">
+        {/* 🎊 GESTIONNAIRE DE NOTIFICATIONS DE BADGES (global) */}
+        {user && <BadgeNotificationManager />}
         
         <Routes>
           {/* ================== ROUTES PUBLIQUES ================== */}
-          
-          {/* 🔓 Page de connexion */}
           <Route path="/login" element={
             <PublicRoute>
               <Login />
             </PublicRoute>
           } />
 
-          {/* ================== ROUTES PROTÉGÉES AVEC LAYOUT ================== */}
+          {/* ================== ROUTES PROTÉGÉES PRINCIPALES ================== */}
           
-          {/* 🏠 Dashboard principal */}
+          {/* 📊 Pages principales - AVEC LAYOUT */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
           } />
-
-          {/* 📋 Pages principales - AVEC LAYOUT */}
+          
           <Route path="/tasks" element={
             <ProtectedRoute>
               <TasksPage />
@@ -199,7 +198,7 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* 🛡️ NOUVELLES ROUTES ADMIN - AVEC LAYOUT */}
+          {/* 🛡️ ROUTES ADMIN - AVEC LAYOUT */}
           <Route path="/admin-test" element={
             <ProtectedRoute>
               <CompleteAdminTestPage />
@@ -209,6 +208,13 @@ function App() {
           <Route path="/admin-profile-test" element={
             <ProtectedRoute>
               <AdminProfileTestPage />
+            </ProtectedRoute>
+          } />
+          
+          {/* 🚀 NOUVELLE ROUTE : Correctif Admin */}
+          <Route path="/admin-fix" element={
+            <ProtectedRoute>
+              <AdminQuickFixPage />
             </ProtectedRoute>
           } />
 
@@ -275,6 +281,7 @@ export default App
 🛡️ ADMINISTRATION :
 - /admin-test - Page complète de test et config admin
 - /admin-profile-test - Page de test basique admin
+- /admin-fix - 🚀 NOUVEAU : Correctif rapide accès admin
 
 🧪 DÉVELOPPEMENT :
 - /test-dashboard - Dashboard de test
@@ -285,21 +292,20 @@ export default App
 // ==========================================
 
 /*
-POUR AJOUTER CETTE NOUVELLE ROUTE ADMIN :
+POUR APPLIQUER CES MODIFICATIONS :
 
 1. Remplacer complètement le contenu de react-app/src/App.jsx par ce code
 
-2. Créer les nouveaux fichiers dans react-app/src/pages/ :
-   - CompleteAdminTestPage.jsx
-   - AdminProfileTestPage.jsx
+2. Créer le fichier react-app/src/pages/AdminQuickFixPage.jsx 
+   avec le contenu fourni dans l'artifact précédent
 
-3. Créer les services dans react-app/src/core/services/ :
-   - adminSetupService.js
+3. Tester en accédant à : /admin-fix
 
-4. Créer les composants dans react-app/src/components/admin/ :
-   - AdminSetupComponent.jsx
+4. Une fois l'accès admin corrigé, utiliser : /admin-test
 
-5. Tester en accédant à : /admin-test
-
-6. Optionnel : Ajouter AdminQuickAccess dans votre DashboardLayout
+🎯 PROCÉDURE :
+1. Aller sur /admin-fix
+2. Cliquer sur "Vérifier le Statut"  
+3. Si pas admin, cliquer sur "Corriger l'Accès Admin"
+4. Une fois corrigé, aller sur /admin-test pour tester
 */
