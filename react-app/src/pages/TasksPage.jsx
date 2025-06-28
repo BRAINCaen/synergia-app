@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// ✅ VERSION COMPLÈTE ET RÉPARÉE - SYSTÈME DE VALIDATION ADMIN
+// ✅ VERSION FIXÉE - UTILISE SERVICES FIREBASE DIRECTEMENT
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -13,22 +13,21 @@ import {
   CheckCircle, 
   AlertTriangle,
   Send,
-  Eye,
-  Trash2,
   Edit,
+  Trash2,
   Filter
 } from 'lucide-react';
-import { useTaskStore } from '../shared/stores/taskStore.js';
+
+// ✅ IMPORTS CORRECTS : Services Firebase + Store Auth seulement
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useProjectStore } from '../shared/stores/projectStore.js';
+import { taskService } from '../core/services/taskService.js';
 
 // ✅ COMPOSANT MODAL RAPIDE DE CRÉATION
-const QuickTaskForm = ({ onSubmit, onCancel, projects = [] }) => {
+const QuickTaskForm = ({ onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    projectId: '',
-    difficulty: 'medium',
+    difficulty: 'normal',
     priority: 'normal'
   });
 
@@ -36,12 +35,8 @@ const QuickTaskForm = ({ onSubmit, onCancel, projects = [] }) => {
     e.preventDefault();
     if (!formData.title.trim()) return;
     
-    onSubmit({
-      ...formData,
-      difficulty: formData.difficulty || 'medium'
-    });
-    
-    setFormData({ title: '', description: '', projectId: '', difficulty: 'medium', priority: 'normal' });
+    onSubmit(formData);
+    setFormData({ title: '', description: '', difficulty: 'normal', priority: 'normal' });
   };
 
   return (
@@ -82,7 +77,7 @@ const QuickTaskForm = ({ onSubmit, onCancel, projects = [] }) => {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="easy">Facile (10 XP)</option>
-                <option value="medium">Moyen (25 XP)</option>
+                <option value="normal">Normal (25 XP)</option>
                 <option value="hard">Difficile (50 XP)</option>
                 <option value="expert">Expert (100 XP)</option>
               </select>
@@ -102,22 +97,6 @@ const QuickTaskForm = ({ onSubmit, onCancel, projects = [] }) => {
               </select>
             </div>
           </div>
-
-          {projects.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Projet (optionnel)</label>
-              <select
-                value={formData.projectId}
-                onChange={(e) => setFormData(prev => ({ ...prev, projectId: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Aucun projet</option>
-                {projects.map(project => (
-                  <option key={project.id} value={project.id}>{project.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
           
           <div className="flex justify-end space-x-3 pt-4">
             <button
@@ -140,38 +119,110 @@ const QuickTaskForm = ({ onSubmit, onCancel, projects = [] }) => {
   );
 };
 
-// ✅ COMPOSANT PRINCIPAL TASKSPAGE - FIXÉ ET COMPLET
+// ✅ COMPOSANT PRINCIPAL - UTILISE SERVICES FIREBASE
 const TasksPage = () => {
   const { user } = useAuthStore();
-  const { 
-    tasks, 
-    loading, 
-    creating,
-    updating,
-    loadUserTasks,
-    createTask,
-    updateTask,
-    deleteTask 
-  } = useTaskStore();
-  
-  const { projects, loadUserProjects } = useProjectStore();
 
-  // États locaux
+  // ✅ ÉTATS LOCAUX SIMPLES (pas de store cassé)
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [editingTask, setEditingTask] = useState(null);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Charger les données au montage
-  useEffect(() => {
-    if (user?.uid) {
-      loadUserTasks(user.uid);
-      loadUserProjects(user.uid);
+  // ✅ CHARGER LES TÂCHES AVEC SERVICE FIREBASE
+  const loadTasks = async () => {
+    if (!user?.uid) return;
+    
+    setLoading(true);
+    try {
+      console.log('🔄 Chargement des tâches...');
+      const userTasks = await taskService.getUserTasks(user.uid);
+      setTasks(userTasks || []);
+      console.log('✅ Tâches chargées:', userTasks?.length || 0);
+    } catch (error) {
+      console.error('❌ Erreur chargement tâches:', error);
+      setTasks([]);
+    } finally {
+      setLoading(false);
     }
-  }, [user?.uid, loadUserTasks, loadUserProjects]);
+  };
+
+  // Charger au montage et quand l'utilisateur change
+  useEffect(() => {
+    loadTasks();
+  }, [user?.uid]);
+
+  // ✅ CRÉER UNE TÂCHE AVEC SERVICE FIREBASE
+  const handleCreateTask = async (taskData) => {
+    if (!user?.uid) return;
+    
+    setCreating(true);
+    try {
+      console.log('📝 Création tâche:', taskData.title);
+      const newTask = await taskService.createTask(taskData, user.uid);
+      
+      // Ajouter à la liste locale
+      setTasks(prev => [...prev, newTask]);
+      setShowForm(false);
+      
+      console.log('✅ Tâche créée avec succès');
+    } catch (error) {
+      console.error('❌ Erreur création tâche:', error);
+      alert('Erreur lors de la création de la tâche');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // ✅ SOUMETTRE POUR VALIDATION AVEC SERVICE FIREBASE
+  const handleSubmitTask = async (task) => {
+    setUpdating(true);
+    try {
+      console.log('🎯 Soumission tâche pour validation:', task.title);
+      
+      const updatedTask = await taskService.submitTaskForValidation(task.id, {
+        comment: 'Tâche terminée et soumise pour validation'
+      });
+      
+      // Mettre à jour la liste locale
+      setTasks(prev => prev.map(t => 
+        t.id === task.id 
+          ? { ...t, status: 'validation_pending', submittedAt: new Date().toISOString() }
+          : t
+      ));
+      
+      alert('✅ Tâche soumise pour validation admin ! Vous recevrez vos XP une fois validée.');
+      
+    } catch (error) {
+      console.error('❌ Erreur soumission:', error);
+      alert('❌ Erreur lors de la soumission');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // ✅ SUPPRIMER UNE TÂCHE AVEC SERVICE FIREBASE
+  const handleDeleteTask = async (task) => {
+    if (!confirm(`Supprimer "${task.title}" ?`)) return;
+    
+    try {
+      console.log('🗑️ Suppression tâche:', task.title);
+      await taskService.deleteTask(task.id);
+      
+      // Retirer de la liste locale
+      setTasks(prev => prev.filter(t => t.id !== task.id));
+      console.log('✅ Tâche supprimée');
+    } catch (error) {
+      console.error('❌ Erreur suppression:', error);
+      alert('Erreur lors de la suppression');
+    }
+  };
 
   // Filtrer les tâches
-  const filteredTasks = tasks ? tasks.filter(task => {
+  const filteredTasks = tasks.filter(task => {
     if (!task) return false;
     
     const matchesFilter = filter === 'all' || task.status === filter;
@@ -179,53 +230,7 @@ const TasksPage = () => {
       (task.title && task.title.toLowerCase().includes(searchTerm.toLowerCase()));
     
     return matchesFilter && matchesSearch;
-  }) : [];
-
-  // ✅ FONCTION SOUMISSION POUR VALIDATION
-  const handleSubmitTask = async (task) => {
-    try {
-      console.log('🎯 Soumission tâche pour validation:', task.title);
-      
-      await updateTask(task.id, {
-        status: 'validation_pending',
-        submittedAt: new Date().toISOString(),
-        submittedForValidation: true
-      });
-      
-      // Toast notification
-      alert('✅ Tâche soumise pour validation admin ! Vous recevrez vos XP une fois validée.');
-      
-    } catch (error) {
-      console.error('❌ Erreur soumission:', error);
-      alert('❌ Erreur lors de la soumission');
-    }
-  };
-
-  // Gestionnaire création
-  const handleCreateTask = async (taskData) => {
-    try {
-      await createTask({
-        ...taskData,
-        status: 'todo'
-      }, user.uid);
-      setShowForm(false);
-      console.log('✅ Tâche créée:', taskData.title);
-    } catch (error) {
-      console.error('❌ Erreur création tâche:', error);
-    }
-  };
-
-  // Gestionnaire suppression
-  const handleDeleteTask = async (task) => {
-    if (confirm(`Supprimer "${task.title}" ?`)) {
-      try {
-        await deleteTask(task.id);
-        console.log('🗑️ Tâche supprimée:', task.title);
-      } catch (error) {
-        console.error('❌ Erreur suppression:', error);
-      }
-    }
-  };
+  });
 
   // Utilitaires styles
   const getStatusColor = (status) => {
@@ -261,7 +266,7 @@ const TasksPage = () => {
   const getDifficultyXP = (difficulty) => {
     switch (difficulty) {
       case 'easy': return 10;
-      case 'medium': return 25;
+      case 'normal': return 25;
       case 'hard': return 50;
       case 'expert': return 100;
       default: return 25;
@@ -271,7 +276,7 @@ const TasksPage = () => {
   const getDifficultyColor = (difficulty) => {
     switch (difficulty) {
       case 'easy': return 'text-green-600';
-      case 'medium': return 'text-blue-600';
+      case 'normal': return 'text-blue-600';
       case 'hard': return 'text-orange-600';
       case 'expert': return 'text-red-600';
       default: return 'text-blue-600';
@@ -280,12 +285,12 @@ const TasksPage = () => {
 
   // Statistiques
   const stats = {
-    total: tasks ? tasks.length : 0,
-    todo: tasks ? tasks.filter(t => t.status === 'todo').length : 0,
-    inProgress: tasks ? tasks.filter(t => t.status === 'in_progress').length : 0,
-    validationPending: tasks ? tasks.filter(t => t.status === 'validation_pending').length : 0,
-    completed: tasks ? tasks.filter(t => t.status === 'completed').length : 0,
-    rejected: tasks ? tasks.filter(t => t.status === 'rejected').length : 0
+    total: tasks.length,
+    todo: tasks.filter(t => t.status === 'todo').length,
+    inProgress: tasks.filter(t => t.status === 'in_progress').length,
+    validationPending: tasks.filter(t => t.status === 'validation_pending').length,
+    completed: tasks.filter(t => t.status === 'completed').length,
+    rejected: tasks.filter(t => t.status === 'rejected').length
   };
 
   if (loading) {
@@ -312,10 +317,11 @@ const TasksPage = () => {
         
         <button
           onClick={() => setShowForm(true)}
-          className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          disabled={creating}
+          className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
         >
           <Plus className="w-4 h-4" />
-          Nouvelle Tâche
+          {creating ? 'Création...' : 'Nouvelle Tâche'}
         </button>
       </div>
 
@@ -460,17 +466,11 @@ const TasksPage = () => {
                       
                       {/* Métadonnées */}
                       <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                        <span>Créée le {new Date(task.createdAt).toLocaleDateString('fr-FR')}</span>
+                        <span>Créée le {new Date(task.createdAt?.seconds ? task.createdAt.seconds * 1000 : task.createdAt).toLocaleDateString('fr-FR')}</span>
                         
                         {task.difficulty && (
                           <span className={`font-medium ${getDifficultyColor(task.difficulty)}`}>
                             {task.difficulty} ({getDifficultyXP(task.difficulty)} XP)
-                          </span>
-                        )}
-                        
-                        {task.projectId && projects && (
-                          <span className="text-purple-600">
-                            📁 {projects.find(p => p.id === task.projectId)?.name || 'Projet'}
                           </span>
                         )}
                         
@@ -507,7 +507,7 @@ const TasksPage = () => {
                           className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                         >
                           <Send className="w-4 h-4" />
-                          Soumettre
+                          {updating ? 'Soumission...' : 'Soumettre'}
                         </button>
                       )}
                       
@@ -541,14 +541,6 @@ const TasksPage = () => {
                       {/* Actions supplémentaires */}
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => setEditingTask(task)}
-                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-                          title="Modifier"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        
-                        <button
                           onClick={() => handleDeleteTask(task)}
                           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                           title="Supprimer"
@@ -570,7 +562,6 @@ const TasksPage = () => {
         <QuickTaskForm
           onSubmit={handleCreateTask}
           onCancel={() => setShowForm(false)}
-          projects={projects}
         />
       )}
     </div>
