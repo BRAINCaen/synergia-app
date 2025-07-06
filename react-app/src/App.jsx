@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// VERSION FINALE - TOUS LES IMPORTS VÉRIFIÉS
+// VERSION FINALE - AVEC ROUTES ADMIN AJOUTÉES
 // ==========================================
 
 import React, { useEffect } from 'react';
@@ -41,6 +41,7 @@ import SettingsPage from './pages/SettingsPage.jsx';
 // ✅ PAGES ADMIN/TEST (toutes vérifiées)
 import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 import AdminProfileTestPage from './pages/AdminProfileTestPage.jsx';
+import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
 import TestDashboard from './pages/TestDashboard.jsx';
 
 // ✅ PAGE 404 (vérifiée)
@@ -63,16 +64,11 @@ function App() {
   // Affichage du loader global pendant l'initialisation
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent"></div>
-            <div className="absolute inset-0 rounded-full h-16 w-16 border-4 border-purple-500 border-t-transparent animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
-          </div>
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-white mb-2">SYNERGIA v3.5</h2>
-            <p className="text-blue-200 animate-pulse">Initialisation de l'application...</p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-6"></div>
+          <h2 className="text-2xl font-bold text-white mb-2">Synergia v3.5</h2>
+          <p className="text-blue-200">Initialisation en cours...</p>
         </div>
       </div>
     );
@@ -81,229 +77,207 @@ function App() {
   return (
     <ToastProvider>
       <Router>
-        <div className="App">
-          <Routes>
-            
-            {/* 🔐 ROUTES PUBLIQUES (sans layout) */}
-            <Route 
-              path={ROUTES.LOGIN} 
-              element={
-                <PublicRoute>
-                  <Login />
-                </PublicRoute>
-              } 
-            />
+        <Routes>
+          
+          {/* 🔐 ROUTE PUBLIQUE - LOGIN */}
+          <Route 
+            path={ROUTES.LOGIN} 
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            } 
+          />
 
-            {/* 🏠 ROUTES PRINCIPALES (avec layout) */}
-            <Route 
-              path={ROUTES.DASHBOARD} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Dashboard />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path={ROUTES.TASKS} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <TasksPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path={ROUTES.PROJECTS} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <ProjectsPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path={ROUTES.ANALYTICS} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <AnalyticsPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            {/* 🎮 ROUTES GAMIFICATION (avec layout) */}
-            <Route 
-              path={ROUTES.GAMIFICATION} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <GamificationPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path={ROUTES.BADGES} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <BadgesPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path={ROUTES.REWARDS} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <RewardsPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            {/* 👥 ROUTES ÉQUIPE & SOCIAL (avec layout) */}
-            <Route 
-              path={ROUTES.USERS} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <UsersPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path={ROUTES.ONBOARDING} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <OnboardingPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            {/* ⚙️ ROUTES OUTILS (avec layout) */}
-            <Route 
-              path={ROUTES.TIMETRACK} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <TimeTrackPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path={ROUTES.PROFILE} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <ProfilePage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path={ROUTES.SETTINGS} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <SettingsPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            {/* 🛡️ ROUTES ADMIN/TEST (avec layout) */}
-            <Route 
-              path="/admin" 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <CompleteAdminTestPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path="/admin/*" 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <CompleteAdminTestPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path="/admin-test" 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <CompleteAdminTestPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path="/admin-profile-test" 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <AdminProfileTestPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path={ROUTES.TEST_DASHBOARD} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <TestDashboard />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            {/* 🏠 REDIRECTION PAR DÉFAUT */}
-            <Route 
-              path="/" 
-              element={<Navigate to={ROUTES.DASHBOARD} replace />} 
-            />
-
-            {/* 🚫 PAGE 404 */}
-            <Route 
-              path="*" 
-              element={
+          {/* 🏠 ROUTES PRINCIPALES (avec layout) */}
+          <Route 
+            path={ROUTES.DASHBOARD} 
+            element={
+              <ProtectedRoute>
                 <Layout>
-                  <NotFound />
+                  <Dashboard />
                 </Layout>
-              } 
-            />
+              </ProtectedRoute>
+            } 
+          />
 
-          </Routes>
-        </div>
+          <Route 
+            path={ROUTES.TASKS} 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <TasksPage />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path={ROUTES.PROJECTS} 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ProjectsPage />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path={ROUTES.ANALYTICS} 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AnalyticsPage />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* 🎮 ROUTES GAMIFICATION (avec layout) */}
+          <Route 
+            path={ROUTES.GAMIFICATION} 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <GamificationPage />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path={ROUTES.BADGES} 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <BadgesPage />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path={ROUTES.REWARDS} 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RewardsPage />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* 👥 ROUTES ÉQUIPE & SOCIAL (avec layout) */}
+          <Route 
+            path={ROUTES.USERS} 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <UsersPage />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path={ROUTES.ONBOARDING} 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <OnboardingPage />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* ⚙️ ROUTES OUTILS (avec layout) */}
+          <Route 
+            path={ROUTES.TIMETRACK} 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <TimeTrackPage />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path={ROUTES.PROFILE} 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ProfilePage />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path={ROUTES.SETTINGS} 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SettingsPage />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* 🛡️ NOUVELLES ROUTES ADMIN (avec layout) */}
+          <Route 
+            path="/admin/task-validation" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AdminTaskValidationPage />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/admin/profile-test" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AdminProfileTestPage />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/admin/complete-test" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CompleteAdminTestPage />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* 🧪 ROUTE TEST */}
+          <Route 
+            path={ROUTES.TEST_DASHBOARD} 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <TestDashboard />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* 🏠 REDIRECTION RACINE */}
+          <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+          
+          {/* 🚫 ROUTE 404 */}
+          <Route path="*" element={<NotFound />} />
+          
+        </Routes>
       </Router>
     </ToastProvider>
   );
