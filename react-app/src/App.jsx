@@ -22,7 +22,7 @@ import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
-import Analytics from './pages/Analytics.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
 
 // 🎮 Pages gamification
 import GamificationPage from './pages/GamificationPage.jsx';
@@ -147,7 +147,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Layout>
-                    <Analytics />
+                    <AnalyticsPage />
                   </Layout>
                 </ProtectedRoute>
               } 
