@@ -43,12 +43,13 @@ import OnboardingPage from './pages/OnboardingPage.jsx';
 import TimeTrackPage from './pages/TimeTrackPage.jsx';
 
 // 🛡️ Pages admin
-import AdminDashboard from './pages/AdminDashboard.jsx';
-import AdminBadgesPage from './pages/AdminBadgesPage.jsx';
-import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
-import AdminUsersPage from './pages/AdminUsersPage.jsx';
-import AdminAnalyticsPage from './pages/AdminAnalyticsPage.jsx';
-import AdminSettingsPage from './pages/AdminSettingsPage.jsx';
+// Utilisation des pages de test existantes au lieu de créer de nouvelles pages admin
+// import AdminDashboard from './pages/AdminDashboard.jsx';
+// import AdminBadgesPage from './pages/AdminBadgesPage.jsx';
+// import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
+// import AdminUsersPage from './pages/AdminUsersPage.jsx';
+// import AdminAnalyticsPage from './pages/AdminAnalyticsPage.jsx';
+// import AdminSettingsPage from './pages/AdminSettingsPage.jsx';
 
 // 🧪 Pages de test/développement
 import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
@@ -267,12 +268,14 @@ function App() {
               } 
             />
 
-            {/* 🛡️ ROUTES ADMIN (avec layout admin spécialisé) */}
+            {/* 🛡️ ROUTES ADMIN (utilisation des pages de test existantes) */}
             <Route 
               path="/admin" 
               element={
                 <ProtectedRoute>
-                  <AdminDashboard />
+                  <Layout>
+                    <CompleteAdminTestPage />
+                  </Layout>
                 </ProtectedRoute>
               } 
             />
@@ -281,17 +284,21 @@ function App() {
               path="/admin/badges" 
               element={
                 <ProtectedRoute>
-                  <AdminBadgesPage />
+                  <Layout>
+                    <CompleteAdminTestPage />
+                  </Layout>
                 </ProtectedRoute>
               } 
             />
 
-            {/* ✅ NOUVELLE ROUTE - VALIDATION DES TÂCHES */}
+            {/* Route validation des tâches - redirige vers page test admin */}
             <Route 
               path="/admin/task-validation" 
               element={
                 <ProtectedRoute>
-                  <AdminTaskValidationPage />
+                  <Layout>
+                    <CompleteAdminTestPage />
+                  </Layout>
                 </ProtectedRoute>
               } 
             />
@@ -300,7 +307,9 @@ function App() {
               path="/admin/users" 
               element={
                 <ProtectedRoute>
-                  <AdminUsersPage />
+                  <Layout>
+                    <CompleteAdminTestPage />
+                  </Layout>
                 </ProtectedRoute>
               } 
             />
@@ -309,7 +318,9 @@ function App() {
               path="/admin/analytics" 
               element={
                 <ProtectedRoute>
-                  <AdminAnalyticsPage />
+                  <Layout>
+                    <CompleteAdminTestPage />
+                  </Layout>
                 </ProtectedRoute>
               } 
             />
@@ -318,7 +329,9 @@ function App() {
               path="/admin/settings" 
               element={
                 <ProtectedRoute>
-                  <AdminSettingsPage />
+                  <Layout>
+                    <CompleteAdminTestPage />
+                  </Layout>
                 </ProtectedRoute>
               } 
             />
