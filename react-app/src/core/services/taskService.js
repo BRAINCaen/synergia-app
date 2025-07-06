@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskService.js
-// SERVICE FIREBASE POUR LA GESTION DES TÂCHES - UPLOAD/DOWNLOAD CORRIGÉ
+// SERVICE FIREBASE POUR LA GESTION DES TÂCHES - AVEC API REST STORAGE
 // ==========================================
 
 import { 
@@ -17,13 +17,8 @@ import {
   serverTimestamp,
   Timestamp 
 } from 'firebase/firestore';
-import { 
-  ref, 
-  uploadBytes, 
-  getDownloadURL,
-  deleteObject
-} from 'firebase/storage';
-import { db, storage } from '../firebase.js';
+import { db } from '../firebase.js';
+import StorageService from './storageService.js';
 
 // Constantes pour les statuts des tâches
 const TASK_STATUS = {
@@ -35,116 +30,57 @@ const TASK_STATUS = {
 };
 
 /**
- * 📋 SERVICE DE GESTION DES TÂCHES
+ * 📋 SERVICE DE GESTION DES TÂCHES AVEC STORAGE API REST
  */
 class TaskService {
   
   constructor() {
     this.COLLECTION_NAME = 'tasks';
+    this.storageService = new StorageService();
   }
 
   /**
-   * 📸 UPLOAD D'UNE PHOTO/VIDÉO DE TÂCHE - VERSION CORRIGÉE
+   * 📸 UPLOAD D'UNE PHOTO/VIDÉO DE TÂCHE - AVEC API REST
    */
   async uploadTaskMedia(taskId, userId, mediaFile) {
     try {
-      if (!storage) {
-        throw new Error('Firebase Storage non initialisé');
-      }
-
-      const timestamp = Date.now();
-      const fileExtension = mediaFile.name.split('.').pop()?.toLowerCase() || 'bin';
-      
-      // ✅ Chemin simplifié pour éviter les problèmes CORS
-      const fileName = `tasks/${userId}/${taskId}_${timestamp}.${fileExtension}`;
-      
-      console.log('📸 Upload média vers:', fileName, {
+      console.log('📸 Upload média avec API REST:', {
+        taskId,
+        fileName: mediaFile.name,
         size: `${(mediaFile.size / 1024 / 1024).toFixed(2)} MB`,
         type: mediaFile.type
       });
       
-      // ✅ Créer la référence de stockage
-      const mediaRef = ref(storage, fileName);
+      // ✅ Utilisation du service de storage API REST
+      const result = await this.storageService.uploadTaskMedia(taskId, userId, mediaFile);
       
-      // ✅ Métadonnées optimisées
-      const metadata = {
-        contentType: mediaFile.type,
-        customMetadata: {
-          taskId: taskId,
-          userId: userId,
-          originalName: mediaFile.name,
-          uploadedAt: new Date().toISOString()
-        }
-      };
-      
-      // ✅ Upload avec retry en cas d'échec
-      let uploadResult;
-      let retryCount = 0;
-      const maxRetries = 3;
-      
-      while (retryCount < maxRetries) {
-        try {
-          uploadResult = await uploadBytes(mediaRef, mediaFile, metadata);
-          break; // Succès, sortir de la boucle
-        } catch (uploadError) {
-          retryCount++;
-          console.warn(`⚠️ Tentative d'upload ${retryCount}/${maxRetries} échouée:`, uploadError.message);
-          
-          if (retryCount >= maxRetries) {
-            throw uploadError;
-          }
-          
-          // Attendre 1 seconde avant de réessayer
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-      
-      console.log('✅ Upload terminé:', uploadResult.metadata.name);
-      
-      // ✅ Obtenir l'URL de téléchargement avec retry
-      let downloadURL;
-      retryCount = 0;
-      
-      while (retryCount < maxRetries) {
-        try {
-          downloadURL = await getDownloadURL(uploadResult.ref);
-          break; // Succès, sortir de la boucle
-        } catch (downloadError) {
-          retryCount++;
-          console.warn(`⚠️ Tentative de récupération URL ${retryCount}/${maxRetries} échouée:`, downloadError.message);
-          
-          if (retryCount >= maxRetries) {
-            throw downloadError;
-          }
-          
-          // Attendre 1 seconde avant de réessayer
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-      
-      console.log('✅ URL de téléchargement récupérée:', downloadURL);
+      console.log('✅ Upload API REST réussi:', {
+        url: result.url,
+        path: result.path,
+        type: result.type
+      });
       
       return {
-        url: downloadURL,
-        type: mediaFile.type.startsWith('video/') ? 'video' : 'image',
-        size: mediaFile.size,
-        name: mediaFile.name,
-        path: fileName,
-        uploadedAt: new Date().toISOString()
+        url: result.url,
+        type: result.type,
+        size: result.size,
+        name: result.name,
+        path: result.path,
+        uploadedAt: result.uploadedAt
       };
       
     } catch (error) {
-      console.error('❌ Erreur upload média:', error);
+      console.error('❌ Erreur upload média API REST:', error);
       
       // ✅ Messages d'erreur spécifiques
-      if (error.code === 'storage/unauthorized') {
-        throw new Error('Permissions insuffisantes pour l\'upload. Vérifiez vos règles Firebase Storage.');
-      } else if (error.code === 'storage/canceled') {
-        throw new Error('Upload annulé par l\'utilisateur.');
-      } else if (error.code === 'storage/unknown' || error.message.includes('CORS')) {
-        throw new Error('Problème de configuration CORS. L\'upload peut échouer temporairement.');
-      } else if (error.code === 'storage/retry-limit-exceeded') {
-        throw new Error('Trop de tentatives d\'upload. Réessayez plus tard.');
+      if (error.message.includes('Utilisateur non connecté')) {
+        throw new Error('Vous devez être connecté pour uploader des fichiers.');
+      } else if (error.message.includes('Upload failed: 403')) {
+        throw new Error('Permissions insuffisantes pour l\'upload. Vérifiez vos règles Firebase.');
+      } else if (error.message.includes('Upload failed: 401')) {
+        throw new Error('Authentification échouée. Reconnectez-vous.');
+      } else if (error.message.includes('network')) {
+        throw new Error('Problème de connexion réseau. Vérifiez votre connexion internet.');
       }
       
       throw error;
@@ -156,20 +92,16 @@ class TaskService {
    */
   async deleteTaskMedia(mediaPath) {
     try {
-      if (!storage || !mediaPath) return false;
+      if (!mediaPath) return false;
       
-      const mediaRef = ref(storage, mediaPath);
-      await deleteObject(mediaRef);
+      const result = await this.storageService.deleteFile(mediaPath);
       
-      console.log('✅ Média supprimé:', mediaPath);
-      return true;
+      console.log('✅ Média supprimé via API REST:', mediaPath);
+      return result;
       
     } catch (error) {
       console.error('❌ Erreur suppression média:', error);
       // Ne pas faire échouer si le fichier n'existe pas
-      if (error.code === 'storage/object-not-found') {
-        return true;
-      }
       return false;
     }
   }
@@ -289,7 +221,7 @@ class TaskService {
   }
 
   /**
-   * 🎯 SOUMETTRE UNE TÂCHE POUR VALIDATION - VERSION CORRIGÉE
+   * 🎯 SOUMETTRE UNE TÂCHE POUR VALIDATION - AVEC API REST
    */
   async submitTaskForValidation(taskId, submissionData) {
     try {
@@ -314,28 +246,26 @@ class TaskService {
       const taskData = taskSnap.data();
       let mediaData = null;
 
-      // ✅ Gestion de l'upload avec fallback gracieux
+      // ✅ Gestion de l'upload avec API REST
       if (photoFile) {
-        if (!storage) {
-          console.warn('⚠️ Firebase Storage non configuré - Tâche soumise sans média');
-        } else {
-          try {
-            console.log('📸 Upload média en cours...');
-            mediaData = await this.uploadTaskMedia(taskId, taskData.userId, photoFile);
-            console.log('✅ Média uploadé avec succès:', {
-              url: mediaData.url,
-              type: mediaData.type,
-              size: `${(mediaData.size / 1024 / 1024).toFixed(2)} MB`
-            });
-          } catch (uploadError) {
-            console.error('❌ Erreur upload média:', uploadError);
-            
-            // ✅ Ne pas faire échouer la soumission à cause de l'upload
-            console.warn('⚠️ Tâche soumise sans média à cause de l\'erreur d\'upload');
-            
-            // Informer l'utilisateur mais continuer
-            throw new Error(`Upload du média échoué: ${uploadError.message}. La tâche sera soumise sans média.`);
-          }
+        try {
+          console.log('📸 Upload média avec API REST...');
+          mediaData = await this.uploadTaskMedia(taskId, taskData.userId, photoFile);
+          console.log('✅ Média uploadé avec succès via API REST:', {
+            url: mediaData.url,
+            type: mediaData.type,
+            size: `${(mediaData.size / 1024 / 1024).toFixed(2)} MB`
+          });
+        } catch (uploadError) {
+          console.error('❌ Erreur upload média:', uploadError);
+          
+          // ✅ Soumission sans média en cas d'erreur
+          console.warn('⚠️ Tâche sera soumise sans média à cause de l\'erreur d\'upload');
+          
+          // Créer un objet d'erreur personnalisé
+          const errorForUser = new Error(`Upload échoué: ${uploadError.message}. La tâche sera soumise sans média.`);
+          errorForUser.allowSubmissionWithoutMedia = true;
+          throw errorForUser;
         }
       }
 
@@ -376,8 +306,8 @@ class TaskService {
     } catch (error) {
       console.error('❌ Erreur soumission validation:', error);
       
-      // ✅ Si c'est juste un problème d'upload, soumettre quand même sans média
-      if (error.message.includes('Upload du média échoué')) {
+      // ✅ Gestion spéciale pour les erreurs d'upload avec option de continuer
+      if (error.allowSubmissionWithoutMedia) {
         try {
           const updateData = {
             status: TASK_STATUS.VALIDATION_PENDING,
