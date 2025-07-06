@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskService.js
-// SERVICE FIREBASE POUR LA GESTION DES TÂCHES - CORS CORRIGÉ
+// SERVICE FIREBASE POUR LA GESTION DES TÂCHES - UPLOAD/DOWNLOAD CORRIGÉ
 // ==========================================
 
 import { 
@@ -21,7 +21,7 @@ import {
   ref, 
   uploadBytes, 
   getDownloadURL,
-  connectStorageEmulator 
+  deleteObject
 } from 'firebase/storage';
 import { db, storage } from '../firebase.js';
 
@@ -44,7 +44,7 @@ class TaskService {
   }
 
   /**
-   * 📸 UPLOAD D'UNE PHOTO/VIDÉO DE TÂCHE - CORS CORRIGÉ
+   * 📸 UPLOAD D'UNE PHOTO/VIDÉO DE TÂCHE - VERSION CORRIGÉE
    */
   async uploadTaskMedia(taskId, userId, mediaFile) {
     try {
@@ -53,53 +53,124 @@ class TaskService {
       }
 
       const timestamp = Date.now();
-      const fileExtension = mediaFile.name.split('.').pop() || 'jpg';
+      const fileExtension = mediaFile.name.split('.').pop()?.toLowerCase() || 'bin';
       
-      // ✅ CORRECTION CORS : Utiliser un chemin simple sans caractères spéciaux
-      const fileName = `task-media/${userId}/${taskId}_${timestamp}.${fileExtension}`;
+      // ✅ Chemin simplifié pour éviter les problèmes CORS
+      const fileName = `tasks/${userId}/${taskId}_${timestamp}.${fileExtension}`;
       
-      console.log('📸 Upload média vers:', fileName, `(${(mediaFile.size / 1024 / 1024).toFixed(2)} MB)`);
+      console.log('📸 Upload média vers:', fileName, {
+        size: `${(mediaFile.size / 1024 / 1024).toFixed(2)} MB`,
+        type: mediaFile.type
+      });
       
-      // ✅ CORRECTION CORS : Créer la référence correctement
+      // ✅ Créer la référence de stockage
       const mediaRef = ref(storage, fileName);
       
-      // ✅ CORRECTION CORS : Métadonnées personnalisées pour éviter les problèmes CORS
+      // ✅ Métadonnées optimisées
       const metadata = {
         contentType: mediaFile.type,
         customMetadata: {
-          'taskId': taskId,
-          'userId': userId,
-          'uploadedAt': new Date().toISOString()
+          taskId: taskId,
+          userId: userId,
+          originalName: mediaFile.name,
+          uploadedAt: new Date().toISOString()
         }
       };
       
-      // ✅ Upload avec métadonnées
-      const uploadResult = await uploadBytes(mediaRef, mediaFile, metadata);
-      console.log('📸 Upload terminé:', uploadResult.metadata.name);
+      // ✅ Upload avec retry en cas d'échec
+      let uploadResult;
+      let retryCount = 0;
+      const maxRetries = 3;
       
-      // ✅ Obtenir l'URL de téléchargement
-      const downloadURL = await getDownloadURL(uploadResult.ref);
+      while (retryCount < maxRetries) {
+        try {
+          uploadResult = await uploadBytes(mediaRef, mediaFile, metadata);
+          break; // Succès, sortir de la boucle
+        } catch (uploadError) {
+          retryCount++;
+          console.warn(`⚠️ Tentative d'upload ${retryCount}/${maxRetries} échouée:`, uploadError.message);
+          
+          if (retryCount >= maxRetries) {
+            throw uploadError;
+          }
+          
+          // Attendre 1 seconde avant de réessayer
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
       
-      console.log('✅ Média uploadé avec succès:', downloadURL);
+      console.log('✅ Upload terminé:', uploadResult.metadata.name);
+      
+      // ✅ Obtenir l'URL de téléchargement avec retry
+      let downloadURL;
+      retryCount = 0;
+      
+      while (retryCount < maxRetries) {
+        try {
+          downloadURL = await getDownloadURL(uploadResult.ref);
+          break; // Succès, sortir de la boucle
+        } catch (downloadError) {
+          retryCount++;
+          console.warn(`⚠️ Tentative de récupération URL ${retryCount}/${maxRetries} échouée:`, downloadError.message);
+          
+          if (retryCount >= maxRetries) {
+            throw downloadError;
+          }
+          
+          // Attendre 1 seconde avant de réessayer
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      console.log('✅ URL de téléchargement récupérée:', downloadURL);
       
       return {
         url: downloadURL,
         type: mediaFile.type.startsWith('video/') ? 'video' : 'image',
         size: mediaFile.size,
         name: mediaFile.name,
-        path: fileName
+        path: fileName,
+        uploadedAt: new Date().toISOString()
       };
       
     } catch (error) {
       console.error('❌ Erreur upload média:', error);
       
-      // ✅ Gestion d'erreur CORS spécifique
-      if (error.code === 'storage/unknown' || error.message.includes('CORS')) {
-        console.error('🚨 Erreur CORS Firebase Storage détectée');
-        throw new Error('Erreur de configuration Firebase Storage (CORS). Veuillez contacter l\'administrateur.');
+      // ✅ Messages d'erreur spécifiques
+      if (error.code === 'storage/unauthorized') {
+        throw new Error('Permissions insuffisantes pour l\'upload. Vérifiez vos règles Firebase Storage.');
+      } else if (error.code === 'storage/canceled') {
+        throw new Error('Upload annulé par l\'utilisateur.');
+      } else if (error.code === 'storage/unknown' || error.message.includes('CORS')) {
+        throw new Error('Problème de configuration CORS. L\'upload peut échouer temporairement.');
+      } else if (error.code === 'storage/retry-limit-exceeded') {
+        throw new Error('Trop de tentatives d\'upload. Réessayez plus tard.');
       }
       
       throw error;
+    }
+  }
+
+  /**
+   * 🗑️ SUPPRIMER UN MÉDIA DE TÂCHE
+   */
+  async deleteTaskMedia(mediaPath) {
+    try {
+      if (!storage || !mediaPath) return false;
+      
+      const mediaRef = ref(storage, mediaPath);
+      await deleteObject(mediaRef);
+      
+      console.log('✅ Média supprimé:', mediaPath);
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Erreur suppression média:', error);
+      // Ne pas faire échouer si le fichier n'existe pas
+      if (error.code === 'storage/object-not-found') {
+        return true;
+      }
+      return false;
     }
   }
 
@@ -124,7 +195,8 @@ class TaskService {
         // Timestamps
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        dueDate: taskData.dueDate ? Timestamp.fromDate(new Date(taskData.dueDate)) : null,
+        dueDate: taskData.dueDate ? 
+          Timestamp.fromDate(new Date(taskData.dueDate)) : null,
         
         // Statuts de validation
         submittedAt: null,
@@ -135,6 +207,7 @@ class TaskService {
         hasMedia: false,
         mediaUrl: null,
         mediaType: null,
+        mediaPath: null,
         
         // Métadonnées
         source: 'synergia_app',
@@ -204,13 +277,6 @@ class TaskService {
         updatedAt: serverTimestamp()
       };
 
-      // Nouvelle logique: Pas d'XP automatique
-      if (updates.status === TASK_STATUS.COMPLETED) {
-        updateData.status = TASK_STATUS.VALIDATION_PENDING;
-        updateData.submittedForValidationAt = serverTimestamp();
-        console.log('📋 Tâche soumise pour validation');
-      }
-
       const taskRef = doc(db, this.COLLECTION_NAME, taskId);
       await updateDoc(taskRef, updateData);
       
@@ -223,7 +289,7 @@ class TaskService {
   }
 
   /**
-   * 🎯 SOUMETTRE UNE TÂCHE POUR VALIDATION - AVEC UPLOAD PHOTO/VIDÉO CORRIGÉ
+   * 🎯 SOUMETTRE UNE TÂCHE POUR VALIDATION - VERSION CORRIGÉE
    */
   async submitTaskForValidation(taskId, submissionData) {
     try {
@@ -237,36 +303,43 @@ class TaskService {
         mediaSize: photoFile ? `${(photoFile.size / 1024 / 1024).toFixed(2)} MB` : 'N/A'
       });
 
-      // ✅ LOGIQUE SANS UPLOAD SI PAS DE STORAGE
+      // ✅ Récupérer d'abord la tâche pour avoir l'userId
+      const taskRef = doc(db, this.COLLECTION_NAME, taskId);
+      const taskSnap = await getDoc(taskRef);
+      
+      if (!taskSnap.exists()) {
+        throw new Error('Tâche non trouvée');
+      }
+      
+      const taskData = taskSnap.data();
       let mediaData = null;
+
+      // ✅ Gestion de l'upload avec fallback gracieux
       if (photoFile) {
         if (!storage) {
           console.warn('⚠️ Firebase Storage non configuré - Tâche soumise sans média');
-          // Continuer sans média plutôt que de faire échouer
         } else {
           try {
             console.log('📸 Upload média en cours...');
-            
-            // Récupérer d'abord la tâche pour avoir l'userId
-            const taskRef = doc(db, this.COLLECTION_NAME, taskId);
-            const taskSnap = await getDoc(taskRef);
-            
-            if (!taskSnap.exists()) {
-              throw new Error('Tâche non trouvée');
-            }
-            
-            const taskData = taskSnap.data();
             mediaData = await this.uploadTaskMedia(taskId, taskData.userId, photoFile);
-            console.log('✅ Média uploadé:', mediaData);
+            console.log('✅ Média uploadé avec succès:', {
+              url: mediaData.url,
+              type: mediaData.type,
+              size: `${(mediaData.size / 1024 / 1024).toFixed(2)} MB`
+            });
           } catch (uploadError) {
             console.error('❌ Erreur upload média:', uploadError);
-            // Ne pas faire échouer la soumission à cause de l'upload
+            
+            // ✅ Ne pas faire échouer la soumission à cause de l'upload
             console.warn('⚠️ Tâche soumise sans média à cause de l\'erreur d\'upload');
+            
+            // Informer l'utilisateur mais continuer
+            throw new Error(`Upload du média échoué: ${uploadError.message}. La tâche sera soumise sans média.`);
           }
         }
       }
 
-      // Mettre à jour la tâche avec les nouvelles données
+      // ✅ Mettre à jour la tâche avec les nouvelles données
       const updateData = {
         status: TASK_STATUS.VALIDATION_PENDING,
         submissionComment: comment || '',
@@ -274,29 +347,65 @@ class TaskService {
         hasMedia: !!mediaData,
         mediaUrl: mediaData?.url || null,
         mediaType: mediaData?.type || null,
+        mediaPath: mediaData?.path || null,
         updatedAt: serverTimestamp()
       };
 
       await this.updateTask(taskId, updateData);
       
-      console.log('✅ Tâche soumise pour validation:', {
+      const resultMessage = mediaData ? 
+        'Tâche soumise pour validation admin avec média' : 
+        'Tâche soumise pour validation admin';
+      
+      console.log('✅ Tâche soumise avec succès:', {
         taskId,
         hasMedia: !!mediaData,
-        mediaType: mediaData?.type
+        mediaType: mediaData?.type,
+        status: TASK_STATUS.VALIDATION_PENDING
       });
       
       return {
         success: true,
-        message: mediaData ? 
-          'Tâche soumise pour validation admin avec média' : 
-          'Tâche soumise pour validation admin',
+        message: resultMessage,
         status: TASK_STATUS.VALIDATION_PENDING,
         mediaUrl: mediaData?.url,
-        mediaType: mediaData?.type
+        mediaType: mediaData?.type,
+        hasMedia: !!mediaData
       };
       
     } catch (error) {
       console.error('❌ Erreur soumission validation:', error);
+      
+      // ✅ Si c'est juste un problème d'upload, soumettre quand même sans média
+      if (error.message.includes('Upload du média échoué')) {
+        try {
+          const updateData = {
+            status: TASK_STATUS.VALIDATION_PENDING,
+            submissionComment: submissionData?.comment || '',
+            submittedAt: serverTimestamp(),
+            hasMedia: false,
+            mediaUrl: null,
+            mediaType: null,
+            mediaPath: null,
+            updatedAt: serverTimestamp()
+          };
+
+          await this.updateTask(taskId, updateData);
+          
+          return {
+            success: true,
+            message: 'Tâche soumise pour validation admin (sans média suite à l\'erreur d\'upload)',
+            status: TASK_STATUS.VALIDATION_PENDING,
+            hasMedia: false,
+            warning: error.message
+          };
+          
+        } catch (fallbackError) {
+          console.error('❌ Erreur soumission fallback:', fallbackError);
+          throw fallbackError;
+        }
+      }
+      
       throw error;
     }
   }
@@ -321,12 +430,13 @@ class TaskService {
       const taskRef = doc(db, this.COLLECTION_NAME, taskId);
       await updateDoc(taskRef, updateData);
       
-      console.log(`✅ Tâche ${approved ? 'validée' : 'rejetée'}:`, taskId);
+      console.log(`✅ Tâche ${approved ? 'approuvée' : 'rejetée'} par admin:`, taskId);
       
-      return { 
-        success: true, 
+      return {
+        success: true,
         approved,
-        message: `Tâche ${approved ? 'validée' : 'rejetée'} avec succès`
+        message: approved ? 'Tâche validée avec succès' : 'Tâche rejetée',
+        status: updateData.status
       };
       
     } catch (error) {
@@ -340,9 +450,25 @@ class TaskService {
    */
   async deleteTask(taskId) {
     try {
-      await deleteDoc(doc(db, this.COLLECTION_NAME, taskId));
+      // Récupérer la tâche pour vérifier s'il y a un média à supprimer
+      const taskRef = doc(db, this.COLLECTION_NAME, taskId);
+      const taskSnap = await getDoc(taskRef);
+      
+      if (taskSnap.exists()) {
+        const taskData = taskSnap.data();
+        
+        // Supprimer le média associé s'il existe
+        if (taskData.mediaPath) {
+          await this.deleteTaskMedia(taskData.mediaPath);
+        }
+      }
+      
+      // Supprimer la tâche
+      await deleteDoc(taskRef);
+      
       console.log('✅ Tâche supprimée:', taskId);
       return { success: true };
+      
     } catch (error) {
       console.error('❌ Erreur suppression tâche:', error);
       throw error;
@@ -350,60 +476,7 @@ class TaskService {
   }
 
   /**
-   * 📊 RÉCUPÉRER LES STATISTIQUES DES TÂCHES
-   */
-  async getTaskStatistics(userId) {
-    try {
-      const tasks = await this.getUserTasks(userId);
-      
-      const stats = {
-        total: tasks.length,
-        completed: tasks.filter(t => t.status === TASK_STATUS.COMPLETED).length,
-        pending: tasks.filter(t => t.status === TASK_STATUS.VALIDATION_PENDING).length,
-        rejected: tasks.filter(t => t.status === TASK_STATUS.REJECTED).length,
-        todo: tasks.filter(t => t.status === TASK_STATUS.TODO).length,
-        inProgress: tasks.filter(t => t.status === TASK_STATUS.IN_PROGRESS).length
-      };
-      
-      return stats;
-      
-    } catch (error) {
-      console.error('❌ Erreur statistiques tâches:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🔍 RÉCUPÉRER UNE TÂCHE PAR ID
-   */
-  async getTask(taskId) {
-    try {
-      const taskRef = doc(db, this.COLLECTION_NAME, taskId);
-      const taskSnap = await getDoc(taskRef);
-      
-      if (taskSnap.exists()) {
-        const data = taskSnap.data();
-        return {
-          id: taskSnap.id,
-          ...data,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          dueDate: data.dueDate?.toDate() || null,
-          submittedAt: data.submittedAt?.toDate() || null,
-          validatedAt: data.validatedAt?.toDate() || null
-        };
-      } else {
-        throw new Error('Tâche non trouvée');
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur récupération tâche:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🔍 RÉCUPÉRER TOUTES LES TÂCHES (Admin)
+   * 📊 RÉCUPÉRER TOUTES LES TÂCHES (Admin)
    */
   async getAllTasks() {
     try {
@@ -432,200 +505,55 @@ class TaskService {
       return tasks;
       
     } catch (error) {
-      console.error('❌ Erreur récupération toutes tâches:', error);
+      console.error('❌ Erreur récupération toutes les tâches:', error);
       throw error;
     }
   }
 
   /**
-   * 🔍 RÉCUPÉRER LES TÂCHES EN ATTENTE DE VALIDATION (Admin)
+   * 📈 RÉCUPÉRER LES STATISTIQUES DES TÂCHES
    */
-  async getPendingValidationTasks() {
+  async getTaskStats(userId = null) {
     try {
-      const q = query(
-        collection(db, this.COLLECTION_NAME),
-        where('status', '==', TASK_STATUS.VALIDATION_PENDING),
-        orderBy('submittedAt', 'desc')
-      );
+      const baseQuery = userId ? 
+        query(collection(db, this.COLLECTION_NAME), where('userId', '==', userId)) :
+        query(collection(db, this.COLLECTION_NAME));
       
-      const querySnapshot = await getDocs(q);
-      const tasks = [];
+      const querySnapshot = await getDocs(baseQuery);
       
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        tasks.push({
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          dueDate: data.dueDate?.toDate() || null,
-          submittedAt: data.submittedAt?.toDate() || null,
-          validatedAt: data.validatedAt?.toDate() || null
-        });
-      });
-      
-      console.log(`✅ ${tasks.length} tâches en attente de validation`);
-      return tasks;
-      
-    } catch (error) {
-      console.error('❌ Erreur récupération tâches en attente:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📊 CALCULER LES XP SELON LA DIFFICULTÉ
-   */
-  calculateXPForDifficulty(difficulty) {
-    const xpTable = {
-      'easy': 10,
-      'normal': 25,
-      'hard': 50,
-      'expert': 100
-    };
-    
-    return xpTable[difficulty] || xpTable['normal'];
-  }
-
-  /**
-   * 🔄 CHANGER LE STATUT D'UNE TÂCHE
-   */
-  async updateTaskStatus(taskId, newStatus, additionalData = {}) {
-    try {
-      const updateData = {
-        status: newStatus,
-        updatedAt: serverTimestamp(),
-        ...additionalData
+      const stats = {
+        total: 0,
+        todo: 0,
+        in_progress: 0,
+        validation_pending: 0,
+        completed: 0,
+        rejected: 0,
+        withMedia: 0
       };
-
-      // Logique spéciale selon le statut
-      if (newStatus === TASK_STATUS.IN_PROGRESS) {
-        updateData.startedAt = serverTimestamp();
-      } else if (newStatus === TASK_STATUS.VALIDATION_PENDING) {
-        updateData.submittedAt = serverTimestamp();
-      } else if (newStatus === TASK_STATUS.COMPLETED) {
-        updateData.completedAt = serverTimestamp();
-      }
-
-      const taskRef = doc(db, this.COLLECTION_NAME, taskId);
-      await updateDoc(taskRef, updateData);
-      
-      console.log(`✅ Statut tâche mis à jour: ${taskId} -> ${newStatus}`);
-      return { success: true };
-      
-    } catch (error) {
-      console.error('❌ Erreur mise à jour statut:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🏷️ AJOUTER DES TAGS À UNE TÂCHE
-   */
-  async addTagsToTask(taskId, tags) {
-    try {
-      const taskRef = doc(db, this.COLLECTION_NAME, taskId);
-      const task = await getDoc(taskRef);
-      
-      if (task.exists()) {
-        const currentTags = task.data().tags || [];
-        const newTags = [...new Set([...currentTags, ...tags])]; // Éviter les doublons
-        
-        await updateDoc(taskRef, {
-          tags: newTags,
-          updatedAt: serverTimestamp()
-        });
-        
-        console.log(`✅ Tags ajoutés à la tâche ${taskId}:`, tags);
-        return { success: true };
-      } else {
-        throw new Error('Tâche non trouvée');
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur ajout tags:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * ⏱️ METTRE À JOUR LE TEMPS PASSÉ
-   */
-  async updateTaskTime(taskId, timeInMinutes) {
-    try {
-      const taskRef = doc(db, this.COLLECTION_NAME, taskId);
-      await updateDoc(taskRef, {
-        actualTime: timeInMinutes,
-        updatedAt: serverTimestamp()
-      });
-      
-      console.log(`✅ Temps mis à jour pour la tâche ${taskId}: ${timeInMinutes}min`);
-      return { success: true };
-      
-    } catch (error) {
-      console.error('❌ Erreur mise à jour temps:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🔍 RECHERCHER DES TÂCHES
-   */
-  async searchTasks(userId, searchTerm, filters = {}) {
-    try {
-      let q = query(
-        collection(db, this.COLLECTION_NAME),
-        where('userId', '==', userId)
-      );
-
-      // Ajouter des filtres supplémentaires
-      if (filters.status) {
-        q = query(q, where('status', '==', filters.status));
-      }
-      
-      if (filters.priority) {
-        q = query(q, where('priority', '==', filters.priority));
-      }
-
-      const querySnapshot = await getDocs(q);
-      let tasks = [];
       
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        tasks.push({
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          dueDate: data.dueDate?.toDate() || null,
-          submittedAt: data.submittedAt?.toDate() || null,
-          validatedAt: data.validatedAt?.toDate() || null
-        });
+        stats.total++;
+        
+        if (data.status && stats.hasOwnProperty(data.status)) {
+          stats[data.status]++;
+        }
+        
+        if (data.hasMedia) {
+          stats.withMedia++;
+        }
       });
-
-      // Filtrer par terme de recherche côté client
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        tasks = tasks.filter(task => 
-          task.title.toLowerCase().includes(searchLower) ||
-          task.description?.toLowerCase().includes(searchLower) ||
-          task.tags?.some(tag => tag.toLowerCase().includes(searchLower))
-        );
-      }
       
-      console.log(`✅ ${tasks.length} tâches trouvées pour "${searchTerm}"`);
-      return tasks;
+      console.log('✅ Statistiques des tâches:', stats);
+      return stats;
       
     } catch (error) {
-      console.error('❌ Erreur recherche tâches:', error);
+      console.error('❌ Erreur récupération statistiques:', error);
       throw error;
     }
   }
 }
 
-// ✅ EXPORT CORRIGÉ - Instance unique + export nommé
-const taskService = new TaskService();
-
-// Export par défaut ET export nommé
-export default taskService;
-export { taskService, TASK_STATUS };
+// Export de la classe et des constantes
+export default TaskService;
+export { TASK_STATUS };
