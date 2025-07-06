@@ -58,7 +58,7 @@ import TestDashboard from './pages/TestDashboard.jsx';
 
 // 🚫 Pages d'erreur
 import NotFound from './pages/NotFound.jsx';
-import ErrorBoundary from './components/ErrorBoundary.jsx';
+// import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 // 🎯 Constants
 import { ROUTES } from './core/constants.js';
@@ -93,11 +93,10 @@ function App() {
   }
 
   return (
-    <ErrorBoundary>
-      <ToastProvider>
-        <Router>
-          <div className="App">
-            <Routes>
+    <ToastProvider>
+      <Router>
+        <div className="App">
+          <Routes>
             
             {/* 🔐 ROUTES PUBLIQUES (sans layout) */}
             <Route 
@@ -389,8 +388,7 @@ function App() {
           </Routes>
         </div>
       </Router>
-      </ToastProvider>
-    </ErrorBoundary>
+    </ToastProvider>
   );
 }
 
