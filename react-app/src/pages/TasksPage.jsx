@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// ✅ VERSION FIXÉE - UTILISE SERVICES FIREBASE DIRECTEMENT
+// ✅ VERSION FIXÉE - BOUTONS SOUMETTRE FONCTIONNELS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -18,7 +18,7 @@ import {
   Filter
 } from 'lucide-react';
 
-// ✅ IMPORTS CORRECTS : Services Firebase + Store Auth seulement
+// ✅ IMPORTS CORRECTS
 import { useAuthStore } from '../shared/stores/authStore.js';
 import taskService from '../core/services/taskService.js';
 import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
@@ -52,30 +52,30 @@ const QuickTaskForm = ({ onSubmit, onCancel }) => {
               type="text"
               value={formData.title}
               onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Nom de la tâche..."
+              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
+              placeholder="Ex: Finaliser la présentation"
               required
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
+              rows={3}
               placeholder="Détails de la tâche..."
-              rows="3"
             />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Difficulté</label>
               <select
                 value={formData.difficulty}
                 onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
               >
                 <option value="easy">Facile (10 XP)</option>
                 <option value="normal">Normal (25 XP)</option>
@@ -83,13 +83,13 @@ const QuickTaskForm = ({ onSubmit, onCancel }) => {
                 <option value="expert">Expert (100 XP)</option>
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
               <select
                 value={formData.priority}
                 onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
               >
                 <option value="low">Basse</option>
                 <option value="normal">Normale</option>
@@ -98,18 +98,18 @@ const QuickTaskForm = ({ onSubmit, onCancel }) => {
               </select>
             </div>
           </div>
-          
-          <div className="flex justify-end space-x-3 pt-4">
+
+          <div className="flex space-x-3 pt-4">
             <button
               type="button"
               onClick={onCancel}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
             >
               Annuler
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Créer
             </button>
@@ -120,22 +120,45 @@ const QuickTaskForm = ({ onSubmit, onCancel }) => {
   );
 };
 
-// ✅ COMPOSANT PRINCIPAL - UTILISE SERVICES FIREBASE
+/**
+ * 📋 PAGE PRINCIPALE DES TÂCHES
+ */
 const TasksPage = () => {
   const { user } = useAuthStore();
-
-  // ✅ ÉTATS LOCAUX SIMPLES (pas de store cassé)
+  
+  // États principaux
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
+  
+  // États UI
   const [showForm, setShowForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  
+  // États modaux - ✅ CORRECTION DES PROPS
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [taskToSubmit, setTaskToSubmit] = useState(null);
-  const [filter, setFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
 
-  // ✅ CHARGER LES TÂCHES AVEC SERVICE FIREBASE
+  // Statistiques calculées
+  const stats = {
+    total: tasks.length,
+    todo: tasks.filter(t => t.status === 'todo').length,
+    inProgress: tasks.filter(t => t.status === 'in_progress').length,
+    validationPending: tasks.filter(t => t.status === 'validation_pending').length,
+    completed: tasks.filter(t => t.status === 'completed').length,
+    rejected: tasks.filter(t => t.status === 'rejected').length
+  };
+
+  // Tâches filtrées
+  const filteredTasks = tasks.filter(task => {
+    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filterStatus === 'all' || task.status === filterStatus;
+    return matchesSearch && matchesFilter;
+  });
+
+  // ✅ CHARGER LES TÂCHES
   const loadTasks = async () => {
     if (!user?.uid) return;
     
@@ -158,7 +181,7 @@ const TasksPage = () => {
     loadTasks();
   }, [user?.uid]);
 
-  // ✅ CRÉER UNE TÂCHE AVEC SERVICE FIREBASE
+  // ✅ CRÉER UNE TÂCHE
   const handleCreateTask = async (taskData) => {
     if (!user?.uid) return;
     
@@ -180,20 +203,21 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ OUVRIR LE MODAL DE SOUMISSION
+  // ✅ OUVRIR LE MODAL DE SOUMISSION - CORRECTION
   const handleSubmitTaskClick = (task) => {
+    console.log('🎯 Ouverture modal soumission pour:', task.title);
     setTaskToSubmit(task);
     setShowSubmissionModal(true);
   };
 
-  // ✅ SOUMETTRE POUR VALIDATION AVEC SERVICE FIREBASE
+  // ✅ SOUMETTRE POUR VALIDATION - CORRECTION
   const handleSubmitTask = async (task, submissionData) => {
     setUpdating(true);
     try {
       console.log('🎯 Soumission tâche pour validation:', task.title);
       console.log('📎 Données soumission:', submissionData);
       
-      const updatedTask = await taskService.submitTaskForValidation(task.id, submissionData);
+      const result = await taskService.submitTaskForValidation(task.id, submissionData);
       
       // Mettre à jour la liste locale
       setTasks(prev => prev.map(t => 
@@ -202,29 +226,26 @@ const TasksPage = () => {
           : t
       ));
       
-      // Fermer le modal
+      // Fermer le modal - ✅ CORRECTION
       setShowSubmissionModal(false);
       setTaskToSubmit(null);
       
       alert('✅ Tâche soumise pour validation admin ! Vous recevrez vos XP une fois validée.');
       
     } catch (error) {
-      console.error('❌ Erreur soumission:', error);
+      console.error('❌ Erreur soumission tâche:', error);
       alert('❌ Erreur lors de la soumission');
     } finally {
       setUpdating(false);
     }
   };
 
-  // ✅ SUPPRIMER UNE TÂCHE AVEC SERVICE FIREBASE
+  // ✅ SUPPRIMER UNE TÂCHE
   const handleDeleteTask = async (task) => {
-    if (!confirm(`Supprimer "${task.title}" ?`)) return;
+    if (!confirm(`Supprimer la tâche "${task.title}" ?`)) return;
     
     try {
-      console.log('🗑️ Suppression tâche:', task.title);
       await taskService.deleteTask(task.id);
-      
-      // Retirer de la liste locale
       setTasks(prev => prev.filter(t => t.id !== task.id));
       console.log('✅ Tâche supprimée');
     } catch (error) {
@@ -233,104 +254,57 @@ const TasksPage = () => {
     }
   };
 
-  // Filtrer les tâches
-  const filteredTasks = tasks.filter(task => {
-    if (!task) return false;
-    
-    const matchesFilter = filter === 'all' || task.status === filter;
-    const matchesSearch = !searchTerm || 
-      (task.title && task.title.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    return matchesFilter && matchesSearch;
-  });
-
-  // Utilitaires styles
+  // Fonction pour obtenir la couleur du statut
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800 border-green-200';
-      case 'validation_pending': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
-      case 'in_progress': return 'bg-blue-100 text-blue-800 border-blue-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
+    const colors = {
+      'todo': 'text-blue-600',
+      'in_progress': 'text-indigo-600', 
+      'validation_pending': 'text-orange-600',
+      'completed': 'text-green-600',
+      'rejected': 'text-red-600'
+    };
+    return colors[status] || 'text-gray-600';
   };
 
+  // Fonction pour obtenir le label du statut
   const getStatusLabel = (status) => {
-    switch (status) {
-      case 'completed': return '✅ Validée';
-      case 'validation_pending': return '⏳ En validation';
-      case 'rejected': return '❌ Rejetée';
-      case 'in_progress': return '🔄 En cours';
-      default: return '📋 À faire';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'completed': return CheckCircle;
-      case 'validation_pending': return Clock;
-      case 'rejected': return AlertTriangle;
-      case 'in_progress': return Target;
-      default: return CheckSquare;
-    }
-  };
-
-  const getDifficultyXP = (difficulty) => {
-    switch (difficulty) {
-      case 'easy': return 10;
-      case 'normal': return 25;
-      case 'hard': return 50;
-      case 'expert': return 100;
-      default: return 25;
-    }
-  };
-
-  const getDifficultyColor = (difficulty) => {
-    switch (difficulty) {
-      case 'easy': return 'text-green-600';
-      case 'normal': return 'text-blue-600';
-      case 'hard': return 'text-orange-600';
-      case 'expert': return 'text-red-600';
-      default: return 'text-blue-600';
-    }
-  };
-
-  // Statistiques
-  const stats = {
-    total: tasks.length,
-    todo: tasks.filter(t => t.status === 'todo').length,
-    inProgress: tasks.filter(t => t.status === 'in_progress').length,
-    validationPending: tasks.filter(t => t.status === 'validation_pending').length,
-    completed: tasks.filter(t => t.status === 'completed').length,
-    rejected: tasks.filter(t => t.status === 'rejected').length
+    const labels = {
+      'todo': 'À faire',
+      'in_progress': 'En cours',
+      'validation_pending': 'En validation',
+      'completed': 'Validée',
+      'rejected': 'Rejetée'
+    };
+    return labels[status] || status;
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des tâches...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <span className="ml-3 text-gray-600">Chargement des tâches...</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* En-tête */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mes Tâches</h1>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Target className="w-6 h-6 text-blue-600" />
+            Mes Tâches
+          </h1>
           <p className="text-gray-600 mt-1">
-            Gérez vos tâches avec le nouveau système de validation admin
+            Gérez vos tâches et suivez votre progression
           </p>
         </div>
         
         <button
           onClick={() => setShowForm(true)}
           disabled={creating}
-          className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
           <Plus className="w-4 h-4" />
           {creating ? 'Création...' : 'Nouvelle Tâche'}
@@ -398,27 +372,29 @@ const TasksPage = () => {
         </div>
       )}
 
-      {/* Filtres et recherche */}
+      {/* Filtres */}
       <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Rechercher une tâche..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
+        <div className="flex-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Rechercher une tâche..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
         </div>
         
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-gray-400" />
+          <Filter className="w-4 h-4 text-gray-500" />
           <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            <option value="all">Toutes</option>
+            <option value="all">Tous les statuts</option>
             <option value="todo">À faire</option>
             <option value="in_progress">En cours</option>
             <option value="validation_pending">En validation</option>
@@ -429,142 +405,110 @@ const TasksPage = () => {
       </div>
 
       {/* Liste des tâches */}
-      <div className="bg-white rounded-lg border">
-        {filteredTasks.length === 0 ? (
-          <div className="p-12 text-center">
-            <Target className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm || filter !== 'all' ? 'Aucune tâche trouvée' : 'Aucune tâche'}
-            </h3>
-            <p className="text-gray-500 mb-4">
-              {searchTerm || filter !== 'all' 
-                ? 'Essayez de modifier vos critères de recherche'
-                : 'Créez votre première tâche pour commencer'
-              }
-            </p>
-            {!searchTerm && filter === 'all' && (
-              <button
-                onClick={() => setShowForm(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-              >
-                Créer une tâche
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-200">
-            {filteredTasks.map((task) => {
-              const StatusIcon = getStatusIcon(task.status);
-              
-              return (
-                <div key={task.id} className="p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      {/* En-tête tâche */}
-                      <div className="flex items-center gap-3 mb-2">
-                        <StatusIcon className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                        <h3 className="text-lg font-semibold text-gray-900 truncate">
-                          {task.title}
-                        </h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
-                          {getStatusLabel(task.status)}
+      <div className="space-y-4">
+        {filteredTasks.length > 0 ? (
+          filteredTasks.map((task) => {
+            return (
+              <div key={task.id} className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
+                        {getStatusLabel(task.status)}
+                      </span>
+                      {task.difficulty && (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">
+                          {task.difficulty}
                         </span>
-                      </div>
-                      
-                      {/* Description */}
-                      {task.description && (
-                        <p className="text-gray-600 mb-3 line-clamp-2">{task.description}</p>
-                      )}
-                      
-                      {/* Métadonnées */}
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                        <span>Créée le {new Date(task.createdAt?.seconds ? task.createdAt.seconds * 1000 : task.createdAt).toLocaleDateString('fr-FR')}</span>
-                        
-                        {task.difficulty && (
-                          <span className={`font-medium ${getDifficultyColor(task.difficulty)}`}>
-                            {task.difficulty} ({getDifficultyXP(task.difficulty)} XP)
-                          </span>
-                        )}
-                        
-                        {task.status === 'validation_pending' && (
-                          <span className="text-orange-600 font-medium">
-                            ⏳ En attente de validation admin
-                          </span>
-                        )}
-                        
-                        {task.status === 'rejected' && task.adminComment && (
-                          <span className="text-red-600 font-medium">
-                            💬 Commentaire admin disponible
-                          </span>
-                        )}
-                      </div>
-                      
-                      {/* Commentaire admin pour tâches rejetées */}
-                      {task.status === 'rejected' && task.adminComment && (
-                        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                          <p className="text-sm font-medium text-red-800 mb-1">Commentaire admin :</p>
-                          <p className="text-sm text-red-700">{task.adminComment}</p>
-                        </div>
                       )}
                     </div>
+                    
+                    {task.description && (
+                      <p className="text-gray-600 mb-3">{task.description}</p>
+                    )}
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      
-                      {/* Bouton de soumission conditionnel */}
-                      {(task.status === 'todo' || task.status === 'in_progress') && (
-                        <button
-                          onClick={() => handleSubmitTaskClick(task)}
-                          disabled={updating}
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                        >
-                          <Send className="w-4 h-4" />
-                          {updating ? 'Soumission...' : 'Soumettre'}
-                        </button>
-                      )}
-                      
-                      {/* Bouton de resoumission pour tâches rejetées */}
-                      {task.status === 'rejected' && (
-                        <button
-                          onClick={() => handleSubmitTaskClick(task)}
-                          disabled={updating}
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors"
-                        >
-                          <Send className="w-4 h-4" />
-                          Resoummettre
-                        </button>
-                      )}
-                      
-                      {/* États non interactifs */}
-                      {task.status === 'validation_pending' && (
-                        <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-100 text-orange-700 text-sm rounded-lg">
-                          <Clock className="w-4 h-4" />
-                          En validation
+                    {/* Commentaire admin pour les tâches rejetées */}
+                    {task.status === 'rejected' && task.adminComment && (
+                      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <span className="font-medium text-red-800">Commentaire admin : </span>
+                            <span className="text-red-700">{task.adminComment}</span>
+                          </div>
                         </div>
-                      )}
-                      
-                      {task.status === 'completed' && (
-                        <div className="inline-flex items-center gap-2 px-3 py-2 bg-green-100 text-green-700 text-sm rounded-lg">
-                          <CheckCircle className="w-4 h-4" />
-                          Validée
-                        </div>
-                      )}
-                      
-                      {/* Actions supplémentaires */}
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleDeleteTask(task)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2 ml-4">
+                    {/* ✅ BOUTONS CORRIGÉS */}
+                    
+                    {/* Bouton soumettre pour tâches en cours ou à faire */}
+                    {(task.status === 'todo' || task.status === 'in_progress') && (
+                      <button
+                        onClick={() => handleSubmitTaskClick(task)}
+                        disabled={updating}
+                        className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                      >
+                        <Send className="w-4 h-4" />
+                        {updating ? 'Soumission...' : 'Soumettre'}
+                      </button>
+                    )}
+                    
+                    {/* Bouton de resoumission pour tâches rejetées */}
+                    {task.status === 'rejected' && (
+                      <button
+                        onClick={() => handleSubmitTaskClick(task)}
+                        disabled={updating}
+                        className="inline-flex items-center gap-2 px-3 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors"
+                      >
+                        <Send className="w-4 h-4" />
+                        Resoummettre
+                      </button>
+                    )}
+                    
+                    {/* États non interactifs */}
+                    {task.status === 'validation_pending' && (
+                      <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-100 text-orange-700 text-sm rounded-lg">
+                        <Clock className="w-4 h-4" />
+                        En validation
+                      </div>
+                    )}
+                    
+                    {task.status === 'completed' && (
+                      <div className="inline-flex items-center gap-2 px-3 py-2 bg-green-100 text-green-700 text-sm rounded-lg">
+                        <CheckCircle className="w-4 h-4" />
+                        Validée
+                      </div>
+                    )}
+                    
+                    {/* Actions supplémentaires */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleDeleteTask(task)}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            );
+          })
+        ) : (
+          <div className="text-center py-12 text-gray-500">
+            <Target className="w-16 h-16 mx-auto mb-4 opacity-50" />
+            <p className="text-lg font-medium">Aucune tâche trouvée</p>
+            <p className="text-sm">
+              {searchTerm || filterStatus !== 'all' 
+                ? 'Modifiez vos filtres pour voir plus de tâches' 
+                : 'Créez votre première tâche pour commencer'
+              }
+            </p>
           </div>
         )}
       </div>
@@ -577,12 +521,13 @@ const TasksPage = () => {
         />
       )}
 
-      {/* Modal de soumission avancé */}
+      {/* ✅ MODAL DE SOUMISSION CORRIGÉ */}
       {showSubmissionModal && taskToSubmit && (
         <TaskSubmissionModal
+          isOpen={showSubmissionModal}
           task={taskToSubmit}
           onSubmit={handleSubmitTask}
-          onCancel={() => {
+          onClose={() => {
             setShowSubmissionModal(false);
             setTaskToSubmit(null);
           }}
