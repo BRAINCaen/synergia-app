@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskService.js
-// SERVICE FIREBASE POUR LA GESTION DES TÂCHES - SYNTAXE CORRIGÉE
+// SERVICE FIREBASE POUR LA GESTION DES TÂCHES - AVEC UPLOAD PHOTOS
 // ==========================================
 
 import { 
@@ -17,7 +17,12 @@ import {
   serverTimestamp,
   Timestamp 
 } from 'firebase/firestore';
-import { db } from '../firebase.js';
+import { 
+  ref, 
+  uploadBytes, 
+  getDownloadURL 
+} from 'firebase/storage';
+import { db, storage } from '../firebase.js';
 
 // Constantes pour les statuts des tâches
 const TASK_STATUS = {
@@ -35,6 +40,30 @@ class TaskService {
   
   constructor() {
     this.COLLECTION_NAME = 'tasks';
+  }
+
+  /**
+   * 📸 UPLOAD D'UNE PHOTO DE TÂCHE
+   */
+  async uploadTaskPhoto(taskId, userId, photoFile) {
+    try {
+      const timestamp = Date.now();
+      const fileExtension = photoFile.name.split('.').pop() || 'jpg';
+      const fileName = `task-photos/${userId}/${taskId}-${timestamp}.${fileExtension}`;
+      const photoRef = ref(storage, fileName);
+      
+      console.log('📸 Upload photo vers:', fileName);
+      
+      await uploadBytes(photoRef, photoFile);
+      const downloadURL = await getDownloadURL(photoRef);
+      
+      console.log('✅ Photo uploadée avec succès:', downloadURL);
+      return downloadURL;
+      
+    } catch (error) {
+      console.error('❌ Erreur upload photo:', error);
+      throw error;
+    }
   }
 
   /**
@@ -67,6 +96,7 @@ class TaskService {
         adminComment: null,
         submissionComment: null,
         hasPhoto: false,
+        photoUrl: null,
         
         // Métadonnées
         source: 'synergia_app',
@@ -155,25 +185,58 @@ class TaskService {
   }
 
   /**
-   * 🎯 SOUMETTRE UNE TÂCHE POUR VALIDATION
+   * 🎯 SOUMETTRE UNE TÂCHE POUR VALIDATION - AVEC UPLOAD PHOTO
    */
   async submitTaskForValidation(taskId, submissionData) {
     try {
       const { comment, photoFile } = submissionData || {};
       
-      await this.updateTask(taskId, {
+      console.log('📝 Soumission tâche pour validation:', {
+        taskId,
+        hasComment: !!comment,
+        hasPhoto: !!photoFile
+      });
+
+      // Upload de la photo si fournie
+      let photoUrl = null;
+      if (photoFile) {
+        console.log('📸 Upload photo en cours...');
+        
+        // Récupérer d'abord la tâche pour avoir l'userId
+        const taskRef = doc(db, this.COLLECTION_NAME, taskId);
+        const taskSnap = await getDoc(taskRef);
+        
+        if (!taskSnap.exists()) {
+          throw new Error('Tâche non trouvée');
+        }
+        
+        const taskData = taskSnap.data();
+        photoUrl = await this.uploadTaskPhoto(taskId, taskData.userId, photoFile);
+        console.log('✅ Photo uploadée:', photoUrl);
+      }
+
+      // Mettre à jour la tâche avec les nouvelles données
+      const updateData = {
         status: TASK_STATUS.VALIDATION_PENDING,
         submissionComment: comment || '',
         submittedAt: serverTimestamp(),
-        hasPhoto: !!photoFile
-      });
+        hasPhoto: !!photoFile,
+        photoUrl: photoUrl,
+        updatedAt: serverTimestamp()
+      };
+
+      await this.updateTask(taskId, updateData);
       
-      console.log('📝 Tâche soumise pour validation:', taskId);
+      console.log('✅ Tâche soumise pour validation avec photo:', {
+        taskId,
+        photoUrl: !!photoUrl
+      });
       
       return {
         success: true,
         message: 'Tâche soumise pour validation admin',
-        status: TASK_STATUS.VALIDATION_PENDING
+        status: TASK_STATUS.VALIDATION_PENDING,
+        photoUrl: photoUrl
       };
       
     } catch (error) {
