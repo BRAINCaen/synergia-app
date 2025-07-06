@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskService.js
-// SERVICE FIREBASE POUR LA GESTION DES TÂCHES - EXPORT CORRIGÉ
+// SERVICE FIREBASE POUR LA GESTION DES TÂCHES - SYNTAXE CORRIGÉE
 // ==========================================
 
 import { 
@@ -108,6 +108,164 @@ class TaskService {
         const data = doc.data();
         tasks.push({
           id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+          dueDate: data.dueDate?.toDate() || null,
+          submittedAt: data.submittedAt?.toDate() || null,
+          validatedAt: data.validatedAt?.toDate() || null
+        });
+      });
+      
+      console.log(`✅ ${tasks.length} tâches récupérées pour l'utilisateur ${userId}`);
+      return tasks;
+      
+    } catch (error) {
+      console.error('❌ Erreur récupération tâches:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📝 METTRE À JOUR UNE TÂCHE
+   */
+  async updateTask(taskId, updates) {
+    try {
+      const updateData = {
+        ...updates,
+        updatedAt: serverTimestamp()
+      };
+
+      // Nouvelle logique: Pas d'XP automatique
+      if (updates.status === TASK_STATUS.COMPLETED) {
+        updateData.status = TASK_STATUS.VALIDATION_PENDING;
+        updateData.submittedForValidationAt = serverTimestamp();
+        console.log('📋 Tâche soumise pour validation');
+      }
+
+      const taskRef = doc(db, this.COLLECTION_NAME, taskId);
+      await updateDoc(taskRef, updateData);
+      
+      return { success: true };
+      
+    } catch (error) {
+      console.error('❌ Erreur mise à jour tâche:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🎯 SOUMETTRE UNE TÂCHE POUR VALIDATION
+   */
+  async submitTaskForValidation(taskId, submissionData) {
+    try {
+      const { comment, photoFile } = submissionData || {};
+      
+      await this.updateTask(taskId, {
+        status: TASK_STATUS.VALIDATION_PENDING,
+        submissionComment: comment || '',
+        submittedAt: serverTimestamp(),
+        hasPhoto: !!photoFile
+      });
+      
+      console.log('📝 Tâche soumise pour validation:', taskId);
+      
+      return {
+        success: true,
+        message: 'Tâche soumise pour validation admin',
+        status: TASK_STATUS.VALIDATION_PENDING
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur soumission validation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ✅ VALIDER UNE TÂCHE (Admin seulement)
+   */
+  async validateTask(taskId, adminId, approved, adminComment = '') {
+    try {
+      const updateData = {
+        status: approved ? TASK_STATUS.COMPLETED : TASK_STATUS.REJECTED,
+        validatedBy: adminId,
+        validatedAt: serverTimestamp(),
+        adminComment: adminComment,
+        updatedAt: serverTimestamp()
+      };
+      
+      if (approved) {
+        updateData.completedAt = serverTimestamp();
+      }
+      
+      const taskRef = doc(db, this.COLLECTION_NAME, taskId);
+      await updateDoc(taskRef, updateData);
+      
+      console.log(`✅ Tâche ${approved ? 'validée' : 'rejetée'}:`, taskId);
+      
+      return { 
+        success: true, 
+        approved,
+        message: `Tâche ${approved ? 'validée' : 'rejetée'} avec succès`
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur validation tâche:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🗑️ SUPPRIMER UNE TÂCHE
+   */
+  async deleteTask(taskId) {
+    try {
+      await deleteDoc(doc(db, this.COLLECTION_NAME, taskId));
+      console.log('✅ Tâche supprimée:', taskId);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur suppression tâche:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📊 RÉCUPÉRER LES STATISTIQUES DES TÂCHES
+   */
+  async getTaskStatistics(userId) {
+    try {
+      const tasks = await this.getUserTasks(userId);
+      
+      const stats = {
+        total: tasks.length,
+        completed: tasks.filter(t => t.status === TASK_STATUS.COMPLETED).length,
+        pending: tasks.filter(t => t.status === TASK_STATUS.VALIDATION_PENDING).length,
+        rejected: tasks.filter(t => t.status === TASK_STATUS.REJECTED).length,
+        todo: tasks.filter(t => t.status === TASK_STATUS.TODO).length,
+        inProgress: tasks.filter(t => t.status === TASK_STATUS.IN_PROGRESS).length
+      };
+      
+      return stats;
+      
+    } catch (error) {
+      console.error('❌ Erreur statistiques tâches:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🔍 RÉCUPÉRER UNE TÂCHE PAR ID
+   */
+  async getTask(taskId) {
+    try {
+      const taskRef = doc(db, this.COLLECTION_NAME, taskId);
+      const taskSnap = await getDoc(taskRef);
+      
+      if (taskSnap.exists()) {
+        const data = taskSnap.data();
+        return {
+          id: taskSnap.id,
           ...data,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
@@ -352,161 +510,3 @@ const taskService = new TaskService();
 // Export par défaut ET export nommé
 export default taskService;
 export { taskService, TASK_STATUS };
-          dueDate: data.dueDate?.toDate() || null,
-          submittedAt: data.submittedAt?.toDate() || null,
-          validatedAt: data.validatedAt?.toDate() || null
-        });
-      });
-      
-      console.log(`✅ ${tasks.length} tâches récupérées pour l'utilisateur ${userId}`);
-      return tasks;
-      
-    } catch (error) {
-      console.error('❌ Erreur récupération tâches:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📝 METTRE À JOUR UNE TÂCHE
-   */
-  async updateTask(taskId, updates) {
-    try {
-      const updateData = {
-        ...updates,
-        updatedAt: serverTimestamp()
-      };
-
-      // Nouvelle logique: Pas d'XP automatique
-      if (updates.status === TASK_STATUS.COMPLETED) {
-        updateData.status = TASK_STATUS.VALIDATION_PENDING;
-        updateData.submittedForValidationAt = serverTimestamp();
-        console.log('📋 Tâche soumise pour validation');
-      }
-
-      const taskRef = doc(db, this.COLLECTION_NAME, taskId);
-      await updateDoc(taskRef, updateData);
-      
-      return { success: true };
-      
-    } catch (error) {
-      console.error('❌ Erreur mise à jour tâche:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🎯 SOUMETTRE UNE TÂCHE POUR VALIDATION
-   */
-  async submitTaskForValidation(taskId, submissionData) {
-    try {
-      const { comment, photoFile } = submissionData || {};
-      
-      await this.updateTask(taskId, {
-        status: TASK_STATUS.VALIDATION_PENDING,
-        submissionComment: comment || '',
-        submittedAt: serverTimestamp(),
-        hasPhoto: !!photoFile
-      });
-      
-      console.log('📝 Tâche soumise pour validation:', taskId);
-      
-      return {
-        success: true,
-        message: 'Tâche soumise pour validation admin',
-        status: TASK_STATUS.VALIDATION_PENDING
-      };
-      
-    } catch (error) {
-      console.error('❌ Erreur soumission validation:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * ✅ VALIDER UNE TÂCHE (Admin seulement)
-   */
-  async validateTask(taskId, adminId, approved, adminComment = '') {
-    try {
-      const updateData = {
-        status: approved ? TASK_STATUS.COMPLETED : TASK_STATUS.REJECTED,
-        validatedBy: adminId,
-        validatedAt: serverTimestamp(),
-        adminComment: adminComment,
-        updatedAt: serverTimestamp()
-      };
-      
-      if (approved) {
-        updateData.completedAt = serverTimestamp();
-      }
-      
-      const taskRef = doc(db, this.COLLECTION_NAME, taskId);
-      await updateDoc(taskRef, updateData);
-      
-      console.log(`✅ Tâche ${approved ? 'validée' : 'rejetée'}:`, taskId);
-      
-      return { 
-        success: true, 
-        approved,
-        message: `Tâche ${approved ? 'validée' : 'rejetée'} avec succès`
-      };
-      
-    } catch (error) {
-      console.error('❌ Erreur validation tâche:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🗑️ SUPPRIMER UNE TÂCHE
-   */
-  async deleteTask(taskId) {
-    try {
-      await deleteDoc(doc(db, this.COLLECTION_NAME, taskId));
-      console.log('✅ Tâche supprimée:', taskId);
-      return { success: true };
-    } catch (error) {
-      console.error('❌ Erreur suppression tâche:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📊 RÉCUPÉRER LES STATISTIQUES DES TÂCHES
-   */
-  async getTaskStatistics(userId) {
-    try {
-      const tasks = await this.getUserTasks(userId);
-      
-      const stats = {
-        total: tasks.length,
-        completed: tasks.filter(t => t.status === TASK_STATUS.COMPLETED).length,
-        pending: tasks.filter(t => t.status === TASK_STATUS.VALIDATION_PENDING).length,
-        rejected: tasks.filter(t => t.status === TASK_STATUS.REJECTED).length,
-        todo: tasks.filter(t => t.status === TASK_STATUS.TODO).length,
-        inProgress: tasks.filter(t => t.status === TASK_STATUS.IN_PROGRESS).length
-      };
-      
-      return stats;
-      
-    } catch (error) {
-      console.error('❌ Erreur statistiques tâches:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🔍 RÉCUPÉRER UNE TÂCHE PAR ID
-   */
-  async getTask(taskId) {
-    try {
-      const taskRef = doc(db, this.COLLECTION_NAME, taskId);
-      const taskSnap = await getDoc(taskRef);
-      
-      if (taskSnap.exists()) {
-        const data = taskSnap.data();
-        return {
-          id: taskSnap.id,
-          ...data,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
