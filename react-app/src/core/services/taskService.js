@@ -43,25 +43,30 @@ class TaskService {
   }
 
   /**
-   * 📸 UPLOAD D'UNE PHOTO DE TÂCHE
+   * 📸 UPLOAD D'UNE PHOTO/VIDÉO DE TÂCHE
    */
-  async uploadTaskPhoto(taskId, userId, photoFile) {
+  async uploadTaskMedia(taskId, userId, mediaFile) {
     try {
       const timestamp = Date.now();
-      const fileExtension = photoFile.name.split('.').pop() || 'jpg';
-      const fileName = `task-photos/${userId}/${taskId}-${timestamp}.${fileExtension}`;
-      const photoRef = ref(storage, fileName);
+      const fileExtension = mediaFile.name.split('.').pop() || 'jpg';
+      const fileName = `task-media/${userId}/${taskId}-${timestamp}.${fileExtension}`;
+      const mediaRef = ref(storage, fileName);
       
-      console.log('📸 Upload photo vers:', fileName);
+      console.log('📸 Upload media vers:', fileName, `(${(mediaFile.size / 1024 / 1024).toFixed(2)} MB)`);
       
-      await uploadBytes(photoRef, photoFile);
-      const downloadURL = await getDownloadURL(photoRef);
+      await uploadBytes(mediaRef, mediaFile);
+      const downloadURL = await getDownloadURL(mediaRef);
       
-      console.log('✅ Photo uploadée avec succès:', downloadURL);
-      return downloadURL;
+      console.log('✅ Media uploadé avec succès:', downloadURL);
+      return {
+        url: downloadURL,
+        type: mediaFile.type.startsWith('video/') ? 'video' : 'image',
+        size: mediaFile.size,
+        name: mediaFile.name
+      };
       
     } catch (error) {
-      console.error('❌ Erreur upload photo:', error);
+      console.error('❌ Erreur upload media:', error);
       throw error;
     }
   }
@@ -95,8 +100,9 @@ class TaskService {
         validatedBy: null,
         adminComment: null,
         submissionComment: null,
-        hasPhoto: false,
-        photoUrl: null,
+        hasMedia: false,
+        mediaUrl: null,
+        mediaType: null,
         
         // Métadonnées
         source: 'synergia_app',
@@ -185,7 +191,7 @@ class TaskService {
   }
 
   /**
-   * 🎯 SOUMETTRE UNE TÂCHE POUR VALIDATION - AVEC UPLOAD PHOTO
+   * 🎯 SOUMETTRE UNE TÂCHE POUR VALIDATION - AVEC UPLOAD PHOTO/VIDÉO
    */
   async submitTaskForValidation(taskId, submissionData) {
     try {
@@ -194,13 +200,15 @@ class TaskService {
       console.log('📝 Soumission tâche pour validation:', {
         taskId,
         hasComment: !!comment,
-        hasPhoto: !!photoFile
+        hasMedia: !!photoFile,
+        mediaType: photoFile?.type,
+        mediaSize: photoFile ? `${(photoFile.size / 1024 / 1024).toFixed(2)} MB` : 'N/A'
       });
 
-      // Upload de la photo si fournie
-      let photoUrl = null;
+      // Upload du média si fourni (photo ou vidéo)
+      let mediaData = null;
       if (photoFile) {
-        console.log('📸 Upload photo en cours...');
+        console.log('📸 Upload média en cours...');
         
         // Récupérer d'abord la tâche pour avoir l'userId
         const taskRef = doc(db, this.COLLECTION_NAME, taskId);
@@ -211,8 +219,8 @@ class TaskService {
         }
         
         const taskData = taskSnap.data();
-        photoUrl = await this.uploadTaskPhoto(taskId, taskData.userId, photoFile);
-        console.log('✅ Photo uploadée:', photoUrl);
+        mediaData = await this.uploadTaskMedia(taskId, taskData.userId, photoFile);
+        console.log('✅ Média uploadé:', mediaData);
       }
 
       // Mettre à jour la tâche avec les nouvelles données
@@ -220,23 +228,26 @@ class TaskService {
         status: TASK_STATUS.VALIDATION_PENDING,
         submissionComment: comment || '',
         submittedAt: serverTimestamp(),
-        hasPhoto: !!photoFile,
-        photoUrl: photoUrl,
+        hasMedia: !!photoFile,
+        mediaUrl: mediaData?.url || null,
+        mediaType: mediaData?.type || null,
         updatedAt: serverTimestamp()
       };
 
       await this.updateTask(taskId, updateData);
       
-      console.log('✅ Tâche soumise pour validation avec photo:', {
+      console.log('✅ Tâche soumise pour validation avec média:', {
         taskId,
-        photoUrl: !!photoUrl
+        mediaUrl: !!mediaData?.url,
+        mediaType: mediaData?.type
       });
       
       return {
         success: true,
         message: 'Tâche soumise pour validation admin',
         status: TASK_STATUS.VALIDATION_PENDING,
-        photoUrl: photoUrl
+        mediaUrl: mediaData?.url,
+        mediaType: mediaData?.type
       };
       
     } catch (error) {
