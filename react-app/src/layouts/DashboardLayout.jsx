@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/layouts/DashboardLayout.jsx
-// DASHBOARD LAYOUT AVEC LIENS ADMIN
+// DASHBOARD LAYOUT CORRIGÉ - AFFICHAGE CONTENU FIXÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -395,11 +395,9 @@ const DashboardLayout = () => {
           </div>
         </header>
 
-        {/* Contenu de la page */}
-        <main className="flex-1 overflow-y-auto bg-gray-50">
-          <div className="p-6">
-            <Outlet />
-          </div>
+        {/* 🔥 CONTENU DE LA PAGE - CORRECTION PRINCIPALE */}
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-6">
+          <Outlet />
         </main>
       </div>
 
