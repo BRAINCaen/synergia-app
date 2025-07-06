@@ -1,118 +1,49 @@
 // ==========================================
 // 📁 react-app/src/layouts/DashboardLayout.jsx
-// CODE COMPLET - Remplacer entièrement le fichier existant
+// DASHBOARD LAYOUT AVEC LIENS ADMIN
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation, Outlet } from 'react-router-dom';
-import { useAuthStore } from '../shared/stores/authStore.js';
+import { Outlet, Link, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronLeft, 
   ChevronRight, 
-  Bell, 
+  LogOut, 
+  Bell,
   Search,
-  Menu,
-  X,
-  LogOut
+  User,
+  Crown,
+  Shield,
+  CheckSquare
 } from 'lucide-react';
 
-// ✅ NOUVEAU: Hook Firebase pour synchronisation temps réel
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../core/firebase.js';
+// Stores et services
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { isAdmin } from '../core/services/adminBadgeService.js';
 
-const DashboardLayout = ({ children }) => {
-  const location = useLocation();
+// Composants
+import ToastContainer from '../shared/components/ui/ToastContainer.jsx';
+
+/**
+ * 🎨 DASHBOARD LAYOUT AVEC SIDEBAR ET HEADER
+ */
+const DashboardLayout = () => {
   const { user, signOut } = useAuthStore();
+  const location = useLocation();
   
-  // États de l'interface
-  const [collapsed, setCollapsed] = useState(false);
-  const [collapsedSections, setCollapsedSections] = useState({});
-  const [unreadCount] = useState(3);
-  
-  // ✅ NOUVEAU: États Firebase pour synchronisation
-  const [userData, setUserData] = useState(null);
-  const [userLoading, setUserLoading] = useState(true);
+  // États UI
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  // ✅ NOUVEAU: Synchronisation Firebase temps réel
-  useEffect(() => {
-    if (!user?.uid) {
-      setUserData(null);
-      setUserLoading(false);
-      return;
-    }
+  // 🛡️ Vérification admin
+  const userIsAdmin = isAdmin(user);
 
-    console.log('🔄 DashboardLayout - Synchronisation Firebase pour:', user.uid);
-    
-    const userRef = doc(db, 'users', user.uid);
-    const unsubscribe = onSnapshot(userRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        setUserData(data);
-        console.log('✅ DashboardLayout - Données Firebase mises à jour:', data.gamification?.totalXp);
-      }
-      setUserLoading(false);
-    }, (error) => {
-      console.error('❌ Erreur Firebase DashboardLayout:', error);
-      setUserLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user?.uid]);
-
-  // ✅ NOUVEAU: Calcul des statistiques depuis Firebase
-  const getFirebaseStats = () => {
-    if (!userData || userLoading) {
-      return {
-        level: 1,
-        totalXp: 0,
-        tasksCompleted: 0,
-        projectsCreated: 0,
-        badges: 0,
-        loginStreak: 0,
-        progressPercent: 0
-      };
-    }
-
-    const gamification = userData.gamification || {};
-    const stats = {
-      level: gamification.level || 1,
-      totalXp: gamification.totalXp || 0,
-      tasksCompleted: gamification.tasksCompleted || 0,
-      projectsCreated: gamification.projectsCreated || 0,
-      badges: (gamification.badges || []).length,
-      loginStreak: gamification.loginStreak || 0
-    };
-
-    // Calcul progression niveau
-    const currentLevelXP = (stats.level - 1) * 100;
-    const nextLevelXP = stats.level * 100;
-    const progressXP = stats.totalXp - currentLevelXP;
-    stats.progressPercent = Math.min(100, Math.max(0, (progressXP / 100) * 100));
-
-    return stats;
-  };
-
-  const stats = getFirebaseStats();
-
-  const toggleSection = (sectionKey) => {
-    setCollapsedSections(prev => ({
-      ...prev,
-      [sectionKey]: !prev[sectionKey]
-    }));
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Erreur déconnexion:', error);
-    }
-  };
-
-  // Navigation sections
+  // Sections de navigation
   const navigationSections = [
     {
-      title: '📊 Principal',
+      title: '🏠 Principal',
       key: 'main',
       items: [
         { name: 'Dashboard', href: '/dashboard', icon: '🏠', current: location.pathname === '/dashboard' },
@@ -137,6 +68,29 @@ const DashboardLayout = ({ children }) => {
         { name: 'Intégration', href: '/onboarding', icon: '🎯', current: location.pathname === '/onboarding', badge: 'NEW' },
       ]
     },
+    // 🛡️ SECTION ADMIN CONDITIONNELLE
+    ...(userIsAdmin ? [{
+      title: '🛡️ Administration',
+      key: 'admin',
+      items: [
+        { 
+          name: 'Validation Tâches', 
+          href: '/admin/task-validation', 
+          icon: '✅', 
+          current: location.pathname === '/admin/task-validation',
+          description: 'Valider soumissions',
+          badge: '3',
+          priority: true
+        },
+        { 
+          name: 'Test Admin', 
+          href: '/admin/profile-test', 
+          icon: '🧪', 
+          current: location.pathname === '/admin/profile-test',
+          description: 'Diagnostics'
+        },
+      ]
+    }] : []),
     {
       title: '⚙️ Outils',
       key: 'tools',
@@ -148,173 +102,222 @@ const DashboardLayout = ({ children }) => {
     }
   ];
 
-  const userInitials = user?.displayName 
-    ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase()
-    : user?.email?.charAt(0).toUpperCase() || '?';
+  // Obtenr les initiales utilisateur
+  const getUserInitials = () => {
+    if (user?.displayName) {
+      return user.displayName.split(' ').map(n => n[0]).join('').toUpperCase();
+    }
+    return user?.email?.charAt(0).toUpperCase() || '?';
+  };
 
-  const renderNavigationSection = (section) => (
-    <div key={section.key} className="mb-4">
-      <button
-        onClick={() => toggleSection(section.key)}
-        className="w-full flex items-center justify-between px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-700 transition-colors"
-      >
-        <span>{section.title}</span>
-        <span className="text-xs">
-          {collapsedSections[section.key] ? '▼' : '▲'}
-        </span>
-      </button>
+  // Déconnexion
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      console.log('✅ Déconnexion réussie');
+    } catch (error) {
+      console.error('❌ Erreur déconnexion:', error);
+    }
+  };
+
+  // Render item de navigation
+  const renderNavItem = (item) => (
+    <Link
+      key={item.name}
+      to={item.href}
+      className={`group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+        item.current
+          ? 'bg-blue-600 text-white shadow-md'
+          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+      } ${item.priority ? 'ring-2 ring-orange-300 ring-opacity-50' : ''}`}
+    >
+      <div className="flex items-center space-x-3">
+        <span className="text-lg">{item.icon}</span>
+        {!sidebarCollapsed && (
+          <div className="flex-1">
+            <span>{item.name}</span>
+            {item.description && (
+              <p className="text-xs opacity-75 mt-0.5">{item.description}</p>
+            )}
+          </div>
+        )}
+      </div>
       
-      {!collapsedSections[section.key] && (
-        <nav className="mt-2 space-y-1">
-          {section.items.map((item) => (
-            <Link
-              key={item.name}
-              to={item.href}
-              className={`group flex items-center justify-between px-2 py-2 text-sm font-medium rounded-md transition-all duration-150 ${
-                item.current
-                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border-r-2 border-blue-500 shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              <div className="flex items-center">
-                <span className="mr-3 text-lg">{item.icon}</span>
-                <div>
-                  <div>{item.name}</div>
-                  {item.description && (
-                    <div className="text-xs text-gray-500">{item.description}</div>
-                  )}
-                </div>
-              </div>
-              {item.badge && (
-                <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                  item.badge === 'NEW' ? 'bg-green-100 text-green-800' : 
-                  item.badge === 'HOT' ? 'bg-red-100 text-red-800' : 
-                  'bg-blue-100 text-blue-800'
-                }`}>
-                  {item.badge}
-                </span>
-              )}
-            </Link>
-          ))}
-        </nav>
+      {!sidebarCollapsed && item.badge && (
+        <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+          item.badge === 'NEW' 
+            ? 'bg-green-100 text-green-800'
+            : 'bg-red-100 text-red-800'
+        }`}>
+          {item.badge}
+        </span>
       )}
+    </Link>
+  );
+
+  // Render section de navigation
+  const renderNavSection = (section) => (
+    <div key={section.key} className="mb-6">
+      {!sidebarCollapsed && (
+        <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+          {section.title}
+        </h3>
+      )}
+      <nav className="space-y-1">
+        {section.items.map(renderNavItem)}
+      </nav>
     </div>
   );
 
-  // ✅ NOUVEAU: Widget Progression Firebase synchronisé
-  const renderProgressionWidget = () => {
-    if (userLoading) {
-      return (
-        <div className="p-4 border-b border-gray-200">
-          <div className="animate-pulse">
-            <div className="h-4 bg-gray-200 rounded mb-2"></div>
-            <div className="h-3 bg-gray-200 rounded w-1/2 mb-2"></div>
-            <div className="h-2 bg-gray-200 rounded"></div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="p-4 border-b border-gray-200">
-        <div className="text-center">
-          <h3 className="font-semibold text-gray-800 text-sm mb-3">
-            ✅ Progression Firebase
-          </h3>
-          
-          {/* ✅ NOUVEAU: Données depuis Firebase temps réel */}
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Niveau {stats.level}</span>
-              <span className="text-gray-600">{stats.totalXp} XP</span>
-            </div>
-            
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${stats.progressPercent}%` }}
-              ></div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-1 text-xs text-gray-500">
-              <span>🎯 {stats.tasksCompleted} tâches</span>
-              <span>🏆 {stats.badges} badges</span>
-              <span>📁 {stats.projectsCreated} projets</span>
-              <span>🔥 {stats.loginStreak} jour(s)</span>
-            </div>
-
-            {/* Indicateur de synchronisation */}
-            <div className="flex items-center justify-center space-x-1 text-xs text-green-600">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span>Synchronisé</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-50">
+      
       {/* Sidebar */}
-      <div className={`${collapsed ? 'w-16' : 'w-64'} bg-white shadow-lg transition-all duration-300 ease-in-out flex flex-col`}>
+      <div className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-white shadow-lg transition-all duration-300 ease-in-out flex flex-col border-r border-gray-200`}>
         
         {/* Header sidebar */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            {!collapsed && (
+            {!sidebarCollapsed && (
               <div>
-                <h1 className="text-xl font-bold text-gray-800">Synergia v3.5</h1>
-                <p className="text-xs text-gray-500">11 pages essentielles</p>
+                <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  Synergia
+                  {userIsAdmin && <Crown className="w-5 h-5 text-yellow-500" />}
+                </h1>
+                <p className="text-xs text-gray-500">v3.5 Admin Ready</p>
               </div>
             )}
             <button
-              onClick={() => setCollapsed(!collapsed)}
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
-              {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+              {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </button>
           </div>
         </div>
 
         {/* Navigation */}
-        {!collapsed && (
-          <div className="flex-1 px-4 py-4 overflow-y-auto">
-            {navigationSections.map(renderNavigationSection)}
+        <div className="flex-1 px-4 py-4 overflow-y-auto">
+          {navigationSections.map(renderNavSection)}
+        </div>
+
+        {/* 🛡️ Quick Admin Access */}
+        {userIsAdmin && !sidebarCollapsed && (
+          <div className="p-4 border-t border-gray-200">
+            <Link
+              to="/admin/task-validation"
+              className="flex items-center gap-3 p-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 transition-all shadow-lg"
+            >
+              <CheckSquare className="w-5 h-5" />
+              <div className="flex-1">
+                <span className="font-medium">Valider Tâches</span>
+                <p className="text-xs opacity-90">3 en attente</p>
+              </div>
+            </Link>
           </div>
         )}
 
-        {/* ✅ NOUVEAU: Widget Progression Firebase synchronisé */}
-        {!collapsed && renderProgressionWidget()}
-
-        {/* Profil utilisateur en bas de sidebar */}
-        {!collapsed && (
+        {/* Widget progression utilisateur */}
+        {!sidebarCollapsed && (
           <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                {user?.photoURL ? (
-                  <img src={user.photoURL} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
-                ) : (
-                  <span className="text-sm font-bold text-white">{userInitials}</span>
-                )}
-              </div>
-              
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-700 truncate">
-                  {user?.displayName || 'Utilisateur'}
+            <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-3">
+              <div className="flex items-center space-x-3 mb-2">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                  {getUserInitials()}
                 </div>
-                <div className="text-xs text-gray-500 truncate">
-                  {user?.email}
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-medium text-gray-900 truncate">
+                    {user?.displayName || user?.email}
+                  </h4>
+                  <p className="text-xs text-gray-600">Niveau 4 • 175 XP</p>
                 </div>
               </div>
               
+              {/* Barre de progression */}
+              <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full" style={{ width: '75%' }}></div>
+              </div>
+              
+              <div className="flex justify-between text-xs text-gray-600">
+                <span>175/200 XP</span>
+                <span>Niveau 5</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Profil utilisateur */}
+        {!sidebarCollapsed && (
+          <div className="p-4 border-t border-gray-200">
+            <div className="relative">
               <button
-                onClick={handleSignOut}
-                className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                title="Déconnexion"
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="w-full flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                <LogOut className="w-4 h-4" />
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+                  userIsAdmin 
+                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500' 
+                    : 'bg-gray-600'
+                }`}>
+                  {getUserInitials()}
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {user?.displayName || user?.email}
+                  </p>
+                  <p className="text-xs text-gray-600 flex items-center gap-1">
+                    {userIsAdmin && <Crown className="w-3 h-3 text-yellow-500" />}
+                    {userIsAdmin ? 'Administrateur' : 'Utilisateur'}
+                  </p>
+                </div>
               </button>
+
+              {/* Menu utilisateur */}
+              <AnimatePresence>
+                {userMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+                  >
+                    <Link
+                      to="/profile"
+                      className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      <User className="w-4 h-4" />
+                      <span>Mon Profil</span>
+                    </Link>
+                    
+                    {userIsAdmin && (
+                      <>
+                        <div className="border-t border-gray-100 my-1"></div>
+                        <Link
+                          to="/admin/task-validation"
+                          className="flex items-center space-x-2 px-4 py-2 text-sm text-orange-700 hover:bg-orange-50 transition-colors"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <Shield className="w-4 h-4" />
+                          <span>Panel Admin</span>
+                        </Link>
+                      </>
+                    )}
+                    
+                    <div className="border-t border-gray-100 my-1"></div>
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        handleSignOut();
+                      }}
+                      className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50 transition-colors text-left"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Déconnexion</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         )}
@@ -323,80 +326,70 @@ const DashboardLayout = ({ children }) => {
       {/* Contenu principal */}
       <div className="flex-1 flex flex-col overflow-hidden">
         
-        {/* Header principal */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="flex items-center justify-between px-6 py-4">
-            <div className="flex items-center space-x-4">
-              <h2 className="text-xl font-semibold text-gray-800">
-                {navigationSections.flatMap(s => s.items).find(item => item.current)?.name || 'Dashboard'}
-              </h2>
+        {/* Header */}
+        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            
+            {/* Titre de page */}
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {getPageTitle(location.pathname)}
+              </h1>
+              <p className="text-sm text-gray-600 mt-1">
+                {getPageDescription(location.pathname)}
+              </p>
             </div>
 
+            {/* Actions header */}
             <div className="flex items-center space-x-4">
-              {/* Barre de recherche */}
+              
+              {/* 🛡️ Badge Admin */}
+              {userIsAdmin && (
+                <Link
+                  to="/admin/task-validation"
+                  className="relative flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 transition-all shadow-md"
+                >
+                  <Crown className="w-4 h-4" />
+                  <span className="hidden md:inline font-medium">Admin</span>
+                  {/* Badge notification */}
+                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                    3
+                  </div>
+                </Link>
+              )}
+
+              {/* Recherche */}
               <div className="relative hidden md:block">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-5 w-5 text-gray-400" />
-                </div>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
                   placeholder="Rechercher..."
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
                 />
               </div>
 
               {/* Notifications */}
-              <button className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
+              <button className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                 <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
+                {notifications.length > 0 && (
+                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                    {notifications.length}
+                  </div>
                 )}
               </button>
 
-              {/* Raccourcis rapides optimisés */}
-              <div className="hidden md:flex items-center space-x-2">
-                {location.pathname !== '/onboarding' && (
-                  <Link
-                    to="/onboarding"
-                    className="flex items-center space-x-1 px-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-sm font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-200"
-                  >
-                    <span>🎯</span>
-                    <span>Intégration</span>
-                  </Link>
-                )}
-                
-                {location.pathname !== '/gamification' && (
-                  <Link
-                    to="/gamification"
-                    className="flex items-center space-x-1 px-3 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
-                  >
-                    <span>🎮</span>
-                    <span>Badges</span>
-                  </Link>
-                )}
-              </div>
-
-              {/* Profil utilisateur header */}
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                    {user?.photoURL ? (
-                      <img src={user.photoURL} alt="Avatar" className="w-8 h-8 rounded-full" />
-                    ) : (
-                      <span className="text-xs font-medium text-white">{userInitials}</span>
-                    )}
-                  </div>
-                  <div className="hidden md:block">
-                    <div className="text-sm font-medium text-gray-700">
-                      {user?.displayName || 'Utilisateur'}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Niveau {stats.level} • {stats.totalXp} XP
-                    </div>
-                  </div>
-                </div>
+              {/* Avatar utilisateur mobile */}
+              <div className="md:hidden">
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+                    userIsAdmin 
+                      ? 'bg-gradient-to-r from-yellow-500 to-orange-500' 
+                      : 'bg-gray-600'
+                  }`}
+                >
+                  {getUserInitials()}
+                </button>
               </div>
             </div>
           </div>
@@ -404,11 +397,58 @@ const DashboardLayout = ({ children }) => {
 
         {/* Contenu de la page */}
         <main className="flex-1 overflow-y-auto bg-gray-50">
-          {children || <Outlet />}
+          <div className="p-6">
+            <Outlet />
+          </div>
         </main>
       </div>
+
+      {/* Toast notifications */}
+      <ToastContainer />
     </div>
   );
+};
+
+// Fonction pour obtenir le titre de la page
+const getPageTitle = (pathname) => {
+  const titles = {
+    '/dashboard': 'Dashboard',
+    '/tasks': 'Tâches',
+    '/projects': 'Projets', 
+    '/analytics': 'Analytics',
+    '/gamification': 'Gamification',
+    '/rewards': 'Récompenses',
+    '/users': 'Utilisateurs',
+    '/onboarding': 'Intégration',
+    '/timetrack': 'Time Tracking',
+    '/profile': 'Mon Profil',
+    '/settings': 'Paramètres',
+    '/admin/task-validation': 'Validation des Tâches',
+    '/admin/profile-test': 'Test Admin Profile',
+    '/admin/complete-test': 'Test Admin Complet'
+  };
+  return titles[pathname] || 'Synergia';
+};
+
+// Fonction pour obtenir la description de la page
+const getPageDescription = (pathname) => {
+  const descriptions = {
+    '/dashboard': 'Vue d\'ensemble de votre activité',
+    '/tasks': 'Gérez vos tâches et objectifs',
+    '/projects': 'Collaborez sur vos projets',
+    '/analytics': 'Analysez vos performances',
+    '/gamification': 'Badges, XP et progression',
+    '/rewards': 'Vos récompenses et achievements',
+    '/users': 'Équipe et classements',
+    '/onboarding': 'Parcours d\'intégration gamifié',
+    '/timetrack': 'Suivi du temps de travail',
+    '/profile': 'Gérez votre profil utilisateur',
+    '/settings': 'Configuration de l\'application',
+    '/admin/task-validation': 'Examinez et validez les soumissions d\'équipe',
+    '/admin/profile-test': 'Diagnostics et tests des permissions admin',
+    '/admin/complete-test': 'Tests complets du système administrateur'
+  };
+  return descriptions[pathname] || 'Application de gestion collaborative';
 };
 
 export default DashboardLayout;
