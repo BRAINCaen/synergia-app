@@ -1,17 +1,17 @@
 // ==========================================
 // 📁 react-app/src/core/services/storageService.js
-// SERVICE D'UPLOAD FIREBASE STORAGE AVEC API REST - CONTOURNE CORS
+// SERVICE D'UPLOAD FIREBASE STORAGE AVEC LE BON NOM DE BUCKET
 // ==========================================
 
 import { getAuth } from 'firebase/auth';
 
 /**
  * 📁 SERVICE D'UPLOAD FIREBASE STORAGE AVEC API REST
- * Contourne les problèmes CORS en utilisant l'API REST au lieu du SDK
  */
 class StorageService {
   constructor() {
-    this.bucketName = 'synergia-app-f27e7.appspot.com';
+    // ✅ BON NOM DU BUCKET FIREBASE
+    this.bucketName = 'synergia-app-f27e7.firebasestorage.app';
     this.baseUrl = `https://firebasestorage.googleapis.com/v0/b/${this.bucketName}/o`;
   }
 
@@ -43,7 +43,8 @@ class StorageService {
     try {
       console.log('📸 Upload API REST vers:', path, {
         size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-        type: file.type
+        type: file.type,
+        bucket: this.bucketName
       });
 
       // ✅ Obtenir le token d'authentification
@@ -71,7 +72,7 @@ class StorageService {
       
       console.log('🔄 Démarrage upload API REST...');
       
-      // ✅ Upload avec fetch (contourne CORS)
+      // ✅ Upload avec fetch
       const response = await fetch(uploadUrl, {
         method: 'POST',
         headers: headers,
@@ -173,63 +174,6 @@ class StorageService {
       if (error.message.includes('404')) {
         return true;
       }
-      throw error;
-    }
-  }
-
-  /**
-   * 📋 Lister les fichiers d'un dossier
-   */
-  async listFiles(prefix = '') {
-    try {
-      const token = await this.getAuthToken();
-      const listUrl = `${this.baseUrl}?prefix=${encodeURIComponent(prefix)}`;
-      
-      const response = await fetch(listUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`List failed: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      return result.items || [];
-      
-    } catch (error) {
-      console.error('❌ Erreur listage fichiers:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📊 Obtenir les métadonnées d'un fichier
-   */
-  async getFileMetadata(path) {
-    try {
-      const token = await this.getAuthToken();
-      const encodedPath = encodeURIComponent(path);
-      const metadataUrl = `${this.baseUrl}/${encodedPath}`;
-      
-      const response = await fetch(metadataUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Metadata fetch failed: ${response.status}`);
-      }
-      
-      const metadata = await response.json();
-      return metadata;
-      
-    } catch (error) {
-      console.error('❌ Erreur métadonnées:', error);
       throw error;
     }
   }
