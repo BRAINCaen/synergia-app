@@ -29,7 +29,10 @@ import {
   Zap,
   Target,
   Users,
-  ExternalLink
+  ExternalLink,
+  Video,
+  Upload,
+  Play
 } from 'lucide-react';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
@@ -375,8 +378,55 @@ const AdminTaskValidationPage = () => {
                   </div>
                   
                   <div className="flex items-center gap-3 ml-6">
-                    {/* ✅ AFFICHAGE PHOTO CORRIGÉ */}
-                    {task.hasPhoto && task.photoUrl && (
+                    {/* ✅ AFFICHAGE MÉDIA CORRIGÉ (Photo ou Vidéo) */}
+                    {task.hasMedia && task.mediaUrl && (
+                      <div className="relative group">
+                        {task.mediaType === 'video' ? (
+                          // Prévisualisation vidéo
+                          <div className="relative">
+                            <video
+                              src={task.mediaUrl}
+                              className="w-16 h-16 object-cover rounded-lg border-2 border-purple-200 cursor-pointer hover:border-purple-400 transition-colors"
+                              onClick={() => window.open(task.mediaUrl, '_blank')}
+                              muted
+                              preload="metadata"
+                            />
+                            <div className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center">
+                              <Play className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="absolute -top-2 -right-2 bg-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                              🎥
+                            </div>
+                          </div>
+                        ) : (
+                          // Prévisualisation image
+                          <div className="relative">
+                            <img
+                              src={task.mediaUrl}
+                              alt="Preuve de tâche"
+                              className="w-16 h-16 object-cover rounded-lg border-2 border-blue-200 cursor-pointer hover:border-blue-400 transition-colors"
+                              onClick={() => window.open(task.mediaUrl, '_blank')}
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
+                              <Camera className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                            <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                              📸
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Indicateur média manquant */}
+                    {task.hasMedia && !task.mediaUrl && (
+                      <div className="p-2 bg-yellow-100 rounded-lg" title="Média en cours de traitement">
+                        <Upload className="w-4 h-4 text-yellow-600" />
+                      </div>
+                    )}
+                    
+                    {/* Indicateur legacy pour hasPhoto */}
+                    {task.hasPhoto && task.photoUrl && !task.hasMedia && (
                       <div className="relative group">
                         <img
                           src={task.photoUrl}
@@ -384,19 +434,9 @@ const AdminTaskValidationPage = () => {
                           className="w-16 h-16 object-cover rounded-lg border-2 border-blue-200 cursor-pointer hover:border-blue-400 transition-colors"
                           onClick={() => window.open(task.photoUrl, '_blank')}
                         />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
-                          <Camera className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </div>
                         <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">
                           📸
                         </div>
-                      </div>
-                    )}
-                    
-                    {/* Indicateur photo manquante */}
-                    {task.hasPhoto && !task.photoUrl && (
-                      <div className="p-2 bg-yellow-100 rounded-lg" title="Photo en cours de traitement">
-                        <Camera className="w-4 h-4 text-yellow-600" />
                       </div>
                     )}
                     
@@ -523,32 +563,57 @@ const AdminTaskValidationPage = () => {
                   </div>
                 )}
 
-                {/* ✅ AFFICHAGE PHOTO DANS LE MODAL */}
-                {selectedTask.hasPhoto && selectedTask.photoUrl && (
+                {/* ✅ AFFICHAGE MÉDIA DANS LE MODAL (Photo ou Vidéo) */}
+                {((selectedTask.hasMedia && selectedTask.mediaUrl) || (selectedTask.hasPhoto && selectedTask.photoUrl)) && (
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-2">📸 Photo de preuve</h4>
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      {selectedTask.mediaType === 'video' ? '🎥 Vidéo de preuve' : '📸 Photo de preuve'}
+                    </h4>
                     <div className="relative">
-                      <img
-                        src={selectedTask.photoUrl}
-                        alt="Preuve de tâche"
-                        className="w-full max-h-64 object-contain rounded-lg border border-gray-300 cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => window.open(selectedTask.photoUrl, '_blank')}
-                      />
+                      {selectedTask.mediaType === 'video' || (selectedTask.mediaUrl && selectedTask.mediaUrl.includes('.mp4')) ? (
+                        // Affichage vidéo
+                        <video
+                          src={selectedTask.mediaUrl || selectedTask.photoUrl}
+                          className="w-full max-h-64 rounded-lg border border-gray-300"
+                          controls
+                          preload="metadata"
+                        />
+                      ) : (
+                        // Affichage image
+                        <img
+                          src={selectedTask.mediaUrl || selectedTask.photoUrl}
+                          alt="Preuve de tâche"
+                          className="w-full max-h-64 object-contain rounded-lg border border-gray-300 cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => window.open(selectedTask.mediaUrl || selectedTask.photoUrl, '_blank')}
+                        />
+                      )}
                       <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center space-x-1">
-                        <FileImage className="w-3 h-3" />
-                        <span>Cliquer pour agrandir</span>
+                        {selectedTask.mediaType === 'video' ? (
+                          <>
+                            <Video className="w-3 h-3" />
+                            <span>Vidéo • Contrôles disponibles</span>
+                          </>
+                        ) : (
+                          <>
+                            <FileImage className="w-3 h-3" />
+                            <span>Cliquer pour agrandir</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Pas de photo */}
-                {(!selectedTask.hasPhoto || !selectedTask.photoUrl) && (
+                {/* Pas de média */}
+                {(!selectedTask.hasMedia && !selectedTask.hasPhoto) && (
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-2">📸 Photo de preuve</h4>
+                    <h4 className="font-medium text-gray-900 mb-2">📸 Média de preuve</h4>
                     <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                      <Camera className="w-8 h-8 mx-auto text-gray-400 mb-2" />
-                      <p className="text-gray-500">Aucune photo fournie</p>
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <Camera className="w-6 h-6 text-gray-400" />
+                        <Video className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <p className="text-gray-500">Aucun média fourni</p>
                     </div>
                   </div>
                 )}
