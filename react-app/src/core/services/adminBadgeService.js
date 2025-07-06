@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/adminBadgeService.js  
-// SERVICE ADMIN BADGES AVEC TOUTES LES FONCTIONS MANQUANTES
+// SERVICE ADMIN BADGES AVEC EXPORT CORRIGÉ
 // ==========================================
 
 import { 
@@ -108,7 +108,7 @@ class AdminBadgeService {
   }
 
   /**
-   * 👥 OBTENIR TOUS LES UTILISATEURS AVEC LEURS BADGES
+   * 👥 OBTENIR TOUS LES UTILISATEURS
    */
   async getAllUsers() {
     try {
@@ -117,13 +117,7 @@ class AdminBadgeService {
       
       const users = [];
       querySnapshot.forEach((doc) => {
-        const userData = doc.data();
-        users.push({ 
-          id: doc.id, 
-          ...userData,
-          badges: userData.badges || [],
-          xp: userData.xp || 0
-        });
+        users.push({ id: doc.id, ...doc.data() });
       });
       
       console.log('👥 Utilisateurs récupérés:', users.length);
@@ -136,28 +130,30 @@ class AdminBadgeService {
   }
 
   /**
-   * 📊 OBTENIR LES STATISTIQUES COMPLÈTES
+   * 📊 OBTENIR LES STATISTIQUES DES BADGES
    */
-  async getStatistics() {
+  async getBadgeStatistics() {
     try {
       const [badges, users] = await Promise.all([
         this.getAllBadges(),
         this.getAllUsers()
       ]);
 
-      // Statistiques des badges par type
+      // Calculer les types de badges
       const badgesByType = badges.reduce((acc, badge) => {
-        const type = badge.type || 'custom';
+        const type = badge.type || 'general';
         acc[type] = (acc[type] || 0) + 1;
         return acc;
       }, {});
 
-      // Statistiques temporelles (approximatives)
-      const now = new Date();
-      const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      // Badges créés ce mois
+      const thisMonth = new Date();
+      thisMonth.setDate(1);
+      thisMonth.setHours(0, 0, 0, 0);
       
       const recentBadges = badges.filter(badge => {
-        const createdAt = badge.createdAt?.toDate ? badge.createdAt.toDate() : new Date(badge.createdAt);
+        if (!badge.createdAt) return false;
+        const createdAt = badge.createdAt.toDate ? badge.createdAt.toDate() : new Date(badge.createdAt);
         return createdAt >= thisMonth;
       });
 
@@ -290,23 +286,22 @@ class AdminBadgeService {
           name: badgeData.name,
           description: badgeData.description,
           imageUrl: badgeData.imageUrl,
-          awardedAt: new Date(),
+          awardedAt: serverTimestamp(),
           awardedBy: 'admin',
-          reason
+          reason: reason
         };
         
-        currentBadges.push(newBadge);
+        const updatedBadges = [...currentBadges, newBadge];
         
-        // Mettre à jour le document utilisateur
+        // Mettre à jour le profil
         await updateDoc(userRef, {
-          badges: currentBadges,
-          lastBadgeEarned: new Date(),
+          badges: updatedBadges,
+          lastBadgeReceived: newBadge,
           xp: (userData.xp || 0) + (badgeData.xpReward || 50)
         });
         
         console.log('✅ Badge attribué avec succès');
         return { success: true, message: 'Badge attribué avec succès' };
-        
       } else {
         throw new Error('Utilisateur non trouvé');
       }
@@ -322,11 +317,13 @@ class AdminBadgeService {
    */
   async deleteBadge(badgeId) {
     try {
+      console.log('🗑️ Suppression badge:', badgeId);
+      
       const badgeRef = doc(db, this.COLLECTION_NAME, badgeId);
       await deleteDoc(badgeRef);
       
-      console.log('🗑️ Badge supprimé:', badgeId);
-      return { success: true };
+      console.log('✅ Badge supprimé avec succès');
+      return { success: true, message: 'Badge supprimé avec succès' };
       
     } catch (error) {
       console.error('❌ Erreur suppression badge:', error);
@@ -343,55 +340,47 @@ class AdminBadgeService {
       const userSnap = await getDoc(userRef);
       
       if (userSnap.exists()) {
-        const userData = userSnap.data();
-        
-        // Enrichir avec des données calculées
-        return {
-          id: userId,
-          ...userData,
-          badges: userData.badges || [],
-          xp: userData.xp || 0,
-          level: Math.floor((userData.xp || 0) / 100) + 1,
-          tasksCompleted: userData.tasksCompleted || 0
-        };
+        return { id: userSnap.id, ...userSnap.data() };
       } else {
         throw new Error('Utilisateur non trouvé');
       }
       
     } catch (error) {
-      console.error('❌ Erreur profil utilisateur:', error);
+      console.error('❌ Erreur récupération profil:', error);
       throw error;
     }
   }
 
   /**
-   * 🔍 DIAGNOSTIC ACCÈS ADMIN
+   * 🔧 DIAGNOSTICS ADMIN
    */
   diagnoseAdminAccess(user) {
-    const diagnosis = {
-      email: user?.email || 'Non défini',
+    const checks = {
+      userExists: !!user,
+      hasEmail: !!user?.email,
       isSuperAdmin: user?.email === 'alan.boehme61@gmail.com',
-      role: user?.role || 'Non défini',
-      profileRole: user?.profile?.role || 'Non défini',
-      isAdminFlag: user?.isAdmin || false,
-      permissions: user?.permissions || [],
-      hasAdminAccess: false,
-      recommendations: []
+      roleAdmin: user?.role === 'admin',
+      profileRoleAdmin: user?.profile?.role === 'admin',
+      hasAdminFlag: user?.isAdmin === true,
+      hasPermissions: !!user?.permissions?.length,
+      hasAdminAccess: user?.permissions?.includes('admin_access'),
+      hasBadgePermission: user?.permissions?.includes('manage_badges')
     };
 
-    diagnosis.hasAdminAccess = this.checkAdminPermissions(user);
+    const isAdmin = checks.isSuperAdmin || checks.roleAdmin || checks.profileRoleAdmin || 
+                   checks.hasAdminFlag || checks.hasAdminAccess || checks.hasBadgePermission;
 
-    if (!diagnosis.hasAdminAccess && diagnosis.email !== 'alan.boehme61@gmail.com') {
-      diagnosis.recommendations.push('Ajouter role: "admin" au profil utilisateur');
-      diagnosis.recommendations.push('Ou ajouter isAdmin: true');
-      diagnosis.recommendations.push('Ou ajouter "admin_access" aux permissions');
-    }
-
-    return diagnosis;
+    return {
+      isAdmin,
+      checks,
+      recommendation: isAdmin ? 
+        'Accès admin confirmé' : 
+        'Aucun accès admin détecté - contactez un administrateur'
+    };
   }
 
   /**
-   * 🚨 FORCER L'ACCÈS ADMIN (URGENCE)
+   * 🚨 FORCER L'ACCÈS ADMIN (Emergency)
    */
   async forceAdminAccess(userEmail = 'alan.boehme61@gmail.com') {
     try {
@@ -403,7 +392,7 @@ class AdminBadgeService {
       const querySnapshot = await getDocs(q);
       
       if (querySnapshot.empty) {
-        console.log('❌ Utilisateur non trouvé pour forçage admin');
+        console.error('❌ Utilisateur non trouvé:', userEmail);
         return { success: false, message: 'Utilisateur non trouvé' };
       }
       
@@ -431,16 +420,16 @@ class AdminBadgeService {
   }
 }
 
-// Export de l'instance
+// ✅ EXPORT PRINCIPAL CORRIGÉ
 const adminBadgeService = new AdminBadgeService();
+export { adminBadgeService };
 export default adminBadgeService;
 
-// 🛡️ FONCTION isAdmin ULTRA-ROBUSTE (export principal)
+// 🛡️ FONCTIONS UTILITAIRES EXPORT
 export const isAdmin = (user) => {
   return adminBadgeService.checkAdminPermissions(user);
 };
 
-// Fonctions utilitaires
 export const getAllBadgesAdmin = async () => {
   return await adminBadgeService.getAllBadges();
 };
