@@ -1,16 +1,15 @@
 // ==========================================
 // 📁 react-app/src/core/services/storageService.js
-// SERVICE D'UPLOAD FIREBASE STORAGE AVEC LE BON NOM DE BUCKET
+// SERVICE D'UPLOAD FIREBASE STORAGE - VERSION CORS SAFE
 // ==========================================
 
 import { getAuth } from 'firebase/auth';
 
 /**
- * 📁 SERVICE D'UPLOAD FIREBASE STORAGE AVEC API REST
+ * 📁 SERVICE D'UPLOAD FIREBASE STORAGE SANS HEADERS CORS PROBLÉMATIQUES
  */
 class StorageService {
   constructor() {
-    // ✅ BON NOM DU BUCKET FIREBASE
     this.bucketName = 'synergia-app-f27e7.firebasestorage.app';
     this.baseUrl = `https://firebasestorage.googleapis.com/v0/b/${this.bucketName}/o`;
   }
@@ -37,11 +36,11 @@ class StorageService {
   }
 
   /**
-   * 📸 Upload d'un fichier avec l'API REST Firebase Storage
+   * 📸 Upload d'un fichier avec l'API REST Firebase Storage - CORS SAFE
    */
   async uploadFile(file, path, metadata = {}) {
     try {
-      console.log('📸 Upload API REST vers:', path, {
+      console.log('📸 Upload API REST CORS-safe vers:', path, {
         size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
         type: file.type,
         bucket: this.bucketName
@@ -56,21 +55,15 @@ class StorageService {
       // ✅ URL d'upload avec paramètres
       const uploadUrl = `${this.baseUrl}/${encodedPath}?uploadType=media`;
       
-      // ✅ Préparer les headers
+      // ✅ Headers minimalistes pour éviter CORS
       const headers = {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': file.type,
-        'Content-Length': file.size.toString()
+        'Content-Type': file.type
+        // ❌ PAS de Content-Length (automatique)
+        // ❌ PAS de x-goog-meta-* (cause CORS)
       };
       
-      // ✅ Ajouter métadonnées personnalisées si nécessaire
-      if (metadata && Object.keys(metadata).length > 0) {
-        Object.keys(metadata).forEach(key => {
-          headers[`x-goog-meta-${key}`] = metadata[key];
-        });
-      }
-      
-      console.log('🔄 Démarrage upload API REST...');
+      console.log('🔄 Démarrage upload API REST CORS-safe...');
       
       // ✅ Upload avec fetch
       const response = await fetch(uploadUrl, {
@@ -187,16 +180,10 @@ class StorageService {
       const fileExtension = mediaFile.name.split('.').pop()?.toLowerCase() || 'bin';
       const fileName = `tasks/${userId}/${taskId}_${timestamp}.${fileExtension}`;
       
-      const metadata = {
-        taskId: taskId,
-        userId: userId,
-        originalName: mediaFile.name,
-        uploadedAt: new Date().toISOString()
-      };
+      // ✅ Pas de métadonnées pour éviter CORS
+      console.log('📸 Upload média tâche CORS-safe:', fileName);
       
-      console.log('📸 Upload média tâche avec API REST:', fileName);
-      
-      const result = await this.uploadFile(mediaFile, fileName, metadata);
+      const result = await this.uploadFile(mediaFile, fileName);
       
       console.log('✅ Média tâche uploadé avec succès:', result.url);
       
@@ -217,16 +204,9 @@ class StorageService {
       const fileExtension = imageFile.name.split('.').pop()?.toLowerCase() || 'jpg';
       const fileName = `profiles/${userId}/avatar_${timestamp}.${fileExtension}`;
       
-      const metadata = {
-        userId: userId,
-        type: 'profile_avatar',
-        originalName: imageFile.name,
-        uploadedAt: new Date().toISOString()
-      };
+      console.log('👤 Upload avatar utilisateur CORS-safe:', fileName);
       
-      console.log('👤 Upload avatar utilisateur avec API REST:', fileName);
-      
-      const result = await this.uploadFile(imageFile, fileName, metadata);
+      const result = await this.uploadFile(imageFile, fileName);
       
       console.log('✅ Avatar utilisateur uploadé:', result.url);
       
