@@ -20,7 +20,7 @@ import {
 import { db } from '../firebase.js';
 
 // Constantes pour les statuts des tâches
-export const TASK_STATUS = {
+const TASK_STATUS = {
   TODO: 'todo',
   IN_PROGRESS: 'in_progress',
   VALIDATION_PENDING: 'validation_pending',
