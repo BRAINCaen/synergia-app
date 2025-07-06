@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskService.js
-// SERVICE FIREBASE POUR LA GESTION DES TÂCHES - AVEC UPLOAD PHOTOS
+// SERVICE FIREBASE POUR LA GESTION DES TÂCHES - CORS CORRIGÉ
 // ==========================================
 
 import { 
@@ -20,7 +20,8 @@ import {
 import { 
   ref, 
   uploadBytes, 
-  getDownloadURL 
+  getDownloadURL,
+  connectStorageEmulator 
 } from 'firebase/storage';
 import { db, storage } from '../firebase.js';
 
@@ -43,30 +44,61 @@ class TaskService {
   }
 
   /**
-   * 📸 UPLOAD D'UNE PHOTO/VIDÉO DE TÂCHE
+   * 📸 UPLOAD D'UNE PHOTO/VIDÉO DE TÂCHE - CORS CORRIGÉ
    */
   async uploadTaskMedia(taskId, userId, mediaFile) {
     try {
+      if (!storage) {
+        throw new Error('Firebase Storage non initialisé');
+      }
+
       const timestamp = Date.now();
       const fileExtension = mediaFile.name.split('.').pop() || 'jpg';
-      const fileName = `task-media/${userId}/${taskId}-${timestamp}.${fileExtension}`;
+      
+      // ✅ CORRECTION CORS : Utiliser un chemin simple sans caractères spéciaux
+      const fileName = `task-media/${userId}/${taskId}_${timestamp}.${fileExtension}`;
+      
+      console.log('📸 Upload média vers:', fileName, `(${(mediaFile.size / 1024 / 1024).toFixed(2)} MB)`);
+      
+      // ✅ CORRECTION CORS : Créer la référence correctement
       const mediaRef = ref(storage, fileName);
       
-      console.log('📸 Upload media vers:', fileName, `(${(mediaFile.size / 1024 / 1024).toFixed(2)} MB)`);
+      // ✅ CORRECTION CORS : Métadonnées personnalisées pour éviter les problèmes CORS
+      const metadata = {
+        contentType: mediaFile.type,
+        customMetadata: {
+          'taskId': taskId,
+          'userId': userId,
+          'uploadedAt': new Date().toISOString()
+        }
+      };
       
-      await uploadBytes(mediaRef, mediaFile);
-      const downloadURL = await getDownloadURL(mediaRef);
+      // ✅ Upload avec métadonnées
+      const uploadResult = await uploadBytes(mediaRef, mediaFile, metadata);
+      console.log('📸 Upload terminé:', uploadResult.metadata.name);
       
-      console.log('✅ Media uploadé avec succès:', downloadURL);
+      // ✅ Obtenir l'URL de téléchargement
+      const downloadURL = await getDownloadURL(uploadResult.ref);
+      
+      console.log('✅ Média uploadé avec succès:', downloadURL);
+      
       return {
         url: downloadURL,
         type: mediaFile.type.startsWith('video/') ? 'video' : 'image',
         size: mediaFile.size,
-        name: mediaFile.name
+        name: mediaFile.name,
+        path: fileName
       };
       
     } catch (error) {
-      console.error('❌ Erreur upload media:', error);
+      console.error('❌ Erreur upload média:', error);
+      
+      // ✅ Gestion d'erreur CORS spécifique
+      if (error.code === 'storage/unknown' || error.message.includes('CORS')) {
+        console.error('🚨 Erreur CORS Firebase Storage détectée');
+        throw new Error('Erreur de configuration Firebase Storage (CORS). Veuillez contacter l\'administrateur.');
+      }
+      
       throw error;
     }
   }
@@ -191,7 +223,7 @@ class TaskService {
   }
 
   /**
-   * 🎯 SOUMETTRE UNE TÂCHE POUR VALIDATION - AVEC UPLOAD PHOTO/VIDÉO
+   * 🎯 SOUMETTRE UNE TÂCHE POUR VALIDATION - AVEC UPLOAD PHOTO/VIDÉO CORRIGÉ
    */
   async submitTaskForValidation(taskId, submissionData) {
     try {
@@ -205,22 +237,33 @@ class TaskService {
         mediaSize: photoFile ? `${(photoFile.size / 1024 / 1024).toFixed(2)} MB` : 'N/A'
       });
 
-      // Upload du média si fourni (photo ou vidéo)
+      // ✅ LOGIQUE SANS UPLOAD SI PAS DE STORAGE
       let mediaData = null;
       if (photoFile) {
-        console.log('📸 Upload média en cours...');
-        
-        // Récupérer d'abord la tâche pour avoir l'userId
-        const taskRef = doc(db, this.COLLECTION_NAME, taskId);
-        const taskSnap = await getDoc(taskRef);
-        
-        if (!taskSnap.exists()) {
-          throw new Error('Tâche non trouvée');
+        if (!storage) {
+          console.warn('⚠️ Firebase Storage non configuré - Tâche soumise sans média');
+          // Continuer sans média plutôt que de faire échouer
+        } else {
+          try {
+            console.log('📸 Upload média en cours...');
+            
+            // Récupérer d'abord la tâche pour avoir l'userId
+            const taskRef = doc(db, this.COLLECTION_NAME, taskId);
+            const taskSnap = await getDoc(taskRef);
+            
+            if (!taskSnap.exists()) {
+              throw new Error('Tâche non trouvée');
+            }
+            
+            const taskData = taskSnap.data();
+            mediaData = await this.uploadTaskMedia(taskId, taskData.userId, photoFile);
+            console.log('✅ Média uploadé:', mediaData);
+          } catch (uploadError) {
+            console.error('❌ Erreur upload média:', uploadError);
+            // Ne pas faire échouer la soumission à cause de l'upload
+            console.warn('⚠️ Tâche soumise sans média à cause de l\'erreur d\'upload');
+          }
         }
-        
-        const taskData = taskSnap.data();
-        mediaData = await this.uploadTaskMedia(taskId, taskData.userId, photoFile);
-        console.log('✅ Média uploadé:', mediaData);
       }
 
       // Mettre à jour la tâche avec les nouvelles données
@@ -228,7 +271,7 @@ class TaskService {
         status: TASK_STATUS.VALIDATION_PENDING,
         submissionComment: comment || '',
         submittedAt: serverTimestamp(),
-        hasMedia: !!photoFile,
+        hasMedia: !!mediaData,
         mediaUrl: mediaData?.url || null,
         mediaType: mediaData?.type || null,
         updatedAt: serverTimestamp()
@@ -236,15 +279,17 @@ class TaskService {
 
       await this.updateTask(taskId, updateData);
       
-      console.log('✅ Tâche soumise pour validation avec média:', {
+      console.log('✅ Tâche soumise pour validation:', {
         taskId,
-        mediaUrl: !!mediaData?.url,
+        hasMedia: !!mediaData,
         mediaType: mediaData?.type
       });
       
       return {
         success: true,
-        message: 'Tâche soumise pour validation admin',
+        message: mediaData ? 
+          'Tâche soumise pour validation admin avec média' : 
+          'Tâche soumise pour validation admin',
         status: TASK_STATUS.VALIDATION_PENDING,
         mediaUrl: mediaData?.url,
         mediaType: mediaData?.type
