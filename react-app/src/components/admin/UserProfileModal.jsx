@@ -4,7 +4,7 @@
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
   User, 
@@ -17,7 +17,11 @@ import {
   Clock,
   MapPin,
   Phone,
-  Briefcase
+  Briefcase,
+  Shield,
+  Zap,
+  Users,
+  Activity
 } from 'lucide-react';
 import { adminBadgeService } from '../../core/services/adminBadgeService.js';
 
@@ -53,214 +57,287 @@ const UserProfileModal = ({ isOpen, user, onClose }) => {
     if (!date) return 'Non défini';
     const d = date.toDate ? date.toDate() : new Date(date);
     return d.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
       year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
-  const calculateLevel = (xp) => {
+  const getLevelFromXP = (xp) => {
+    if (!xp) return 1;
     return Math.floor(xp / 100) + 1;
   };
 
-  const getXPProgress = (xp) => {
-    const currentLevelXP = xp % 100;
-    return (currentLevelXP / 100) * 100;
+  const getXPForNextLevel = (xp) => {
+    const currentLevel = getLevelFromXP(xp);
+    return currentLevel * 100;
+  };
+
+  const getRoleColor = (role) => {
+    const colors = {
+      admin: 'bg-red-100 text-red-800',
+      manager: 'bg-purple-100 text-purple-800',
+      leader: 'bg-blue-100 text-blue-800',
+      member: 'bg-green-100 text-green-800'
+    };
+    return colors[role] || 'bg-gray-100 text-gray-800';
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        
-        {/* Overlay */}
-        <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-          <div className="absolute inset-0 bg-gray-500 opacity-75" onClick={onClose}></div>
-        </div>
-
-        {/* Modal */}
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        onClick={onClose}
+      >
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
         >
-          
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 text-white">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Profil Utilisateur
-              </h3>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
+                {userDetails?.displayName?.[0] || userDetails?.email?.[0]?.toUpperCase() || '?'}
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {userDetails?.displayName || userDetails?.email || 'Utilisateur'}
+                </h2>
+                <p className="text-gray-600">{userDetails?.email}</p>
+              </div>
             </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-6 h-6 text-gray-500" />
+            </button>
           </div>
 
-          {/* Contenu */}
-          <div className="px-6 py-4">
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-2 text-gray-600">Chargement du profil...</span>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                
-                {/* Informations principales */}
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-3">
-                    {(userDetails?.displayName || userDetails?.email || 'U')[0].toUpperCase()}
-                  </div>
-                  
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    {userDetails?.displayName || 'Nom non défini'}
-                  </h3>
-                  
-                  <p className="text-gray-600 flex items-center justify-center gap-1">
-                    <Mail className="w-4 h-4" />
-                    {userDetails?.email}
-                  </p>
-                </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-3 text-gray-600">Chargement du profil...</span>
+            </div>
+          ) : (
+            <div className="p-6 space-y-6">
 
-                {/* Statistiques de gamification */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                    <Trophy className="w-4 h-4" />
+              {/* Informations générales */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Statistiques principales */}
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-blue-600" />
                     Progression
-                  </h4>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-blue-600">
-                        {calculateLevel(userDetails?.xp || 0)}
-                      </p>
-                      <p className="text-sm text-gray-600">Niveau</p>
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Niveau</span>
+                      <span className="text-2xl font-bold text-blue-600">
+                        {getLevelFromXP(userDetails?.xp)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">XP Total</span>
+                      <span className="text-xl font-semibold text-gray-900">
+                        {userDetails?.xp || 0}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Prochain niveau</span>
+                      <span className="text-lg text-gray-700">
+                        {getXPForNextLevel(userDetails?.xp || 0)} XP
+                      </span>
                     </div>
                     
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-purple-600">
-                        {userDetails?.xp || 0}
-                      </p>
-                      <p className="text-sm text-gray-600">XP Total</p>
-                    </div>
-                  </div>
-                  
-                  {/* Barre de progression */}
-                  <div className="mt-4">
-                    <div className="flex justify-between text-sm text-gray-600 mb-1">
-                      <span>Progression niveau</span>
-                      <span>{Math.round(getXPProgress(userDetails?.xp || 0))}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    {/* Barre de progression */}
+                    <div className="w-full bg-gray-200 rounded-full h-3">
                       <div 
-                        className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${getXPProgress(userDetails?.xp || 0)}%` }}
+                        className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${((userDetails?.xp || 0) % 100)}%` 
+                        }}
                       ></div>
                     </div>
                   </div>
                 </div>
 
-                {/* Badges obtenus */}
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                    <Award className="w-4 h-4" />
-                    Badges ({(userDetails?.badges || []).length})
-                  </h4>
-                  
-                  {(userDetails?.badges || []).length > 0 ? (
-                    <div className="grid grid-cols-3 gap-2">
-                      {(userDetails.badges || []).slice(0, 6).map((badge, index) => (
-                        <div 
-                          key={index}
-                          className="bg-white border rounded-lg p-2 text-center hover:shadow-md transition-shadow"
-                          title={badge.description}
-                        >
-                          <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center text-white text-sm font-bold mx-auto mb-1">
-                            🏆
-                          </div>
-                          <p className="text-xs text-gray-600 truncate">{badge.name}</p>
-                        </div>
-                      ))}
-                      {(userDetails.badges || []).length > 6 && (
-                        <div className="bg-gray-100 border rounded-lg p-2 text-center flex items-center justify-center">
-                          <span className="text-xs text-gray-500">
-                            +{(userDetails.badges || []).length - 6} autres
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-sm text-center py-4">
-                      Aucun badge obtenu pour le moment
-                    </p>
-                  )}
-                </div>
-
-                {/* Informations détaillées */}
-                <div className="border-t pt-4">
-                  <h4 className="font-medium text-gray-900 mb-3">Informations détaillées</h4>
-                  
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-600">Membre depuis :</span>
-                      <span className="font-medium">{formatDate(userDetails?.createdAt)}</span>
+                {/* Informations du profil */}
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <User className="w-5 h-5 text-gray-600" />
+                    Informations
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600 flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        Email
+                      </span>
+                      <span className="text-gray-900 font-medium">
+                        {userDetails?.email || 'Non défini'}
+                      </span>
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-600">Dernière activité :</span>
-                      <span className="font-medium">{formatDate(userDetails?.lastLoginAt)}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600 flex items-center gap-2">
+                        <Shield className="w-4 h-4" />
+                        Rôle
+                      </span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(userDetails?.role || 'member')}`}>
+                        {userDetails?.role || userDetails?.profile?.role || 'Membre'}
+                      </span>
                     </div>
                     
-                    {userDetails?.department && (
-                      <div className="flex items-center gap-2">
-                        <Briefcase className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-600">Département :</span>
-                        <span className="font-medium">{userDetails.department}</span>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600 flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        Inscrit le
+                      </span>
+                      <span className="text-gray-900">
+                        {formatDate(userDetails?.createdAt)}
+                      </span>
+                    </div>
                     
-                    {userDetails?.role && (
-                      <div className="flex items-center gap-2">
-                        <Star className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-600">Rôle :</span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          userDetails.role === 'admin' 
-                            ? 'bg-red-100 text-red-800'
-                            : userDetails.role === 'manager'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {userDetails.role}
-                        </span>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600 flex items-center gap-2">
+                        <Activity className="w-4 h-4" />
+                        Dernière activité
+                      </span>
+                      <span className="text-gray-900">
+                        {formatDate(userDetails?.lastActivity || userDetails?.updatedAt)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+
+              {/* Badges */}
+              <div className="bg-white rounded-lg border p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-yellow-600" />
+                  Badges ({userDetails?.badges?.length || 0})
+                </h3>
+                
+                {userDetails?.badges?.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {userDetails.badges.map((badge, index) => (
+                      <div key={index} className="text-center p-3 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-lg border">
+                        <div className="w-12 h-12 mx-auto bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg mb-2">
+                          {badge.icon || '🏆'}
+                        </div>
+                        <h4 className="font-medium text-gray-900 text-sm mb-1">
+                          {badge.name}
+                        </h4>
+                        <p className="text-xs text-gray-600 line-clamp-2">
+                          {badge.description}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatDate(badge.awardedAt)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Trophy className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>Aucun badge obtenu</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Statistiques détaillées */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                  <div className="w-8 h-8 bg-blue-600 rounded-full mx-auto mb-2 flex items-center justify-center">
+                    <Target className="w-4 h-4 text-white" />
+                  </div>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {userDetails?.stats?.tasksCompleted || 0}
+                  </p>
+                  <p className="text-sm text-blue-800">Tâches terminées</p>
+                </div>
+                
+                <div className="bg-green-50 rounded-lg p-4 text-center">
+                  <div className="w-8 h-8 bg-green-600 rounded-full mx-auto mb-2 flex items-center justify-center">
+                    <Users className="w-4 h-4 text-white" />
+                  </div>
+                  <p className="text-2xl font-bold text-green-600">
+                    {userDetails?.stats?.projectsParticipated || 0}
+                  </p>
+                  <p className="text-sm text-green-800">Projets</p>
+                </div>
+                
+                <div className="bg-purple-50 rounded-lg p-4 text-center">
+                  <div className="w-8 h-8 bg-purple-600 rounded-full mx-auto mb-2 flex items-center justify-center">
+                    <Clock className="w-4 h-4 text-white" />
+                  </div>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {userDetails?.stats?.streak || 0}
+                  </p>
+                  <p className="text-sm text-purple-800">Jours consécutifs</p>
+                </div>
+                
+                <div className="bg-orange-50 rounded-lg p-4 text-center">
+                  <div className="w-8 h-8 bg-orange-600 rounded-full mx-auto mb-2 flex items-center justify-center">
+                    <Star className="w-4 h-4 text-white" />
+                  </div>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {userDetails?.stats?.averageRating || 0}
+                  </p>
+                  <p className="text-sm text-orange-800">Note moyenne</p>
+                </div>
+              </div>
+
+              {/* Activité récente */}
+              {userDetails?.recentActivity?.length > 0 && (
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-gray-600" />
+                    Activité récente
+                  </h3>
+                  <div className="space-y-3">
+                    {userDetails.recentActivity.slice(0, 5).map((activity, index) => (
+                      <div key={index} className="flex items-center space-x-3 p-3 bg-white rounded-lg">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Activity className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-900">{activity.description}</p>
+                          <p className="text-xs text-gray-500">{formatDate(activity.createdAt)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
 
           {/* Footer */}
-          <div className="bg-gray-50 px-6 py-3 flex justify-end">
+          <div className="flex items-center justify-end p-6 border-t border-gray-200">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
             >
               Fermer
             </button>
           </div>
         </motion.div>
-      </div>
-    </div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 
