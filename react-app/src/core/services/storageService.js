@@ -1,12 +1,12 @@
 // ==========================================
 // 📁 react-app/src/core/services/storageService.js
-// SERVICE D'UPLOAD FIREBASE STORAGE - VERSION CORS SAFE
+// SERVICE D'UPLOAD FIREBASE STORAGE AVEC URLS PUBLIQUES POUR LECTEUR VIDÉO
 // ==========================================
 
 import { getAuth } from 'firebase/auth';
 
 /**
- * 📁 SERVICE D'UPLOAD FIREBASE STORAGE SANS HEADERS CORS PROBLÉMATIQUES
+ * 📁 SERVICE D'UPLOAD FIREBASE STORAGE AVEC URLs PUBLIQUES
  */
 class StorageService {
   constructor() {
@@ -36,11 +36,11 @@ class StorageService {
   }
 
   /**
-   * 📸 Upload d'un fichier avec l'API REST Firebase Storage - CORS SAFE
+   * 📸 Upload d'un fichier avec l'API REST Firebase Storage
    */
   async uploadFile(file, path, metadata = {}) {
     try {
-      console.log('📸 Upload API REST CORS-safe vers:', path, {
+      console.log('📸 Upload API REST vers:', path, {
         size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
         type: file.type,
         bucket: this.bucketName
@@ -59,11 +59,9 @@ class StorageService {
       const headers = {
         'Authorization': `Bearer ${token}`,
         'Content-Type': file.type
-        // ❌ PAS de Content-Length (automatique)
-        // ❌ PAS de x-goog-meta-* (cause CORS)
       };
       
-      console.log('🔄 Démarrage upload API REST CORS-safe...');
+      console.log('🔄 Démarrage upload API REST...');
       
       // ✅ Upload avec fetch
       const response = await fetch(uploadUrl, {
@@ -81,8 +79,8 @@ class StorageService {
       const result = await response.json();
       console.log('✅ Upload API REST réussi:', result);
       
-      // ✅ Obtenir l'URL de téléchargement
-      const downloadURL = await this.getDownloadURL(path);
+      // ✅ Obtenir l'URL de téléchargement publique
+      const downloadURL = await this.getPublicDownloadURL(path);
       
       return {
         success: true,
@@ -103,14 +101,14 @@ class StorageService {
   }
 
   /**
-   * 🔗 Obtenir l'URL de téléchargement d'un fichier
+   * 🔗 Obtenir l'URL de téléchargement publique (CORRIGÉE POUR LECTEUR VIDÉO)
    */
-  async getDownloadURL(path) {
+  async getPublicDownloadURL(path) {
     try {
       const token = await this.getAuthToken();
       const encodedPath = encodeURIComponent(path);
       
-      // ✅ URL pour obtenir les métadonnées et l'URL de téléchargement
+      // ✅ Obtenir un token de téléchargement publique
       const metadataUrl = `${this.baseUrl}/${encodedPath}`;
       
       const response = await fetch(metadataUrl, {
@@ -121,19 +119,95 @@ class StorageService {
       });
       
       if (!response.ok) {
-        throw new Error(`Failed to get download URL: ${response.status}`);
+        throw new Error(`Failed to get metadata: ${response.status}`);
       }
       
       const metadata = await response.json();
       
-      // ✅ Construire l'URL de téléchargement publique
-      const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${this.bucketName}/o/${encodedPath}?alt=media`;
+      // ✅ Vérifier si le fichier a déjà un downloadToken
+      let downloadToken = metadata.downloadTokens;
       
-      console.log('✅ URL de téléchargement obtenue:', downloadURL);
-      return downloadURL;
+      // ✅ Si pas de token, en créer un
+      if (!downloadToken) {
+        console.log('🔑 Création token de téléchargement publique...');
+        downloadToken = await this.createDownloadToken(path);
+      }
+      
+      // ✅ Construire l'URL publique avec token
+      const publicURL = `https://firebasestorage.googleapis.com/v0/b/${this.bucketName}/o/${encodedPath}?alt=media&token=${downloadToken}`;
+      
+      console.log('✅ URL publique générée:', publicURL);
+      return publicURL;
       
     } catch (error) {
-      console.error('❌ Erreur récupération URL:', error);
+      console.error('❌ Erreur récupération URL publique:', error);
+      
+      // ✅ Fallback : URL simple (peut nécessiter auth)
+      const encodedPath = encodeURIComponent(path);
+      const fallbackURL = `https://firebasestorage.googleapis.com/v0/b/${this.bucketName}/o/${encodedPath}?alt=media`;
+      
+      console.warn('⚠️ Utilisation URL fallback (peut nécessiter auth):', fallbackURL);
+      return fallbackURL;
+    }
+  }
+
+  /**
+   * 🔑 Créer un token de téléchargement public
+   */
+  async createDownloadToken(path) {
+    try {
+      const token = await this.getAuthToken();
+      const encodedPath = encodeURIComponent(path);
+      
+      // ✅ Générer un UUID simple pour le token
+      const downloadToken = 'synergia-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+      
+      // ✅ Mettre à jour les métadonnées avec le token
+      const metadataUrl = `${this.baseUrl}/${encodedPath}`;
+      
+      const response = await fetch(metadataUrl, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          metadata: {
+            downloadTokens: downloadToken
+          }
+        })
+      });
+      
+      if (response.ok) {
+        console.log('✅ Token de téléchargement créé:', downloadToken);
+        return downloadToken;
+      } else {
+        throw new Error(`Failed to create download token: ${response.status}`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur création token:', error);
+      // Retourner un token par défaut
+      return 'public-' + Date.now();
+    }
+  }
+
+  /**
+   * 🔗 Obtenir l'URL de téléchargement avec token d'auth (pour cas spéciaux)
+   */
+  async getAuthenticatedDownloadURL(path) {
+    try {
+      const token = await this.getAuthToken();
+      const encodedPath = encodeURIComponent(path);
+      
+      // ✅ URL avec token d'authentification
+      const authURL = `${this.baseUrl}/${encodedPath}?alt=media&auth=${token}`;
+      
+      console.log('✅ URL authentifiée générée:', authURL);
+      return authURL;
+      
+    } catch (error) {
+      console.error('❌ Erreur URL authentifiée:', error);
       throw error;
     }
   }
@@ -180,12 +254,11 @@ class StorageService {
       const fileExtension = mediaFile.name.split('.').pop()?.toLowerCase() || 'bin';
       const fileName = `tasks/${userId}/${taskId}_${timestamp}.${fileExtension}`;
       
-      // ✅ Pas de métadonnées pour éviter CORS
-      console.log('📸 Upload média tâche CORS-safe:', fileName);
+      console.log('📸 Upload média tâche avec URL publique:', fileName);
       
       const result = await this.uploadFile(mediaFile, fileName);
       
-      console.log('✅ Média tâche uploadé avec succès:', result.url);
+      console.log('✅ Média tâche uploadé avec URL publique:', result.url);
       
       return result;
       
@@ -204,17 +277,40 @@ class StorageService {
       const fileExtension = imageFile.name.split('.').pop()?.toLowerCase() || 'jpg';
       const fileName = `profiles/${userId}/avatar_${timestamp}.${fileExtension}`;
       
-      console.log('👤 Upload avatar utilisateur CORS-safe:', fileName);
+      console.log('👤 Upload avatar avec URL publique:', fileName);
       
       const result = await this.uploadFile(imageFile, fileName);
       
-      console.log('✅ Avatar utilisateur uploadé:', result.url);
+      console.log('✅ Avatar uploadé avec URL publique:', result.url);
       
       return result;
       
     } catch (error) {
       console.error('❌ Erreur upload avatar:', error);
       throw new Error(`Erreur upload avatar: ${error.message}`);
+    }
+  }
+
+  /**
+   * 🔄 Convertir une URL privée en URL publique (utilitaire)
+   */
+  async makeUrlPublic(privateUrl) {
+    try {
+      // Extraire le chemin de l'URL privée
+      const urlParts = privateUrl.split('/o/');
+      if (urlParts.length < 2) {
+        throw new Error('URL invalide');
+      }
+      
+      const pathPart = urlParts[1].split('?')[0];
+      const decodedPath = decodeURIComponent(pathPart);
+      
+      // Générer une nouvelle URL publique
+      return await this.getPublicDownloadURL(decodedPath);
+      
+    } catch (error) {
+      console.error('❌ Erreur conversion URL publique:', error);
+      return privateUrl; // Retourner l'URL originale en cas d'erreur
     }
   }
 }
