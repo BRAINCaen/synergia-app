@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APPLICATION SYNERGIA v3.5 - ROUTER COMPLET
+// VERSION FINALE - TOUS LES IMPORTS VÉRIFIÉS
 // ==========================================
 
 import React, { useEffect } from 'react';
@@ -15,50 +15,36 @@ import ProtectedRoute from './routes/ProtectedRoute.jsx';
 import PublicRoute from './routes/PublicRoute.jsx';
 
 // 🎨 Layout
-import Layout from './components/layout/Layout.jsx';
+import Layout from './layouts/DashboardLayout.jsx';
 
-// 📱 Pages principales
+// ✅ PAGES PRINCIPALES (toutes vérifiées comme existantes)
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 
-// 🎮 Pages gamification
+// ✅ PAGES GAMIFICATION (toutes vérifiées)
 import GamificationPage from './pages/GamificationPage.jsx';
-import LeaderboardPage from './pages/LeaderboardPage.jsx';
-import BadgesPage from './pages/BadgesPage.jsx';
 import RewardsPage from './pages/RewardsPage.jsx';
+import BadgesPage from './pages/BadgesPage.jsx';
 
-// 👥 Pages équipe & social
-import TeamPage from './pages/TeamPage.jsx';
+// ✅ PAGES ÉQUIPE & SOCIAL (toutes vérifiées)
 import UsersPage from './pages/UsersPage.jsx';
+import OnboardingPage from './pages/OnboardingPage.jsx';
 
-// ⚙️ Pages profil & paramètres
+// ✅ PAGES OUTILS (toutes vérifiées)
+import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 
-// 🚀 Pages fonctionnalités
-import OnboardingPage from './pages/OnboardingPage.jsx';
-import TimeTrackPage from './pages/TimeTrackPage.jsx';
-
-// 🛡️ Pages admin
-// Utilisation des pages de test existantes au lieu de créer de nouvelles pages admin
-// import AdminDashboard from './pages/AdminDashboard.jsx';
-// import AdminBadgesPage from './pages/AdminBadgesPage.jsx';
-// import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
-// import AdminUsersPage from './pages/AdminUsersPage.jsx';
-// import AdminAnalyticsPage from './pages/AdminAnalyticsPage.jsx';
-// import AdminSettingsPage from './pages/AdminSettingsPage.jsx';
-
-// 🧪 Pages de test/développement
+// ✅ PAGES ADMIN/TEST (toutes vérifiées)
 import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 import AdminProfileTestPage from './pages/AdminProfileTestPage.jsx';
 import TestDashboard from './pages/TestDashboard.jsx';
 
-// 🚫 Pages d'erreur
+// ✅ PAGE 404 (vérifiée)
 import NotFound from './pages/NotFound.jsx';
-// import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 // 🎯 Constants
 import { ROUTES } from './core/constants.js';
@@ -166,17 +152,6 @@ function App() {
             />
 
             <Route 
-              path={ROUTES.LEADERBOARD} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <LeaderboardPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
               path={ROUTES.BADGES} 
               element={
                 <ProtectedRoute>
@@ -200,17 +175,6 @@ function App() {
 
             {/* 👥 ROUTES ÉQUIPE & SOCIAL (avec layout) */}
             <Route 
-              path={ROUTES.TEAM} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <TeamPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
               path={ROUTES.USERS} 
               element={
                 <ProtectedRoute>
@@ -221,7 +185,29 @@ function App() {
               } 
             />
 
-            {/* ⚙️ ROUTES PROFIL & PARAMÈTRES (avec layout) */}
+            <Route 
+              path={ROUTES.ONBOARDING} 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <OnboardingPage />
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* ⚙️ ROUTES OUTILS (avec layout) */}
+            <Route 
+              path={ROUTES.TIMETRACK} 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <TimeTrackPage />
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
+
             <Route 
               path={ROUTES.PROFILE} 
               element={
@@ -244,30 +230,7 @@ function App() {
               } 
             />
 
-            {/* 🚀 ROUTES FONCTIONNALITÉS SPÉCIALISÉES (avec layout) */}
-            <Route 
-              path={ROUTES.ONBOARDING} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <OnboardingPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path={ROUTES.TIMETRACK} 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <TimeTrackPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            {/* 🛡️ ROUTES ADMIN (utilisation des pages de test existantes) */}
+            {/* 🛡️ ROUTES ADMIN/TEST (avec layout) */}
             <Route 
               path="/admin" 
               element={
@@ -280,7 +243,7 @@ function App() {
             />
 
             <Route 
-              path="/admin/badges" 
+              path="/admin/*" 
               element={
                 <ProtectedRoute>
                   <Layout>
@@ -290,52 +253,6 @@ function App() {
               } 
             />
 
-            {/* Route validation des tâches - redirige vers page test admin */}
-            <Route 
-              path="/admin/task-validation" 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <CompleteAdminTestPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path="/admin/users" 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <CompleteAdminTestPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path="/admin/analytics" 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <CompleteAdminTestPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path="/admin/settings" 
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <CompleteAdminTestPage />
-                  </Layout>
-                </ProtectedRoute>
-              } 
-            />
-
-            {/* 🧪 ROUTES DE TEST/DÉVELOPPEMENT (avec layout) */}
             <Route 
               path="/admin-test" 
               element={
