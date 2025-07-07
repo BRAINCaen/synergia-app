@@ -1,333 +1,425 @@
 // ==========================================
-// 📁 react-app/src/App.jsx  
-// VERSION MINIMAL DEBUG - Pour identifier le problème exact
+// 📁 react-app/src/App.jsx
+// 🚨 DIAGNOSTIC EXTRÊME - DÉTECTEUR DE PROBLÈMES ULTIME
 // ==========================================
 
-import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './shared/stores/authStore.js';
+import React, { useEffect, useState, useCallback } from 'react';
 
-console.log('🔬 App.jsx - Version Debug chargée');
+console.log('🚨 DIAGNOSTIC EXTRÊME DÉMARRÉ');
 
-/**
- * 🔬 COMPOSANT DEBUG MINIMAL
- */
-function DebugApp() {
-  const { initializeAuth, isAuthenticated, user, loading } = useAuthStore();
-  const [debugInfo, setDebugInfo] = useState('Initialisation...');
+// 🔍 DÉTECTEUR D'ERREURS GLOBAL
+window.DIAGNOSTIC_ERRORS = [];
+window.DIAGNOSTIC_LOGS = [];
 
-  useEffect(() => {
-    console.log('🔄 Initialisation Auth Debug...');
-    setDebugInfo('Initialisation Auth...');
-    
-    try {
-      initializeAuth();
-      setDebugInfo('Auth initialisée');
-    } catch (error) {
-      console.error('❌ Erreur Auth:', error);
-      setDebugInfo(`Erreur Auth: ${error.message}`);
+const originalConsoleError = console.error;
+console.error = (...args) => {
+  window.DIAGNOSTIC_ERRORS.push({
+    timestamp: new Date().toISOString(),
+    message: args.join(' '),
+    stack: new Error().stack
+  });
+  originalConsoleError(...args);
+};
+
+// 🔬 FONCTION DE TEST PROGRESSIVE
+const DiagnosticApp = () => {
+  const [testResults, setTestResults] = useState([]);
+  const [currentTest, setCurrentTest] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+
+  const tests = [
+    {
+      name: '1. Test React de base',
+      test: () => {
+        try {
+          const div = React.createElement('div', {}, 'React fonctionne');
+          return { success: true, result: 'React OK' };
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      }
+    },
+    {
+      name: '2. Test Router import',
+      test: async () => {
+        try {
+          const { BrowserRouter } = await import('react-router-dom');
+          return { success: true, result: 'Router importé OK' };
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      }
+    },
+    {
+      name: '3. Test AuthStore import',
+      test: async () => {
+        try {
+          const { useAuthStore } = await import('./shared/stores/authStore.js');
+          return { success: true, result: 'AuthStore importé OK' };
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      }
+    },
+    {
+      name: '4. Test AuthStore hook',
+      test: () => {
+        try {
+          const { useAuthStore } = require('./shared/stores/authStore.js');
+          const store = useAuthStore.getState();
+          return { success: true, result: `Store accessible: ${Object.keys(store).join(', ')}` };
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      }
+    },
+    {
+      name: '5. Test Firebase',
+      test: async () => {
+        try {
+          const firebase = await import('./core/firebase.js');
+          return { success: true, result: 'Firebase module OK' };
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      }
+    },
+    {
+      name: '6. Test ProtectedRoute',
+      test: async () => {
+        try {
+          const ProtectedRoute = await import('./routes/ProtectedRoute.jsx');
+          return { success: true, result: 'ProtectedRoute OK' };
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      }
+    },
+    {
+      name: '7. Test DashboardLayout',
+      test: async () => {
+        try {
+          const DashboardLayout = await import('./layouts/DashboardLayout.jsx');
+          return { success: true, result: 'DashboardLayout OK' };
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      }
+    },
+    {
+      name: '8. Test Pages',
+      test: async () => {
+        try {
+          const Dashboard = await import('./pages/Dashboard.jsx');
+          const Login = await import('./pages/Login.jsx');
+          return { success: true, result: 'Pages principales OK' };
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      }
+    },
+    {
+      name: '9. Test GameStore',
+      test: async () => {
+        try {
+          const stores = await import('./shared/stores/index.js');
+          return { success: true, result: 'Stores index OK' };
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      }
+    },
+    {
+      name: '10. Test Services',
+      test: async () => {
+        try {
+          const taskService = await import('./core/services/taskService.js');
+          const projectService = await import('./core/services/projectService.js');
+          return { success: true, result: 'Services principaux OK' };
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      }
     }
-  }, [initializeAuth]);
+  ];
+
+  const runTests = useCallback(async () => {
+    setIsRunning(true);
+    setTestResults([]);
+    
+    for (let i = 0; i < tests.length; i++) {
+      setCurrentTest(i);
+      const test = tests[i];
+      
+      console.log(`🧪 Test ${i + 1}: ${test.name}`);
+      
+      try {
+        const result = await test.test();
+        setTestResults(prev => [...prev, {
+          name: test.name,
+          ...result
+        }]);
+      } catch (error) {
+        setTestResults(prev => [...prev, {
+          name: test.name,
+          success: false,
+          error: error.message,
+          stack: error.stack
+        }]);
+      }
+      
+      // Pause entre les tests
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    setIsRunning(false);
+    console.log('🔬 DIAGNOSTIC TERMINÉ');
+  }, []);
 
   useEffect(() => {
-    const info = {
-      loading,
-      isAuthenticated,
-      hasUser: !!user,
-      userEmail: user?.email
-    };
-    console.log('📊 État Auth:', info);
-    setDebugInfo(`Auth: ${JSON.stringify(info, null, 2)}`);
-  }, [loading, isAuthenticated, user]);
+    // Auto-start tests après 1 seconde
+    const timer = setTimeout(() => {
+      runTests();
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [runTests]);
 
-  // Affichage pendant loading
-  if (loading) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#1f2937',
-        color: 'white',
-        fontFamily: 'Arial, sans-serif'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '50px',
-            height: '50px',
-            border: '3px solid #374151',
-            borderTop: '3px solid #3b82f6',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto 20px'
-          }}></div>
-          <h2>🔬 Synergia Debug</h2>
-          <p>Initialisation en cours...</p>
-          <pre style={{ 
-            backgroundColor: '#374151', 
-            padding: '10px', 
-            borderRadius: '5px',
-            fontSize: '12px',
-            textAlign: 'left'
-          }}>
-            {debugInfo}
-          </pre>
-        </div>
-        <style>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
-    );
-  }
-
-  // Si pas d'utilisateur -> Login simple
-  if (!user || !isAuthenticated) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#1f2937',
-        color: 'white',
-        fontFamily: 'Arial, sans-serif'
-      }}>
-        <div style={{ 
-          textAlign: 'center',
-          backgroundColor: '#374151',
-          padding: '40px',
-          borderRadius: '10px',
-          maxWidth: '400px'
-        }}>
-          <h1>🚀 Synergia v3.5</h1>
-          <h2>Mode Debug</h2>
-          <p>État: Non connecté</p>
-          <div style={{ 
-            backgroundColor: '#1f2937', 
-            padding: '15px', 
-            borderRadius: '5px',
-            fontSize: '12px',
-            textAlign: 'left',
-            marginTop: '20px'
-          }}>
-            <pre>{debugInfo}</pre>
-          </div>
-          <button 
-            onClick={() => window.location.reload()}
-            style={{
-              marginTop: '20px',
-              padding: '10px 20px',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer'
-            }}
-          >
-            Recharger
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Si utilisateur connecté -> Dashboard simple
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#f9fafb',
-      fontFamily: 'Arial, sans-serif'
+      backgroundColor: '#0f0f0f',
+      color: '#00ff00',
+      fontFamily: 'Monaco, monospace',
+      padding: '20px',
+      fontSize: '14px'
     }}>
-      {/* Header simple */}
-      <header style={{
-        backgroundColor: 'white',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        padding: '15px 20px'
-      }}>
+      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+        
+        {/* Header */}
         <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
+          border: '2px solid #00ff00',
+          padding: '20px',
+          marginBottom: '20px',
+          backgroundColor: '#1a1a1a'
         }}>
-          <h1 style={{ margin: 0, color: '#1f2937' }}>
-            🚀 Synergia v3.5 - Debug Mode
+          <h1 style={{ 
+            margin: 0, 
+            textAlign: 'center',
+            textShadow: '0 0 10px #00ff00'
+          }}>
+            🚨 SYNERGIA DIAGNOSTIC EXTRÊME 🚨
           </h1>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '15px'
+          <p style={{ 
+            textAlign: 'center', 
+            margin: '10px 0 0 0',
+            color: '#ffff00'
           }}>
-            <span style={{ color: '#6b7280' }}>
-              {user.email}
-            </span>
-            <button
-              onClick={() => {
-                const { signOut } = useAuthStore.getState();
-                signOut();
-              }}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#ef4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer'
-              }}
-            >
-              Déconnexion
-            </button>
+            ANALYSE EN COURS... DÉTECTION DES ANOMALIES...
+          </p>
+        </div>
+
+        {/* Tests en cours */}
+        {isRunning && (
+          <div style={{
+            border: '1px solid #ffff00',
+            padding: '15px',
+            marginBottom: '20px',
+            backgroundColor: '#2a2a00'
+          }}>
+            <h3 style={{ margin: '0 0 10px 0', color: '#ffff00' }}>
+              🔄 TEST EN COURS: {currentTest + 1}/{tests.length}
+            </h3>
+            <p style={{ margin: 0 }}>
+              {tests[currentTest]?.name}
+            </p>
+            <div style={{
+              width: '100%',
+              height: '10px',
+              backgroundColor: '#333',
+              marginTop: '10px'
+            }}>
+              <div style={{
+                width: `${((currentTest + 1) / tests.length) * 100}%`,
+                height: '100%',
+                backgroundColor: '#00ff00',
+                transition: 'width 0.3s'
+              }}></div>
+            </div>
+          </div>
+        )}
+
+        {/* Résultats des tests */}
+        <div style={{
+          border: '1px solid #00ff00',
+          backgroundColor: '#1a1a1a'
+        }}>
+          <h2 style={{
+            margin: 0,
+            padding: '15px',
+            backgroundColor: '#00ff00',
+            color: '#000',
+            textAlign: 'center'
+          }}>
+            📊 RÉSULTATS DU DIAGNOSTIC
+          </h2>
+          
+          <div style={{ padding: '20px' }}>
+            {testResults.length === 0 ? (
+              <p style={{ textAlign: 'center', color: '#ffff00' }}>
+                ⏳ Initialisation des tests...
+              </p>
+            ) : (
+              testResults.map((result, index) => (
+                <div key={index} style={{
+                  border: `1px solid ${result.success ? '#00ff00' : '#ff0000'}`,
+                  padding: '10px',
+                  margin: '10px 0',
+                  backgroundColor: result.success ? '#001a00' : '#1a0000'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <span style={{
+                      color: result.success ? '#00ff00' : '#ff0000',
+                      fontWeight: 'bold'
+                    }}>
+                      {result.success ? '✅' : '❌'} {result.name}
+                    </span>
+                    <span style={{
+                      color: result.success ? '#00ff00' : '#ff0000'
+                    }}>
+                      {result.success ? 'SUCCÈS' : 'ÉCHEC'}
+                    </span>
+                  </div>
+                  
+                  {result.result && (
+                    <p style={{ 
+                      margin: '5px 0 0 0', 
+                      color: '#cccccc',
+                      fontSize: '12px'
+                    }}>
+                      📋 {result.result}
+                    </p>
+                  )}
+                  
+                  {result.error && (
+                    <div style={{ marginTop: '10px' }}>
+                      <p style={{ 
+                        margin: '0 0 5px 0', 
+                        color: '#ff6666',
+                        fontWeight: 'bold'
+                      }}>
+                        🚨 ERREUR DÉTECTÉE:
+                      </p>
+                      <pre style={{
+                        color: '#ff9999',
+                        fontSize: '11px',
+                        backgroundColor: '#2a0000',
+                        padding: '5px',
+                        borderRadius: '3px',
+                        overflow: 'auto',
+                        margin: 0
+                      }}>
+                        {result.error}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </div>
-      </header>
 
-      {/* Contenu principal */}
-      <main style={{ padding: '40px 20px' }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        {/* Erreurs globales */}
+        {window.DIAGNOSTIC_ERRORS.length > 0 && (
           <div style={{
-            backgroundColor: 'white',
-            padding: '30px',
-            borderRadius: '10px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+            border: '2px solid #ff0000',
+            backgroundColor: '#1a0000',
+            marginTop: '20px'
           }}>
-            <h2 style={{ color: '#1f2937', marginTop: 0 }}>
-              ✅ Application Debug Fonctionnelle !
+            <h2 style={{
+              margin: 0,
+              padding: '15px',
+              backgroundColor: '#ff0000',
+              color: '#fff',
+              textAlign: 'center'
+            }}>
+              🚨 ERREURS INTERCEPTÉES
             </h2>
-            
-            <div style={{
-              backgroundColor: '#f3f4f6',
-              padding: '20px',
-              borderRadius: '8px',
-              marginBottom: '20px'
-            }}>
-              <h3>📊 Informations Utilisateur :</h3>
-              <p><strong>Email:</strong> {user.email}</p>
-              <p><strong>Nom:</strong> {user.displayName || 'Non défini'}</p>
-              <p><strong>UID:</strong> {user.uid}</p>
-              <p><strong>État Auth:</strong> ✅ Connecté</p>
-            </div>
-
-            <div style={{
-              backgroundColor: '#dcfce7',
-              border: '1px solid #bbf7d0',
-              padding: '15px',
-              borderRadius: '8px',
-              marginBottom: '20px'
-            }}>
-              <h3 style={{ color: '#166534', margin: '0 0 10px 0' }}>
-                🎉 Diagnostic de Réparation
-              </h3>
-              <p style={{ color: '#166534', margin: 0 }}>
-                Si tu vois cette page, cela signifie que les corrections de routing ont fonctionné ! 
-                L'app peut maintenant se charger correctement.
-              </p>
-            </div>
-
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '15px',
-              marginTop: '30px'
-            }}>
-              <button
-                onClick={() => window.location.href = '/dashboard'}
-                style={{
-                  padding: '15px',
-                  backgroundColor: '#3b82f6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '16px'
-                }}
-              >
-                🏠 Aller au Dashboard
-              </button>
-              
-              <button
-                onClick={() => window.location.href = '/tasks'}
-                style={{
-                  padding: '15px',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '16px'
-                }}
-              >
-                ✅ Voir les Tâches
-              </button>
-              
-              <button
-                onClick={() => window.location.href = '/projects'}
-                style={{
-                  padding: '15px',
-                  backgroundColor: '#8b5cf6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '16px'
-                }}
-              >
-                📁 Voir les Projets
-              </button>
-              
-              <button
-                onClick={() => window.location.href = '/gamification'}
-                style={{
-                  padding: '15px',
-                  backgroundColor: '#f59e0b',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '16px'
-                }}
-              >
-                🎮 Gamification
-              </button>
-            </div>
-
-            <div style={{
-              marginTop: '30px',
-              padding: '15px',
-              backgroundColor: '#fef3c7',
-              border: '1px solid #fcd34d',
-              borderRadius: '8px'
-            }}>
-              <h3 style={{ color: '#92400e', margin: '0 0 10px 0' }}>
-                🔧 Prochaines Étapes
-              </h3>
-              <p style={{ color: '#92400e', margin: 0 }}>
-                Une fois que cette version debug fonctionne, on pourra restaurer 
-                progressivement la navigation complète et toutes les fonctionnalités avancées.
-              </p>
+            <div style={{ padding: '20px' }}>
+              {window.DIAGNOSTIC_ERRORS.map((error, index) => (
+                <div key={index} style={{
+                  border: '1px solid #ff6666',
+                  padding: '10px',
+                  margin: '10px 0',
+                  backgroundColor: '#2a0000'
+                }}>
+                  <p style={{ 
+                    margin: '0 0 5px 0', 
+                    color: '#ff6666',
+                    fontSize: '12px'
+                  }}>
+                    🕐 {error.timestamp}
+                  </p>
+                  <pre style={{
+                    color: '#ff9999',
+                    fontSize: '11px',
+                    margin: 0,
+                    whiteSpace: 'pre-wrap'
+                  }}>
+                    {error.message}
+                  </pre>
+                </div>
+              ))}
             </div>
           </div>
+        )}
+
+        {/* Actions */}
+        <div style={{
+          marginTop: '20px',
+          textAlign: 'center'
+        }}>
+          <button
+            onClick={runTests}
+            disabled={isRunning}
+            style={{
+              padding: '15px 30px',
+              backgroundColor: isRunning ? '#666' : '#00ff00',
+              color: '#000',
+              border: 'none',
+              fontSize: '16px',
+              cursor: isRunning ? 'not-allowed' : 'pointer',
+              marginRight: '10px'
+            }}
+          >
+            {isRunning ? '🔄 DIAGNOSTIC EN COURS...' : '🔬 RELANCER DIAGNOSTIC'}
+          </button>
+          
+          <button
+            onClick={() => {
+              console.clear();
+              window.DIAGNOSTIC_ERRORS = [];
+              setTestResults([]);
+            }}
+            style={{
+              padding: '15px 30px',
+              backgroundColor: '#ffff00',
+              color: '#000',
+              border: 'none',
+              fontSize: '16px',
+              cursor: 'pointer'
+            }}
+          >
+            🧹 NETTOYER CONSOLE
+          </button>
         </div>
-      </main>
+      </div>
     </div>
   );
-}
+};
 
-/**
- * 🚀 APP PRINCIPALE AVEC ROUTER
- */
-function App() {
-  return (
-    <Router>
-      <Routes>
-        <Route path="*" element={<DebugApp />} />
-      </Routes>
-    </Router>
-  );
-}
-
-console.log('✅ App Debug exportée');
-export default App;
+export default DiagnosticApp;
