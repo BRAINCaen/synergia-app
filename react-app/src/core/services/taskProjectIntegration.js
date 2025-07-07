@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskProjectIntegration.js
-// SERVICE D'INTÉGRATION FINAL - Sans dépendance getTask
+// SERVICE D'INTÉGRATION CORRIGÉ - Toutes méthodes présentes
 // ==========================================
 
 import { 
@@ -21,14 +21,14 @@ import { taskService } from './taskService.js';
 import { projectService } from './projectService.js';
 
 /**
- * 🔗 SERVICE D'INTÉGRATION TÂCHES-PROJETS FINAL
- * Version robuste sans dépendance à getTask
+ * 🔗 SERVICE D'INTÉGRATION TÂCHES-PROJETS CORRIGÉ
+ * Version robuste avec toutes les méthodes nécessaires
  */
 class TaskProjectIntegrationService {
   constructor() {
     this.taskService = taskService;
     this.projectService = projectService;
-    console.log('🔗 TaskProjectIntegrationService initialisé - Version FINALE');
+    console.log('🔗 TaskProjectIntegrationService initialisé - Version CORRIGÉE');
   }
 
   /**
@@ -56,230 +56,163 @@ class TaskProjectIntegrationService {
       }
       console.log('✅ Tâche mise à jour avec projectId');
       
-      // 3. Mise à jour forcée de la progression
-      const progressResult = await this.forceUpdateProjectProgress(projectId);
-      console.log('📊 Résultat mise à jour progression:', progressResult);
+      // 3. Mettre à jour la progression du projet
+      await this.updateProjectProgress(projectId);
       
-      return { 
-        success: true, 
-        error: null,
-        progress: progressResult.progress,
-        taskCount: progressResult.taskCount
-      };
+      console.log('✅ Assignation terminée avec succès');
+      return { success: true, error: null };
       
     } catch (error) {
-      console.error('❌ Erreur assignation tâche à projet:', error);
+      console.error('❌ Erreur assignation tâche au projet:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * ❌ RETIRER UNE TÂCHE D'UN PROJET (VERSION CORRIGÉE SANS getTask)
+   * 🗑️ RETIRER UNE TÂCHE D'UN PROJET
    */
   async removeTaskFromProject(taskId, userId) {
     try {
-      console.log(`🗑️ Retrait tâche ${taskId} du projet`);
+      console.log(`🗑️ Retrait tâche ${taskId} de son projet`);
       
-      // ✅ NOUVELLE APPROCHE : Récupérer la tâche directement via Firebase
-      const taskRef = doc(db, 'tasks', taskId);
-      const taskSnap = await getDoc(taskRef);
-      
-      if (!taskSnap.exists()) {
+      // Récupérer la tâche pour connaître le projet
+      const task = await this.taskService.getTask(taskId);
+      if (!task) {
         throw new Error('Tâche non trouvée');
       }
       
-      const taskData = taskSnap.data();
-      const projectId = taskData.projectId;
+      const previousProjectId = task.projectId;
       
-      console.log(`📂 Tâche "${taskData.title}" sera retirée du projet ${projectId}`);
-      
-      // ✅ MISE À JOUR DIRECTE : Retirer le projectId
-      await updateDoc(taskRef, {
+      // Retirer le projectId de la tâche
+      const updateResult = await this.taskService.updateTask(taskId, {
         projectId: null,
-        removedFromProject: projectId,
-        removedAt: serverTimestamp(),
-        removedBy: userId,
         updatedAt: serverTimestamp()
       });
       
-      console.log('✅ Tâche retirée du projet dans Firebase');
+      if (!updateResult.success) {
+        throw new Error(updateResult.error || 'Erreur mise à jour tâche');
+      }
+      console.log('✅ Tâche retirée du projet');
       
-      // Mettre à jour la progression du projet
-      if (projectId) {
-        const progressResult = await this.forceUpdateProjectProgress(projectId);
-        console.log('📊 Progression projet mise à jour après suppression:', progressResult);
+      // Mettre à jour la progression de l'ancien projet
+      if (previousProjectId) {
+        await this.updateProjectProgress(previousProjectId);
       }
       
-      console.log('✅ Tâche retirée du projet avec succès');
-      return { 
-        success: true, 
-        error: null,
-        message: `Tâche retirée du projet avec succès`
-      };
+      console.log('✅ Retrait terminé avec succès');
+      return { success: true, error: null };
       
     } catch (error) {
-      console.error('❌ Erreur suppression tâche du projet:', error);
+      console.error('❌ Erreur retrait tâche du projet:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * 🔄 ALIAS pour compatibilité
+   * 📊 METTRE À JOUR LA PROGRESSION D'UN PROJET
+   * ✅ MÉTHODE CORRIGÉE QUI ÉTAIT MANQUANTE
    */
-  async unassignTaskFromProject(taskId, userId) {
-    return this.removeTaskFromProject(taskId, userId);
+  async updateProjectProgress(projectId) {
+    try {
+      console.log(`📊 Mise à jour progression projet ${projectId}`);
+      
+      if (!projectId) {
+        console.warn('⚠️ ProjectId manquant pour mise à jour progression');
+        return { success: false, error: 'ProjectId manquant' };
+      }
+
+      // 1. Récupérer toutes les tâches du projet
+      const projectTasks = await this.getProjectTasks(projectId);
+      
+      // 2. Calculer les statistiques
+      const totalTasks = projectTasks.length;
+      const completedTasks = projectTasks.filter(task => 
+        task.status === 'completed' || task.status === 'done'
+      ).length;
+      
+      const progressPercentage = totalTasks > 0 ? 
+        Math.round((completedTasks / totalTasks) * 100) : 0;
+
+      // 3. Mettre à jour le projet
+      const projectRef = doc(db, 'projects', projectId);
+      await updateDoc(projectRef, {
+        'progress.completed': completedTasks,
+        'progress.total': totalTasks,
+        'progress.percentage': progressPercentage,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log(`✅ Progression mise à jour: ${completedTasks}/${totalTasks} (${progressPercentage}%)`);
+      
+      return { 
+        success: true, 
+        progress: {
+          completed: completedTasks,
+          total: totalTasks,
+          percentage: progressPercentage
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur mise à jour progression projet:', error);
+      return { success: false, error: error.message };
+    }
   }
 
   /**
-   * 📊 MISE À JOUR FORCÉE DE LA PROGRESSION D'UN PROJET
+   * 🔄 FORCER LA MISE À JOUR DE LA PROGRESSION
+   * Alternative robuste en cas d'échec de la méthode principale
    */
   async forceUpdateProjectProgress(projectId) {
     try {
       console.log(`🔄 FORCE - Mise à jour progression projet ${projectId}`);
       
-      // 1. Récupérer TOUTES les tâches du projet
-      const tasksQuery = query(
-        collection(db, 'tasks'),
-        where('projectId', '==', projectId)
-      );
-      
-      const tasksSnapshot = await getDocs(tasksQuery);
-      let totalTasks = 0;
-      let completedTasks = 0;
-      let inProgressTasks = 0;
-      let pendingTasks = 0;
-      
-      const tasksList = [];
-      tasksSnapshot.forEach((doc) => {
-        const taskData = doc.data();
-        tasksList.push({ id: doc.id, ...taskData });
-        totalTasks++;
-        
-        switch (taskData.status) {
-          case 'completed':
-            completedTasks++;
-            break;
-          case 'in_progress':
-            inProgressTasks++;
-            break;
-          case 'pending':
-          default:
-            pendingTasks++;
-            break;
-        }
-      });
-      
-      // 2. Calculer la progression
-      const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-      
-      console.log(`📊 Calcul progression détaillé:`, {
-        projectId,
-        totalTasks,
-        completedTasks,
-        progress: `${progress}%`,
-        tâches: tasksList.map(t => `${t.title} (${t.status})`)
-      });
-      
-      // 3. Mettre à jour le projet
-      const updateData = {
-        progress: progress,
-        taskCount: totalTasks,
-        completedTaskCount: completedTasks,
-        inProgressTaskCount: inProgressTasks,
-        pendingTaskCount: pendingTasks,
-        updatedAt: serverTimestamp(),
-        lastProgressUpdate: serverTimestamp()
-      };
-      
-      const projectRef = doc(db, 'projects', projectId);
-      await updateDoc(projectRef, updateData);
-      
-      console.log(`✅ FORCE - Projet ${projectId} mis à jour: ${progress}% (${completedTasks}/${totalTasks})`);
-      
-      return { 
-        success: true, 
-        progress, 
-        taskCount: totalTasks,
-        completedCount: completedTasks,
-        error: null 
-      };
-      
-    } catch (error) {
-      console.error('❌ FORCE - Erreur mise à jour progression projet:', error);
-      return { 
-        success: false, 
-        progress: 0, 
-        taskCount: 0,
-        error: error.message 
-      };
-    }
-  }
-
-  /**
-   * 📝 ASSIGNER PLUSIEURS TÂCHES À UN PROJET
-   */
-  async assignMultipleTasksToProject(taskIds, projectId, userId) {
-    try {
-      console.log(`🔗 Assignation multiple: ${taskIds.length} tâches au projet ${projectId}`);
-      
       // Vérifier que le projet existe
-      const projectData = await this.projectService.getProject(projectId);
-      if (!projectData) {
-        throw new Error('Projet non trouvé');
+      const projectRef = doc(db, 'projects', projectId);
+      const projectDoc = await getDoc(projectRef);
+      
+      if (!projectDoc.exists()) {
+        console.warn(`⚠️ Projet ${projectId} non trouvé`);
+        return { success: false, error: 'Projet non trouvé' };
+      }
+
+      // Calculer la progression
+      const result = await this.updateProjectProgress(projectId);
+      
+      if (result.success) {
+        console.log('✅ FORCE - Mise à jour réussie');
+      } else {
+        console.warn('⚠️ FORCE - Mise à jour échouée:', result.error);
       }
       
-      const batch = writeBatch(db);
-      
-      // Mettre à jour toutes les tâches en lot
-      for (const taskId of taskIds) {
-        const taskRef = doc(db, 'tasks', taskId);
-        batch.update(taskRef, {
-          projectId: projectId,
-          updatedAt: serverTimestamp()
-        });
-      }
-      
-      await batch.commit();
-      console.log('✅ Batch update terminé');
-      
-      // Mettre à jour la progression du projet
-      await this.forceUpdateProjectProgress(projectId);
-      
-      console.log('✅ Assignation multiple terminée avec succès');
-      return { success: true, error: null };
+      return result;
       
     } catch (error) {
-      console.error('❌ Erreur assignation multiple:', error);
+      console.error('❌ FORCE - Erreur mise à jour progression:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * ❌ RETIRER PLUSIEURS TÂCHES DE LEURS PROJETS
+   * 🗑️ SUPPRIMER PLUSIEURS TÂCHES D'UN PROJET
    */
-  async removeMultipleTasksFromProjects(taskIds, userId) {
+  async removeMultipleTasksFromProject(taskIds, userId) {
     try {
-      console.log(`❌ Suppression multiple: ${taskIds.length} tâches de leurs projets`);
+      console.log(`🗑️ Suppression multiple: ${taskIds.length} tâche(s)`);
       
       const batch = writeBatch(db);
       const affectedProjects = new Set();
       
-      // Récupérer les projets affectés avant suppression
+      // Traiter chaque tâche
       for (const taskId of taskIds) {
-        const taskRef = doc(db, 'tasks', taskId);
-        const taskSnap = await getDoc(taskRef);
-        
-        if (taskSnap.exists()) {
-          const taskData = taskSnap.data();
-          if (taskData.projectId) {
-            affectedProjects.add(taskData.projectId);
-          }
+        const task = await this.taskService.getTask(taskId);
+        if (task && task.projectId) {
+          affectedProjects.add(task.projectId);
           
-          // Mettre à jour la tâche
+          // Ajouter au batch
+          const taskRef = doc(db, 'tasks', taskId);
           batch.update(taskRef, {
             projectId: null,
-            removedFromProjectAt: serverTimestamp(),
-            removedBy: userId,
             updatedAt: serverTimestamp()
           });
         }
@@ -401,6 +334,35 @@ class TaskProjectIntegrationService {
     } catch (error) {
       console.error('❌ SYNC - Erreur synchronisation projets:', error);
       return { success: false, results: [], error: error.message };
+    }
+  }
+
+  /**
+   * 🧮 CALCULER LES MÉTRIQUES D'UN PROJET
+   */
+  async calculateProjectMetrics(projectId) {
+    try {
+      const tasks = await this.getProjectTasks(projectId);
+      
+      const metrics = {
+        totalTasks: tasks.length,
+        completedTasks: tasks.filter(t => t.status === 'completed').length,
+        inProgressTasks: tasks.filter(t => t.status === 'in_progress').length,
+        pendingTasks: tasks.filter(t => t.status === 'pending').length,
+        totalXp: tasks.reduce((sum, task) => sum + (task.xpReward || 0), 0),
+        completedXp: tasks
+          .filter(t => t.status === 'completed')
+          .reduce((sum, task) => sum + (task.xpReward || 0), 0)
+      };
+      
+      metrics.completionRate = metrics.totalTasks > 0 ? 
+        Math.round((metrics.completedTasks / metrics.totalTasks) * 100) : 0;
+      
+      return metrics;
+      
+    } catch (error) {
+      console.error('❌ Erreur calcul métriques projet:', error);
+      return null;
     }
   }
 }
