@@ -484,6 +484,11 @@ class TaskService {
   }
 }
 
-// Export de la classe et des constantes
+// Export de la classe et des constantes (EXISTANT - GARDER)
 export default TaskService;
 export { TASK_STATUS };
+
+// ✅ AJOUT : Export d'une instance pour la compatibilité d'import
+export const taskService = new TaskService();
+
+console.log('✅ TaskService - Instance exportée pour compatibilité build');
