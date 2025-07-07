@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskProjectIntegration.js
-// SERVICE COMPLET AVEC TOUTES LES MÉTHODES MANQUANTES
+// SERVICE D'INTÉGRATION FINAL - Sans dépendance getTask
 // ==========================================
 
 import { 
@@ -10,6 +10,7 @@ import {
   query, 
   where, 
   getDocs,
+  getDoc,
   serverTimestamp,
   writeBatch 
 } from 'firebase/firestore';
@@ -20,14 +21,14 @@ import { taskService } from './taskService.js';
 import { projectService } from './projectService.js';
 
 /**
- * 🔗 SERVICE D'INTÉGRATION TÂCHES-PROJETS COMPLET
- * Toutes les méthodes nécessaires pour l'interface
+ * 🔗 SERVICE D'INTÉGRATION TÂCHES-PROJETS FINAL
+ * Version robuste sans dépendance à getTask
  */
 class TaskProjectIntegrationService {
   constructor() {
     this.taskService = taskService;
     this.projectService = projectService;
-    console.log('🔗 TaskProjectIntegrationService initialisé - Version complète');
+    console.log('🔗 TaskProjectIntegrationService initialisé - Version FINALE');
   }
 
   /**
@@ -73,34 +74,35 @@ class TaskProjectIntegrationService {
   }
 
   /**
-   * ❌ RETIRER UNE TÂCHE D'UN PROJET (MÉTHODE MANQUANTE)
+   * ❌ RETIRER UNE TÂCHE D'UN PROJET (VERSION CORRIGÉE SANS getTask)
    */
   async removeTaskFromProject(taskId, userId) {
     try {
-      console.log(`❌ Suppression tâche ${taskId} du projet`);
+      console.log(`🗑️ Retrait tâche ${taskId} du projet`);
       
-      // Récupérer la tâche pour obtenir le projectId avant suppression
-      const task = await this.taskService.getTask(taskId);
-      if (!task) {
+      // ✅ NOUVELLE APPROCHE : Récupérer la tâche directement via Firebase
+      const taskRef = doc(db, 'tasks', taskId);
+      const taskSnap = await getDoc(taskRef);
+      
+      if (!taskSnap.exists()) {
         throw new Error('Tâche non trouvée');
       }
       
-      const projectId = task.projectId;
-      console.log(`📂 Tâche "${task.title}" sera retirée du projet ${projectId}`);
+      const taskData = taskSnap.data();
+      const projectId = taskData.projectId;
       
-      // Mettre à jour la tâche (retirer le projectId)
-      const updateResult = await this.taskService.updateTask(taskId, {
+      console.log(`📂 Tâche "${taskData.title}" sera retirée du projet ${projectId}`);
+      
+      // ✅ MISE À JOUR DIRECTE : Retirer le projectId
+      await updateDoc(taskRef, {
         projectId: null,
         removedFromProject: projectId,
         removedAt: serverTimestamp(),
+        removedBy: userId,
         updatedAt: serverTimestamp()
       });
       
-      if (!updateResult.success) {
-        throw new Error(updateResult.error || 'Erreur mise à jour tâche');
-      }
-      
-      console.log('✅ Tâche retirée du projet');
+      console.log('✅ Tâche retirée du projet dans Firebase');
       
       // Mettre à jour la progression du projet
       if (projectId) {
@@ -122,7 +124,7 @@ class TaskProjectIntegrationService {
   }
 
   /**
-   * 🔄 ALIAS pour compatibilité (même fonction, nom différent)
+   * 🔄 ALIAS pour compatibilité
    */
   async unassignTaskFromProject(taskId, userId) {
     return this.removeTaskFromProject(taskId, userId);
@@ -253,9 +255,9 @@ class TaskProjectIntegrationService {
   }
 
   /**
-   * ❌ RETIRER PLUSIEURS TÂCHES D'UN PROJET
+   * ❌ RETIRER PLUSIEURS TÂCHES DE LEURS PROJETS
    */
-  async removeMultipleTasksFromProject(taskIds, userId) {
+  async removeMultipleTasksFromProjects(taskIds, userId) {
     try {
       console.log(`❌ Suppression multiple: ${taskIds.length} tâches de leurs projets`);
       
@@ -264,18 +266,23 @@ class TaskProjectIntegrationService {
       
       // Récupérer les projets affectés avant suppression
       for (const taskId of taskIds) {
-        const task = await this.taskService.getTask(taskId);
-        if (task && task.projectId) {
-          affectedProjects.add(task.projectId);
-        }
-        
-        // Mettre à jour la tâche
         const taskRef = doc(db, 'tasks', taskId);
-        batch.update(taskRef, {
-          projectId: null,
-          removedFromProjectAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
+        const taskSnap = await getDoc(taskRef);
+        
+        if (taskSnap.exists()) {
+          const taskData = taskSnap.data();
+          if (taskData.projectId) {
+            affectedProjects.add(taskData.projectId);
+          }
+          
+          // Mettre à jour la tâche
+          batch.update(taskRef, {
+            projectId: null,
+            removedFromProjectAt: serverTimestamp(),
+            removedBy: userId,
+            updatedAt: serverTimestamp()
+          });
+        }
       }
       
       await batch.commit();
@@ -394,114 +401,6 @@ class TaskProjectIntegrationService {
     } catch (error) {
       console.error('❌ SYNC - Erreur synchronisation projets:', error);
       return { success: false, results: [], error: error.message };
-    }
-  }
-
-  /**
-   * 🔄 DÉPLACER UNE TÂCHE D'UN PROJET À UN AUTRE
-   */
-  async moveTaskBetweenProjects(taskId, fromProjectId, toProjectId, userId) {
-    try {
-      console.log(`🔄 Déplacement tâche ${taskId} du projet ${fromProjectId} vers ${toProjectId}`);
-      
-      // Vérifier que le projet de destination existe
-      const toProject = await this.projectService.getProject(toProjectId);
-      if (!toProject) {
-        throw new Error('Projet de destination non trouvé');
-      }
-      
-      // Mettre à jour la tâche
-      const updateResult = await this.taskService.updateTask(taskId, {
-        projectId: toProjectId,
-        previousProjectId: fromProjectId,
-        movedAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      
-      if (!updateResult.success) {
-        throw new Error(updateResult.error || 'Erreur mise à jour tâche');
-      }
-      
-      // Mettre à jour les deux projets
-      await Promise.all([
-        this.forceUpdateProjectProgress(fromProjectId),
-        this.forceUpdateProjectProgress(toProjectId)
-      ]);
-      
-      console.log('✅ Tâche déplacée avec succès');
-      return { success: true, error: null };
-      
-    } catch (error) {
-      console.error('❌ Erreur déplacement tâche:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 🛠️ FONCTION DE RÉPARATION MANUELLE
-   */
-  async repairProjectTaskSync(projectId) {
-    try {
-      console.log(`🛠️ RÉPARATION - Synchronisation projet ${projectId}`);
-      
-      const result = await this.forceUpdateProjectProgress(projectId);
-      
-      if (result.success) {
-        console.log(`✅ RÉPARATION RÉUSSIE - Projet ${projectId} synchronisé`);
-      } else {
-        console.error(`❌ RÉPARATION ÉCHOUÉE - Projet ${projectId}:`, result.error);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Erreur réparation:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 📊 OBTENIR UN RÉSUMÉ COMPLET DES PROJETS ET TÂCHES
-   */
-  async getProjectTaskSummary(userId) {
-    try {
-      console.log(`📊 Génération résumé complet pour ${userId}`);
-      
-      const [projects, tasks] = await Promise.all([
-        this.projectService.getUserProjects(userId),
-        this.taskService.getUserTasks(userId)
-      ]);
-      
-      const summary = {
-        totalProjects: projects.length,
-        totalTasks: tasks.length,
-        assignedTasks: tasks.filter(t => t.projectId).length,
-        unassignedTasks: tasks.filter(t => !t.projectId).length,
-        projects: projects.map(project => {
-          const projectTasks = tasks.filter(t => t.projectId === project.id);
-          const completedTasks = projectTasks.filter(t => t.status === 'completed');
-          
-          return {
-            id: project.id,
-            title: project.title,
-            status: project.status,
-            storedProgress: project.progress || 0,
-            storedTaskCount: project.taskCount || 0,
-            actualTaskCount: projectTasks.length,
-            actualCompletedCount: completedTasks.length,
-            actualProgress: projectTasks.length > 0 ? 
-              Math.round((completedTasks.length / projectTasks.length) * 100) : 0,
-            needsSync: (project.taskCount || 0) !== projectTasks.length
-          };
-        })
-      };
-      
-      console.log('📊 Résumé généré:', summary);
-      return summary;
-      
-    } catch (error) {
-      console.error('❌ Erreur génération résumé:', error);
-      return null;
     }
   }
 }
