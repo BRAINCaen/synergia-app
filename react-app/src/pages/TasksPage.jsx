@@ -31,6 +31,14 @@ import { taskService } from '../core/services/taskService.js';
 import { projectService } from '../core/services/projectService.js';
 import { taskProjectIntegration } from '../core/services/taskProjectIntegration.js';
 import TaskForm from '../modules/tasks/TaskForm.jsx';/**
+{/* COMMENTÉ TEMPORAIREMENT POUR DEBUG
+<TaskForm
+  isOpen={showTaskForm}
+  onClose={() => setShowTaskForm(false)}
+  onSubmit={handleCreateTask}
+  loading={updating}
+/>
+*/}
  * ✅ PAGE TÂCHES AVEC GESTION DE PROJETS
  */
 const TasksPage = () => {
