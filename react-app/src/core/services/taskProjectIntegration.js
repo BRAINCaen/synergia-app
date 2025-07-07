@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskProjectIntegration.js
-// CORRECTION - Mise à jour progression projet FORCÉE
+// SERVICE COMPLET AVEC TOUTES LES MÉTHODES MANQUANTES
 // ==========================================
 
 import { 
@@ -20,18 +20,18 @@ import { taskService } from './taskService.js';
 import { projectService } from './projectService.js';
 
 /**
- * 🔗 SERVICE D'INTÉGRATION TÂCHES-PROJETS CORRIGÉ
- * AVEC MISE À JOUR FORCÉE DE LA PROGRESSION
+ * 🔗 SERVICE D'INTÉGRATION TÂCHES-PROJETS COMPLET
+ * Toutes les méthodes nécessaires pour l'interface
  */
 class TaskProjectIntegrationService {
   constructor() {
     this.taskService = taskService;
     this.projectService = projectService;
-    console.log('🔗 TaskProjectIntegrationService initialisé avec mise à jour forcée');
+    console.log('🔗 TaskProjectIntegrationService initialisé - Version complète');
   }
 
   /**
-   * 📝 ASSIGNER UNE TÂCHE À UN PROJET AVEC MISE À JOUR FORCÉE
+   * 📝 ASSIGNER UNE TÂCHE À UN PROJET
    */
   async assignTaskToProject(taskId, projectId, userId) {
     try {
@@ -55,7 +55,7 @@ class TaskProjectIntegrationService {
       }
       console.log('✅ Tâche mise à jour avec projectId');
       
-      // 3. ✅ MISE À JOUR FORCÉE DE LA PROGRESSION
+      // 3. Mise à jour forcée de la progression
       const progressResult = await this.forceUpdateProjectProgress(projectId);
       console.log('📊 Résultat mise à jour progression:', progressResult);
       
@@ -73,14 +73,69 @@ class TaskProjectIntegrationService {
   }
 
   /**
+   * ❌ RETIRER UNE TÂCHE D'UN PROJET (MÉTHODE MANQUANTE)
+   */
+  async removeTaskFromProject(taskId, userId) {
+    try {
+      console.log(`❌ Suppression tâche ${taskId} du projet`);
+      
+      // Récupérer la tâche pour obtenir le projectId avant suppression
+      const task = await this.taskService.getTask(taskId);
+      if (!task) {
+        throw new Error('Tâche non trouvée');
+      }
+      
+      const projectId = task.projectId;
+      console.log(`📂 Tâche "${task.title}" sera retirée du projet ${projectId}`);
+      
+      // Mettre à jour la tâche (retirer le projectId)
+      const updateResult = await this.taskService.updateTask(taskId, {
+        projectId: null,
+        removedFromProject: projectId,
+        removedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      if (!updateResult.success) {
+        throw new Error(updateResult.error || 'Erreur mise à jour tâche');
+      }
+      
+      console.log('✅ Tâche retirée du projet');
+      
+      // Mettre à jour la progression du projet
+      if (projectId) {
+        const progressResult = await this.forceUpdateProjectProgress(projectId);
+        console.log('📊 Progression projet mise à jour après suppression:', progressResult);
+      }
+      
+      console.log('✅ Tâche retirée du projet avec succès');
+      return { 
+        success: true, 
+        error: null,
+        message: `Tâche retirée du projet avec succès`
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur suppression tâche du projet:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🔄 ALIAS pour compatibilité (même fonction, nom différent)
+   */
+  async unassignTaskFromProject(taskId, userId) {
+    return this.removeTaskFromProject(taskId, userId);
+  }
+
+  /**
    * 📊 MISE À JOUR FORCÉE DE LA PROGRESSION D'UN PROJET
-   * Version améliorée qui force la synchronisation
    */
   async forceUpdateProjectProgress(projectId) {
     try {
       console.log(`🔄 FORCE - Mise à jour progression projet ${projectId}`);
       
-      // 1. Récupérer TOUTES les tâches du projet avec une requête directe
+      // 1. Récupérer TOUTES les tâches du projet
       const tasksQuery = query(
         collection(db, 'tasks'),
         where('projectId', '==', projectId)
@@ -119,13 +174,11 @@ class TaskProjectIntegrationService {
         projectId,
         totalTasks,
         completedTasks,
-        inProgressTasks,
-        pendingTasks,
         progress: `${progress}%`,
         tâches: tasksList.map(t => `${t.title} (${t.status})`)
       });
       
-      // 3. Mettre à jour le projet avec TOUTES les informations
+      // 3. Mettre à jour le projet
       const updateData = {
         progress: progress,
         taskCount: totalTasks,
@@ -133,32 +186,19 @@ class TaskProjectIntegrationService {
         inProgressTaskCount: inProgressTasks,
         pendingTaskCount: pendingTasks,
         updatedAt: serverTimestamp(),
-        lastProgressUpdate: serverTimestamp(),
-        // Statistiques détaillées
-        taskBreakdown: {
-          total: totalTasks,
-          completed: completedTasks,
-          inProgress: inProgressTasks,
-          pending: pendingTasks,
-          completionRate: progress
-        }
+        lastProgressUpdate: serverTimestamp()
       };
       
       const projectRef = doc(db, 'projects', projectId);
       await updateDoc(projectRef, updateData);
       
-      console.log(`✅ FORCE - Projet ${projectId} mis à jour:`, {
-        progress: `${progress}%`,
-        tâches: `${completedTasks}/${totalTasks}`,
-        détail: updateData.taskBreakdown
-      });
+      console.log(`✅ FORCE - Projet ${projectId} mis à jour: ${progress}% (${completedTasks}/${totalTasks})`);
       
       return { 
         success: true, 
         progress, 
         taskCount: totalTasks,
         completedCount: completedTasks,
-        breakdown: updateData.taskBreakdown,
         error: null 
       };
       
@@ -168,78 +208,8 @@ class TaskProjectIntegrationService {
         success: false, 
         progress: 0, 
         taskCount: 0,
-        completedCount: 0,
         error: error.message 
       };
-    }
-  }
-
-  /**
-   * 🔄 SYNCHRONISER TOUS LES PROJETS D'UN UTILISATEUR
-   * Utile pour réparer les incohérences
-   */
-  async synchronizeAllUserProjects(userId) {
-    try {
-      console.log(`🔄 SYNC - Synchronisation de tous les projets pour ${userId}`);
-      
-      const projects = await this.projectService.getUserProjects(userId);
-      const results = [];
-      
-      for (const project of projects) {
-        console.log(`🔄 SYNC - Traitement projet: ${project.title}`);
-        const result = await this.forceUpdateProjectProgress(project.id);
-        results.push({
-          projectId: project.id,
-          projectTitle: project.title,
-          ...result
-        });
-      }
-      
-      console.log('✅ SYNC - Synchronisation terminée:', results);
-      return { success: true, results, error: null };
-      
-    } catch (error) {
-      console.error('❌ SYNC - Erreur synchronisation projets:', error);
-      return { success: false, results: [], error: error.message };
-    }
-  }
-
-  /**
-   * 🔗 DÉTACHER UNE TÂCHE D'UN PROJET AVEC MISE À JOUR
-   */
-  async unassignTaskFromProject(taskId, userId) {
-    try {
-      console.log(`🔗 Détachement tâche ${taskId} du projet`);
-      
-      // Récupérer la tâche pour obtenir le projectId
-      const task = await this.taskService.getTask(taskId);
-      if (!task) {
-        throw new Error('Tâche non trouvée');
-      }
-      
-      const projectId = task.projectId;
-      
-      // Mettre à jour la tâche (retirer le projectId)
-      const updateResult = await this.taskService.updateTask(taskId, {
-        projectId: null,
-        updatedAt: serverTimestamp()
-      });
-      
-      if (!updateResult.success) {
-        throw new Error(updateResult.error || 'Erreur mise à jour tâche');
-      }
-      
-      // Mettre à jour la progression du projet si applicable
-      if (projectId) {
-        await this.forceUpdateProjectProgress(projectId);
-      }
-      
-      console.log('✅ Tâche détachée du projet avec succès');
-      return { success: true, error: null };
-      
-    } catch (error) {
-      console.error('❌ Erreur détachement tâche du projet:', error);
-      return { success: false, error: error.message };
     }
   }
 
@@ -278,6 +248,49 @@ class TaskProjectIntegrationService {
       
     } catch (error) {
       console.error('❌ Erreur assignation multiple:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * ❌ RETIRER PLUSIEURS TÂCHES D'UN PROJET
+   */
+  async removeMultipleTasksFromProject(taskIds, userId) {
+    try {
+      console.log(`❌ Suppression multiple: ${taskIds.length} tâches de leurs projets`);
+      
+      const batch = writeBatch(db);
+      const affectedProjects = new Set();
+      
+      // Récupérer les projets affectés avant suppression
+      for (const taskId of taskIds) {
+        const task = await this.taskService.getTask(taskId);
+        if (task && task.projectId) {
+          affectedProjects.add(task.projectId);
+        }
+        
+        // Mettre à jour la tâche
+        const taskRef = doc(db, 'tasks', taskId);
+        batch.update(taskRef, {
+          projectId: null,
+          removedFromProjectAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      }
+      
+      await batch.commit();
+      console.log('✅ Batch suppression terminé');
+      
+      // Mettre à jour la progression de tous les projets affectés
+      for (const projectId of affectedProjects) {
+        await this.forceUpdateProjectProgress(projectId);
+      }
+      
+      console.log('✅ Suppression multiple terminée avec succès');
+      return { success: true, error: null };
+      
+    } catch (error) {
+      console.error('❌ Erreur suppression multiple:', error);
       return { success: false, error: error.message };
     }
   }
@@ -356,8 +369,76 @@ class TaskProjectIntegrationService {
   }
 
   /**
+   * 🔄 SYNCHRONISER TOUS LES PROJETS D'UN UTILISATEUR
+   */
+  async synchronizeAllUserProjects(userId) {
+    try {
+      console.log(`🔄 SYNC - Synchronisation de tous les projets pour ${userId}`);
+      
+      const projects = await this.projectService.getUserProjects(userId);
+      const results = [];
+      
+      for (const project of projects) {
+        console.log(`🔄 SYNC - Traitement projet: ${project.title}`);
+        const result = await this.forceUpdateProjectProgress(project.id);
+        results.push({
+          projectId: project.id,
+          projectTitle: project.title,
+          ...result
+        });
+      }
+      
+      console.log('✅ SYNC - Synchronisation terminée:', results);
+      return { success: true, results, error: null };
+      
+    } catch (error) {
+      console.error('❌ SYNC - Erreur synchronisation projets:', error);
+      return { success: false, results: [], error: error.message };
+    }
+  }
+
+  /**
+   * 🔄 DÉPLACER UNE TÂCHE D'UN PROJET À UN AUTRE
+   */
+  async moveTaskBetweenProjects(taskId, fromProjectId, toProjectId, userId) {
+    try {
+      console.log(`🔄 Déplacement tâche ${taskId} du projet ${fromProjectId} vers ${toProjectId}`);
+      
+      // Vérifier que le projet de destination existe
+      const toProject = await this.projectService.getProject(toProjectId);
+      if (!toProject) {
+        throw new Error('Projet de destination non trouvé');
+      }
+      
+      // Mettre à jour la tâche
+      const updateResult = await this.taskService.updateTask(taskId, {
+        projectId: toProjectId,
+        previousProjectId: fromProjectId,
+        movedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      if (!updateResult.success) {
+        throw new Error(updateResult.error || 'Erreur mise à jour tâche');
+      }
+      
+      // Mettre à jour les deux projets
+      await Promise.all([
+        this.forceUpdateProjectProgress(fromProjectId),
+        this.forceUpdateProjectProgress(toProjectId)
+      ]);
+      
+      console.log('✅ Tâche déplacée avec succès');
+      return { success: true, error: null };
+      
+    } catch (error) {
+      console.error('❌ Erreur déplacement tâche:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * 🛠️ FONCTION DE RÉPARATION MANUELLE
-   * À utiliser en cas de problème de synchronisation
    */
   async repairProjectTaskSync(projectId) {
     try {
@@ -376,6 +457,51 @@ class TaskProjectIntegrationService {
     } catch (error) {
       console.error('❌ Erreur réparation:', error);
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 📊 OBTENIR UN RÉSUMÉ COMPLET DES PROJETS ET TÂCHES
+   */
+  async getProjectTaskSummary(userId) {
+    try {
+      console.log(`📊 Génération résumé complet pour ${userId}`);
+      
+      const [projects, tasks] = await Promise.all([
+        this.projectService.getUserProjects(userId),
+        this.taskService.getUserTasks(userId)
+      ]);
+      
+      const summary = {
+        totalProjects: projects.length,
+        totalTasks: tasks.length,
+        assignedTasks: tasks.filter(t => t.projectId).length,
+        unassignedTasks: tasks.filter(t => !t.projectId).length,
+        projects: projects.map(project => {
+          const projectTasks = tasks.filter(t => t.projectId === project.id);
+          const completedTasks = projectTasks.filter(t => t.status === 'completed');
+          
+          return {
+            id: project.id,
+            title: project.title,
+            status: project.status,
+            storedProgress: project.progress || 0,
+            storedTaskCount: project.taskCount || 0,
+            actualTaskCount: projectTasks.length,
+            actualCompletedCount: completedTasks.length,
+            actualProgress: projectTasks.length > 0 ? 
+              Math.round((completedTasks.length / projectTasks.length) * 100) : 0,
+            needsSync: (project.taskCount || 0) !== projectTasks.length
+          };
+        })
+      };
+      
+      console.log('📊 Résumé généré:', summary);
+      return summary;
+      
+    } catch (error) {
+      console.error('❌ Erreur génération résumé:', error);
+      return null;
     }
   }
 }
