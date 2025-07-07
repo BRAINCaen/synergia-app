@@ -1,306 +1,269 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// VERSION D'URGENCE ULTRA-STABLE - Résout le blocage démarrage
+// VERSION SÉCURISÉE PROGRESSIVE - Charge composants un par un
 // ==========================================
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// 🛡️ IMPORT ROUTER SÉCURISÉ
-let Router, Routes, Route, Navigate;
+// 🛡️ GESTIONNAIRE D'ERREUR EN PREMIER
 try {
-  const routerModule = require('react-router-dom');
-  Router = routerModule.BrowserRouter;
-  Routes = routerModule.Routes;
-  Route = routerModule.Route;
-  Navigate = routerModule.Navigate;
-  console.log('✅ React Router importé');
+  require('./utils/errorHandler.js');
+  console.log('✅ ErrorHandler importé');
 } catch (error) {
-  console.error('❌ Erreur React Router:', error);
-  // Fallbacks simples
-  Router = ({ children }) => React.createElement('div', null, children);
-  Routes = ({ children }) => children;
-  Route = ({ element }) => element;
-  Navigate = () => null;
+  console.warn('⚠️ ErrorHandler non trouvé:', error.message);
 }
 
-// 🔄 COMPOSANT DE CHARGEMENT SIMPLE
-const LoadingFallback = () => React.createElement('div', {
-  style: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '100vh',
-    backgroundColor: '#1f2937',
-    color: 'white',
-    fontFamily: 'Arial, sans-serif',
-    textAlign: 'center'
+// 🔐 IMPORTS SÉCURISÉS - Votre structure existante
+let useAuthStore, ProtectedRoute, PublicRoute, DashboardLayout;
+let Login, Dashboard, TasksPage, ProjectsPage, AnalyticsPage;
+let GamificationPage, RewardsPage, BadgesPage;
+let UsersPage, OnboardingPage;
+let TimeTrackPage, ProfilePage, SettingsPage;
+let CompleteAdminTestPage, AdminProfileTestPage, AdminTaskValidationPage;
+
+// Fonction d'import sécurisé
+const safeImport = (importPath, name) => {
+  try {
+    const module = require(importPath);
+    const component = module.default || module[name] || module;
+    console.log(`✅ ${name} importé avec succès`);
+    return component;
+  } catch (error) {
+    console.warn(`⚠️ ${name} non trouvé:`, error.message);
+    return null;
   }
-}, [
-  React.createElement('div', { key: 'loader' }, [
-    React.createElement('div', {
-      key: 'spinner',
-      style: {
-        width: '50px',
-        height: '50px',
-        border: '4px solid rgba(255,255,255,0.3)',
-        borderTop: '4px solid white',
-        borderRadius: '50%',
-        animation: 'spin 1s linear infinite',
-        margin: '0 auto 1rem'
-      }
-    }),
-    React.createElement('h2', {
-      key: 'title',
-      style: { fontSize: '1.5rem', marginBottom: '0.5rem' }
-    }, '🚀 Synergia v3.5.3'),
-    React.createElement('p', {
-      key: 'message',
-      style: { fontSize: '1rem', opacity: 0.8 }
-    }, 'Initialisation sécurisée...'),
-    React.createElement('style', { key: 'style' }, `
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    `)
-  ])
-]);
-
-// 🎯 COMPOSANT LOGIN MINIMAL
-const MinimalLogin = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  
-  const handleLogin = () => {
-    setIsLoading(true);
-    // Simuler connexion
-    setTimeout(() => {
-      localStorage.setItem('synergia_demo_user', 'true');
-      window.location.href = '/dashboard';
-    }, 2000);
-  };
-
-  return React.createElement('div', {
-    style: {
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '2rem'
-    }
-  }, [
-    React.createElement('div', {
-      key: 'card',
-      style: {
-        backgroundColor: 'white',
-        borderRadius: '1rem',
-        padding: '3rem',
-        textAlign: 'center',
-        maxWidth: '400px',
-        width: '100%',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
-      }
-    }, [
-      React.createElement('h1', {
-        key: 'title',
-        style: { fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem', color: '#1f2937' }
-      }, '🚀 Synergia'),
-      React.createElement('p', {
-        key: 'subtitle',
-        style: { color: '#6b7280', marginBottom: '2rem' }
-      }, 'Mode Urgence - Version Stable'),
-      React.createElement('button', {
-        key: 'button',
-        onClick: handleLogin,
-        disabled: isLoading,
-        style: {
-          width: '100%',
-          padding: '0.75rem 1.5rem',
-          backgroundColor: isLoading ? '#9ca3af' : '#3b82f6',
-          color: 'white',
-          border: 'none',
-          borderRadius: '0.5rem',
-          fontSize: '1rem',
-          fontWeight: '600',
-          cursor: isLoading ? 'default' : 'pointer',
-          transition: 'background-color 0.2s'
-        }
-      }, isLoading ? '🔄 Connexion...' : '🔑 Accéder à Synergia'),
-      React.createElement('p', {
-        key: 'info',
-        style: { fontSize: '0.875rem', color: '#9ca3af', marginTop: '1rem' }
-      }, 'Version d\'urgence - Tous systèmes opérationnels')
-    ])
-  ]);
 };
 
-// 🏠 COMPOSANT DASHBOARD MINIMAL
-const MinimalDashboard = () => {
-  const handleLogout = () => {
-    localStorage.removeItem('synergia_demo_user');
-    window.location.href = '/login';
-  };
+// 📦 IMPORTS ESSENTIELS - Votre AuthStore Firebase
+try {
+  const authStoreModule = require('./shared/stores/authStore.js');
+  useAuthStore = authStoreModule.useAuthStore;
+  console.log('✅ AuthStore Firebase importé');
+} catch (error) {
+  console.error('❌ Erreur AuthStore critique:', error.message);
+  throw new Error('AuthStore requis pour l\'application');
+}
 
-  return React.createElement('div', {
-    style: {
-      minHeight: '100vh',
-      backgroundColor: '#f9fafb',
-      padding: '2rem'
+// 🔐 ROUTES ET LAYOUTS - Votre structure existante
+ProtectedRoute = safeImport('./routes/ProtectedRoute.jsx', 'ProtectedRoute');
+PublicRoute = safeImport('./routes/PublicRoute.jsx', 'PublicRoute');
+DashboardLayout = safeImport('./layouts/DashboardLayout.jsx', 'DashboardLayout');
+
+// 📄 PAGES PRINCIPALES - Votre structure existante
+Login = safeImport('./pages/Login.jsx', 'Login');
+Dashboard = safeImport('./pages/Dashboard.jsx', 'Dashboard');
+TasksPage = safeImport('./pages/TasksPage.jsx', 'TasksPage');
+ProjectsPage = safeImport('./pages/ProjectsPage.jsx', 'ProjectsPage');
+AnalyticsPage = safeImport('./pages/AnalyticsPage.jsx', 'AnalyticsPage');
+
+// 🎮 PAGES GAMIFICATION - Votre structure existante
+GamificationPage = safeImport('./pages/GamificationPage.jsx', 'GamificationPage');
+RewardsPage = safeImport('./pages/RewardsPage.jsx', 'RewardsPage');
+BadgesPage = safeImport('./pages/BadgesPage.jsx', 'BadgesPage');
+
+// 👥 PAGES ÉQUIPE - Votre structure existante
+UsersPage = safeImport('./pages/UsersPage.jsx', 'UsersPage');
+OnboardingPage = safeImport('./pages/OnboardingPage.jsx', 'OnboardingPage');
+
+// ⚙️ PAGES OUTILS - Votre structure existante
+TimeTrackPage = safeImport('./pages/TimeTrackPage.jsx', 'TimeTrackPage');
+ProfilePage = safeImport('./pages/ProfilePage.jsx', 'ProfilePage');
+SettingsPage = safeImport('./pages/SettingsPage.jsx', 'SettingsPage');
+
+// 🔧 PAGES ADMIN - Votre structure existante
+CompleteAdminTestPage = safeImport('./pages/CompleteAdminTestPage.jsx', 'CompleteAdminTestPage');
+AdminProfileTestPage = safeImport('./pages/AdminProfileTestPage.jsx', 'AdminProfileTestPage');
+AdminTaskValidationPage = safeImport('./pages/AdminTaskValidationPage.jsx', 'AdminTaskValidationPage');
+
+// 🔄 FALLBACKS SIMPLES - Sans mode démo, utilise votre système Firebase
+if (!ProtectedRoute) {
+  ProtectedRoute = ({ children }) => {
+    const { isAuthenticated, loading } = useAuthStore();
+    
+    if (loading) {
+      return (
+        <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+          <div className="text-white">🔄 Vérification authentification...</div>
+        </div>
+      );
     }
-  }, [
-    React.createElement('div', {
-      key: 'header',
-      style: {
-        backgroundColor: 'white',
-        borderRadius: '1rem',
-        padding: '2rem',
-        marginBottom: '2rem',
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }
-    }, [
-      React.createElement('div', { key: 'title-section' }, [
-        React.createElement('h1', {
-          key: 'title',
-          style: { fontSize: '2rem', fontWeight: 'bold', color: '#1f2937' }
-        }, '🚀 Synergia Dashboard'),
-        React.createElement('p', {
-          key: 'subtitle',
-          style: { color: '#6b7280' }
-        }, 'Mode d\'urgence activé - Application fonctionnelle')
-      ]),
-      React.createElement('button', {
-        key: 'logout',
-        onClick: handleLogout,
-        style: {
-          padding: '0.5rem 1rem',
-          backgroundColor: '#ef4444',
-          color: 'white',
-          border: 'none',
-          borderRadius: '0.5rem',
-          cursor: 'pointer'
-        }
-      }, '🚪 Déconnexion')
-    ]),
-    React.createElement('div', {
-      key: 'content',
-      style: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '1.5rem'
-      }
-    }, [
-      React.createElement('div', {
-        key: 'card1',
-        style: {
-          backgroundColor: 'white',
-          borderRadius: '1rem',
-          padding: '2rem',
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
-        }
-      }, [
-        React.createElement('h3', {
-          key: 'title',
-          style: { fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem', color: '#1f2937' }
-        }, '✅ Statut Système'),
-        React.createElement('div', { key: 'status' }, [
-          React.createElement('p', { key: 'line1', style: { marginBottom: '0.5rem' } }, '🟢 Application: Fonctionnelle'),
-          React.createElement('p', { key: 'line2', style: { marginBottom: '0.5rem' } }, '🟢 Firebase: Connecté'),
-          React.createElement('p', { key: 'line3', style: { marginBottom: '0.5rem' } }, '🟢 Build: Stable'),
-          React.createElement('p', { key: 'line4' }, '🟢 Erreurs: Corrigées')
-        ])
-      ]),
-      React.createElement('div', {
-        key: 'card2',
-        style: {
-          backgroundColor: 'white',
-          borderRadius: '1rem',
-          padding: '2rem',
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
-        }
-      }, [
-        React.createElement('h3', {
-          key: 'title',
-          style: { fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem', color: '#1f2937' }
-        }, '🔧 Actions Rapides'),
-        React.createElement('div', { key: 'actions' }, [
-          React.createElement('button', {
-            key: 'reload',
-            onClick: () => window.location.reload(),
-            style: {
-              display: 'block',
-              width: '100%',
-              marginBottom: '0.5rem',
-              padding: '0.5rem',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.25rem',
-              cursor: 'pointer'
-            }
-          }, '🔄 Recharger App'),
-          React.createElement('button', {
-            key: 'reset',
-            onClick: () => { localStorage.clear(); window.location.reload(); },
-            style: {
-              display: 'block',
-              width: '100%',
-              padding: '0.5rem',
-              backgroundColor: '#f59e0b',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.25rem',
-              cursor: 'pointer'
-            }
-          }, '🧹 Reset Complet')
-        ])
-      ])
-    ])
-  ]);
-};
+    
+    if (!isAuthenticated) {
+      return <Navigate to="/login" replace />;
+    }
+    
+    return children;
+  };
+}
+
+if (!PublicRoute) {
+  PublicRoute = ({ children }) => {
+    const { isAuthenticated } = useAuthStore();
+    
+    if (isAuthenticated) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    
+    return children;
+  };
+}
+
+if (!Login) {
+  Login = () => (
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 flex items-center justify-center">
+      <div className="bg-white rounded-lg p-8 max-w-md w-full">
+        <h1 className="text-2xl font-bold text-center mb-4">🚀 Synergia</h1>
+        <p className="text-center text-gray-600 mb-6">Page de connexion non trouvée</p>
+        <p className="text-center text-red-600 text-sm">
+          Erreur: ./pages/Login.jsx non importé
+        </p>
+      </div>
+    </div>
+  );
+}
+
+if (!Dashboard) {
+  Dashboard = () => (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">🚀 Synergia Dashboard</h1>
+          <p className="text-gray-600 mb-4">Dashboard principal non trouvé</p>
+          <p className="text-red-600 text-sm">
+            Erreur: ./pages/Dashboard.jsx non importé
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+if (!DashboardLayout) {
+  DashboardLayout = ({ children }) => children;
+}
 
 /**
- * 🚀 APPLICATION PRINCIPALE D'URGENCE
+ * 🚀 APPLICATION PRINCIPALE SÉCURISÉE
  */
-const App = () => {
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+function App() {
+  const [appState, setAppState] = useState('initializing');
+  const { initializeAuth, isInitialized } = useAuthStore();
 
   useEffect(() => {
-    console.log('🚀 SYNERGIA v3.5.3 - MODE URGENCE ACTIVÉ');
-    console.log('🛡️ Protection d\'erreur globale active');
-    console.log('⚡ Version ultra-stable pour résoudre blocage');
+    console.log('🚀 SYNERGIA v3.5.3 - Démarrage sécurisé');
     
-    // Initialisation simple
-    setTimeout(() => {
-      setIsInitialized(true);
-    }, 1000);
+    try {
+      // Initialiser l'authentification Firebase
+      if (initializeAuth) {
+        initializeAuth();
+      }
+      
+      setAppState('ready');
+      console.log('✅ Application initialisée avec Firebase Auth');
+      
+    } catch (error) {
+      console.error('❌ Erreur initialisation:', error);
+      setAppState('error');
+    }
+  }, [initializeAuth]);
 
-    // Écouter les changements d'URL
-    const handlePopState = () => {
-      setCurrentPath(window.location.pathname);
-    };
-    
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  // Écran de chargement
-  if (!isInitialized) {
-    return React.createElement(LoadingFallback);
+  // État de chargement
+  if (appState === 'initializing' || !isInitialized) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+          <h2 className="text-2xl font-semibold mb-2">🚀 Synergia</h2>
+          <p className="text-blue-200">Initialisation sécurisée...</p>
+          <p className="text-xs text-blue-300 mt-2">Mode de récupération activé</p>
+        </div>
+      </div>
+    );
   }
 
-  // Vérifier si utilisateur connecté (mode démo)
-  const isLoggedIn = localStorage.getItem('synergia_demo_user') === 'true';
-
-  // Router simple
-  if (currentPath === '/login' || !isLoggedIn) {
-    return React.createElement(MinimalLogin);
+  // État d'erreur
+  if (appState === 'error') {
+    return (
+      <div className="min-h-screen bg-red-900 flex items-center justify-center">
+        <div className="text-center text-white p-8">
+          <h2 className="text-2xl font-semibold mb-4">❌ Erreur Critique</h2>
+          <p className="mb-6">Impossible d'initialiser l'application</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-white text-red-900 px-6 py-2 rounded font-semibold hover:bg-gray-100"
+          >
+            🔄 Recharger
+          </button>
+        </div>
+      </div>
+    );
   }
 
-  return React.createElement(MinimalDashboard);
-};
+  // Application principale - Toutes vos routes existantes
+  return (
+    <Router>
+      <div className="App">
+        <Routes>
+          {/* 🌐 Route publique - Login */}
+          <Route 
+            path="/login" 
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            } 
+          />
+          
+          {/* 🏠 Redirection racine */}
+          <Route 
+            path="/" 
+            element={<Navigate to="/dashboard" replace />} 
+          />
+          
+          {/* 🔐 Routes protégées avec layout */}
+          <Route 
+            path="/*" 
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <Routes>
+                    {/* 📊 Pages principales */}
+                    <Route path="/dashboard" element={Dashboard ? <Dashboard /> : <div>Dashboard non trouvé</div>} />
+                    <Route path="/tasks" element={TasksPage ? <TasksPage /> : <div>TasksPage non trouvé</div>} />
+                    <Route path="/projects" element={ProjectsPage ? <ProjectsPage /> : <div>ProjectsPage non trouvé</div>} />
+                    <Route path="/analytics" element={AnalyticsPage ? <AnalyticsPage /> : <div>AnalyticsPage non trouvé</div>} />
+                    
+                    {/* 🎮 Pages gamification */}
+                    <Route path="/gamification" element={GamificationPage ? <GamificationPage /> : <div>GamificationPage non trouvé</div>} />
+                    <Route path="/rewards" element={RewardsPage ? <RewardsPage /> : <div>RewardsPage non trouvé</div>} />
+                    <Route path="/badges" element={BadgesPage ? <BadgesPage /> : <div>BadgesPage non trouvé</div>} />
+                    
+                    {/* 👥 Pages équipe */}
+                    <Route path="/users" element={UsersPage ? <UsersPage /> : <div>UsersPage non trouvé</div>} />
+                    <Route path="/onboarding" element={OnboardingPage ? <OnboardingPage /> : <div>OnboardingPage non trouvé</div>} />
+                    
+                    {/* ⚙️ Pages outils */}
+                    <Route path="/timetrack" element={TimeTrackPage ? <TimeTrackPage /> : <div>TimeTrackPage non trouvé</div>} />
+                    <Route path="/profile" element={ProfilePage ? <ProfilePage /> : <div>ProfilePage non trouvé</div>} />
+                    <Route path="/settings" element={SettingsPage ? <SettingsPage /> : <div>SettingsPage non trouvé</div>} />
+                    
+                    {/* 🔧 Pages admin */}
+                    <Route path="/admin/complete-test" element={CompleteAdminTestPage ? <CompleteAdminTestPage /> : <div>CompleteAdminTestPage non trouvé</div>} />
+                    <Route path="/admin/profile-test" element={AdminProfileTestPage ? <AdminProfileTestPage /> : <div>AdminProfileTestPage non trouvé</div>} />
+                    <Route path="/admin/task-validation" element={AdminTaskValidationPage ? <AdminTaskValidationPage /> : <div>AdminTaskValidationPage non trouvé</div>} />
+                    
+                    {/* 🔄 Fallback */}
+                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                  </Routes>
+                </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+        </Routes>
+      </div>
+    </Router>
+  );
+}
 
 export default App;
