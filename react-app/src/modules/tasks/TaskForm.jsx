@@ -1,49 +1,102 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskForm.jsx
-// CORRECTION : Tous les imports avec chemins corrects
+// FORMULAIRE DE CRÉATION DE TÂCHE AVEC SÉLECTION DE PROJETS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Calendar, Clock, Flag, Tag, FileText } from 'lucide-react';
+import { X, Calendar, Clock, Tag, User, Briefcase } from 'lucide-react';
+import { useAuthStore } from '../../shared/stores/authStore.js';
+import { projectService } from '../../core/services/projectService.js';
 
-// 🔧 CORRECTION : Imports avec chemins corrects depuis shared/stores
-import { useTaskStore } from '../../shared/stores/taskStore';
-import { useProjectStore } from '../../shared/stores/projectStore';
-import { useAuthStore } from '../../shared/stores/authStore';
-import dateUtils from '../../shared/utils/dateUtils.js';
-
-export const TaskForm = ({ task, onClose, onSave }) => {
-  const { createTask, updateTask, creating, updating } = useTaskStore();
-  const { projects } = useProjectStore();
+/**
+ * 📝 FORMULAIRE DE CRÉATION/ÉDITION DE TÂCHE AVEC PROJETS
+ */
+const TaskForm = ({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  initialData = null,
+  loading = false 
+}) => {
   const { user } = useAuthStore();
   
+  // États du formulaire
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    priority: 'medium',
+    projectId: '',
+    priority: 'normal',
+    complexity: 'medium',
     dueDate: '',
     estimatedTime: '',
-    projectId: '',
-    tags: []
+    tags: [],
+    assignedTo: user?.uid || ''
   });
   
-  const [tagInput, setTagInput] = useState('');
+  // États des projets
+  const [projects, setProjects] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  
+  // États UI
   const [errors, setErrors] = useState({});
+  const [currentTag, setCurrentTag] = useState('');
 
-  // 🔧 CORRECTION : Initialiser le formulaire avec gestion dates sécurisée
+  // Charger les projets de l'utilisateur
   useEffect(() => {
-    if (task) {
+    const loadUserProjects = async () => {
+      if (!user?.uid) return;
+      
+      setLoadingProjects(true);
+      try {
+        console.log('🔄 Chargement projets pour le formulaire de tâche...');
+        const userProjects = await projectService.getUserProjects(user.uid);
+        
+        console.log('✅ Projets chargés pour le formulaire:', userProjects?.length || 0);
+        setProjects(userProjects || []);
+        
+      } catch (error) {
+        console.error('❌ Erreur chargement projets pour TaskForm:', error);
+        setProjects([]);
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+
+    if (isOpen) {
+      loadUserProjects();
+    }
+  }, [isOpen, user?.uid]);
+
+  // Initialiser le formulaire avec les données existantes
+  useEffect(() => {
+    if (initialData) {
       setFormData({
-        title: task.title || '',
-        description: task.description || '',
-        priority: task.priority || 'medium',
-        dueDate: task.dueDate ? dateUtils.formatForInput(task.dueDate) : '',
-        estimatedTime: task.estimatedTime || '',
-        projectId: task.projectId || '',
-        tags: Array.isArray(task.tags) ? task.tags : []
+        title: initialData.title || '',
+        description: initialData.description || '',
+        projectId: initialData.projectId || '',
+        priority: initialData.priority || 'normal',
+        complexity: initialData.complexity || 'medium',
+        dueDate: initialData.dueDate || '',
+        estimatedTime: initialData.estimatedTime || '',
+        tags: initialData.tags || [],
+        assignedTo: initialData.assignedTo || user?.uid || ''
+      });
+    } else {
+      // Reset pour nouvelle tâche
+      setFormData({
+        title: '',
+        description: '',
+        projectId: '',
+        priority: 'normal',
+        complexity: 'medium',
+        dueDate: '',
+        estimatedTime: '',
+        tags: [],
+        assignedTo: user?.uid || ''
       });
     }
-  }, [task]);
+    setErrors({});
+  }, [initialData, user?.uid, isOpen]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -51,7 +104,8 @@ export const TaskForm = ({ task, onClose, onSave }) => {
       ...prev,
       [name]: value
     }));
-    // Nettoyer l'erreur si elle existe
+    
+    // Effacer l'erreur pour ce champ
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -61,12 +115,12 @@ export const TaskForm = ({ task, onClose, onSave }) => {
   };
 
   const handleAddTag = () => {
-    if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
+    if (currentTag.trim() && !formData.tags.includes(currentTag.trim())) {
       setFormData(prev => ({
         ...prev,
-        tags: [...prev.tags, tagInput.trim()]
+        tags: [...prev.tags, currentTag.trim()]
       }));
-      setTagInput('');
+      setCurrentTag('');
     }
   };
 
@@ -87,268 +141,297 @@ export const TaskForm = ({ task, onClose, onSave }) => {
     if (!formData.projectId) {
       newErrors.projectId = 'Veuillez sélectionner un projet';
     }
-
+    
     if (formData.dueDate && new Date(formData.dueDate) < new Date()) {
       newErrors.dueDate = 'La date d\'échéance ne peut pas être dans le passé';
     }
-
-    if (formData.estimatedTime && (isNaN(formData.estimatedTime) || formData.estimatedTime <= 0)) {
-      newErrors.estimatedTime = 'Le temps estimé doit être un nombre positif';
-    }
-
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
-
-    try {
-      const taskData = {
-        ...formData,
-        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
-        estimatedTime: formData.estimatedTime ? parseInt(formData.estimatedTime) : null,
-        userId: user.uid,
-        updatedAt: new Date()
-      };
-
-      if (task) {
-        await updateTask(task.id, taskData);
-      } else {
-        taskData.createdAt = new Date();
-        taskData.status = 'todo';
-        await createTask(taskData);
-      }
-
-      onSave?.();
-      onClose();
-    } catch (error) {
-      console.error('Erreur sauvegarde tâche:', error);
-      setErrors({ submit: 'Erreur lors de la sauvegarde. Veuillez réessayer.' });
+    if (!validateForm()) {
+      return;
     }
+    
+    // Préparer les données à soumettre
+    const taskData = {
+      ...formData,
+      title: formData.title.trim(),
+      description: formData.description.trim(),
+      tags: formData.tags.filter(tag => tag.trim()),
+      estimatedTime: formData.estimatedTime ? parseInt(formData.estimatedTime) : null,
+      dueDate: formData.dueDate || null
+    };
+    
+    console.log('📝 Soumission TaskForm:', taskData);
+    onSubmit(taskData);
   };
 
-  const priorityOptions = [
-    { value: 'low', label: 'Faible', color: 'text-green-400' },
-    { value: 'medium', label: 'Moyenne', color: 'text-yellow-400' },
-    { value: 'high', label: 'Haute', color: 'text-red-400' }
-  ];
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
         
-        {/* En-tête */}
+        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
           <h2 className="text-xl font-semibold text-white">
-            {task ? '✏️ Modifier la tâche' : '➕ Nouvelle tâche'}
+            {initialData ? 'Modifier la tâche' : 'Nouvelle tâche'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="p-2 text-gray-400 hover:text-white transition-colors"
           >
-            <X size={24} />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          
-          {/* Titre */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <FileText size={16} className="inline mr-1" />
-              Titre *
-            </label>
-            <input
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={handleInputChange}
-              className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.title ? 'border-red-500' : 'border-gray-600'
-              }`}
-              placeholder="Entrez le titre de la tâche..."
-            />
-            {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title}</p>}
-          </div>
+        {/* Formulaire */}
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+          <div className="space-y-6">
 
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Description
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              rows={3}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Description détaillée de la tâche..."
-            />
-          </div>
+            {/* Titre */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Titre de la tâche *
+              </label>
+              <input
+                type="text"
+                name="title"
+                value={formData.title}
+                onChange={handleInputChange}
+                className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.title ? 'border-red-500' : 'border-gray-600'
+                }`}
+                placeholder="Entrez le titre de la tâche..."
+              />
+              {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title}</p>}
+            </div>
 
-          {/* Projet et Priorité */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Description
+              </label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                rows={3}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Description détaillée de la tâche..."
+              />
+            </div>
+
             {/* Projet */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
+                <Briefcase className="w-4 h-4 inline mr-2" />
                 Projet *
               </label>
-              <select
-                name="projectId"
-                value={formData.projectId}
-                onChange={handleInputChange}
-                className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.projectId ? 'border-red-500' : 'border-gray-600'
-                }`}
-              >
-                <option value="">Sélectionner un projet</option>
-                {projects.map(project => (
-                  <option key={project.id} value={project.id}>
-                    {project.title}
-                  </option>
-                ))}
-              </select>
+              {loadingProjects ? (
+                <div className="flex items-center gap-2 text-gray-400">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                  Chargement des projets...
+                </div>
+              ) : (
+                <select
+                  name="projectId"
+                  value={formData.projectId}
+                  onChange={handleInputChange}
+                  className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.projectId ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                >
+                  <option value="">Sélectionner un projet</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={project.id}>
+                      {project.title} ({project.status === 'active' ? 'Actif' : project.status})
+                    </option>
+                  ))}
+                </select>
+              )}
               {errors.projectId && <p className="text-red-400 text-sm mt-1">{errors.projectId}</p>}
+              
+              {/* Message si aucun projet */}
+              {!loadingProjects && projects.length === 0 && (
+                <div className="mt-2 p-3 bg-yellow-800 bg-opacity-50 border border-yellow-600 rounded-lg">
+                  <p className="text-yellow-200 text-sm">
+                    ⚠️ Aucun projet trouvé. <a href="/projects" className="text-yellow-100 underline">Créez d'abord un projet</a> pour pouvoir y ajouter des tâches.
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* Priorité */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Flag size={16} className="inline mr-1" />
-                Priorité
-              </label>
-              <select
-                name="priority"
-                value={formData.priority}
-                onChange={handleInputChange}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {priorityOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Date d'échéance et temps estimé */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            
-            {/* Date d'échéance */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Calendar size={16} className="inline mr-1" />
-                Date d'échéance
-              </label>
-              <input
-                type="date"
-                name="dueDate"
-                value={formData.dueDate}
-                onChange={handleInputChange}
-                className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.dueDate ? 'border-red-500' : 'border-gray-600'
-                }`}
-              />
-              {errors.dueDate && <p className="text-red-400 text-sm mt-1">{errors.dueDate}</p>}
-            </div>
-
-            {/* Temps estimé */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Clock size={16} className="inline mr-1" />
-                Temps estimé (heures)
-              </label>
-              <input
-                type="number"
-                name="estimatedTime"
-                value={formData.estimatedTime}
-                onChange={handleInputChange}
-                min="0.5"
-                step="0.5"
-                className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.estimatedTime ? 'border-red-500' : 'border-gray-600'
-                }`}
-                placeholder="ex: 2.5"
-              />
-              {errors.estimatedTime && <p className="text-red-400 text-sm mt-1">{errors.estimatedTime}</p>}
-            </div>
-          </div>
-
-          {/* Tags */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Tag size={16} className="inline mr-1" />
-              Tags
-            </label>
-            
-            {/* Tags existants */}
-            {formData.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {formData.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-600 text-white"
-                  >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTag(tag)}
-                      className="ml-2 text-blue-200 hover:text-white"
-                    >
-                      <X size={14} />
-                    </button>
-                  </span>
-                ))}
+            {/* Priorité et Complexité */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* Priorité */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Priorité
+                </label>
+                <select
+                  name="priority"
+                  value={formData.priority}
+                  onChange={handleInputChange}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="low">🔹 Basse</option>
+                  <option value="normal">🔸 Normale</option>
+                  <option value="high">🔶 Haute</option>
+                  <option value="urgent">🔴 Urgente</option>
+                </select>
               </div>
-            )}
-            
-            {/* Ajouter nouveau tag */}
-            <div className="flex gap-2">
+
+              {/* Complexité */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Complexité
+                </label>
+                <select
+                  name="complexity"
+                  value={formData.complexity}
+                  onChange={handleInputChange}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="easy">🟢 Facile</option>
+                  <option value="medium">🟡 Moyenne</option>
+                  <option value="hard">🔴 Difficile</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Date d'échéance et Temps estimé */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* Date d'échéance */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <Calendar className="w-4 h-4 inline mr-2" />
+                  Date d'échéance
+                </label>
+                <input
+                  type="date"
+                  name="dueDate"
+                  value={formData.dueDate}
+                  onChange={handleInputChange}
+                  className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.dueDate ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                />
+                {errors.dueDate && <p className="text-red-400 text-sm mt-1">{errors.dueDate}</p>}
+              </div>
+
+              {/* Temps estimé */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <Clock className="w-4 h-4 inline mr-2" />
+                  Temps estimé (heures)
+                </label>
+                <input
+                  type="number"
+                  name="estimatedTime"
+                  value={formData.estimatedTime}
+                  onChange={handleInputChange}
+                  min="0"
+                  step="0.5"
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="ex: 2.5"
+                />
+              </div>
+            </div>
+
+            {/* Tags */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                <Tag className="w-4 h-4 inline mr-2" />
+                Tags
+              </label>
+              
+              {/* Affichage des tags existants */}
+              {formData.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {formData.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-sm rounded-full"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        className="text-blue-200 hover:text-white"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              
+              {/* Ajout de nouveaux tags */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={currentTag}
+                  onChange={(e) => setCurrentTag(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                  className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ajouter un tag..."
+                />
+                <button
+                  type="button"
+                  onClick={handleAddTag}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Ajouter
+                </button>
+              </div>
+            </div>
+
+            {/* Assignation */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                <User className="w-4 h-4 inline mr-2" />
+                Assigné à
+              </label>
               <input
                 type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Ajouter un tag..."
+                name="assignedTo"
+                value={formData.assignedTo}
+                onChange={handleInputChange}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="ID de l'utilisateur assigné"
+                readOnly
               />
-              <button
-                type="button"
-                onClick={handleAddTag}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus size={16} />
-              </button>
+              <p className="text-xs text-gray-400 mt-1">
+                Par défaut, la tâche vous est assignée
+              </p>
             </div>
           </div>
 
-          {/* Erreur générale */}
-          {errors.submit && (
-            <div className="p-4 bg-red-900/50 border border-red-500 rounded-lg">
-              <p className="text-red-400 text-sm">{errors.submit}</p>
-            </div>
-          )}
-
           {/* Boutons d'action */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-700">
+          <div className="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-gray-700">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              disabled={loading}
+              className="px-6 py-2 text-gray-300 bg-gray-700 border border-gray-600 rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
             >
               Annuler
             </button>
             <button
               type="submit"
-              disabled={creating || updating}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading || loadingProjects || projects.length === 0}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
             >
-              {creating || updating ? 'Sauvegarde...' : task ? 'Modifier' : 'Créer'}
+              {loading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
+              {initialData ? 'Mettre à jour' : 'Créer la tâche'}
             </button>
           </div>
         </form>
