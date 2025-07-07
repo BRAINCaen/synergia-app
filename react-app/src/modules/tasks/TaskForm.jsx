@@ -440,14 +440,8 @@ const TaskForm = ({
   );
 };
 
-// ==========================================
-// 🔧 AJOUT À LA FIN DE TON FICHIER TaskForm.jsx
-// Ajouter juste ces 2 lignes après "export default TaskForm;"
-// ==========================================
-
+// Export par défaut seulement
 export default TaskForm;
 
-// ✅ AJOUT : Export nommé pour la compatibilité d'import
-export { TaskForm };
-
-console.log('✅ TaskForm - Export nommé ajouté pour compatibilité build');
+// ✅ Pas d'export nommé pour éviter les conflits
+console.log('✅ TaskForm - Export default uniquement pour éviter les conflits');
