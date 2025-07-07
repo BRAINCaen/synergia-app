@@ -1,537 +1,706 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// ✅ VERSION FIXÉE - CRÉATION DE TÂCHES FONCTIONNELLE
+// PAGE TÂCHES AVEC ASSIGNATION AUX PROJETS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
   Search, 
+  Filter, 
+  Calendar, 
+  Users, 
   Target, 
-  CheckSquare, 
   Clock, 
-  CheckCircle, 
+  CheckCircle,
   AlertTriangle,
-  Send,
+  Eye,
   Edit,
   Trash2,
-  Filter
+  Play,
+  Pause,
+  RotateCcw,
+  Briefcase,
+  Link,
+  Unlink,
+  X
 } from 'lucide-react';
-
-// ✅ IMPORTS CORRECTS
 import { useAuthStore } from '../shared/stores/authStore.js';
-import TaskService from '../core/services/taskService.js';
-import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
+import { taskService } from '../core/services/taskService.js';
+import { projectService } from '../core/services/projectService.js';
+import { taskProjectIntegration } from '../core/services/taskProjectIntegration.js';
+import { TaskForm } from '../modules/tasks/TaskForm.jsx';
 
-// ✅ INSTANCE DU SERVICE
-const taskService = new TaskService();
-
-// ✅ COMPOSANT MODAL RAPIDE DE CRÉATION
-const QuickTaskForm = ({ onSubmit, onCancel }) => {
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    difficulty: 'normal',
-    priority: 'normal'
-  });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.title.trim()) return;
-    
-    onSubmit(formData);
-    setFormData({ title: '', description: '', difficulty: 'normal', priority: 'normal' });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h3 className="text-lg font-bold mb-4">Nouvelle Tâche</h3>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Titre*</label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
-              placeholder="Ex: Finaliser la présentation"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 h-20 resize-none"
-              placeholder="Détails de la tâche..."
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Difficulté</label>
-              <select
-                value={formData.difficulty}
-                onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="easy">Facile (10 XP)</option>
-                <option value="normal">Normal (25 XP)</option>
-                <option value="hard">Difficile (50 XP)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
-              <select
-                value={formData.priority}
-                onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="low">Basse</option>
-                <option value="normal">Normale</option>
-                <option value="high">Haute</option>
-                <option value="urgent">Urgente</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Créer
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// ✅ COMPOSANT CARTE DE TÂCHE
-const TaskCard = ({ task, onSubmit, onDelete }) => {
-  const getStatusColor = (status) => {
-    const colors = {
-      'todo': 'bg-blue-100 text-blue-800',
-      'in_progress': 'bg-indigo-100 text-indigo-800', 
-      'validation_pending': 'bg-orange-100 text-orange-800',
-      'completed': 'bg-green-100 text-green-800',
-      'rejected': 'bg-red-100 text-red-800'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
-
-  const getStatusLabel = (status) => {
-    const labels = {
-      'todo': 'À faire',
-      'in_progress': 'En cours',
-      'validation_pending': 'En validation',
-      'completed': 'Validée',
-      'rejected': 'Rejetée'
-    };
-    return labels[status] || status;
-  };
-
-  const getDifficultyXP = (difficulty) => {
-    const xp = {
-      'easy': 10,
-      'normal': 25,
-      'hard': 50
-    };
-    return xp[difficulty] || 25;
-  };
-
-  const canSubmit = task.status === 'todo' || task.status === 'in_progress';
-
-  return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
-      {/* En-tête */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <h3 className="font-semibold text-gray-900 mb-1">{task.title}</h3>
-          <p className="text-sm text-gray-600 line-clamp-2">{task.description}</p>
-        </div>
-        
-        <div className="flex items-center gap-2 ml-3">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
-            {getStatusLabel(task.status)}
-          </span>
-        </div>
-      </div>
-
-      {/* Métadonnées */}
-      <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
-        <span className="flex items-center gap-1">
-          <Target className="w-3 h-3" />
-          {getDifficultyXP(task.difficulty)} XP
-        </span>
-        <span className="flex items-center gap-1">
-          <Clock className="w-3 h-3" />
-          {new Date(task.createdAt).toLocaleDateString()}
-        </span>
-        {task.priority !== 'normal' && (
-          <span className={`px-1 py-0.5 rounded text-xs ${
-            task.priority === 'urgent' ? 'bg-red-100 text-red-700' :
-            task.priority === 'high' ? 'bg-orange-100 text-orange-700' :
-            'bg-gray-100 text-gray-700'
-          }`}>
-            {task.priority}
-          </span>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {canSubmit && (
-            <button
-              onClick={() => onSubmit(task)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <Send className="w-3 h-3" />
-              Soumettre
-            </button>
-          )}
-          
-          {task.status === 'validation_pending' && (
-            <div className="flex items-center gap-1 text-orange-600 text-sm">
-              <Clock className="w-3 h-3" />
-              En attente de validation
-            </div>
-          )}
-          
-          {task.status === 'completed' && (
-            <div className="flex items-center gap-1 text-green-600 text-sm">
-              <CheckCircle className="w-3 h-3" />
-              Validée
-            </div>
-          )}
-          
-          {task.status === 'rejected' && (
-            <div className="flex items-center gap-1 text-red-600 text-sm">
-              <AlertTriangle className="w-3 h-3" />
-              Rejetée
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => onDelete(task)}
-            className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
-            title="Supprimer"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ✅ COMPOSANT PRINCIPAL
+/**
+ * ✅ PAGE TÂCHES AVEC GESTION DE PROJETS
+ */
 const TasksPage = () => {
   const { user } = useAuthStore();
   
-  // États
+  // États principaux
   const [tasks, setTasks] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
-  const [taskToSubmit, setTaskToSubmit] = useState(null);
+  
+  // États UI
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [projectFilter, setProjectFilter] = useState('all');
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [showProjectAssignModal, setShowProjectAssignModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  
+  // États intégration
+  const [integrationStats, setIntegrationStats] = useState(null);
+  const [selectedTasks, setSelectedTasks] = useState([]);
 
-  // ✅ CHARGER LES TÂCHES
-  const loadTasks = async () => {
+  // Charger toutes les données
+  useEffect(() => {
+    if (user?.uid) {
+      loadAllData();
+      loadIntegrationStats();
+    }
+  }, [user?.uid]);
+
+  const loadAllData = async () => {
     if (!user?.uid) return;
     
     setLoading(true);
     try {
-      console.log('🔄 Chargement des tâches pour:', user.uid);
-      const userTasks = await taskService.getUserTasks(user.uid);
+      console.log('🔄 Chargement données tâches et projets...');
+      
+      const [userTasks, userProjects] = await Promise.all([
+        taskService.getUserTasks(user.uid),
+        projectService.getUserProjects(user.uid)
+      ]);
+      
       setTasks(userTasks || []);
-      console.log('✅ Tâches chargées:', userTasks?.length || 0);
+      setProjects(userProjects || []);
+      
+      console.log('✅ Données chargées:', {
+        tâches: userTasks?.length || 0,
+        projets: userProjects?.length || 0
+      });
+      
     } catch (error) {
-      console.error('❌ Erreur chargement tâches:', error);
-      setTasks([]);
+      console.error('❌ Erreur chargement données:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Charger au montage et quand l'utilisateur change
-  useEffect(() => {
-    loadTasks();
-  }, [user?.uid]);
+  const loadIntegrationStats = async () => {
+    if (!user?.uid) return;
+    
+    try {
+      const stats = await taskProjectIntegration.getIntegrationStats(user.uid);
+      setIntegrationStats(stats);
+    } catch (error) {
+      console.error('❌ Erreur statistiques intégration:', error);
+    }
+  };
 
-  // ✅ CRÉER UNE TÂCHE - VERSION CORRIGÉE
   const handleCreateTask = async (taskData) => {
     if (!user?.uid) {
       alert('Vous devez être connecté pour créer une tâche');
       return;
     }
     
-    setCreating(true);
     try {
-      console.log('📝 Création tâche:', taskData);
+      console.log('📝 Création tâche avec projet:', taskData);
       
-      // ✅ Appel correct du service
       const newTask = await taskService.createTask(taskData, user.uid);
       
-      // Ajouter à la liste locale
-      setTasks(prev => [newTask, ...prev]);
-      setShowForm(false);
+      // Si la tâche est assignée à un projet, mettre à jour la progression
+      if (taskData.projectId) {
+        await taskProjectIntegration.updateProjectProgress(taskData.projectId);
+      }
       
-      console.log('✅ Tâche créée avec succès:', newTask.id);
+      setTasks(prev => [newTask, ...prev]);
+      setShowTaskForm(false);
+      
+      await loadIntegrationStats();
+      
+      console.log('✅ Tâche créée avec succès');
       alert('✅ Tâche créée avec succès !');
       
     } catch (error) {
       console.error('❌ Erreur création tâche:', error);
-      alert(`❌ Erreur lors de la création: ${error.message}`);
-    } finally {
-      setCreating(false);
+      alert(`❌ Erreur: ${error.message}`);
     }
   };
 
-  // ✅ OUVRIR LE MODAL DE SOUMISSION
-  const handleSubmitTaskClick = (task) => {
-    console.log('🎯 Ouverture modal soumission pour:', task.title);
-    setTaskToSubmit(task);
-    setShowSubmissionModal(true);
-  };
-
-  // ✅ SOUMETTRE POUR VALIDATION
-  const handleSubmitTask = async (task, submissionData) => {
+  const handleAssignToProject = async (projectId) => {
+    if (!selectedTask || !projectId) return;
+    
     setUpdating(true);
     try {
-      console.log('🎯 Soumission tâche pour validation:', task.title);
-      console.log('📎 Données soumission:', submissionData);
+      console.log(`🔗 Assignation tâche ${selectedTask.id} au projet ${projectId}`);
       
-      const result = await taskService.submitTaskForValidation(task.id, submissionData);
+      await taskProjectIntegration.assignTaskToProject(selectedTask.id, projectId, user.uid);
       
       // Mettre à jour la liste locale
-      setTasks(prev => prev.map(t => 
-        t.id === task.id 
-          ? { ...t, status: 'validation_pending', submittedAt: new Date().toISOString() }
-          : t
+      setTasks(prev => prev.map(task => 
+        task.id === selectedTask.id 
+          ? { ...task, projectId: projectId }
+          : task
       ));
       
-      // Fermer le modal
-      setShowSubmissionModal(false);
-      setTaskToSubmit(null);
+      setShowProjectAssignModal(false);
+      setSelectedTask(null);
       
-      alert('✅ Tâche soumise pour validation admin ! Vous recevrez vos XP une fois validée.');
+      await loadIntegrationStats();
+      
+      alert('✅ Tâche assignée au projet !');
       
     } catch (error) {
-      console.error('❌ Erreur soumission tâche:', error);
-      alert(`❌ Erreur lors de la soumission: ${error.message}`);
+      console.error('❌ Erreur assignation:', error);
+      alert(`❌ Erreur: ${error.message}`);
     } finally {
       setUpdating(false);
     }
   };
 
-  // ✅ SUPPRIMER UNE TÂCHE
+  const handleRemoveFromProject = async (task) => {
+    if (!confirm(`Retirer "${task.title}" de son projet ?`)) return;
+    
+    setUpdating(true);
+    try {
+      console.log(`🗑️ Retrait tâche ${task.id} du projet`);
+      
+      await taskProjectIntegration.removeTaskFromProject(task.id, user.uid);
+      
+      // Mettre à jour la liste locale
+      setTasks(prev => prev.map(t => 
+        t.id === task.id 
+          ? { ...t, projectId: null }
+          : t
+      ));
+      
+      await loadIntegrationStats();
+      
+      alert('✅ Tâche retirée du projet !');
+      
+    } catch (error) {
+      console.error('❌ Erreur retrait:', error);
+      alert(`❌ Erreur: ${error.message}`);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleBulkAssign = async (projectId) => {
+    if (selectedTasks.length === 0) return;
+    
+    setUpdating(true);
+    try {
+      console.log(`🔄 Assignation en masse: ${selectedTasks.length} tâches`);
+      
+      await taskProjectIntegration.bulkAssignTasksToProject(selectedTasks, projectId, user.uid);
+      
+      // Mettre à jour la liste locale
+      setTasks(prev => prev.map(task => 
+        selectedTasks.includes(task.id)
+          ? { ...task, projectId: projectId }
+          : task
+      ));
+      
+      setSelectedTasks([]);
+      await loadIntegrationStats();
+      
+      alert(`✅ ${selectedTasks.length} tâches assignées au projet !`);
+      
+    } catch (error) {
+      console.error('❌ Erreur assignation masse:', error);
+      alert(`❌ Erreur: ${error.message}`);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleDeleteTask = async (task) => {
     if (!confirm(`Supprimer la tâche "${task.title}" ?`)) return;
     
     try {
       await taskService.deleteTask(task.id);
       setTasks(prev => prev.filter(t => t.id !== task.id));
-      console.log('✅ Tâche supprimée');
+      
+      // Mettre à jour la progression du projet si nécessaire
+      if (task.projectId) {
+        await taskProjectIntegration.updateProjectProgress(task.projectId);
+      }
+      
+      await loadIntegrationStats();
       alert('✅ Tâche supprimée');
+      
     } catch (error) {
       console.error('❌ Erreur suppression:', error);
-      alert(`❌ Erreur lors de la suppression: ${error.message}`);
+      alert(`❌ Erreur: ${error.message}`);
     }
+  };
+
+  const getProjectName = (projectId) => {
+    const project = projects.find(p => p.id === projectId);
+    return project ? project.title : 'Projet inconnu';
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      todo: 'bg-gray-500',
+      in_progress: 'bg-blue-500',
+      completed: 'bg-green-500',
+      validation_pending: 'bg-orange-500'
+    };
+    return colors[status] || colors.todo;
+  };
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      todo: 'À faire',
+      in_progress: 'En cours',
+      completed: 'Terminé',
+      validation_pending: 'En validation'
+    };
+    return labels[status] || status;
+  };
+
+  const getPriorityColor = (priority) => {
+    const colors = {
+      low: 'text-green-500',
+      normal: 'text-blue-500',
+      high: 'text-orange-500',
+      urgent: 'text-red-500'
+    };
+    return colors[priority] || colors.normal;
   };
 
   // Filtrage des tâches
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.description.toLowerCase().includes(searchTerm.toLowerCase());
+                         task.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesProject = projectFilter === 'all' || 
+                          (projectFilter === 'unassigned' && !task.projectId) ||
+                          (projectFilter === 'assigned' && task.projectId) ||
+                          task.projectId === projectFilter;
+    
+    return matchesSearch && matchesStatus && matchesProject;
   });
 
-  // Statistiques
-  const stats = {
+  const taskStats = {
     total: tasks.length,
     todo: tasks.filter(t => t.status === 'todo').length,
     inProgress: tasks.filter(t => t.status === 'in_progress').length,
-    pending: tasks.filter(t => t.status === 'validation_pending').length,
     completed: tasks.filter(t => t.status === 'completed').length,
-    rejected: tasks.filter(t => t.status === 'rejected').length
+    assigned: tasks.filter(t => t.projectId).length,
+    unassigned: tasks.filter(t => !t.projectId).length
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <span className="ml-3 text-gray-600">Chargement des tâches...</span>
+      <div className="flex items-center justify-center min-h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2 text-gray-600">Chargement des tâches...</span>
       </div>
     );
   }
 
   return (
     <div className="p-6 space-y-6">
+      
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Target className="w-6 h-6 text-blue-600" />
-            Mes Tâches
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <CheckCircle className="w-8 h-8 text-blue-600" />
+            Gestion des Tâches
           </h1>
           <p className="text-gray-600 mt-1">
-            Gérez vos tâches et suivez votre progression
+            Organisez vos tâches et assignez-les à vos projets
           </p>
         </div>
         
-        <button
-          onClick={() => setShowForm(true)}
-          disabled={creating}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          {creating ? 'Création...' : 'Nouvelle Tâche'}
-        </button>
+        <div className="flex items-center gap-3">
+          {selectedTasks.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">
+                {selectedTasks.length} sélectionnée(s)
+              </span>
+              <select
+                onChange={(e) => e.target.value && handleBulkAssign(e.target.value)}
+                className="px-3 py-1 border border-gray-300 rounded text-sm"
+                disabled={updating}
+              >
+                <option value="">Assigner au projet...</option>
+                {projects.map(project => (
+                  <option key={project.id} value={project.id}>
+                    {project.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          
+          <button
+            onClick={() => setShowTaskForm(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Nouvelle Tâche
+          </button>
+        </div>
       </div>
 
       {/* Statistiques */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-          <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-          <div className="text-sm text-gray-600">Total</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-          <div className="text-2xl font-bold text-blue-600">{stats.todo}</div>
-          <div className="text-sm text-gray-600">À faire</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-          <div className="text-2xl font-bold text-indigo-600">{stats.inProgress}</div>
-          <div className="text-sm text-gray-600">En cours</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-          <div className="text-2xl font-bold text-orange-600">{stats.pending}</div>
-          <div className="text-sm text-gray-600">En validation</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-          <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-          <div className="text-sm text-gray-600">Validées</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-          <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
-          <div className="text-sm text-gray-600">Rejetées</div>
-        </div>
-      </div>
-
-      {/* Barre de recherche et filtres */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Rechercher une tâche..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-gray-500" />
+            <div>
+              <p className="text-xs text-gray-600">Total</p>
+              <p className="text-lg font-bold text-gray-900">{taskStats.total}</p>
+            </div>
+          </div>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-gray-400" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">Tous les statuts</option>
-            <option value="todo">À faire</option>
-            <option value="in_progress">En cours</option>
-            <option value="validation_pending">En validation</option>
-            <option value="completed">Validées</option>
-            <option value="rejected">Rejetées</option>
-          </select>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-gray-500" />
+            <div>
+              <p className="text-xs text-gray-600">À faire</p>
+              <p className="text-lg font-bold text-gray-900">{taskStats.todo}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-2">
+            <Play className="w-5 h-5 text-blue-500" />
+            <div>
+              <p className="text-xs text-gray-600">En cours</p>
+              <p className="text-lg font-bold text-gray-900">{taskStats.inProgress}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-green-500" />
+            <div>
+              <p className="text-xs text-gray-600">Terminé</p>
+              <p className="text-lg font-bold text-gray-900">{taskStats.completed}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-2">
+            <Link className="w-5 h-5 text-purple-500" />
+            <div>
+              <p className="text-xs text-gray-600">Assignées</p>
+              <p className="text-lg font-bold text-gray-900">{taskStats.assigned}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-2">
+            <Unlink className="w-5 h-5 text-orange-500" />
+            <div>
+              <p className="text-xs text-gray-600">Libres</p>
+              <p className="text-lg font-bold text-gray-900">{taskStats.unassigned}</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Information sur le nouveau système */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <div className="p-1 bg-blue-100 rounded">
-            <CheckSquare className="w-4 h-4 text-blue-600" />
+      {/* Contrôles de filtrage */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex flex-col lg:flex-row gap-4">
+          
+          {/* Recherche */}
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Rechercher une tâche..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
-          <div>
-            <h3 className="font-medium text-blue-900">📋 Nouveau système de validation</h3>
-            <p className="text-blue-700 text-sm mt-1">
-              Les tâches sont maintenant validées par un admin avant de vous donner des XP. 
-              Utilisez le bouton "Soumettre" pour envoyer vos tâches terminées en validation.
-            </p>
+          
+          {/* Filtres */}
+          <div className="flex gap-3">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">Tous statuts</option>
+              <option value="todo">À faire</option>
+              <option value="in_progress">En cours</option>
+              <option value="completed">Terminé</option>
+              <option value="validation_pending">En validation</option>
+            </select>
+            
+            <select
+              value={projectFilter}
+              onChange={(e) => setProjectFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">Tous projets</option>
+              <option value="assigned">Assignées</option>
+              <option value="unassigned">Non assignées</option>
+              {projects.map(project => (
+                <option key={project.id} value={project.id}>
+                  {project.title}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
 
       {/* Liste des tâches */}
-      <div className="space-y-4">
-        {filteredTasks.length > 0 ? (
-          filteredTasks.map(task => (
-            <TaskCard
+      {filteredTasks.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+          <CheckCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-xl font-medium text-gray-900 mb-2">
+            {searchTerm || statusFilter !== 'all' || projectFilter !== 'all' 
+              ? 'Aucune tâche trouvée' 
+              : 'Aucune tâche créée'}
+          </h3>
+          <p className="text-gray-500 mb-6">
+            {searchTerm || statusFilter !== 'all' || projectFilter !== 'all'
+              ? 'Essayez de modifier vos critères de recherche'
+              : 'Créez votre première tâche pour commencer'}
+          </p>
+          {(!searchTerm && statusFilter === 'all' && projectFilter === 'all') && (
+            <button
+              onClick={() => setShowTaskForm(true)}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Créer ma première tâche
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredTasks.map((task) => (
+            <motion.div
               key={task.id}
-              task={task}
-              onSubmit={handleSubmitTaskClick}
-              onDelete={handleDeleteTask}
-            />
-          ))
-        ) : (
-          <div className="text-center py-12">
-            <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune tâche trouvée</h3>
-            <p className="text-gray-600">
-              {searchTerm || statusFilter !== 'all' ? 
-                'Modifiez vos filtres pour voir plus de tâches' 
-                : 'Créez votre première tâche pour commencer'
-              }
-            </p>
-          </div>
+              layout
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center gap-4">
+                
+                {/* Checkbox sélection */}
+                <input
+                  type="checkbox"
+                  checked={selectedTasks.includes(task.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedTasks(prev => [...prev, task.id]);
+                    } else {
+                      setSelectedTasks(prev => prev.filter(id => id !== task.id));
+                    }
+                  }}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+                
+                {/* Indicateur statut */}
+                <div className={`w-3 h-3 rounded-full ${getStatusColor(task.status)}`}></div>
+                
+                {/* Contenu principal */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-1">
+                    <h3 className="font-medium text-gray-900">{task.title}</h3>
+                    
+                    {/* Indicateur priorité */}
+                    <span className={`text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                      {task.priority === 'urgent' && '🔴 URGENT'}
+                      {task.priority === 'high' && '🔶 HAUTE'}
+                      {task.priority === 'normal' && '🔸 NORMALE'}
+                      {task.priority === 'low' && '🔹 BASSE'}
+                    </span>
+                    
+                    {/* Statut */}
+                    <span className="text-xs text-gray-500">
+                      {getStatusLabel(task.status)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                    {/* Projet assigné */}
+                    {task.projectId ? (
+                      <div className="flex items-center gap-1 text-purple-600">
+                        <Briefcase className="w-3 h-3" />
+                        <span>{getProjectName(task.projectId)}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-orange-500">
+                        <Unlink className="w-3 h-3" />
+                        <span>Non assignée</span>
+                      </div>
+                    )}
+                    
+                    {/* Date d'échéance */}
+                    {task.dueDate && (
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        <span>{new Date(task.dueDate).toLocaleDateString('fr-FR')}</span>
+                      </div>
+                    )}
+                    
+                    {/* Temps estimé */}
+                    {task.estimatedTime && (
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        <span>{task.estimatedTime}h</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Description */}
+                  {task.description && (
+                    <p className="text-sm text-gray-600 mt-1 line-clamp-1">
+                      {task.description}
+                    </p>
+                  )}
+                </div>
+                
+                {/* Actions */}
+                <div className="flex items-center gap-1">
+                  
+                  {/* Assigner/Désassigner projet */}
+                  {task.projectId ? (
+                    <button
+                      onClick={() => handleRemoveFromProject(task)}
+                      className="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+                      title="Retirer du projet"
+                      disabled={updating}
+                    >
+                      <Unlink className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setSelectedTask(task);
+                        setShowProjectAssignModal(true);
+                      }}
+                      className="p-2 text-purple-500 hover:bg-purple-50 rounded-lg transition-colors"
+                      title="Assigner à un projet"
+                      disabled={updating}
+                    >
+                      <Link className="w-4 h-4" />
+                    </button>
+                  )}
+                  
+                  {/* Supprimer */}
+                  <button
+                    onClick={() => handleDeleteTask(task)}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* MODAL ASSIGNATION PROJET */}
+      <AnimatePresence>
+        {showProjectAssignModal && selectedTask && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowProjectAssignModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl shadow-2xl w-full max-w-md"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Assigner à un projet
+                </h3>
+                <button
+                  onClick={() => setShowProjectAssignModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6">
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">Tâche :</p>
+                  <p className="font-medium text-gray-900">{selectedTask.title}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700">
+                    Sélectionnez un projet :
+                  </p>
+                  
+                  {projects.length === 0 ? (
+                    <div className="text-center py-4">
+                      <p className="text-gray-500">Aucun projet disponible</p>
+                      <a 
+                        href="/projects" 
+                        className="text-blue-600 hover:text-blue-700 text-sm underline"
+                      >
+                        Créer un projet d'abord
+                      </a>
+                    </div>
+                  ) : (
+                    projects.map(project => (
+                      <button
+                        key={project.id}
+                        onClick={() => handleAssignToProject(project.id)}
+                        disabled={updating}
+                        className="w-full p-3 text-left border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">{project.title}</p>
+                            <p className="text-sm text-gray-500">
+                              {getStatusLabel(project.status)} • {project.progress || 0}%
+                            </p>
+                          </div>
+                          <Briefcase className="w-4 h-4 text-gray-400" />
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
 
-      {/* Modal de création */}
-      {showForm && (
-        <QuickTaskForm
-          onSubmit={handleCreateTask}
-          onCancel={() => setShowForm(false)}
-        />
-      )}
-
-      {/* Modal de soumission */}
-      {showSubmissionModal && taskToSubmit && (
-        <TaskSubmissionModal
-          isOpen={showSubmissionModal}
-          task={taskToSubmit}
-          onSubmit={handleSubmitTask}
-          onClose={() => {
-            setShowSubmissionModal(false);
-            setTaskToSubmit(null);
-          }}
-          submitting={updating}
-        />
-      )}
+      {/* MODAL CRÉATION TÂCHE */}
+      <TaskForm
+        isOpen={showTaskForm}
+        onClose={() => setShowTaskForm(false)}
+        onSubmit={handleCreateTask}
+        loading={updating}
+      />
     </div>
   );
 };
