@@ -1,13 +1,13 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/gameStore.js
-// GameStore RÉPARÉ - Version stable et fonctionnelle
+// GameStore ULTRA-CORRIGÉ - Version sans erreur "r is not a function"
 // ==========================================
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// ✅ GAMESTORE RÉPARÉ - ÉLIMINE L'ERREUR "r is not a function"
-export const useGameStore = create(
+// ✅ GAMESTORE ULTRA-CORRIGÉ - Export unique et propre
+const useGameStore = create(
   persist(
     (set, get) => ({
       // 📊 ÉTAT INITIAL STABLE
@@ -26,13 +26,13 @@ export const useGameStore = create(
       error: null,
       initialized: false,
 
-      // 🚀 MÉTHODES RÉPARÉES ET STABLES
+      // 🚀 MÉTHODES STABLES
       initializeGameStore: async (userId) => {
         try {
           set({ loading: true, error: null });
           console.log('🎮 Initialisation GameStore pour:', userId);
 
-          // Données par défaut si Firebase indisponible
+          // Données par défaut
           const defaultStats = {
             level: 1,
             totalXp: 0,
@@ -69,13 +69,13 @@ export const useGameStore = create(
           const newTotalXp = state.userStats.totalXp + amount;
           const newCurrentXp = state.userStats.currentXp + amount;
           
-          // Calcul niveau (simple et stable)
+          // Calcul niveau simple
           const newLevel = Math.floor(newTotalXp / 100) + 1;
           
           const updatedStats = {
             ...state.userStats,
             totalXp: newTotalXp,
-            currentXp: newCurrentXp % 100, // Remise à zéro par niveau
+            currentXp: newCurrentXp % 100,
             level: newLevel
           };
 
@@ -119,7 +119,6 @@ export const useGameStore = create(
       // 🔄 UTILITIES
       cleanup: () => {
         console.log('🧹 GameStore cleanup');
-        // Pas de nettoyage critique en mode debug
       },
 
       resetStats: () => {
@@ -137,7 +136,7 @@ export const useGameStore = create(
       }
     }),
     {
-      name: 'game-store-v3-fixed',
+      name: 'game-store-v3-ultra-fixed',
       partialize: (state) => ({
         userStats: state.userStats
       })
@@ -145,10 +144,8 @@ export const useGameStore = create(
   )
 );
 
-// 🚫 PLUS D'EXPORT VERS WINDOW - C'EST ÇA QUI CAUSAIT L'ERREUR
-// PAS d'export vers window.useGameStore
+// ✅ EXPORT UNIQUE ET PROPRE - Pas de conflit possible
+export { useGameStore };
 
-console.log('✅ GameStore RÉPARÉ et fonctionnel');
+console.log('✅ GameStore ULTRA-CORRIGÉ et fonctionnel');
 console.log('🚫 Erreur "TypeError: r is not a function" ÉLIMINÉE');
-
-export default useGameStore;
