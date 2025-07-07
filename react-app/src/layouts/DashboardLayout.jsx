@@ -1,16 +1,16 @@
 // ==========================================
 // 📁 react-app/src/layouts/DashboardLayout.jsx
-// VERSION MINIMAL SANS FRAMER-MOTION - Résout l'erreur "Ql constructor"
+// VERSION CORRIGÉE - Accepte children prop au lieu d'Outlet
 // ==========================================
 
 import React, { useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 /**
- * 🎨 DASHBOARD LAYOUT MINIMAL - Sans animations
+ * 🎨 DASHBOARD LAYOUT CORRIGÉ - Compatible avec children prop
  */
-const DashboardLayout = () => {
+const DashboardLayout = ({ children }) => {
   const { user, signOut } = useAuthStore();
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -33,15 +33,16 @@ const DashboardLayout = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
+      console.log('✅ Déconnexion réussie');
     } catch (error) {
-      console.error('Erreur déconnexion:', error);
+      console.error('❌ Erreur déconnexion:', error);
     }
   };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f9fafb' }}>
       
-      {/* SIDEBAR MINIMAL */}
+      {/* SIDEBAR */}
       <div style={{
         width: sidebarCollapsed ? '80px' : '280px',
         backgroundColor: 'white',
@@ -136,41 +137,21 @@ const DashboardLayout = () => {
             gap: '0.75rem',
             justifyContent: sidebarCollapsed ? 'center' : 'flex-start'
           }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              backgroundColor: '#3b82f6',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '0.875rem',
-              fontWeight: '600'
-            }}>
-              {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
-            </div>
-            
             {!sidebarCollapsed && (
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ flex: 1 }}>
                 <div style={{
                   fontSize: '0.875rem',
                   fontWeight: '600',
                   color: '#1f2937',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  marginBottom: '0.25rem'
                 }}>
-                  {user?.displayName || 'Utilisateur'}
+                  {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
                 </div>
                 <div style={{
                   fontSize: '0.75rem',
-                  color: '#6b7280',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  color: '#6b7280'
                 }}>
-                  {user?.email}
+                  🟢 En ligne
                 </div>
               </div>
             )}
@@ -235,7 +216,7 @@ const DashboardLayout = () => {
               fontSize: '0.875rem',
               color: '#374151'
             }}>
-              🟢 En ligne
+              🚀 Synergia v3.5
             </div>
           </div>
         </header>
@@ -246,7 +227,7 @@ const DashboardLayout = () => {
           padding: '2rem',
           overflow: 'auto'
         }}>
-          <Outlet />
+          {children}
         </main>
       </div>
     </div>
