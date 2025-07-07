@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminTaskValidationPage.jsx
-// PAGE ADMIN VALIDATION DES TÂCHES AVEC VIEWER MÉDIAS AUTHENTIFIÉ
+// PAGE ADMIN VALIDATION DES TÂCHES - IMPORT CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -38,7 +38,8 @@ import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 import TaskService from '../core/services/taskService.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { TaskMimport { WorkingTaskMediaViewer } from '../components/media/WorkingMediaViewer.jsx';
+import { WorkingTaskMediaViewer } from '../components/media/WorkingMediaViewer.jsx';
+
 // ✅ Instance du service de tâches
 const taskService = new TaskService();
 
@@ -377,7 +378,7 @@ const AdminTaskValidationPage = () => {
                       )}
                     </div>
 
-                    {/* ✅ PRÉVISUALISATION MÉDIA AVEC NOUVEAU COMPOSANT */}
+                    {/* Prévisualisation média */}
                     {((task.hasMedia && task.mediaUrl) || (task.hasPhoto && task.photoUrl)) && (
                       <div className="flex-shrink-0">
                         {task.mediaType === 'video' || (task.mediaUrl && task.mediaUrl.includes('.mp4')) ? (
@@ -467,7 +468,7 @@ const AdminTaskValidationPage = () => {
         )}
       </div>
 
-      {/* ✅ MODAL DE VALIDATION AVEC VIEWER MÉDIAS AUTHENTIFIÉ */}
+      {/* Modal de validation */}
       <AnimatePresence>
         {showValidationModal && selectedTask && (
           <motion.div
@@ -557,11 +558,11 @@ const AdminTaskValidationPage = () => {
                   </div>
                 )}
 
-                {/* ✅ AFFICHAGE MÉDIA AVEC NOUVEAU COMPOSANT AUTHENTIFIÉ */}
+                {/* ✅ AFFICHAGE MÉDIA AVEC COMPOSANT QUI FONCTIONNE */}
                 <WorkingTaskMediaViewer 
-  task={selectedTask} 
-  className="mb-4"
-/>
+                  task={selectedTask} 
+                  className="mb-4"
+                />
 
                 {/* Commentaire admin */}
                 <div>
