@@ -144,8 +144,6 @@ const ProjectsPage = () => {
     setSubmitting(true);
     
     try {
-      console.log('🆕 Création nouveau projet:', formData.title);
-      
       // Préparer les données du projet
       const projectData = {
         title: formData.title.trim(),
@@ -161,38 +159,54 @@ const ProjectsPage = () => {
         deliverables: formData.deliverables.filter(del => del.trim())
       };
       
-      // Créer le projet
-      const result = await projectService.createProject(projectData, user.uid);
-      
-      if (result.success) {
-        console.log('✅ Projet créé avec succès:', result.project?.id);
+      // ✅ CORRECTION: Vérifier si c'est une modification ou création
+      if (selectedProject) {
+        console.log('🔄 Modification projet existant:', selectedProject.id);
         
-        // Reset form
-        setFormData({
-          title: '',
-          description: '',
-          priority: 'normal',
-          category: '',
-          startDate: '',
-          endDate: '',
-          estimatedHours: '',
-          budget: '',
-          tags: [],
-          objectives: [''],
-          deliverables: ['']
-        });
+        // Modifier le projet existant
+        const result = await projectService.updateProject(selectedProject.id, projectData, user.uid);
         
-        setShowCreateForm(false);
-        
-        // Les projets se mettront à jour automatiquement via le listener temps réel
-        alert('✅ Projet créé avec succès !');
+        if (result.success) {
+          console.log('✅ Projet modifié avec succès');
+          alert('✅ Projet modifié avec succès !');
+        } else {
+          throw new Error(result.error || 'Erreur lors de la modification');
+        }
       } else {
-        throw new Error(result.error || 'Erreur lors de la création');
+        console.log('🆕 Création nouveau projet:', formData.title);
+        
+        // Créer un nouveau projet
+        const result = await projectService.createProject(projectData, user.uid);
+        
+        if (result.success) {
+          console.log('✅ Projet créé avec succès:', result.project?.id);
+          alert('✅ Projet créé avec succès !');
+        } else {
+          throw new Error(result.error || 'Erreur lors de la création');
+        }
       }
       
+      // Reset form et fermer modal
+      setFormData({
+        title: '',
+        description: '',
+        priority: 'normal',
+        category: '',
+        startDate: '',
+        endDate: '',
+        estimatedHours: '',
+        budget: '',
+        tags: [],
+        objectives: [''],
+        deliverables: ['']
+      });
+      
+      setSelectedProject(null);
+      setShowCreateForm(false);
+      
     } catch (error) {
-      console.error('❌ Erreur création projet:', error);
-      alert('❌ Erreur lors de la création du projet: ' + error.message);
+      console.error('❌ Erreur gestion projet:', error);
+      alert('❌ Erreur: ' + error.message);
     } finally {
       setSubmitting(false);
     }
@@ -355,7 +369,247 @@ const ProjectsPage = () => {
       <div className="flex items-center justify-center min-h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         <span className="ml-2 text-gray-600">Chargement des projets...</span>
-      </div>
+        {/* MODAL DÉTAIL PROJET */}
+      <AnimatePresence>
+        {showProjectDetail && selectedProject && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowProjectDetail(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
+                    <Briefcase className="w-6 h-6 text-blue-600" />
+                    {selectedProject.title}
+                  </h2>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-white ${getStatusColor(selectedProject.status)}`}>
+                      {getStatusLabel(selectedProject.status)}
+                    </span>
+                    <span className={`text-sm font-medium ${getPriorityColor(selectedProject.priority)}`}>
+                      Priorité {selectedProject.priority}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowProjectDetail(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Contenu */}
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  
+                  {/* Colonne principale */}
+                  <div className="lg:col-span-2 space-y-6">
+                    
+                    {/* Description */}
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-3">Description</h3>
+                      <p className="text-gray-600">
+                        {selectedProject.description || 'Aucune description fournie.'}
+                      </p>
+                    </div>
+
+                    {/* Progression détaillée */}
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-3">Progression</h3>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        {(() => {
+                          const progress = calculateProgress(selectedProject);
+                          const completedTasks = selectedProject.completedTaskCount || 0;
+                          const totalTasks = selectedProject.taskCount || 0;
+                          
+                          return (
+                            <>
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-sm text-gray-600">Avancement global</span>
+                                <span className="text-lg font-bold text-gray-900">{progress}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
+                                <div
+                                  className="bg-blue-500 h-3 rounded-full transition-all duration-300"
+                                  style={{ width: `${progress}%` }}
+                                ></div>
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                {completedTasks} sur {totalTasks} tâches terminées
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Objectifs */}
+                    {selectedProject.objectives && selectedProject.objectives.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-3">Objectifs</h3>
+                        <ul className="space-y-2">
+                          {selectedProject.objectives.map((objective, index) => (
+                            <li key={index} className="flex items-start gap-2">
+                              <Target className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                              <span className="text-gray-600">{objective}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Livrables */}
+                    {selectedProject.deliverables && selectedProject.deliverables.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-3">Livrables</h3>
+                        <ul className="space-y-2">
+                          {selectedProject.deliverables.map((deliverable, index) => (
+                            <li key={index} className="flex items-start gap-2">
+                              <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                              <span className="text-gray-600">{deliverable}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sidebar */}
+                  <div className="space-y-6">
+                    
+                    {/* Informations clés */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-900 mb-3">Informations</h4>
+                      <div className="space-y-3 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600">Créé le:</span>
+                          <span className="text-gray-900">
+                            {selectedProject.createdAt ? 
+                              (selectedProject.createdAt.toDate ? 
+                                selectedProject.createdAt.toDate().toLocaleDateString('fr-FR') :
+                                new Date(selectedProject.createdAt).toLocaleDateString('fr-FR')
+                              ) :
+                              'Non défini'
+                            }
+                          </span>
+                        </div>
+                        
+                        {selectedProject.startDate && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Début:</span>
+                            <span className="text-gray-900">
+                              {new Date(selectedProject.startDate).toLocaleDateString('fr-FR')}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {selectedProject.endDate && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Fin prévue:</span>
+                            <span className="text-gray-900">
+                              {new Date(selectedProject.endDate).toLocaleDateString('fr-FR')}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {selectedProject.estimatedHours && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Heures estimées:</span>
+                            <span className="text-gray-900">{selectedProject.estimatedHours}h</span>
+                          </div>
+                        )}
+                        
+                        {selectedProject.budget && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Budget:</span>
+                            <span className="text-gray-900">{selectedProject.budget}€</span>
+                          </div>
+                        )}
+                        
+                        {selectedProject.category && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Catégorie:</span>
+                            <span className="text-gray-900">{selectedProject.category}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Tags */}
+                    {selectedProject.tags && selectedProject.tags.length > 0 && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-medium text-gray-900 mb-3">Tags</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedProject.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-white text-gray-600 text-xs rounded-full border"
+                            >
+                              <Tag className="w-3 h-3" />
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => {
+                          setShowProjectDetail(false);
+                          setFormData({
+                            title: selectedProject.title || '',
+                            description: selectedProject.description || '',
+                            priority: selectedProject.priority || 'normal',
+                            category: selectedProject.category || '',
+                            startDate: selectedProject.startDate || '',
+                            endDate: selectedProject.endDate || '',
+                            estimatedHours: selectedProject.estimatedHours || '',
+                            budget: selectedProject.budget || '',
+                            tags: selectedProject.tags || [],
+                            objectives: selectedProject.objectives || [''],
+                            deliverables: selectedProject.deliverables || ['']
+                          });
+                          setShowCreateForm(true);
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Modifier le projet
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          setShowProjectDetail(false);
+                          handleDeleteProject(selectedProject.id);
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Supprimer le projet
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
     );
   }
 
