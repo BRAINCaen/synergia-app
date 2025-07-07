@@ -1,15 +1,15 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// VERSION CORRIGÉE - Imports ES6 purs sans require()
+// VERSION ORIGINALE COMPLÈTE - RÉPARÉE
 // ==========================================
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// 🛡️ GESTIONNAIRE D'ERREUR - Import ES6
+// 🛡️ GESTIONNAIRE D'ERREUR GLOBAL - À IMPORTER EN PREMIER
 import './utils/errorHandler.js';
 
-// 🔐 Auth & Protection - Imports ES6 directs
+// 🔐 Auth & Protection
 import { useAuthStore } from './shared/stores/authStore.js';
 import ProtectedRoute from './routes/ProtectedRoute.jsx';
 import PublicRoute from './routes/PublicRoute.jsx';
@@ -17,7 +17,7 @@ import PublicRoute from './routes/PublicRoute.jsx';
 // 🎨 Layout
 import DashboardLayout from './layouts/DashboardLayout.jsx';
 
-// ✅ PAGES PRINCIPALES - Imports directs
+// ✅ PAGES PRINCIPALES
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
@@ -45,7 +45,6 @@ import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
 
 /**
  * 🚀 APPLICATION PRINCIPALE AVEC PROTECTION D'ERREUR
- * Version ES6 pure - Plus de require()
  */
 function App() {
   const { initializeAuth, isInitialized } = useAuthStore();
@@ -116,17 +115,17 @@ function App() {
                     <Route path="/users" element={<UsersPage />} />
                     <Route path="/onboarding" element={<OnboardingPage />} />
                     
-                    {/* ⚙️ Pages outils */}
+                    {/* 🛠️ Pages outils */}
                     <Route path="/timetrack" element={<TimeTrackPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     
-                    {/* 🔧 Pages admin/test */}
+                    {/* 🔧 Pages admin & tests */}
                     <Route path="/admin/complete-test" element={<CompleteAdminTestPage />} />
                     <Route path="/admin/profile-test" element={<AdminProfileTestPage />} />
                     <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
                     
-                    {/* 🔄 Fallback pour routes inconnues */}
+                    {/* 🚫 Route par défaut */}
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </Routes>
                 </DashboardLayout>
