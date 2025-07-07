@@ -1,17 +1,20 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// VERSION CORRIGÉE - IMPORTS ET STRUCTURE FIXÉS
+// VERSION AVEC GESTIONNAIRE D'ERREUR GLOBAL
 // ==========================================
 
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+
+// 🛡️ GESTIONNAIRE D'ERREUR GLOBAL - À IMPORTER EN PREMIER
+import './utils/errorHandler.js';
 
 // 🔐 Auth & Protection
 import { useAuthStore } from './shared/stores/authStore.js';
 import ProtectedRoute from './routes/ProtectedRoute.jsx';
 import PublicRoute from './routes/PublicRoute.jsx';
 
-// 🎨 Layout - IMPORT CORRIGÉ
+// 🎨 Layout
 import DashboardLayout from './layouts/DashboardLayout.jsx';
 
 // ✅ PAGES PRINCIPALES
@@ -39,33 +42,32 @@ import SettingsPage from './pages/SettingsPage.jsx';
 import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 import AdminProfileTestPage from './pages/AdminProfileTestPage.jsx';
 import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
-import TestDashboard from './pages/TestDashboard.jsx';
-
-// ✅ PAGE 404
-import NotFound from './pages/NotFound.jsx';
-
-// 🎯 Constants
-import { ROUTES } from './core/constants.js';
 
 /**
- * 🚀 APPLICATION PRINCIPALE SYNERGIA v3.5
+ * 🚀 APPLICATION PRINCIPALE AVEC PROTECTION D'ERREUR
  */
 function App() {
-  const { initializeAuth, loading } = useAuthStore();
+  const { initializeAuth, isInitialized } = useAuthStore();
 
-  // Initialiser l'authentification au démarrage
   useEffect(() => {
+    console.log('🚀 SYNERGIA v3.5.3 - Initialisation avec protection d\'erreur');
+    
+    // Initialiser l'authentification
     initializeAuth();
+    
+    // Log que l'app est protégée contre les erreurs
+    console.log('🛡️ Gestionnaire d\'erreur global actif');
+    
   }, [initializeAuth]);
 
-  // Affichage du loader global pendant l'initialisation
-  if (loading) {
+  // Affichage pendant l'initialisation
+  if (!isInitialized) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-6"></div>
-          <h2 className="text-2xl font-bold text-white mb-2">Synergia v3.5</h2>
-          <p className="text-blue-200">Initialisation en cours...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+          <h2 className="text-2xl font-semibold mb-2">Synergia</h2>
+          <p className="text-blue-200">Initialisation sécurisée...</p>
         </div>
       </div>
     );
@@ -73,63 +75,65 @@ function App() {
 
   return (
     <Router>
-      <Routes>
-        
-        {/* 🔐 ROUTE PUBLIQUE - LOGIN */}
-        <Route 
-          path={ROUTES.LOGIN} 
-          element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          } 
-        />
-
-        {/* 🏠 ROUTES PROTÉGÉES AVEC LAYOUT */}
-        <Route 
-          path="/*" 
-          element={
-            <ProtectedRoute>
-              <DashboardLayout />
-            </ProtectedRoute>
-          }
-        >
-          {/* Routes imbriquées dans le layout */}
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="tasks" element={<TasksPage />} />
-          <Route path="projects" element={<ProjectsPage />} />
-          <Route path="analytics" element={<AnalyticsPage />} />
+      <div className="App">
+        <Routes>
+          {/* 🌐 Route publique - Login */}
+          <Route 
+            path="/login" 
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            } 
+          />
           
-          {/* Gamification */}
-          <Route path="gamification" element={<GamificationPage />} />
-          <Route path="badges" element={<BadgesPage />} />
-          <Route path="rewards" element={<RewardsPage />} />
+          {/* 🏠 Redirection racine vers dashboard */}
+          <Route 
+            path="/" 
+            element={<Navigate to="/dashboard" replace />} 
+          />
           
-          {/* Équipe & Social */}
-          <Route path="users" element={<UsersPage />} />
-          <Route path="onboarding" element={<OnboardingPage />} />
-          
-          {/* Outils */}
-          <Route path="timetrack" element={<TimeTrackPage />} />
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          
-          {/* Admin */}
-          <Route path="admin/task-validation" element={<AdminTaskValidationPage />} />
-          <Route path="admin/profile-test" element={<AdminProfileTestPage />} />
-          <Route path="admin/complete-test" element={<CompleteAdminTestPage />} />
-          
-          {/* Test */}
-          <Route path="test-dashboard" element={<TestDashboard />} />
-        </Route>
-
-        {/* 🏠 REDIRECTION RACINE */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        
-        {/* 🚫 ROUTE 404 */}
-        <Route path="*" element={<NotFound />} />
-        
-      </Routes>
+          {/* 🔐 Routes protégées avec layout */}
+          <Route 
+            path="/*" 
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <Routes>
+                    {/* 📊 Pages principales */}
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/tasks" element={<TasksPage />} />
+                    <Route path="/projects" element={<ProjectsPage />} />
+                    <Route path="/analytics" element={<AnalyticsPage />} />
+                    
+                    {/* 🎮 Gamification */}
+                    <Route path="/gamification" element={<GamificationPage />} />
+                    <Route path="/rewards" element={<RewardsPage />} />
+                    <Route path="/badges" element={<BadgesPage />} />
+                    
+                    {/* 👥 Équipe & Social */}
+                    <Route path="/users" element={<UsersPage />} />
+                    <Route path="/onboarding" element={<OnboardingPage />} />
+                    
+                    {/* 🛠️ Outils */}
+                    <Route path="/timetrack" element={<TimeTrackPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    
+                    {/* 🔧 Admin & Tests */}
+                    <Route path="/admin/test" element={<CompleteAdminTestPage />} />
+                    <Route path="/admin/profile-test" element={<AdminProfileTestPage />} />
+                    <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
+                    
+                    {/* 🚫 Route par défaut */}
+                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                  </Routes>
+                </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+        </Routes>
+      </div>
     </Router>
   );
 }
