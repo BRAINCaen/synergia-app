@@ -30,8 +30,7 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 import { taskService } from '../core/services/taskService.js';
 import { projectService } from '../core/services/projectService.js';
 import { taskProjectIntegration } from '../core/services/taskProjectIntegration.js';
-import TaskForm from '../modules/tasks/TaskForm.jsx';
-/**
+import TaskForm from '../modules/tasks/TaskForm.jsx';/**
  * ✅ PAGE TÂCHES AVEC GESTION DE PROJETS
  */
 const TasksPage = () => {
