@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskProjectIntegration.js
-// VERSION CORRIGÉE - Toutes les méthodes ajoutées
+// VERSION CORRIGÉE - Synchronisation complète des statistiques projet
 // ==========================================
 
 import { 
@@ -18,12 +18,11 @@ import {
 import { db } from '../firebase.js';
 
 /**
- * 🔗 SERVICE D'INTÉGRATION TÂCHES-PROJETS COMPLET
- * Version ultra-robuste avec toutes les méthodes
+ * 🔗 SERVICE D'INTÉGRATION TÂCHES-PROJETS - SYNCHRONISATION COMPLÈTE
  */
 class TaskProjectIntegrationService {
   constructor() {
-    console.log('🔗 TaskProjectIntegrationService initialisé - Version COMPLÈTE');
+    console.log('🔗 TaskProjectIntegrationService - SYNCHRONISATION COMPLÈTE');
   }
 
   /**
@@ -43,11 +42,11 @@ class TaskProjectIntegrationService {
   }
 
   /**
-   * 📝 ASSIGNER UNE TÂCHE À UN PROJET
+   * 📝 ASSIGNER UNE TÂCHE À UN PROJET AVEC SYNCHRONISATION COMPLÈTE
    */
   async assignTaskToProject(taskId, projectId, userId) {
     try {
-      console.log(`🔗 [SAFE] Assignation tâche ${taskId} au projet ${projectId}`);
+      console.log(`🔗 [SYNC] Assignation tâche ${taskId} au projet ${projectId}`);
       
       if (!taskId || !projectId || !userId) {
         throw new Error('Paramètres manquants pour l\'assignation');
@@ -61,7 +60,7 @@ class TaskProjectIntegrationService {
         throw new Error('Tâche non trouvée');
       }
       
-      console.log('✅ [SAFE] Tâche trouvée');
+      console.log('✅ [SYNC] Tâche trouvée');
 
       // 2. Vérifier que le projet existe
       const projectRef = doc(db, 'projects', projectId);
@@ -71,7 +70,7 @@ class TaskProjectIntegrationService {
         throw new Error('Projet non trouvé');
       }
       
-      console.log('✅ [SAFE] Projet trouvé');
+      console.log('✅ [SYNC] Projet trouvé');
 
       // 3. Mettre à jour la tâche avec le projectId
       const updateData = {
@@ -81,32 +80,31 @@ class TaskProjectIntegrationService {
       };
 
       await updateDoc(taskRef, updateData);
-      console.log('✅ [SAFE] Tâche mise à jour avec projectId');
+      console.log('✅ [SYNC] Tâche mise à jour avec projectId');
       
-      // 4. Mettre à jour la progression du projet
-      try {
-        await this.updateProjectProgressSafe(projectId);
-        console.log('✅ [SAFE] Progression projet mise à jour');
-      } catch (progressError) {
-        console.warn('⚠️ [SAFE] Erreur mise à jour progression (non-bloquante):', progressError.message);
-        // On continue même si la progression échoue
+      // 4. SYNCHRONISATION COMPLÈTE du projet
+      const syncResult = await this.syncProjectCompletely(projectId);
+      if (syncResult.success) {
+        console.log('✅ [SYNC] Projet synchronisé complètement');
+      } else {
+        console.warn('⚠️ [SYNC] Erreur synchronisation projet (non-bloquante):', syncResult.error);
       }
       
-      console.log('✅ [SAFE] Assignation terminée avec succès');
+      console.log('✅ [SYNC] Assignation terminée avec succès');
       return { success: true, error: null };
       
     } catch (error) {
-      console.error('❌ [SAFE] Erreur assignation tâche au projet:', error);
+      console.error('❌ [SYNC] Erreur assignation tâche au projet:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * 🗑️ RETIRER UNE TÂCHE D'UN PROJET
+   * 🗑️ RETIRER UNE TÂCHE D'UN PROJET AVEC SYNCHRONISATION COMPLÈTE
    */
   async removeTaskFromProject(taskId, userId) {
     try {
-      console.log(`🗑️ [SAFE] Retrait tâche ${taskId} de son projet`);
+      console.log(`🗑️ [SYNC] Retrait tâche ${taskId} de son projet`);
       
       if (!taskId || !userId) {
         throw new Error('Paramètres manquants pour le retrait');
@@ -123,7 +121,7 @@ class TaskProjectIntegrationService {
       const taskData = taskSnap.data();
       const previousProjectId = taskData.projectId;
       
-      console.log('✅ [SAFE] Tâche trouvée, projectId actuel:', previousProjectId);
+      console.log('✅ [SYNC] Tâche trouvée, projectId actuel:', previousProjectId);
 
       // 2. Retirer le projectId de la tâche
       const updateData = {
@@ -133,36 +131,37 @@ class TaskProjectIntegrationService {
       };
 
       await updateDoc(taskRef, updateData);
-      console.log('✅ [SAFE] ProjectId retiré de la tâche');
+      console.log('✅ [SYNC] ProjectId retiré de la tâche');
       
-      // 3. Mettre à jour la progression de l'ancien projet
+      // 3. SYNCHRONISATION COMPLÈTE de l'ancien projet
       if (previousProjectId) {
-        try {
-          await this.updateProjectProgressSafe(previousProjectId);
-          console.log('✅ [SAFE] Progression ancien projet mise à jour');
-        } catch (progressError) {
-          console.warn('⚠️ [SAFE] Erreur mise à jour progression (non-bloquante):', progressError.message);
+        const syncResult = await this.syncProjectCompletely(previousProjectId);
+        if (syncResult.success) {
+          console.log('✅ [SYNC] Ancien projet synchronisé complètement');
+        } else {
+          console.warn('⚠️ [SYNC] Erreur synchronisation ancien projet (non-bloquante):', syncResult.error);
         }
       }
       
-      console.log('✅ [SAFE] Retrait terminé avec succès');
+      console.log('✅ [SYNC] Retrait terminé avec succès');
       return { success: true, error: null };
       
     } catch (error) {
-      console.error('❌ [SAFE] Erreur retrait tâche du projet:', error);
+      console.error('❌ [SYNC] Erreur retrait tâche du projet:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * 📊 METTRE À JOUR LA PROGRESSION D'UN PROJET DE FAÇON ULTRA-SAFE
+   * 🔄 SYNCHRONISER COMPLÈTEMENT UN PROJET
+   * Met à jour TOUS les champs de statistiques
    */
-  async updateProjectProgressSafe(projectId) {
+  async syncProjectCompletely(projectId) {
     try {
-      console.log(`📊 [SAFE] Mise à jour progression projet ${projectId}`);
+      console.log(`🔄 [SYNC] Synchronisation complète projet ${projectId}`);
       
       if (!projectId) {
-        console.warn('⚠️ [SAFE] ProjectId manquant pour mise à jour progression');
+        console.warn('⚠️ [SYNC] ProjectId manquant pour synchronisation');
         return { success: false, error: 'ProjectId manquant' };
       }
 
@@ -180,54 +179,100 @@ class TaskProjectIntegrationService {
           ...doc.data()
         }));
         
-        console.log(`✅ [SAFE] ${projectTasks.length} tâches trouvées pour le projet`);
+        console.log(`✅ [SYNC] ${projectTasks.length} tâches trouvées pour le projet`);
       } catch (tasksError) {
-        console.error('❌ [SAFE] Erreur récupération tâches projet:', tasksError);
+        console.error('❌ [SYNC] Erreur récupération tâches projet:', tasksError);
         return { success: false, error: 'Erreur récupération tâches' };
       }
       
-      // 2. Calculer les statistiques
+      // 2. Calculer TOUTES les statistiques
       const totalTasks = projectTasks.length;
       const completedTasks = projectTasks.filter(task => {
         const status = task.status || '';
         return status === 'completed' || status === 'done';
       }).length;
       
+      const inProgressTasks = projectTasks.filter(task => {
+        const status = task.status || '';
+        return status === 'in_progress' || status === 'active';
+      }).length;
+      
+      const pendingTasks = projectTasks.filter(task => {
+        const status = task.status || '';
+        return status === 'pending' || status === 'todo';
+      }).length;
+      
+      const blockedTasks = projectTasks.filter(task => {
+        const status = task.status || '';
+        return status === 'blocked';
+      }).length;
+      
+      // Calcul du pourcentage de progression
       const progressPercentage = totalTasks > 0 ? 
         Math.round((completedTasks / totalTasks) * 100) : 0;
 
-      console.log(`📊 [SAFE] Stats: ${completedTasks}/${totalTasks} (${progressPercentage}%)`);
+      // Calcul de l'XP total du projet
+      const totalXp = projectTasks.reduce((sum, task) => sum + (task.xpReward || 0), 0);
+      const earnedXp = projectTasks
+        .filter(task => task.status === 'completed')
+        .reduce((sum, task) => sum + (task.xpReward || 0), 0);
 
-      // 3. Mettre à jour le projet avec les nouvelles stats
+      console.log(`📊 [SYNC] Stats calculées: ${completedTasks}/${totalTasks} (${progressPercentage}%)`);
+
+      // 3. Mettre à jour le projet avec TOUTES les statistiques
       try {
         const projectRef = doc(db, 'projects', projectId);
         
-        const projectUpdateData = {
+        const completeUpdateData = {
+          // ✅ STATISTIQUES DE BASE
+          totalTasks,
+          completedTasks,
+          inProgressTasks,
+          pendingTasks,
+          blockedTasks,
+          
+          // ✅ PROGRESSION (pour l'interface)
           progress: progressPercentage,
-          taskCount: totalTasks,
-          completedTaskCount: completedTasks,
-          updatedAt: serverTimestamp()
+          progressPercentage, // Alias au cas où
+          completion: progressPercentage, // Autre alias
+          
+          // ✅ STATISTIQUES XP
+          totalXp,
+          earnedXp,
+          remainingXp: totalXp - earnedXp,
+          
+          // ✅ MÉTADONNÉES
+          lastSyncAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          taskCount: totalTasks, // Alias pour compatibilité
+          completedTaskCount: completedTasks, // Alias pour compatibilité
+          
+          // ✅ INFORMATIONS SUPPLÉMENTAIRES
+          hasActiveTasks: inProgressTasks > 0,
+          isCompleted: totalTasks > 0 && completedTasks === totalTasks,
+          tasksDistribution: {
+            completed: completedTasks,
+            inProgress: inProgressTasks,
+            pending: pendingTasks,
+            blocked: blockedTasks
+          }
         };
 
-        await updateDoc(projectRef, projectUpdateData);
-        console.log('✅ [SAFE] Projet mis à jour avec nouvelles stats');
+        await updateDoc(projectRef, completeUpdateData);
+        console.log('✅ [SYNC] Projet mis à jour avec statistiques complètes');
         
         return { 
           success: true, 
-          stats: { 
-            totalTasks, 
-            completedTasks, 
-            progressPercentage 
-          } 
+          stats: completeUpdateData 
         };
         
       } catch (updateError) {
-        console.error('❌ [SAFE] Erreur mise à jour projet:', updateError);
-        return { success: false, error: 'Erreur mise à jour projet' };
+        console.error('❌ [SYNC] Erreur mise à jour document projet:', updateError);
+        return { success: false, error: 'Erreur mise à jour document' };
       }
       
     } catch (error) {
-      console.error('❌ [SAFE] Erreur générale updateProjectProgressSafe:', error);
+      console.error('❌ [SYNC] Erreur générale synchronisation complète:', error);
       return { success: false, error: error.message };
     }
   }
@@ -237,10 +282,10 @@ class TaskProjectIntegrationService {
    */
   async getIntegrationStats(userId) {
     try {
-      console.log('📊 [SAFE] Calcul statistiques intégration pour:', userId);
+      console.log('📊 [SYNC] Calcul statistiques intégration pour:', userId);
       
       if (!userId) {
-        console.warn('⚠️ [SAFE] UserId manquant pour stats intégration');
+        console.warn('⚠️ [SYNC] UserId manquant pour stats intégration');
         return this.getEmptyStats();
       }
 
@@ -258,9 +303,9 @@ class TaskProjectIntegrationService {
           ...doc.data()
         }));
         
-        console.log(`✅ [SAFE] ${userTasks.length} tâches trouvées pour l'utilisateur`);
+        console.log(`✅ [SYNC] ${userTasks.length} tâches trouvées pour l'utilisateur`);
       } catch (tasksError) {
-        console.error('❌ [SAFE] Erreur récupération tâches utilisateur:', tasksError);
+        console.error('❌ [SYNC] Erreur récupération tâches utilisateur:', tasksError);
         return this.getEmptyStats();
       }
       
@@ -278,11 +323,11 @@ class TaskProjectIntegrationService {
         integrationRate
       };
       
-      console.log('✅ [SAFE] Stats intégration:', stats);
+      console.log('✅ [SYNC] Stats intégration:', stats);
       return stats;
       
     } catch (error) {
-      console.error('❌ [SAFE] Erreur stats intégration:', error);
+      console.error('❌ [SYNC] Erreur stats intégration:', error);
       return this.getEmptyStats();
     }
   }
@@ -292,7 +337,7 @@ class TaskProjectIntegrationService {
    */
   calculateIntegrationStats(tasks = [], projects = []) {
     try {
-      console.log('📊 [SAFE] Calcul stats avec arrays fournis:', {
+      console.log('📊 [SYNC] Calcul stats avec arrays fournis:', {
         tâches: tasks.length,
         projets: projects.length
       });
@@ -310,12 +355,76 @@ class TaskProjectIntegrationService {
       };
       
     } catch (error) {
-      console.error('❌ [SAFE] Erreur calcul stats:', error);
+      console.error('❌ [SYNC] Erreur calcul stats:', error);
       return {
         totalTasks: 0,
         linkedTasks: 0,
         completedTasks: 0,
         activeProjects: 0
+      };
+    }
+  }
+
+  /**
+   * 🔄 SYNCHRONISER TOUS LES PROJETS D'UN UTILISATEUR
+   * Utile pour corriger toutes les incohérences
+   */
+  async syncAllUserProjects(userId) {
+    try {
+      console.log('🔄 [SYNC] Synchronisation de tous les projets utilisateur:', userId);
+      
+      // Récupérer tous les projets de l'utilisateur
+      const projectsQuery = query(
+        collection(db, 'projects'),
+        where('userId', '==', userId)
+      );
+      
+      const projectsSnapshot = await getDocs(projectsQuery);
+      const projects = projectsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      console.log(`🔄 [SYNC] ${projects.length} projets à synchroniser`);
+      
+      let successCount = 0;
+      let errorCount = 0;
+      
+      // Synchroniser chaque projet
+      for (const project of projects) {
+        try {
+          const result = await this.syncProjectCompletely(project.id);
+          if (result.success) {
+            successCount++;
+            console.log(`✅ [SYNC] Projet ${project.title} synchronisé`);
+          } else {
+            errorCount++;
+            console.warn(`⚠️ [SYNC] Erreur sync projet ${project.title}:`, result.error);
+          }
+          
+          // Petite pause pour éviter de surcharger Firebase
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+        } catch (error) {
+          errorCount++;
+          console.error(`❌ [SYNC] Erreur sync projet ${project.title}:`, error);
+        }
+      }
+      
+      console.log(`✅ [SYNC] Synchronisation terminée: ${successCount} succès, ${errorCount} erreurs`);
+      
+      return {
+        success: true,
+        totalProjects: projects.length,
+        successCount,
+        errorCount
+      };
+      
+    } catch (error) {
+      console.error('❌ [SYNC] Erreur synchronisation tous projets:', error);
+      return {
+        success: false,
+        error: error.message
       };
     }
   }
@@ -337,16 +446,16 @@ class TaskProjectIntegrationService {
    */
   async testConnection() {
     try {
-      console.log('🧪 [SAFE] Test de connexion...');
+      console.log('🧪 [SYNC] Test de connexion...');
       
       // Test simple de lecture Firestore
       const testQuery = query(collection(db, 'tasks'), limit(1));
       await getDocs(testQuery);
       
-      console.log('✅ [SAFE] Connexion Firestore OK');
+      console.log('✅ [SYNC] Connexion Firestore OK');
       return true;
     } catch (error) {
-      console.error('❌ [SAFE] Erreur connexion:', error);
+      console.error('❌ [SYNC] Erreur connexion:', error);
       return false;
     }
   }
@@ -355,7 +464,7 @@ class TaskProjectIntegrationService {
    * 🧹 NETTOYAGE
    */
   async cleanup() {
-    console.log('🧹 [SAFE] Nettoyage service TaskProjectIntegration');
+    console.log('🧹 [SYNC] Nettoyage service TaskProjectIntegration');
     // Pas de listeners à nettoyer pour ce service
   }
 }
