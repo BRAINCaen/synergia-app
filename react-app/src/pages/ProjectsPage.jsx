@@ -1,6 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/ProjectsPage.jsx
-// SYSTÈME DE GESTION DE PROJETS COMPLET - VERSION FIREBASE FONCTIONNELLE
+// CODE COMPLET - Remplacer entièrement le fichier existant
+// AVEC INTÉGRATION DASHBOARD AVANCÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -13,55 +14,58 @@ import {
   Users, 
   Target, 
   Clock, 
-  TrendingUp,
-  BarChart3,
+  CheckCircle,
+  AlertTriangle,
   Eye,
   Edit,
   Trash2,
-  UserPlus,
-  Settings,
-  CheckCircle,
-  AlertCircle,
   Play,
   Pause,
   RotateCcw,
-  Archive,
-  Award,
   Briefcase,
-  Tag,
-  MapPin,
-  X
+  BarChart3,
+  Settings,
+  X,
+  AlertCircle,
+  TrendingUp,
+  Award,
+  Flag
 } from 'lucide-react';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { projectService } from '../core/services/projectService.js';
+import { taskService } from '../core/services/taskService.js';
+
+// ✅ IMPORT DU NOUVEAU DASHBOARD AVANCÉ
+import AdvancedProjectDashboard from '../components/projects/AdvancedProjectDashboard.jsx';
 
 /**
- * 📋 PAGE DE GESTION DE PROJETS COMPLÈTE - VERSION FIREBASE
+ * ✅ PAGE PROJETS AVEC DASHBOARD AVANCÉ INTÉGRÉ
  */
 const ProjectsPage = () => {
   const { user } = useAuthStore();
   
   // États principaux
   const [projects, setProjects] = useState([]);
-  const [tasks, setTasks] = useState([]);
+  const [allTasks, setAllTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   
-  // États UI
-  const [view, setView] = useState('grid'); // grid, list
+  // États UI - Modals
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showProjectDetail, setShowProjectDetail] = useState(false);
+  const [showAdvancedDashboard, setShowAdvancedDashboard] = useState(false); // ✅ NOUVEAU
+  const [selectedProject, setSelectedProject] = useState(null);
+  
+  // États UI - Filtres et recherche
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortBy, setSortBy] = useState('updatedAt');
   const [sortOrder, setSortOrder] = useState('desc');
+  const [view, setView] = useState('grid');
   
-  // États modals
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [showProjectDetail, setShowProjectDetail] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  
-  // État formulaire
+  // États formulaire
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -72,11 +76,11 @@ const ProjectsPage = () => {
     estimatedHours: '',
     budget: '',
     tags: [],
-    objectives: [''],
-    deliverables: ['']
+    objectives: [],
+    deliverables: []
   });
 
-  // Charger les données au montage
+  // Charger toutes les données au démarrage
   useEffect(() => {
     if (user?.uid) {
       loadAllData();
@@ -91,16 +95,23 @@ const ProjectsPage = () => {
     setError(null);
     
     try {
-      console.log('🔄 Chargement des projets pour:', user.uid);
+      console.log('🔄 Chargement données projets et tâches...');
       
-      // Charger les projets de l'utilisateur
-      const userProjects = await projectService.getUserProjects(user.uid);
+      const [userProjects, userTasks] = await Promise.all([
+        projectService.getUserProjects(user.uid),
+        taskService.getUserTasks(user.uid)
+      ]);
+      
       setProjects(userProjects || []);
+      setAllTasks(userTasks || []);
       
-      console.log('✅ Projets chargés:', userProjects?.length || 0);
+      console.log('✅ Données chargées:', {
+        projets: userProjects?.length || 0,
+        tâches: userTasks?.length || 0
+      });
       
     } catch (error) {
-      console.error('❌ Erreur chargement données projets:', error);
+      console.error('❌ Erreur chargement données:', error);
       setError('Erreur lors du chargement des projets');
     } finally {
       setLoading(false);
@@ -126,6 +137,23 @@ const ProjectsPage = () => {
     } catch (error) {
       console.error('❌ Erreur setup listeners:', error);
     }
+  };
+
+  // ===============================================
+  // 🎯 NOUVELLE FONCTION - OUVRIR DASHBOARD AVANCÉ
+  // ===============================================
+  const openAdvancedDashboard = (project) => {
+    console.log('📊 Ouverture Dashboard Avancé pour:', project.title);
+    setSelectedProject(project);
+    setShowAdvancedDashboard(true);
+  };
+
+  const closeAdvancedDashboard = () => {
+    console.log('❌ Fermeture Dashboard Avancé');
+    setShowAdvancedDashboard(false);
+    setSelectedProject(null);
+    // Recharger les données pour synchroniser
+    loadAllData();
   };
 
   const handleCreateProject = async (e) => {
@@ -160,7 +188,7 @@ const ProjectsPage = () => {
       };
       
       // ✅ CORRECTION: Vérifier si c'est une modification ou création
-      if (selectedProject) {
+      if (selectedProject && selectedProject.id) {
         console.log('🔄 Modification projet existant:', selectedProject.id);
         
         // Modifier le projet existant
@@ -186,23 +214,11 @@ const ProjectsPage = () => {
         }
       }
       
-      // Reset form et fermer modal
-      setFormData({
-        title: '',
-        description: '',
-        priority: 'normal',
-        category: '',
-        startDate: '',
-        endDate: '',
-        estimatedHours: '',
-        budget: '',
-        tags: [],
-        objectives: [''],
-        deliverables: ['']
-      });
-      
-      setSelectedProject(null);
+      // Fermer le formulaire et recharger
       setShowCreateForm(false);
+      setSelectedProject(null);
+      resetForm();
+      await loadAllData();
       
     } catch (error) {
       console.error('❌ Erreur gestion projet:', error);
@@ -212,26 +228,28 @@ const ProjectsPage = () => {
     }
   };
 
-  const handleUpdateProjectStatus = async (projectId, newStatus) => {
-    try {
-      console.log('🔄 Mise à jour statut projet:', projectId, newStatus);
-      
-      const result = await projectService.updateProject(projectId, { status: newStatus }, user.uid);
-      
-      if (result.success) {
-        alert('✅ Statut du projet mis à jour');
-      } else {
-        throw new Error(result.error || 'Erreur lors de la mise à jour');
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur mise à jour statut:', error);
-      alert('❌ Erreur lors de la mise à jour: ' + error.message);
-    }
+  const handleEditProject = (project) => {
+    console.log('✏️ Édition projet:', project.title);
+    
+    setSelectedProject(project);
+    setFormData({
+      title: project.title || '',
+      description: project.description || '',
+      priority: project.priority || 'normal',
+      category: project.category || '',
+      startDate: project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '',
+      endDate: project.endDate ? new Date(project.endDate).toISOString().split('T')[0] : '',
+      estimatedHours: project.estimatedHours || '',
+      budget: project.budget || '',
+      tags: project.tags || [],
+      objectives: project.objectives || [],
+      deliverables: project.deliverables || []
+    });
+    setShowCreateForm(true);
   };
 
   const handleDeleteProject = async (projectId) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce projet ? Cette action est irréversible.')) {
       return;
     }
     
@@ -241,114 +259,79 @@ const ProjectsPage = () => {
       const result = await projectService.deleteProject(projectId, user.uid);
       
       if (result.success) {
+        console.log('✅ Projet supprimé avec succès');
         alert('✅ Projet supprimé avec succès');
+        await loadAllData();
       } else {
         throw new Error(result.error || 'Erreur lors de la suppression');
       }
       
     } catch (error) {
       console.error('❌ Erreur suppression projet:', error);
-      alert('❌ Erreur lors de la suppression: ' + error.message);
+      alert('❌ Erreur: ' + error.message);
     }
   };
 
-  // Fonctions utilitaires
-  const getProjectTasks = (projectId) => {
-    return tasks.filter(task => task.projectId === projectId);
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      priority: 'normal',
+      category: '',
+      startDate: '',
+      endDate: '',
+      estimatedHours: '',
+      budget: '',
+      tags: [],
+      objectives: [],
+      deliverables: []
+    });
   };
 
+  // Calcul de la progression d'un projet
   const calculateProgress = (project) => {
-    if (project.progress !== undefined) {
-      return project.progress;
+    if (!project.taskCount || project.taskCount === 0) return 0;
+    return Math.round((project.completedTaskCount || 0) / project.taskCount * 100);
+  };
+
+  // Obtenir les tâches d'un projet
+  const getProjectTasks = (projectId) => {
+    return allTasks.filter(task => task.projectId === projectId);
+  };
+
+  // Obtenir le statut visuel du projet
+  const getProjectStatus = (project) => {
+    const progress = calculateProgress(project);
+    const now = new Date();
+    const endDate = project.endDate ? new Date(project.endDate) : null;
+    
+    if (progress === 100) {
+      return { label: 'Terminé', color: 'bg-green-500', textColor: 'text-green-700' };
     }
     
-    const projectTasks = getProjectTasks(project.id);
-    if (projectTasks.length === 0) return 0;
+    if (endDate && now > endDate) {
+      return { label: 'En retard', color: 'bg-red-500', textColor: 'text-red-700' };
+    }
     
-    const completedTasks = projectTasks.filter(task => task.status === 'completed');
-    return Math.round((completedTasks.length / projectTasks.length) * 100);
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      planning: 'bg-gray-500',
-      active: 'bg-blue-500',
-      on_hold: 'bg-yellow-500',
-      validation_pending: 'bg-orange-500',
-      completed: 'bg-green-500',
-      rejected: 'bg-red-500',
-      cancelled: 'bg-gray-400'
-    };
-    return colors[status] || colors.active;
-  };
-
-  const getStatusLabel = (status) => {
-    const labels = {
-      planning: 'Planification',
-      active: 'En cours',
-      on_hold: 'En pause',
-      validation_pending: 'En validation',
-      completed: 'Terminé',
-      rejected: 'Rejeté',
-      cancelled: 'Annulé'
-    };
-    return labels[status] || status;
-  };
-
-  const getPriorityColor = (priority) => {
-    const colors = {
-      low: 'text-green-500',
-      normal: 'text-blue-500',
-      high: 'text-orange-500',
-      urgent: 'text-red-500'
-    };
-    return colors[priority] || colors.normal;
-  };
-
-  const addFormField = (fieldName) => {
-    setFormData(prev => ({
-      ...prev,
-      [fieldName]: [...prev[fieldName], '']
-    }));
-  };
-
-  const updateFormField = (fieldName, index, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [fieldName]: prev[fieldName].map((item, i) => i === index ? value : item)
-    }));
-  };
-
-  const removeFormField = (fieldName, index) => {
-    setFormData(prev => ({
-      ...prev,
-      [fieldName]: prev[fieldName].filter((_, i) => i !== index)
-    }));
+    if (progress > 0) {
+      return { label: 'En cours', color: 'bg-blue-500', textColor: 'text-blue-700' };
+    }
+    
+    return { label: 'Planifié', color: 'bg-gray-500', textColor: 'text-gray-700' };
   };
 
   // Filtrage et tri des projets
   const filteredProjects = projects
     .filter(project => {
-      const matchesSearch = (project.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (project.description || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           project.description?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
       const matchesPriority = priorityFilter === 'all' || project.priority === priorityFilter;
-      
       return matchesSearch && matchesStatus && matchesPriority;
     })
     .sort((a, b) => {
-      let aValue = a[sortBy];
-      let bValue = b[sortBy];
-      
-      if (sortBy === 'progress') {
-        aValue = calculateProgress(a);
-        bValue = calculateProgress(b);
-      }
-      
-      if (sortBy === 'createdAt') {
-        aValue = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-        bValue = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-      }
+      const aValue = a[sortBy] || '';
+      const bValue = b[sortBy] || '';
       
       if (sortOrder === 'asc') {
         return aValue > bValue ? 1 : -1;
@@ -357,259 +340,14 @@ const ProjectsPage = () => {
       }
     });
 
-  const projectStats = {
-    total: projects.length,
-    active: projects.filter(p => p.status === 'active').length,
-    completed: projects.filter(p => p.status === 'completed').length,
-    pending: projects.filter(p => p.status === 'validation_pending').length
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2 text-gray-600">Chargement des projets...</span>
-        {/* MODAL DÉTAIL PROJET */}
-      <AnimatePresence>
-        {showProjectDetail && selectedProject && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowProjectDetail(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
-                    <Briefcase className="w-6 h-6 text-blue-600" />
-                    {selectedProject.title}
-                  </h2>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-white ${getStatusColor(selectedProject.status)}`}>
-                      {getStatusLabel(selectedProject.status)}
-                    </span>
-                    <span className={`text-sm font-medium ${getPriorityColor(selectedProject.priority)}`}>
-                      Priorité {selectedProject.priority}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowProjectDetail(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Contenu */}
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  
-                  {/* Colonne principale */}
-                  <div className="lg:col-span-2 space-y-6">
-                    
-                    {/* Description */}
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-3">Description</h3>
-                      <p className="text-gray-600">
-                        {selectedProject.description || 'Aucune description fournie.'}
-                      </p>
-                    </div>
-
-                    {/* Progression détaillée */}
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-3">Progression</h3>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        {(() => {
-                          const progress = calculateProgress(selectedProject);
-                          const completedTasks = selectedProject.completedTaskCount || 0;
-                          const totalTasks = selectedProject.taskCount || 0;
-                          
-                          return (
-                            <>
-                              <div className="flex items-center justify-between mb-3">
-                                <span className="text-sm text-gray-600">Avancement global</span>
-                                <span className="text-lg font-bold text-gray-900">{progress}%</span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
-                                <div
-                                  className="bg-blue-500 h-3 rounded-full transition-all duration-300"
-                                  style={{ width: `${progress}%` }}
-                                ></div>
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                {completedTasks} sur {totalTasks} tâches terminées
-                              </div>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </div>
-
-                    {/* Objectifs */}
-                    {selectedProject.objectives && selectedProject.objectives.length > 0 && (
-                      <div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-3">Objectifs</h3>
-                        <ul className="space-y-2">
-                          {selectedProject.objectives.map((objective, index) => (
-                            <li key={index} className="flex items-start gap-2">
-                              <Target className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                              <span className="text-gray-600">{objective}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* Livrables */}
-                    {selectedProject.deliverables && selectedProject.deliverables.length > 0 && (
-                      <div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-3">Livrables</h3>
-                        <ul className="space-y-2">
-                          {selectedProject.deliverables.map((deliverable, index) => (
-                            <li key={index} className="flex items-start gap-2">
-                              <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                              <span className="text-gray-600">{deliverable}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Sidebar */}
-                  <div className="space-y-6">
-                    
-                    {/* Informations clés */}
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="font-medium text-gray-900 mb-3">Informations</h4>
-                      <div className="space-y-3 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-600">Créé le:</span>
-                          <span className="text-gray-900">
-                            {selectedProject.createdAt ? 
-                              (selectedProject.createdAt.toDate ? 
-                                selectedProject.createdAt.toDate().toLocaleDateString('fr-FR') :
-                                new Date(selectedProject.createdAt).toLocaleDateString('fr-FR')
-                              ) :
-                              'Non défini'
-                            }
-                          </span>
-                        </div>
-                        
-                        {selectedProject.startDate && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-600">Début:</span>
-                            <span className="text-gray-900">
-                              {new Date(selectedProject.startDate).toLocaleDateString('fr-FR')}
-                            </span>
-                          </div>
-                        )}
-                        
-                        {selectedProject.endDate && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-600">Fin prévue:</span>
-                            <span className="text-gray-900">
-                              {new Date(selectedProject.endDate).toLocaleDateString('fr-FR')}
-                            </span>
-                          </div>
-                        )}
-                        
-                        {selectedProject.estimatedHours && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-600">Heures estimées:</span>
-                            <span className="text-gray-900">{selectedProject.estimatedHours}h</span>
-                          </div>
-                        )}
-                        
-                        {selectedProject.budget && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-600">Budget:</span>
-                            <span className="text-gray-900">{selectedProject.budget}€</span>
-                          </div>
-                        )}
-                        
-                        {selectedProject.category && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-600">Catégorie:</span>
-                            <span className="text-gray-900">{selectedProject.category}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Tags */}
-                    {selectedProject.tags && selectedProject.tags.length > 0 && (
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <h4 className="font-medium text-gray-900 mb-3">Tags</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedProject.tags.map((tag, index) => (
-                            <span
-                              key={index}
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-white text-gray-600 text-xs rounded-full border"
-                            >
-                              <Tag className="w-3 h-3" />
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => {
-                          setShowProjectDetail(false);
-                          setFormData({
-                            title: selectedProject.title || '',
-                            description: selectedProject.description || '',
-                            priority: selectedProject.priority || 'normal',
-                            category: selectedProject.category || '',
-                            startDate: selectedProject.startDate || '',
-                            endDate: selectedProject.endDate || '',
-                            estimatedHours: selectedProject.estimatedHours || '',
-                            budget: selectedProject.budget || '',
-                            tags: selectedProject.tags || [],
-                            objectives: selectedProject.objectives || [''],
-                            deliverables: selectedProject.deliverables || ['']
-                          });
-                          setShowCreateForm(true);
-                        }}
-                        className="w-full flex items-center justify-center gap-2 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        <Edit className="w-4 h-4" />
-                        Modifier le projet
-                      </button>
-                      
-                      <button
-                        onClick={() => {
-                          setShowProjectDetail(false);
-                          handleDeleteProject(selectedProject.id);
-                        }}
-                        className="w-full flex items-center justify-center gap-2 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Supprimer le projet
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des projets...</p>
+        </div>
+      </div>
     );
   }
 
@@ -633,6 +371,40 @@ const ProjectsPage = () => {
 
   return (
     <div className="p-6 space-y-6">
+      
+      {/* =============================================== */}
+      {/* 🚀 MODAL DASHBOARD AVANCÉ */}
+      {/* =============================================== */}
+      <AnimatePresence>
+        {showAdvancedDashboard && selectedProject && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-75 z-50 overflow-y-auto"
+          >
+            <div className="min-h-screen p-4">
+              {/* Bouton fermer */}
+              <button
+                onClick={closeAdvancedDashboard}
+                className="fixed top-4 right-4 z-60 bg-red-600 hover:bg-red-700 text-white p-3 rounded-lg transition-colors shadow-lg"
+                title="Fermer le dashboard"
+              >
+                <X size={20} />
+              </button>
+              
+              {/* Dashboard avancé */}
+              <div className="max-w-7xl mx-auto">
+                <AdvancedProjectDashboard 
+                  projectId={selectedProject.id}
+                  onClose={closeAdvancedDashboard}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
@@ -657,110 +429,99 @@ const ProjectsPage = () => {
       {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Projets</p>
+              <p className="text-2xl font-bold text-gray-900">{projects.length}</p>
+            </div>
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
               <Briefcase className="w-6 h-6 text-blue-600" />
             </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Projets</p>
-              <p className="text-2xl font-bold text-gray-900">{projectStats.total}</p>
+              <p className="text-sm font-medium text-gray-600">En Cours</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {projects.filter(p => p.status === 'active').length}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <Play className="w-6 h-6 text-yellow-600" />
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Play className="w-6 h-6 text-green-600" />
-            </div>
+          <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Actifs</p>
-              <p className="text-2xl font-bold text-gray-900">{projectStats.active}</p>
+              <p className="text-sm font-medium text-gray-600">Terminés</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {projects.filter(p => p.status === 'completed').length}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <CheckCircle className="w-6 h-6 text-green-600" />
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-purple-600" />
-            </div>
+          <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Terminés</p>
-              <p className="text-2xl font-bold text-gray-900">{projectStats.completed}</p>
+              <p className="text-sm font-medium text-gray-600">Tâches Totales</p>
+              <p className="text-2xl font-bold text-gray-900">{allTasks.length}</p>
             </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <Clock className="w-6 h-6 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">En Validation</p>
-              <p className="text-2xl font-bold text-gray-900">{projectStats.pending}</p>
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Target className="w-6 h-6 text-purple-600" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Contrôles de filtrage et tri */}
+      {/* Filtres et recherche */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex flex-col lg:flex-row gap-4">
-          
-          {/* Recherche */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+          {/* Barre de recherche */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Rechercher un projet..."
+              placeholder="Rechercher des projets..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-          
+
           {/* Filtres */}
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">Tous les statuts</option>
-              <option value="planning">Planification</option>
-              <option value="active">En cours</option>
+              <option value="active">Actif</option>
               <option value="on_hold">En pause</option>
-              <option value="validation_pending">En validation</option>
-              <option value="completed">Terminés</option>
-              <option value="cancelled">Annulés</option>
+              <option value="completed">Terminé</option>
+              <option value="cancelled">Annulé</option>
             </select>
-            
+
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">Toutes priorités</option>
-              <option value="low">Basse</option>
+              <option value="low">Faible</option>
               <option value="normal">Normale</option>
               <option value="high">Haute</option>
               <option value="urgent">Urgente</option>
             </select>
-            
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="createdAt">Date création</option>
-              <option value="title">Nom</option>
-              <option value="priority">Priorité</option>
-              <option value="progress">Progression</option>
-              <option value="endDate">Date limite</option>
-            </select>
-            
+
             <button
               onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
               className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -819,6 +580,7 @@ const ProjectsPage = () => {
           {filteredProjects.map((project) => {
             const progress = calculateProgress(project);
             const projectTasks = getProjectTasks(project.id);
+            const status = getProjectStatus(project);
             
             return (
               <motion.div
@@ -829,250 +591,123 @@ const ProjectsPage = () => {
                 exit={{ opacity: 0, scale: 0.95 }}
                 className={view === 'grid' 
                   ? "bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-                  : "bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex items-center gap-6 hover:shadow-md transition-shadow"
+                  : "bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
                 }
               >
-                {/* Vue grille */}
-                {view === 'grid' ? (
-                  <>
-                    {/* En-tête */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold text-gray-900 line-clamp-1">
-                            {project.title}
-                          </h3>
-                          <span className={`inline-block w-2 h-2 rounded-full ${getStatusColor(project.status)}`}></span>
-                        </div>
-                        
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                          <span className={`font-medium ${getPriorityColor(project.priority)}`}>
-                            {project.priority === 'low' && '🔹 Basse'}
-                            {project.priority === 'normal' && '🔸 Normale'}
-                            {project.priority === 'high' && '🔶 Haute'}
-                            {project.priority === 'urgent' && '🔴 Urgente'}
-                          </span>
-                          <span className="text-gray-400">•</span>
-                          <span>{getStatusLabel(project.status)}</span>
-                        </div>
-                      </div>
-                      
-                      {/* Menu actions */}
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => {
-                            setSelectedProject(project);
-                            setShowProjectDetail(true);
-                          }}
-                          className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
-                          title="Voir détails"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        
-                        <button
-                          onClick={() => {
-                            setSelectedProject(project);
-                            setFormData({
-                              title: project.title || '',
-                              description: project.description || '',
-                              priority: project.priority || 'normal',
-                              category: project.category || '',
-                              startDate: project.startDate || '',
-                              endDate: project.endDate || '',
-                              estimatedHours: project.estimatedHours || '',
-                              budget: project.budget || '',
-                              tags: project.tags || [],
-                              objectives: project.objectives || [''],
-                              deliverables: project.deliverables || ['']
-                            });
-                            setShowCreateForm(true);
-                          }}
-                          className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
-                          title="Modifier"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        
-                        <button
-                          onClick={() => handleDeleteProject(project.id)}
-                          className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                {/* En-tête du projet */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                      {project.title}
+                    </h3>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status.color} text-white`}>
+                      {status.label}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-1 ml-2">
+                    {/* ✅ NOUVEAU BOUTON - DASHBOARD AVANCÉ */}
+                    <button
+                      onClick={() => openAdvancedDashboard(project)}
+                      className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                      title="Dashboard Avancé"
+                    >
+                      <BarChart3 className="w-4 h-4" />
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        setSelectedProject(project);
+                        setShowProjectDetail(true);
+                      }}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Voir les détails"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    
+                    <button
+                      onClick={() => handleEditProject(project)}
+                      className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                      title="Modifier"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    
+                    <button
+                      onClick={() => handleDeleteProject(project.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Supprimer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                  {project.description || 'Aucune description'}
+                </p>
+
+                {/* Progression */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="text-gray-600">Progression</span>
+                    <span className="font-medium text-gray-900">{progress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${progress}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Métadonnées */}
+                <div className="space-y-2 text-sm text-gray-500">
+                  <div className="flex items-center justify-between">
+                    <span>Tâches:</span>
+                    <span className="font-medium">
+                      {project.completedTaskCount || 0}/{project.taskCount || 0}
+                    </span>
+                  </div>
+                  
+                  {project.endDate && (
+                    <div className="flex items-center justify-between">
+                      <span>Échéance:</span>
+                      <span className="font-medium">
+                        {new Date(project.endDate).toLocaleDateString('fr-FR')}
+                      </span>
                     </div>
+                  )}
+                  
+                  <div className="flex items-center justify-between">
+                    <span>Créé le:</span>
+                    <span className="font-medium">
+                      {project.createdAt?.toDate ? 
+                        project.createdAt.toDate().toLocaleDateString('fr-FR') :
+                        new Date(project.createdAt).toLocaleDateString('fr-FR')}
+                    </span>
+                  </div>
+                </div>
 
-                    {/* Description */}
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                      {project.description || 'Aucune description'}
-                    </p>
-
-                    {/* Progression */}
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-gray-600">Progression</span>
-                        <span className="font-medium text-gray-900">{progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    {/* Métadonnées */}
-                    <div className="space-y-2 text-sm text-gray-500">
-                      <div className="flex items-center justify-between">
-                        <span>Tâches:</span>
-                        <span className="font-medium">
-                          {project.completedTaskCount || 0}/{project.taskCount || 0}
-                        </span>
-                      </div>
-                      
-                      {project.endDate && (
-                        <div className="flex items-center justify-between">
-                          <span>Échéance:</span>
-                          <span className="font-medium">
-                            {new Date(project.endDate).toLocaleDateString('fr-FR')}
-                          </span>
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center justify-between">
-                        <span>Créé le:</span>
-                        <span className="font-medium">
-                          {project.createdAt?.toDate ? 
-                            project.createdAt.toDate().toLocaleDateString('fr-FR') :
-                            new Date(project.createdAt).toLocaleDateString('fr-FR')
-                          }
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Tags */}
-                    {project.tags && project.tags.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-1">
-                        {project.tags.slice(0, 3).map((tag, index) => (
-                          <span
-                            key={index}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
-                          >
-                            <Tag className="w-3 h-3" />
-                            {tag}
-                          </span>
-                        ))}
-                        {project.tags.length > 3 && (
-                          <span className="text-xs text-gray-400">
-                            +{project.tags.length - 3} tags
-                          </span>
-                        )}
-                      </div>
+                {/* Tags */}
+                {project.tags && project.tags.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {project.tags.slice(0, 3).map((tag, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {project.tags.length > 3 && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        +{project.tags.length - 3}
+                      </span>
                     )}
-
-                    {/* Actions rapides */}
-                    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-2">
-                      {project.status === 'active' && (
-                        <button
-                          onClick={() => handleUpdateProjectStatus(project.id, 'on_hold')}
-                          className="flex items-center gap-1 px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 transition-colors"
-                        >
-                          <Pause className="w-3 h-3" />
-                          Pause
-                        </button>
-                      )}
-                      
-                      {project.status === 'on_hold' && (
-                        <button
-                          onClick={() => handleUpdateProjectStatus(project.id, 'active')}
-                          className="flex items-center gap-1 px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
-                        >
-                          <Play className="w-3 h-3" />
-                          Reprendre
-                        </button>
-                      )}
-                      
-                      {(project.status === 'active' || project.status === 'on_hold') && (
-                        <button
-                          onClick={() => handleUpdateProjectStatus(project.id, 'validation_pending')}
-                          className="flex items-center gap-1 px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition-colors"
-                        >
-                          <CheckCircle className="w-3 h-3" />
-                          Terminer
-                        </button>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  // Vue liste
-                  <>
-                    {/* Indicateur statut */}
-                    <div className={`w-1 h-12 rounded-full ${getStatusColor(project.status)}`}></div>
-                    
-                    {/* Informations principales */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-1">
-                        <h3 className="font-semibold text-gray-900">{project.title}</h3>
-                        <span className={`text-xs font-medium ${getPriorityColor(project.priority)}`}>
-                          {project.priority === 'urgent' && '🔴 URGENT'}
-                          {project.priority === 'high' && '🔶 HAUTE'}
-                          {project.priority === 'normal' && '🔸 NORMALE'}
-                          {project.priority === 'low' && '🔹 BASSE'}
-                        </span>
-                        <span className="text-sm text-gray-500">{getStatusLabel(project.status)}</span>
-                      </div>
-                      <p className="text-sm text-gray-600 line-clamp-1">
-                        {project.description || 'Aucune description'}
-                      </p>
-                    </div>
-                    
-                    {/* Progression */}
-                    <div className="w-32">
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="text-gray-500">Progression</span>
-                        <span className="font-medium">{progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5">
-                        <div
-                          className="bg-blue-500 h-1.5 rounded-full"
-                          style={{ width: `${progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    
-                    {/* Actions */}
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => {
-                          setSelectedProject(project);
-                          setShowProjectDetail(true);
-                        }}
-                        className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      
-                      <button
-                        onClick={() => {
-                          setSelectedProject(project);
-                          setFormData({...project});
-                          setShowCreateForm(true);
-                        }}
-                        className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      
-                      <button
-                        onClick={() => handleDeleteProject(project.id)}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </>
+                  </div>
                 )}
               </motion.div>
             );
@@ -1080,260 +715,191 @@ const ProjectsPage = () => {
         </div>
       )}
 
-      {/* MODAL CRÉATION/ÉDITION PROJET */}
+      {/* Modal de création/édition de projet */}
       <AnimatePresence>
         {showCreateForm && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowCreateForm(false)}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             >
-              {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {selectedProject ? 'Modifier le projet' : 'Nouveau projet'}
-                </h2>
-                <button
-                  onClick={() => setShowCreateForm(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    {selectedProject ? 'Modifier le projet' : 'Nouveau projet'}
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setShowCreateForm(false);
+                      setSelectedProject(null);
+                      resetForm();
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
 
-              {/* Formulaire */}
-              <form onSubmit={handleCreateProject} className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  
-                  {/* Colonne gauche */}
-                  <div className="space-y-4">
-                    
-                    {/* Titre */}
+                <form onSubmit={handleCreateProject} className="space-y-6">
+                  {/* Titre */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Titre du projet *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Ex: Développement application mobile"
+                      required
+                    />
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Décrivez les objectifs et le contexte du projet..."
+                    />
+                  </div>
+
+                  {/* Priorité et Catégorie */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Titre du projet *
+                        Priorité
+                      </label>
+                      <select
+                        value={formData.priority}
+                        onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="low">Faible</option>
+                        <option value="normal">Normale</option>
+                        <option value="high">Haute</option>
+                        <option value="urgent">Urgente</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Catégorie
                       </label>
                       <input
                         type="text"
-                        value={formData.title}
-                        onChange={(e) => setFormData(prev => ({...prev, title: e.target.value}))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Nom du projet"
-                        required
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Ex: Développement, Marketing, Design..."
                       />
-                    </div>
-
-                    {/* Description */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Description
-                      </label>
-                      <textarea
-                        value={formData.description}
-                        onChange={(e) => setFormData(prev => ({...prev, description: e.target.value}))}
-                        rows={4}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Description détaillée du projet"
-                      />
-                    </div>
-
-                    {/* Priorité et Catégorie */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Priorité
-                        </label>
-                        <select
-                          value={formData.priority}
-                          onChange={(e) => setFormData(prev => ({...prev, priority: e.target.value}))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="low">🔹 Basse</option>
-                          <option value="normal">🔸 Normale</option>
-                          <option value="high">🔶 Haute</option>
-                          <option value="urgent">🔴 Urgente</option>
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Catégorie
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.category}
-                          onChange={(e) => setFormData(prev => ({...prev, category: e.target.value}))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="ex: Développement, Marketing..."
-                        />
-                      </div>
-                    </div>
-
-                    {/* Dates */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Date de début
-                        </label>
-                        <input
-                          type="date"
-                          value={formData.startDate}
-                          onChange={(e) => setFormData(prev => ({...prev, startDate: e.target.value}))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Date de fin
-                        </label>
-                        <input
-                          type="date"
-                          value={formData.endDate}
-                          onChange={(e) => setFormData(prev => ({...prev, endDate: e.target.value}))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
                     </div>
                   </div>
 
-                  {/* Colonne droite */}
-                  <div className="space-y-4">
-                    
-                    {/* Estimation et Budget */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Heures estimées
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.estimatedHours}
-                          onChange={(e) => setFormData(prev => ({...prev, estimatedHours: e.target.value}))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="0"
-                          min="0"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Budget (€)
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.budget}
-                          onChange={(e) => setFormData(prev => ({...prev, budget: e.target.value}))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="0"
-                          min="0"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Objectifs */}
+                  {/* Dates */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Objectifs
+                        Date de début
                       </label>
-                      <div className="space-y-2">
-                        {formData.objectives.map((objective, index) => (
-                          <div key={index} className="flex gap-2">
-                            <input
-                              type="text"
-                              value={objective}
-                              onChange={(e) => updateFormField('objectives', index, e.target.value)}
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="Objectif du projet"
-                            />
-                            {formData.objectives.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => removeFormField('objectives', index)}
-                                className="px-3 py-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => addFormField('objectives')}
-                          className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors"
-                        >
-                          + Ajouter un objectif
-                        </button>
-                      </div>
+                      <input
+                        type="date"
+                        value={formData.startDate}
+                        onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
                     </div>
 
-                    {/* Livrables */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Livrables attendus
+                        Date de fin prévue
                       </label>
-                      <div className="space-y-2">
-                        {formData.deliverables.map((deliverable, index) => (
-                          <div key={index} className="flex gap-2">
-                            <input
-                              type="text"
-                              value={deliverable}
-                              onChange={(e) => updateFormField('deliverables', index, e.target.value)}
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="Livrable du projet"
-                            />
-                            {formData.deliverables.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => removeFormField('deliverables', index)}
-                                className="px-3 py-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => addFormField('deliverables')}
-                          className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors"
-                        >
-                          + Ajouter un livrable
-                        </button>
-                      </div>
+                      <input
+                        type="date"
+                        value={formData.endDate}
+                        onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
                     </div>
                   </div>
-                </div>
 
-                {/* Boutons d'action */}
-                <div className="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateForm(false)}
-                    disabled={submitting}
-                    className="px-6 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                  >
-                    {submitting && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
-                    {selectedProject ? 'Mettre à jour' : 'Créer le projet'}
-                  </button>
-                </div>
-              </form>
+                  {/* Estimation et Budget */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Heures estimées
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.estimatedHours}
+                        onChange={(e) => setFormData({ ...formData, estimatedHours: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ex: 120"
+                        min="0"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Budget (€)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.budget}
+                        onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ex: 5000"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Boutons */}
+                  <div className="flex justify-end space-x-3 pt-6 border-t">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCreateForm(false);
+                        setSelectedProject(null);
+                        resetForm();
+                      }}
+                      className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {submitting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          {selectedProject ? 'Modification...' : 'Création...'}
+                        </>
+                      ) : (
+                        <>
+                          {selectedProject ? 'Modifier le projet' : 'Créer le projet'}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </motion.div>
           </motion.div>
         )}
