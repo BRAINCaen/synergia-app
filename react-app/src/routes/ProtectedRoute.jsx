@@ -1,15 +1,14 @@
 // ==========================================
 // 📁 react-app/src/routes/ProtectedRoute.jsx
-// ProtectedRoute CORRIGÉ - Import authStore fix
+// ProtectedRoute CORRIGÉ - Cohérence avec authStore
 // ==========================================
 
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-// 🚀 CORRECTION: Import nommé pour authStore (déjà correct dans le fichier original)
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuthStore();
+  const { user, isAuthenticated, loading } = useAuthStore();
   const location = useLocation();
 
   // Afficher un loader pendant la vérification de l'auth
@@ -25,7 +24,8 @@ const ProtectedRoute = ({ children }) => {
   }
 
   // Rediriger vers login si non authentifié
-  if (!isAuthenticated) {
+  // ✅ CORRECTION: Utiliser à la fois user ET isAuthenticated pour plus de sécurité
+  if (!user || !isAuthenticated) {
     return (
       <Navigate 
         to="/login" 
