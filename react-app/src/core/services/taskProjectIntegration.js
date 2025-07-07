@@ -15,10 +15,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
-// ✅ IMPORT CORRIGÉ : Importer la classe TaskService, pas l'instance
-import TaskService from './taskService.js';
-// ✅ IMPORT CORRIGÉ : Importer la classe ProjectService directement
-import { projectService } from './projectService.js';
+// ✅ IMPORT CORRIGÉ : Utiliser l'export de l'index.js
+import { taskService as TaskService, projectService as ProjectService } from './index.js';
 
 /**
  * 🔗 SERVICE D'INTÉGRATION TÂCHES-PROJETS
@@ -26,8 +24,9 @@ import { projectService } from './projectService.js';
  */
 class TaskProjectIntegrationService {
   constructor() {
-    // Créer une instance de TaskService
+    // Créer des instances des services
     this.taskService = new TaskService();
+    this.projectService = new ProjectService();
     console.log('🔗 TaskProjectIntegrationService initialisé');
   }
 
@@ -39,7 +38,7 @@ class TaskProjectIntegrationService {
       console.log(`🔗 Assignation tâche ${taskId} au projet ${projectId}`);
       
       // Vérifier que l'utilisateur a accès au projet
-      const projectDoc = await projectService.getProject(projectId);
+      const projectDoc = await this.projectService.getProject(projectId);
       if (!projectDoc) {
         throw new Error('Projet non trouvé');
       }
@@ -51,7 +50,7 @@ class TaskProjectIntegrationService {
       });
       
       // Mettre à jour la progression du projet
-      await projectService.updateProjectProgress(projectId);
+      await this.projectService.updateProjectProgress(projectId);
       
       console.log('✅ Tâche assignée au projet avec succès');
       return { success: true };
@@ -91,7 +90,7 @@ class TaskProjectIntegrationService {
       
       // Mettre à jour la progression de l'ancien projet
       if (oldProjectId) {
-        await projectService.updateProjectProgress(oldProjectId);
+        await this.projectService.updateProjectProgress(oldProjectId);
       }
       
       console.log('✅ Tâche retirée du projet avec succès');
@@ -189,7 +188,7 @@ class TaskProjectIntegrationService {
           const taskData = taskSnapshot.docs[0].data();
           if (taskData.projectId) {
             // Mettre à jour la progression du projet
-            await projectService.updateProjectProgress(taskData.projectId);
+            await this.projectService.updateProjectProgress(taskData.projectId);
           }
         }
       }
@@ -211,7 +210,7 @@ class TaskProjectIntegrationService {
       console.log('🔄 Synchronisation de tous les projets...');
       
       // Récupérer tous les projets de l'utilisateur
-      const userProjects = await projectService.getUserProjects(userId);
+      const userProjects = await this.projectService.getUserProjects(userId);
       
       const batch = writeBatch(db);
       let updateCount = 0;
