@@ -1,62 +1,207 @@
 // ==========================================
 // 📁 react-app/src/pages/ProjectsPage.jsx
-// Page complète de gestion des projets
+// SYSTÈME DE GESTION DE PROJETS COMPLET - VERSION ENRICHIE
 // ==========================================
 
-import React, { useState } from 'react';
-import { useProjectStore, useTaskStore, useAuthStore } from '../shared/stores';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Plus, 
+  Search, 
+  Filter, 
+  Calendar, 
+  Users, 
+  Target, 
+  Clock, 
+  TrendingUp,
+  BarChart3,
+  Eye,
+  Edit,
+  Trash2,
+  UserPlus,
+  Settings,
+  CheckCircle,
+  AlertCircle,
+  Play,
+  Pause,
+  RotateCcw,
+  Archive,
+  Award,
+  Briefcase,
+  Tag,
+  MapPin
+} from 'lucide-react';
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { projectService } from '../core/services/projectService.js';
+import { userService } from '../core/services/userService.js';
+import { taskService } from '../core/services/taskService.js';
+import { Toast } from '../shared/components/ui/Toast.jsx';
 
+/**
+ * 📋 PAGE DE GESTION DE PROJETS COMPLÈTE
+ */
 const ProjectsPage = () => {
   const { user } = useAuthStore();
-  const { projects, addProject, updateProject, deleteProject, getProjectStats } = useProjectStore();
-  const { tasks } = useTaskStore();
   
-  const [showForm, setShowForm] = useState(false);
-  const [newProject, setNewProject] = useState({
-    name: '',
+  // États principaux
+  const [projects, setProjects] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // États UI
+  const [view, setView] = useState('grid'); // grid, list, kanban
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
+  
+  // États modals
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showProjectDetail, setShowProjectDetail] = useState(false);
+  const [showTeamManagement, setShowTeamManagement] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
+  
+  // État formulaire
+  const [formData, setFormData] = useState({
+    title: '',
     description: '',
-    deadline: '',
-    status: 'active'
+    priority: 'normal',
+    category: '',
+    startDate: '',
+    endDate: '',
+    estimatedHours: '',
+    budget: '',
+    tags: [],
+    assignedMembers: [],
+    objectives: [''],
+    deliverables: ['']
   });
 
-  const stats = getProjectStats();
+  // Charger les données
+  useEffect(() => {
+    loadAllData();
+  }, []);
 
-  const handleCreateProject = (e) => {
-    e.preventDefault();
-    if (!newProject.name.trim()) return;
-
-    const projectToAdd = {
-      ...newProject,
-      userId: user.uid,
-      createdAt: new Date().toISOString(),
-      id: Date.now().toString(),
-      progress: 0
-    };
-
-    addProject(projectToAdd);
-    
-    // Reset form
-    setNewProject({
-      name: '',
-      description: '',
-      deadline: '',
-      status: 'active'
-    });
-    setShowForm(false);
-  };
-
-  const handleDeleteProject = (projectId) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
-      deleteProject(projectId);
+  const loadAllData = async () => {
+    setLoading(true);
+    try {
+      const [projectsData, usersData, tasksData] = await Promise.all([
+        projectService.getUserProjects(user.uid),
+        userService.getAllUsers(),
+        taskService.getUserTasks(user.uid)
+      ]);
+      
+      setProjects(projectsData || []);
+      setAllUsers(usersData || []);
+      setTasks(tasksData || []);
+      
+      console.log('✅ Données projets chargées:', {
+        projects: projectsData?.length || 0,
+        users: usersData?.length || 0,
+        tasks: tasksData?.length || 0
+      });
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement données projets:', error);
+      Toast.show('Erreur lors du chargement des projets', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.title.trim()) {
+      Toast.show('Le titre du projet est requis', 'error');
+      return;
+    }
+
+    try {
+      console.log('🆕 Création nouveau projet:', formData.title);
+      
+      const projectData = {
+        ...formData,
+        tags: formData.tags.filter(tag => tag.trim()),
+        objectives: formData.objectives.filter(obj => obj.trim()),
+        deliverables: formData.deliverables.filter(del => del.trim())
+      };
+      
+      await projectService.createProject(projectData, user.uid);
+      
+      // Reset form
+      setFormData({
+        title: '',
+        description: '',
+        priority: 'normal',
+        category: '',
+        startDate: '',
+        endDate: '',
+        estimatedHours: '',
+        budget: '',
+        tags: [],
+        assignedMembers: [],
+        objectives: [''],
+        deliverables: ['']
+      });
+      
+      setShowCreateForm(false);
+      await loadAllData();
+      
+      Toast.show('Projet créé avec succès !', 'success');
+      
+    } catch (error) {
+      console.error('❌ Erreur création projet:', error);
+      Toast.show('Erreur lors de la création du projet', 'error');
+    }
+  };
+
+  const handleUpdateProjectStatus = async (projectId, newStatus) => {
+    try {
+      await projectService.updateProject(projectId, { status: newStatus }, user.uid);
+      await loadAllData();
+      Toast.show('Statut du projet mis à jour', 'success');
+    } catch (error) {
+      console.error('❌ Erreur mise à jour statut:', error);
+      Toast.show('Erreur lors de la mise à jour', 'error');
+    }
+  };
+
+  const handleDeleteProject = async (projectId) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
+      return;
+    }
+    
+    try {
+      await projectService.deleteProject(projectId, user.uid);
+      await loadAllData();
+      Toast.show('Projet supprimé avec succès', 'success');
+    } catch (error) {
+      console.error('❌ Erreur suppression projet:', error);
+      Toast.show('Erreur lors de la suppression', 'error');
+    }
+  };
+
+  const handleAddMember = async (projectId, memberId) => {
+    try {
+      await projectService.addMember(projectId, user.uid, memberId);
+      await loadAllData();
+      Toast.show('Membre ajouté au projet', 'success');
+    } catch (error) {
+      console.error('❌ Erreur ajout membre:', error);
+      Toast.show('Erreur lors de l\'ajout du membre', 'error');
+    }
+  };
+
+  // Fonctions utilitaires
   const getProjectTasks = (projectId) => {
     return tasks.filter(task => task.projectId === projectId);
   };
 
-  const calculateProgress = (projectId) => {
-    const projectTasks = getProjectTasks(projectId);
+  const calculateProgress = (project) => {
+    const projectTasks = getProjectTasks(project.id);
     if (projectTasks.length === 0) return 0;
     
     const completedTasks = projectTasks.filter(task => task.status === 'completed');
@@ -64,287 +209,157 @@ const ProjectsPage = () => {
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'active': return 'text-green-600 bg-green-100';
-      case 'paused': return 'text-yellow-600 bg-yellow-100';
-      case 'completed': return 'text-blue-600 bg-blue-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
+    const colors = {
+      planning: 'bg-gray-500',
+      active: 'bg-blue-500',
+      on_hold: 'bg-yellow-500',
+      validation_pending: 'bg-orange-500',
+      completed: 'bg-green-500',
+      rejected: 'bg-red-500',
+      cancelled: 'bg-gray-400'
+    };
+    return colors[status] || colors.active;
   };
 
+  const getStatusLabel = (status) => {
+    const labels = {
+      planning: 'Planification',
+      active: 'En cours',
+      on_hold: 'En pause',
+      validation_pending: 'En validation',
+      completed: 'Terminé',
+      rejected: 'Rejeté',
+      cancelled: 'Annulé'
+    };
+    return labels[status] || status;
+  };
+
+  const getPriorityColor = (priority) => {
+    const colors = {
+      low: 'text-green-500',
+      normal: 'text-blue-500',
+      high: 'text-orange-500',
+      urgent: 'text-red-500'
+    };
+    return colors[priority] || colors.normal;
+  };
+
+  const addFormField = (fieldName) => {
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: [...prev[fieldName], '']
+    }));
+  };
+
+  const updateFormField = (fieldName, index, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: prev[fieldName].map((item, i) => i === index ? value : item)
+    }));
+  };
+
+  const removeFormField = (fieldName, index) => {
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: prev[fieldName].filter((_, i) => i !== index)
+    }));
+  };
+
+  // Filtrage et tri des projets
+  const filteredProjects = projects
+    .filter(project => {
+      const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           project.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
+      const matchesPriority = priorityFilter === 'all' || project.priority === priorityFilter;
+      
+      return matchesSearch && matchesStatus && matchesPriority;
+    })
+    .sort((a, b) => {
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
+      
+      if (sortBy === 'progress') {
+        aValue = calculateProgress(a);
+        bValue = calculateProgress(b);
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+  const projectStats = {
+    total: projects.length,
+    active: projects.filter(p => p.status === 'active').length,
+    completed: projects.filter(p => p.status === 'completed').length,
+    pending: projects.filter(p => p.status === 'validation_pending').length
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2 text-gray-600">Chargement des projets...</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Mes Projets</h1>
-        <p className="text-gray-600">Organisez vos tâches en projets et suivez leur progression</p>
-      </div>
-
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <span className="text-2xl">📁</span>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-600">Total</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            </div>
-          </div>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <Briefcase className="w-8 h-8 text-blue-600" />
+            Gestion de Projets
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Organisez, suivez et collaborez sur vos projets
+          </p>
         </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <span className="text-2xl">🚀</span>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-600">Actifs</p>
-              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <span className="text-2xl">✅</span>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-600">Terminés</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.completed}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <span className="text-2xl">⏸️</span>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-600">En pause</p>
-              <p className="text-2xl font-bold text-yellow-600">{stats.paused}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex justify-end mb-6">
+        
         <button
-          onClick={() => setShowForm(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+          onClick={() => setShowCreateForm(true)}
+          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
-          ➕ Nouveau projet
+          <Plus className="w-5 h-5" />
+          Nouveau Projet
         </button>
       </div>
 
-      {/* Formulaire de création */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Nouveau projet</h3>
-            
-            <form onSubmit={handleCreateProject} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nom du projet *
-                </label>
-                <input
-                  type="text"
-                  value={newProject.name}
-                  onChange={(e) => setNewProject({...newProject, name: e.target.value})}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Nom du projet"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  value={newProject.description}
-                  onChange={(e) => setNewProject({...newProject, description: e.target.value})}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  rows="3"
-                  placeholder="Description du projet"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date limite
-                </label>
-                <input
-                  type="date"
-                  value={newProject.deadline}
-                  onChange={(e) => setNewProject({...newProject, deadline: e.target.value})}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div className="flex space-x-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition-colors"
-                >
-                  Créer le projet
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg font-medium transition-colors"
-                >
-                  Annuler
-                </button>
-              </div>
-            </form>
+      {/* Statistiques */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Briefcase className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Total Projets</p>
+              <p className="text-2xl font-bold text-gray-900">{projectStats.total}</p>
+            </div>
           </div>
         </div>
-      )}
-
-      {/* Liste des projets */}
-      <div className="space-y-6">
-        {projects.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <span className="text-6xl mb-4 block">📁</span>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun projet</h3>
-            <p className="text-gray-500 mb-6">Créez votre premier projet pour organiser vos tâches</p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-            >
-              Créer mon premier projet
-            </button>
+        
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Play className="w-6 h-6 text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Actifs</p>
+              <p className="text-2xl font-bold text-gray-900">{projectStats.active}</p>
+            </div>
           </div>
-        ) : (
-          projects.map((project) => {
-            const projectTasks = getProjectTasks(project.id);
-            const progress = calculateProgress(project.id);
-            
-            return (
-              <div key={project.id} className="bg-white rounded-lg shadow hover:shadow-md transition-shadow">
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-xl font-semibold text-gray-900">{project.name}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
-                          {project.status === 'active' ? 'Actif' : project.status === 'paused' ? 'En pause' : 'Terminé'}
-                        </span>
-                      </div>
-                      
-                      {project.description && (
-                        <p className="text-gray-600 mb-3">{project.description}</p>
-                      )}
-                      
-                      <div className="flex items-center space-x-6 text-sm text-gray-500">
-                        <span>Créé le {new Date(project.createdAt).toLocaleDateString()}</span>
-                        {project.deadline && (
-                          <span>Échéance: {new Date(project.deadline).toLocaleDateString()}</span>
-                        )}
-                        <span>{projectTasks.length} tâches</span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2 ml-4">
-                      {project.status === 'active' && (
-                        <button
-                          onClick={() => updateProject(project.id, { status: 'paused' })}
-                          className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
-                        >
-                          ⏸️ Pause
-                        </button>
-                      )}
-                      
-                      {project.status === 'paused' && (
-                        <button
-                          onClick={() => updateProject(project.id, { status: 'active' })}
-                          className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
-                        >
-                          ▶️ Reprendre
-                        </button>
-                      )}
-                      
-                      {project.status !== 'completed' && progress === 100 && (
-                        <button
-                          onClick={() => updateProject(project.id, { status: 'completed' })}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
-                        >
-                          ✅ Terminer
-                        </button>
-                      )}
-                      
-                      <button
-                        onClick={() => handleDeleteProject(project.id)}
-                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
-                      >
-                        🗑️ Supprimer
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Barre de progression */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                      <span>Progression</span>
-                      <span>{progress}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${progress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  {/* Tâches du projet */}
-                  {projectTasks.length > 0 && (
-                    <div className="border-t pt-4">
-                      <h4 className="text-sm font-medium text-gray-700 mb-3">
-                        Tâches du projet ({projectTasks.length})
-                      </h4>
-                      <div className="space-y-2">
-                        {projectTasks.slice(0, 3).map((task) => (
-                          <div key={task.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                            <div className="flex items-center space-x-3">
-                              <span className={`w-2 h-2 rounded-full ${
-                                task.status === 'completed' ? 'bg-green-500' :
-                                task.status === 'in_progress' ? 'bg-blue-500' : 'bg-gray-400'
-                              }`}></span>
-                              <span className={`text-sm ${task.status === 'completed' ? 'line-through text-gray-500' : 'text-gray-700'}`}>
-                                {task.title}
-                              </span>
-                            </div>
-                            <span className={`px-2 py-1 rounded text-xs ${
-                              task.priority === 'high' ? 'bg-red-100 text-red-600' :
-                              task.priority === 'medium' ? 'bg-yellow-100 text-yellow-600' :
-                              'bg-green-100 text-green-600'
-                            }`}>
-                              {task.priority === 'high' ? 'Haute' : task.priority === 'medium' ? 'Moyenne' : 'Basse'}
-                            </span>
-                          </div>
-                        ))}
-                        {projectTasks.length > 3 && (
-                          <p className="text-sm text-gray-500 text-center">
-                            et {projectTasks.length - 3} autres tâches...
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default ProjectsPage;
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <CheckCircle className="w-6 h-6 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-
