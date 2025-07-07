@@ -1,6 +1,6 @@
 // ==========================================
-// 📁 react-app/src/modules/tasks/TaskForm.jsx
-// CORRECTION FINALE - Remplacer COMPLÈTEMENT le contenu
+// 📁 react-app/src/components/tasks/TaskForm.jsx
+// CRÉATION DU FICHIER MANQUANT - Import Fix Netlify
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -9,7 +9,8 @@ import { useAuthStore } from '../../shared/stores/authStore.js';
 import { projectService } from '../../core/services/projectService.js';
 
 /**
- * 📝 FORMULAIRE DE CRÉATION/ÉDITION DE TÂCHE SIMPLIFIÉ
+ * 📝 FORMULAIRE DE CRÉATION/ÉDITION DE TÂCHE
+ * Version simplifiée pour éviter les conflits d'imports
  */
 function TaskForm({ 
   isOpen, 
@@ -181,25 +182,25 @@ function TaskForm({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
           <h2 className="text-xl font-semibold text-white">
-            {initialData ? 'Modifier la tâche' : 'Nouvelle tâche'}
+            {initialData ? '✏️ Modifier la tâche' : '➕ Nouvelle tâche'}
           </h2>
-          <button
+          <button 
             onClick={onClose}
             disabled={loading}
-            className="p-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Contenu défilant */}
-        <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        {/* Corps du formulaire */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+          <form onSubmit={handleSubmit} className="space-y-6">
             
-            {/* Titre */}
+            {/* Titre de la tâche */}
             <div>
-              <label className="flex items-center text-sm font-medium text-gray-300 mb-2">
-                <Tag className="w-4 h-4 inline mr-2" />
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                <Target className="w-4 h-4 inline mr-2" />
                 Titre de la tâche *
               </label>
               <input
@@ -207,11 +208,15 @@ function TaskForm({
                 name="title"
                 value={formData.title}
                 onChange={handleInputChange}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Décrivez votre tâche..."
-                required
+                className={`w-full px-4 py-3 bg-gray-700 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.title ? 'border-red-500' : 'border-gray-600'
+                }`}
+                placeholder="Ex: Implémenter la fonctionnalité de chat"
+                disabled={loading}
               />
-              {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title}</p>}
+              {errors.title && (
+                <p className="text-red-400 text-sm mt-1">{errors.title}</p>
+              )}
             </div>
 
             {/* Description */}
@@ -224,32 +229,36 @@ function TaskForm({
                 value={formData.description}
                 onChange={handleInputChange}
                 rows={3}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                placeholder="Détails supplémentaires..."
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                placeholder="Décrivez les détails de la tâche..."
+                disabled={loading}
               />
             </div>
 
             {/* Projet */}
             <div>
-              <label className="flex items-center text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 <Briefcase className="w-4 h-4 inline mr-2" />
                 Projet *
               </label>
+              
               {loadingProjects ? (
-                <div className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-400">
+                <div className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-400">
                   Chargement des projets...
                 </div>
               ) : projects.length === 0 ? (
-                <div className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-400">
-                  Aucun projet disponible. <a href="/projects" className="text-blue-400 underline">Créer un projet</a>
+                <div className="w-full px-4 py-3 bg-gray-700 border border-red-500 rounded-lg text-red-400">
+                  Aucun projet disponible. Créez un projet d'abord.
                 </div>
               ) : (
                 <select
                   name="projectId"
                   value={formData.projectId}
                   onChange={handleInputChange}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
+                  className={`w-full px-4 py-3 bg-gray-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.projectId ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                  disabled={loading}
                 >
                   <option value="">Sélectionner un projet</option>
                   {projects.map(project => (
@@ -259,11 +268,16 @@ function TaskForm({
                   ))}
                 </select>
               )}
-              {errors.projectId && <p className="text-red-400 text-sm mt-1">{errors.projectId}</p>}
+              
+              {errors.projectId && (
+                <p className="text-red-400 text-sm mt-1">{errors.projectId}</p>
+              )}
             </div>
 
-            {/* Priorité et Complexité */}
+            {/* Ligne avec priorité et complexité */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* Priorité */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Priorité
@@ -272,15 +286,17 @@ function TaskForm({
                   name="priority"
                   value={formData.priority}
                   onChange={handleInputChange}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={loading}
                 >
-                  <option value="low">Faible</option>
-                  <option value="normal">Normale</option>
-                  <option value="high">Élevée</option>
-                  <option value="urgent">Urgente</option>
+                  <option value="low">🟢 Basse</option>
+                  <option value="normal">🟡 Normale</option>
+                  <option value="high">🔴 Haute</option>
+                  <option value="urgent">🚨 Urgente</option>
                 </select>
               </div>
 
+              {/* Complexité */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Complexité
@@ -289,20 +305,23 @@ function TaskForm({
                   name="complexity"
                   value={formData.complexity}
                   onChange={handleInputChange}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={loading}
                 >
-                  <option value="low">Simple</option>
-                  <option value="medium">Moyenne</option>
-                  <option value="high">Complexe</option>
-                  <option value="expert">Expert</option>
+                  <option value="simple">🟢 Simple</option>
+                  <option value="medium">🟡 Moyenne</option>
+                  <option value="complex">🔴 Complexe</option>
+                  <option value="expert">🚀 Expert</option>
                 </select>
               </div>
             </div>
 
-            {/* Date et Temps */}
+            {/* Ligne avec date et temps estimé */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* Date d'échéance */}
               <div>
-                <label className="flex items-center text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
                   <Calendar className="w-4 h-4 inline mr-2" />
                   Date d'échéance
                 </label>
@@ -311,13 +330,19 @@ function TaskForm({
                   name="dueDate"
                   value={formData.dueDate}
                   onChange={handleInputChange}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full px-4 py-3 bg-gray-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.dueDate ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                  disabled={loading}
                 />
-                {errors.dueDate && <p className="text-red-400 text-sm mt-1">{errors.dueDate}</p>}
+                {errors.dueDate && (
+                  <p className="text-red-400 text-sm mt-1">{errors.dueDate}</p>
+                )}
               </div>
 
+              {/* Temps estimé */}
               <div>
-                <label className="flex items-center text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
                   <Clock className="w-4 h-4 inline mr-2" />
                   Temps estimé (heures)
                 </label>
@@ -328,8 +353,9 @@ function TaskForm({
                   onChange={handleInputChange}
                   min="0"
                   step="0.5"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Ex: 2.5"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: 4.5"
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -337,23 +363,27 @@ function TaskForm({
             {/* Tags */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
+                <Tag className="w-4 h-4 inline mr-2" />
                 Tags
               </label>
-              <div className="flex gap-2 mb-2">
+              
+              <div className="flex gap-2 mb-3">
                 <input
                   type="text"
                   value={currentTag}
                   onChange={(e) => setCurrentTag(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                  className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Ajouter un tag..."
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={handleAddTag}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  disabled={loading || !currentTag.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  +
+                  Ajouter
                 </button>
               </div>
               
@@ -369,6 +399,7 @@ function TaskForm({
                         type="button"
                         onClick={() => handleRemoveTag(tag)}
                         className="hover:text-gray-300"
+                        disabled={loading}
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -405,5 +436,4 @@ function TaskForm({
   );
 }
 
-// ✅ Export default propre
 export default TaskForm;
