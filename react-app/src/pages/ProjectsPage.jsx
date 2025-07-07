@@ -338,7 +338,24 @@ const ProjectsPage = () => {
               <Briefcase className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Total Projets</p>
+              <p className="text-sm text-gray-600">Terminés</p>
+              <p className="text-2xl font-bold text-gray-900">{projectStats.completed}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Clock className="w-6 h-6 text-orange-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">En Validation</p>
+              <p className="text-2xl font-bold text-gray-900">{projectStats.pending}</p>
+            </div>
+          </div>
+        </div>
+      </div>sm text-gray-600">Total Projets</p>
               <p className="text-2xl font-bold text-gray-900">{projectStats.total}</p>
             </div>
           </div>
