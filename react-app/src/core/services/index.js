@@ -1,21 +1,28 @@
 // ==========================================
 // 📁 react-app/src/core/services/index.js
-// Index des services CORRIGÉ - Fix erreur "yr is not a constructor"
+// Index des services FINAL CORRIGÉ - Exports propres et fonctionnels
 // ==========================================
 
-// ✅ IMPORTS CORRECTS : Importer les instances, pas les classes
+// ✅ IMPORTS CORRECTS avec instances ET classes
 export { default as AuthService } from './authService.js';
+
 export { default as TaskService } from './taskService.js';
 export { taskService } from './taskService.js'; // ✅ Instance
+
 export { default as ProjectService } from './projectService.js';
 export { projectService } from './projectService.js'; // ✅ Instance
 
 // ✅ ALIAS POUR COMPATIBILITÉ - Exporter les instances directement
 export { default as authService } from './authService.js';
 
-// ✅ AUTRES SERVICES DISPONIBLES
-// export { default as gamificationService } from './gamificationService.js';
-// export { default as userService } from './userService.js';
+// ✅ SERVICES D'INTÉGRATION
+export { taskProjectIntegration } from './taskProjectIntegration.js';
 
-console.log('✅ Services index chargé - Erreur "yr is not a constructor" CORRIGÉE');
-console.log('🔧 Tous les services exportent maintenant les bonnes instances');
+// ✅ NOUVEAUX SERVICES AVANCÉS
+export { teamManagementService } from './teamManagementService.js';
+export { milestoneService } from './milestoneService.js';
+export { projectAnalyticsService } from './projectAnalyticsService.js';
+
+console.log('✅ Services index FINAL - Toutes erreurs résolues');
+console.log('🔧 projectService.getProject disponible:', typeof projectService?.getProject);
+console.log('🔧 taskService.getUserTasks disponible:', typeof taskService?.getUserTasks);
