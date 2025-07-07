@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskService.js
-// TASK SERVICE CORRIGÉ ET ROBUSTE - Version finale
+// CORRECTION FINALE - Exports non dupliqués
 // ==========================================
 
 import { 
@@ -15,12 +15,11 @@ import {
   where, 
   orderBy, 
   onSnapshot,
-  serverTimestamp,
-  or // Nouveau : pour les requêtes OR
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
-// Constantes pour les statuts des tâches
+// ✅ CONSTANTES EXPORTÉES UNE SEULE FOIS
 export const TASK_STATUS = {
   PENDING: 'pending',
   IN_PROGRESS: 'in_progress',
@@ -30,18 +29,17 @@ export const TASK_STATUS = {
 };
 
 /**
- * ✅ SERVICE DES TÂCHES CORRIGÉ ET ROBUSTE
- * Gère tous les cas de figure pour éviter les tâches perdues
+ * ✅ SERVICE DES TÂCHES AVEC MÉTHODE getTask AJOUTÉE
  */
 class TaskService {
   constructor() {
     this.listeners = new Map();
     this.COLLECTION_NAME = 'tasks';
-    console.log('✅ TaskService initialisé - Version robuste');
+    console.log('✅ TaskService initialisé avec getTask');
   }
 
   /**
-   * ✅ RÉCUPÉRER UNE TÂCHE PAR SON ID
+   * ✅ RÉCUPÉRER UNE TÂCHE PAR SON ID (MÉTHODE MANQUANTE AJOUTÉE)
    */
   async getTask(taskId) {
     try {
@@ -66,46 +64,30 @@ class TaskService {
   }
 
   /**
-   * ✅ CRÉER UNE NOUVELLE TÂCHE (VERSION ROBUSTE)
+   * ✅ CRÉER UNE NOUVELLE TÂCHE
    */
   async createTask(taskData, userId) {
     try {
       console.log('📝 Création nouvelle tâche:', taskData.title);
       
       const task = {
-        // ✅ Données obligatoires
         title: taskData.title || '',
         description: taskData.description || '',
-        
-        // ✅ PROPRIÉTÉ MULTIPLE POUR ÉVITER LES PERTES
-        userId: userId,                    // Principal pour les requêtes
-        createdBy: userId,                 // Backup 1
-        assignedTo: userId,                // Backup 2
-        userEmail: taskData.userEmail || null, // Backup 3 (si disponible)
-        
-        // ✅ Statut et propriétés
         status: taskData.status || TASK_STATUS.PENDING,
         priority: taskData.priority || 'medium',
         complexity: taskData.complexity || 'medium',
-        
-        // ✅ Gamification
         xpReward: taskData.xpReward || this.calculateDefaultXP(taskData.complexity),
-        
-        // ✅ Projet (optionnel)
         projectId: taskData.projectId || null,
-        
-        // ✅ Échéances
         dueDate: taskData.dueDate || null,
-        
-        // ✅ Métadonnées
         tags: taskData.tags || [],
-        
-        // ✅ Timestamps
+        userId: userId,
+        createdBy: userId,
+        assignedTo: userId,
+        userEmail: taskData.userEmail || null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
       
-      // Validation des données requises
       if (!task.title.trim()) {
         throw new Error('Le titre de la tâche est obligatoire');
       }
@@ -127,8 +109,85 @@ class TaskService {
   }
 
   /**
+   * ✅ CALCULER XP PAR DÉFAUT SELON LA COMPLEXITÉ
+   */
+  calculateDefaultXP(complexity) {
+    const xpMap = {
+      'low': 15,
+      'medium': 25,
+      'high': 40,
+      'expert': 60
+    };
+    return xpMap[complexity] || 25;
+  }
+
+  /**
+   * ✅ METTRE À JOUR UNE TÂCHE
+   */
+  async updateTask(taskId, updates) {
+    try {
+      console.log('📝 Mise à jour tâche:', taskId);
+      
+      if (!taskId) {
+        throw new Error('ID de tâche manquant');
+      }
+
+      const updateData = {
+        ...updates,
+        updatedAt: serverTimestamp()
+      };
+
+      if (updates.userId) {
+        updateData.createdBy = updates.userId;
+        updateData.assignedTo = updates.userId;
+      }
+
+      const docRef = doc(db, this.COLLECTION_NAME, taskId);
+      await updateDoc(docRef, updateData);
+      
+      console.log('✅ Tâche mise à jour avec succès');
+      return { success: true, error: null };
+      
+    } catch (error) {
+      console.error('❌ Erreur mise à jour tâche:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * ✅ SUPPRIMER UNE TÂCHE
+   */
+  async deleteTask(taskId, userId) {
+    try {
+      console.log('📝 Suppression tâche:', taskId);
+      
+      const task = await this.getTask(taskId);
+      if (!task) {
+        throw new Error('Tâche non trouvée');
+      }
+      
+      const canDelete = task.userId === userId || 
+                       task.createdBy === userId || 
+                       task.assignedTo === userId;
+      
+      if (!canDelete) {
+        throw new Error('Vous n\'êtes pas autorisé à supprimer cette tâche');
+      }
+      
+      const docRef = doc(db, this.COLLECTION_NAME, taskId);
+      await deleteDoc(docRef);
+      
+      console.log('✅ Tâche supprimée avec succès');
+      return { success: true, error: null };
+      
+    } catch (error) {
+      console.error('❌ Erreur suppression tâche:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * ✅ RÉCUPÉRER TOUTES LES TÂCHES D'UN UTILISATEUR (VERSION ROBUSTE)
-   * Utilise plusieurs stratégies pour ne perdre aucune tâche
    */
   async getUserTasks(userId) {
     try {
@@ -139,9 +198,9 @@ class TaskService {
         return [];
       }
 
-      const allUserTasks = new Map(); // Pour éviter les doublons
+      const allUserTasks = new Map();
 
-      // 🎯 STRATÉGIE 1: Requête principale par userId
+      // STRATÉGIE 1: Requête principale par userId
       try {
         const mainQuery = query(
           collection(db, this.COLLECTION_NAME),
@@ -159,7 +218,7 @@ class TaskService {
         console.warn('⚠️ Stratégie 1 échouée:', error.message);
       }
 
-      // 🎯 STRATÉGIE 2: Requête de secours par createdBy
+      // STRATÉGIE 2: Requête de secours par createdBy
       try {
         const backupQuery = query(
           collection(db, this.COLLECTION_NAME),
@@ -179,7 +238,7 @@ class TaskService {
         console.warn('⚠️ Stratégie 2 échouée:', error.message);
       }
 
-      // 🎯 STRATÉGIE 3: Requête par assignedTo
+      // STRATÉGIE 3: Requête par assignedTo
       try {
         const assignedQuery = query(
           collection(db, this.COLLECTION_NAME),
@@ -199,11 +258,10 @@ class TaskService {
         console.warn('⚠️ Stratégie 3 échouée:', error.message);
       }
 
-      // Convertir Map en tableau et trier par updatedAt
       const tasks = Array.from(allUserTasks.values()).sort((a, b) => {
         const aTime = a.updatedAt?.seconds || 0;
         const bTime = b.updatedAt?.seconds || 0;
-        return bTime - aTime; // Plus récent en premier
+        return bTime - aTime;
       });
 
       console.log(`✅ TOTAL FINAL: ${tasks.length} tâche(s) récupérée(s) pour l'utilisateur ${userId}`);
@@ -245,76 +303,7 @@ class TaskService {
   }
 
   /**
-   * ✅ METTRE À JOUR UNE TÂCHE (VERSION ROBUSTE)
-   */
-  async updateTask(taskId, updates) {
-    try {
-      console.log('📝 Mise à jour tâche:', taskId);
-      
-      if (!taskId) {
-        throw new Error('ID de tâche manquant');
-      }
-
-      // Préparer les mises à jour avec timestamp
-      const updateData = {
-        ...updates,
-        updatedAt: serverTimestamp()
-      };
-
-      // S'assurer que userId est toujours présent
-      if (updates.userId) {
-        updateData.createdBy = updates.userId; // Synchroniser
-        updateData.assignedTo = updates.userId; // Synchroniser
-      }
-
-      const docRef = doc(db, this.COLLECTION_NAME, taskId);
-      await updateDoc(docRef, updateData);
-      
-      console.log('✅ Tâche mise à jour avec succès');
-      return { success: true, error: null };
-      
-    } catch (error) {
-      console.error('❌ Erreur mise à jour tâche:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * ✅ SUPPRIMER UNE TÂCHE
-   */
-  async deleteTask(taskId, userId) {
-    try {
-      console.log('📝 Suppression tâche:', taskId);
-      
-      // Vérifier que l'utilisateur peut supprimer cette tâche
-      const task = await this.getTask(taskId);
-      if (!task) {
-        throw new Error('Tâche non trouvée');
-      }
-      
-      // Vérification des permissions avec multiple conditions
-      const canDelete = task.userId === userId || 
-                       task.createdBy === userId || 
-                       task.assignedTo === userId;
-      
-      if (!canDelete) {
-        throw new Error('Vous n\'êtes pas autorisé à supprimer cette tâche');
-      }
-      
-      const docRef = doc(db, this.COLLECTION_NAME, taskId);
-      await deleteDoc(docRef);
-      
-      console.log('✅ Tâche supprimée avec succès');
-      return { success: true, error: null };
-      
-    } catch (error) {
-      console.error('❌ Erreur suppression tâche:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * ✅ ÉCOUTER LES CHANGEMENTS EN TEMPS RÉEL (VERSION ROBUSTE)
+   * ✅ ÉCOUTER LES CHANGEMENTS EN TEMPS RÉEL
    */
   listenToUserTasks(userId, callback) {
     try {
@@ -325,7 +314,6 @@ class TaskService {
         this.listeners.get(userId)();
       }
 
-      // Requête principale avec listener
       const q = query(
         collection(db, this.COLLECTION_NAME),
         where('userId', '==', userId),
@@ -359,20 +347,17 @@ class TaskService {
 
   /**
    * 🔧 RÉPARER LES TÂCHES D'UN UTILISATEUR
-   * Fonction utilitaire pour corriger les incohérences
    */
   async repairUserTasks(userId, userEmail = null) {
     try {
       console.log('🔧 RÉPARATION des tâches pour:', userId);
       
-      // Récupérer toutes les tâches potentielles
       const allTasksSnapshot = await getDocs(collection(db, this.COLLECTION_NAME));
       const tasksToRepair = [];
       
       allTasksSnapshot.forEach((doc) => {
         const task = doc.data();
         
-        // Tâche créée par l'utilisateur mais sans userId correct
         if ((task.createdBy === userId || 
              (userEmail && task.userEmail === userEmail)) &&
             task.userId !== userId) {
@@ -387,7 +372,6 @@ class TaskService {
 
       console.log(`🔧 ${tasksToRepair.length} tâche(s) à réparer`);
 
-      // Réparer les tâches par batch
       const repairPromises = tasksToRepair.map(task => 
         this.updateTask(task.id, {
           userId: userId,
@@ -406,19 +390,6 @@ class TaskService {
       console.error('❌ Erreur réparation tâches:', error);
       return { success: false, error: error.message };
     }
-  }
-
-  /**
-   * 🧮 CALCULER XP PAR DÉFAUT SELON LA COMPLEXITÉ
-   */
-  calculateDefaultXP(complexity) {
-    const xpMap = {
-      'low': 15,
-      'medium': 25,
-      'high': 40,
-      'expert': 60
-    };
-    return xpMap[complexity] || 25;
   }
 
   /**
@@ -444,8 +415,8 @@ class TaskService {
   }
 }
 
-// ✅ Export de l'instance singleton
+// ✅ EXPORTS CORRIGÉS - PAS DE DUPLICATION
 const taskService = new TaskService();
 
-export { taskService, TASK_STATUS };
+export { taskService };
 export default taskService;
