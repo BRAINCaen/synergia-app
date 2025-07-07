@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// RESTAURATION PROGRESSIVE - Ajout composant par composant
+// TEST ULTRA-MINIMAL - Identification du composant problématique
 // ==========================================
 
 import React, { useEffect } from 'react';
@@ -9,52 +9,117 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 // 🛡️ GESTIONNAIRE D'ERREUR GLOBAL
 import './utils/errorHandler.js';
 
-// 🔐 IMPORTS CRITIQUES QUI FONCTIONNENT
+// 🔐 AUTHSTORE - ON SAIT QUE ÇA MARCHE
 import { useAuthStore } from './shared/stores/authStore.js';
-import ProtectedRoute from './routes/ProtectedRoute.jsx';
-import PublicRoute from './routes/PublicRoute.jsx';
 
-// 🎨 LAYOUT - TESTONS CELUI-CI D'ABORD
-import DashboardLayout from './layouts/DashboardLayout.jsx';
+console.log('🔬 Test Ultra-Minimal - Démarrage');
 
-// ✅ PAGES ESSENTIELLES SEULEMENT - AJOUT PROGRESSIF
-import Login from './pages/Login.jsx';
-import Dashboard from './pages/Dashboard.jsx';
+// 🧪 TESTONS LES ROUTES UNE PAR UNE
+let ProtectedRoute, PublicRoute, DashboardLayout, Login, Dashboard;
 
-// 🚫 TEMPORAIREMENT COMMENTÉ - ON TESTE D'ABORD AVEC LE MINIMUM
-// import TasksPage from './pages/TasksPage.jsx';
-// import ProjectsPage from './pages/ProjectsPage.jsx';
-// import AnalyticsPage from './pages/AnalyticsPage.jsx';
-// import GamificationPage from './pages/GamificationPage.jsx';
-// import RewardsPage from './pages/RewardsPage.jsx';
-// import BadgesPage from './pages/BadgesPage.jsx';
-// import UsersPage from './pages/UsersPage.jsx';
-// import OnboardingPage from './pages/OnboardingPage.jsx';
-// import TimeTrackPage from './pages/TimeTrackPage.jsx';
-// import ProfilePage from './pages/ProfilePage.jsx';
-// import SettingsPage from './pages/SettingsPage.jsx';
-// import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
-// import AdminProfileTestPage from './pages/AdminProfileTestPage.jsx';
-// import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
+// TEST 1: ProtectedRoute
+try {
+  ProtectedRoute = require('./routes/ProtectedRoute.jsx').default;
+  console.log('✅ ProtectedRoute importé sans erreur');
+} catch (error) {
+  console.error('❌ ERREUR ProtectedRoute:', error.message);
+  ProtectedRoute = ({ children }) => {
+    const { user } = useAuthStore();
+    return user ? children : React.createElement(Navigate, { to: '/login', replace: true });
+  };
+}
 
-console.log('🔄 App.jsx - Restauration progressive démarrée');
+// TEST 2: PublicRoute
+try {
+  PublicRoute = require('./routes/PublicRoute.jsx').default;
+  console.log('✅ PublicRoute importé sans erreur');
+} catch (error) {
+  console.error('❌ ERREUR PublicRoute:', error.message);
+  PublicRoute = ({ children }) => {
+    const { user } = useAuthStore();
+    return !user ? children : React.createElement(Navigate, { to: '/dashboard', replace: true });
+  };
+}
+
+// TEST 3: DashboardLayout
+try {
+  DashboardLayout = require('./layouts/DashboardLayout.jsx').default;
+  console.log('✅ DashboardLayout importé sans erreur');
+} catch (error) {
+  console.error('❌ ERREUR DashboardLayout:', error.message);
+  DashboardLayout = ({ children }) => React.createElement('div', { style: { padding: '20px' } }, children);
+}
+
+// TEST 4: Login
+try {
+  Login = require('./pages/Login.jsx').default;
+  console.log('✅ Login importé sans erreur');
+} catch (error) {
+  console.error('❌ ERREUR Login:', error.message);
+  Login = () => React.createElement('div', {
+    style: {
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#1f2937',
+      color: 'white'
+    }
+  }, React.createElement('h1', {}, 'Login Fallback'));
+}
+
+// TEST 5: Dashboard
+try {
+  Dashboard = require('./pages/Dashboard.jsx').default;
+  console.log('✅ Dashboard importé sans erreur');
+} catch (error) {
+  console.error('❌ ERREUR Dashboard:', error.message);
+  Dashboard = () => React.createElement('div', {
+    style: { padding: '40px', backgroundColor: '#f9fafb', minHeight: '100vh' }
+  }, [
+    React.createElement('h1', { key: 'title', style: { fontSize: '2rem', marginBottom: '20px' } }, '🚀 Dashboard Fallback'),
+    React.createElement('p', { key: 'msg' }, 'Dashboard original a une erreur, utilisation du fallback'),
+    React.createElement('button', {
+      key: 'logout',
+      onClick: () => window.location.href = '/login',
+      style: {
+        padding: '10px 20px',
+        backgroundColor: '#ef4444',
+        color: 'white',
+        border: 'none',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        marginTop: '20px'
+      }
+    }, 'Déconnexion')
+  ]);
+}
 
 /**
- * 🔄 APPLICATION EN RESTAURATION PROGRESSIVE
+ * 🔬 APPLICATION DE TEST ULTRA-MINIMAL
  */
 function App() {
-  const { initializeAuth, isInitialized } = useAuthStore();
+  const { initializeAuth, isInitialized, user } = useAuthStore();
 
   useEffect(() => {
-    console.log('🔄 SYNERGIA v3.5.3 - Restauration progressive');
-    console.log('📋 Test: Login + Dashboard + DashboardLayout seulement');
+    console.log('🔬 Test Ultra-Minimal - Initialisation');
     
-    // Initialiser l'authentification
-    initializeAuth();
-    
-    console.log('✅ Imports critiques chargés avec succès');
-    
+    try {
+      initializeAuth();
+      console.log('✅ Auth initialisée');
+    } catch (error) {
+      console.error('❌ Erreur Auth:', error);
+    }
   }, [initializeAuth]);
+
+  // DIAGNOSTIC EN TEMPS RÉEL
+  useEffect(() => {
+    console.log('📊 État actuel:', {
+      isInitialized,
+      hasUser: !!user,
+      userEmail: user?.email
+    });
+  }, [isInitialized, user]);
 
   // Affichage pendant l'initialisation
   if (!isInitialized) {
@@ -62,13 +127,17 @@ function App() {
       <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 flex items-center justify-center">
         <div className="text-center text-white">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
-          <h2 className="text-2xl font-semibold mb-2">Synergia</h2>
-          <p className="text-blue-200">Restauration progressive...</p>
-          <p className="text-xs text-blue-300 mt-2">Étape 1: Login + Dashboard</p>
+          <h2 className="text-2xl font-semibold mb-2">🔬 Test Ultra-Minimal</h2>
+          <p className="text-blue-200">Initialisation Auth en cours...</p>
+          <div className="mt-4 text-xs text-blue-300">
+            <p>Vérification des composants un par un</p>
+          </div>
         </div>
       </div>
     );
   }
+
+  console.log('🎯 App rendu - Auth initialisée, affichage Router');
 
   return (
     <Router>
@@ -90,62 +159,22 @@ function App() {
             element={<Navigate to="/dashboard" replace />} 
           />
           
-          {/* 🔐 Routes protégées avec layout - VERSION MINIMALE */}
+          {/* 🔐 Route protégée - Dashboard */}
           <Route 
-            path="/*" 
+            path="/dashboard" 
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <Routes>
-                    {/* 📊 SEULEMENT DASHBOARD POUR L'INSTANT */}
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    
-                    {/* 🚫 PAGES TEMPORAIREMENT DÉSACTIVÉES - FALLBACK SIMPLE */}
-                    <Route path="/tasks" element={
-                      <div className="p-8 bg-white rounded-lg">
-                        <h2 className="text-2xl font-bold mb-4">📋 Tâches</h2>
-                        <p className="text-gray-600">Page en cours de restauration...</p>
-                        <button 
-                          onClick={() => window.location.href = '/dashboard'}
-                          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          ← Retour Dashboard
-                        </button>
-                      </div>
-                    } />
-                    
-                    <Route path="/projects" element={
-                      <div className="p-8 bg-white rounded-lg">
-                        <h2 className="text-2xl font-bold mb-4">📁 Projets</h2>
-                        <p className="text-gray-600">Page en cours de restauration...</p>
-                        <button 
-                          onClick={() => window.location.href = '/dashboard'}
-                          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          ← Retour Dashboard
-                        </button>
-                      </div>
-                    } />
-                    
-                    <Route path="/analytics" element={
-                      <div className="p-8 bg-white rounded-lg">
-                        <h2 className="text-2xl font-bold mb-4">📊 Analytics</h2>
-                        <p className="text-gray-600">Page en cours de restauration...</p>
-                        <button 
-                          onClick={() => window.location.href = '/dashboard'}
-                          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          ← Retour Dashboard
-                        </button>
-                      </div>
-                    } />
-                    
-                    {/* 🔄 Route par défaut */}
-                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                  </Routes>
+                  <Dashboard />
                 </DashboardLayout>
               </ProtectedRoute>
             } 
+          />
+          
+          {/* 🔄 Fallback */}
+          <Route 
+            path="*" 
+            element={<Navigate to="/dashboard" replace />} 
           />
         </Routes>
       </div>
@@ -153,5 +182,5 @@ function App() {
   );
 }
 
-console.log('🔄 App.jsx - Version progressive chargée (Login + Dashboard seulement)');
+console.log('🔬 Test Ultra-Minimal chargé - Diagnostic en cours');
 export default App;
