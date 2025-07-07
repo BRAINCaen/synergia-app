@@ -38,8 +38,7 @@ import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 import TaskService from '../core/services/taskService.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { TaskMediaViewer } from '../components/media/AuthenticatedMediaViewer.jsx';
-
+import { TaskMimport { WorkingTaskMediaViewer } from '../components/media/WorkingMediaViewer.jsx';
 // ✅ Instance du service de tâches
 const taskService = new TaskService();
 
@@ -559,10 +558,10 @@ const AdminTaskValidationPage = () => {
                 )}
 
                 {/* ✅ AFFICHAGE MÉDIA AVEC NOUVEAU COMPOSANT AUTHENTIFIÉ */}
-                <TaskMediaViewer 
-                  task={selectedTask} 
-                  className="mb-4"
-                />
+                <WorkingTaskMediaViewer 
+  task={selectedTask} 
+  className="mb-4"
+/>
 
                 {/* Commentaire admin */}
                 <div>
