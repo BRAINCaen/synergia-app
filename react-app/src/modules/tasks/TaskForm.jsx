@@ -1,16 +1,15 @@
 // ==========================================
-// 📁 react-app/src/components/tasks/TaskForm.jsx
-// CRÉATION DU FICHIER MANQUANT - Import Fix Netlify
+// 📁 react-app/src/modules/tasks/TaskForm.jsx
+// CORRECTION IMPORT TARGET - Fix page blanche
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Tag, User, Briefcase } from 'lucide-react';
+import { X, Calendar, Clock, Tag, User, Briefcase, Target } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { projectService } from '../../core/services/projectService.js';
 
 /**
- * 📝 FORMULAIRE DE CRÉATION/ÉDITION DE TÂCHE
- * Version simplifiée pour éviter les conflits d'imports
+ * 📝 FORMULAIRE DE CRÉATION/ÉDITION DE TÂCHE - IMPORTS CORRIGÉS
  */
 function TaskForm({ 
   isOpen, 
@@ -436,4 +435,5 @@ function TaskForm({
   );
 }
 
+// ✅ Export default propre
 export default TaskForm;
