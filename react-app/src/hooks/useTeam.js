@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/hooks/useTeam.js
-// HOOKS REACT POUR LA GESTION D'ÉQUIPE
+// HOOKS REACT POUR LA GESTION D'ÉQUIPE - VERSION CORRIGÉE
 // ==========================================
 
 import { useState, useEffect, useCallback } from 'react';
@@ -422,19 +422,3 @@ export const useTeamCleanup = () => {
     };
   }, []);
 };
-
-// ==========================================
-// 📁 react-app/src/hooks/index.js
-// EXPORT DE TOUS LES HOOKS
-// ==========================================
-
-export {
-  useTeam,
-  useRoles,
-  useTeamStats,
-  useTeamSearch,
-  useRoleStats,
-  useRoleHistory,
-  useMember,
-  useTeamCleanup
-} from './useTeam.js';
