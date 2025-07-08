@@ -19,7 +19,7 @@ import PublicRoute from './routes/PublicRoute.jsx';
 // 🏗️ Layout - TESTÉ ET FONCTIONNEL
 import DashboardLayout from './layouts/DashboardLayout.jsx';
 
-// 📄 Pages - SEULEMENT LES PAGES QUI EXISTENT VRAIMENT
+// 📄 Pages - TESTÉES ET FONCTIONNELLES (VERSIONS ORIGINALES)
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
@@ -32,6 +32,11 @@ import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import RewardsPage from './pages/RewardsPage.jsx';
+
+// Pages admin existantes - UTILISER LES VRAIES PAGES
+import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
+import AdminProfileTestPage from './pages/AdminProfileTestPage.jsx';
+import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 
 console.log('🚀 SYNERGIA v3.5.3 - VERSION SIMPLIFIÉE POUR BUILD');
 console.log('✅ Seulement les pages existantes importées');
@@ -302,37 +307,13 @@ function App() {
             } 
           />
 
-          {/* 🛡️ ROUTES ADMIN - Pages distinctes */}
+          {/* 🛡️ ROUTES ADMIN - VRAIE PAGE DE VALIDATION */}
           <Route 
             path="/admin/task-validation" 
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <div className="p-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-4 flex items-center">
-                      🛡️ Validation des Tâches
-                    </h1>
-                    <p className="text-gray-600 mb-6">Examinez et validez les soumissions d'équipe</p>
-                    <div className="bg-white rounded-lg shadow-lg p-6">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="text-center p-6 bg-yellow-50 rounded-lg">
-                          <div className="text-4xl mb-3">⏳</div>
-                          <h3 className="font-bold text-yellow-800">En Attente</h3>
-                          <p className="text-2xl font-bold text-yellow-600">0</p>
-                        </div>
-                        <div className="text-center p-6 bg-green-50 rounded-lg">
-                          <div className="text-4xl mb-3">✅</div>
-                          <h3 className="font-bold text-green-800">Approuvées</h3>
-                          <p className="text-2xl font-bold text-green-600">0</p>
-                        </div>
-                        <div className="text-center p-6 bg-red-50 rounded-lg">
-                          <div className="text-4xl mb-3">❌</div>
-                          <h3 className="font-bold text-red-800">Rejetées</h3>
-                          <p className="text-2xl font-bold text-red-600">0</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <AdminTaskValidationPage />
                 </DashboardLayout>
               </ProtectedRoute>
             } 
@@ -343,37 +324,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <div className="p-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-4 flex items-center">
-                      🧪 Test Profil Admin
-                    </h1>
-                    <p className="text-gray-600 mb-6">Tests et diagnostics des profils administrateur</p>
-                    <div className="bg-white rounded-lg shadow-lg p-6">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                          <span className="flex items-center">
-                            <span className="text-green-600 mr-3">✅</span>
-                            Authentification Firebase
-                          </span>
-                          <span className="text-green-600 font-medium">Réussi</span>
-                        </div>
-                        <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                          <span className="flex items-center">
-                            <span className="text-green-600 mr-3">✅</span>
-                            Permissions Administrateur
-                          </span>
-                          <span className="text-green-600 font-medium">Confirmé</span>
-                        </div>
-                        <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                          <span className="flex items-center">
-                            <span className="text-green-600 mr-3">✅</span>
-                            Accès aux fonctions admin
-                          </span>
-                          <span className="text-green-600 font-medium">Autorisé</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <AdminProfileTestPage />
                 </DashboardLayout>
               </ProtectedRoute>
             } 
@@ -384,54 +335,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <div className="p-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-4 flex items-center">
-                      🔬 Test Complet Admin
-                    </h1>
-                    <p className="text-gray-600 mb-6">Diagnostic complet du système et des permissions</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-white rounded-lg shadow-lg p-6">
-                        <h3 className="text-xl font-bold mb-4 flex items-center">
-                          <span className="text-blue-600 mr-2">🛡️</span>
-                          Tests Admin
-                        </h3>
-                        <div className="space-y-3">
-                          <div className="flex justify-between">
-                            <span>Permissions</span>
-                            <span className="text-green-600">✅ OK</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Accès Firebase</span>
-                            <span className="text-green-600">✅ OK</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Services Admin</span>
-                            <span className="text-green-600">✅ OK</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-white rounded-lg shadow-lg p-6">
-                        <h3 className="text-xl font-bold mb-4 flex items-center">
-                          <span className="text-green-600 mr-2">⚙️</span>
-                          Tests Système
-                        </h3>
-                        <div className="space-y-3">
-                          <div className="flex justify-between">
-                            <span>Interface</span>
-                            <span className="text-green-600">✅ OK</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Navigation</span>
-                            <span className="text-green-600">✅ OK</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Base de données</span>
-                            <span className="text-green-600">✅ OK</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <CompleteAdminTestPage />
                 </DashboardLayout>
               </ProtectedRoute>
             } 
