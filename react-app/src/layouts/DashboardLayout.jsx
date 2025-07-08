@@ -16,18 +16,25 @@ const DashboardLayout = ({ children }) => {
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Navigation items avec les vraies routes
+  // Navigation items avec les vraies routes - SANS DOUBLONS
   const navigationItems = [
+    // 📋 SECTION PRINCIPALE
     { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
     { name: 'Tâches', href: '/tasks', icon: '✅' },
     { name: 'Projets', href: '/projects', icon: '📁' },
     { name: 'Analytics', href: '/analytics', icon: '📊' },
+    
+    // 🎮 SECTION GAMIFICATION
     { name: 'Gamification', href: '/gamification', icon: '🎮' },
     { name: 'Badges', href: '/badges', icon: '🏆' },
     { name: 'Classement', href: '/leaderboard', icon: '🥇' },
     { name: 'Récompenses', href: '/rewards', icon: '🎁' },
+    
+    // 👥 SECTION ÉQUIPE
     { name: 'Équipe', href: '/team', icon: '👥' },
     { name: 'Utilisateurs', href: '/users', icon: '👤' },
+    
+    // 🛠️ SECTION OUTILS
     { name: 'Intégration', href: '/onboarding', icon: '🎯' },
     { name: 'Time Track', href: '/timetrack', icon: '⏰' },
     { name: 'Mon Profil', href: '/profile', icon: '🧑‍💼' },
