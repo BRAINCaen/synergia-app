@@ -1,29 +1,27 @@
 // ==========================================
 // 📁 react-app/src/core/services/teamManagementService.js
-// SERVICE GESTION D'ÉQUIPE - NOUVEAU FICHIER CRÉATION
+// Service de gestion d'équipe CORRIGÉ - Sans erreurs Firebase
 // ==========================================
 
 import { 
   collection, 
   doc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  getDocs, 
   getDoc, 
+  getDocs, 
+  updateDoc,
   query, 
   where, 
-  orderBy,
+  orderBy, 
+  limit,
   onSnapshot,
-  serverTimestamp,
   arrayUnion,
-  arrayRemove
+  arrayRemove,
+  serverTimestamp
 } from 'firebase/firestore';
-import { db } from '../../config/firebase.js';
+import { db } from '../firebase.js';
 
 /**
- * 👥 SERVICE DE GESTION D'ÉQUIPE
- * Gestion des membres, rôles, permissions et collaboration
+ * 🏢 SERVICE DE GESTION D'ÉQUIPE CORRIGÉ
  */
 class TeamManagementService {
   constructor() {
@@ -31,51 +29,24 @@ class TeamManagementService {
   }
 
   /**
-   * 📋 RÉCUPÉRER L'ÉQUIPE D'UN PROJET
+   * 👥 RÉCUPÉRER L'ÉQUIPE D'UN PROJET
    */
   async getProjectTeam(projectId) {
     try {
-      console.log('🔍 Récupération équipe projet:', projectId);
+      console.log('👥 Récupération équipe projet:', projectId);
       
-      const projectDoc = await getDoc(doc(db, 'projects', projectId));
+      const projectRef = doc(db, 'projects', projectId);
+      const projectDoc = await getDoc(projectRef);
       
       if (!projectDoc.exists()) {
-        console.warn('❌ Projet introuvable:', projectId);
+        console.log('⚠️ Projet introuvable');
         return [];
       }
       
-      const projectData = projectDoc.data();
-      const team = projectData.team || [];
+      const team = projectDoc.data().team || [];
+      console.log(`✅ ${team.length} membres dans l'équipe`);
       
-      // Enrichir les données membres avec infos utilisateur
-      const enrichedTeam = await Promise.all(
-        team.map(async (member) => {
-          try {
-            const userDoc = await getDoc(doc(db, 'users', member.userId));
-            const userData = userDoc.exists() ? userDoc.data() : {};
-            
-            return {
-              ...member,
-              displayName: userData.displayName || member.displayName || 'Utilisateur Inconnu',
-              email: userData.email || member.email || '',
-              avatar: userData.avatar || null,
-              isActive: userData.isActive !== false,
-              lastActivity: userData.lastActivity || null,
-              xpTotal: userData.xpTotal || 0
-            };
-          } catch (error) {
-            console.warn('⚠️ Erreur enrichissement membre:', member.userId, error);
-            return {
-              ...member,
-              displayName: member.displayName || 'Utilisateur Inconnu',
-              isActive: true
-            };
-          }
-        })
-      );
-      
-      console.log('✅ Équipe chargée:', enrichedTeam.length, 'membres');
-      return enrichedTeam;
+      return team;
       
     } catch (error) {
       console.error('❌ Erreur récupération équipe:', error);
@@ -84,30 +55,30 @@ class TeamManagementService {
   }
 
   /**
-   * 👤 AJOUTER UN MEMBRE À L'ÉQUIPE
+   * ➕ AJOUTER UN MEMBRE À L'ÉQUIPE
    */
-  async addTeamMember(projectId, userEmail, role = 'contributor', permissions = []) {
+  async addTeamMember(projectId, userId, role = 'member', permissions = []) {
     try {
-      console.log('➕ Ajout membre équipe:', { projectId, userEmail, role });
+      console.log('➕ Ajout membre équipe:', { projectId, userId, role });
       
-      // Trouver l'utilisateur par email
-      const usersQuery = query(
-        collection(db, 'users'),
-        where('email', '==', userEmail.toLowerCase())
-      );
+      // Récupérer les données utilisateur
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
       
-      const usersSnapshot = await getDocs(usersQuery);
-      
-      if (usersSnapshot.empty) {
-        throw new Error('Utilisateur introuvable avec cet email');
+      if (!userDoc.exists()) {
+        throw new Error('Utilisateur introuvable');
       }
       
-      const userDoc = usersSnapshot.docs[0];
       const userData = userDoc.data();
-      const userId = userDoc.id;
       
-      // Vérifier si déjà membre
-      const projectDoc = await getDoc(doc(db, 'projects', projectId));
+      // Vérifier si le projet existe
+      const projectRef = doc(db, 'projects', projectId);
+      const projectDoc = await getDoc(projectRef);
+      
+      if (!projectDoc.exists()) {
+        throw new Error('Projet introuvable');
+      }
+      
       const projectData = projectDoc.data();
       const currentTeam = projectData.team || [];
       
@@ -116,22 +87,25 @@ class TeamManagementService {
         throw new Error('Cette personne fait déjà partie de l\'équipe');
       }
       
-      // Préparer le nouveau membre
+      // ✅ CORRECTION: Créer le timestamp AVANT l'utilisation dans arrayUnion
+      const joinedAtTimestamp = new Date().toISOString();
+      
+      // Préparer le nouveau membre SANS serverTimestamp() à l'intérieur
       const newMember = {
         userId: userId,
         email: userData.email,
         displayName: userData.displayName || userData.email.split('@')[0],
         role: role,
         permissions: permissions,
-        joinedAt: serverTimestamp(),
+        joinedAt: joinedAtTimestamp, // ✅ Utiliser un timestamp fixe
         isActive: true,
-        invitedBy: null // TODO: ajouter l'ID de l'utilisateur qui invite
+        invitedBy: null
       };
       
       // Ajouter à l'équipe du projet
       await updateDoc(doc(db, 'projects', projectId), {
         team: arrayUnion(newMember),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp() // ✅ serverTimestamp() OK ici car pas dans arrayUnion
       });
       
       // Ajouter le projet aux projets de l'utilisateur
@@ -150,11 +124,11 @@ class TeamManagementService {
   }
 
   /**
-   * 🔄 MODIFIER LE RÔLE D'UN MEMBRE
+   * 🔄 MODIFIER LE RÔLE D'UN MEMBRE - CORRIGÉ POUR L'ERREUR CONSOLE
    */
   async updateMemberRole(projectId, userId, newRole, newPermissions = []) {
     try {
-      console.log('🔄 Modification rôle membre:', { projectId, userId, newRole });
+      console.log('🎭 Assignation rôle:', { projectId, userId, newRole });
       
       const projectRef = doc(db, 'projects', projectId);
       const projectDoc = await getDoc(projectRef);
@@ -166,40 +140,43 @@ class TeamManagementService {
       const projectData = projectDoc.data();
       const team = projectData.team || [];
       
-      // Trouver et modifier le membre
-      const updatedTeam = team.map(member => {
-        if (member.userId === userId) {
-          return {
-            ...member,
-            role: newRole,
-            permissions: newPermissions,
-            updatedAt: serverTimestamp()
-          };
-        }
-        return member;
-      });
+      // Trouver le membre dans l'équipe
+      const memberIndex = team.findIndex(m => m.userId === userId);
+      if (memberIndex === -1) {
+        throw new Error('Membre non trouvé dans l\'équipe');
+      }
       
-      // Sauvegarder
+      // ✅ CORRECTION: Créer la nouvelle équipe complète SANS serverTimestamp dans l'objet
+      const updatedTeam = [...team];
+      updatedTeam[memberIndex] = {
+        ...updatedTeam[memberIndex],
+        role: newRole,
+        permissions: newPermissions,
+        roleUpdatedAt: new Date().toISOString() // ✅ Timestamp fixe STRING au lieu de serverTimestamp()
+      };
+      
+      // ✅ CORRECTION: Remplacer toute l'équipe au lieu d'utiliser arrayUnion
       await updateDoc(projectRef, {
         team: updatedTeam,
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(), // ✅ OK ici car pas dans arrayUnion
+        lastTeamUpdate: new Date().toISOString()
       });
       
-      console.log('✅ Rôle modifié avec succès');
+      console.log('✅ Rôle membre mis à jour avec succès');
       return { success: true };
       
     } catch (error) {
-      console.error('❌ Erreur modification rôle:', error);
+      console.error('❌ Erreur assignation rôle:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * 🗑️ RETIRER UN MEMBRE DE L'ÉQUIPE
+   * ❌ RETIRER UN MEMBRE DE L'ÉQUIPE
    */
-  async removeMember(projectId, userId) {
+  async removeTeamMember(projectId, userId) {
     try {
-      console.log('🗑️ Suppression membre:', { projectId, userId });
+      console.log('❌ Suppression membre équipe:', { projectId, userId });
       
       const projectRef = doc(db, 'projects', projectId);
       const projectDoc = await getDoc(projectRef);
@@ -211,23 +188,25 @@ class TeamManagementService {
       const projectData = projectDoc.data();
       const team = projectData.team || [];
       
-      // Retirer le membre de l'équipe
-      const updatedTeam = team.filter(member => member.userId !== userId);
+      // Trouver et retirer le membre
+      const memberToRemove = team.find(m => m.userId === userId);
+      if (!memberToRemove) {
+        throw new Error('Membre non trouvé dans l\'équipe');
+      }
+      
+      // ✅ CORRECTION: Filtrer l'équipe au lieu d'utiliser arrayRemove
+      const updatedTeam = team.filter(m => m.userId !== userId);
       
       await updateDoc(projectRef, {
         team: updatedTeam,
         updatedAt: serverTimestamp()
       });
       
-      // Retirer le projet de la liste de l'utilisateur
-      try {
-        await updateDoc(doc(db, 'users', userId), {
-          projects: arrayRemove(projectId),
-          updatedAt: serverTimestamp()
-        });
-      } catch (userError) {
-        console.warn('⚠️ Erreur mise à jour utilisateur:', userError);
-      }
+      // Retirer le projet des projets de l'utilisateur
+      await updateDoc(doc(db, 'users', userId), {
+        projects: arrayRemove(projectId),
+        updatedAt: serverTimestamp()
+      });
       
       console.log('✅ Membre retiré avec succès');
       return { success: true };
@@ -284,16 +263,16 @@ class TeamManagementService {
   }
 
   /**
-   * 🔍 RECHERCHER DES UTILISATEURS
+   * 🔍 RECHERCHER DES UTILISATEURS - MÉTHODE SIMPLIFIÉE
    */
   async searchUsers(searchTerm, limit = 10) {
     try {
       console.log('🔍 Recherche utilisateurs:', searchTerm);
       
+      // ✅ CORRECTION: Requête simple sans index complexe
       const usersQuery = query(
         collection(db, 'users'),
-        orderBy('displayName'),
-        // TODO: Ajouter un filtre de recherche textuelle
+        limit(50) // Récupérer plus d'utilisateurs pour filtrer côté client
       );
       
       const snapshot = await getDocs(usersQuery);
@@ -328,7 +307,7 @@ class TeamManagementService {
   }
 
   /**
-   * 🔄 ÉCOUTER LES CHANGEMENTS D'ÉQUIPE EN TEMPS RÉEL
+   * 🔄 ÉCOUTER LES CHANGEMENTS D'ÉQUIPE EN TEMPS RÉEL - SIMPLIFIÉ
    */
   subscribeToTeamChanges(projectId, callback) {
     try {
@@ -339,6 +318,8 @@ class TeamManagementService {
           const team = doc.data().team || [];
           callback(team);
         }
+      }, (error) => {
+        console.error('❌ Erreur listener équipe:', error);
       });
       
       this.listeners.set(projectId, unsubscribe);
