@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// VERSION FINALE FONCTIONNELLE - Avec toutes les routes ajoutées
+// VERSION ORIGINALE FONCTIONNELLE - RESTAURÉE
 // ==========================================
 
 import React, { useEffect } from 'react';
@@ -19,7 +19,7 @@ import PublicRoute from './routes/PublicRoute.jsx';
 // 🏗️ Layout - TESTÉ ET FONCTIONNEL
 import DashboardLayout from './layouts/DashboardLayout.jsx';
 
-// 📄 Pages - TESTÉES ET FONCTIONNELLES
+// 📄 Pages - TESTÉES ET FONCTIONNELLES (VERSIONS ORIGINALES)
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
@@ -33,22 +33,12 @@ import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import RewardsPage from './pages/RewardsPage.jsx';
 
-// Pages manquantes - Import des nouvelles pages créées
-import LeaderboardPage from './pages/LeaderboardPage.jsx';
-import BadgesPage from './pages/BadgesPage.jsx';
-import TeamPage from './pages/TeamPage.jsx';
-
-// Pages admin
-import AdminTaskValidationPage from './pages/admin/AdminTaskValidationPage.jsx';
-import AdminProfileTestPage from './pages/admin/AdminProfileTestPage.jsx';
-import AdminCompleteTestPage from './pages/admin/AdminCompleteTestPage.jsx';
-
-console.log('🚀 SYNERGIA v3.5.3 - VERSION FINALE AVEC TOUTES LES ROUTES');
+console.log('🚀 SYNERGIA v3.5.3 - VERSION ORIGINALE RESTAURÉE');
 console.log('✅ Tous les imports testés et fonctionnels');
 
 /**
  * 🚀 APPLICATION PRINCIPALE SYNERGIA v3.5
- * Version finale basée sur le diagnostic réussi
+ * Version originale basée sur le diagnostic réussi
  */
 function App() {
   const { initializeAuth, isAuthenticated, user, loading } = useAuthStore();
@@ -120,7 +110,7 @@ function App() {
             } 
           />
 
-          {/* 🔐 ROUTES PROTÉGÉES AVEC LAYOUT */}
+          {/* 🔐 ROUTES PROTÉGÉES AVEC LAYOUT - SYSTÈME ORIGINAL */}
           <Route 
             path="/dashboard" 
             element={
@@ -176,52 +166,6 @@ function App() {
             } 
           />
 
-          {/* 🏆 NOUVELLES ROUTES GAMIFICATION */}
-          <Route 
-            path="/badges" 
-            element={
-              <ProtectedRoute>
-                <DashboardLayout>
-                  <BadgesPage />
-                </DashboardLayout>
-              </ProtectedRoute>
-            } 
-          />
-
-          <Route 
-            path="/leaderboard" 
-            element={
-              <ProtectedRoute>
-                <DashboardLayout>
-                  <LeaderboardPage />
-                </DashboardLayout>
-              </ProtectedRoute>
-            } 
-          />
-
-          <Route 
-            path="/rewards" 
-            element={
-              <ProtectedRoute>
-                <DashboardLayout>
-                  <RewardsPage />
-                </DashboardLayout>
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* 👥 ROUTES ÉQUIPE */}
-          <Route 
-            path="/team" 
-            element={
-              <ProtectedRoute>
-                <DashboardLayout>
-                  <TeamPage />
-                </DashboardLayout>
-              </ProtectedRoute>
-            } 
-          />
-
           <Route 
             path="/users" 
             element={
@@ -233,7 +177,6 @@ function App() {
             } 
           />
 
-          {/* 🛠️ ROUTES OUTILS */}
           <Route 
             path="/onboarding" 
             element={
@@ -278,35 +221,46 @@ function App() {
             } 
           />
 
-          {/* 🛡️ ROUTES ADMIN */}
           <Route 
-            path="/admin/task-validation" 
+            path="/rewards" 
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <AdminTaskValidationPage />
+                  <RewardsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* 🎖️ ROUTES ALIASES - Rediriger vers les pages existantes */}
+          <Route 
+            path="/badges" 
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <GamificationPage />
                 </DashboardLayout>
               </ProtectedRoute>
             } 
           />
 
           <Route 
-            path="/admin/profile-test" 
+            path="/leaderboard" 
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <AdminProfileTestPage />
+                  <UsersPage />
                 </DashboardLayout>
               </ProtectedRoute>
             } 
           />
 
           <Route 
-            path="/admin/complete-test" 
+            path="/team" 
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <AdminCompleteTestPage />
+                  <UsersPage />
                 </DashboardLayout>
               </ProtectedRoute>
             } 
@@ -329,5 +283,5 @@ function App() {
   );
 }
 
-console.log('✅ App finale exportée - Toutes les routes ajoutées');
+console.log('✅ App originale exportée - Version fonctionnelle restaurée');
 export default App;
