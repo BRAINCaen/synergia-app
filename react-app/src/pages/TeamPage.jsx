@@ -1,13 +1,14 @@
 // ==========================================
 // 📁 react-app/src/pages/TeamPage.jsx
-// PAGE GESTION D'ÉQUIPE AMÉLIORÉE AVEC RÔLES SYNERGIA
+// REMPLACER ENTIÈREMENT LE FICHIER EXISTANT
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useGameStore } from '../shared/stores/gameStore.js';
 import { synergiaRolesService, SYNERGIA_ROLES } from '../core/services/synergiaRolesService.js';
-import { userManagementService } from '../core/services/userManagementService.js';
+import RoleAssignmentModal from '../components/team/RoleAssignmentModal.jsx';
+import TeamRoleDashboard from '../components/team/TeamRoleDashboard.jsx';
 import { 
   Users, 
   Award, 
@@ -626,50 +627,7 @@ const TeamPage = () => {
         )}
 
         {activeTab === 'stats' && (
-          <div className="space-y-6">
-            
-            {/* Stats globales */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center">
-                <Users className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">{teamMembers.length}</p>
-                <p className="text-gray-400">Membres</p>
-              </div>
-              
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center">
-                <Award className="w-8 h-8 text-purple-400 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">
-                  {teamMembers.reduce((sum, member) => sum + (member.synergiaRoles?.length || 0), 0)}
-                </p>
-                <p className="text-gray-400">Rôles assignés</p>
-              </div>
-              
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center">
-                <Target className="w-8 h-8 text-green-400 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">
-                  {teamMembers.reduce((sum, member) => sum + member.tasksCompleted, 0)}
-                </p>
-                <p className="text-gray-400">Tâches complétées</p>
-              </div>
-              
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center">
-                <TrendingUp className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">
-                  {Math.round(teamMembers.reduce((sum, member) => sum + member.totalXp, 0) / teamMembers.length)}
-                </p>
-                <p className="text-gray-400">XP moyen</p>
-              </div>
-            </div>
-
-            {/* Graphique de répartition des rôles */}
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
-              <h3 className="text-xl font-bold text-white mb-4">Répartition des rôles</h3>
-              <div className="text-center py-8 text-gray-400">
-                <BarChart3 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p>Graphique de répartition à venir</p>
-              </div>
-            </div>
-          </div>
+          <TeamRoleDashboard teamMembers={teamMembers} />
         )}
 
         {activeTab === 'management' && (
@@ -721,76 +679,15 @@ const TeamPage = () => {
       </div>
 
       {/* Modal d'assignation de rôles */}
-      {showRoleAssignment && selectedMember && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-            <h3 className="text-2xl font-bold text-white mb-4">
-              Gestion des rôles - {selectedMember.name}
-            </h3>
-            
-            {/* Rôles disponibles */}
-            <div className="grid gap-3 mb-6">
-              {Object.values(SYNERGIA_ROLES).map((role) => {
-                const isAssigned = selectedMember.synergiaRoles?.some(r => r.roleId === role.id);
-                
-                return (
-                  <div
-                    key={role.id}
-                    className="flex items-center justify-between p-3 bg-white/10 rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-lg ${role.color} flex items-center justify-center text-xl`}>
-                        {role.icon}
-                      </div>
-                      <div>
-                        <h4 className="text-white font-medium">{role.name}</h4>
-                        <p className="text-gray-400 text-sm">{role.description}</p>
-                      </div>
-                    </div>
-                    
-                    <button
-                      onClick={() => {
-                        if (isAssigned) {
-                          handleRemoveRole(selectedMember.id, role.id);
-                        } else {
-                          handleAssignRole(selectedMember.id, role.id);
-                        }
-                      }}
-                      className={`px-4 py-2 rounded-lg transition-colors ${
-                        isAssigned
-                          ? 'bg-red-600 hover:bg-red-700 text-white'
-                          : 'bg-green-600 hover:bg-green-700 text-white'
-                      }`}
-                    >
-                      {isAssigned ? (
-                        <>
-                          <Minus className="w-4 h-4 inline mr-1" />
-                          Retirer
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="w-4 h-4 inline mr-1" />
-                          Assigner
-                        </>
-                      )}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-            
-            <button
-              onClick={() => {
-                setShowRoleAssignment(false);
-                setSelectedMember(null);
-              }}
-              className="w-full py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              Fermer
-            </button>
-          </div>
-        </div>
-      )}
+      <RoleAssignmentModal
+        isOpen={showRoleAssignment}
+        onClose={() => {
+          setShowRoleAssignment(false);
+          setSelectedMember(null);
+        }}
+        selectedMember={selectedMember}
+        onRoleUpdated={loadTeamData}
+      />
     </div>
   );
 };
