@@ -39,9 +39,9 @@ import BadgesPage from './pages/BadgesPage.jsx';
 import TeamPage from './pages/TeamPage.jsx';
 
 // Pages admin
-import AdminTaskValidationPage from './pages/admin/AdminTaskValidationPage.jsx';
-import AdminProfileTestPage from './pages/admin/AdminProfileTestPage.jsx';
-import AdminCompleteTestPage from './pages/admin/AdminCompleteTestPage.jsx';
+import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
+import AdminProfileTestPage from './pages/AdminProfileTestPage.jsx';
+import AdminCompleteTestPage from './pages/AdminCompleteTestPage.jsx';
 
 console.log('🚀 SYNERGIA v3.5.3 - VERSION ORIGINALE RESTAURÉE');
 console.log('✅ Tous les imports testés et fonctionnels');
