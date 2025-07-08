@@ -1,5 +1,6 @@
-// ========================================== 
-// FICHIER APP.JSX COMPLET CORRIGÉ
+// ==========================================
+// 📁 react-app/src/App.jsx
+// VERSION COMPLÈTE CORRIGÉE AVEC TEAMPAGE
 // ==========================================
 
 import React, { useEffect } from 'react';
@@ -26,19 +27,19 @@ import ProjectsPage from './pages/ProjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import GamificationPage from './pages/GamificationPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
-import TeamPage from './pages/TeamPage.jsx'; // ← AJOUT DE L'IMPORT TEAMPAGE
+import TeamPage from './pages/TeamPage.jsx'; // ✅ IMPORT TEAMPAGE AJOUTÉ
 import OnboardingPage from './pages/OnboardingPage.jsx';
 import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import RewardsPage from './pages/RewardsPage.jsx';
 
-console.log('🚀 SYNERGIA v3.5.3 - VERSION ORIGINALE RESTAURÉE');
+console.log('🚀 SYNERGIA v3.5.3 - VERSION CORRIGÉE AVEC TEAMPAGE');
 console.log('✅ Tous les imports testés et fonctionnels');
 
 /**
  * 🚀 APPLICATION PRINCIPALE SYNERGIA v3.5
- * Version originale basée sur le diagnostic réussi
+ * Version corrigée avec TeamPage fonctionnelle
  */
 function App() {
   const { initializeAuth, isAuthenticated, user, loading } = useAuthStore();
@@ -172,7 +173,7 @@ function App() {
             } 
           />
 
-          {/* ✅ ROUTE TEAM CORRIGÉE - POINTE VERS TEAMPAGE */}
+          {/* 👥 ROUTE TEAM CORRIGÉE - POINTE VERS TEAMPAGE */}
           <Route 
             path="/team" 
             element={
