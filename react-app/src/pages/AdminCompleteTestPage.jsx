@@ -1,5 +1,5 @@
 // ==========================================
-// 📁 react-app/src/pages/admin/AdminCompleteTestPage.jsx
+// 📁 react-app/src/pages/AdminCompleteTestPage.jsx
 // PAGE TEST ADMIN COMPLET - Simple et fonctionnelle
 // ==========================================
 
