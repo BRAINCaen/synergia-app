@@ -13,7 +13,6 @@ import {
   BarChart3,
   Target,
   Timer,
-  Stopwatch,
   TrendingUp,
   Activity,
   CheckCircle,
@@ -168,7 +167,7 @@ const TimeTrackPage = () => {
         <div className="lg:col-span-2">
           <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10">
             <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-              <Stopwatch className="w-6 h-6 mr-3 text-green-400" />
+              <Timer className="w-6 h-6 mr-3 text-green-400" />
               Timer
             </h2>
 
