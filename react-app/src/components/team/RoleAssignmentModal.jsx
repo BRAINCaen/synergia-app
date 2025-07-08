@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/team/RoleAssignmentModal.jsx
-// MODAL D'ASSIGNATION DE RÔLES ULTRA-INTERACTIF
+// MODAL D'ASSIGNATION AVEC FIREBASE INTÉGRÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -23,10 +23,13 @@ import {
   Clock,
   Users,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Database,
+  Wifi,
+  Loader
 } from 'lucide-react';
 
-// Rôles Synergia (définis localement pour éviter les imports)
+// Rôles Synergia (définis localement pour l'affichage)
 const SYNERGIA_ROLES = {
   maintenance: {
     id: 'maintenance',
@@ -162,19 +165,22 @@ const RoleAssignmentModal = ({
   isOpen, 
   onClose, 
   selectedMember, 
-  onRoleUpdated 
+  onRoleUpdated,
+  onAssignRole, // Fonction Firebase pour assigner
+  onRemoveRole, // Fonction Firebase pour retirer
+  loading: externalLoading = false
 }) => {
   // États principaux
-  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [difficultyFilter, setDifficultyFilter] = useState('all');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   
-  // États pour l'assignation
+  // États pour l'assignation Firebase
   const [showConfirmation, setShowConfirmation] = useState(null);
-  const [assignmentHistory, setAssignmentHistory] = useState([]);
+  const [operationLoading, setOperationLoading] = useState(false);
   const [selectedRolePreview, setSelectedRolePreview] = useState(null);
+  const [lastAction, setLastAction] = useState(null);
 
   // Reset filters when modal opens
   useEffect(() => {
@@ -184,6 +190,8 @@ const RoleAssignmentModal = ({
       setDifficultyFilter('all');
       setShowAdvancedFilters(false);
       setSelectedRolePreview(null);
+      setShowConfirmation(null);
+      setLastAction(null);
     }
   }, [isOpen]);
 
@@ -194,7 +202,7 @@ const RoleAssignmentModal = ({
     return selectedMember?.synergiaRoles?.some(r => r.roleId === roleId);
   };
 
-  // Obtenir les stats d'un rôle pour le membre
+  // Obtenir les données d'un rôle pour le membre
   const getMemberRoleData = (roleId) => {
     return selectedMember?.synergiaRoles?.find(r => r.roleId === roleId);
   };
@@ -225,7 +233,7 @@ const RoleAssignmentModal = ({
     return roles;
   };
 
-  // Gestion de l'assignation/suppression de rôle
+  // Gestion de l'assignation/suppression de rôle avec Firebase
   const handleRoleToggle = async (roleId, action) => {
     const role = SYNERGIA_ROLES[roleId];
     
@@ -236,64 +244,80 @@ const RoleAssignmentModal = ({
       roleIcon: role.icon,
       roleColor: role.color,
       message: action === 'assign' 
-        ? `Voulez-vous assigner le rôle "${role.name}" à ${selectedMember.name} ?`
-        : `Voulez-vous retirer le rôle "${role.name}" à ${selectedMember.name} ?`
+        ? `Voulez-vous assigner le rôle "${role.name}" à ${selectedMember.displayName || selectedMember.email} ?`
+        : `Voulez-vous retirer le rôle "${role.name}" à ${selectedMember.displayName || selectedMember.email} ?`
     });
   };
 
-  // Confirmer l'action
+  // Confirmer l'action avec Firebase
   const confirmAction = async () => {
-    if (!showConfirmation) return;
+    if (!showConfirmation || !onAssignRole || !onRemoveRole) return;
 
     try {
-      setLoading(true);
+      setOperationLoading(true);
       
       const { action, roleId, roleName } = showConfirmation;
-      
-      // Simulation d'une opération async
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Ajouter à l'historique
-      const newHistoryItem = {
-        id: Date.now(),
-        action,
-        roleId,
-        roleName,
-        timestamp: new Date(),
-        memberName: selectedMember.name
-      };
-      
-      setAssignmentHistory(prev => [newHistoryItem, ...prev.slice(0, 4)]);
-      
-      // Animation de succès
-      setShowConfirmation({
-        ...showConfirmation,
-        success: true
-      });
-      
-      setTimeout(() => {
+      let result;
+
+      if (action === 'assign') {
+        // Appel de la fonction Firebase d'assignation
+        result = await onAssignRole(selectedMember.id, {
+          roleId,
+          name: roleName,
+          permissions: SYNERGIA_ROLES[roleId].permissions
+        });
+      } else {
+        // Appel de la fonction Firebase de suppression
+        result = await onRemoveRole(selectedMember.id, roleId);
+      }
+
+      if (result && result.success !== false) {
+        // Animation de succès
+        setShowConfirmation({
+          ...showConfirmation,
+          success: true
+        });
+        
+        // Enregistrer la dernière action
+        setLastAction({
+          action,
+          roleName,
+          timestamp: new Date()
+        });
+        
+        // Notifier le parent
+        if (onRoleUpdated) {
+          onRoleUpdated(action, roleName);
+        }
+        
+        setTimeout(() => {
+          setShowConfirmation(null);
+        }, 2000);
+      } else {
+        // Gestion d'erreur
+        alert(`Erreur: ${result?.error || 'Opération échouée'}`);
         setShowConfirmation(null);
-        if (onRoleUpdated) onRoleUpdated();
-      }, 2000);
+      }
       
     } catch (error) {
       console.error('❌ Erreur action rôle:', error);
       alert('Erreur lors de l\'opération');
       setShowConfirmation(null);
     } finally {
-      setLoading(false);
+      setOperationLoading(false);
     }
   };
 
   const filteredRoles = getFilteredRoles();
   const assignedRoles = selectedMember.synergiaRoles || [];
   const availableRoles = filteredRoles.filter(role => !isRoleAssigned(role.id));
+  const isLoading = operationLoading || externalLoading;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-gradient-to-br from-slate-900/95 via-purple-900/95 to-slate-900/95 backdrop-blur-md rounded-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden border border-white/20 shadow-2xl">
         
-        {/* Header */}
+        {/* Header avec indicateur Firebase */}
         <div className="p-6 border-b border-white/20 bg-white/5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -301,36 +325,41 @@ const RoleAssignmentModal = ({
                 {selectedMember.photoURL ? (
                   <img
                     src={selectedMember.photoURL}
-                    alt={selectedMember.name}
+                    alt={selectedMember.displayName || selectedMember.email}
                     className="w-14 h-14 rounded-full object-cover border-2 border-white/20"
                   />
                 ) : (
                   <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xl font-bold border-2 border-white/20">
-                    {selectedMember.name?.charAt(0) || '?'}
+                    {(selectedMember.displayName || selectedMember.email)?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                 )}
                 <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
-                  <Crown className="w-3 h-3 text-white" />
+                  <Database className="w-3 h-3 text-white" />
                 </div>
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                   Gestion des rôles
+                  {isLoading && <Loader className="w-5 h-5 animate-spin" />}
                 </h2>
-                <p className="text-gray-300">{selectedMember.name}</p>
-                <p className="text-gray-400 text-sm">{selectedMember.email}</p>
+                <p className="text-gray-300">{selectedMember.displayName || selectedMember.email}</p>
+                <p className="text-gray-400 text-sm flex items-center gap-2">
+                  <Wifi className="w-4 h-4" />
+                  Synchronisé avec Firebase
+                </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors group"
+              disabled={isLoading}
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors group disabled:opacity-50"
             >
               <X className="w-6 h-6 text-white group-hover:text-gray-300" />
             </button>
           </div>
         </div>
 
-        {/* Stats rapides */}
+        {/* Stats rapides avec données Firebase */}
         <div className="px-6 py-4 bg-white/5 border-b border-white/10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6 text-sm">
@@ -340,22 +369,24 @@ const RoleAssignmentModal = ({
               </div>
               <div className="flex items-center gap-2 text-blue-400">
                 <Award className="w-4 h-4" />
-                <span>Niveau {selectedMember.level}</span>
+                <span>Niveau {selectedMember.teamStats?.level || 1}</span>
               </div>
               <div className="flex items-center gap-2 text-purple-400">
                 <Zap className="w-4 h-4" />
-                <span>{selectedMember.totalXp} XP total</span>
+                <span>{selectedMember.teamStats?.totalXp || 0} XP total</span>
               </div>
               <div className="flex items-center gap-2 text-orange-400">
                 <Target className="w-4 h-4" />
-                <span>{selectedMember.tasksCompleted} tâches</span>
+                <span>{selectedMember.teamStats?.tasksCompleted || 0} tâches</span>
               </div>
             </div>
             
-            {assignmentHistory.length > 0 && (
+            {lastAction && (
               <div className="flex items-center gap-2 text-gray-400 text-sm">
                 <Clock className="w-4 h-4" />
-                <span>Dernière modification : {assignmentHistory[0]?.timestamp.toLocaleTimeString()}</span>
+                <span>
+                  Dernière action : {lastAction.action === 'assign' ? 'Assigné' : 'Retiré'} {lastAction.roleName}
+                </span>
               </div>
             )}
           </div>
@@ -374,7 +405,8 @@ const RoleAssignmentModal = ({
                   placeholder="Rechercher un rôle..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-gray-400 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
+                  className="w-full pl-10 pr-4 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-gray-400 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                 />
               </div>
             </div>
@@ -383,7 +415,8 @@ const RoleAssignmentModal = ({
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
+              disabled={isLoading}
+              className="px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             >
               <option value="all">Toutes catégories</option>
               {Object.entries(ROLE_CATEGORIES).map(([key, category]) => (
@@ -394,7 +427,8 @@ const RoleAssignmentModal = ({
             {/* Bouton filtres avancés */}
             <button
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className="flex items-center gap-2 px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white hover:bg-white/30 transition-all text-sm"
+              disabled={isLoading}
+              className="flex items-center gap-2 px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white hover:bg-white/30 transition-all text-sm disabled:opacity-50"
             >
               <Filter className="w-4 h-4" />
               Filtres
@@ -408,7 +442,8 @@ const RoleAssignmentModal = ({
               <select
                 value={difficultyFilter}
                 onChange={(e) => setDifficultyFilter(e.target.value)}
-                className="px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white text-sm"
+                disabled={isLoading}
+                className="px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white text-sm disabled:opacity-50"
               >
                 <option value="all">Toutes difficultés</option>
                 <option value="Facile">Facile</option>
@@ -428,7 +463,8 @@ const RoleAssignmentModal = ({
                   setCategoryFilter('all');
                   setDifficultyFilter('all');
                 }}
-                className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                disabled={isLoading}
+                className="text-sm text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50"
               >
                 Réinitialiser les filtres
               </button>
@@ -440,7 +476,7 @@ const RoleAssignmentModal = ({
         <div className="flex-1 overflow-y-auto max-h-[60vh]">
           <div className="p-6 space-y-6">
             
-            {/* Rôles actuels */}
+            {/* Rôles actuels avec données Firebase */}
             {assignedRoles.length > 0 && (
               <div>
                 <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
@@ -467,16 +503,16 @@ const RoleAssignmentModal = ({
                               <div className="flex items-center gap-4 text-sm text-gray-300 mt-1">
                                 <span>Niveau {userRole.level}</span>
                                 <span>•</span>
-                                <span>{userRole.xpInRole} XP</span>
+                                <span>{userRole.xpInRole || 0} XP</span>
                                 <span>•</span>
-                                <span>{userRole.tasksCompleted} tâches</span>
+                                <span>{userRole.tasksCompleted || 0} tâches</span>
                               </div>
                               
-                              {/* Barre de progression */}
+                              {/* Barre de progression basée sur les données Firebase */}
                               <div className="w-32 bg-white/20 rounded-full h-1.5 mt-2">
                                 <div 
                                   className="bg-gradient-to-r from-green-400 to-emerald-400 h-1.5 rounded-full transition-all"
-                                  style={{ width: `${Math.min((userRole.xpInRole / 1000) * 100, 100)}%` }}
+                                  style={{ width: `${Math.min(((userRole.xpInRole || 0) / 1000) * 100, 100)}%` }}
                                 ></div>
                               </div>
                             </div>
@@ -484,10 +520,14 @@ const RoleAssignmentModal = ({
                           
                           <button
                             onClick={() => handleRoleToggle(userRole.roleId, 'remove')}
-                            disabled={loading}
+                            disabled={isLoading}
                             className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 shadow-lg"
                           >
-                            <Minus className="w-4 h-4" />
+                            {isLoading ? (
+                              <Loader className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Minus className="w-4 h-4" />
+                            )}
                             Retirer
                           </button>
                         </div>
@@ -554,11 +594,11 @@ const RoleAssignmentModal = ({
                           e.stopPropagation();
                           handleRoleToggle(role.id, 'assign');
                         }}
-                        disabled={loading}
+                        disabled={isLoading}
                         className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 ml-4 shadow-lg"
                       >
-                        {loading ? (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        {isLoading ? (
+                          <Loader className="w-4 h-4 animate-spin" />
                         ) : (
                           <Plus className="w-4 h-4" />
                         )}
@@ -587,7 +627,7 @@ const RoleAssignmentModal = ({
                           <div className="bg-white/5 rounded-lg p-3">
                             <TrendingUp className="w-6 h-6 text-blue-400 mx-auto mb-1" />
                             <p className="text-xs text-gray-400">Progression</p>
-                            <p className="text-white font-medium">Évolutif</p>
+                            <p className="text-white font-medium">Évolutive</p>
                           </div>
                           <div className="bg-white/5 rounded-lg p-3">
                             <Users className="w-6 h-6 text-green-400 mx-auto mb-1" />
@@ -627,13 +667,14 @@ const RoleAssignmentModal = ({
         <div className="p-6 border-t border-white/20 bg-white/5">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-400 flex items-center gap-2">
-              <Info className="w-4 h-4" />
-              Les changements prendront effet immédiatement
+              <Database className="w-4 h-4" />
+              Synchronisation en temps réel avec Firebase
             </div>
             <div className="flex gap-3">
               <button
                 onClick={onClose}
-                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                disabled={isLoading}
+                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 Fermer
               </button>
@@ -642,7 +683,7 @@ const RoleAssignmentModal = ({
         </div>
       </div>
 
-      {/* Modal de confirmation */}
+      {/* Modal de confirmation avec intégration Firebase */}
       {showConfirmation && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-70 flex items-center justify-center p-4">
           <div className="bg-gradient-to-br from-slate-900/95 via-purple-900/95 to-slate-900/95 backdrop-blur-md rounded-xl p-6 w-full max-w-md border border-white/20 shadow-2xl">
@@ -652,9 +693,13 @@ const RoleAssignmentModal = ({
                   <CheckCircle className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-white mb-2">Succès !</h3>
-                <p className="text-gray-300">
+                <p className="text-gray-300 mb-2">
                   L'opération a été réalisée avec succès.
                 </p>
+                <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
+                  <Database className="w-4 h-4" />
+                  Synchronisé avec Firebase
+                </div>
               </div>
             ) : (
               <>
@@ -663,25 +708,29 @@ const RoleAssignmentModal = ({
                     {showConfirmation.roleIcon}
                   </div>
                   <h3 className="text-xl font-bold text-white mb-2">Confirmation</h3>
-                  <p className="text-gray-300">{showConfirmation.message}</p>
+                  <p className="text-gray-300 mb-3">{showConfirmation.message}</p>
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
+                    <Database className="w-4 h-4" />
+                    Action synchronisée en temps réel
+                  </div>
                 </div>
                 
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowConfirmation(null)}
-                    disabled={loading}
+                    disabled={operationLoading}
                     className="flex-1 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
                   >
                     Annuler
                   </button>
                   <button
                     onClick={confirmAction}
-                    disabled={loading}
+                    disabled={operationLoading}
                     className="flex-1 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    {loading ? (
+                    {operationLoading ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <Loader className="w-4 h-4 animate-spin" />
                         Traitement...
                       </>
                     ) : (
