@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/tasks/TaskSubmissionModal.jsx
-// MODAL POUR SOUMETTRE UNE TÂCHE AVEC PHOTO OU VIDÉO - VERSION CORRIGÉE
+// MODAL DE SOUMISSION COMPLÈTE AVEC SERVICE INTÉGRÉ
 // ==========================================
 
 import React, { useState, useRef } from 'react';
@@ -21,6 +21,8 @@ import {
   FileVideo,
   Loader
 } from 'lucide-react';
+import { taskValidationService } from '../../core/services/taskValidationService.js';
+import { useAuthStore } from '../../shared/stores/authStore.js';
 
 /**
  * 🎬 COMPOSANT DE PRÉVISUALISATION MÉDIA
@@ -138,58 +140,60 @@ const TaskSubmissionModal = ({
   task, 
   onClose, 
   onSubmit,
-  submitting = false 
+  submitting: externalSubmitting = false 
 }) => {
+  const { user } = useAuthStore();
   const [comment, setComment] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileType, setFileType] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef(null);
 
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setError(null);
-      
-      console.log('📎 Fichier sélectionné:', {
-        name: file.name,
-        type: file.type,
-        size: `${(file.size / 1024 / 1024).toFixed(2)} MB`
-      });
-
-      // Vérifier le type (image ou vidéo)
-      if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-        setError('Veuillez sélectionner une image ou une vidéo');
-        return;
-      }
-
-      // Vérifier la taille (limite à 100MB pour les vidéos, 10MB pour les images)
-      const maxSize = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
-      if (file.size > maxSize) {
-        const limit = file.type.startsWith('video/') ? '100MB' : '10MB';
-        setError(`Fichier trop volumineux. Limite: ${limit}`);
-        return;
-      }
-
-      setSelectedFile(file);
-      setFileType(file.type.startsWith('video/') ? 'video' : 'image');
+  // Reset du formulaire à l'ouverture
+  React.useEffect(() => {
+    if (isOpen) {
+      setComment('');
+      setSelectedFile(null);
+      setFileType(null);
+      setError('');
     }
+  }, [isOpen]);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Vérifier la taille
+    const maxSize = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setError(`Le fichier ne peut pas dépasser ${file.type.startsWith('video/') ? '100MB' : '10MB'}`);
+      return;
+    }
+
+    // Vérifier le type
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    
+    if (!isImage && !isVideo) {
+      setError('Seules les images et vidéos sont acceptées');
+      return;
+    }
+
+    setSelectedFile(file);
+    setFileType(isVideo ? 'video' : 'image');
+    setError('');
+    
+    console.log('📎 Fichier sélectionné:', {
+      name: file.name,
+      type: file.type,
+      size: `${(file.size / 1024 / 1024).toFixed(2)} MB`
+    });
   };
 
   const handleRemoveFile = () => {
     setSelectedFile(null);
     setFileType(null);
-    setUploadProgress(0);
-    setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -199,64 +203,87 @@ const TaskSubmissionModal = ({
     e.preventDefault();
     
     if (!comment.trim() && !selectedFile) {
-      setError('Veuillez ajouter un commentaire ou un fichier');
+      setError('Veuillez ajouter un commentaire ou une preuve (photo/vidéo)');
       return;
     }
     
-    setError(null);
-    setUploadProgress(0);
+    if (!user) {
+      setError('Utilisateur non connecté');
+      return;
+    }
+    
+    setSubmitting(true);
+    setError('');
     
     try {
-      console.log('🎯 Soumission tâche:', {
+      console.log('📝 Soumission validation tâche:', {
         taskId: task.id,
-        hasComment: !!comment.trim(),
-        hasFile: !!selectedFile,
-        fileType: selectedFile?.type
+        userId: user.uid,
+        hasMedia: !!selectedFile
       });
+
+      // Préparer les données de validation
+      const validationData = {
+        taskId: task.id,
+        userId: user.uid,
+        taskTitle: task.title,
+        projectId: task.projectId,
+        difficulty: task.difficulty || 'normal',
+        comment: comment.trim(),
+        photoFile: selectedFile // Le service gère photo et vidéo
+      };
+
+      // Soumettre la validation
+      const result = await taskValidationService.submitTaskForValidation(validationData);
       
-      // Simuler le progress d'upload
-      if (selectedFile) {
-        setUploadProgress(25);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setUploadProgress(50);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setUploadProgress(75);
+      if (result.success) {
+        console.log('✅ Validation soumise avec succès:', result.validationId);
+        
+        // Notifier le parent
+        if (onSubmit) {
+          onSubmit({
+            ...result,
+            taskId: task.id,
+            newStatus: 'validation_pending'
+          });
+        }
+        
+        // Message de succès temporaire
+        setTimeout(() => {
+          handleClose();
+        }, 1500);
+        
+      } else {
+        setError('Erreur lors de la soumission');
       }
       
-      const result = await onSubmit(task, {
-        comment: comment.trim(),
-        photoFile: selectedFile
-      });
-      
-      setUploadProgress(100);
-      
-      // Réinitialiser le formulaire en cas de succès
-      setComment('');
-      setSelectedFile(null);
-      setFileType(null);
-      setUploadProgress(0);
-      
-      console.log('✅ Soumission réussie:', result);
-      
     } catch (error) {
-      console.error('❌ Erreur soumission:', error);
+      console.error('❌ Erreur soumission validation:', error);
       setError(error.message || 'Erreur lors de la soumission');
-      setUploadProgress(0);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleClose = () => {
-    if (!submitting) {
-      setComment('');
-      setSelectedFile(null);
-      setFileType(null);
-      setUploadProgress(0);
-      setError(null);
-      onClose();
+    if (submitting) return;
+    onClose();
+  };
+
+  const getExpectedXP = () => {
+    if (task.xpReward) return task.xpReward;
+    
+    switch (task.difficulty) {
+      case 'easy': return 10;
+      case 'hard': return 50;
+      case 'expert': return 100;
+      default: return 25; // normal
     }
   };
 
-  if (!isOpen || !task) return null;
+  const expectedXP = getExpectedXP();
+
+  if (!isOpen) return null;
 
   return (
     <AnimatePresence>
@@ -303,6 +330,14 @@ const TaskSubmissionModal = ({
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             
+            {/* Message de succès */}
+            {submitting && !error && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
+                <Loader className="w-5 h-5 text-blue-600 animate-spin" />
+                <p className="text-blue-800">Soumission en cours...</p>
+              </div>
+            )}
+
             {/* Affichage des erreurs */}
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
@@ -370,51 +405,20 @@ const TaskSubmissionModal = ({
                           Vidéos : MP4, MOV, AVI, WEBM (max 100MB)
                         </p>
                       </div>
+                      <div className="bg-blue-50 rounded-lg p-3">
+                        <p className="text-blue-800 text-xs">
+                          💡 Une preuve photo/vidéo augmente vos chances de validation rapide
+                        </p>
+                      </div>
                     </div>
                   </label>
                 )}
-              </div>
-            </div>
-
-            {/* Barre de progression d'upload */}
-            {uploadProgress > 0 && uploadProgress < 100 && (
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Upload en cours...</span>
-                  <span className="text-sm font-medium text-blue-600">{uploadProgress}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Checklist avant soumission */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-                Avant de soumettre
-              </h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>La tâche est entièrement terminée</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Le résultat correspond aux attentes</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>J'ai vérifié la qualité de mon travail</span>
-                </div>
+                
                 {selectedFile && (
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span>Le {fileType === 'video' ? 'fichier vidéo' : 'fichier image'} est lisible et de bonne qualité</span>
+                  <div className="mt-3 text-center">
+                    <p className="text-green-600 text-sm font-medium">
+                      ✅ Vérifiez que votre {fileType === 'video' ? 'fichier vidéo' : 'fichier image'} est lisible et de bonne qualité
+                    </p>
                   </div>
                 )}
               </div>
@@ -431,8 +435,7 @@ const TaskSubmissionModal = ({
                   <div className="flex items-center gap-1">
                     <Zap className="w-4 h-4 text-yellow-600" />
                     <span className="text-sm font-medium text-yellow-700">
-                      {task.difficulty === 'easy' ? '10 XP' : 
-                       task.difficulty === 'normal' ? '25 XP' : '50 XP'}
+                      {expectedXP} XP
                     </span>
                   </div>
                   {selectedFile && (
