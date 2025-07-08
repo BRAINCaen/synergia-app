@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// VERSION ORIGINALE FONCTIONNELLE - RESTAURÉE
+// VERSION ULTRA SIMPLIFIÉE - SEULEMENT LES PAGES QUI EXISTENT
 // ==========================================
 
 import React, { useEffect } from 'react';
@@ -19,7 +19,7 @@ import PublicRoute from './routes/PublicRoute.jsx';
 // 🏗️ Layout - TESTÉ ET FONCTIONNEL
 import DashboardLayout from './layouts/DashboardLayout.jsx';
 
-// 📄 Pages - TESTÉES ET FONCTIONNELLES (VERSIONS ORIGINALES)
+// 📄 Pages - SEULEMENT LES PAGES QUI EXISTENT VRAIMENT
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
@@ -33,52 +33,12 @@ import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import RewardsPage from './pages/RewardsPage.jsx';
 
-// Pages créées - Import conditionnel pour éviter les erreurs
-let LeaderboardPage, BadgesPage, TeamPage;
-let AdminTaskValidationPage, AdminProfileTestPage, AdminCompleteTestPage;
-
-try {
-  LeaderboardPage = require('./pages/LeaderboardPage.jsx').default;
-} catch {
-  LeaderboardPage = () => <div>Page en développement</div>;
-}
-
-try {
-  BadgesPage = require('./pages/BadgesPage.jsx').default;
-} catch {
-  BadgesPage = () => <div>Page en développement</div>;
-}
-
-try {
-  TeamPage = require('./pages/TeamPage.jsx').default;
-} catch {
-  TeamPage = () => <div>Page en développement</div>;
-}
-
-try {
-  AdminTaskValidationPage = require('./pages/AdminTaskValidationPage.jsx').default;
-} catch {
-  AdminTaskValidationPage = () => <div>Page admin en développement</div>;
-}
-
-try {
-  AdminProfileTestPage = require('./pages/AdminProfileTestPage.jsx').default;
-} catch {
-  AdminProfileTestPage = () => <div>Page admin en développement</div>;
-}
-
-try {
-  AdminCompleteTestPage = require('./pages/AdminCompleteTestPage.jsx').default;
-} catch {
-  AdminCompleteTestPage = () => <div>Page admin en développement</div>;
-}
-
-console.log('🚀 SYNERGIA v3.5.3 - VERSION ORIGINALE RESTAURÉE');
-console.log('✅ Tous les imports testés et fonctionnels');
+console.log('🚀 SYNERGIA v3.5.3 - VERSION SIMPLIFIÉE POUR BUILD');
+console.log('✅ Seulement les pages existantes importées');
 
 /**
  * 🚀 APPLICATION PRINCIPALE SYNERGIA v3.5
- * Version originale basée sur le diagnostic réussi
+ * Version ultra simplifiée pour build réussi
  */
 function App() {
   const { initializeAuth, isAuthenticated, user, loading } = useAuthStore();
@@ -129,7 +89,7 @@ function App() {
           <h2 className="text-2xl font-semibold mb-2">🚀 Synergia v3.5</h2>
           <p className="text-blue-200">Initialisation en cours...</p>
           <div className="mt-4 text-xs text-blue-300">
-            <p>Diagnostic: Tous les composants testés ✅</p>
+            <p>Build simplifié en cours...</p>
           </div>
         </div>
       </div>
@@ -150,7 +110,7 @@ function App() {
             } 
           />
 
-          {/* 🔐 ROUTES PROTÉGÉES AVEC LAYOUT - SYSTÈME ORIGINAL */}
+          {/* 🔐 ROUTES PROTÉGÉES AVEC LAYOUT - PAGES EXISTANTES SEULEMENT */}
           <Route 
             path="/dashboard" 
             element={
@@ -272,13 +232,13 @@ function App() {
             } 
           />
 
-          {/* 🎖️ ROUTES DISTINCTES - Chaque page a sa propre route */}
+          {/* 🎖️ ROUTES ALIAS - Redirection vers pages existantes */}
           <Route 
             path="/badges" 
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <BadgesPage />
+                  <GamificationPage />
                 </DashboardLayout>
               </ProtectedRoute>
             } 
@@ -289,7 +249,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <LeaderboardPage />
+                  <UsersPage />
                 </DashboardLayout>
               </ProtectedRoute>
             } 
@@ -300,19 +260,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <TeamPage />
+                  <UsersPage />
                 </DashboardLayout>
               </ProtectedRoute>
             } 
           />
 
-          {/* 🛡️ ROUTES ADMIN */}
+          {/* 🛡️ ROUTES ADMIN - Pages placeholder temporaires */}
           <Route 
             path="/admin/task-validation" 
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <AdminTaskValidationPage />
+                  <div className="p-8 text-center">
+                    <h2 className="text-2xl font-bold mb-4">🛡️ Validation des Tâches</h2>
+                    <p className="text-gray-600">Page d'administration en développement</p>
+                  </div>
                 </DashboardLayout>
               </ProtectedRoute>
             } 
@@ -323,7 +286,10 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <AdminProfileTestPage />
+                  <div className="p-8 text-center">
+                    <h2 className="text-2xl font-bold mb-4">🧪 Test Profil Admin</h2>
+                    <p className="text-gray-600">Page de test administrateur en développement</p>
+                  </div>
                 </DashboardLayout>
               </ProtectedRoute>
             } 
@@ -334,7 +300,10 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <AdminCompleteTestPage />
+                  <div className="p-8 text-center">
+                    <h2 className="text-2xl font-bold mb-4">🔬 Test Complet Admin</h2>
+                    <p className="text-gray-600">Page de diagnostic administrateur en développement</p>
+                  </div>
                 </DashboardLayout>
               </ProtectedRoute>
             } 
@@ -357,5 +326,5 @@ function App() {
   );
 }
 
-console.log('✅ App originale exportée - Version fonctionnelle restaurée');
+console.log('✅ App simplifiée exportée - Build sans erreur');
 export default App;
