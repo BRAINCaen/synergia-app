@@ -1,5 +1,6 @@
+// ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES COMPLÈTES AVEC TOUTES LES PAGES
+// ROUTES COMPLÈTES AVEC TOUTES LES PAGES RECONNECTÉES
 // ==========================================
 
 import React from 'react'
@@ -30,7 +31,7 @@ import RewardsPage from '../pages/RewardsPage.jsx'
 import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx'
 import CompleteAdminTestPage from '../pages/CompleteAdminTestPage.jsx'
 
-// Components utilisés comme pages
+// Components utilisés comme pages (fallback si les vraies pages n'existent pas)
 import TaskList from '../modules/tasks/TaskList.jsx'
 import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
 import Leaderboard from '../components/gamification/Leaderboard.jsx'
@@ -241,9 +242,46 @@ export default function AppRoutes() {
         } 
       />
 
+      {/* ROUTES FALLBACK avec composants existants */}
+      <Route 
+        path="/tasks-list" 
+        element={
+          <ProtectedRoute>
+            <TaskList />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/badge-collection" 
+        element={
+          <ProtectedRoute>
+            <BadgeCollection />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/profile-component" 
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/project-dashboard" 
+        element={
+          <ProtectedRoute>
+            <ProjectDashboard />
+          </ProtectedRoute>
+        } 
+      />
+
       {/* Fallback */}
       <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )
-}`;
+}
