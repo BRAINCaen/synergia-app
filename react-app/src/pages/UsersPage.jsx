@@ -1,41 +1,42 @@
-// src/pages/UsersPage.jsx
-// Page complète de gestion des utilisateurs avec toutes les fonctionnalités
+// ==========================================
+// 📁 react-app/src/pages/UsersPage.jsx
+// PAGE UTILISATEURS - Version simplifiée qui fonctionne
+// ==========================================
+
 import React, { useState, useEffect } from 'react';
-import {
-  Users,
-  Search,
-  Filter,
-  Download,
-  UserPlus,
-  Award,
+import { 
+  Users, 
+  Search, 
+  UserPlus, 
+  Award, 
   TrendingUp,
   Calendar,
   Mail,
-  Building,
   Star,
   Trophy,
   Eye,
   MoreVertical,
   RefreshCw,
   Grid,
-  List,
-  ChevronDown
+  List
 } from 'lucide-react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
+import { useAuthStore } from '../shared/stores/authStore.js';
 
 const UsersPage = () => {
+  const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
-  const [stats, setStats] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null);
 
   // Charger tous les utilisateurs
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
   const loadUsers = async () => {
     try {
       setLoading(true);
@@ -55,154 +56,43 @@ const UsersPage = () => {
           email: data.email || '',
           photoURL: data.photoURL || null,
           createdAt: data.createdAt?.toDate?.() || null,
-          updatedAt: data.updatedAt?.toDate?.() || null,
-          lastLoginAt: data.lastLoginAt?.toDate?.() || null,
-          profile: data.profile || {},
-          gamification: data.gamification || {
-            level: 1,
-            totalXp: 0,
-            tasksCompleted: 0,
-            loginStreak: 0,
-            badges: []
-          }
+          role: data.role || 'user',
+          gamification: data.gamification || { level: 1, totalXp: 0, badges: [] },
+          isActive: data.isActive !== false
         };
       });
       
       setUsers(allUsers);
-      setFilteredUsers(allUsers);
-      calculateStats(allUsers);
-      
       console.log(`✅ ${allUsers.length} utilisateurs chargés`);
       
-    } catch (err) {
-      console.error('❌ Erreur chargement utilisateurs:', err);
-      setError(err.message);
+    } catch (error) {
+      console.error('❌ Erreur chargement utilisateurs:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Calculer les statistiques
-  const calculateStats = (usersList) => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+  // Filtrer les utilisateurs selon le terme de recherche
+  const filteredUsers = users.filter(user => 
+    user.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-    const statistics = {
-      totalUsers: usersList.length,
-      activeToday: usersList.filter(u => u.lastLoginAt && u.lastLoginAt >= today).length,
-      activeThisWeek: usersList.filter(u => u.lastLoginAt && u.lastLoginAt >= weekAgo).length,
-      activeThisMonth: usersList.filter(u => u.lastLoginAt && u.lastLoginAt >= monthAgo).length,
-      averageXP: usersList.length > 0 ? Math.round(usersList.reduce((sum, u) => sum + (u.gamification?.totalXp || 0), 0) / usersList.length) : 0,
-      topLevel: Math.max(...usersList.map(u => u.gamification?.level || 1)),
-      recentJoins: usersList.filter(u => u.createdAt && u.createdAt >= weekAgo).length,
-      departmentBreakdown: {},
-      levelDistribution: {}
-    };
-
-    // Répartition par département
-    usersList.forEach(user => {
-      const dept = user.profile?.department || 'Non défini';
-      statistics.departmentBreakdown[dept] = (statistics.departmentBreakdown[dept] || 0) + 1;
-      
-      const level = user.gamification?.level || 1;
-      const levelRange = level >= 10 ? '10+' : level >= 5 ? '5-9' : level >= 2 ? '2-4' : '1';
-      statistics.levelDistribution[levelRange] = (statistics.levelDistribution[levelRange] || 0) + 1;
-    });
-
-    setStats(statistics);
+  // Statistiques
+  const stats = {
+    total: users.length,
+    active: users.filter(u => u.isActive).length,
+    admins: users.filter(u => u.role === 'admin').length,
+    avgLevel: users.length > 0 ? Math.round(users.reduce((acc, u) => acc + (u.gamification?.level || 1), 0) / users.length) : 1
   };
-
-  // Filtrer et rechercher
-  const applyFilters = () => {
-    let filtered = [...users];
-
-    // Recherche par texte
-    if (searchTerm.trim()) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(user => 
-        (user.displayName || '').toLowerCase().includes(search) ||
-        (user.email || '').toLowerCase().includes(search) ||
-        (user.profile?.department || '').toLowerCase().includes(search)
-      );
-    }
-
-    // Filtres spéciaux
-    if (activeFilter === 'active') {
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      filtered = filtered.filter(user => user.lastLoginAt && user.lastLoginAt >= weekAgo);
-    } else if (activeFilter === 'new') {
-      const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      filtered = filtered.filter(user => user.createdAt && user.createdAt >= monthAgo);
-    } else if (activeFilter === 'top') {
-      filtered = filtered.filter(user => (user.gamification?.level || 1) >= 3);
-    }
-
-    setFilteredUsers(filtered);
-  };
-
-  // Obtenir le leaderboard top 5
-  const getTopUsers = () => {
-    return [...users]
-      .sort((a, b) => (b.gamification?.totalXp || 0) - (a.gamification?.totalXp || 0))
-      .slice(0, 5)
-      .map((user, index) => ({ ...user, rank: index + 1 }));
-  };
-
-  // Formater les dates
-  const formatLastLogin = (date) => {
-    if (!date) return 'Jamais';
-    const now = new Date();
-    const diffTime = now - date;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return 'Aujourd\'hui';
-    if (diffDays === 1) return 'Hier';
-    if (diffDays < 7) return `Il y a ${diffDays} jours`;
-    if (diffDays < 30) return `Il y a ${Math.floor(diffDays / 7)} semaines`;
-    return date.toLocaleDateString('fr-FR');
-  };
-
-  // Exporter en CSV
-  const exportToCSV = () => {
-    const headers = ['Nom', 'Email', 'Département', 'Niveau', 'XP', 'Tâches', 'Dernière connexion'];
-    const csvData = filteredUsers.map(user => [
-      user.displayName,
-      user.email,
-      user.profile?.department || 'Non défini',
-      user.gamification?.level || 1,
-      user.gamification?.totalXp || 0,
-      user.gamification?.tasksCompleted || 0,
-      user.lastLoginAt ? user.lastLoginAt.toLocaleDateString('fr-FR') : 'Jamais'
-    ]);
-
-    const csvContent = [headers, ...csvData]
-      .map(row => row.map(cell => `"${cell}"`).join(','))
-      .join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `utilisateurs_synergia_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-  };
-
-  // Effects
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [searchTerm, activeFilter, users]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-white">Chargement des utilisateurs...</p>
+          <RefreshCw className="w-12 h-12 text-blue-500 mx-auto mb-4 animate-spin" />
+          <p className="text-gray-600">Chargement des utilisateurs...</p>
         </div>
       </div>
     );
@@ -210,16 +100,16 @@ const UsersPage = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-400 text-6xl mb-4">⚠️</div>
-          <h2 className="text-xl font-semibold text-white mb-2">Erreur de chargement</h2>
-          <p className="text-gray-400 mb-4">{error}</p>
-          <button 
+          <Users className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Erreur de chargement</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
             onClick={loadUsers}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            🔄 Réessayer
+            Réessayer
           </button>
         </div>
       </div>
@@ -227,384 +117,206 @@ const UsersPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <div className="max-w-7xl mx-auto p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              <Users className="w-8 h-8 text-blue-400" />
-              Gestion des Utilisateurs
-            </h1>
-            <p className="text-gray-400 mt-1">
-              {filteredUsers.length} utilisateur{filteredUsers.length !== 1 ? 's' : ''} 
-              {searchTerm && ` trouvé${filteredUsers.length !== 1 ? 's' : ''} pour "${searchTerm}"`}
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <button
-              onClick={loadUsers}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Actualiser
-            </button>
-            <button
-              onClick={exportToCSV}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Exporter CSV
-            </button>
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+                <Users className="w-8 h-8 text-blue-600 mr-3" />
+                Utilisateurs
+              </h1>
+              <p className="text-gray-600 mt-1">Gestion des utilisateurs</p>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
+                <div className="text-sm text-blue-700">Total</div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-green-600">{stats.active}</div>
+                <div className="text-sm text-green-700">Actifs</div>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-purple-600">{stats.admins}</div>
+                <div className="text-sm text-purple-700">Admins</div>
+              </div>
+              <div className="bg-yellow-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-yellow-600">{stats.avgLevel}</div>
+                <div className="text-sm text-yellow-700">Niveau moyen</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Statistiques */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Total Utilisateurs</p>
-                  <p className="text-2xl font-bold text-white">{stats.totalUsers}</p>
-                </div>
-                <Users className="w-8 h-8 text-blue-400" />
-              </div>
+        {/* Contrôles */}
+        <div className="bg-white rounded-lg shadow-lg p-4 mb-6">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            {/* Recherche */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Rechercher un utilisateur..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+              />
             </div>
 
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Actifs (7j)</p>
-                  <p className="text-2xl font-bold text-green-400">{stats.activeThisWeek}</p>
-                </div>
-                <TrendingUp className="w-8 h-8 text-green-400" />
+            {/* Actions */}
+            <div className="flex items-center space-x-4">
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded transition-colors ${
+                    viewMode === 'grid' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'
+                  }`}
+                >
+                  <Grid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded transition-colors ${
+                    viewMode === 'list' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'
+                  }`}
+                >
+                  <List className="w-4 h-4" />
+                </button>
               </div>
-            </div>
-
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">XP Moyen</p>
-                  <p className="text-2xl font-bold text-yellow-400">{stats.averageXP}</p>
-                </div>
-                <Star className="w-8 h-8 text-yellow-400" />
-              </div>
-            </div>
-
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Nouveaux (7j)</p>
-                  <p className="text-2xl font-bold text-purple-400">{stats.recentJoins}</p>
-                </div>
-                <UserPlus className="w-8 h-8 text-purple-400" />
-              </div>
+              
+              <button
+                onClick={loadUsers}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Actualiser
+              </button>
             </div>
           </div>
-        )}
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Section principale */}
-          <div className="lg:col-span-3 space-y-6">
-            {/* Filtres et recherche */}
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <div className="flex flex-col sm:flex-row gap-4">
-                {/* Barre de recherche */}
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Rechercher par nom, email, département..."
-                    className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Filtres */}
-                <div className="flex gap-2">
-                  {[
-                    { key: 'all', label: 'Tous', icon: Users },
-                    { key: 'active', label: 'Actifs', icon: TrendingUp },
-                    { key: 'new', label: 'Nouveaux', icon: UserPlus },
-                    { key: 'top', label: 'Top', icon: Trophy }
-                  ].map(filter => {
-                    const Icon = filter.icon;
-                    return (
-                      <button
-                        key={filter.key}
-                        onClick={() => setActiveFilter(filter.key)}
-                        className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-                          activeFilter === filter.key
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        {filter.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Liste des utilisateurs */}
-            <div className="bg-gray-800 rounded-lg border border-gray-700">
-              <div className="p-6 border-b border-gray-700">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-white">
-                    {filteredUsers.length} utilisateur{filteredUsers.length !== 1 ? 's' : ''}
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setViewMode('grid')}
-                      className={`p-2 rounded transition-colors ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-                    >
-                      <Grid className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={`p-2 rounded transition-colors ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-                    >
-                      <List className="w-4 h-4" />
-                    </button>
+        {/* Liste des utilisateurs */}
+        <div className={`${
+          viewMode === 'grid' 
+            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' 
+            : 'space-y-4'
+        }`}>
+          {filteredUsers.map((user) => {
+            const isCurrentUser = user.id === currentUser?.uid;
+            
+            return (
+              <div
+                key={user.id}
+                className={`bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow ${
+                  isCurrentUser ? 'ring-2 ring-blue-500' : ''
+                } ${
+                  viewMode === 'list' ? 'flex items-center p-4' : 'p-6'
+                }`}
+              >
+                {/* Avatar et info de base */}
+                <div className={`${viewMode === 'list' ? 'flex items-center space-x-4' : 'text-center mb-4'}`}>
+                  <div className="relative">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
+                      {user.displayName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
+                    </div>
+                    {isCurrentUser && (
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                    )}
                   </div>
-                </div>
-              </div>
-
-              <div className="p-6">
-                {filteredUsers.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-400 mb-2">
-                      {searchTerm ? 'Aucun résultat' : 'Aucun utilisateur'}
+                  
+                  <div className={viewMode === 'list' ? 'flex-1' : ''}>
+                    <h3 className="text-lg font-bold text-gray-900">
+                      {user.displayName}
+                      {isCurrentUser && <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-1 rounded-full">Vous</span>}
                     </h3>
-                    <p className="text-gray-500">
-                      {searchTerm 
-                        ? `Aucun utilisateur trouvé pour "${searchTerm}"`
-                        : 'Aucun utilisateur ne correspond aux filtres sélectionnés'
-                      }
-                    </p>
+                    <p className="text-gray-600 text-sm">{user.email}</p>
+                    
+                    {/* Rôle */}
+                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium mt-1 ${
+                      user.role === 'admin' 
+                        ? 'bg-red-100 text-red-800' 
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {user.role === 'admin' ? '👑 Admin' : '👤 Utilisateur'}
+                    </span>
                   </div>
-                ) : viewMode === 'grid' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {filteredUsers.map(user => (
-                      <div
-                        key={user.id}
-                        className="bg-gray-700 rounded-lg p-4 hover:bg-gray-600 transition-colors cursor-pointer group"
-                        onClick={() => setSelectedUser(user)}
-                      >
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                            {user.photoURL ? (
-                              <img
-                                src={user.photoURL}
-                                alt={user.displayName}
-                                className="w-12 h-12 rounded-full object-cover"
-                              />
-                            ) : (
-                              <span className="text-white font-bold">
-                                {user.displayName?.charAt(0) || user.email?.charAt(0) || '?'}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-white truncate group-hover:text-blue-300">
-                              {user.displayName}
-                            </h4>
-                            <p className="text-sm text-gray-400 truncate">{user.email}</p>
-                          </div>
-                        </div>
+                </div>
 
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-400">Niveau</span>
-                            <span className="text-blue-400 font-medium">
-                              {user.gamification?.level || 1}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-400">XP</span>
-                            <span className="text-yellow-400 font-medium">
-                              {user.gamification?.totalXp || 0}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-400">Tâches</span>
-                            <span className="text-green-400 font-medium">
-                              {user.gamification?.tasksCompleted || 0}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-400">Dernière connexion</span>
-                            <span className="text-gray-300 text-xs">
-                              {formatLastLogin(user.lastLoginAt)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {user.profile?.department && (
-                          <div className="mt-3 pt-3 border-t border-gray-600">
-                            <div className="flex items-center gap-2 text-sm text-gray-300">
-                              <Building className="w-4 h-4" />
-                              {user.profile.department}
-                            </div>
-                          </div>
-                        )}
+                {/* Statistiques gamification */}
+                {viewMode === 'grid' && (
+                  <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-200">
+                    <div className="text-center">
+                      <div className="flex items-center justify-center text-yellow-500 mb-1">
+                        <Star className="w-4 h-4 mr-1" />
+                        <span className="font-bold">{user.gamification?.level || 1}</span>
                       </div>
-                    ))}
+                      <div className="text-xs text-gray-500">Niveau</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center text-purple-500 mb-1">
+                        <Trophy className="w-4 h-4 mr-1" />
+                        <span className="font-bold">{user.gamification?.totalXp || 0}</span>
+                      </div>
+                      <div className="text-xs text-gray-500">XP Total</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center text-blue-500 mb-1">
+                        <Award className="w-4 h-4 mr-1" />
+                        <span className="font-bold">{user.gamification?.badges?.length || 0}</span>
+                      </div>
+                      <div className="text-xs text-gray-500">Badges</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center text-green-500 mb-1">
+                        <Calendar className="w-4 h-4 mr-1" />
+                        <span className="font-bold text-xs">
+                          {user.createdAt ? user.createdAt.toLocaleDateString() : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500">Membre depuis</div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    {filteredUsers.map(user => (
-                      <div
-                        key={user.id}
-                        className="flex items-center gap-4 p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors cursor-pointer group"
-                        onClick={() => setSelectedUser(user)}
-                      >
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                          {user.photoURL ? (
-                            <img
-                              src={user.photoURL}
-                              alt={user.displayName}
-                              className="w-10 h-10 rounded-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-white font-bold text-sm">
-                              {user.displayName?.charAt(0) || user.email?.charAt(0) || '?'}
-                            </span>
-                          )}
-                        </div>
+                )}
 
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium text-white truncate group-hover:text-blue-300">
-                              {user.displayName}
-                            </h4>
-                            <span className="text-sm text-gray-400">•</span>
-                            <span className="text-sm text-gray-400 truncate">
-                              {user.email}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-400">
-                            {user.profile?.department && (
-                              <span className="flex items-center gap-1">
-                                <Building className="w-3 h-3" />
-                                {user.profile.department}
-                              </span>
-                            )}
-                            <span>Niveau {user.gamification?.level || 1}</span>
-                            <span>{user.gamification?.totalXp || 0} XP</span>
-                            <span>{user.gamification?.tasksCompleted || 0} tâches</span>
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <p className="text-sm text-gray-400">
-                            {formatLastLogin(user.lastLoginAt)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                {/* Info compacte pour mode liste */}
+                {viewMode === 'list' && (
+                  <div className="flex items-center space-x-6 text-sm">
+                    <div className="flex items-center text-yellow-600">
+                      <Star className="w-4 h-4 mr-1" />
+                      Niv. {user.gamification?.level || 1}
+                    </div>
+                    <div className="flex items-center text-purple-600">
+                      <Trophy className="w-4 h-4 mr-1" />
+                      {user.gamification?.totalXp || 0} XP
+                    </div>
+                    <div className="flex items-center text-blue-600">
+                      <Award className="w-4 h-4 mr-1" />
+                      {user.gamification?.badges?.length || 0} badges
+                    </div>
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Top 5 Leaderboard */}
-            <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-yellow-400" />
-                Top 5 XP
-              </h3>
-              <div className="space-y-3">
-                {getTopUsers().map((user, index) => (
-                  <div key={user.id} className="flex items-center gap-3">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                      index === 0 ? 'bg-yellow-500 text-black' :
-                      index === 1 ? 'bg-gray-400 text-black' :
-                      index === 2 ? 'bg-orange-500 text-white' :
-                      'bg-gray-600 text-white'
-                    }`}>
-                      {index + 1}
-                    </div>
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                      {user.photoURL ? (
-                        <img
-                          src={user.photoURL}
-                          alt={user.displayName}
-                          className="w-8 h-8 rounded-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-white text-xs font-bold">
-                          {user.displayName?.charAt(0) || '?'}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
-                        {user.displayName}
-                      </p>
-                      <p className="text-xs text-yellow-400">
-                        {user.gamification?.totalXp || 0} XP
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Statistiques de département */}
-            {stats?.departmentBreakdown && Object.keys(stats.departmentBreakdown).length > 0 && (
-              <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <Building className="w-5 h-5 text-blue-400" />
-                  Départements
-                </h3>
-                <div className="space-y-2">
-                  {Object.entries(stats.departmentBreakdown)
-                    .sort(([,a], [,b]) => b - a)
-                    .slice(0, 5)
-                    .map(([dept, count]) => (
-                      <div key={dept} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-300 truncate">{dept}</span>
-                        <span className="text-sm font-medium text-white ml-2">{count}</span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-
-            {/* Distribution des niveaux */}
-            {stats?.levelDistribution && (
-              <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <Star className="w-5 h-5 text-purple-400" />
-                  Niveaux
-                </h3>
-                <div className="space-y-2">
-                  {Object.entries(stats.levelDistribution)
-                    .sort(([a], [b]) => {
-                      const order = { '1': 1, '2-4': 2, '5-9': 3, '10+': 4 };
-                      return order[a] - order[b];
-                    })
-                    .map(([level, count]) => (
-                      <div key={level} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-300">Niveau {level}</span>
-                        <span className="text-sm font-medium text-white">{count}</span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-          </div>
+            );
+          })}
         </div>
+
+        {/* Message si aucun utilisateur */}
+        {filteredUsers.length === 0 && (
+          <div className="text-center py-12">
+            <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Aucun utilisateur trouvé</h3>
+            <p className="text-gray-600">
+              {searchTerm 
+                ? 'Essayez de modifier votre recherche'
+                : 'Aucun utilisateur enregistré dans la base de données'
+              }
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
