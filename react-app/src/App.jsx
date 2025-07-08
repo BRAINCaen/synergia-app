@@ -33,6 +33,16 @@ import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import RewardsPage from './pages/RewardsPage.jsx';
 
+// Pages spécifiques créées
+import LeaderboardPage from './pages/LeaderboardPage.jsx';
+import BadgesPage from './pages/BadgesPage.jsx';
+import TeamPage from './pages/TeamPage.jsx';
+
+// Pages admin
+import AdminTaskValidationPage from './pages/admin/AdminTaskValidationPage.jsx';
+import AdminProfileTestPage from './pages/admin/AdminProfileTestPage.jsx';
+import AdminCompleteTestPage from './pages/admin/AdminCompleteTestPage.jsx';
+
 console.log('🚀 SYNERGIA v3.5.3 - VERSION ORIGINALE RESTAURÉE');
 console.log('✅ Tous les imports testés et fonctionnels');
 
@@ -232,13 +242,13 @@ function App() {
             } 
           />
 
-          {/* 🎖️ ROUTES ALIASES - Rediriger vers les pages existantes */}
+          {/* 🎖️ ROUTES DISTINCTES - Chaque page a sa propre route */}
           <Route 
             path="/badges" 
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <GamificationPage />
+                  <BadgesPage />
                 </DashboardLayout>
               </ProtectedRoute>
             } 
@@ -249,7 +259,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <UsersPage />
+                  <LeaderboardPage />
                 </DashboardLayout>
               </ProtectedRoute>
             } 
@@ -260,7 +270,41 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <UsersPage />
+                  <TeamPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* 🛡️ ROUTES ADMIN */}
+          <Route 
+            path="/admin/task-validation" 
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AdminTaskValidationPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/admin/profile-test" 
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AdminProfileTestPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/admin/complete-test" 
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AdminCompleteTestPage />
                 </DashboardLayout>
               </ProtectedRoute>
             } 
