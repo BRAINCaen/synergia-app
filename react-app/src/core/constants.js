@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/constants.js
-// Constants COMPLET avec routes admin ajoutées
+// CONSTANTS COMPLET avec toutes les routes ajoutées
 // ==========================================
 
 export const ROUTES = {
@@ -14,25 +14,25 @@ export const ROUTES = {
   PROJECTS: '/projects',
   ANALYTICS: '/analytics',
   
-  // Gamification
+  // Gamification RECONNECTÉES
   LEADERBOARD: '/leaderboard',
   BADGES: '/badges',
   GAMIFICATION: '/gamification',
   REWARDS: '/rewards',
   
-  // Équipe & Social
+  // Équipe & Social RECONNECTÉES
   TEAM: '/team',
   USERS: '/users',
   
-  // Profil & Paramètres
+  // Profil & Paramètres RECONNECTÉES
   PROFILE: '/profile',
   SETTINGS: '/settings',
   
-  // Fonctionnalités spécialisées
+  // Fonctionnalités spécialisées RECONNECTÉES
   ONBOARDING: '/onboarding',
   TIMETRACK: '/timetrack',
   
-  // 🛡️ Routes Admin
+  // 🛡️ Routes Admin RECONNECTÉES
   ADMIN_TASK_VALIDATION: '/admin/task-validation',
   ADMIN_PROFILE_TEST: '/admin/profile-test',
   ADMIN_COMPLETE_TEST: '/admin/complete-test',
@@ -55,193 +55,205 @@ export const NAVIGATION_STRUCTURE = {
   gamification: {
     title: 'Gamification',
     routes: [
-      { path: ROUTES.LEADERBOARD, label: 'Classement', icon: '🏆', priority: 5 },
-      { path: ROUTES.BADGES, label: 'Badges', icon: '🎖️', priority: 6 },
-      { path: ROUTES.GAMIFICATION, label: 'Gamification', icon: '🎮', priority: 7 },
-      { path: ROUTES.REWARDS, label: 'Récompenses', icon: '🎁', priority: 8 }
+      { path: ROUTES.GAMIFICATION, label: 'Gamification', icon: '🎮', priority: 1 },
+      { path: ROUTES.BADGES, label: 'Badges', icon: '🏆', priority: 2 },
+      { path: ROUTES.LEADERBOARD, label: 'Classement', icon: '🥇', priority: 3 },
+      { path: ROUTES.REWARDS, label: 'Récompenses', icon: '🎁', priority: 4 }
     ]
   },
   social: {
-    title: 'Équipe',
+    title: 'Social & Équipe',
     routes: [
-      { path: ROUTES.TEAM, label: 'Équipe', icon: '👥', priority: 9 },
-      { path: ROUTES.USERS, label: 'Utilisateurs', icon: '🧑‍💼', priority: 10 }
+      { path: ROUTES.TEAM, label: 'Équipe', icon: '👥', priority: 1 },
+      { path: ROUTES.USERS, label: 'Utilisateurs', icon: '👤', priority: 2 }
     ]
   },
-  // 🛡️ SECTION ADMIN
+  user: {
+    title: 'Utilisateur',
+    routes: [
+      { path: ROUTES.PROFILE, label: 'Profil', icon: '👤', priority: 1 },
+      { path: ROUTES.SETTINGS, label: 'Paramètres', icon: '⚙️', priority: 2 },
+      { path: ROUTES.ONBOARDING, label: 'Onboarding', icon: '🚀', priority: 3 },
+      { path: ROUTES.TIMETRACK, label: 'Time Tracking', icon: '⏱️', priority: 4 }
+    ]
+  },
   admin: {
     title: 'Administration',
     routes: [
-      { 
-        path: ROUTES.ADMIN_TASK_VALIDATION, 
-        label: 'Validation Tâches', 
-        icon: '✅', 
-        priority: 11,
-        description: 'Valider les soumissions',
-        badge: 'ADMIN'
-      },
-      { 
-        path: ROUTES.ADMIN_PROFILE_TEST, 
-        label: 'Test Admin', 
-        icon: '🧪', 
-        priority: 12,
-        description: 'Diagnostics permissions'
-      },
-      { 
-        path: ROUTES.ADMIN_COMPLETE_TEST, 
-        label: 'Test Complet', 
-        icon: '🔬', 
-        priority: 13,
-        description: 'Tests système admin'
-      }
-    ]
-  },
-  tools: {
-    title: 'Outils',
-    routes: [
-      { path: ROUTES.ONBOARDING, label: 'Intégration', icon: '🎯', priority: 14 },
-      { path: ROUTES.TIMETRACK, label: 'Time Track', icon: '⏰', priority: 15 },
-      { path: ROUTES.PROFILE, label: 'Profil', icon: '👤', priority: 16 },
-      { path: ROUTES.SETTINGS, label: 'Paramètres', icon: '⚙️', priority: 17 }
+      { path: ROUTES.ADMIN_TASK_VALIDATION, label: 'Validation Tâches', icon: '🛡️', priority: 1 },
+      { path: ROUTES.ADMIN_COMPLETE_TEST, label: 'Test Admin', icon: '🔧', priority: 2 }
     ]
   }
-};
+}
 
-// 🎮 GAMIFICATION CONSTANTS
+// 🎯 TASK STATUS CONSTANTS
+export const TASK_STATUS = {
+  TODO: 'todo',
+  IN_PROGRESS: 'in_progress',
+  VALIDATION_PENDING: 'validation_pending',
+  COMPLETED: 'completed',
+  REJECTED: 'rejected',
+  PAUSED: 'paused'
+}
+
+// 🏆 GAMIFICATION CONSTANTS
 export const GAMIFICATION = {
-  XP_PER_LEVEL: 100,
-  STREAK_BONUS_MULTIPLIER: 1.2,
-  BADGE_RARITIES: ['common', 'uncommon', 'rare', 'epic', 'legendary'],
-  
-  // Points XP par action
-  XP_REWARDS: {
-    TASK_COMPLETE: 25,
-    PROJECT_CREATE: 50,
-    TEAM_COLLABORATION: 15,
-    DAILY_LOGIN: 5,
-    STREAK_BONUS: 10
+  LEVELS: {
+    BRONZE: { min: 0, max: 99, name: 'Bronze', color: '#CD7F32' },
+    SILVER: { min: 100, max: 499, name: 'Argent', color: '#C0C0C0' },
+    GOLD: { min: 500, max: 999, name: 'Or', color: '#FFD700' },
+    PLATINUM: { min: 1000, max: 2499, name: 'Platine', color: '#E5E4E2' },
+    DIAMOND: { min: 2500, max: 4999, name: 'Diamant', color: '#B9F2FF' },
+    MASTER: { min: 5000, max: 9999, name: 'Maître', color: '#FF6B35' },
+    GRANDMASTER: { min: 10000, max: 19999, name: 'Grand Maître', color: '#8B0000' },
+    LEGEND: { min: 20000, max: 49999, name: 'Légende', color: '#9932CC' },
+    MYTHIC: { min: 50000, max: 99999, name: 'Mythique', color: '#FF1493' },
+    GODLIKE: { min: 100000, max: Infinity, name: 'Divin', color: '#00FFFF' }
   },
   
-  // Seuils de badges automatiques
-  BADGE_THRESHOLDS: {
-    TASKS_COMPLETED: [1, 5, 10, 25, 50, 100],
-    PROJECTS_CREATED: [1, 3, 5, 10, 20],
-    DAYS_STREAK: [3, 7, 14, 30, 60, 100],
-    XP_EARNED: [100, 500, 1000, 2500, 5000, 10000]
+  XP_REWARDS: {
+    TASK_EASY: 10,
+    TASK_NORMAL: 25,
+    TASK_HARD: 50,
+    TASK_EXPERT: 100,
+    DAILY_LOGIN: 5,
+    FIRST_TASK_DAY: 15,
+    STREAK_BONUS: 10,
+    PERFECT_WEEK: 100,
+    HELP_COLLEAGUE: 20,
+    INNOVATION: 50
+  },
+  
+  BADGE_TYPES: {
+    ACHIEVEMENT: 'achievement',
+    MILESTONE: 'milestone',
+    SPECIAL: 'special',
+    EVENT: 'event',
+    SKILL: 'skill'
   }
-};
+}
 
-// 🛡️ ADMIN PERMISSIONS
-export const ADMIN_PERMISSIONS = {
-  SUPER_ADMIN: 'super_admin',
-  ADMIN: 'admin',
+// 🔐 USER ROLES CONSTANTS
+export const USER_ROLES = {
+  USER: 'user',
   MODERATOR: 'moderator',
-  
-  ACTIONS: {
-    MANAGE_USERS: 'manage_users',
-    MANAGE_BADGES: 'manage_badges',
-    VALIDATE_TASKS: 'validate_tasks',
-    VIEW_ANALYTICS: 'view_analytics',
-    SYSTEM_CONFIG: 'system_config'
-  }
-};
+  ADMIN: 'admin',
+  SUPER_ADMIN: 'super_admin'
+}
 
-// 📱 UI CONSTANTS
-export const UI = {
-  SIDEBAR_COLLAPSED_WIDTH: 64,
-  SIDEBAR_EXPANDED_WIDTH: 256,
-  HEADER_HEIGHT: 64,
-  MOBILE_BREAKPOINT: 768,
+// 📱 APP CONSTANTS
+export const APP_CONFIG = {
+  NAME: 'Synergia',
+  VERSION: '3.5.0',
+  DESCRIPTION: 'Application de gestion collaborative',
+  COMPANY: 'Synergia Team',
   
+  // Limites
+  MAX_FILE_SIZE: 50 * 1024 * 1024, // 50MB
+  MAX_IMAGE_SIZE: 10 * 1024 * 1024, // 10MB
+  MAX_VIDEO_SIZE: 100 * 1024 * 1024, // 100MB
+  
+  // Pagination
+  ITEMS_PER_PAGE: 20,
+  TASKS_PER_PAGE: 15,
+  USERS_PER_PAGE: 25,
+  
+  // Temps
+  SESSION_TIMEOUT: 30 * 60 * 1000, // 30 minutes
+  AUTO_SAVE_INTERVAL: 30 * 1000, // 30 secondes
+  NOTIFICATION_TIMEOUT: 5000, // 5 secondes
+  
+  // Firebase Collections
+  COLLECTIONS: {
+    USERS: 'users',
+    TASKS: 'tasks',
+    PROJECTS: 'projects',
+    TASK_VALIDATIONS: 'task_validations',
+    BADGES: 'badges',
+    USER_BADGES: 'user_badges',
+    NOTIFICATIONS: 'notifications',
+    TEAMS: 'teams',
+    ANALYTICS: 'analytics',
+    ONBOARDING: 'onboarding'
+  }
+}
+
+// 🎨 UI CONSTANTS
+export const UI_CONFIG = {
   COLORS: {
     PRIMARY: '#3B82F6',
+    SECONDARY: '#8B5CF6',
     SUCCESS: '#10B981',
     WARNING: '#F59E0B',
     ERROR: '#EF4444',
     INFO: '#06B6D4'
   },
   
+  BREAKPOINTS: {
+    SM: '640px',
+    MD: '768px',
+    LG: '1024px',
+    XL: '1280px',
+    '2XL': '1536px'
+  },
+  
   ANIMATIONS: {
-    DURATION_FAST: 150,
-    DURATION_NORMAL: 300,
-    DURATION_SLOW: 500
+    FAST: '150ms',
+    NORMAL: '300ms',
+    SLOW: '500ms'
   }
-};
+}
 
-// 🔥 FIREBASE COLLECTIONS
-export const COLLECTIONS = {
-  USERS: 'users',
-  TASKS: 'tasks',
-  PROJECTS: 'projects',
-  BADGES: 'badges',
-  USER_BADGES: 'user_badges',
-  TASK_VALIDATIONS: 'task_validations',
-  NOTIFICATIONS: 'notifications',
-  ANALYTICS: 'analytics',
-  ONBOARDING: 'onboarding'
-};
-
-// 📊 STATUS CONSTANTS
-export const STATUS = {
-  TASK: {
-    TODO: 'todo',
-    IN_PROGRESS: 'in_progress',
-    VALIDATION_PENDING: 'validation_pending',
-    COMPLETED: 'completed',
-    REJECTED: 'rejected'
-  },
+// 📊 ANALYTICS CONSTANTS
+export const ANALYTICS_EVENTS = {
+  // Navigation
+  PAGE_VIEW: 'page_view',
+  NAVIGATION_CLICK: 'navigation_click',
   
-  PROJECT: {
-    PLANNING: 'planning',
-    ACTIVE: 'active',
-    ON_HOLD: 'on_hold',
-    COMPLETED: 'completed',
-    CANCELLED: 'cancelled'
-  },
+  // Tâches
+  TASK_CREATE: 'task_create',
+  TASK_UPDATE: 'task_update',
+  TASK_COMPLETE: 'task_complete',
+  TASK_DELETE: 'task_delete',
+  TASK_SUBMIT_VALIDATION: 'task_submit_validation',
   
-  USER: {
-    ACTIVE: 'active',
-    INACTIVE: 'inactive',
-    SUSPENDED: 'suspended'
-  }
-};
+  // Gamification
+  XP_EARNED: 'xp_earned',
+  LEVEL_UP: 'level_up',
+  BADGE_EARNED: 'badge_earned',
+  
+  // Admin
+  ADMIN_TASK_VALIDATE: 'admin_task_validate',
+  ADMIN_TASK_REJECT: 'admin_task_reject',
+  ADMIN_BADGE_AWARD: 'admin_badge_award',
+  
+  // Erreurs
+  ERROR_OCCURRED: 'error_occurred',
+  API_ERROR: 'api_error'
+}
 
-// 🎯 TASK DIFFICULTIES
-export const TASK_DIFFICULTIES = {
-  EASY: { value: 'easy', label: 'Facile', xp: 10, color: 'green' },
-  NORMAL: { value: 'normal', label: 'Normal', xp: 25, color: 'blue' },
-  HARD: { value: 'hard', label: 'Difficile', xp: 50, color: 'orange' },
-  EXPERT: { value: 'expert', label: 'Expert', xp: 100, color: 'red' }
-};
-
-// 🏆 BADGE TYPES
-export const BADGE_TYPES = {
-  ACHIEVEMENT: 'achievement',
-  MILESTONE: 'milestone',
-  SPECIAL: 'special',
-  SEASONAL: 'seasonal',
-  CUSTOM: 'custom'
-};
-
-// ⚡ NOTIFICATION TYPES
+// 🔔 NOTIFICATION TYPES
 export const NOTIFICATION_TYPES = {
+  SUCCESS: 'success',
+  ERROR: 'error',
+  WARNING: 'warning',
+  INFO: 'info',
   BADGE_EARNED: 'badge_earned',
   TASK_VALIDATED: 'task_validated',
   TASK_REJECTED: 'task_rejected',
   LEVEL_UP: 'level_up',
-  PROJECT_INVITATION: 'project_invitation',
-  SYSTEM: 'system'
-};
+  MENTION: 'mention'
+}
 
+// Export par défaut pour la compatibilité
 export default {
   ROUTES,
   NAVIGATION_STRUCTURE,
+  TASK_STATUS,
   GAMIFICATION,
-  ADMIN_PERMISSIONS,
-  UI,
-  COLLECTIONS,
-  STATUS,
-  TASK_DIFFICULTIES,
-  BADGE_TYPES,
+  USER_ROLES,
+  APP_CONFIG,
+  UI_CONFIG,
+  ANALYTICS_EVENTS,
   NOTIFICATION_TYPES
-};
+}
