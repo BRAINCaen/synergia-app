@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx
-// CORRECTION COMPLÈTE AVEC BOUTON DE VALIDATION INTÉGRÉ
+// TASK CARD COMPLÈTE AVEC BOUTON DE VALIDATION INTÉGRÉ
 // ==========================================
 
 import React, { useState } from 'react';
@@ -88,7 +88,46 @@ export const TaskCard = ({ task, onEdit, onDelete, showProject = false }) => {
 
   return (
     <div className={`bg-gray-800 border-l-4 ${getPriorityColor(task.priority)} rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow`}>
-      {/* En-tête avec titre et statut */}
+      {/* Actions */}
+      <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-700">
+        
+        {/* Boutons d'action à gauche */}
+        <div className="flex space-x-2">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(task)}
+              className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition-colors"
+              title="Modifier la tâche"
+            >
+              <Edit size={16} />
+            </button>
+          )}
+          
+          {onDelete && (
+            <button
+              onClick={() => onDelete(task)}
+              className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg transition-colors"
+              title="Supprimer la tâche"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+
+        {/* Bouton de soumission pour validation à droite */}
+        <div className="flex-shrink-0">
+          <SubmitTaskButton 
+            task={task}
+            onSubmissionSuccess={handleSubmissionSuccess}
+            size="default"
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TaskCard; En-tête avec titre et statut */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <h3 className="text-lg font-semibold text-white mb-2 leading-tight">
@@ -208,43 +247,4 @@ export const TaskCard = ({ task, onEdit, onDelete, showProject = false }) => {
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-700">
-        
-        {/* Boutons d'action à gauche */}
-        <div className="flex space-x-2">
-          {onEdit && (
-            <button
-              onClick={() => onEdit(task)}
-              className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition-colors"
-              title="Modifier la tâche"
-            >
-              <Edit size={16} />
-            </button>
-          )}
-          
-          {onDelete && (
-            <button
-              onClick={() => onDelete(task)}
-              className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg transition-colors"
-              title="Supprimer la tâche"
-            >
-              <Trash2 size={16} />
-            </button>
-          )}
-        </div>
-
-        {/* Bouton de soumission pour validation à droite */}
-        <div className="flex-shrink-0">
-          <SubmitTaskButton 
-            task={task}
-            onSubmissionSuccess={handleSubmissionSuccess}
-            size="default"
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default TaskCard;
+      {/*
