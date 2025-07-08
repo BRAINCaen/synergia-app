@@ -1,23 +1,40 @@
-// react-app/src/routes/index.jsx
+// 📁 react-app/src/routes/index.jsx
+// ROUTES COMPLÈTES AVEC TOUTES LES PAGES
+// ==========================================
+
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '../shared/stores/authStore.js'
 import { ROUTES } from '../core/constants.js'
 
-// Pages
+// Pages principales
 import Login from '../pages/Login.jsx'
 import Dashboard from '../pages/Dashboard.jsx'
 import NotFound from '../pages/NotFound.jsx'
 import Analytics from '../pages/Analytics.jsx'
-import TeamPage from '../pages/TeamPage.jsx' // ⭐ NOUVEAU : Page équipe
+import TeamPage from '../pages/TeamPage.jsx'
 
-// Components
+// Pages existantes mais pas dans les routes
+import TasksPage from '../pages/TasksPage.jsx'
+import ProjectsPage from '../pages/ProjectsPage.jsx'
+import GamificationPage from '../pages/GamificationPage.jsx'
+import BadgesPage from '../pages/BadgesPage.jsx'
+import UsersPage from '../pages/UsersPage.jsx'
+import OnboardingPage from '../pages/OnboardingPage.jsx'
+import TimeTrackPage from '../pages/TimeTrackPage.jsx'
+import ProfilePage from '../pages/ProfilePage.jsx'
+import SettingsPage from '../pages/SettingsPage.jsx'
+import RewardsPage from '../pages/RewardsPage.jsx'
+
+// Pages admin existantes mais pas routées
+import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx'
+import CompleteAdminTestPage from '../pages/CompleteAdminTestPage.jsx'
+
+// Components utilisés comme pages
 import TaskList from '../modules/tasks/TaskList.jsx'
 import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
 import Leaderboard from '../components/gamification/Leaderboard.jsx'
 import Profile from '../modules/profile/components/Profile.jsx'
-
-// Import DEFAULT au lieu de nommé
 import ProjectDashboard from '../modules/projects/ProjectDashboard.jsx'
 
 // Protected Route Component
@@ -42,7 +59,7 @@ function ProtectedRoute({ children }) {
   return children
 }
 
-// Public Route Component (redirect if authenticated)
+// Public Route Component
 function PublicRoute({ children }) {
   const { user, loading } = useAuthStore()
   
@@ -77,7 +94,7 @@ export default function AppRoutes() {
         } 
       />
       
-      {/* Protected Routes */}
+      {/* Protected Main Routes */}
       <Route 
         path={ROUTES.DASHBOARD} 
         element={
@@ -87,11 +104,12 @@ export default function AppRoutes() {
         } 
       />
       
+      {/* ROUTES RECONNECTÉES - Utilise les vraies pages */}
       <Route 
         path={ROUTES.TASKS} 
         element={
           <ProtectedRoute>
-            <TaskList />
+            <TasksPage />
           </ProtectedRoute>
         } 
       />
@@ -100,17 +118,34 @@ export default function AppRoutes() {
         path={ROUTES.PROJECTS} 
         element={
           <ProtectedRoute>
-            <ProjectDashboard />
+            <ProjectsPage />
           </ProtectedRoute>
         } 
       />
       
-      {/* ⭐ NOUVEAU : Route équipe collaborative */}
       <Route 
-        path="/team" 
+        path={ROUTES.ANALYTICS} 
         element={
           <ProtectedRoute>
-            <TeamPage />
+            <Analytics />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.GAMIFICATION} 
+        element={
+          <ProtectedRoute>
+            <GamificationPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.BADGES} 
+        element={
+          <ProtectedRoute>
+            <BadgesPage />
           </ProtectedRoute>
         } 
       />
@@ -125,39 +160,90 @@ export default function AppRoutes() {
       />
       
       <Route 
+        path={ROUTES.TEAM} 
+        element={
+          <ProtectedRoute>
+            <TeamPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.USERS} 
+        element={
+          <ProtectedRoute>
+            <UsersPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.ONBOARDING} 
+        element={
+          <ProtectedRoute>
+            <OnboardingPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.TIMETRACK} 
+        element={
+          <ProtectedRoute>
+            <TimeTrackPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
         path={ROUTES.PROFILE} 
         element={
           <ProtectedRoute>
-            <Profile />
+            <ProfilePage />
           </ProtectedRoute>
         } 
       />
       
-      {/* Analytics route */}
       <Route 
-        path={ROUTES.ANALYTICS} 
+        path={ROUTES.SETTINGS} 
         element={
           <ProtectedRoute>
-            <Analytics />
+            <SettingsPage />
           </ProtectedRoute>
         } 
       />
       
-      {/* Gamification route */}
       <Route 
-        path={ROUTES.GAMIFICATION} 
+        path={ROUTES.REWARDS} 
         element={
           <ProtectedRoute>
-            <BadgeCollection />
+            <RewardsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* ROUTES ADMIN RECONNECTÉES */}
+      <Route 
+        path={ROUTES.ADMIN_TASK_VALIDATION} 
+        element={
+          <ProtectedRoute>
+            <AdminTaskValidationPage />
           </ProtectedRoute>
         } 
       />
       
-      {/* Default redirect */}
+      <Route 
+        path={ROUTES.ADMIN_COMPLETE_TEST} 
+        element={
+          <ProtectedRoute>
+            <CompleteAdminTestPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* Fallback */}
       <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
-      
-      {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   )
-}
+}`;
