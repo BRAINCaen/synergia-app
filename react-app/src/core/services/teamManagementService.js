@@ -159,26 +159,24 @@ class TeamManagementService {
       const team = projectData.team || [];
       
       // Vérifier que le membre existe
-      const memberExists = team.some(member => member.userId === userId);
-      if (!memberExists) {
+      const memberIndex = team.findIndex(member => member.userId === userId);
+      if (memberIndex === -1) {
         throw new Error('Membre non trouvé dans l\'équipe');
       }
       
-      // Mettre à jour le rôle du membre
-      const updatedTeam = team.map(member => {
-        if (member.userId === userId) {
-          return {
-            ...member,
-            role: newRole,
-            permissions: ROLE_PERMISSIONS[newRole] || [],
-            updatedAt: serverTimestamp(),
-            roleUpdatedBy: 'system' // TODO: ajouter l'ID de l'utilisateur qui fait la modification
-          };
-        }
-        return member;
-      });
+      // Créer une copie du tableau team pour éviter les mutations
+      const updatedTeam = [...team];
       
-      // Sauvegarder dans Firestore
+      // Mettre à jour le membre spécifique
+      updatedTeam[memberIndex] = {
+        ...updatedTeam[memberIndex],
+        role: newRole,
+        permissions: ROLE_PERMISSIONS[newRole] || [],
+        updatedAt: new Date().toISOString(), // Utiliser une date JS normale
+        roleUpdatedBy: 'system' // TODO: ajouter l'ID de l'utilisateur qui fait la modification
+      };
+      
+      // Sauvegarder dans Firestore avec le tableau complet
       await updateDoc(projectRef, {
         team: updatedTeam,
         updatedAt: serverTimestamp()
@@ -233,22 +231,38 @@ class TeamManagementService {
         displayName: userData.displayName || userData.email.split('@')[0],
         role: role,
         permissions: ROLE_PERMISSIONS[role] || permissions,
-        joinedAt: serverTimestamp(),
+        joinedAt: new Date().toISOString(), // Utiliser une date JS normale
         isActive: true,
         invitedBy: null // TODO: ajouter l'ID de l'utilisateur qui invite
       };
       
+      // Créer un nouveau tableau team avec le nouveau membre
+      const updatedTeam = [...currentTeam, newMember];
+      
       // Ajouter à l'équipe du projet
       await updateDoc(doc(db, 'projects', projectId), {
-        team: arrayUnion(newMember),
+        team: updatedTeam,
         updatedAt: serverTimestamp()
       });
       
       // Ajouter le projet aux projets de l'utilisateur
-      await updateDoc(doc(db, 'users', userId), {
-        projects: arrayUnion(projectId),
-        updatedAt: serverTimestamp()
-      });
+      try {
+        const userRef = doc(db, 'users', userId);
+        const userDocData = await getDoc(userRef);
+        
+        if (userDocData.exists()) {
+          const existingProjects = userDocData.data().projects || [];
+          if (!existingProjects.includes(projectId)) {
+            const updatedUserProjects = [...existingProjects, projectId];
+            await updateDoc(userRef, {
+              projects: updatedUserProjects,
+              updatedAt: serverTimestamp()
+            });
+          }
+        }
+      } catch (userError) {
+        console.warn('⚠️ Erreur mise à jour projets utilisateur:', userError);
+      }
       
       console.log('✅ Membre ajouté avec succès');
       return { success: true, member: newMember };
@@ -290,8 +304,13 @@ class TeamManagementService {
       const projectData = projectDoc.data();
       const team = projectData.team || [];
       
-      // Retirer le membre de l'équipe
+      // Créer un nouveau tableau sans le membre à supprimer
       const updatedTeam = team.filter(member => member.userId !== userId);
+      
+      // Vérifier que le membre était bien dans l'équipe
+      if (updatedTeam.length === team.length) {
+        throw new Error('Membre non trouvé dans l\'équipe');
+      }
       
       await updateDoc(projectRef, {
         team: updatedTeam,
@@ -300,10 +319,19 @@ class TeamManagementService {
       
       // Retirer le projet de la liste de l'utilisateur
       try {
-        await updateDoc(doc(db, 'users', userId), {
-          projects: arrayRemove(projectId),
-          updatedAt: serverTimestamp()
-        });
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const userProjects = userData.projects || [];
+          const updatedUserProjects = userProjects.filter(id => id !== projectId);
+          
+          await updateDoc(userRef, {
+            projects: updatedUserProjects,
+            updatedAt: serverTimestamp()
+          });
+        }
       } catch (userError) {
         console.warn('⚠️ Erreur mise à jour utilisateur:', userError);
       }
