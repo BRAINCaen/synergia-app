@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/teamManagementService.js
-// SERVICE GESTION D'ÉQUIPE - CORRECTION RÉELLE DU PROBLÈME
+// SERVICE GESTION D'ÉQUIPE - VERSION CORRIGÉE AVEC ASSIGNROLE
 // ==========================================
 
 import { 
@@ -11,60 +11,194 @@ import {
   deleteDoc, 
   getDocs, 
   getDoc, 
-  setDoc,
   query, 
   where, 
   orderBy,
+  limit,
   onSnapshot,
   serverTimestamp,
   arrayUnion,
-  arrayRemove
+  arrayRemove,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
+// ✅ CONSTANTES RÔLES ET PERMISSIONS
+export const TEAM_ROLES = {
+  OWNER: 'owner',
+  MANAGER: 'manager',
+  LEAD: 'lead',
+  CONTRIBUTOR: 'contributor',
+  OBSERVER: 'observer'
+};
+
+export const TEAM_PERMISSIONS = {
+  MANAGE_TEAM: 'manage_team',
+  MANAGE_TASKS: 'manage_tasks',
+  MANAGE_PROJECTS: 'manage_projects',
+  VIEW_ANALYTICS: 'view_analytics',
+  MANAGE_SETTINGS: 'manage_settings'
+};
+
+const ROLE_PERMISSIONS = {
+  [TEAM_ROLES.OWNER]: [
+    TEAM_PERMISSIONS.MANAGE_TEAM,
+    TEAM_PERMISSIONS.MANAGE_TASKS,
+    TEAM_PERMISSIONS.MANAGE_PROJECTS,
+    TEAM_PERMISSIONS.VIEW_ANALYTICS,
+    TEAM_PERMISSIONS.MANAGE_SETTINGS
+  ],
+  [TEAM_ROLES.MANAGER]: [
+    TEAM_PERMISSIONS.MANAGE_TEAM,
+    TEAM_PERMISSIONS.MANAGE_TASKS,
+    TEAM_PERMISSIONS.VIEW_ANALYTICS
+  ],
+  [TEAM_ROLES.LEAD]: [
+    TEAM_PERMISSIONS.MANAGE_TASKS,
+    TEAM_PERMISSIONS.VIEW_ANALYTICS
+  ],
+  [TEAM_ROLES.CONTRIBUTOR]: [
+    TEAM_PERMISSIONS.MANAGE_TASKS
+  ],
+  [TEAM_ROLES.OBSERVER]: []
+};
+
 /**
- * 👥 SERVICE DE GESTION D'ÉQUIPE - VERSION CORRIGÉE
+ * 👥 SERVICE DE GESTION D'ÉQUIPE
+ * Gestion des membres, rôles, permissions et collaboration
  */
 class TeamManagementService {
   constructor() {
     this.listeners = new Map();
-    console.log('👥 TeamManagementService initialisé - Version corrigée');
   }
 
   /**
-   * 🎭 ASSIGNER UN RÔLE - FONCTION CORRIGÉE
+   * 📋 RÉCUPÉRER L'ÉQUIPE D'UN PROJET
    */
-  async assignRole(userId, roleId, assignedBy) {
+  async getProjectTeam(projectId) {
     try {
-      console.log('🎭 [CORRIGÉ] Assignation rôle:', { userId, roleId, assignedBy });
+      console.log('🔍 Récupération équipe projet:', projectId);
       
-      // ✅ SOLUTION 1: Utiliser setDoc au lieu d'arrayUnion
-      const memberRef = doc(db, 'teamMembers', userId);
+      const projectDoc = await getDoc(doc(db, 'projects', projectId));
       
-      await setDoc(memberRef, {
-        userId: userId,
-        roleId: roleId,
-        assignedBy: assignedBy,
-        assignedAt: serverTimestamp(), // ✅ OK avec setDoc
-        isActive: true,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
+      if (!projectDoc.exists()) {
+        console.warn('❌ Projet introuvable:', projectId);
+        return [];
+      }
       
-      console.log('✅ [CORRIGÉ] Rôle assigné avec succès');
-      return { success: true, roleId, userId };
+      const projectData = projectDoc.data();
+      const team = projectData.team || [];
+      
+      // Enrichir les données membres avec infos utilisateur
+      const enrichedTeam = await Promise.all(
+        team.map(async (member) => {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', member.userId));
+            const userData = userDoc.exists() ? userDoc.data() : {};
+            
+            return {
+              ...member,
+              id: member.userId, // Alias pour compatibilité
+              displayName: userData.displayName || member.displayName || 'Utilisateur Inconnu',
+              email: userData.email || member.email || '',
+              avatar: userData.avatar || null,
+              photoURL: userData.photoURL || null,
+              isActive: userData.isActive !== false,
+              lastActivity: userData.lastActivity || null,
+              xpTotal: userData.xpTotal || 0,
+              level: userData.level || 1,
+              teamRole: member.role || TEAM_ROLES.CONTRIBUTOR, // Normaliser le nom du rôle
+              role: member.role || TEAM_ROLES.CONTRIBUTOR, // Garder les deux pour compatibilité
+              permissions: ROLE_PERMISSIONS[member.role] || [],
+              joinedAt: member.joinedAt
+            };
+          } catch (error) {
+            console.warn('⚠️ Erreur enrichissement membre:', member.userId, error);
+            return {
+              ...member,
+              id: member.userId,
+              displayName: member.displayName || 'Utilisateur Inconnu',
+              isActive: true,
+              teamRole: member.role || TEAM_ROLES.CONTRIBUTOR,
+              role: member.role || TEAM_ROLES.CONTRIBUTOR,
+              permissions: ROLE_PERMISSIONS[member.role] || []
+            };
+          }
+        })
+      );
+      
+      console.log('✅ Équipe chargée:', enrichedTeam.length, 'membres');
+      return enrichedTeam;
       
     } catch (error) {
-      console.error('❌ [CORRIGÉ] Erreur assignation rôle:', error);
-      return { success: false, error: error.message };
+      console.error('❌ Erreur récupération équipe:', error);
+      return [];
     }
   }
 
   /**
-   * 👤 AJOUTER UN MEMBRE À L'ÉQUIPE - VERSION CORRIGÉE
+   * 🎯 ASSIGNER UN RÔLE À UN MEMBRE (FONCTION MANQUANTE CRITIQUE)
    */
-  async addTeamMember(projectId, userEmail, role = 'contributor', permissions = []) {
+  async assignRole(projectId, userId, newRole) {
     try {
-      console.log('➕ [CORRIGÉ] Ajout membre équipe:', { projectId, userEmail, role });
+      console.log('🎯 Assignation rôle:', { projectId, userId, newRole });
+      
+      // Validation du rôle
+      if (!Object.values(TEAM_ROLES).includes(newRole)) {
+        throw new Error('Rôle invalide');
+      }
+      
+      const projectRef = doc(db, 'projects', projectId);
+      const projectDoc = await getDoc(projectRef);
+      
+      if (!projectDoc.exists()) {
+        throw new Error('Projet introuvable');
+      }
+      
+      const projectData = projectDoc.data();
+      const team = projectData.team || [];
+      
+      // Vérifier que le membre existe
+      const memberExists = team.some(member => member.userId === userId);
+      if (!memberExists) {
+        throw new Error('Membre non trouvé dans l\'équipe');
+      }
+      
+      // Mettre à jour le rôle du membre
+      const updatedTeam = team.map(member => {
+        if (member.userId === userId) {
+          return {
+            ...member,
+            role: newRole,
+            permissions: ROLE_PERMISSIONS[newRole] || [],
+            updatedAt: serverTimestamp(),
+            roleUpdatedBy: 'system' // TODO: ajouter l'ID de l'utilisateur qui fait la modification
+          };
+        }
+        return member;
+      });
+      
+      // Sauvegarder dans Firestore
+      await updateDoc(projectRef, {
+        team: updatedTeam,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Rôle assigné avec succès');
+      return { success: true, newRole };
+      
+    } catch (error) {
+      console.error('❌ Erreur assignation rôle:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 👤 AJOUTER UN MEMBRE À L'ÉQUIPE
+   */
+  async addTeamMember(projectId, userEmail, role = TEAM_ROLES.CONTRIBUTOR, permissions = []) {
+    try {
+      console.log('➕ Ajout membre équipe:', { projectId, userEmail, role });
       
       // Trouver l'utilisateur par email
       const usersQuery = query(
@@ -92,25 +226,22 @@ class TeamManagementService {
         throw new Error('Cette personne fait déjà partie de l\'équipe');
       }
       
-      // ✅ CORRECTION: Créer le membre SANS serverTimestamp pour arrayUnion
+      // Préparer le nouveau membre
       const newMember = {
         userId: userId,
         email: userData.email,
         displayName: userData.displayName || userData.email.split('@')[0],
         role: role,
-        permissions: permissions,
-        joinedAt: new Date().toISOString(), // ✅ String timestamp à la place
+        permissions: ROLE_PERMISSIONS[role] || permissions,
+        joinedAt: serverTimestamp(),
         isActive: true,
-        invitedBy: null
+        invitedBy: null // TODO: ajouter l'ID de l'utilisateur qui invite
       };
       
-      // ✅ SOLUTION 2: Utiliser la méthode "remplacer le tableau complet"
-      const updatedTeam = [...currentTeam, newMember];
-      
+      // Ajouter à l'équipe du projet
       await updateDoc(doc(db, 'projects', projectId), {
-        team: updatedTeam, // ✅ Remplacer le tableau complet
-        updatedAt: serverTimestamp(), // ✅ OK ici
-        teamSize: updatedTeam.length
+        team: arrayUnion(newMember),
+        updatedAt: serverTimestamp()
       });
       
       // Ajouter le projet aux projets de l'utilisateur
@@ -119,69 +250,35 @@ class TeamManagementService {
         updatedAt: serverTimestamp()
       });
       
-      console.log('✅ [CORRIGÉ] Membre ajouté avec succès');
+      console.log('✅ Membre ajouté avec succès');
       return { success: true, member: newMember };
       
     } catch (error) {
-      console.error('❌ [CORRIGÉ] Erreur ajout membre:', error);
+      console.error('❌ Erreur ajout membre:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * 🔄 MODIFIER LE RÔLE D'UN MEMBRE - VERSION CORRIGÉE
+   * 🔄 MODIFIER LE RÔLE D'UN MEMBRE (ALIAS POUR COMPATIBILITÉ)
    */
   async updateMemberRole(projectId, userId, newRole, newPermissions = []) {
-    try {
-      console.log('🔄 [CORRIGÉ] Modification rôle membre:', { projectId, userId, newRole });
-      
-      const projectRef = doc(db, 'projects', projectId);
-      const projectDoc = await getDoc(projectRef);
-      
-      if (!projectDoc.exists()) {
-        throw new Error('Projet introuvable');
-      }
-      
-      const projectData = projectDoc.data();
-      const team = projectData.team || [];
-      
-      // Trouver et modifier le membre
-      const memberIndex = team.findIndex(m => m.userId === userId);
-      if (memberIndex === -1) {
-        throw new Error('Membre non trouvé dans l\'équipe');
-      }
-      
-      // ✅ CORRECTION: Créer la nouvelle équipe sans serverTimestamp dans l'objet
-      const updatedTeam = [...team];
-      updatedTeam[memberIndex] = {
-        ...updatedTeam[memberIndex],
-        role: newRole,
-        permissions: newPermissions,
-        roleUpdatedAt: new Date().toISOString(), // ✅ String timestamp
-        roleUpdatedBy: userId
-      };
-      
-      // ✅ Remplacer le tableau complet
-      await updateDoc(projectRef, {
-        team: updatedTeam,
-        updatedAt: serverTimestamp() // ✅ OK ici
-      });
-      
-      console.log('✅ [CORRIGÉ] Rôle modifié avec succès');
-      return { success: true };
-      
-    } catch (error) {
-      console.error('❌ [CORRIGÉ] Erreur modification rôle:', error);
-      return { success: false, error: error.message };
-    }
+    return await this.assignRole(projectId, userId, newRole);
   }
 
   /**
-   * 🗑️ RETIRER UN MEMBRE DE L'ÉQUIPE - VERSION CORRIGÉE
+   * 🔄 METTRE À JOUR LE RÔLE D'UN MEMBRE (AUTRE ALIAS)
+   */
+  async updateTeamRole(projectId, currentUserId, memberId, newRole) {
+    return await this.assignRole(projectId, memberId, newRole);
+  }
+
+  /**
+   * 🗑️ RETIRER UN MEMBRE DE L'ÉQUIPE
    */
   async removeMember(projectId, userId) {
     try {
-      console.log('🗑️ [CORRIGÉ] Suppression membre:', { projectId, userId });
+      console.log('🗑️ Suppression membre:', { projectId, userId });
       
       const projectRef = doc(db, 'projects', projectId);
       const projectDoc = await getDoc(projectRef);
@@ -193,13 +290,12 @@ class TeamManagementService {
       const projectData = projectDoc.data();
       const team = projectData.team || [];
       
-      // ✅ CORRECTION: Filtrer l'équipe au lieu d'utiliser arrayRemove
+      // Retirer le membre de l'équipe
       const updatedTeam = team.filter(member => member.userId !== userId);
       
       await updateDoc(projectRef, {
         team: updatedTeam,
-        updatedAt: serverTimestamp(),
-        teamSize: updatedTeam.length
+        updatedAt: serverTimestamp()
       });
       
       // Retirer le projet de la liste de l'utilisateur
@@ -209,146 +305,103 @@ class TeamManagementService {
           updatedAt: serverTimestamp()
         });
       } catch (userError) {
-        console.warn('⚠️ [CORRIGÉ] Erreur mise à jour utilisateur:', userError);
+        console.warn('⚠️ Erreur mise à jour utilisateur:', userError);
       }
       
-      console.log('✅ [CORRIGÉ] Membre retiré avec succès');
+      console.log('✅ Membre retiré avec succès');
       return { success: true };
       
     } catch (error) {
-      console.error('❌ [CORRIGÉ] Erreur suppression membre:', error);
+      console.error('❌ Erreur suppression membre:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * 📋 RÉCUPÉRER L'ÉQUIPE D'UN PROJET
+   * 🗑️ RETIRER UN MEMBRE DE L'ÉQUIPE (ALIAS)
    */
-  async getProjectTeam(projectId) {
+  async removeTeamMember(projectId, currentUserId, memberId) {
+    return await this.removeMember(projectId, memberId);
+  }
+
+  /**
+   * 🔄 TRANSFÉRER LA PROPRIÉTÉ DU PROJET
+   */
+  async transferProjectOwnership(projectId, currentOwnerId, newOwnerId) {
     try {
-      console.log('🔍 [CORRIGÉ] Récupération équipe projet:', projectId);
+      console.log('🔄 Transfert propriété:', { projectId, currentOwnerId, newOwnerId });
       
-      const projectDoc = await getDoc(doc(db, 'projects', projectId));
+      const batch = writeBatch(db);
       
-      if (!projectDoc.exists()) {
-        console.warn('❌ [CORRIGÉ] Projet introuvable:', projectId);
-        return [];
-      }
+      // Mettre à jour le propriétaire du projet
+      const projectRef = doc(db, 'projects', projectId);
+      batch.update(projectRef, {
+        ownerId: newOwnerId,
+        updatedAt: serverTimestamp()
+      });
       
+      // Mettre à jour les rôles dans l'équipe
+      const projectDoc = await getDoc(projectRef);
       const projectData = projectDoc.data();
       const team = projectData.team || [];
       
-      // Enrichir les données membres avec infos utilisateur
-      const enrichedTeam = await Promise.all(
-        team.map(async (member) => {
-          try {
-            const userDoc = await getDoc(doc(db, 'users', member.userId));
-            const userData = userDoc.exists() ? userDoc.data() : {};
-            
-            return {
-              ...member,
-              displayName: userData.displayName || member.displayName || 'Utilisateur Inconnu',
-              email: userData.email || member.email || '',
-              avatar: userData.avatar || null,
-              isActive: userData.isActive !== false,
-              lastActivity: userData.lastActivity || null,
-              xpTotal: userData.xpTotal || 0
-            };
-          } catch (error) {
-            console.warn('⚠️ [CORRIGÉ] Erreur enrichissement membre:', member.userId, error);
-            return {
-              ...member,
-              displayName: member.displayName || 'Utilisateur Inconnu',
-              isActive: true
-            };
-          }
-        })
-      );
+      const updatedTeam = team.map(member => {
+        if (member.userId === newOwnerId) {
+          return { ...member, role: TEAM_ROLES.OWNER };
+        }
+        if (member.userId === currentOwnerId) {
+          return { ...member, role: TEAM_ROLES.MANAGER };
+        }
+        return member;
+      });
       
-      console.log('✅ [CORRIGÉ] Équipe chargée:', enrichedTeam.length, 'membres');
-      return enrichedTeam;
+      batch.update(projectRef, {
+        team: updatedTeam,
+        ownerId: newOwnerId,
+        updatedAt: serverTimestamp()
+      });
+      
+      await batch.commit();
+      
+      console.log('✅ Propriété transférée avec succès');
+      return { success: true };
       
     } catch (error) {
-      console.error('❌ [CORRIGÉ] Erreur récupération équipe:', error);
-      return [];
+      console.error('❌ Erreur transfert propriété:', error);
+      return { success: false, error: error.message };
     }
   }
 
   /**
-   * 👥 OBTENIR LES MEMBRES PAR RÔLE
+   * 📧 INVITER DES MEMBRES À L'ÉQUIPE
    */
-  async getMembersByRole(roleId) {
+  async inviteTeamMembers(projectId, inviterId, emails, role = TEAM_ROLES.CONTRIBUTOR) {
     try {
-      console.log('🔍 [CORRIGÉ] Récupération membres par rôle:', roleId);
+      console.log('📧 Invitation membres:', { projectId, emails, role });
       
-      const membersQuery = query(
-        collection(db, 'teamMembers'),
-        where('roleId', '==', roleId),
-        where('isActive', '==', true)
-      );
+      const results = [];
       
-      const querySnapshot = await getDocs(membersQuery);
-      const members = [];
-      
-      querySnapshot.forEach((doc) => {
-        const memberData = doc.data();
-        members.push({
-          id: doc.id,
-          ...memberData
-        });
-      });
-      
-      console.log(`✅ [CORRIGÉ] ${members.length} membres trouvés pour le rôle ${roleId}`);
-      return members;
-      
-    } catch (error) {
-      console.error('❌ [CORRIGÉ] Erreur récupération membres par rôle:', error);
-      return [];
-    }
-  }
-
-  /**
-   * 📊 STATISTIQUES DE L'ÉQUIPE
-   */
-  async getTeamStats(projectId) {
-    try {
-      const team = await this.getProjectTeam(projectId);
-      
-      const stats = {
-        totalMembers: team.length,
-        activeMembers: team.filter(m => m.isActive).length,
-        roleDistribution: {},
-        averageXp: 0,
-        mostActiveMembers: []
-      };
-      
-      // Distribution des rôles
-      team.forEach(member => {
-        stats.roleDistribution[member.role] = (stats.roleDistribution[member.role] || 0) + 1;
-      });
-      
-      // XP moyenne
-      if (team.length > 0) {
-        const totalXp = team.reduce((sum, member) => sum + (member.xpTotal || 0), 0);
-        stats.averageXp = Math.round(totalXp / team.length);
+      for (const email of emails) {
+        try {
+          const result = await this.addTeamMember(projectId, email, role);
+          results.push({ email, ...result });
+        } catch (error) {
+          results.push({ email, success: false, error: error.message });
+        }
       }
       
-      // Membres les plus actifs (basé sur XP)
-      stats.mostActiveMembers = team
-        .sort((a, b) => (b.xpTotal || 0) - (a.xpTotal || 0))
-        .slice(0, 3)
-        .map(member => ({
-          userId: member.userId,
-          displayName: member.displayName,
-          role: member.role,
-          xpTotal: member.xpTotal || 0
-        }));
+      const successCount = results.filter(r => r.success).length;
       
-      return stats;
+      return {
+        success: successCount > 0,
+        results,
+        successCount,
+        totalCount: emails.length
+      };
       
     } catch (error) {
-      console.error('❌ [CORRIGÉ] Erreur stats équipe:', error);
-      return null;
+      console.error('❌ Erreur invitation membres:', error);
+      return { success: false, error: error.message };
     }
   }
 
@@ -357,11 +410,12 @@ class TeamManagementService {
    */
   async searchUsers(searchTerm, limit = 10) {
     try {
-      console.log('🔍 [CORRIGÉ] Recherche utilisateurs:', searchTerm);
+      console.log('🔍 Recherche utilisateurs:', searchTerm);
       
       const usersQuery = query(
         collection(db, 'users'),
-        limit(50) // Récupérer plus d'utilisateurs pour filtrer côté client
+        orderBy('displayName'),
+        limit(limit)
       );
       
       const snapshot = await getDocs(usersQuery);
@@ -372,7 +426,7 @@ class TeamManagementService {
         const displayName = userData.displayName || '';
         const email = userData.email || '';
         
-        // Filtrage côté client
+        // Filtrage côté client (à améliorer avec recherche serveur)
         if (
           displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -390,9 +444,78 @@ class TeamManagementService {
       return users.slice(0, limit);
       
     } catch (error) {
-      console.error('❌ [CORRIGÉ] Erreur recherche utilisateurs:', error);
+      console.error('❌ Erreur recherche utilisateurs:', error);
       return [];
     }
+  }
+
+  /**
+   * 🔐 VÉRIFIER LES PERMISSIONS D'ACTION
+   */
+  checkActionPermission(userRole, action) {
+    const permissions = ROLE_PERMISSIONS[userRole] || [];
+    return permissions.includes(action);
+  }
+
+  /**
+   * 🎨 OBTENIR LA COULEUR D'UN RÔLE
+   */
+  getRoleColor(role) {
+    const colors = {
+      [TEAM_ROLES.OWNER]: 'bg-red-100 text-red-800',
+      [TEAM_ROLES.MANAGER]: 'bg-purple-100 text-purple-800',
+      [TEAM_ROLES.LEAD]: 'bg-blue-100 text-blue-800',
+      [TEAM_ROLES.CONTRIBUTOR]: 'bg-green-100 text-green-800',
+      [TEAM_ROLES.OBSERVER]: 'bg-gray-100 text-gray-800'
+    };
+    return colors[role] || 'bg-gray-100 text-gray-800';
+  }
+
+  /**
+   * 🎯 OBTENIR L'ICÔNE D'UN RÔLE
+   */
+  getRoleIcon(role) {
+    const icons = {
+      [TEAM_ROLES.OWNER]: '👑',
+      [TEAM_ROLES.MANAGER]: '⚡',
+      [TEAM_ROLES.LEAD]: '🎯',
+      [TEAM_ROLES.CONTRIBUTOR]: '👤',
+      [TEAM_ROLES.OBSERVER]: '👁️'
+    };
+    return icons[role] || '👤';
+  }
+
+  /**
+   * 📝 OBTENIR LES RÔLES DISPONIBLES
+   */
+  getAvailableRoles() {
+    return [
+      {
+        value: TEAM_ROLES.OWNER,
+        label: 'Propriétaire',
+        description: 'Contrôle total du projet'
+      },
+      {
+        value: TEAM_ROLES.MANAGER,
+        label: 'Manager',
+        description: 'Gestion équipe et tâches'
+      },
+      {
+        value: TEAM_ROLES.LEAD,
+        label: 'Leader',
+        description: 'Gestion des tâches'
+      },
+      {
+        value: TEAM_ROLES.CONTRIBUTOR,
+        label: 'Contributeur',
+        description: 'Participation aux tâches'
+      },
+      {
+        value: TEAM_ROLES.OBSERVER,
+        label: 'Observateur',
+        description: 'Accès lecture seule'
+      }
+    ];
   }
 
   /**
@@ -407,42 +530,15 @@ class TeamManagementService {
           const team = doc.data().team || [];
           callback(team);
         }
-      }, (error) => {
-        console.error('❌ [CORRIGÉ] Erreur listener équipe:', error);
       });
       
       this.listeners.set(projectId, unsubscribe);
       return unsubscribe;
       
     } catch (error) {
-      console.error('❌ [CORRIGÉ] Erreur listener équipe:', error);
+      console.error('❌ Erreur listener équipe:', error);
       return null;
     }
-  }
-
-  /**
-   * 🏷️ RÔLES DISPONIBLES
-   */
-  getAvailableRoles() {
-    return [
-      { value: 'maintenance', label: 'Entretien, Réparations & Maintenance', icon: '🔧' },
-      { value: 'reputation', label: 'Gestion des Avis & de la Réputation', icon: '⭐' },
-      { value: 'stock', label: 'Gestion des Stocks & Matériel', icon: '📦' },
-      { value: 'admin', label: 'Administrateur', icon: '👑' }
-    ];
-  }
-
-  /**
-   * 🎨 COULEUR DU RÔLE
-   */
-  getRoleColor(role) {
-    const colors = {
-      maintenance: 'bg-orange-100 text-orange-800',
-      reputation: 'bg-yellow-100 text-yellow-800',
-      stock: 'bg-blue-100 text-blue-800',
-      admin: 'bg-purple-100 text-purple-800'
-    };
-    return colors[role] || 'bg-gray-100 text-gray-800';
   }
 
   /**
