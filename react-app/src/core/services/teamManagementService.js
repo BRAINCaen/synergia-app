@@ -1,84 +1,89 @@
 // ==========================================
 // 📁 react-app/src/core/services/teamManagementService.js
-// Service de gestion d'équipe CORRIGÉ - Sans erreurs Firebase
+// SERVICE GESTION D'ÉQUIPE - CORRECTION RÉELLE DU PROBLÈME
 // ==========================================
 
 import { 
   collection, 
   doc, 
-  getDoc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
   getDocs, 
-  updateDoc,
+  getDoc, 
+  setDoc,
   query, 
   where, 
-  orderBy, 
-  limit,
+  orderBy,
   onSnapshot,
+  serverTimestamp,
   arrayUnion,
-  arrayRemove,
-  serverTimestamp
+  arrayRemove
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
 /**
- * 🏢 SERVICE DE GESTION D'ÉQUIPE CORRIGÉ
+ * 👥 SERVICE DE GESTION D'ÉQUIPE - VERSION CORRIGÉE
  */
 class TeamManagementService {
   constructor() {
     this.listeners = new Map();
+    console.log('👥 TeamManagementService initialisé - Version corrigée');
   }
 
   /**
-   * 👥 RÉCUPÉRER L'ÉQUIPE D'UN PROJET
+   * 🎭 ASSIGNER UN RÔLE - FONCTION CORRIGÉE
    */
-  async getProjectTeam(projectId) {
+  async assignRole(userId, roleId, assignedBy) {
     try {
-      console.log('👥 Récupération équipe projet:', projectId);
+      console.log('🎭 [CORRIGÉ] Assignation rôle:', { userId, roleId, assignedBy });
       
-      const projectRef = doc(db, 'projects', projectId);
-      const projectDoc = await getDoc(projectRef);
+      // ✅ SOLUTION 1: Utiliser setDoc au lieu d'arrayUnion
+      const memberRef = doc(db, 'teamMembers', userId);
       
-      if (!projectDoc.exists()) {
-        console.log('⚠️ Projet introuvable');
-        return [];
-      }
+      await setDoc(memberRef, {
+        userId: userId,
+        roleId: roleId,
+        assignedBy: assignedBy,
+        assignedAt: serverTimestamp(), // ✅ OK avec setDoc
+        isActive: true,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
       
-      const team = projectDoc.data().team || [];
-      console.log(`✅ ${team.length} membres dans l'équipe`);
-      
-      return team;
+      console.log('✅ [CORRIGÉ] Rôle assigné avec succès');
+      return { success: true, roleId, userId };
       
     } catch (error) {
-      console.error('❌ Erreur récupération équipe:', error);
-      return [];
+      console.error('❌ [CORRIGÉ] Erreur assignation rôle:', error);
+      return { success: false, error: error.message };
     }
   }
 
   /**
-   * ➕ AJOUTER UN MEMBRE À L'ÉQUIPE
+   * 👤 AJOUTER UN MEMBRE À L'ÉQUIPE - VERSION CORRIGÉE
    */
-  async addTeamMember(projectId, userId, role = 'member', permissions = []) {
+  async addTeamMember(projectId, userEmail, role = 'contributor', permissions = []) {
     try {
-      console.log('➕ Ajout membre équipe:', { projectId, userId, role });
+      console.log('➕ [CORRIGÉ] Ajout membre équipe:', { projectId, userEmail, role });
       
-      // Récupérer les données utilisateur
-      const userRef = doc(db, 'users', userId);
-      const userDoc = await getDoc(userRef);
+      // Trouver l'utilisateur par email
+      const usersQuery = query(
+        collection(db, 'users'),
+        where('email', '==', userEmail.toLowerCase())
+      );
       
-      if (!userDoc.exists()) {
-        throw new Error('Utilisateur introuvable');
+      const usersSnapshot = await getDocs(usersQuery);
+      
+      if (usersSnapshot.empty) {
+        throw new Error('Utilisateur introuvable avec cet email');
       }
       
+      const userDoc = usersSnapshot.docs[0];
       const userData = userDoc.data();
+      const userId = userDoc.id;
       
-      // Vérifier si le projet existe
-      const projectRef = doc(db, 'projects', projectId);
-      const projectDoc = await getDoc(projectRef);
-      
-      if (!projectDoc.exists()) {
-        throw new Error('Projet introuvable');
-      }
-      
+      // Vérifier si déjà membre
+      const projectDoc = await getDoc(doc(db, 'projects', projectId));
       const projectData = projectDoc.data();
       const currentTeam = projectData.team || [];
       
@@ -87,25 +92,25 @@ class TeamManagementService {
         throw new Error('Cette personne fait déjà partie de l\'équipe');
       }
       
-      // ✅ CORRECTION: Créer le timestamp AVANT l'utilisation dans arrayUnion
-      const joinedAtTimestamp = new Date().toISOString();
-      
-      // Préparer le nouveau membre SANS serverTimestamp() à l'intérieur
+      // ✅ CORRECTION: Créer le membre SANS serverTimestamp pour arrayUnion
       const newMember = {
         userId: userId,
         email: userData.email,
         displayName: userData.displayName || userData.email.split('@')[0],
         role: role,
         permissions: permissions,
-        joinedAt: joinedAtTimestamp, // ✅ Utiliser un timestamp fixe
+        joinedAt: new Date().toISOString(), // ✅ String timestamp à la place
         isActive: true,
         invitedBy: null
       };
       
-      // Ajouter à l'équipe du projet
+      // ✅ SOLUTION 2: Utiliser la méthode "remplacer le tableau complet"
+      const updatedTeam = [...currentTeam, newMember];
+      
       await updateDoc(doc(db, 'projects', projectId), {
-        team: arrayUnion(newMember),
-        updatedAt: serverTimestamp() // ✅ serverTimestamp() OK ici car pas dans arrayUnion
+        team: updatedTeam, // ✅ Remplacer le tableau complet
+        updatedAt: serverTimestamp(), // ✅ OK ici
+        teamSize: updatedTeam.length
       });
       
       // Ajouter le projet aux projets de l'utilisateur
@@ -114,21 +119,21 @@ class TeamManagementService {
         updatedAt: serverTimestamp()
       });
       
-      console.log('✅ Membre ajouté avec succès');
+      console.log('✅ [CORRIGÉ] Membre ajouté avec succès');
       return { success: true, member: newMember };
       
     } catch (error) {
-      console.error('❌ Erreur ajout membre:', error);
+      console.error('❌ [CORRIGÉ] Erreur ajout membre:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * 🔄 MODIFIER LE RÔLE D'UN MEMBRE - CORRIGÉ POUR L'ERREUR CONSOLE
+   * 🔄 MODIFIER LE RÔLE D'UN MEMBRE - VERSION CORRIGÉE
    */
   async updateMemberRole(projectId, userId, newRole, newPermissions = []) {
     try {
-      console.log('🎭 Assignation rôle:', { projectId, userId, newRole });
+      console.log('🔄 [CORRIGÉ] Modification rôle membre:', { projectId, userId, newRole });
       
       const projectRef = doc(db, 'projects', projectId);
       const projectDoc = await getDoc(projectRef);
@@ -140,43 +145,43 @@ class TeamManagementService {
       const projectData = projectDoc.data();
       const team = projectData.team || [];
       
-      // Trouver le membre dans l'équipe
+      // Trouver et modifier le membre
       const memberIndex = team.findIndex(m => m.userId === userId);
       if (memberIndex === -1) {
         throw new Error('Membre non trouvé dans l\'équipe');
       }
       
-      // ✅ CORRECTION: Créer la nouvelle équipe complète SANS serverTimestamp dans l'objet
+      // ✅ CORRECTION: Créer la nouvelle équipe sans serverTimestamp dans l'objet
       const updatedTeam = [...team];
       updatedTeam[memberIndex] = {
         ...updatedTeam[memberIndex],
         role: newRole,
         permissions: newPermissions,
-        roleUpdatedAt: new Date().toISOString() // ✅ Timestamp fixe STRING au lieu de serverTimestamp()
+        roleUpdatedAt: new Date().toISOString(), // ✅ String timestamp
+        roleUpdatedBy: userId
       };
       
-      // ✅ CORRECTION: Remplacer toute l'équipe au lieu d'utiliser arrayUnion
+      // ✅ Remplacer le tableau complet
       await updateDoc(projectRef, {
         team: updatedTeam,
-        updatedAt: serverTimestamp(), // ✅ OK ici car pas dans arrayUnion
-        lastTeamUpdate: new Date().toISOString()
+        updatedAt: serverTimestamp() // ✅ OK ici
       });
       
-      console.log('✅ Rôle membre mis à jour avec succès');
+      console.log('✅ [CORRIGÉ] Rôle modifié avec succès');
       return { success: true };
       
     } catch (error) {
-      console.error('❌ Erreur assignation rôle:', error);
+      console.error('❌ [CORRIGÉ] Erreur modification rôle:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * ❌ RETIRER UN MEMBRE DE L'ÉQUIPE
+   * 🗑️ RETIRER UN MEMBRE DE L'ÉQUIPE - VERSION CORRIGÉE
    */
-  async removeTeamMember(projectId, userId) {
+  async removeMember(projectId, userId) {
     try {
-      console.log('❌ Suppression membre équipe:', { projectId, userId });
+      console.log('🗑️ [CORRIGÉ] Suppression membre:', { projectId, userId });
       
       const projectRef = doc(db, 'projects', projectId);
       const projectDoc = await getDoc(projectRef);
@@ -188,32 +193,117 @@ class TeamManagementService {
       const projectData = projectDoc.data();
       const team = projectData.team || [];
       
-      // Trouver et retirer le membre
-      const memberToRemove = team.find(m => m.userId === userId);
-      if (!memberToRemove) {
-        throw new Error('Membre non trouvé dans l\'équipe');
-      }
-      
       // ✅ CORRECTION: Filtrer l'équipe au lieu d'utiliser arrayRemove
-      const updatedTeam = team.filter(m => m.userId !== userId);
+      const updatedTeam = team.filter(member => member.userId !== userId);
       
       await updateDoc(projectRef, {
         team: updatedTeam,
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        teamSize: updatedTeam.length
       });
       
-      // Retirer le projet des projets de l'utilisateur
-      await updateDoc(doc(db, 'users', userId), {
-        projects: arrayRemove(projectId),
-        updatedAt: serverTimestamp()
-      });
+      // Retirer le projet de la liste de l'utilisateur
+      try {
+        await updateDoc(doc(db, 'users', userId), {
+          projects: arrayRemove(projectId),
+          updatedAt: serverTimestamp()
+        });
+      } catch (userError) {
+        console.warn('⚠️ [CORRIGÉ] Erreur mise à jour utilisateur:', userError);
+      }
       
-      console.log('✅ Membre retiré avec succès');
+      console.log('✅ [CORRIGÉ] Membre retiré avec succès');
       return { success: true };
       
     } catch (error) {
-      console.error('❌ Erreur suppression membre:', error);
+      console.error('❌ [CORRIGÉ] Erreur suppression membre:', error);
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 📋 RÉCUPÉRER L'ÉQUIPE D'UN PROJET
+   */
+  async getProjectTeam(projectId) {
+    try {
+      console.log('🔍 [CORRIGÉ] Récupération équipe projet:', projectId);
+      
+      const projectDoc = await getDoc(doc(db, 'projects', projectId));
+      
+      if (!projectDoc.exists()) {
+        console.warn('❌ [CORRIGÉ] Projet introuvable:', projectId);
+        return [];
+      }
+      
+      const projectData = projectDoc.data();
+      const team = projectData.team || [];
+      
+      // Enrichir les données membres avec infos utilisateur
+      const enrichedTeam = await Promise.all(
+        team.map(async (member) => {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', member.userId));
+            const userData = userDoc.exists() ? userDoc.data() : {};
+            
+            return {
+              ...member,
+              displayName: userData.displayName || member.displayName || 'Utilisateur Inconnu',
+              email: userData.email || member.email || '',
+              avatar: userData.avatar || null,
+              isActive: userData.isActive !== false,
+              lastActivity: userData.lastActivity || null,
+              xpTotal: userData.xpTotal || 0
+            };
+          } catch (error) {
+            console.warn('⚠️ [CORRIGÉ] Erreur enrichissement membre:', member.userId, error);
+            return {
+              ...member,
+              displayName: member.displayName || 'Utilisateur Inconnu',
+              isActive: true
+            };
+          }
+        })
+      );
+      
+      console.log('✅ [CORRIGÉ] Équipe chargée:', enrichedTeam.length, 'membres');
+      return enrichedTeam;
+      
+    } catch (error) {
+      console.error('❌ [CORRIGÉ] Erreur récupération équipe:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 👥 OBTENIR LES MEMBRES PAR RÔLE
+   */
+  async getMembersByRole(roleId) {
+    try {
+      console.log('🔍 [CORRIGÉ] Récupération membres par rôle:', roleId);
+      
+      const membersQuery = query(
+        collection(db, 'teamMembers'),
+        where('roleId', '==', roleId),
+        where('isActive', '==', true)
+      );
+      
+      const querySnapshot = await getDocs(membersQuery);
+      const members = [];
+      
+      querySnapshot.forEach((doc) => {
+        const memberData = doc.data();
+        members.push({
+          id: doc.id,
+          ...memberData
+        });
+      });
+      
+      console.log(`✅ [CORRIGÉ] ${members.length} membres trouvés pour le rôle ${roleId}`);
+      return members;
+      
+    } catch (error) {
+      console.error('❌ [CORRIGÉ] Erreur récupération membres par rôle:', error);
+      return [];
     }
   }
 
@@ -257,19 +347,18 @@ class TeamManagementService {
       return stats;
       
     } catch (error) {
-      console.error('❌ Erreur stats équipe:', error);
+      console.error('❌ [CORRIGÉ] Erreur stats équipe:', error);
       return null;
     }
   }
 
   /**
-   * 🔍 RECHERCHER DES UTILISATEURS - MÉTHODE SIMPLIFIÉE
+   * 🔍 RECHERCHER DES UTILISATEURS
    */
   async searchUsers(searchTerm, limit = 10) {
     try {
-      console.log('🔍 Recherche utilisateurs:', searchTerm);
+      console.log('🔍 [CORRIGÉ] Recherche utilisateurs:', searchTerm);
       
-      // ✅ CORRECTION: Requête simple sans index complexe
       const usersQuery = query(
         collection(db, 'users'),
         limit(50) // Récupérer plus d'utilisateurs pour filtrer côté client
@@ -283,7 +372,7 @@ class TeamManagementService {
         const displayName = userData.displayName || '';
         const email = userData.email || '';
         
-        // Filtrage côté client (à améliorer avec recherche serveur)
+        // Filtrage côté client
         if (
           displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -301,13 +390,13 @@ class TeamManagementService {
       return users.slice(0, limit);
       
     } catch (error) {
-      console.error('❌ Erreur recherche utilisateurs:', error);
+      console.error('❌ [CORRIGÉ] Erreur recherche utilisateurs:', error);
       return [];
     }
   }
 
   /**
-   * 🔄 ÉCOUTER LES CHANGEMENTS D'ÉQUIPE EN TEMPS RÉEL - SIMPLIFIÉ
+   * 🔄 ÉCOUTER LES CHANGEMENTS D'ÉQUIPE EN TEMPS RÉEL
    */
   subscribeToTeamChanges(projectId, callback) {
     try {
@@ -319,16 +408,41 @@ class TeamManagementService {
           callback(team);
         }
       }, (error) => {
-        console.error('❌ Erreur listener équipe:', error);
+        console.error('❌ [CORRIGÉ] Erreur listener équipe:', error);
       });
       
       this.listeners.set(projectId, unsubscribe);
       return unsubscribe;
       
     } catch (error) {
-      console.error('❌ Erreur listener équipe:', error);
+      console.error('❌ [CORRIGÉ] Erreur listener équipe:', error);
       return null;
     }
+  }
+
+  /**
+   * 🏷️ RÔLES DISPONIBLES
+   */
+  getAvailableRoles() {
+    return [
+      { value: 'maintenance', label: 'Entretien, Réparations & Maintenance', icon: '🔧' },
+      { value: 'reputation', label: 'Gestion des Avis & de la Réputation', icon: '⭐' },
+      { value: 'stock', label: 'Gestion des Stocks & Matériel', icon: '📦' },
+      { value: 'admin', label: 'Administrateur', icon: '👑' }
+    ];
+  }
+
+  /**
+   * 🎨 COULEUR DU RÔLE
+   */
+  getRoleColor(role) {
+    const colors = {
+      maintenance: 'bg-orange-100 text-orange-800',
+      reputation: 'bg-yellow-100 text-yellow-800',
+      stock: 'bg-blue-100 text-blue-800',
+      admin: 'bg-purple-100 text-purple-800'
+    };
+    return colors[role] || 'bg-gray-100 text-gray-800';
   }
 
   /**
