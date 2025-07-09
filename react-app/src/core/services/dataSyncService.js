@@ -1,495 +1,679 @@
 // ==========================================
 // 📁 react-app/src/core/services/dataSyncService.js
-// Service de synchronisation et réparation des données Firebase
+// SERVICE DE SYNCHRONISATION COMPLÈTE - RÉPARATION TOTALE
 // ==========================================
 
 import { 
+  collection, 
   doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
-  collection,
-  getDocs,
-  query,
-  where,
-  serverTimestamp,
-  writeBatch
+  getDocs, 
+  getDoc,
+  updateDoc,
+  setDoc,
+  query, 
+  where, 
+  orderBy,
+  writeBatch,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
-/**
- * 🔄 SERVICE DE SYNCHRONISATION DES DONNÉES
- * Corrige les incohérences entre les pages et Firebase
- */
 class DataSyncService {
   constructor() {
-    this.repairLog = [];
-  }
-
-  /**
-   * 🔧 STRUCTURE STANDARDISÉE DES DONNÉES UTILISATEUR
-   */
-  getStandardUserStructure(authUser, existingData = {}) {
-    return {
-      // ✅ Données d'authentification (toujours présentes)
-      uid: authUser.uid,
-      email: authUser.email,
-      displayName: authUser.displayName || authUser.email?.split('@')[0] || 'Utilisateur',
-      photoURL: authUser.photoURL || null,
-      emailVerified: authUser.emailVerified || false,
-      
-      // ✅ Métadonnées temporelles
-      createdAt: existingData.createdAt || serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      lastLoginAt: serverTimestamp(),
-      
-      // ✅ Profil utilisateur standardisé
-      profile: {
-        displayName: existingData.profile?.displayName || authUser.displayName || authUser.email?.split('@')[0] || 'Utilisateur',
-        bio: existingData.profile?.bio || '',
-        department: existingData.profile?.department || 'Non défini',
-        role: existingData.profile?.role || 'employee',
-        phone: existingData.profile?.phone || '',
-        preferences: {
-          notifications: existingData.profile?.preferences?.notifications !== false,
-          publicProfile: existingData.profile?.preferences?.publicProfile || false,
-          emailUpdates: existingData.profile?.preferences?.emailUpdates !== false,
-          theme: existingData.profile?.preferences?.theme || 'light'
-        }
-      },
-      
-      // ✅ Gamification standardisée (STRUCTURE UNIFIÉE)
-      gamification: {
-        // XP et niveaux
-        totalXp: existingData.gamification?.totalXp || 0,
-        weeklyXp: existingData.gamification?.weeklyXp || 0,
-        monthlyXp: existingData.gamification?.monthlyXp || 0,
-        level: existingData.gamification?.level || 1,
-        
-        // Statistiques de tâches
-        tasksCompleted: existingData.gamification?.tasksCompleted || 0,
-        tasksCreated: existingData.gamification?.tasksCreated || 0,
-        projectsCreated: existingData.gamification?.projectsCreated || 0,
-        projectsCompleted: existingData.gamification?.projectsCompleted || 0,
-        
-        // Badges et récompenses
-        badges: existingData.gamification?.badges || [],
-        badgesUnlocked: existingData.gamification?.badgesUnlocked || 0,
-        achievements: existingData.gamification?.achievements || [],
-        
-        // Engagement et streaks
-        loginStreak: existingData.gamification?.loginStreak || 1,
-        currentStreak: existingData.gamification?.currentStreak || 0,
-        maxStreak: existingData.gamification?.maxStreak || 0,
-        lastLoginDate: existingData.gamification?.lastLoginDate || new Date().toISOString().split('T')[0],
-        
-        // Historique
-        xpHistory: existingData.gamification?.xpHistory || [],
-        levelHistory: existingData.gamification?.levelHistory || []
-      }
+    this.syncResults = {
+      usersFixed: 0,
+      projectsFixed: 0,
+      tasksFixed: 0,
+      teamsFixed: 0,
+      totalIssues: 0,
+      report: []
     };
   }
 
   /**
-   * 🔍 DIAGNOSTIC DES INCOHÉRENCES
+   * 🔍 ANALYSE COMPLÈTE DES DONNÉES DU SITE
    */
-  async diagnoseDataInconsistencies(userId) {
+  async analyzeAllData() {
     try {
-      console.log('🔍 Diagnostic des incohérences pour:', userId);
+      console.log('🔍 DÉBUT ANALYSE COMPLÈTE DES DONNÉES');
       
-      const userRef = doc(db, 'users', userId);
-      const userSnap = await getDoc(userRef);
+      const analysis = {
+        users: await this.analyzeUsersData(),
+        projects: await this.analyzeProjectsData(),
+        tasks: await this.analyzeTasksData(),
+        teams: await this.analyzeTeamsData(),
+        userStats: await this.analyzeUserStatsData()
+      };
+
+      console.log('📊 ANALYSE TERMINÉE:', analysis);
+      return analysis;
       
-      if (!userSnap.exists()) {
-        return {
-          status: 'missing_user',
-          issues: ['Utilisateur inexistant dans Firebase'],
-          severity: 'critical'
-        };
-      }
-      
-      const userData = userSnap.data();
+    } catch (error) {
+      console.error('❌ Erreur analyse complète:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 👥 ANALYSE DES UTILISATEURS
+   */
+  async analyzeUsersData() {
+    try {
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const users = [];
       const issues = [];
-      let severity = 'none';
       
-      // ❌ Vérifier la structure de gamification
-      if (!userData.gamification) {
-        issues.push('Structure gamification manquante');
-        severity = 'critical';
-      } else {
-        // Vérifier les champs essentiels
-        const requiredGamificationFields = [
-          'totalXp', 'level', 'tasksCompleted', 'badges'
-        ];
+      usersSnapshot.forEach(doc => {
+        const userData = doc.data();
+        const userId = doc.id;
         
-        requiredGamificationFields.forEach(field => {
-          if (userData.gamification[field] === undefined) {
-            issues.push(`Champ gamification.${field} manquant`);
-            severity = severity === 'none' ? 'warning' : severity;
-          }
+        // Vérifications de cohérence
+        const userIssues = [];
+        
+        if (!userData.email) userIssues.push('Email manquant');
+        if (!userData.displayName) userIssues.push('DisplayName manquant');
+        if (!userData.createdAt) userIssues.push('CreatedAt manquant');
+        if (!userData.gamification) userIssues.push('Données gamification manquantes');
+        if (!userData.profile) userIssues.push('Profil manquant');
+        if (!userData.lastActivity) userIssues.push('LastActivity manquante');
+        
+        // Vérifier la cohérence des XP
+        const gamificationXP = userData.gamification?.totalXp || 0;
+        const directXP = userData.totalXp || 0;
+        if (gamificationXP !== directXP) {
+          userIssues.push(`XP incohérents: gamification=${gamificationXP}, direct=${directXP}`);
+        }
+        
+        users.push({
+          id: userId,
+          email: userData.email,
+          displayName: userData.displayName,
+          level: userData.gamification?.level || userData.level || 1,
+          xp: userData.gamification?.totalXp || userData.totalXp || 0,
+          tasksCompleted: userData.gamification?.tasksCompleted || 0,
+          projects: userData.projects || [],
+          issues: userIssues,
+          lastActivity: userData.lastActivity,
+          createdAt: userData.createdAt
         });
         
-        // Vérifier la cohérence XP/Level
-        const expectedLevel = Math.floor((userData.gamification.totalXp || 0) / 100) + 1;
-        if (userData.gamification.level !== expectedLevel) {
-          issues.push(`Incohérence level (${userData.gamification.level}) vs XP (${userData.gamification.totalXp})`);
-          severity = 'moderate';
-        }
-      }
-      
-      // ❌ Vérifier la structure de profil
-      if (!userData.profile) {
-        issues.push('Structure profile manquante');
-        severity = severity === 'critical' ? 'critical' : 'moderate';
-      }
-      
-      // ❌ Vérifier les métadonnées
-      if (!userData.updatedAt) {
-        issues.push('Métadonnée updatedAt manquante');
-        severity = severity === 'none' ? 'warning' : severity;
-      }
-      
-      return {
-        status: issues.length > 0 ? 'inconsistent' : 'healthy',
-        issues,
-        severity,
-        userData
-      };
-      
-    } catch (error) {
-      console.error('❌ Erreur diagnostic:', error);
-      return {
-        status: 'error',
-        issues: [`Erreur diagnostic: ${error.message}`],
-        severity: 'critical'
-      };
-    }
-  }
-
-  /**
-   * 🛠️ RÉPARATION AUTOMATIQUE DES DONNÉES
-   */
-  async repairUserData(userId, authUser) {
-    try {
-      console.log('🛠️ Réparation des données pour:', userId);
-      
-      const diagnostic = await this.diagnoseDataInconsistencies(userId);
-      
-      if (diagnostic.status === 'healthy') {
-        console.log('✅ Aucune réparation nécessaire');
-        return { success: true, message: 'Données déjà cohérentes' };
-      }
-      
-      // Obtenir les données existantes
-      const existingData = diagnostic.userData || {};
-      
-      // Créer la structure standardisée
-      const standardData = this.getStandardUserStructure(authUser, existingData);
-      
-      // Sauvegarder les données réparées
-      const userRef = doc(db, 'users', userId);
-      await setDoc(userRef, standardData, { merge: true });
-      
-      // Log des réparations
-      const repairSummary = {
-        userId,
-        timestamp: new Date().toISOString(),
-        issuesFixed: diagnostic.issues,
-        severity: diagnostic.severity
-      };
-      
-      this.repairLog.push(repairSummary);
-      
-      console.log('✅ Données réparées avec succès:', repairSummary);
-      
-      return {
-        success: true,
-        message: `${diagnostic.issues.length} problème(s) corrigé(s)`,
-        details: repairSummary
-      };
-      
-    } catch (error) {
-      console.error('❌ Erreur réparation:', error);
-      return {
-        success: false,
-        message: `Erreur lors de la réparation: ${error.message}`
-      };
-    }
-  }
-
-  /**
-   * 🔄 SYNCHRONISATION GLOBALE DE TOUS LES UTILISATEURS
-   */
-  async syncAllUsers() {
-    try {
-      console.log('🔄 Synchronisation globale démarrée...');
-      
-      const usersCollection = collection(db, 'users');
-      const usersSnapshot = await getDocs(usersCollection);
-      
-      const batch = writeBatch(db);
-      let repairCount = 0;
-      
-      for (const userDoc of usersSnapshot.docs) {
-        const userData = userDoc.data();
-        const userId = userDoc.id;
-        
-        // Simuler un authUser pour la réparation
-        const mockAuthUser = {
-          uid: userId,
-          email: userData.email || 'user@example.com',
-          displayName: userData.displayName || userData.email?.split('@')[0] || 'Utilisateur',
-          photoURL: userData.photoURL || null,
-          emailVerified: userData.emailVerified || false
-        };
-        
-        const diagnostic = await this.diagnoseDataInconsistencies(userId);
-        
-        if (diagnostic.status !== 'healthy') {
-          const standardData = this.getStandardUserStructure(mockAuthUser, userData);
-          batch.set(doc(db, 'users', userId), standardData, { merge: true });
-          repairCount++;
-          
-          console.log(`🔧 Réparation programmée pour ${userId}: ${diagnostic.issues.length} problème(s)`);
-        }
-      }
-      
-      // Exécuter toutes les réparations en lot
-      if (repairCount > 0) {
-        await batch.commit();
-        console.log(`✅ Synchronisation terminée: ${repairCount} utilisateurs réparés`);
-      } else {
-        console.log('✅ Aucune réparation nécessaire - Tous les utilisateurs sont synchronisés');
-      }
-      
-      return {
-        success: true,
-        totalUsers: usersSnapshot.size,
-        repairedUsers: repairCount,
-        message: `Synchronisation terminée: ${repairCount}/${usersSnapshot.size} utilisateurs réparés`
-      };
-      
-    } catch (error) {
-      console.error('❌ Erreur synchronisation globale:', error);
-      return {
-        success: false,
-        message: `Erreur synchronisation: ${error.message}`
-      };
-    }
-  }
-
-  /**
-   * 📊 VALIDATION DES DONNÉES EN TEMPS RÉEL
-   */
-  async validateUserSession(userId, authUser) {
-    try {
-      console.log('📊 Validation session utilisateur:', userId);
-      
-      // Diagnostic rapide
-      const diagnostic = await this.diagnoseDataInconsistencies(userId);
-      
-      // Si des problèmes sont détectés, réparation automatique
-      if (diagnostic.status !== 'healthy') {
-        console.log('⚠️ Incohérences détectées, réparation automatique...');
-        const repairResult = await this.repairUserData(userId, authUser);
-        
-        if (repairResult.success) {
-          console.log('✅ Session validée et données réparées');
-          return { 
-            valid: true, 
-            repaired: true, 
-            message: 'Données réparées automatiquement' 
-          };
-        } else {
-          console.error('❌ Échec de la réparation automatique');
-          return { 
-            valid: false, 
-            repaired: false, 
-            message: 'Échec de la réparation des données' 
-          };
-        }
-      }
-      
-      console.log('✅ Session validée - Données cohérentes');
-      return { 
-        valid: true, 
-        repaired: false, 
-        message: 'Données déjà cohérentes' 
-      };
-      
-    } catch (error) {
-      console.error('❌ Erreur validation session:', error);
-      return { 
-        valid: false, 
-        repaired: false, 
-        message: `Erreur validation: ${error.message}` 
-      };
-    }
-  }
-
-  /**
-   * 📈 RECALCUL DES STATISTIQUES GAMIFICATION
-   */
-  async recalculateGamificationStats(userId) {
-    try {
-      console.log('📈 Recalcul statistiques gamification pour:', userId);
-      
-      // Récupérer toutes les tâches de l'utilisateur
-      const tasksQuery = query(
-        collection(db, 'tasks'),
-        where('userId', '==', userId)
-      );
-      
-      const tasksSnapshot = await getDocs(tasksQuery);
-      
-      let tasksCreated = 0;
-      let tasksCompleted = 0;
-      let totalXpFromTasks = 0;
-      
-      tasksSnapshot.forEach(doc => {
-        const taskData = doc.data();
-        tasksCreated++;
-        
-        if (taskData.status === 'completed') {
-          tasksCompleted++;
-          totalXpFromTasks += taskData.xpReward || 0;
+        if (userIssues.length > 0) {
+          issues.push({
+            userId,
+            email: userData.email,
+            issues: userIssues
+          });
         }
       });
       
-      // Récupérer les projets de l'utilisateur
-      const projectsQuery = query(
-        collection(db, 'projects'),
-        where('createdBy', '==', userId)
-      );
+      return {
+        total: users.length,
+        withIssues: issues.length,
+        users: users,
+        issues: issues
+      };
       
-      const projectsSnapshot = await getDocs(projectsQuery);
-      let projectsCreated = projectsSnapshot.size;
-      let projectsCompleted = 0;
+    } catch (error) {
+      console.error('❌ Erreur analyse utilisateurs:', error);
+      return { total: 0, withIssues: 0, users: [], issues: [] };
+    }
+  }
+
+  /**
+   * 📂 ANALYSE DES PROJETS
+   */
+  async analyzeProjectsData() {
+    try {
+      const projectsSnapshot = await getDocs(collection(db, 'projects'));
+      const projects = [];
+      const issues = [];
       
       projectsSnapshot.forEach(doc => {
         const projectData = doc.data();
-        if (projectData.status === 'completed') {
-          projectsCompleted++;
+        const projectId = doc.id;
+        
+        const projectIssues = [];
+        
+        if (!projectData.name) projectIssues.push('Nom manquant');
+        if (!projectData.ownerId) projectIssues.push('OwnerId manquant');
+        if (!projectData.team) projectIssues.push('Team manquante');
+        if (!projectData.createdAt) projectIssues.push('CreatedAt manquant');
+        
+        // Vérifier la cohérence de l'équipe
+        const team = projectData.team || [];
+        const teamIssues = [];
+        
+        team.forEach((member, index) => {
+          if (!member.userId) teamIssues.push(`Membre ${index}: userId manquant`);
+          if (!member.email) teamIssues.push(`Membre ${index}: email manquant`);
+          if (!member.role) teamIssues.push(`Membre ${index}: role manquant`);
+        });
+        
+        projects.push({
+          id: projectId,
+          name: projectData.name,
+          ownerId: projectData.ownerId,
+          team: team,
+          teamSize: team.length,
+          issues: [...projectIssues, ...teamIssues],
+          createdAt: projectData.createdAt
+        });
+        
+        if (projectIssues.length > 0 || teamIssues.length > 0) {
+          issues.push({
+            projectId,
+            name: projectData.name,
+            issues: [...projectIssues, ...teamIssues]
+          });
         }
-      });
-      
-      // Calculer le niveau basé sur l'XP
-      const calculatedLevel = Math.floor(totalXpFromTasks / 100) + 1;
-      
-      // Mettre à jour les statistiques
-      const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, {
-        'gamification.tasksCreated': tasksCreated,
-        'gamification.tasksCompleted': tasksCompleted,
-        'gamification.projectsCreated': projectsCreated,
-        'gamification.projectsCompleted': projectsCompleted,
-        'gamification.totalXp': totalXpFromTasks,
-        'gamification.level': calculatedLevel,
-        'gamification.badgesUnlocked': 0, // Sera recalculé par le badge engine
-        updatedAt: serverTimestamp()
-      });
-      
-      console.log('✅ Statistiques recalculées:', {
-        tasksCreated,
-        tasksCompleted,
-        projectsCreated,
-        projectsCompleted,
-        totalXp: totalXpFromTasks,
-        level: calculatedLevel
       });
       
       return {
-        success: true,
-        stats: {
-          tasksCreated,
-          tasksCompleted,
-          projectsCreated,
-          projectsCompleted,
-          totalXp: totalXpFromTasks,
-          level: calculatedLevel
-        }
+        total: projects.length,
+        withIssues: issues.length,
+        projects: projects,
+        issues: issues
       };
       
     } catch (error) {
-      console.error('❌ Erreur recalcul statistiques:', error);
+      console.error('❌ Erreur analyse projets:', error);
+      return { total: 0, withIssues: 0, projects: [], issues: [] };
+    }
+  }
+
+  /**
+   * 📝 ANALYSE DES TÂCHES
+   */
+  async analyzeTasksData() {
+    try {
+      const tasksSnapshot = await getDocs(collection(db, 'tasks'));
+      const tasks = [];
+      const issues = [];
+      
+      tasksSnapshot.forEach(doc => {
+        const taskData = doc.data();
+        const taskId = doc.id;
+        
+        const taskIssues = [];
+        
+        if (!taskData.title) taskIssues.push('Titre manquant');
+        if (!taskData.userId) taskIssues.push('UserId manquant');
+        if (!taskData.createdAt) taskIssues.push('CreatedAt manquant');
+        if (!taskData.status) taskIssues.push('Status manquant');
+        
+        tasks.push({
+          id: taskId,
+          title: taskData.title,
+          userId: taskData.userId,
+          projectId: taskData.projectId,
+          status: taskData.status,
+          difficulty: taskData.difficulty,
+          issues: taskIssues,
+          createdAt: taskData.createdAt
+        });
+        
+        if (taskIssues.length > 0) {
+          issues.push({
+            taskId,
+            title: taskData.title,
+            issues: taskIssues
+          });
+        }
+      });
+      
+      return {
+        total: tasks.length,
+        withIssues: issues.length,
+        tasks: tasks,
+        issues: issues
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur analyse tâches:', error);
+      return { total: 0, withIssues: 0, tasks: [], issues: [] };
+    }
+  }
+
+  /**
+   * 👥 ANALYSE DES ÉQUIPES
+   */
+  async analyzeTeamsData() {
+    try {
+      // Récupérer tous les utilisateurs connectés
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const allUsers = [];
+      
+      usersSnapshot.forEach(doc => {
+        const userData = doc.data();
+        if (userData.email) {
+          allUsers.push({
+            id: doc.id,
+            email: userData.email,
+            displayName: userData.displayName,
+            lastActivity: userData.lastActivity,
+            createdAt: userData.createdAt
+          });
+        }
+      });
+      
+      // Récupérer tous les projets pour vérifier les équipes
+      const projectsSnapshot = await getDocs(collection(db, 'projects'));
+      const teamMemberships = new Map();
+      const orphanedUsers = [];
+      
+      // Analyser les équipes dans les projets
+      projectsSnapshot.forEach(doc => {
+        const projectData = doc.data();
+        const team = projectData.team || [];
+        
+        team.forEach(member => {
+          if (!teamMemberships.has(member.userId)) {
+            teamMemberships.set(member.userId, []);
+          }
+          teamMemberships.get(member.userId).push({
+            projectId: doc.id,
+            projectName: projectData.name,
+            role: member.role
+          });
+        });
+      });
+      
+      // Identifier les utilisateurs orphelins
+      allUsers.forEach(user => {
+        if (!teamMemberships.has(user.id)) {
+          orphanedUsers.push(user);
+        }
+      });
+      
+      return {
+        totalUsers: allUsers.length,
+        usersInTeams: teamMemberships.size,
+        orphanedUsers: orphanedUsers.length,
+        orphanedUsersList: orphanedUsers,
+        teamMemberships: Array.from(teamMemberships.entries()).map(([userId, projects]) => ({
+          userId,
+          projectCount: projects.length,
+          projects
+        }))
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur analyse équipes:', error);
+      return { totalUsers: 0, usersInTeams: 0, orphanedUsers: 0, orphanedUsersList: [] };
+    }
+  }
+
+  /**
+   * 📊 ANALYSE DES STATS UTILISATEUR
+   */
+  async analyzeUserStatsData() {
+    try {
+      // Vérifier s'il y a une collection userStats séparée
+      const userStatsSnapshot = await getDocs(collection(db, 'userStats'));
+      const userStats = [];
+      
+      userStatsSnapshot.forEach(doc => {
+        userStats.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+      
+      return {
+        hasUserStatsCollection: userStats.length > 0,
+        userStatsCount: userStats.length,
+        userStats: userStats
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur analyse userStats:', error);
+      return { hasUserStatsCollection: false, userStatsCount: 0, userStats: [] };
+    }
+  }
+
+  /**
+   * 🔧 SYNCHRONISATION COMPLÈTE ET RÉPARATION
+   */
+  async synchronizeAllData() {
+    try {
+      console.log('🔧 DÉBUT SYNCHRONISATION COMPLÈTE');
+      
+      const analysis = await this.analyzeAllData();
+      
+      if (!analysis) {
+        throw new Error('Impossible d\'analyser les données');
+      }
+      
+      // Réparation des utilisateurs
+      await this.repairUsersData(analysis.users);
+      
+      // Réparation des projets
+      await this.repairProjectsData(analysis.projects);
+      
+      // Réparation des tâches
+      await this.repairTasksData(analysis.tasks);
+      
+      // Synchronisation des équipes
+      await this.synchronizeTeamsData(analysis.teams);
+      
+      console.log('✅ SYNCHRONISATION TERMINÉE:', this.syncResults);
+      
+      return {
+        success: true,
+        results: this.syncResults,
+        analysis: analysis
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur synchronisation complète:', error);
       return {
         success: false,
-        message: error.message
+        error: error.message,
+        results: this.syncResults
       };
     }
   }
 
   /**
-   * 📋 RAPPORT DE SANTÉ DES DONNÉES
+   * 👥 RÉPARATION DES DONNÉES UTILISATEUR
    */
-  async generateHealthReport() {
+  async repairUsersData(usersAnalysis) {
     try {
-      console.log('📋 Génération rapport de santé des données...');
+      console.log('🔧 Réparation des utilisateurs...');
       
-      const usersCollection = collection(db, 'users');
-      const usersSnapshot = await getDocs(usersCollection);
+      const batch = writeBatch(db);
+      let fixedCount = 0;
       
-      const report = {
-        totalUsers: usersSnapshot.size,
-        healthyUsers: 0,
-        usersWithIssues: 0,
-        criticalIssues: 0,
-        moderateIssues: 0,
-        warnings: 0,
-        detailedIssues: []
-      };
+      for (const user of usersAnalysis.users) {
+        if (user.issues.length > 0) {
+          const userRef = doc(db, 'users', user.id);
+          
+          // Structure standardisée pour tous les utilisateurs
+          const standardUserData = {
+            email: user.email || 'user@example.com',
+            displayName: user.displayName || user.email?.split('@')[0] || 'Utilisateur',
+            
+            // Profil utilisateur
+            profile: {
+              firstName: user.displayName?.split(' ')[0] || 'Utilisateur',
+              lastName: user.displayName?.split(' ')[1] || '',
+              role: 'user',
+              department: 'Équipe',
+              avatar: user.email ? this.generateAvatar(user.email) : '👤'
+            },
+            
+            // Gamification
+            gamification: {
+              level: user.level || 1,
+              totalXp: user.xp || 0,
+              currentXp: user.xp || 0,
+              tasksCompleted: user.tasksCompleted || 0,
+              tasksCreated: 0,
+              projectsCreated: 0,
+              badges: [],
+              achievements: []
+            },
+            
+            // Compatibilité directe
+            level: user.level || 1,
+            totalXp: user.xp || 0,
+            xpTotal: user.xp || 0,
+            
+            // Activité
+            lastActivity: user.lastActivity || new Date().toISOString(),
+            isActive: true,
+            
+            // Projets
+            projects: user.projects || [],
+            
+            // Métadonnées
+            createdAt: user.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            
+            // Préférences
+            preferences: {
+              theme: 'light',
+              notifications: true,
+              language: 'fr'
+            }
+          };
+          
+          batch.set(userRef, standardUserData, { merge: true });
+          fixedCount++;
+        }
+      }
       
-      for (const userDoc of usersSnapshot.docs) {
-        const userId = userDoc.id;
-        const diagnostic = await this.diagnoseDataInconsistencies(userId);
+      if (fixedCount > 0) {
+        await batch.commit();
+        console.log(`✅ ${fixedCount} utilisateurs réparés`);
+      }
+      
+      this.syncResults.usersFixed = fixedCount;
+      
+    } catch (error) {
+      console.error('❌ Erreur réparation utilisateurs:', error);
+    }
+  }
+
+  /**
+   * 📂 RÉPARATION DES DONNÉES PROJET
+   */
+  async repairProjectsData(projectsAnalysis) {
+    try {
+      console.log('🔧 Réparation des projets...');
+      
+      const batch = writeBatch(db);
+      let fixedCount = 0;
+      
+      for (const project of projectsAnalysis.projects) {
+        if (project.issues.length > 0) {
+          const projectRef = doc(db, 'projects', project.id);
+          
+          // Réparer l'équipe du projet
+          const repairedTeam = project.team.map(member => ({
+            userId: member.userId,
+            email: member.email || 'user@example.com',
+            displayName: member.displayName || member.email?.split('@')[0] || 'Utilisateur',
+            role: member.role || 'contributor',
+            permissions: this.getRolePermissions(member.role || 'contributor'),
+            joinedAt: member.joinedAt || new Date().toISOString(),
+            isActive: true
+          }));
+          
+          const repairedProjectData = {
+            name: project.name || 'Projet sans nom',
+            ownerId: project.ownerId,
+            team: repairedTeam,
+            status: 'active',
+            createdAt: project.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          
+          batch.set(projectRef, repairedProjectData, { merge: true });
+          fixedCount++;
+        }
+      }
+      
+      if (fixedCount > 0) {
+        await batch.commit();
+        console.log(`✅ ${fixedCount} projets réparés`);
+      }
+      
+      this.syncResults.projectsFixed = fixedCount;
+      
+    } catch (error) {
+      console.error('❌ Erreur réparation projets:', error);
+    }
+  }
+
+  /**
+   * 📝 RÉPARATION DES DONNÉES TÂCHE
+   */
+  async repairTasksData(tasksAnalysis) {
+    try {
+      console.log('🔧 Réparation des tâches...');
+      
+      const batch = writeBatch(db);
+      let fixedCount = 0;
+      
+      for (const task of tasksAnalysis.tasks) {
+        if (task.issues.length > 0) {
+          const taskRef = doc(db, 'tasks', task.id);
+          
+          const repairedTaskData = {
+            title: task.title || 'Tâche sans titre',
+            userId: task.userId,
+            projectId: task.projectId || null,
+            status: task.status || 'todo',
+            difficulty: task.difficulty || 'normal',
+            createdAt: task.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          
+          batch.set(taskRef, repairedTaskData, { merge: true });
+          fixedCount++;
+        }
+      }
+      
+      if (fixedCount > 0) {
+        await batch.commit();
+        console.log(`✅ ${fixedCount} tâches réparées`);
+      }
+      
+      this.syncResults.tasksFixed = fixedCount;
+      
+    } catch (error) {
+      console.error('❌ Erreur réparation tâches:', error);
+    }
+  }
+
+  /**
+   * 👥 SYNCHRONISATION DES ÉQUIPES
+   */
+  async synchronizeTeamsData(teamsAnalysis) {
+    try {
+      console.log('🔧 Synchronisation des équipes...');
+      
+      // Ajouter les utilisateurs orphelins à un projet par défaut
+      if (teamsAnalysis.orphanedUsers > 0) {
+        await this.addOrphanedUsersToDefaultProject(teamsAnalysis.orphanedUsersList);
+      }
+      
+      this.syncResults.teamsFixed = teamsAnalysis.orphanedUsers;
+      
+    } catch (error) {
+      console.error('❌ Erreur synchronisation équipes:', error);
+    }
+  }
+
+  /**
+   * 🏠 AJOUTER LES UTILISATEURS ORPHELINS AU PROJET PAR DÉFAUT
+   */
+  async addOrphanedUsersToDefaultProject(orphanedUsers) {
+    try {
+      // Créer ou récupérer le projet par défaut
+      const defaultProjectRef = doc(db, 'projects', 'default-team');
+      const defaultProject = await getDoc(defaultProjectRef);
+      
+      let currentTeam = [];
+      
+      if (defaultProject.exists()) {
+        currentTeam = defaultProject.data().team || [];
+      } else {
+        // Créer le projet par défaut
+        await setDoc(defaultProjectRef, {
+          name: 'Équipe Synergia',
+          description: 'Équipe principale de tous les utilisateurs',
+          ownerId: 'system',
+          status: 'active',
+          team: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+      
+      // Ajouter les utilisateurs orphelins
+      for (const user of orphanedUsers) {
+        const isAlreadyMember = currentTeam.some(member => member.userId === user.id);
         
-        if (diagnostic.status === 'healthy') {
-          report.healthyUsers++;
-        } else {
-          report.usersWithIssues++;
-          
-          if (diagnostic.severity === 'critical') {
-            report.criticalIssues++;
-          } else if (diagnostic.severity === 'moderate') {
-            report.moderateIssues++;
-          } else {
-            report.warnings++;
-          }
-          
-          report.detailedIssues.push({
-            userId,
-            severity: diagnostic.severity,
-            issues: diagnostic.issues
+        if (!isAlreadyMember) {
+          currentTeam.push({
+            userId: user.id,
+            email: user.email,
+            displayName: user.displayName || user.email.split('@')[0],
+            role: 'contributor',
+            permissions: this.getRolePermissions('contributor'),
+            joinedAt: new Date().toISOString(),
+            isActive: true
           });
         }
       }
       
-      console.log('📊 Rapport de santé généré:', report);
-      return report;
+      // Mettre à jour le projet avec la nouvelle équipe
+      await updateDoc(defaultProjectRef, {
+        team: currentTeam,
+        updatedAt: serverTimestamp()
+      });
+      
+      // Mettre à jour les projets des utilisateurs
+      const batch = writeBatch(db);
+      for (const user of orphanedUsers) {
+        const userRef = doc(db, 'users', user.id);
+        batch.update(userRef, {
+          projects: ['default-team'],
+          updatedAt: serverTimestamp()
+        });
+      }
+      
+      await batch.commit();
+      
+      console.log(`✅ ${orphanedUsers.length} utilisateurs ajoutés au projet par défaut`);
       
     } catch (error) {
-      console.error('❌ Erreur génération rapport:', error);
-      return {
-        error: error.message,
-        totalUsers: 0,
-        healthyUsers: 0,
-        usersWithIssues: 0
-      };
+      console.error('❌ Erreur ajout utilisateurs orphelins:', error);
     }
+  }
+
+  /**
+   * 🎨 GÉNÉRER UN AVATAR BASÉ SUR L'EMAIL
+   */
+  generateAvatar(email) {
+    const avatars = ['👤', '👨', '👩', '🧑', '👱', '👨‍💻', '👩‍💻', '🧑‍💻'];
+    const index = email.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % avatars.length;
+    return avatars[index];
+  }
+
+  /**
+   * 🔐 OBTENIR LES PERMISSIONS D'UN RÔLE
+   */
+  getRolePermissions(role) {
+    const permissions = {
+      'owner': ['manage_team', 'manage_tasks', 'manage_projects', 'view_analytics'],
+      'manager': ['manage_team', 'manage_tasks', 'view_analytics'],
+      'lead': ['manage_tasks', 'view_analytics'],
+      'contributor': ['manage_tasks'],
+      'observer': []
+    };
+    
+    return permissions[role] || permissions['contributor'];
+  }
+
+  /**
+   * 📊 GÉNÉRER UN RAPPORT DE SYNCHRONISATION
+   */
+  generateSyncReport() {
+    return {
+      timestamp: new Date().toISOString(),
+      results: this.syncResults,
+      summary: {
+        totalFixedItems: this.syncResults.usersFixed + this.syncResults.projectsFixed + this.syncResults.tasksFixed + this.syncResults.teamsFixed,
+        recommendation: this.syncResults.totalIssues > 0 ? 'Surveillance continue recommandée' : 'Données cohérentes'
+      }
+    };
   }
 }
 
-// Instance singleton
+// Export de l'instance
 const dataSyncService = new DataSyncService();
-
 export default dataSyncService;
-
-// Fonctions utilitaires exportées
-export const { 
-  diagnoseDataInconsistencies,
-  repairUserData,
-  syncAllUsers,
-  validateUserSession,
-  recalculateGamificationStats,
-  generateHealthReport
-} = dataSyncService;
+export { dataSyncService };
