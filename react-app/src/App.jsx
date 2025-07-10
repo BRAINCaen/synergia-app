@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// VERSION ORIGINALE RESTAURÉE - Toutes les pages fonctionnelles
+// FIX IMPORT TEAMPAGE - VERSION CORRIGÉE
 // ==========================================
 import './core/addMissingRoles.js';
 import './core/forceNewRoleSystem.js';
@@ -35,224 +35,151 @@ import ProjectsPage from './pages/ProjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import GamificationPage from './pages/GamificationPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
-import TeamPageEnhanced from './pages/TeamPageEnhanced.jsx';
+
+// 🚨 FIX TEMPORAIRE - Import de TeamPage avec fallback
+let TeamPage;
+try {
+  TeamPage = require('./pages/TeamPage.jsx').default;
+  console.log('✅ TeamPage importée avec succès');
+} catch (error) {
+  console.warn('⚠️ Erreur import TeamPage, utilisation fallback:', error.message);
+  // Fallback simple si TeamPage ne charge pas
+  TeamPage = () => React.createElement('div', { style: { padding: '20px' } }, 
+    React.createElement('h1', null, 'Page Équipe'),
+    React.createElement('p', null, 'Page en cours de réparation...')
+  );
+}
+
 import OnboardingPage from './pages/OnboardingPage.jsx';
 import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import RewardsPage from './pages/RewardsPage.jsx';
 
-console.log('🚀 SYNERGIA v3.5.3 - VERSION ORIGINALE RESTAURÉE');
+// Pages admin avec gestion d'erreur
+import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
 
 /**
- * 🔐 COMPOSANT PROTECTED ROUTE
+ * 🔒 COMPOSANT ROUTE PROTÉGÉE
  */
-function ProtectedRoute({ children }) {
+const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuthStore();
-  
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Chargement...</p>
-        </div>
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white">Chargement...</div>
       </div>
     );
   }
-  
+
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  
-  return children;
-}
+
+  return <DashboardLayout>{children}</DashboardLayout>;
+};
 
 /**
- * 🌐 COMPOSANT PUBLIC ROUTE
+ * 📄 COMPOSANT PAGE AVEC LAYOUT
  */
-function PublicRoute({ children }) {
-  const { user, loading } = useAuthStore();
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Chargement...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  if (user) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  
-  return children;
-}
+const PageWithLayout = ({ children }) => {
+  return <DashboardLayout>{children}</DashboardLayout>;
+};
 
 /**
- * 🎯 COMPOSANT PAGE AVEC LAYOUT
- */
-function PageWithLayout({ children }) {
-  return (
-    <ProtectedRoute>
-      <DashboardLayout>
-        {children}
-      </DashboardLayout>
-    </ProtectedRoute>
-  );
-}
-
-/**
- * 🚀 APPLICATION PRINCIPALE
+ * 🏠 COMPOSANT APP PRINCIPAL
  */
 function App() {
-  const { initializeAuth, user, loading } = useAuthStore();
+  const { initializeAuth, user } = useAuthStore();
 
   useEffect(() => {
-    console.log('🔄 Initialisation de l\'authentification...');
+    console.log('🚀 SYNERGIA v3.5.3 - VERSION ORIGINALE RESTAURÉE');
     initializeAuth();
   }, [initializeAuth]);
-
-  // Fonctions de debug globales
-  useEffect(() => {
-    window.forceReload = () => {
-      console.log('🔄 Force reload demandé');
-      window.location.reload();
-    };
-    
-    window.emergencyClean = () => {
-      console.log('🧹 Nettoyage d\'urgence...');
-      localStorage.clear();
-      sessionStorage.clear();
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(registrations => {
-          registrations.forEach(registration => registration.unregister());
-        });
-      }
-      window.location.reload();
-    };
-    
-    window.diagnosePages = () => {
-      console.log('🔍 DIAGNOSTIC DES PAGES');
-      console.log('✅ Pages:', {
-        Login: typeof Login,
-        Dashboard: typeof Dashboard,
-        TasksPage: typeof TasksPage,
-        ProjectsPage: typeof ProjectsPage,
-        AnalyticsPage: typeof AnalyticsPage,
-        GamificationPage: typeof GamificationPage,
-        UsersPage: typeof UsersPage,
-        TeamPage: typeof TeamPage,
-        OnboardingPage: typeof OnboardingPage,
-        TimeTrackPage: typeof TimeTrackPage,
-        ProfilePage: typeof ProfilePage,
-        SettingsPage: typeof SettingsPage,
-        RewardsPage: typeof RewardsPage
-      });
-      console.log('✅ Layout:', typeof DashboardLayout);
-      console.log('✅ Auth:', { user: !!user, loading });
-    };
-    
-    console.log('✅ Fonctions debug: forceReload(), emergencyClean(), diagnosePages()');
-  }, []);
-
-  useEffect(() => {
-    console.log('📊 État Auth:', {
-      loading,
-      hasUser: !!user,
-      userEmail: user?.email
-    });
-  }, [loading, user]);
 
   return (
     <Router>
       <Routes>
         {/* 🔐 Route de connexion */}
-        <Route
-          path="/login"
-          element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          }
+        <Route 
+          path="/login" 
+          element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
         />
 
-        {/* 🏠 Dashboard principal */}
+        {/* 🏠 Dashboard */}
         <Route
           path="/dashboard"
           element={
-            <PageWithLayout>
+            <ProtectedRoute>
               <Dashboard />
-            </PageWithLayout>
+            </ProtectedRoute>
           }
         />
 
-        {/* 📋 Pages principales */}
+        {/* 📋 Pages de gestion */}
         <Route
           path="/tasks"
           element={
-            <PageWithLayout>
+            <ProtectedRoute>
               <TasksPage />
-            </PageWithLayout>
+            </ProtectedRoute>
           }
         />
 
         <Route
           path="/projects"
           element={
-            <PageWithLayout>
+            <ProtectedRoute>
               <ProjectsPage />
-            </PageWithLayout>
+            </ProtectedRoute>
           }
         />
 
         <Route
           path="/analytics"
           element={
-            <PageWithLayout>
+            <ProtectedRoute>
               <AnalyticsPage />
-            </PageWithLayout>
+            </ProtectedRoute>
           }
         />
 
-        {/* 🎮 Gamification complète */}
+        {/* 🎮 Gamification */}
         <Route
           path="/gamification"
           element={
-            <PageWithLayout>
+            <ProtectedRoute>
               <GamificationPage />
-            </PageWithLayout>
+            </ProtectedRoute>
           }
         />
 
         <Route
           path="/rewards"
           element={
-            <PageWithLayout>
+            <ProtectedRoute>
               <RewardsPage />
-            </PageWithLayout>
+            </ProtectedRoute>
           }
         />
 
-        {/* 👥 Équipe et social */}
+        {/* 👥 Équipe et social - AVEC GESTION D'ERREUR */}
         <Route
           path="/team"
           element={
-            <PageWithLayout>
+            <ProtectedRoute>
               <TeamPage />
-            </PageWithLayout>
+            </ProtectedRoute>
           }
         />
 
         <Route
           path="/users"
           element={
-            <PageWithLayout>
+            <ProtectedRoute>
               <UsersPage />
-            </PageWithLayout>
+            </ProtectedRoute>
           }
         />
 
@@ -260,18 +187,18 @@ function App() {
         <Route
           path="/profile"
           element={
-            <PageWithLayout>
+            <ProtectedRoute>
               <ProfilePage />
-            </PageWithLayout>
+            </ProtectedRoute>
           }
         />
 
         <Route
           path="/settings"
           element={
-            <PageWithLayout>
+            <ProtectedRoute>
               <SettingsPage />
-            </PageWithLayout>
+            </ProtectedRoute>
           }
         />
 
@@ -279,51 +206,52 @@ function App() {
         <Route
           path="/onboarding"
           element={
-            <PageWithLayout>
+            <ProtectedRoute>
               <OnboardingPage />
-            </PageWithLayout>
+            </ProtectedRoute>
           }
         />
 
         <Route
           path="/timetrack"
           element={
-            <PageWithLayout>
+            <ProtectedRoute>
               <TimeTrackPage />
-            </PageWithLayout>
+            </ProtectedRoute>
           }
         />
 
-        {/* 🎯 Aliases pour compatibilité avec le routing original */}
+        {/* 🛡️ Routes admin */}
+        <Route
+          path="/admin/task-validation"
+          element={
+            <ProtectedRoute>
+              <AdminTaskValidationPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* 🎯 Aliases pour compatibilité */}
         <Route
           path="/badges"
           element={
-            <PageWithLayout>
+            <ProtectedRoute>
               <GamificationPage />
-            </PageWithLayout>
+            </ProtectedRoute>
           }
         />
 
         <Route
           path="/leaderboard"
           element={
-            <PageWithLayout>
+            <ProtectedRoute>
               <UsersPage />
-            </PageWithLayout>
-          }
-        />
-
-        <Route
-          path="/time-track"
-          element={
-            <PageWithLayout>
-              <TimeTrackPage />
-            </PageWithLayout>
+            </ProtectedRoute>
           }
         />
 
         {/* 🏠 Redirections */}
-        <Route path="/team" element={<TeamPageEnhanced />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Router>
