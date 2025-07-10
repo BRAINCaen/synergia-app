@@ -217,7 +217,100 @@ const App = () => {
   if (initializationError) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="bg-red-900 // ==========================================
+        <div className="bg-red-900 border border-red-700 rounded-lg p-6 max-w-md">
+          <h2 className="text-red-300 font-semibold mb-2">Erreur d'initialisation</h2>
+          <p className="text-red-200 text-sm mb-4">{initializationError}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded transition-colors"
+          >
+            Recharger l'application
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ToastProvider>
+      <Router>
+        <div className="App">
+          {/* 🎉 Container de notifications */}
+          <ToastContainer />
+
+          {/* 🔐 Routes protégées */}
+          <Routes>
+            {/* Route de connexion */}
+            <Route path="/login" element={
+              user ? <Navigate to="/dashboard" replace /> : <Login />
+            } />
+
+            {/* Routes principales protégées */}
+            <Route path="/" element={
+              user ? <Layout /> : <Navigate to="/login" replace />
+            }>
+              {/* 🏠 Pages principales */}
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="tasks" element={<TasksPage />} />
+              <Route path="projects" element={<ProjectsPage />} />
+              <Route path="analytics" element={<AnalyticsPage />} />
+
+              {/* 🎮 Pages gamification */}
+              <Route path="gamification" element={<GamificationPage />} />
+              <Route path="badges" element={<BadgesPage />} />
+              <Route path="rewards" element={<RewardsPage />} />
+
+              {/* 🆕 Nouvelles pages du système de progression */}
+              <Route path="role-progression" element={<RoleProgressionPage />} />
+              <Route path="role-tasks" element={<RoleTasksPage />} />
+              <Route path="role-badges" element={<RoleBadgesPage />} />
+
+              {/* 👥 Pages équipe */}
+              <Route path="team" element={<TeamPage />} />
+              <Route path="users" element={<UsersPage />} />
+
+              {/* ⚙️ Pages utilisateur */}
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="onboarding" element={<OnboardingPage />} />
+              <Route path="timetrack" element={<TimeTrackPage />} />
+
+              {/* 🛡️ Pages admin */}
+              <Route path="admin/task-validation" element={<AdminTaskValidationPage />} />
+              <Route path="admin/complete-test" element={<CompleteAdminTestPage />} />
+
+              {/* 🔍 Pages de classement et leaderboard */}
+              <Route path="leaderboard" element={<GamificationPage />} />
+            </Route>
+
+            {/* 🚫 Page 404 */}
+            <Route path="*" element={
+              <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+                <div className="text-center">
+                  <h1 className="text-6xl font-bold text-gray-600 mb-4">404</h1>
+                  <p className="text-gray-400 mb-6">Page non trouvée</p>
+                  <button 
+                    onClick={() => window.location.href = '/dashboard'}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+                  >
+                    Retour au Dashboard
+                  </button>
+                </div>
+              </div>
+            } />
+          </Routes>
+
+          {/* 🎨 Effets visuels globaux pour la progression */}
+          <div id="confetti-container" className="pointer-events-none fixed inset-0 z-50" />
+          <div id="epic-effects-container" className="pointer-events-none fixed inset-0 z-40" />
+        </div>
+      </Router>
+    </ToastProvider>
+  );
+};
+
+export default App;// ==========================================
 // 📁 react-app/src/App.jsx
 // APPLICATION PRINCIPALE AVEC SYSTÈME DE PROGRESSION PAR RÔLES INTÉGRÉ
 // Version compatible avec build Netlify
