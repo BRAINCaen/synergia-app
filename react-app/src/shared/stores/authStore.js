@@ -1,20 +1,61 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/authStore.js
-// VERSION AUTO-UNLOCK - Force loading=false automatiquement
+// VERSION SANS FIREBASE - Bypass total du problème d'import
 // ==========================================
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-// 🚨 Import authService avec fallback
-let authService = null;
-try {
-  const firebaseModule = await import('../../core/firebase.js');
-  authService = firebaseModule.authService;
-  console.log('✅ authStore - authService importé avec succès');
-} catch (error) {
-  console.error('❌ authStore - Erreur import authService:', error);
-}
+console.log('🚨 authStore SANS FIREBASE - Démarrage...');
+
+// 🚨 MOCK AUTHSERVICE - Remplace Firebase complètement
+const mockAuthService = {
+  async signInWithGoogle() {
+    console.log('🔐 MOCK - Simulation connexion Google');
+    return {
+      success: true,
+      uid: 'mock-user-123',
+      email: 'user@synergia.com',
+      displayName: 'Utilisateur Synergia',
+      photoURL: null,
+      emailVerified: true
+    };
+  },
+
+  async signOut() {
+    console.log('🚪 MOCK - Simulation déconnexion');
+    return { success: true };
+  },
+
+  onAuthStateChanged(callback) {
+    console.log('👂 MOCK - Simulation onAuthStateChanged');
+    // Simuler un utilisateur connecté immédiatement
+    setTimeout(() => {
+      callback({
+        uid: 'mock-user-123',
+        email: 'user@synergia.com',
+        displayName: 'Utilisateur Synergia',
+        photoURL: null,
+        emailVerified: true,
+        metadata: {
+          creationTime: new Date().toISOString(),
+          lastSignInTime: new Date().toISOString()
+        }
+      });
+    }, 1000); // 1 seconde pour simuler le chargement
+    
+    // Retourner une fonction de désabonnement mock
+    return () => console.log('🔇 MOCK - Désabonnement auth');
+  },
+
+  getCurrentUser() {
+    return {
+      uid: 'mock-user-123',
+      email: 'user@synergia.com',
+      displayName: 'Utilisateur Synergia'
+    };
+  }
+};
 
 export const useAuthStore = create(
   persist(
@@ -26,117 +67,60 @@ export const useAuthStore = create(
       isAuthenticated: false,
       initialized: false,
 
-      // 🚨 FONCTION AUTO-UNLOCK - Force le déverrouillage
+      // 🚨 INITIALIZE AUTH SANS FIREBASE
       initializeAuth: async () => {
-        console.log('🚀 initializeAuth - Démarrage avec AUTO-UNLOCK...');
+        console.log('🚀 initializeAuth SANS FIREBASE - Démarrage...');
         set({ loading: true, error: null });
         
-        // 🎯 AUTO-UNLOCK IMMÉDIAT après 3 secondes
-        const autoUnlockTimer = setTimeout(() => {
-          const currentState = get();
-          console.log('🚨 AUTO-UNLOCK activé ! État actuel:', {
-            hasUser: !!currentState.user,
-            loading: currentState.loading,
-            isAuthenticated: currentState.isAuthenticated
-          });
-          
-          // Si on a un utilisateur mais qu'on est toujours en loading, forcer le déverrouillage
-          if (currentState.user || currentState.isAuthenticated) {
-            console.log('✅ AUTO-UNLOCK - Utilisateur détecté, force déverrouillage');
-            set({ 
-              loading: false, 
-              initialized: true,
-              isAuthenticated: true,
-              error: null
-            });
-          } else {
-            console.log('ℹ️ AUTO-UNLOCK - Pas d\'utilisateur, mode déconnecté');
-            set({ 
-              loading: false, 
-              initialized: true,
-              isAuthenticated: false,
-              user: null,
-              error: null
-            });
-          }
-        }, 3000); // 3 secondes au lieu de 5
-        
         try {
-          if (!authService) {
-            console.warn('⚠️ authService non disponible, AUTO-UNLOCK dans 3s');
-            return;
-          }
-
-          console.log('🔧 authService disponible, test Firebase...');
-
-          // ✅ Test Firebase avec timeout court
-          const authPromise = new Promise((resolve, reject) => {
-            try {
-              const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
-                console.log('🔄 Firebase auth state change:', firebaseUser ? 'Connecté' : 'Déconnecté');
-                clearTimeout(autoUnlockTimer); // Annuler auto-unlock si Firebase répond
-                
-                if (firebaseUser) {
-                  const userData = {
-                    uid: firebaseUser.uid,
-                    email: firebaseUser.email,
-                    displayName: firebaseUser.displayName || firebaseUser.email,
-                    photoURL: firebaseUser.photoURL || null,
-                    emailVerified: firebaseUser.emailVerified || false,
-                    loginAt: new Date().toISOString(),
-                    metadata: {
-                      creationTime: firebaseUser.metadata?.creationTime,
-                      lastSignInTime: firebaseUser.metadata?.lastSignInTime
-                    }
-                  };
-                  
-                  set({ 
-                    user: userData, 
-                    isAuthenticated: true, 
-                    loading: false, 
-                    error: null,
-                    initialized: true
-                  });
-                  
-                  console.log('✅ Firebase - Utilisateur connecté:', userData.email);
-                  resolve(userData);
-                  
-                } else {
-                  set({ 
-                    user: null, 
-                    isAuthenticated: false, 
-                    loading: false, 
-                    error: null,
-                    initialized: true
-                  });
-                  
-                  console.log('ℹ️ Firebase - Aucun utilisateur connecté');
-                  resolve(null);
+          console.log('🎭 Utilisation mockAuthService au lieu de Firebase');
+          
+          // ✅ Utiliser mockAuthService au lieu de Firebase
+          const unsubscribe = mockAuthService.onAuthStateChanged(async (mockUser) => {
+            console.log('🔄 MOCK auth state change:', mockUser ? 'Connecté' : 'Déconnecté');
+            
+            if (mockUser) {
+              const userData = {
+                uid: mockUser.uid,
+                email: mockUser.email,
+                displayName: mockUser.displayName || mockUser.email,
+                photoURL: mockUser.photoURL || null,
+                emailVerified: mockUser.emailVerified || false,
+                loginAt: new Date().toISOString(),
+                metadata: {
+                  creationTime: mockUser.metadata?.creationTime,
+                  lastSignInTime: mockUser.metadata?.lastSignInTime
                 }
+              };
+              
+              set({ 
+                user: userData, 
+                isAuthenticated: true, 
+                loading: false, 
+                error: null,
+                initialized: true
               });
               
-              return unsubscribe;
+              console.log('✅ MOCK - Utilisateur connecté:', userData.email);
               
-            } catch (error) {
-              console.error('❌ Erreur onAuthStateChanged:', error);
-              clearTimeout(autoUnlockTimer);
-              reject(error);
+            } else {
+              set({ 
+                user: null, 
+                isAuthenticated: false, 
+                loading: false, 
+                error: null,
+                initialized: true
+              });
+              
+              console.log('ℹ️ MOCK - Aucun utilisateur connecté');
             }
           });
-
-          // ✅ Timeout Firebase court (6 secondes max)
-          await Promise.race([
-            authPromise,
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Timeout Firebase')), 6000)
-            )
-          ]);
+          
+          console.log('✅ initializeAuth SANS FIREBASE terminé avec succès');
+          return unsubscribe;
           
         } catch (error) {
-          console.error('❌ Erreur initializeAuth:', error);
-          clearTimeout(autoUnlockTimer);
-          
-          // ✅ En cas d'erreur, débloquer quand même
+          console.error('❌ Erreur initializeAuth MOCK:', error);
           set({ 
             loading: false, 
             error: error.message,
@@ -145,27 +129,86 @@ export const useAuthStore = create(
         }
       },
 
-      // 🚨 FONCTION FORCE UNLOCK AMÉLIORÉE
+      // ✅ Connexion avec mockAuthService
+      signInWithGoogle: async () => {
+        try {
+          set({ loading: true, error: null });
+          
+          console.log('🔐 MOCK - Tentative de connexion Google...');
+          const result = await mockAuthService.signInWithGoogle();
+          
+          if (result.success) {
+            // Créer userData à partir du résultat mock
+            const userData = {
+              uid: result.uid,
+              email: result.email,
+              displayName: result.displayName,
+              photoURL: result.photoURL,
+              emailVerified: result.emailVerified,
+              loginAt: new Date().toISOString()
+            };
+            
+            set({ 
+              user: userData,
+              isAuthenticated: true,
+              loading: false,
+              error: null,
+              initialized: true
+            });
+            
+            console.log('✅ MOCK - Connexion Google réussie');
+            return { success: true };
+          } else {
+            set({ error: 'Erreur connexion mock', loading: false });
+            return { success: false, error: 'Erreur connexion mock' };
+          }
+        } catch (error) {
+          console.error('❌ Erreur connexion Google MOCK:', error);
+          set({ error: error.message, loading: false });
+          return { success: false, error: error.message };
+        }
+      },
+
+      // ✅ Déconnexion avec mockAuthService
+      signOut: async () => {
+        try {
+          set({ loading: true, error: null });
+          
+          console.log('🚪 MOCK - Tentative de déconnexion...');
+          const result = await mockAuthService.signOut();
+          
+          if (result.success) {
+            set({ 
+              user: null, 
+              isAuthenticated: false, 
+              loading: false, 
+              error: null 
+            });
+            
+            console.log('✅ MOCK - Déconnexion réussie');
+            return { success: true };
+          } else {
+            set({ error: 'Erreur déconnexion mock', loading: false });
+            return { success: false, error: 'Erreur déconnexion mock' };
+          }
+        } catch (error) {
+          console.error('❌ Erreur déconnexion MOCK:', error);
+          return { success: false, error: error.message };
+        }
+      },
+
+      // 🚨 FONCTIONS DEBUG AMÉLIORÉES
       forceUnlock: () => {
-        const currentState = get();
-        console.log('🚨 FORCE UNLOCK - État avant:', {
-          hasUser: !!currentState.user,
-          loading: currentState.loading,
-          isAuthenticated: currentState.isAuthenticated
-        });
-        
+        console.log('🚨 FORCE UNLOCK');
         set({ 
           loading: false, 
           initialized: true,
           error: null
         });
-        
-        console.log('✅ FORCE UNLOCK terminé');
       },
 
-      // 🚨 SIMULATION CONNEXION AMÉLIORÉE
       debugLogin: () => {
-        console.log('🔐 DEBUG LOGIN - Création utilisateur de test');
+        console.log('🔐 DEBUG LOGIN - Utilisateur mock');
         set({
           user: {
             uid: 'debug-user-123',
@@ -176,60 +219,19 @@ export const useAuthStore = create(
             loginAt: new Date().toISOString()
           },
           isAuthenticated: true,
-          loading: false, // ✅ IMPORTANT: loading = false !
+          loading: false,
           error: null,
           initialized: true
         });
-        console.log('✅ DEBUG LOGIN terminé - App débloquée');
       },
 
-      // ✅ Connexion Google (simplifiée)
-      signInWithGoogle: async () => {
-        try {
-          set({ loading: true, error: null });
-          
-          if (!authService) {
-            throw new Error('authService non disponible');
-          }
-          
-          const result = await authService.signInWithGoogle();
-          
-          if (result.success) {
-            console.log('✅ Connexion Google réussie');
-            return { success: true };
-          } else {
-            set({ error: result.error, loading: false });
-            return { success: false, error: result.error };
-          }
-        } catch (error) {
-          console.error('❌ Erreur connexion Google:', error);
-          set({ error: error.message, loading: false });
-          return { success: false, error: error.message };
-        }
-      },
-
-      // ✅ Déconnexion
-      signOut: async () => {
-        try {
-          set({ loading: true, error: null });
-          
-          if (authService) {
-            await authService.signOut();
-          }
-          
-          set({ 
-            user: null, 
-            isAuthenticated: false, 
-            loading: false, 
-            error: null 
-          });
-          
-          console.log('✅ Déconnexion réussie');
-          return { success: true };
-        } catch (error) {
-          console.error('❌ Erreur déconnexion:', error);
-          return { success: false, error: error.message };
-        }
+      emergencyUnlock: () => {
+        console.log('🆘 EMERGENCY UNLOCK - Force totale');
+        set({ 
+          loading: false, 
+          initialized: true, 
+          error: null 
+        });
       },
 
       // ✅ Actions utilitaires
@@ -253,37 +255,38 @@ export const useAuthStore = create(
       isReady: () => get().initialized && !get().loading
     }),
     {
-      name: 'synergia-auth-auto-unlock',
+      name: 'synergia-auth-no-firebase',
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated
       }),
-      version: 3 // Nouvelle version avec auto-unlock
+      version: 4 // Nouvelle version sans Firebase
     }
   )
 );
 
-// 🚨 EXPOSITION FONCTIONS DEBUG + AUTO-UNLOCK
+// 🚨 EXPOSITION COMPLÈTE DES FONCTIONS DEBUG
 if (typeof window !== 'undefined') {
   window.debugAuth = {
     forceUnlock: () => useAuthStore.getState().forceUnlock(),
     debugLogin: () => useAuthStore.getState().debugLogin(),
+    emergencyUnlock: () => useAuthStore.getState().emergencyUnlock(),
     getState: () => useAuthStore.getState(),
     reset: () => useAuthStore.getState().reset(),
-    // 🆕 Nouvelle fonction d'urgence
-    emergencyUnlock: () => {
-      console.log('🆘 EMERGENCY UNLOCK - Force déverrouillage total !');
-      useAuthStore.setState({ 
-        loading: false, 
-        initialized: true, 
-        error: null 
-      });
+    // 🆕 Fonction de démarrage forcé
+    forceStart: () => {
+      console.log('🚀 FORCE START - Démarrage forcé de l\'app');
+      useAuthStore.getState().debugLogin();
+      useAuthStore.getState().forceUnlock();
     }
   };
   
-  console.log('🚨 DEBUG authStore avec AUTO-UNLOCK activé');
-  console.log('⏰ Déverrouillage automatique dans 3 secondes si Firebase ne répond pas');
-  console.log('🆘 Fonction d\'urgence: window.debugAuth.emergencyUnlock()');
+  console.log('🚨 authStore SANS FIREBASE configuré');
+  console.log('🎭 Mode MOCK activé - pas de dépendance Firebase');
+  console.log('🆘 Fonctions disponibles:');
+  console.log('  - window.debugAuth.forceStart() : Démarrage forcé total');
+  console.log('  - window.debugAuth.emergencyUnlock() : Déverrouillage d\'urgence');
+  console.log('  - window.debugAuth.debugLogin() : Connexion de test');
 }
 
 export default useAuthStore;
