@@ -1,23 +1,21 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APPLICATION PRINCIPALE CORRIGÉE - SUPPRIME LE BLOCAGE AU DÉMARRAGE
+// VERSION ULTRA SIMPLIFIÉE - SUPPRIME LE BLOCAGE AU DÉMARRAGE
 // ==========================================
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-
-// 🔧 CORRECTION 1: Import du bon Layout
-// ❌ AVANT: import Layout from './components/layout/Layout.jsx';
-// ✅ APRÈS: Utiliser DashboardLayout qui fonctionne
-import DashboardLayout from './layouts/DashboardLayout.jsx';
 
 // 🎯 Imports des stores
 import { useAuthStore } from './shared/stores/authStore.js';
 
+// 🔧 Import du Layout qui fonctionne
+import DashboardLayout from './layouts/DashboardLayout.jsx';
+
 // 📄 Import page de login
 import Login from './pages/Login.jsx';
 
-// 📄 Pages principales - TOUS LES IMPORTS VÉRIFIÉS
+// 📄 Pages principales - TOUS VÉRIFIÉS
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
@@ -43,27 +41,23 @@ import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
 import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 
-// 🔧 SUPPRESSION DE L'IMPORT QUI PLANTE
-// ❌ SUPPRIMÉ: import './core/completeRoleFix.js'; (Cause une erreur de build)
-
-// Component de chargement simple et fonctionnel
+// ✅ LOADING SIMPLE ET EFFICACE
 const LoadingScreen = ({ message = 'Chargement...' }) => (
   <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 flex items-center justify-center">
     <div className="text-center">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
       <p className="text-white text-lg font-medium">{message}</p>
-      <div className="mt-4 text-blue-200 text-sm">
-        Synergia v3.5 - Mode Stable
-      </div>
+      <div className="mt-4 text-blue-200 text-sm">Synergia v3.5</div>
     </div>
   </div>
 );
 
-// Protection des routes - Version simplifiée
+// ✅ PROTECTION DES ROUTES SIMPLIFIÉE
 const ProtectedRoute = ({ children }) => {
-  const { user, isLoading } = useAuthStore();
+  const { user, loading } = useAuthStore();
   
-  if (isLoading) {
+  // ✅ SEULEMENT loading depuis authStore (pas de state local)
+  if (loading) {
     return <LoadingScreen message="Vérification de l'authentification..." />;
   }
   
@@ -74,52 +68,35 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// 🚀 COMPOSANT APP PRINCIPAL - VERSION CORRIGÉE
+// 🚀 COMPOSANT APP ULTRA SIMPLIFIÉ
 const App = () => {
-  const { user, isLoading, initializeAuth } = useAuthStore();
-  const [appInitialized, setAppInitialized] = useState(false);
+  const { user, loading, initializeAuth } = useAuthStore();
 
-  // Initialiser l'authentification au démarrage
+  // ✅ INITIALISATION SIMPLE AU DÉMARRAGE
   useEffect(() => {
-    const initApp = async () => {
-      try {
-        console.log('🚀 Initialisation de l\'application...');
-        
-        // Initialiser l'auth Firebase
-        await initializeAuth();
-        
-        console.log('✅ Application initialisée avec succès');
-      } catch (error) {
-        console.error('❌ Erreur initialisation app:', error);
-      } finally {
-        // ✅ CORRECTION CRITIQUE: TOUJOURS marquer comme initialisé
-        setAppInitialized(true);
-        console.log('🎯 App marquée comme initialisée');
-      }
-    };
+    console.log('🚀 Démarrage de l\'application Synergia...');
     
-    initApp();
+    // Initialiser l'auth en arrière-plan
+    initializeAuth();
+    
+    console.log('✅ Initialisation lancée');
   }, []);
 
-  // ✅ CORRECTION: Utiliser seulement appInitialized OU isLoading (pas les deux)
-  if (!appInitialized) {
+  // ✅ CONDITION SIMPLIFIÉE - Pas de state local, juste authStore
+  if (loading) {
     return <LoadingScreen message="Démarrage de Synergia..." />;
-  }
-  
-  if (isLoading) {
-    return <LoadingScreen message="Vérification de l'authentification..." />;
   }
 
   return (
     <Router>
       <Routes>
-        {/* Route de connexion */}
+        {/* ✅ Route de connexion */}
         <Route 
           path="/login" 
           element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
         />
         
-        {/* Routes protégées avec DashboardLayout */}
+        {/* ✅ Routes protégées avec DashboardLayout */}
         <Route path="/" element={
           <ProtectedRoute>
             <DashboardLayout />
@@ -155,7 +132,7 @@ const App = () => {
           <Route path="admin/complete-test" element={<CompleteAdminTestPage />} />
         </Route>
         
-        {/* Route de fallback */}
+        {/* ✅ Route de fallback */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Router>
@@ -163,3 +140,6 @@ const App = () => {
 };
 
 export default App;
+
+console.log('✅ App.jsx ULTRA SIMPLIFIÉ - Blocage supprimé !');
+console.log('🎯 Plus de state local appInitialized - utilise seulement authStore.loading');
