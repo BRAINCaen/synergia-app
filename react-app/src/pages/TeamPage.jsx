@@ -1,161 +1,369 @@
 // ==========================================
 // 📁 react-app/src/pages/TeamPage.jsx
-// VERSION AVEC INTÉGRATION FIREBASE COMPLÈTE
+// CORRECTION IMPORT/EXPORT - VERSION STABLE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { useAuthStore } from '../shared/stores/authStore.js';
-import { 
-  useTeam, 
-  useTeamStats, 
-  useRoles,
-  useTeamCleanup 
-} from '../hooks/useTeam.js';
 import { 
   Users, 
+  Search, 
   Award, 
-  Target, 
-  Search,
-  Crown,
-  Star,
-  BarChart3,
-  Plus,
+  BarChart3, 
   Settings,
+  RefreshCw,
+  Filter,
   UserPlus,
   Sparkles,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Mail,
+  Shield,
   TrendingUp,
-  RefreshCw,
-  Database,
-  Wifi,
-  WifiOff,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  Plus
 } from 'lucide-react';
 
-// Import du modal d'assignation
-import RoleAssignmentModal from '../components/team/RoleAssignmentModal.jsx';
+// ✅ Imports Firebase directs pour éviter les erreurs
+import { 
+  collection, 
+  getDocs, 
+  doc, 
+  getDoc, 
+  query, 
+  where, 
+  orderBy 
+} from 'firebase/firestore';
+import { db } from '../core/firebase.js';
+import { useAuthStore } from '../shared/stores/authStore.js';
 
-// 🎭 RÔLES SYNERGIA DÉFINIS LOCALEMENT (pour l'affichage)
+// Rôles Synergia (données locales)
 const SYNERGIA_ROLES = {
-  maintenance: {
-    id: 'maintenance',
-    name: 'Entretien, Réparations & Maintenance',
-    icon: '🔧',
-    color: 'bg-orange-500',
-    description: 'Responsable de la maintenance et des réparations',
-    difficulty: 'Facile',
-    taskCount: 100,
-    permissions: ['maintenance_access', 'repair_management']
-  },
-  reputation: {
-    id: 'reputation',
-    name: 'Gestion des Avis & de la Réputation',
-    icon: '⭐',
+  direction: {
+    id: 'direction',
+    name: 'Direction & Management',
+    icon: '👑',
     color: 'bg-yellow-500',
-    description: 'Gestion de l\'image et des retours clients',
-    difficulty: 'Moyen',
-    taskCount: 100,
-    permissions: ['reputation_management', 'review_access']
+    description: 'Direction générale et prise de décisions stratégiques',
+    difficulty: 'Expert',
+    permissions: ['all_access']
   },
-  stock: {
-    id: 'stock',
-    name: 'Gestion des Stocks & Matériel',
-    icon: '📦',
+  commercial: {
+    id: 'commercial',
+    name: 'Commercial & Vente',
+    icon: '💰',
+    color: 'bg-emerald-500',
+    description: 'Développement commercial et relation client',
+    difficulty: 'Moyen',
+    permissions: ['sales_access', 'client_management']
+  },
+  finance: {
+    id: 'finance',
+    name: 'Finance & Comptabilité',
+    icon: '📊',
     color: 'bg-blue-500',
-    description: 'Gestion des inventaires et approvisionnements',
+    description: 'Gestion financière et comptabilité',
+    difficulty: 'Avancé',
+    permissions: ['finance_access', 'accounting']
+  },
+  rh: {
+    id: 'rh',
+    name: 'Ressources Humaines',
+    icon: '👥',
+    color: 'bg-orange-500',
+    description: 'Gestion RH et recrutement',
+    difficulty: 'Avancé',
+    permissions: ['hr_access', 'recruitment']
+  },
+  technique: {
+    id: 'technique',
+    name: 'Technique & Maintenance',
+    icon: '🔧',
+    color: 'bg-gray-500',
+    description: 'Support technique et maintenance',
+    difficulty: 'Moyen',
+    permissions: ['technical_access', 'maintenance']
+  },
+  logistique: {
+    id: 'logistique',
+    name: 'Logistique & Stock',
+    icon: '📦',
+    color: 'bg-teal-500',
+    description: 'Gestion logistique et stocks',
     difficulty: 'Facile',
-    taskCount: 100,
     permissions: ['inventory_management', 'stock_access']
-  },
-  organization: {
-    id: 'organization',
-    name: 'Organisation Interne du Travail',
-    icon: '📋',
-    color: 'bg-purple-500',
-    description: 'Coordination et organisation des équipes',
-    difficulty: 'Avancé',
-    taskCount: 100,
-    permissions: ['organization_access', 'workflow_management']
-  },
-  content: {
-    id: 'content',
-    name: 'Création de Contenu & Affichages',
-    icon: '🎨',
-    color: 'bg-pink-500',
-    description: 'Création de contenu visuel et communication',
-    difficulty: 'Moyen',
-    taskCount: 100,
-    permissions: ['content_creation', 'design_access']
-  },
-  mentoring: {
-    id: 'mentoring',
-    name: 'Mentorat & Formation Interne',
-    icon: '🎓',
-    color: 'bg-green-500',
-    description: 'Formation et accompagnement des équipes',
-    difficulty: 'Avancé',
-    taskCount: 100,
-    permissions: ['training_access', 'mentoring_rights']
-  },
-  partnerships: {
-    id: 'partnerships',
-    name: 'Partenariats & Référencement',
-    icon: '🤝',
-    color: 'bg-indigo-500',
-    description: 'Développement de partenariats stratégiques',
-    difficulty: 'Expert',
-    taskCount: 100,
-    permissions: ['partnership_management', 'networking_access']
-  },
-  communication: {
-    id: 'communication',
-    name: 'Communication & Réseaux Sociaux',
-    icon: '📢',
-    color: 'bg-cyan-500',
-    description: 'Gestion de la communication digitale',
-    difficulty: 'Moyen',
-    taskCount: 100,
-    permissions: ['social_media_access', 'communication_rights']
-  },
-  b2b: {
-    id: 'b2b',
-    name: 'Relations B2B & Devis',
-    icon: '💼',
-    color: 'bg-slate-500',
-    description: 'Gestion des relations entreprises et devis',
-    difficulty: 'Expert',
-    taskCount: 100,
-    permissions: ['b2b_access', 'quote_management']
-  },
-  gamification: {
-    id: 'gamification',
-    name: 'Gamification & Système XP',
-    icon: '🎮',
-    color: 'bg-red-500',
-    description: 'Gestion du système de gamification',
-    difficulty: 'Expert',
-    taskCount: 100,
-    permissions: ['gamification_admin', 'xp_management']
   }
 };
 
+/**
+ * 🏠 COMPOSANT PAGE ÉQUIPE - VERSION STABLE
+ */
 const TeamPage = () => {
   const { user } = useAuthStore();
   
-  // 🔥 Hooks Firebase pour la gestion d'équipe
-  const { teamMembers, loading: teamLoading, error: teamError, refreshTeam } = useTeam();
-  const { stats, loading: statsLoading, refreshStats } = useTeamStats();
-  const { assignRole, removeRole, loading: roleLoading, error: roleError } = useRoles();
-  
-  // Nettoyer les listeners au démontage
-  useTeamCleanup();
-  
   // États locaux
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('members');
   const [searchTerm, setSearchTerm] = useState('');
-  const [showRoleAssignment, setShowRoleAssignment] = useState(false);
-  const [selectedMember, setSelectedMember] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('all');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [showSuccessMessage, setShowSuccessMessage] = useState('');
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  /**
+   * 🔄 RÉCUPÉRATION DIRECTE DEPUIS FIREBASE
+   * Solution temporaire pour éviter les erreurs d'import
+   */
+  const loadAllMembers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('🔍 Chargement direct depuis Firebase...');
+      
+      const membersMap = new Map();
+      
+      // 1️⃣ Récupérer depuis la collection USERS
+      try {
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        let usersCount = 0;
+        
+        usersSnapshot.forEach((doc) => {
+          const userData = doc.data();
+          if (userData.email) {
+            const member = {
+              id: doc.id,
+              email: userData.email,
+              displayName: userData.displayName || userData.email?.split('@')[0] || 'Utilisateur',
+              photoURL: userData.photoURL || null,
+              role: userData.role || 'Membre',
+              department: userData.department || 'Non spécifié',
+              isActive: userData.isActive !== false,
+              level: userData.level || 1,
+              xp: userData.totalXp || 0,
+              tasksCompleted: 0,
+              projects: [],
+              lastActivity: userData.lastActivity || userData.createdAt,
+              joinedAt: userData.createdAt,
+              source: 'users',
+              status: 'active'
+            };
+            membersMap.set(doc.id, member);
+            usersCount++;
+          }
+        });
+        
+        console.log(`✅ Users: ${usersCount} membres ajoutés`);
+        
+      } catch (userError) {
+        console.warn('⚠️ Erreur chargement users:', userError);
+      }
+
+      // 2️⃣ Enrichir depuis USERSTATS
+      try {
+        const statsSnapshot = await getDocs(collection(db, 'userStats'));
+        let statsCount = 0;
+        
+        statsSnapshot.forEach((doc) => {
+          const statsData = doc.data();
+          const existingMember = membersMap.get(doc.id);
+          
+          if (existingMember && statsData.email) {
+            // Enrichir membre existant
+            existingMember.level = Math.max(existingMember.level, statsData.level || 1);
+            existingMember.xp = Math.max(existingMember.xp, statsData.totalXp || 0);
+            existingMember.tasksCompleted = statsData.tasksCompleted || 0;
+            existingMember.tasksCreated = statsData.tasksCreated || 0;
+            existingMember.projectsCreated = statsData.projectsCreated || 0;
+            existingMember.badges = statsData.badges || [];
+            
+            if (statsData.lastLoginDate) {
+              existingMember.lastActivity = statsData.lastLoginDate;
+            }
+            statsCount++;
+          } else if (statsData.email && !existingMember) {
+            // Créer nouveau membre depuis stats
+            const member = {
+              id: doc.id,
+              email: statsData.email,
+              displayName: statsData.displayName || statsData.email?.split('@')[0] || 'Utilisateur',
+              photoURL: null,
+              role: 'Membre',
+              department: 'Non spécifié',
+              isActive: true,
+              level: statsData.level || 1,
+              xp: statsData.totalXp || 0,
+              tasksCompleted: statsData.tasksCompleted || 0,
+              tasksCreated: statsData.tasksCreated || 0,
+              projectsCreated: statsData.projectsCreated || 0,
+              badges: statsData.badges || [],
+              projects: [],
+              lastActivity: statsData.lastLoginDate || statsData.updatedAt,
+              joinedAt: statsData.createdAt,
+              source: 'userStats',
+              status: 'active'
+            };
+            membersMap.set(doc.id, member);
+            statsCount++;
+          }
+        });
+        
+        console.log(`✅ UserStats: ${statsCount} membres enrichis/ajoutés`);
+        
+      } catch (statsError) {
+        console.warn('⚠️ Erreur chargement userStats:', statsError);
+      }
+
+      // 3️⃣ Enrichir depuis TEAMMEMBERS
+      try {
+        const teamSnapshot = await getDocs(collection(db, 'teamMembers'));
+        let teamCount = 0;
+        
+        teamSnapshot.forEach((doc) => {
+          const teamData = doc.data();
+          const existingMember = membersMap.get(doc.id);
+          
+          if (existingMember) {
+            // Enrichir membre existant
+            if (teamData.synergiaRoles) {
+              existingMember.synergiaRoles = teamData.synergiaRoles;
+            }
+            if (teamData.department) {
+              existingMember.department = teamData.department;
+            }
+            if (teamData.status) {
+              existingMember.isActive = teamData.status !== 'inactive';
+              existingMember.status = teamData.status;
+            }
+            teamCount++;
+          } else if (teamData.email || teamData.displayName) {
+            // Créer membre depuis données équipe
+            const member = {
+              id: doc.id,
+              email: teamData.email || 'email@inconnu.com',
+              displayName: teamData.displayName || 'Utilisateur',
+              photoURL: teamData.photoURL || null,
+              role: teamData.role || 'Membre',
+              department: teamData.department || 'Non spécifié',
+              isActive: teamData.status !== 'inactive',
+              level: teamData.teamStats?.level || 1,
+              xp: teamData.teamStats?.totalXp || 0,
+              tasksCompleted: teamData.teamStats?.tasksCompleted || 0,
+              synergiaRoles: teamData.synergiaRoles || [],
+              projects: [],
+              lastActivity: teamData.updatedAt,
+              joinedAt: teamData.createdAt,
+              source: 'teamMembers',
+              status: teamData.status || 'active'
+            };
+            membersMap.set(doc.id, member);
+            teamCount++;
+          }
+        });
+        
+        console.log(`✅ TeamMembers: ${teamCount} membres enrichis/ajoutés`);
+        
+      } catch (teamError) {
+        console.warn('⚠️ Erreur chargement teamMembers:', teamError);
+      }
+
+      // 4️⃣ Ajouter membres depuis PROJETS
+      try {
+        const projectsSnapshot = await getDocs(collection(db, 'projects'));
+        let projectMembersCount = 0;
+        
+        projectsSnapshot.forEach((doc) => {
+          const projectData = doc.data();
+          
+          if (projectData.team && Array.isArray(projectData.team)) {
+            projectData.team.forEach((teamMember) => {
+              if (teamMember.userId) {
+                const existingMember = membersMap.get(teamMember.userId);
+                
+                if (existingMember) {
+                  // Ajouter info projet
+                  if (!existingMember.projects) existingMember.projects = [];
+                  existingMember.projects.push({
+                    id: doc.id,
+                    title: projectData.title,
+                    role: teamMember.role
+                  });
+                } else {
+                  // Créer membre minimal depuis projet
+                  const member = {
+                    id: teamMember.userId,
+                    email: teamMember.email || 'email@projet.com',
+                    displayName: teamMember.displayName || 'Membre Projet',
+                    photoURL: null,
+                    role: teamMember.role || 'Contributeur',
+                    department: 'Projet',
+                    isActive: true,
+                    level: 1,
+                    xp: 0,
+                    tasksCompleted: 0,
+                    projects: [{
+                      id: doc.id,
+                      title: projectData.title,
+                      role: teamMember.role
+                    }],
+                    lastActivity: teamMember.joinedAt,
+                    joinedAt: teamMember.joinedAt,
+                    source: 'projects',
+                    status: 'active'
+                  };
+                  membersMap.set(teamMember.userId, member);
+                  projectMembersCount++;
+                }
+              }
+            });
+          }
+        });
+        
+        console.log(`✅ Projects: ${projectMembersCount} membres ajoutés`);
+        
+      } catch (projectError) {
+        console.warn('⚠️ Erreur chargement projets:', projectError);
+      }
+
+      // 5️⃣ Convertir en tableau et trier
+      const allMembers = Array.from(membersMap.values())
+        .sort((a, b) => {
+          // Prioriser les membres actifs
+          if (a.isActive !== b.isActive) {
+            return b.isActive ? 1 : -1;
+          }
+          // Puis par niveau/XP
+          return (b.level || 0) - (a.level || 0);
+        });
+
+      setTeamMembers(allMembers);
+      setLastUpdated(new Date());
+      
+      console.log(`✅ ${allMembers.length} membres uniques chargés`);
+      console.log('📊 Sources:', {
+        users: allMembers.filter(m => m.source === 'users').length,
+        userStats: allMembers.filter(m => m.source === 'userStats').length,
+        teamMembers: allMembers.filter(m => m.source === 'teamMembers').length,
+        projects: allMembers.filter(m => m.source === 'projects').length
+      });
+      
+    } catch (err) {
+      console.error('❌ Erreur chargement équipe:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Charger au montage
+  useEffect(() => {
+    if (user) {
+      loadAllMembers();
+    }
+  }, [user]);
 
   // Détecter la connectivité
   useEffect(() => {
@@ -171,133 +379,78 @@ const TeamPage = () => {
     };
   }, []);
 
-  // Afficher les messages de succès
-  useEffect(() => {
-    if (showSuccessMessage) {
-      const timer = setTimeout(() => {
-        setShowSuccessMessage('');
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [showSuccessMessage]);
-
-  // Fonctions utilitaires
-  const getStatusColor = (status) => {
-    const colorMap = {
-      online: 'bg-green-500',
-      away: 'bg-yellow-500',
-      offline: 'bg-gray-500',
-      active: 'bg-green-500'
-    };
-    return colorMap[status] || 'bg-gray-500';
-  };
-
-  const getStatusText = (status) => {
-    const statusMap = {
-      online: 'En ligne',
-      away: 'Absent',
-      offline: 'Hors ligne',
-      active: 'Actif'
-    };
-    return statusMap[status] || 'Inconnu';
-  };
-
-  // Ouvrir le modal d'assignation
-  const handleOpenRoleAssignment = (member) => {
-    setSelectedMember(member);
-    setShowRoleAssignment(true);
-  };
-
-  // Fermer le modal d'assignation
-  const handleCloseRoleAssignment = () => {
-    setShowRoleAssignment(false);
-    setSelectedMember(null);
-  };
-
-  // Callback quand les rôles sont mis à jour
-  const handleRoleUpdated = async (action, roleName) => {
-    console.log('🔄 Rôle mis à jour:', action, roleName);
+  // Filtrer les membres
+  const filteredMembers = teamMembers.filter(member => {
+    const matchesSearch = (member.displayName || member.email || '')
+      .toLowerCase().includes(searchTerm.toLowerCase());
     
-    // Rafraîchir les données
-    await Promise.all([
-      refreshTeam(),
-      refreshStats()
-    ]);
+    let matchesStatus = true;
+    if (statusFilter === 'active') {
+      matchesStatus = member.isActive;
+    } else if (statusFilter === 'inactive') {
+      matchesStatus = !member.isActive;
+    }
     
-    // Afficher un message de succès
-    const message = action === 'assign' 
-      ? `Rôle "${roleName}" assigné avec succès !`
-      : `Rôle "${roleName}" retiré avec succès !`;
-    setShowSuccessMessage(message);
-  };
+    return matchesSearch && matchesStatus;
+  });
 
-  // Gestion de l'assignation de rôle depuis le modal
-  const handleAssignRole = async (userId, roleData) => {
-    try {
-      const success = await assignRole(userId, {
-        roleId: roleData.roleId,
-        permissions: roleData.permissions || []
-      });
-      
-      if (success) {
-        await handleRoleUpdated('assign', roleData.name);
-        return { success: true };
-      } else {
-        return { success: false, error: roleError };
-      }
-    } catch (error) {
-      console.error('❌ Erreur assignation rôle:', error);
-      return { success: false, error: error.message };
+  // Statistiques
+  const stats = {
+    total: teamMembers.length,
+    active: teamMembers.filter(m => m.isActive).length,
+    inactive: teamMembers.filter(m => !m.isActive).length,
+    avgLevel: teamMembers.length > 0 ? 
+      Math.round(teamMembers.reduce((sum, m) => sum + (m.level || 1), 0) / teamMembers.length) : 1,
+    totalXp: teamMembers.reduce((sum, m) => sum + (m.xp || 0), 0),
+    sources: {
+      users: teamMembers.filter(m => m.source === 'users').length,
+      userStats: teamMembers.filter(m => m.source === 'userStats').length,
+      teamMembers: teamMembers.filter(m => m.source === 'teamMembers').length,
+      projects: teamMembers.filter(m => m.source === 'projects').length
     }
   };
-
-  // Gestion de la suppression de rôle depuis le modal
-  const handleRemoveRole = async (userId, roleId) => {
-    try {
-      const success = await removeRole(userId, roleId);
-      
-      if (success) {
-        const roleInfo = SYNERGIA_ROLES[roleId];
-        await handleRoleUpdated('remove', roleInfo?.name || roleId);
-        return { success: true };
-      } else {
-        return { success: false, error: roleError };
-      }
-    } catch (error) {
-      console.error('❌ Erreur suppression rôle:', error);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // Actualiser toutes les données
-  const handleRefreshAll = async () => {
-    await Promise.all([
-      refreshTeam(),
-      refreshStats()
-    ]);
-    setShowSuccessMessage('Données actualisées !');
-  };
-
-  // Filtrage des membres
-  const filteredMembers = teamMembers.filter(member =>
-    (member.displayName || member.email || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   // Interface des onglets
   const tabs = [
-    { id: 'members', label: 'Membres', icon: Users, count: teamMembers.length },
-    { id: 'roles', label: 'Rôles Synergia', icon: Award, count: Object.keys(SYNERGIA_ROLES).length },
-    { id: 'stats', label: 'Statistiques', icon: BarChart3 }
+    { 
+      id: 'members', 
+      label: 'Membres', 
+      icon: Users, 
+      count: filteredMembers.length,
+      color: 'text-blue-400'
+    },
+    { 
+      id: 'stats', 
+      label: 'Statistiques', 
+      icon: BarChart3,
+      color: 'text-green-400'
+    },
+    { 
+      id: 'roles', 
+      label: 'Rôles Synergia', 
+      icon: Award, 
+      count: Object.keys(SYNERGIA_ROLES).length,
+      color: 'text-purple-400'
+    }
+  ];
+
+  // Filtres de statut
+  const statusFilters = [
+    { value: 'all', label: 'Tous', count: stats.total },
+    { value: 'active', label: 'Actifs', count: stats.active },
+    { value: 'inactive', label: 'Inactifs', count: stats.inactive }
   ];
 
   // Affichage de l'état de chargement initial
-  if (teamLoading && teamMembers.length === 0) {
+  if (loading && teamMembers.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Chargement des données Firebase...</p>
-          <p className="text-gray-400 text-sm mt-2">Synchronisation en cours</p>
+          <p className="text-white text-lg">Chargement exhaustif des membres...</p>
+          <p className="text-gray-400 text-sm mt-2">
+            Récupération depuis toutes les sources Firebase
+          </p>
         </div>
       </div>
     );
@@ -319,457 +472,453 @@ const TeamPage = () => {
             {/* Indicateur de connectivité */}
             <div className="flex items-center gap-2 ml-4">
               {isOnline ? (
-                <div className="flex items-center gap-2 text-green-400">
-                  <Wifi className="w-5 h-5" />
-                  <Database className="w-5 h-5 animate-pulse" />
+                <div className="flex items-center gap-1 text-green-400">
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="text-xs">En ligne</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-red-400">
-                  <WifiOff className="w-5 h-5" />
-                  <span className="text-sm">Hors ligne</span>
+                <div className="flex items-center gap-1 text-red-400">
+                  <XCircle className="w-4 h-4" />
+                  <span className="text-xs">Hors ligne</span>
                 </div>
               )}
             </div>
           </div>
           
-          <p className="text-xl text-gray-300 mb-4">
-            Gérez votre équipe avec Firebase en temps réel
-          </p>
-
-          {/* Message de succès */}
-          {showSuccessMessage && (
-            <div className="mb-4 mx-auto max-w-md">
-              <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3 text-green-300">
-                {showSuccessMessage}
-              </div>
+          {/* Statistiques en header */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 max-w-3xl mx-auto mb-6">
+            <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
+              <div className="text-xl font-bold text-blue-400">{stats.total}</div>
+              <div className="text-xs text-gray-400">Total</div>
             </div>
-          )}
-
-          {/* Messages d'erreur */}
-          {(teamError || roleError) && (
-            <div className="mb-4 mx-auto max-w-md">
-              <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-300 flex items-center gap-2">
-                <AlertCircle className="w-5 h-5" />
-                {teamError || roleError}
-              </div>
+            <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
+              <div className="text-xl font-bold text-green-400">{stats.active}</div>
+              <div className="text-xs text-gray-400">Actifs</div>
             </div>
-          )}
-          
-          {/* Actions rapides */}
-          <div className="flex flex-wrap justify-center gap-4">
-            <button className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl">
-              <UserPlus className="w-5 h-5" />
-              Inviter un membre
-            </button>
-            <button 
-              onClick={handleRefreshAll}
-              disabled={teamLoading || statsLoading}
-              className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
-            >
-              <RefreshCw className={`w-5 h-5 ${(teamLoading || statsLoading) ? 'animate-spin' : ''}`} />
-              Actualiser
-            </button>
-            <button className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-all shadow-lg hover:shadow-xl">
-              <Settings className="w-5 h-5" />
-              Paramètres
-            </button>
+            <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
+              <div className="text-xl font-bold text-red-400">{stats.inactive}</div>
+              <div className="text-xs text-gray-400">Inactifs</div>
+            </div>
+            <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
+              <div className="text-xl font-bold text-purple-400">{stats.avgLevel}</div>
+              <div className="text-xs text-gray-400">Niveau Moy.</div>
+            </div>
+            <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
+              <div className="text-xl font-bold text-yellow-400">{stats.totalXp.toLocaleString()}</div>
+              <div className="text-xs text-gray-400">XP Total</div>
+            </div>
+          </div>
+
+          {/* Debug sources */}
+          <div className="text-xs text-gray-500 flex items-center justify-center gap-4">
+            <span>Sources: </span>
+            {Object.entries(stats.sources).map(([source, count]) => (
+              <span key={source} className="bg-gray-800/30 px-2 py-1 rounded">
+                {source}: {count}
+              </span>
+            ))}
+            {lastUpdated && (
+              <span className="text-gray-600">
+                MAJ: {lastUpdated.toLocaleTimeString()}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Navigation par onglets */}
-        <div className="flex flex-wrap justify-center gap-2 mb-8">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white shadow-lg scale-105'
-                    : 'bg-white/10 text-gray-300 hover:bg-white/20 hover:scale-105'
-                }`}
-              >
-                <Icon className="w-5 h-5" />
-                <span>{tab.label}</span>
-                {tab.count !== undefined && (
-                  <span className="bg-white/20 text-xs px-2 py-1 rounded-full">
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Contenu des onglets */}
-        {activeTab === 'members' && (
-          <div className="space-y-6">
+        {/* Barre de contrôles */}
+        <div className="bg-gray-800/50 rounded-xl p-4 mb-6 border border-gray-700">
+          <div className="flex flex-col md:flex-row gap-4">
             
-            {/* Barre de recherche */}
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Rechercher un membre..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
+            {/* Recherche */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Rechercher un membre..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+              />
             </div>
 
-            {/* Liste des membres */}
-            <div className="grid gap-4">
-              {filteredMembers.map((member) => (
-                <div
-                  key={member.id}
-                  className="bg-white/10 backdrop-blur-sm rounded-xl p-6 hover:bg-white/20 transition-all border border-white/20 hover:border-white/40 group"
+            {/* Filtres de statut */}
+            <div className="flex gap-2">
+              {statusFilters.map((filter) => (
+                <button
+                  key={filter.value}
+                  onClick={() => setStatusFilter(filter.value)}
+                  className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                    statusFilter === filter.value
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
                 >
-                  <div className="flex items-center justify-between">
-                    
-                    {/* Infos du membre */}
-                    <div className="flex items-center gap-4">
-                      
-                      {/* Avatar */}
-                      <div className="relative">
-                        {member.photoURL ? (
-                          <img
-                            src={member.photoURL}
-                            alt={member.displayName || member.email}
-                            className="w-16 h-16 rounded-full object-cover group-hover:scale-105 transition-transform"
-                          />
-                        ) : (
-                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xl font-bold group-hover:scale-105 transition-transform">
-                            {(member.displayName || member.email)?.charAt(0)?.toUpperCase() || '?'}
-                          </div>
-                        )}
-                        
-                        {/* Indicateur de statut */}
-                        <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white ${getStatusColor(member.status || 'active')} animate-pulse`}>
-                        </div>
-                      </div>
-
-                      {/* Détails */}
-                      <div>
-                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                          {member.displayName || member.email}
-                          {member.id === user?.uid && (
-                            <Crown className="w-5 h-5 text-yellow-400 animate-pulse" />
-                          )}
-                        </h3>
-                        <p className="text-gray-400">{member.email}</p>
-                        <p className="text-sm text-gray-500">
-                          {getStatusText(member.status || 'active')}
-                          {member.lastLogin && (
-                            <span> • Dernière connexion: {new Date(member.lastLogin.toDate()).toLocaleDateString()}</span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Stats et actions */}
-                    <div className="text-right">
-                      <div className="flex items-center gap-6 mb-3">
-                        <div className="text-center">
-                          <p className="text-lg font-bold text-white">Niveau {member.teamStats?.level || 1}</p>
-                          <p className="text-sm text-gray-400">{member.teamStats?.totalXp || 0} XP</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-lg font-bold text-white">{member.teamStats?.tasksCompleted || 0}</p>
-                          <p className="text-sm text-gray-400">Tâches</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-lg font-bold text-white">{member.synergiaRoles?.length || 0}</p>
-                          <p className="text-sm text-gray-400">Rôles</p>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleOpenRoleAssignment(member)}
-                          disabled={roleLoading}
-                          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all text-sm shadow-lg hover:shadow-xl hover:scale-105 disabled:opacity-50"
-                        >
-                          <Award className="w-4 h-4" />
-                          {roleLoading ? 'Traitement...' : 'Gérer les rôles'}
-                        </button>
-                        <button className="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm">
-                          <Settings className="w-4 h-4" />
-                          Options
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Rôles actuels */}
-                  {member.synergiaRoles && member.synergiaRoles.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-white/20">
-                      <h4 className="text-white font-medium mb-3 flex items-center gap-2">
-                        <Star className="w-4 h-4 text-yellow-400" />
-                        Rôles Synergia :
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {member.synergiaRoles.map((userRole) => {
-                          const roleInfo = SYNERGIA_ROLES[userRole.roleId];
-                          if (!roleInfo) return null;
-                          
-                          return (
-                            <div
-                              key={userRole.roleId}
-                              className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm text-white ${roleInfo.color} hover:scale-105 transition-transform cursor-pointer shadow-lg`}
-                              title={`${roleInfo.description} - Niveau ${userRole.level} - ${userRole.xpInRole} XP`}
-                            >
-                              <span>{roleInfo.icon}</span>
-                              <span className="font-medium">{roleInfo.name}</span>
-                              <div className="bg-white/20 px-2 py-1 rounded-full text-xs">
-                                {userRole.level} • {userRole.xpInRole} XP
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  {filter.label} ({filter.count})
+                </button>
               ))}
             </div>
 
-            {/* Message si aucun membre trouvé */}
-            {filteredMembers.length === 0 && !teamLoading && (
-              <div className="text-center py-12">
-                <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-white mb-2">Aucun membre trouvé</h3>
-                <p className="text-gray-400">
-                  {searchTerm ? 'Essayez de modifier votre recherche' : 'Aucun membre dans l\'équipe'}
-                </p>
-              </div>
-            )}
+            {/* Bouton actualiser */}
+            <button
+              onClick={loadAllMembers}
+              className="px-4 py-2 bg-purple-600 border border-purple-500 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Actualiser
+            </button>
           </div>
-        )}
+        </div>
 
-        {activeTab === 'roles' && (
-          <div className="space-y-6">
-            
-            {/* Grille des rôles Synergia */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Object.values(SYNERGIA_ROLES).map((role) => {
-                // Calculer les stats du rôle depuis les données Firebase
-                const roleUsers = teamMembers.filter(member =>
-                  member.synergiaRoles?.some(r => r.roleId === role.id)
-                );
-                
-                return (
-                  <div
-                    key={role.id}
-                    className="bg-white/10 backdrop-blur-sm rounded-xl p-6 hover:bg-white/20 transition-all border border-white/20 hover:border-white/40 group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className={`w-12 h-12 rounded-xl ${role.color} flex items-center justify-center text-2xl group-hover:scale-110 transition-transform shadow-lg`}>
-                        {role.icon}
+        {/* Navigation des onglets */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-gray-700 text-white border border-gray-600'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+              }`}
+            >
+              <tab.icon className={`w-4 h-4 ${tab.color || 'text-current'}`} />
+              {tab.label}
+              {tab.count !== undefined && (
+                <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded-full">
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Contenu principal */}
+        <div className="bg-gray-800/50 rounded-xl border border-gray-700 overflow-hidden">
+          
+          {/* ONGLET MEMBRES */}
+          {activeTab === 'members' && (
+            <div className="p-6">
+              {error && (
+                <div className="mb-4 p-4 bg-red-900/20 border border-red-700 rounded-lg">
+                  <div className="flex items-center gap-2 text-red-400">
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="font-medium">Erreur de chargement</span>
+                  </div>
+                  <p className="text-red-300 text-sm mt-1">{error}</p>
+                </div>
+              )}
+
+              {filteredMembers.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredMembers.map((member) => (
+                    <div
+                      key={member.id}
+                      className="bg-gray-700/50 border border-gray-600 rounded-lg p-4 hover:bg-gray-700/70 transition-colors"
+                    >
+                      {/* Header membre */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                          {member.displayName?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-white truncate">
+                            {member.displayName || 'Nom inconnu'}
+                          </h3>
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-3 h-3 text-gray-400" />
+                            <span className="text-xs text-gray-400 truncate">
+                              {member.email || 'Email non disponible'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Statut */}
+                        <div className="flex items-center gap-1">
+                          {member.isActive ? (
+                            <CheckCircle className="w-4 h-4 text-green-400" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-red-400" />
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-white">{role.name}</h3>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm text-gray-400">{role.taskCount} tâches</p>
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            role.difficulty === 'Facile' ? 'bg-green-500/20 text-green-300' :
-                            role.difficulty === 'Moyen' ? 'bg-yellow-500/20 text-yellow-300' :
-                            role.difficulty === 'Avancé' ? 'bg-orange-500/20 text-orange-300' :
-                            'bg-red-500/20 text-red-300'
-                          }`}>
-                            {role.difficulty}
+
+                      {/* Informations membre */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-400">Rôle:</span>
+                          <span className="text-gray-300">{member.role || 'Non défini'}</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-400">Département:</span>
+                          <span className="text-gray-300">{member.department || 'Non spécifié'}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-400">Niveau:</span>
+                          <span className="text-blue-400 font-medium">
+                            Niv. {member.level || 1} ({member.xp || 0} XP)
                           </span>
                         </div>
-                      </div>
-                    </div>
-                    
-                    <p className="text-gray-300 mb-4">{role.description}</p>
-                    
-                    {/* Stats en temps réel du rôle */}
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      <div className="bg-white/5 rounded-lg p-3 text-center">
-                        <p className="text-lg font-bold text-white">{roleUsers.length}</p>
-                        <p className="text-xs text-gray-400">Utilisateurs</p>
-                      </div>
-                      <div className="bg-white/5 rounded-lg p-3 text-center">
-                        <p className="text-lg font-bold text-white">
-                          {roleUsers.reduce((sum, user) => {
-                            const userRole = user.synergiaRoles?.find(r => r.roleId === role.id);
-                            return sum + (userRole?.xpInRole || 0);
-                          }, 0)}
-                        </p>
-                        <p className="text-xs text-gray-400">XP Total</p>
-                      </div>
-                    </div>
-                    
-                    <button className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl">
-                      Voir les détails
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
-        {activeTab === 'stats' && (
-          <div className="space-y-6">
-            
-            {/* Stats globales avec données Firebase */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center border border-white/20 hover:border-white/40 transition-all group">
-                <Users className="w-8 h-8 text-blue-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                <p className="text-2xl font-bold text-white">{stats?.totalMembers || teamMembers.length}</p>
-                <p className="text-gray-400">Membres</p>
-                {statsLoading && <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mt-2"></div>}
-              </div>
-              
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center border border-white/20 hover:border-white/40 transition-all group">
-                <Award className="w-8 h-8 text-purple-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                <p className="text-2xl font-bold text-white">
-                  {stats?.totalRoles || teamMembers.reduce((sum, member) => sum + (member.synergiaRoles?.length || 0), 0)}
-                </p>
-                <p className="text-gray-400">Rôles assignés</p>
-                {statsLoading && <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mt-2"></div>}
-              </div>
-              
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center border border-white/20 hover:border-white/40 transition-all group">
-                <Target className="w-8 h-8 text-green-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                <p className="text-2xl font-bold text-white">
-                  {stats?.totalTasks || teamMembers.reduce((sum, member) => sum + (member.teamStats?.tasksCompleted || 0), 0)}
-                </p>
-                <p className="text-gray-400">Tâches complétées</p>
-                {statsLoading && <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin mx-auto mt-2"></div>}
-              </div>
-              
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center border border-white/20 hover:border-white/40 transition-all group">
-                <TrendingUp className="w-8 h-8 text-yellow-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                <p className="text-2xl font-bold text-white">
-                  {stats?.averageLevel || (teamMembers.length > 0 ? Math.round(teamMembers.reduce((sum, member) => sum + (member.teamStats?.level || 1), 0) / teamMembers.length) : 0)}
-                </p>
-                <p className="text-gray-400">Niveau moyen</p>
-                {statsLoading && <div className="w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mt-2"></div>}
-              </div>
-            </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-400">Source:</span>
+                          <span className="text-purple-400">{member.source}</span>
+                        </div>
 
-            {/* Top Performers avec données Firebase */}
-            {stats?.topPerformers && stats.topPerformers.length > 0 && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
-                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                  <Crown className="w-6 h-6 text-yellow-400" />
-                  Top Performers
-                </h3>
-                <div className="grid gap-3">
-                  {stats.topPerformers.slice(0, 5).map((performer, index) => (
-                    <div key={performer.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                          index === 0 ? 'bg-yellow-500 text-black' :
-                          index === 1 ? 'bg-gray-400 text-black' :
-                          index === 2 ? 'bg-orange-600 text-white' :
-                          'bg-blue-600 text-white'
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <div>
-                          <p className="text-white font-medium">{performer.name}</p>
-                          <p className="text-gray-400 text-sm">{performer.rolesCount} rôle{performer.rolesCount > 1 ? 's' : ''}</p>
-                        </div>
+                        {/* Rôles Synergia */}
+                        {member.synergiaRoles && member.synergiaRoles.length > 0 && (
+                          <div className="mt-2">
+                            <span className="text-xs text-gray-400">Rôles Synergia:</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {member.synergiaRoles.slice(0, 2).map((role, index) => (
+                                <span
+                                  key={index}
+                                  className="text-xs bg-purple-600/20 text-purple-400 px-2 py-1 rounded border border-purple-600/30"
+                                >
+                                  {typeof role === 'string' ? role : role.name}
+                                </span>
+                              ))}
+                              {member.synergiaRoles.length > 2 && (
+                                <span className="text-xs text-gray-400">
+                                  +{member.synergiaRoles.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Projets */}
+                        {member.projects && member.projects.length > 0 && (
+                          <div className="mt-2">
+                            <span className="text-xs text-gray-400">Projets:</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {member.projects.slice(0, 2).map((project, index) => (
+                                <span
+                                  key={index}
+                                  className="text-xs bg-green-600/20 text-green-400 px-2 py-1 rounded border border-green-600/30"
+                                >
+                                  {project.title || project.id}
+                                </span>
+                              ))}
+                              {member.projects.length > 2 && (
+                                <span className="text-xs text-gray-400">
+                                  +{member.projects.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <p className="text-white font-bold">{performer.totalXp} XP</p>
-                        <p className="text-gray-400 text-sm">Niveau {performer.level}</p>
+
+                      {/* Actions */}
+                      <div className="mt-3 pt-3 border-t border-gray-600">
+                        <button
+                          onClick={() => setSelectedMember(member)}
+                          className="w-full px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/30 text-blue-400 rounded text-xs transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Eye className="w-3 h-3" />
+                          Voir détails
+                        </button>
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* Répartition des rôles avec données Firebase */}
-            {stats?.roleDistribution && Object.keys(stats.roleDistribution).length > 0 && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
-                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                  <BarChart3 className="w-6 h-6" />
-                  Répartition des Rôles
-                </h3>
-                <div className="space-y-3">
-                  {Object.entries(stats.roleDistribution)
-                    .sort(([,a], [,b]) => b.count - a.count)
-                    .map(([roleId, roleData]) => {
-                      const roleInfo = SYNERGIA_ROLES[roleId];
-                      if (!roleInfo) return null;
-                      
-                      const maxCount = Math.max(...Object.values(stats.roleDistribution).map(r => r.count));
-                      const percentage = (roleData.count / maxCount) * 100;
-                      
-                      return (
-                        <div key={roleId} className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-4 h-4 rounded-full ${roleInfo.color}`}></div>
-                            <span className="text-white">{roleInfo.name}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="w-24 bg-white/20 rounded-full h-2">
-                              <div 
-                                className={`h-2 rounded-full ${roleInfo.color}`}
-                                style={{ width: `${percentage}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-white font-medium w-8 text-right">{roleData.count}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
-
-            {/* Placeholder si pas de stats */}
-            {(!stats || statsLoading) && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-8 border border-white/20">
-                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                  <BarChart3 className="w-6 h-6" />
-                  Analytics Firebase
-                </h3>
-                <div className="text-center py-12 text-gray-400">
-                  {statsLoading ? (
-                    <>
-                      <Database className="w-20 h-20 text-gray-400 mx-auto mb-4 animate-pulse" />
-                      <p className="text-lg font-medium">Chargement des statistiques...</p>
-                      <p>Calcul des métriques depuis Firebase</p>
-                    </>
-                  ) : (
-                    <>
-                      <BarChart3 className="w-20 h-20 text-gray-400 mx-auto mb-4" />
-                      <p className="text-lg font-medium">Statistiques en temps réel</p>
-                      <p>Données synchronisées avec Firebase</p>
-                    </>
+              ) : (
+                <div className="text-center py-12">
+                  <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                  <h3 className="text-xl font-medium text-gray-300 mb-2">
+                    {searchTerm ? 'Aucun membre trouvé' : 'Aucun membre dans l\'équipe'}
+                  </h3>
+                  <p className="text-gray-500">
+                    {searchTerm 
+                      ? 'Essayez de modifier vos critères de recherche' 
+                      : 'L\'équipe semble vide pour le moment'
+                    }
+                  </p>
+                  {!searchTerm && (
+                    <button
+                      onClick={loadAllMembers}
+                      className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    >
+                      Rafraîchir les données
+                    </button>
                   )}
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* ONGLET STATISTIQUES */}
+          {activeTab === 'stats' && (
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-white mb-6">Statistiques de l'Équipe</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Statistiques générales */}
+                <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                  <h4 className="font-medium text-white mb-3 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-blue-400" />
+                    Vue d'ensemble
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Total membres:</span>
+                      <span className="text-white font-medium">{stats.total}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Actifs:</span>
+                      <span className="text-green-400 font-medium">{stats.active}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Inactifs:</span>
+                      <span className="text-red-400 font-medium">{stats.inactive}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Niveau moyen:</span>
+                      <span className="text-purple-400 font-medium">{stats.avgLevel}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">XP totale:</span>
+                      <span className="text-yellow-400 font-medium">{stats.totalXp.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sources de données */}
+                <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                  <h4 className="font-medium text-white mb-3 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-purple-400" />
+                    Sources de données
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    {Object.entries(stats.sources).map(([source, count]) => (
+                      <div key={source} className="flex justify-between">
+                        <span className="text-gray-400 capitalize">{source}:</span>
+                        <span className="text-blue-400 font-medium">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Actions rapides */}
+                <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                  <h4 className="font-medium text-white mb-3">Actions rapides</h4>
+                  <div className="space-y-2">
+                    <button
+                      onClick={loadAllMembers}
+                      className="w-full px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/30 text-blue-400 rounded text-sm transition-colors flex items-center justify-center gap-2"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Actualiser données
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        console.log('📊 Export membres:', teamMembers);
+                        console.log('📈 Statistiques:', stats);
+                      }}
+                      className="w-full px-3 py-2 bg-gray-600/20 hover:bg-gray-600/30 border border-gray-600/30 text-gray-400 rounded text-sm transition-colors"
+                    >
+                      Exporter en console
+                    </button>
+                  </div>
+                </div>
               </div>
-            )}
+            </div>
+          )}
+
+          {/* ONGLET RÔLES SYNERGIA */}
+          {activeTab === 'roles' && (
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-white mb-6">Rôles Synergia Disponibles</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.values(SYNERGIA_ROLES).map((role) => (
+                  <div
+                    key={role.id}
+                    className={`${role.color} bg-opacity-20 border border-opacity-30 rounded-lg p-4 hover:bg-opacity-30 transition-colors`}
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-2xl">{role.icon}</span>
+                      <div>
+                        <h4 className="font-medium text-white">{role.name}</h4>
+                        <span className="text-xs text-gray-400">{role.difficulty}</span>
+                      </div>
+                    </div>
+                    
+                    <p className="text-sm text-gray-300 mb-3">{role.description}</p>
+                    
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-400">Permissions:</span>
+                      <span className="text-gray-300">{role.permissions.length}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Modal détails membre */}
+        {selectedMember && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full border border-gray-700">
+              <h3 className="text-xl font-bold text-white mb-4">
+                Détails de {selectedMember.displayName}
+              </h3>
+              
+              <div className="space-y-3 text-sm">
+                <div>
+                  <span className="text-gray-400">Email:</span>
+                  <span className="text-white ml-2">{selectedMember.email}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Rôle:</span>
+                  <span className="text-white ml-2">{selectedMember.role}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Département:</span>
+                  <span className="text-white ml-2">{selectedMember.department}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Niveau:</span>
+                  <span className="text-white ml-2">{selectedMember.level} ({selectedMember.xp} XP)</span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Source:</span>
+                  <span className="text-white ml-2">{selectedMember.source}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Statut:</span>
+                  <span className={`ml-2 ${selectedMember.isActive ? 'text-green-400' : 'text-red-400'}`}>
+                    {selectedMember.isActive ? 'Actif' : 'Inactif'}
+                  </span>
+                </div>
+                {selectedMember.lastActivity && (
+                  <div>
+                    <span className="text-gray-400">Dernière activité:</span>
+                    <span className="text-white ml-2">
+                      {new Date(selectedMember.lastActivity).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              <button
+                onClick={() => setSelectedMember(null)}
+                className="mt-4 w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
           </div>
         )}
       </div>
-
-      {/* Modal d'assignation de rôles avec intégration Firebase */}
-      {showRoleAssignment && (
-        <RoleAssignmentModal
-          isOpen={showRoleAssignment}
-          onClose={handleCloseRoleAssignment}
-          selectedMember={selectedMember}
-          onRoleUpdated={handleRoleUpdated}
-          onAssignRole={handleAssignRole}
-          onRemoveRole={handleRemoveRole}
-          loading={roleLoading}
-        />
-      )}
     </div>
   );
 };
 
+// ✅ EXPORT PAR DÉFAUT OBLIGATOIRE
 export default TeamPage;
