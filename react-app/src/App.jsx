@@ -88,23 +88,26 @@ const App = () => {
         // Initialiser l'auth Firebase
         await initializeAuth();
         
-        // Marquer l'app comme initialisée
-        setAppInitialized(true);
-        
         console.log('✅ Application initialisée avec succès');
       } catch (error) {
         console.error('❌ Erreur initialisation app:', error);
-        // Même en cas d'erreur, on initialise l'app
+      } finally {
+        // ✅ CORRECTION CRITIQUE: TOUJOURS marquer comme initialisé
         setAppInitialized(true);
+        console.log('🎯 App marquée comme initialisée');
       }
     };
     
     initApp();
   }, []);
 
-  // Afficher le loading pendant l'initialisation
-  if (!appInitialized || isLoading) {
+  // ✅ CORRECTION: Utiliser seulement appInitialized OU isLoading (pas les deux)
+  if (!appInitialized) {
     return <LoadingScreen message="Démarrage de Synergia..." />;
+  }
+  
+  if (isLoading) {
+    return <LoadingScreen message="Vérification de l'authentification..." />;
   }
 
   return (
