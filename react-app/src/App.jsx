@@ -36,19 +36,19 @@ import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import GamificationPage from './pages/GamificationPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 
-// 🚨 FIX TEMPORAIRE - Import de TeamPage avec fallback
-let TeamPage;
-try {
-  TeamPage = require('./pages/TeamPage.jsx').default;
-  console.log('✅ TeamPage importée avec succès');
-} catch (error) {
-  console.warn('⚠️ Erreur import TeamPage, utilisation fallback:', error.message);
-  // Fallback simple si TeamPage ne charge pas
-  TeamPage = () => React.createElement('div', { style: { padding: '20px' } }, 
+// ✅ Import TeamPage avec fallback ES6
+import TeamPageComponent from './pages/TeamPage.jsx';
+
+// Vérifier que l'import a fonctionné
+const TeamPage = TeamPageComponent || (() => {
+  console.warn('⚠️ TeamPage fallback utilisé');
+  return React.createElement('div', { style: { padding: '20px' } }, 
     React.createElement('h1', null, 'Page Équipe'),
     React.createElement('p', null, 'Page en cours de réparation...')
   );
-}
+});
+
+console.log('✅ TeamPage importée:', !!TeamPageComponent);
 
 import OnboardingPage from './pages/OnboardingPage.jsx';
 import TimeTrackPage from './pages/TimeTrackPage.jsx';
