@@ -1,12 +1,20 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/authStore.js
-// Store d'authentification CORRIGÉ - Import authService réparé
+// VERSION DEBUG - FORCE LE DÉVERROUILLAGE pour identifier le problème
 // ==========================================
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-// ✅ CORRECTION CRITIQUE - Import authService depuis firebase.js où il est maintenant exporté
-import { authService } from '../../core/firebase.js'
+
+// 🚨 Import authService avec fallback en cas d'erreur
+let authService = null;
+try {
+  const firebaseModule = await import('../../core/firebase.js');
+  authService = firebaseModule.authService;
+  console.log('✅ DEBUG authStore - authService importé avec succès');
+} catch (error) {
+  console.error('❌ DEBUG authStore - Erreur import authService:', error);
+}
 
 export const useAuthStore = create(
   persist(
@@ -17,122 +25,201 @@ export const useAuthStore = create(
       error: null,
       isAuthenticated: false,
       initialized: false,
+      debugMode: true, // 🚨 Mode debug activé
 
-      // ✅ FONCTION CRITIQUE - initializeAuth (c'était ça le blocage !)
+      // 🚨 FONCTION DEBUG - initializeAuth avec timeout forcé
       initializeAuth: async () => {
-        console.log('🚀 initializeAuth - Démarrage...');
+        console.log('🚨 DEBUG initializeAuth - Démarrage avec timeout forcé...');
         set({ loading: true, error: null });
+        
+        // 🎯 TIMEOUT FORCÉ - Si pas de réponse en 5 secondes, on force le déverrouillage
+        const forceUnlockTimer = setTimeout(() => {
+          console.log('🚨 DEBUG - TIMEOUT ATTEINT - Force déverrouillage !');
+          set({ 
+            loading: false, 
+            initialized: true,
+            error: 'Timeout Firebase - Mode dégradé activé'
+          });
+        }, 5000);
         
         try {
           // ✅ Vérifier que authService est disponible
           if (!authService) {
-            throw new Error('authService non disponible');
+            console.warn('⚠️ DEBUG - authService non disponible, mode dégradé');
+            clearTimeout(forceUnlockTimer);
+            set({ 
+              loading: false, 
+              initialized: true,
+              error: 'authService non disponible'
+            });
+            return;
           }
 
-          console.log('🔧 authService disponible, configuration onAuthStateChanged...');
+          console.log('🔧 DEBUG - authService disponible, test onAuthStateChanged...');
 
-          // ✅ Configurer l'écoute des changements d'auth
-          const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
-            console.log('🔄 Changement d\'état auth:', firebaseUser ? 'Connecté' : 'Déconnecté');
-            
-            if (firebaseUser) {
-              // Utilisateur connecté
-              const userData = {
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                displayName: firebaseUser.displayName || firebaseUser.email,
-                photoURL: firebaseUser.photoURL || null,
-                emailVerified: firebaseUser.emailVerified || false,
-                loginAt: new Date().toISOString(),
-                metadata: {
-                  creationTime: firebaseUser.metadata?.creationTime,
-                  lastSignInTime: firebaseUser.metadata?.lastSignInTime
+          // ✅ Test avec timeout pour onAuthStateChanged
+          const authPromise = new Promise((resolve, reject) => {
+            try {
+              const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
+                console.log('🔄 DEBUG - Changement d\'état auth:', firebaseUser ? 'Connecté' : 'Déconnecté');
+                clearTimeout(forceUnlockTimer);
+                
+                if (firebaseUser) {
+                  // Utilisateur connecté
+                  const userData = {
+                    uid: firebaseUser.uid,
+                    email: firebaseUser.email,
+                    displayName: firebaseUser.displayName || firebaseUser.email,
+                    photoURL: firebaseUser.photoURL || null,
+                    emailVerified: firebaseUser.emailVerified || false,
+                    loginAt: new Date().toISOString(),
+                    metadata: {
+                      creationTime: firebaseUser.metadata?.creationTime,
+                      lastSignInTime: firebaseUser.metadata?.lastSignInTime
+                    }
+                  };
+                  
+                  set({ 
+                    user: userData, 
+                    isAuthenticated: true, 
+                    loading: false, 
+                    error: null,
+                    initialized: true
+                  });
+                  
+                  console.log('✅ DEBUG - Utilisateur connecté et état mis à jour:', userData.email);
+                  resolve(userData);
+                  
+                } else {
+                  // Aucun utilisateur connecté
+                  set({ 
+                    user: null, 
+                    isAuthenticated: false, 
+                    loading: false, 
+                    error: null,
+                    initialized: true
+                  });
+                  
+                  console.log('ℹ️ DEBUG - Aucun utilisateur connecté, état réinitialisé');
+                  resolve(null);
                 }
-              };
-              
-              set({ 
-                user: userData, 
-                isAuthenticated: true, 
-                loading: false, 
-                error: null,
-                initialized: true
               });
               
-              console.log('✅ Utilisateur connecté et état mis à jour:', userData.email);
+              // Retourner la fonction de désabonnement
+              return unsubscribe;
               
-            } else {
-              // Aucun utilisateur connecté
-              set({ 
-                user: null, 
-                isAuthenticated: false, 
-                loading: false, 
-                error: null,
-                initialized: true
-              });
-              
-              console.log('ℹ️ Aucun utilisateur connecté, état réinitialisé');
+            } catch (error) {
+              console.error('❌ DEBUG - Erreur onAuthStateChanged:', error);
+              clearTimeout(forceUnlockTimer);
+              reject(error);
             }
           });
+
+          // ✅ Attendre max 10 secondes pour la réponse Firebase
+          await Promise.race([
+            authPromise,
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout onAuthStateChanged')), 10000)
+            )
+          ]);
           
-          // ✅ Retourner la fonction de désabonnement
-          console.log('✅ initializeAuth terminé avec succès');
-          return unsubscribe;
+          console.log('✅ DEBUG - initializeAuth terminé avec succès');
           
         } catch (error) {
-          console.error('❌ Erreur initializeAuth:', error);
+          console.error('❌ DEBUG - Erreur initializeAuth:', error);
+          clearTimeout(forceUnlockTimer);
           set({ 
             loading: false, 
             error: error.message,
             initialized: true
           });
-          // Même en cas d'erreur, marquer comme initialisé pour éviter le blocage
         }
       },
 
-      // ✅ Connexion avec Google
+      // 🚨 FONCTION DEBUG - Force déverrouillage manuel
+      forceUnlock: () => {
+        console.log('🚨 DEBUG - Force déverrouillage manuel !');
+        set({ 
+          loading: false, 
+          initialized: true,
+          error: 'Déverrouillage forcé par debug'
+        });
+      },
+
+      // 🚨 FONCTION DEBUG - Simulation utilisateur connecté
+      debugLogin: () => {
+        console.log('🔐 DEBUG - Simulation connexion utilisateur');
+        set({
+          user: {
+            uid: 'debug-user-123',
+            email: 'debug@synergia.com',
+            displayName: 'Utilisateur Debug',
+            photoURL: null,
+            emailVerified: true,
+            loginAt: new Date().toISOString()
+          },
+          isAuthenticated: true,
+          loading: false,
+          error: null,
+          initialized: true
+        });
+      },
+
+      // ✅ Connexion avec Google (avec fallback)
       signInWithGoogle: async () => {
         try {
           set({ loading: true, error: null });
           
-          console.log('🔐 Tentative de connexion Google...');
+          if (!authService) {
+            throw new Error('authService non disponible');
+          }
+          
+          console.log('🔐 DEBUG - Tentative de connexion Google...');
           const result = await authService.signInWithGoogle();
           
           if (result.success) {
-            console.log('✅ Connexion Google réussie');
-            // L'état sera mis à jour automatiquement par onAuthStateChanged
+            console.log('✅ DEBUG - Connexion Google réussie');
             return { success: true };
           } else {
-            console.error('❌ Échec connexion Google:', result.error);
+            console.error('❌ DEBUG - Échec connexion Google:', result.error);
             set({ error: result.error, loading: false });
             return { success: false, error: result.error };
           }
         } catch (error) {
-          console.error('❌ Erreur connexion Google:', error);
+          console.error('❌ DEBUG - Erreur connexion Google:', error);
           set({ error: error.message, loading: false });
           return { success: false, error: error.message };
         }
       },
 
-      // ✅ Déconnexion
+      // ✅ Déconnexion (avec fallback)
       signOut: async () => {
         try {
           set({ loading: true, error: null });
           
-          console.log('🚪 Tentative de déconnexion...');
+          if (!authService) {
+            console.log('🚪 DEBUG - Déconnexion locale (authService indisponible)');
+            set({ 
+              user: null, 
+              isAuthenticated: false, 
+              loading: false, 
+              error: null 
+            });
+            return { success: true };
+          }
+          
+          console.log('🚪 DEBUG - Tentative de déconnexion...');
           const result = await authService.signOut();
           
           if (result.success) {
-            console.log('✅ Déconnexion réussie');
-            // L'état sera mis à jour automatiquement par onAuthStateChanged
+            console.log('✅ DEBUG - Déconnexion réussie');
             return { success: true };
           } else {
-            console.error('❌ Échec déconnexion:', result.error);
-            set({ error: result.error, loading: false });
+            console.error('❌ DEBUG - Échec déconnexion:', result.error);
             return { success: false, error: result.error };
           }
         } catch (error) {
-          console.error('❌ Erreur déconnexion:', error);
-          set({ error: error.message, loading: false });
+          console.error('❌ DEBUG - Erreur déconnexion:', error);
           return { success: false, error: error.message };
         }
       },
@@ -159,27 +246,34 @@ export const useAuthStore = create(
       isReady: () => get().initialized && !get().loading
     }),
     {
-      // ✅ Configuration de persistance - Ne sauvegarder que les données essentielles
-      name: 'synergia-auth',
+      name: 'synergia-auth-debug',
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated
-        // Ne pas sauvegarder loading, error, initialized
       }),
-      // ✅ Version pour gérer les migrations
-      version: 1
+      version: 2 // Nouvelle version pour le debug
     }
   )
 );
 
-// ✅ Actions rapides pour compatibilité
-export const authActions = {
-  signInWithGoogle: () => useAuthStore.getState().signInWithGoogle(),
-  signOut: () => useAuthStore.getState().signOut(),
-  initializeAuth: () => useAuthStore.getState().initializeAuth(),
-  reset: () => useAuthStore.getState().reset()
-};
+// 🚨 EXPOSITION DES FONCTIONS DEBUG DANS WINDOW
+if (typeof window !== 'undefined') {
+  window.debugAuth = {
+    forceUnlock: () => useAuthStore.getState().forceUnlock(),
+    debugLogin: () => useAuthStore.getState().debugLogin(),
+    getState: () => useAuthStore.getState(),
+    reset: () => useAuthStore.getState().reset()
+  };
+  
+  console.log('🚨 DEBUG - Fonctions exposées dans window.debugAuth:');
+  console.log('  - window.debugAuth.forceUnlock() : Force le déverrouillage');
+  console.log('  - window.debugAuth.debugLogin() : Simule une connexion');
+  console.log('  - window.debugAuth.getState() : Voir l\'état actuel');
+  console.log('  - window.debugAuth.reset() : Reset complet');
+}
 
 // ✅ LOG DE SUCCÈS
-console.log('✅ authStore configuré avec authService corrigé');
-console.log('🔧 initializeAuth prêt à être appelé par App.jsx');
+console.log('🚨 DEBUG authStore configuré avec timeout forcé et fonctions debug');
+console.log('⏰ Auto-déverrouillage en 5 secondes si Firebase ne répond pas');
+
+export default useAuthStore;
