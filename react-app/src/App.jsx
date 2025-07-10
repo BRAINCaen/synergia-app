@@ -25,7 +25,7 @@ import ProjectsPage from './pages/ProjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import GamificationPage from './pages/GamificationPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
-import TeamPage from './pages/TeamPage.jsx';
+import TeamPageFixed from './pages/TeamPageFixed.jsx';
 import OnboardingPage from './pages/OnboardingPage.jsx';
 import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
@@ -234,7 +234,7 @@ function App() {
           path="/team"
           element={
             <PageWithLayout>
-              <TeamPage />
+              <TeamPageFixed />
             </PageWithLayout>
           }
         />
