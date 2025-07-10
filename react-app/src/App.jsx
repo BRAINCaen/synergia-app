@@ -2,6 +2,7 @@
 // 📁 react-app/src/App.jsx
 // VERSION ORIGINALE RESTAURÉE - Toutes les pages fonctionnelles
 // ==========================================
+import './core/addMissingRoles.js';
 import './core/forceNewRoleSystem.js';
 import './core/ultimateRoleFix.js';
 import React, { useEffect } from 'react';
