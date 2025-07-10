@@ -1,37 +1,155 @@
+/* ==========================================
+   📁 react-app/src/index.css
+   CSS PRINCIPAL - VÉRIFIER QUE CE FICHIER EXISTE
+   ========================================== */
+
+/* ✅ IMPORTS TAILWIND OBLIGATOIRES */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  html {
-    font-family: 'Inter', system-ui, sans-serif;
+/* ✅ RESET ET BASE */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  line-height: 1.6;
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+/* ✅ STYLES DE BASE POUR L'APP */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ✅ ANIMATIONS UTILES */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
   }
-  
-  body {
-    @apply antialiased;
+  to {
+    transform: rotate(360deg);
   }
 }
 
-@layer components {
-  .btn-primary {
-    @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500;
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
-  
-  .btn-secondary {
-    @apply bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500;
-  }
-  
-  .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200;
-  }
-  
-  .input-field {
-    @apply block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(100px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ✅ CLASSES UTILITAIRES CUSTOM */
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-slide-in-up {
+  animation: slide-in-up 0.4s ease-out;
+}
+
+/* ✅ STYLES POUR LOADING */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* ✅ STYLES POUR FOCUS ET ACCESSIBILITY */
+.focus\:ring-2:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+/* ✅ SCROLLBAR CUSTOM */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ✅ STYLES POUR GRADIENT BACKGROUNDS */
+.gradient-bg {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-blue {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.gradient-purple {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+/* ✅ STYLES RESPONSIVE */
+@media (max-width: 768px) {
+  .mobile-hidden {
+    display: none;
+  }
+}
+
+@media (min-width: 769px) {
+  .desktop-hidden {
+    display: none;
+  }
+}
+
+/* ✅ STYLES POUR DARK MODE (futur) */
+@media (prefers-color-scheme: dark) {
+  .auto-dark {
+    background-color: #1f2937;
+    color: #f9fafb;
+  }
+}
+
+/* ✅ STYLES POUR PRINT */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* ✅ LOG CSS CHARGÉ */
+body::before {
+  content: "✅ Synergia CSS chargé";
+  display: none;
 }
