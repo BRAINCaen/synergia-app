@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TeamPage.jsx
-// CORRECTION IMPORT/EXPORT - VERSION STABLE
+// FIX DIAGNOSTIC IMMÉDIAT - BYPASS TOUS LES HOOKS CASSÉS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -11,21 +11,18 @@ import {
   BarChart3, 
   Settings,
   RefreshCw,
-  Filter,
-  UserPlus,
   Sparkles,
   CheckCircle,
   XCircle,
   Clock,
   Mail,
-  Shield,
-  TrendingUp,
-  AlertCircle,
   Eye,
-  Plus
+  AlertCircle,
+  TrendingUp,
+  Shield
 } from 'lucide-react';
 
-// ✅ Imports Firebase directs pour éviter les erreurs
+// ✅ IMPORTS FIREBASE DIRECTS - BYPASS LES SERVICES CASSÉS
 import { 
   collection, 
   getDocs, 
@@ -38,418 +35,471 @@ import {
 import { db } from '../core/firebase.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// Rôles Synergia (données locales)
-const SYNERGIA_ROLES = {
-  direction: {
-    id: 'direction',
-    name: 'Direction & Management',
-    icon: '👑',
-    color: 'bg-yellow-500',
-    description: 'Direction générale et prise de décisions stratégiques',
-    difficulty: 'Expert',
-    permissions: ['all_access']
-  },
-  commercial: {
-    id: 'commercial',
-    name: 'Commercial & Vente',
-    icon: '💰',
-    color: 'bg-emerald-500',
-    description: 'Développement commercial et relation client',
-    difficulty: 'Moyen',
-    permissions: ['sales_access', 'client_management']
-  },
-  finance: {
-    id: 'finance',
-    name: 'Finance & Comptabilité',
-    icon: '📊',
-    color: 'bg-blue-500',
-    description: 'Gestion financière et comptabilité',
-    difficulty: 'Avancé',
-    permissions: ['finance_access', 'accounting']
-  },
-  rh: {
-    id: 'rh',
-    name: 'Ressources Humaines',
-    icon: '👥',
-    color: 'bg-orange-500',
-    description: 'Gestion RH et recrutement',
-    difficulty: 'Avancé',
-    permissions: ['hr_access', 'recruitment']
-  },
-  technique: {
-    id: 'technique',
-    name: 'Technique & Maintenance',
-    icon: '🔧',
-    color: 'bg-gray-500',
-    description: 'Support technique et maintenance',
-    difficulty: 'Moyen',
-    permissions: ['technical_access', 'maintenance']
-  },
-  logistique: {
-    id: 'logistique',
-    name: 'Logistique & Stock',
-    icon: '📦',
-    color: 'bg-teal-500',
-    description: 'Gestion logistique et stocks',
-    difficulty: 'Facile',
-    permissions: ['inventory_management', 'stock_access']
-  }
-};
-
 /**
- * 🏠 COMPOSANT PAGE ÉQUIPE - VERSION STABLE
+ * 🚀 TEAMPAGE - VERSION DIAGNOSTIC IMMÉDIATE
+ * Cette version bypasse tous les hooks et services cassés
+ * et récupère directement depuis Firebase
  */
 const TeamPage = () => {
   const { user } = useAuthStore();
   
-  // États locaux
-  const [teamMembers, setTeamMembers] = useState([]);
+  // États simples - pas de hooks complexes
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('members');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [selectedMember, setSelectedMember] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [refreshing, setRefreshing] = useState(false);
+  const [diagnostic, setDiagnostic] = useState({});
 
   /**
-   * 🔄 RÉCUPÉRATION DIRECTE DEPUIS FIREBASE
-   * Solution temporaire pour éviter les erreurs d'import
+   * 🔍 DIAGNOSTIC COMPLET DES COLLECTIONS
    */
-  const loadAllMembers = async () => {
+  const runDiagnostic = async () => {
+    console.log('🔍 === DIAGNOSTIC COMPLET DES COLLECTIONS ===');
+    
+    const results = {
+      timestamp: new Date().toISOString(),
+      collections: {}
+    };
+
     try {
-      setLoading(true);
-      setError(null);
+      // 1️⃣ ANALYSER COLLECTION USERS
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const usersAnalysis = {
+        total: usersSnapshot.size,
+        withEmail: 0,
+        samples: []
+      };
+
+      usersSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.email) usersAnalysis.withEmail++;
+        
+        if (usersAnalysis.samples.length < 3) {
+          usersAnalysis.samples.push({
+            id: doc.id,
+            email: data.email || 'N/A',
+            displayName: data.displayName || 'N/A',
+            role: data.role || 'N/A'
+          });
+        }
+      });
+
+      results.collections.users = usersAnalysis;
+      console.log('📊 Users:', usersAnalysis);
+
+      // 2️⃣ ANALYSER COLLECTION USERSTATS
+      const statsSnapshot = await getDocs(collection(db, 'userStats'));
+      const statsAnalysis = {
+        total: statsSnapshot.size,
+        withEmail: 0,
+        samples: []
+      };
+
+      statsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.email) statsAnalysis.withEmail++;
+        
+        if (statsAnalysis.samples.length < 3) {
+          statsAnalysis.samples.push({
+            id: doc.id,
+            email: data.email || 'N/A',
+            level: data.level || 1,
+            totalXp: data.totalXp || 0
+          });
+        }
+      });
+
+      results.collections.userStats = statsAnalysis;
+      console.log('📊 UserStats:', statsAnalysis);
+
+      // 3️⃣ ANALYSER COLLECTION TEAMMEMBERS
+      const teamSnapshot = await getDocs(collection(db, 'teamMembers'));
+      const teamAnalysis = {
+        total: teamSnapshot.size,
+        withEmail: 0,
+        active: 0,
+        samples: []
+      };
+
+      teamSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.email || data.displayName) teamAnalysis.withEmail++;
+        if (data.status !== 'inactive') teamAnalysis.active++;
+        
+        if (teamAnalysis.samples.length < 3) {
+          teamAnalysis.samples.push({
+            id: doc.id,
+            email: data.email || 'N/A',
+            status: data.status || 'N/A',
+            synergiaRoles: data.synergiaRoles?.length || 0
+          });
+        }
+      });
+
+      results.collections.teamMembers = teamAnalysis;
+      console.log('📊 TeamMembers:', teamAnalysis);
+
+      // 4️⃣ ANALYSER PROJETS
+      const projectsSnapshot = await getDocs(collection(db, 'projects'));
+      const projectsAnalysis = {
+        total: projectsSnapshot.size,
+        withTeam: 0,
+        totalMembers: 0,
+        samples: []
+      };
+
+      projectsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.team && Array.isArray(data.team)) {
+          projectsAnalysis.withTeam++;
+          projectsAnalysis.totalMembers += data.team.length;
+          
+          if (projectsAnalysis.samples.length < 2) {
+            projectsAnalysis.samples.push({
+              id: doc.id,
+              title: data.title || 'N/A',
+              teamSize: data.team.length
+            });
+          }
+        }
+      });
+
+      results.collections.projects = projectsAnalysis;
+      console.log('📊 Projects:', projectsAnalysis);
+
+      // 5️⃣ RÉSUMÉ ET RECOMMANDATIONS
+      const totalPotential = Math.max(
+        usersAnalysis.withEmail,
+        statsAnalysis.withEmail,
+        teamAnalysis.withEmail
+      );
+
+      console.log('\n🎯 === RÉSUMÉ ===');
+      console.log(`Total potentiel de membres: ${totalPotential}`);
+      console.log(`Sources principales: users(${usersAnalysis.withEmail}), stats(${statsAnalysis.withEmail}), team(${teamAnalysis.withEmail})`);
       
-      console.log('🔍 Chargement direct depuis Firebase...');
-      
+      if (teamAnalysis.withEmail === 0 && usersAnalysis.withEmail > 0) {
+        console.log('💡 PROBLÈME IDENTIFIÉ: teamMembers vide mais users peuplé');
+        console.log('   SOLUTION: Utiliser users comme source principale');
+      }
+
+      setDiagnostic(results);
+      return results;
+
+    } catch (error) {
+      console.error('❌ Erreur diagnostic:', error);
+      setError(`Erreur diagnostic: ${error.message}`);
+      return { error: error.message };
+    }
+  };
+
+  /**
+   * 📋 RÉCUPÉRATION INTELLIGENTE DES MEMBRES
+   */
+  const loadMembersIntelligent = async () => {
+    setLoading(true);
+    setError(null);
+    
+    console.log('📋 Récupération intelligente des membres...');
+    
+    try {
       const membersMap = new Map();
-      
-      // 1️⃣ Récupérer depuis la collection USERS
+      let totalLoaded = 0;
+
+      // 1️⃣ PRIORISER COLLECTION USERS (source principale)
       try {
+        console.log('1️⃣ Chargement depuis USERS...');
         const usersSnapshot = await getDocs(collection(db, 'users'));
-        let usersCount = 0;
         
         usersSnapshot.forEach((doc) => {
-          const userData = doc.data();
-          if (userData.email) {
+          const data = doc.data();
+          if (data.email) {
             const member = {
               id: doc.id,
-              email: userData.email,
-              displayName: userData.displayName || userData.email?.split('@')[0] || 'Utilisateur',
-              photoURL: userData.photoURL || null,
-              role: userData.role || 'Membre',
-              department: userData.department || 'Non spécifié',
-              isActive: userData.isActive !== false,
-              level: userData.level || 1,
-              xp: userData.totalXp || 0,
+              email: data.email,
+              displayName: data.displayName || data.email.split('@')[0],
+              photoURL: data.photoURL,
+              role: data.role || 'Membre',
+              department: data.department || 'Non spécifié',
+              isActive: data.isActive !== false,
+              level: data.level || 1,
+              xp: data.totalXp || 0,
               tasksCompleted: 0,
-              projects: [],
-              lastActivity: userData.lastActivity || userData.createdAt,
-              joinedAt: userData.createdAt,
+              joinedAt: data.createdAt,
+              lastActivity: data.lastActivity || data.createdAt,
               source: 'users',
-              status: 'active'
+              sourceColor: 'text-blue-400',
+              synergiaRoles: [],
+              projects: []
             };
             membersMap.set(doc.id, member);
-            usersCount++;
+            totalLoaded++;
           }
         });
         
-        console.log(`✅ Users: ${usersCount} membres ajoutés`);
+        console.log(`✅ Users: ${totalLoaded} membres chargés`);
         
-      } catch (userError) {
-        console.warn('⚠️ Erreur chargement users:', userError);
+      } catch (error) {
+        console.warn('⚠️ Erreur users:', error);
       }
 
-      // 2️⃣ Enrichir depuis USERSTATS
+      // 2️⃣ ENRICHIR AVEC USERSTATS
       try {
+        console.log('2️⃣ Enrichissement avec USERSTATS...');
         const statsSnapshot = await getDocs(collection(db, 'userStats'));
-        let statsCount = 0;
+        let enriched = 0;
         
         statsSnapshot.forEach((doc) => {
-          const statsData = doc.data();
-          const existingMember = membersMap.get(doc.id);
-          
-          if (existingMember && statsData.email) {
-            // Enrichir membre existant
-            existingMember.level = Math.max(existingMember.level, statsData.level || 1);
-            existingMember.xp = Math.max(existingMember.xp, statsData.totalXp || 0);
-            existingMember.tasksCompleted = statsData.tasksCompleted || 0;
-            existingMember.tasksCreated = statsData.tasksCreated || 0;
-            existingMember.projectsCreated = statsData.projectsCreated || 0;
-            existingMember.badges = statsData.badges || [];
-            
-            if (statsData.lastLoginDate) {
-              existingMember.lastActivity = statsData.lastLoginDate;
-            }
-            statsCount++;
-          } else if (statsData.email && !existingMember) {
-            // Créer nouveau membre depuis stats
-            const member = {
-              id: doc.id,
-              email: statsData.email,
-              displayName: statsData.displayName || statsData.email?.split('@')[0] || 'Utilisateur',
-              photoURL: null,
-              role: 'Membre',
-              department: 'Non spécifié',
-              isActive: true,
-              level: statsData.level || 1,
-              xp: statsData.totalXp || 0,
-              tasksCompleted: statsData.tasksCompleted || 0,
-              tasksCreated: statsData.tasksCreated || 0,
-              projectsCreated: statsData.projectsCreated || 0,
-              badges: statsData.badges || [],
-              projects: [],
-              lastActivity: statsData.lastLoginDate || statsData.updatedAt,
-              joinedAt: statsData.createdAt,
-              source: 'userStats',
-              status: 'active'
-            };
-            membersMap.set(doc.id, member);
-            statsCount++;
-          }
-        });
-        
-        console.log(`✅ UserStats: ${statsCount} membres enrichis/ajoutés`);
-        
-      } catch (statsError) {
-        console.warn('⚠️ Erreur chargement userStats:', statsError);
-      }
-
-      // 3️⃣ Enrichir depuis TEAMMEMBERS
-      try {
-        const teamSnapshot = await getDocs(collection(db, 'teamMembers'));
-        let teamCount = 0;
-        
-        teamSnapshot.forEach((doc) => {
-          const teamData = doc.data();
+          const data = doc.data();
           const existingMember = membersMap.get(doc.id);
           
           if (existingMember) {
             // Enrichir membre existant
-            if (teamData.synergiaRoles) {
-              existingMember.synergiaRoles = teamData.synergiaRoles;
+            existingMember.level = Math.max(existingMember.level, data.level || 1);
+            existingMember.xp = Math.max(existingMember.xp, data.totalXp || 0);
+            existingMember.tasksCompleted = data.tasksCompleted || 0;
+            existingMember.tasksCreated = data.tasksCreated || 0;
+            existingMember.projectsCreated = data.projectsCreated || 0;
+            existingMember.badges = data.badges || [];
+            if (data.lastLoginDate) {
+              existingMember.lastActivity = data.lastLoginDate;
             }
-            if (teamData.department) {
-              existingMember.department = teamData.department;
-            }
-            if (teamData.status) {
-              existingMember.isActive = teamData.status !== 'inactive';
-              existingMember.status = teamData.status;
-            }
-            teamCount++;
-          } else if (teamData.email || teamData.displayName) {
-            // Créer membre depuis données équipe
+            enriched++;
+          } else if (data.email) {
+            // Créer nouveau membre depuis stats
             const member = {
               id: doc.id,
-              email: teamData.email || 'email@inconnu.com',
-              displayName: teamData.displayName || 'Utilisateur',
-              photoURL: teamData.photoURL || null,
-              role: teamData.role || 'Membre',
-              department: teamData.department || 'Non spécifié',
-              isActive: teamData.status !== 'inactive',
-              level: teamData.teamStats?.level || 1,
-              xp: teamData.teamStats?.totalXp || 0,
-              tasksCompleted: teamData.teamStats?.tasksCompleted || 0,
-              synergiaRoles: teamData.synergiaRoles || [],
-              projects: [],
-              lastActivity: teamData.updatedAt,
-              joinedAt: teamData.createdAt,
-              source: 'teamMembers',
-              status: teamData.status || 'active'
+              email: data.email,
+              displayName: data.displayName || data.email.split('@')[0],
+              photoURL: null,
+              role: 'Membre',
+              department: 'Non spécifié',
+              isActive: true,
+              level: data.level || 1,
+              xp: data.totalXp || 0,
+              tasksCompleted: data.tasksCompleted || 0,
+              tasksCreated: data.tasksCreated || 0,
+              joinedAt: data.createdAt,
+              lastActivity: data.lastLoginDate,
+              source: 'userStats',
+              sourceColor: 'text-green-400',
+              synergiaRoles: [],
+              projects: []
             };
             membersMap.set(doc.id, member);
-            teamCount++;
+            totalLoaded++;
           }
         });
         
-        console.log(`✅ TeamMembers: ${teamCount} membres enrichis/ajoutés`);
+        console.log(`✅ UserStats: ${enriched} enrichis, total: ${totalLoaded}`);
         
-      } catch (teamError) {
-        console.warn('⚠️ Erreur chargement teamMembers:', teamError);
+      } catch (error) {
+        console.warn('⚠️ Erreur userStats:', error);
       }
 
-      // 4️⃣ Ajouter membres depuis PROJETS
+      // 3️⃣ ENRICHIR AVEC TEAMMEMBERS
       try {
+        console.log('3️⃣ Enrichissement avec TEAMMEMBERS...');
+        const teamSnapshot = await getDocs(collection(db, 'teamMembers'));
+        let teamEnriched = 0;
+        
+        teamSnapshot.forEach((doc) => {
+          const data = doc.data();
+          const existingMember = membersMap.get(doc.id);
+          
+          if (existingMember) {
+            // Enrichir avec données spécifiques équipe
+            if (data.synergiaRoles) {
+              existingMember.synergiaRoles = data.synergiaRoles;
+            }
+            if (data.department) {
+              existingMember.department = data.department;
+            }
+            if (data.status) {
+              existingMember.isActive = data.status !== 'inactive';
+            }
+            teamEnriched++;
+          } else if (data.email || data.displayName) {
+            // Créer depuis teamMembers si pas trouvé ailleurs
+            const member = {
+              id: doc.id,
+              email: data.email || 'email@equipe.com',
+              displayName: data.displayName || 'Membre Équipe',
+              photoURL: data.photoURL,
+              role: data.role || 'Membre',
+              department: data.department || 'Non spécifié',
+              isActive: data.status !== 'inactive',
+              level: data.teamStats?.level || 1,
+              xp: data.teamStats?.totalXp || 0,
+              tasksCompleted: 0,
+              joinedAt: data.createdAt,
+              lastActivity: data.updatedAt,
+              source: 'teamMembers',
+              sourceColor: 'text-purple-400',
+              synergiaRoles: data.synergiaRoles || [],
+              projects: []
+            };
+            membersMap.set(doc.id, member);
+            totalLoaded++;
+          }
+        });
+        
+        console.log(`✅ TeamMembers: ${teamEnriched} enrichis, total: ${totalLoaded}`);
+        
+      } catch (error) {
+        console.warn('⚠️ Erreur teamMembers:', error);
+      }
+
+      // 4️⃣ AJOUTER MEMBRES DEPUIS PROJETS
+      try {
+        console.log('4️⃣ Ajout depuis PROJETS...');
         const projectsSnapshot = await getDocs(collection(db, 'projects'));
-        let projectMembersCount = 0;
+        let projectMembers = 0;
         
         projectsSnapshot.forEach((doc) => {
-          const projectData = doc.data();
+          const data = doc.data();
           
-          if (projectData.team && Array.isArray(projectData.team)) {
-            projectData.team.forEach((teamMember) => {
-              if (teamMember.userId) {
-                const existingMember = membersMap.get(teamMember.userId);
-                
-                if (existingMember) {
-                  // Ajouter info projet
-                  if (!existingMember.projects) existingMember.projects = [];
-                  existingMember.projects.push({
+          if (data.team && Array.isArray(data.team)) {
+            data.team.forEach((teamMember) => {
+              const existingMember = membersMap.get(teamMember.userId);
+              
+              if (existingMember) {
+                // Ajouter projet à membre existant
+                if (!existingMember.projects) existingMember.projects = [];
+                existingMember.projects.push({
+                  id: doc.id,
+                  title: data.title,
+                  role: teamMember.role
+                });
+              } else if (teamMember.userId) {
+                // Créer membre depuis projet
+                const member = {
+                  id: teamMember.userId,
+                  email: teamMember.email || 'email@projet.com',
+                  displayName: teamMember.displayName || 'Membre Projet',
+                  photoURL: null,
+                  role: teamMember.role || 'Contributeur',
+                  department: 'Projet',
+                  isActive: true,
+                  level: 1,
+                  xp: 0,
+                  tasksCompleted: 0,
+                  joinedAt: teamMember.joinedAt,
+                  lastActivity: teamMember.joinedAt,
+                  source: 'projects',
+                  sourceColor: 'text-orange-400',
+                  synergiaRoles: [],
+                  projects: [{
                     id: doc.id,
-                    title: projectData.title,
+                    title: data.title,
                     role: teamMember.role
-                  });
-                } else {
-                  // Créer membre minimal depuis projet
-                  const member = {
-                    id: teamMember.userId,
-                    email: teamMember.email || 'email@projet.com',
-                    displayName: teamMember.displayName || 'Membre Projet',
-                    photoURL: null,
-                    role: teamMember.role || 'Contributeur',
-                    department: 'Projet',
-                    isActive: true,
-                    level: 1,
-                    xp: 0,
-                    tasksCompleted: 0,
-                    projects: [{
-                      id: doc.id,
-                      title: projectData.title,
-                      role: teamMember.role
-                    }],
-                    lastActivity: teamMember.joinedAt,
-                    joinedAt: teamMember.joinedAt,
-                    source: 'projects',
-                    status: 'active'
-                  };
-                  membersMap.set(teamMember.userId, member);
-                  projectMembersCount++;
-                }
+                  }]
+                };
+                membersMap.set(teamMember.userId, member);
+                projectMembers++;
+                totalLoaded++;
               }
             });
           }
         });
         
-        console.log(`✅ Projects: ${projectMembersCount} membres ajoutés`);
+        console.log(`✅ Projects: ${projectMembers} membres projet, total: ${totalLoaded}`);
         
-      } catch (projectError) {
-        console.warn('⚠️ Erreur chargement projets:', projectError);
+      } catch (error) {
+        console.warn('⚠️ Erreur projects:', error);
       }
 
-      // 5️⃣ Convertir en tableau et trier
-      const allMembers = Array.from(membersMap.values())
+      // 5️⃣ FINALISER ET TRIER
+      const finalMembers = Array.from(membersMap.values())
         .sort((a, b) => {
-          // Prioriser les membres actifs
+          // Prioriser actifs
           if (a.isActive !== b.isActive) {
             return b.isActive ? 1 : -1;
           }
-          // Puis par niveau/XP
+          // Puis par niveau
           return (b.level || 0) - (a.level || 0);
         });
 
-      setTeamMembers(allMembers);
-      setLastUpdated(new Date());
+      setMembers(finalMembers);
       
-      console.log(`✅ ${allMembers.length} membres uniques chargés`);
-      console.log('📊 Sources:', {
-        users: allMembers.filter(m => m.source === 'users').length,
-        userStats: allMembers.filter(m => m.source === 'userStats').length,
-        teamMembers: allMembers.filter(m => m.source === 'teamMembers').length,
-        projects: allMembers.filter(m => m.source === 'projects').length
+      console.log(`🎉 TOTAL FINAL: ${finalMembers.length} membres uniques chargés`);
+      console.log('📊 Répartition sources:', {
+        users: finalMembers.filter(m => m.source === 'users').length,
+        userStats: finalMembers.filter(m => m.source === 'userStats').length,
+        teamMembers: finalMembers.filter(m => m.source === 'teamMembers').length,
+        projects: finalMembers.filter(m => m.source === 'projects').length
       });
-      
-    } catch (err) {
-      console.error('❌ Erreur chargement équipe:', err);
-      setError(err.message);
+
+    } catch (error) {
+      console.error('❌ Erreur chargement membres:', error);
+      setError(`Erreur: ${error.message}`);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   // Charger au montage
   useEffect(() => {
     if (user) {
-      loadAllMembers();
+      console.log('🚀 TeamPage initialisée pour:', user.email);
+      
+      // D'abord faire le diagnostic
+      runDiagnostic().then(() => {
+        // Puis charger les membres
+        loadMembersIntelligent();
+      });
     }
   }, [user]);
 
-  // Détecter la connectivité
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+  // Fonction de rafraîchissement
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      runDiagnostic(),
+      loadMembersIntelligent()
+    ]);
+  };
 
   // Filtrer les membres
-  const filteredMembers = teamMembers.filter(member => {
-    const matchesSearch = (member.displayName || member.email || '')
-      .toLowerCase().includes(searchTerm.toLowerCase());
-    
-    let matchesStatus = true;
-    if (statusFilter === 'active') {
-      matchesStatus = member.isActive;
-    } else if (statusFilter === 'inactive') {
-      matchesStatus = !member.isActive;
-    }
-    
-    return matchesSearch && matchesStatus;
+  const filteredMembers = members.filter(member => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      (member.displayName || '').toLowerCase().includes(search) ||
+      (member.email || '').toLowerCase().includes(search) ||
+      (member.role || '').toLowerCase().includes(search) ||
+      (member.department || '').toLowerCase().includes(search)
+    );
   });
 
   // Statistiques
   const stats = {
-    total: teamMembers.length,
-    active: teamMembers.filter(m => m.isActive).length,
-    inactive: teamMembers.filter(m => !m.isActive).length,
-    avgLevel: teamMembers.length > 0 ? 
-      Math.round(teamMembers.reduce((sum, m) => sum + (m.level || 1), 0) / teamMembers.length) : 1,
-    totalXp: teamMembers.reduce((sum, m) => sum + (m.xp || 0), 0),
+    total: members.length,
+    active: members.filter(m => m.isActive).length,
+    inactive: members.filter(m => !m.isActive).length,
+    avgLevel: members.length > 0 ? 
+      Math.round(members.reduce((sum, m) => sum + (m.level || 1), 0) / members.length) : 1,
+    totalXp: members.reduce((sum, m) => sum + (m.xp || 0), 0),
     sources: {
-      users: teamMembers.filter(m => m.source === 'users').length,
-      userStats: teamMembers.filter(m => m.source === 'userStats').length,
-      teamMembers: teamMembers.filter(m => m.source === 'teamMembers').length,
-      projects: teamMembers.filter(m => m.source === 'projects').length
+      users: members.filter(m => m.source === 'users').length,
+      userStats: members.filter(m => m.source === 'userStats').length,
+      teamMembers: members.filter(m => m.source === 'teamMembers').length,
+      projects: members.filter(m => m.source === 'projects').length
     }
   };
 
-  // Interface des onglets
-  const tabs = [
-    { 
-      id: 'members', 
-      label: 'Membres', 
-      icon: Users, 
-      count: filteredMembers.length,
-      color: 'text-blue-400'
-    },
-    { 
-      id: 'stats', 
-      label: 'Statistiques', 
-      icon: BarChart3,
-      color: 'text-green-400'
-    },
-    { 
-      id: 'roles', 
-      label: 'Rôles Synergia', 
-      icon: Award, 
-      count: Object.keys(SYNERGIA_ROLES).length,
-      color: 'text-purple-400'
-    }
-  ];
-
-  // Filtres de statut
-  const statusFilters = [
-    { value: 'all', label: 'Tous', count: stats.total },
-    { value: 'active', label: 'Actifs', count: stats.active },
-    { value: 'inactive', label: 'Inactifs', count: stats.inactive }
-  ];
-
-  // Affichage de l'état de chargement initial
-  if (loading && teamMembers.length === 0) {
+  // Si chargement initial
+  if (loading && members.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Chargement exhaustif des membres...</p>
+          <p className="text-white text-lg">Diagnostic et chargement des membres...</p>
           <p className="text-gray-400 text-sm mt-2">
-            Récupération depuis toutes les sources Firebase
+            Analyse des collections Firebase en cours
           </p>
         </div>
       </div>
@@ -460,32 +510,17 @@ const TeamPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
       <div className="max-w-7xl mx-auto">
         
-        {/* Header avec statut Firebase */}
+        {/* Header */}
         <div className="mb-8 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Users className="w-10 h-10 text-blue-400" />
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Gestion d'Équipe
+              Équipe - Diagnostic Firebase
             </h1>
             <Sparkles className="w-8 h-8 text-purple-400 animate-pulse" />
-            
-            {/* Indicateur de connectivité */}
-            <div className="flex items-center gap-2 ml-4">
-              {isOnline ? (
-                <div className="flex items-center gap-1 text-green-400">
-                  <CheckCircle className="w-4 h-4" />
-                  <span className="text-xs">En ligne</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 text-red-400">
-                  <XCircle className="w-4 h-4" />
-                  <span className="text-xs">Hors ligne</span>
-                </div>
-              )}
-            </div>
           </div>
           
-          {/* Statistiques en header */}
+          {/* Statistiques */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 max-w-3xl mx-auto mb-6">
             <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
               <div className="text-xl font-bold text-blue-400">{stats.total}</div>
@@ -496,10 +531,6 @@ const TeamPage = () => {
               <div className="text-xs text-gray-400">Actifs</div>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
-              <div className="text-xl font-bold text-red-400">{stats.inactive}</div>
-              <div className="text-xs text-gray-400">Inactifs</div>
-            </div>
-            <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
               <div className="text-xl font-bold text-purple-400">{stats.avgLevel}</div>
               <div className="text-xs text-gray-400">Niveau Moy.</div>
             </div>
@@ -507,25 +538,24 @@ const TeamPage = () => {
               <div className="text-xl font-bold text-yellow-400">{stats.totalXp.toLocaleString()}</div>
               <div className="text-xs text-gray-400">XP Total</div>
             </div>
+            <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
+              <div className="text-xl font-bold text-orange-400">{Object.keys(stats.sources).length}</div>
+              <div className="text-xs text-gray-400">Sources</div>
+            </div>
           </div>
 
           {/* Debug sources */}
-          <div className="text-xs text-gray-500 flex items-center justify-center gap-4">
-            <span>Sources: </span>
+          <div className="text-xs text-gray-500 flex items-center justify-center gap-4 flex-wrap">
+            <span>Sources Firebase: </span>
             {Object.entries(stats.sources).map(([source, count]) => (
               <span key={source} className="bg-gray-800/30 px-2 py-1 rounded">
                 {source}: {count}
               </span>
             ))}
-            {lastUpdated && (
-              <span className="text-gray-600">
-                MAJ: {lastUpdated.toLocaleTimeString()}
-              </span>
-            )}
           </div>
         </div>
 
-        {/* Barre de contrôles */}
+        {/* Contrôles */}
         <div className="bg-gray-800/50 rounded-xl p-4 mb-6 border border-gray-700">
           <div className="flex flex-col md:flex-row gap-4">
             
@@ -541,226 +571,218 @@ const TeamPage = () => {
               />
             </div>
 
-            {/* Filtres de statut */}
+            {/* Boutons actions */}
             <div className="flex gap-2">
-              {statusFilters.map((filter) => (
-                <button
-                  key={filter.value}
-                  onClick={() => setStatusFilter(filter.value)}
-                  className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                    statusFilter === filter.value
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  {filter.label} ({filter.count})
-                </button>
-              ))}
+              <button
+                onClick={() => setActiveTab(activeTab === 'overview' ? 'diagnostic' : 'overview')}
+                className="px-4 py-2 bg-gray-700 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                {activeTab === 'overview' ? 'Voir Diagnostic' : 'Voir Équipe'}
+              </button>
+              
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="px-4 py-2 bg-purple-600 border border-purple-500 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Actualisation...' : 'Actualiser'}
+              </button>
             </div>
-
-            {/* Bouton actualiser */}
-            <button
-              onClick={loadAllMembers}
-              className="px-4 py-2 bg-purple-600 border border-purple-500 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Actualiser
-            </button>
           </div>
-        </div>
-
-        {/* Navigation des onglets */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-gray-700 text-white border border-gray-600'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
-              }`}
-            >
-              <tab.icon className={`w-4 h-4 ${tab.color || 'text-current'}`} />
-              {tab.label}
-              {tab.count !== undefined && (
-                <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded-full">
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
         </div>
 
         {/* Contenu principal */}
         <div className="bg-gray-800/50 rounded-xl border border-gray-700 overflow-hidden">
           
-          {/* ONGLET MEMBRES */}
-          {activeTab === 'members' && (
+          {/* ONGLET VUE D'ENSEMBLE */}
+          {activeTab === 'overview' && (
             <div className="p-6">
+              
+              {/* Messages d'erreur */}
               {error && (
                 <div className="mb-4 p-4 bg-red-900/20 border border-red-700 rounded-lg">
                   <div className="flex items-center gap-2 text-red-400">
                     <AlertCircle className="w-4 h-4" />
-                    <span className="font-medium">Erreur de chargement</span>
+                    <span className="font-medium">Erreur</span>
                   </div>
                   <p className="text-red-300 text-sm mt-1">{error}</p>
                 </div>
               )}
 
+              {/* Grille membres */}
               {filteredMembers.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredMembers.map((member) => (
-                    <div
-                      key={member.id}
-                      className="bg-gray-700/50 border border-gray-600 rounded-lg p-4 hover:bg-gray-700/70 transition-colors"
-                    >
-                      {/* Header membre */}
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                          {member.displayName?.charAt(0)?.toUpperCase() || '?'}
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-white truncate">
-                            {member.displayName || 'Nom inconnu'}
-                          </h3>
-                          <div className="flex items-center gap-2">
-                            <Mail className="w-3 h-3 text-gray-400" />
-                            <span className="text-xs text-gray-400 truncate">
-                              {member.email || 'Email non disponible'}
-                            </span>
+                <div>
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white">
+                      Membres de l'équipe ({filteredMembers.length})
+                    </h3>
+                    {searchTerm && (
+                      <span className="text-sm text-gray-400">
+                        Filtré sur: "{searchTerm}"
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredMembers.map((member) => (
+                      <div
+                        key={member.id}
+                        className="bg-gray-700/50 border border-gray-600 rounded-lg p-4 hover:bg-gray-700/70 transition-colors"
+                      >
+                        {/* Header membre */}
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                            {member.displayName?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-white truncate">
+                              {member.displayName || 'Nom inconnu'}
+                            </h3>
+                            <div className="flex items-center gap-2">
+                              <Mail className="w-3 h-3 text-gray-400" />
+                              <span className="text-xs text-gray-400 truncate">
+                                {member.email || 'Email non disponible'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Statut */}
+                          <div className="flex items-center gap-1">
+                            {member.isActive ? (
+                              <CheckCircle className="w-4 h-4 text-green-400" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-red-400" />
+                            )}
                           </div>
                         </div>
 
-                        {/* Statut */}
-                        <div className="flex items-center gap-1">
-                          {member.isActive ? (
-                            <CheckCircle className="w-4 h-4 text-green-400" />
-                          ) : (
-                            <XCircle className="w-4 h-4 text-red-400" />
+                        {/* Informations */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400">Rôle:</span>
+                            <span className="text-gray-300">{member.role}</span>
+                          </div>
+                          
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400">Département:</span>
+                            <span className="text-gray-300">{member.department}</span>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400">Niveau:</span>
+                            <span className="text-blue-400 font-medium">
+                              Niv. {member.level} ({member.xp} XP)
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400">Source:</span>
+                            <span className={member.sourceColor}>
+                              {member.source}
+                            </span>
+                          </div>
+
+                          {/* Rôles Synergia */}
+                          {member.synergiaRoles && member.synergiaRoles.length > 0 && (
+                            <div className="mt-2">
+                              <span className="text-xs text-gray-400">Rôles Synergia:</span>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {member.synergiaRoles.slice(0, 2).map((role, index) => (
+                                  <span
+                                    key={index}
+                                    className="text-xs bg-purple-600/20 text-purple-400 px-2 py-1 rounded border border-purple-600/30"
+                                  >
+                                    {typeof role === 'string' ? role : role.name}
+                                  </span>
+                                ))}
+                                {member.synergiaRoles.length > 2 && (
+                                  <span className="text-xs text-gray-400">
+                                    +{member.synergiaRoles.length - 2}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Projets */}
+                          {member.projects && member.projects.length > 0 && (
+                            <div className="mt-2">
+                              <span className="text-xs text-gray-400">Projets:</span>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {member.projects.slice(0, 2).map((project, index) => (
+                                  <span
+                                    key={index}
+                                    className="text-xs bg-green-600/20 text-green-400 px-2 py-1 rounded border border-green-600/30"
+                                  >
+                                    {project.title}
+                                  </span>
+                                ))}
+                                {member.projects.length > 2 && (
+                                  <span className="text-xs text-gray-400">
+                                    +{member.projects.length - 2}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           )}
                         </div>
                       </div>
-
-                      {/* Informations membre */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-400">Rôle:</span>
-                          <span className="text-gray-300">{member.role || 'Non défini'}</span>
-                        </div>
-                        
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-400">Département:</span>
-                          <span className="text-gray-300">{member.department || 'Non spécifié'}</span>
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-400">Niveau:</span>
-                          <span className="text-blue-400 font-medium">
-                            Niv. {member.level || 1} ({member.xp || 0} XP)
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-400">Source:</span>
-                          <span className="text-purple-400">{member.source}</span>
-                        </div>
-
-                        {/* Rôles Synergia */}
-                        {member.synergiaRoles && member.synergiaRoles.length > 0 && (
-                          <div className="mt-2">
-                            <span className="text-xs text-gray-400">Rôles Synergia:</span>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {member.synergiaRoles.slice(0, 2).map((role, index) => (
-                                <span
-                                  key={index}
-                                  className="text-xs bg-purple-600/20 text-purple-400 px-2 py-1 rounded border border-purple-600/30"
-                                >
-                                  {typeof role === 'string' ? role : role.name}
-                                </span>
-                              ))}
-                              {member.synergiaRoles.length > 2 && (
-                                <span className="text-xs text-gray-400">
-                                  +{member.synergiaRoles.length - 2}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Projets */}
-                        {member.projects && member.projects.length > 0 && (
-                          <div className="mt-2">
-                            <span className="text-xs text-gray-400">Projets:</span>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {member.projects.slice(0, 2).map((project, index) => (
-                                <span
-                                  key={index}
-                                  className="text-xs bg-green-600/20 text-green-400 px-2 py-1 rounded border border-green-600/30"
-                                >
-                                  {project.title || project.id}
-                                </span>
-                              ))}
-                              {member.projects.length > 2 && (
-                                <span className="text-xs text-gray-400">
-                                  +{member.projects.length - 2}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="mt-3 pt-3 border-t border-gray-600">
-                        <button
-                          onClick={() => setSelectedMember(member)}
-                          className="w-full px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/30 text-blue-400 rounded text-xs transition-colors flex items-center justify-center gap-2"
-                        >
-                          <Eye className="w-3 h-3" />
-                          Voir détails
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-12">
                   <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
                   <h3 className="text-xl font-medium text-gray-300 mb-2">
-                    {searchTerm ? 'Aucun membre trouvé' : 'Aucun membre dans l\'équipe'}
+                    {searchTerm ? 'Aucun membre trouvé' : 'Aucun membre chargé'}
                   </h3>
-                  <p className="text-gray-500">
+                  <p className="text-gray-500 mb-4">
                     {searchTerm 
                       ? 'Essayez de modifier vos critères de recherche' 
-                      : 'L\'équipe semble vide pour le moment'
+                      : 'Vérifiez la console pour le diagnostic des collections'
                     }
                   </p>
-                  {!searchTerm && (
-                    <button
-                      onClick={loadAllMembers}
-                      className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                    >
-                      Rafraîchir les données
-                    </button>
-                  )}
+                  
+                  <button
+                    onClick={handleRefresh}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    Diagnostiquer et Recharger
+                  </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* ONGLET STATISTIQUES */}
-          {activeTab === 'stats' && (
+          {/* ONGLET DIAGNOSTIC */}
+          {activeTab === 'diagnostic' && (
             <div className="p-6">
-              <h3 className="text-xl font-bold text-white mb-6">Statistiques de l'Équipe</h3>
+              <h3 className="text-xl font-bold text-white mb-6">Diagnostic des Collections Firebase</h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                {/* Statistiques sources */}
+                <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                  <h4 className="font-medium text-white mb-3 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-purple-400" />
+                    Sources de données
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    {Object.entries(stats.sources).map(([source, count]) => (
+                      <div key={source} className="flex justify-between">
+                        <span className="text-gray-400 capitalize">{source}:</span>
+                        <span className="text-blue-400 font-medium">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Statistiques générales */}
                 <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
                   <h4 className="font-medium text-white mb-3 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-blue-400" />
-                    Vue d'ensemble
+                    Statistiques générales
                   </h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
@@ -779,142 +801,51 @@ const TeamPage = () => {
                       <span className="text-gray-400">Niveau moyen:</span>
                       <span className="text-purple-400 font-medium">{stats.avgLevel}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">XP totale:</span>
-                      <span className="text-yellow-400 font-medium">{stats.totalXp.toLocaleString()}</span>
-                    </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Sources de données */}
+              {/* Diagnostic des collections */}
+              {diagnostic.collections && (
                 <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
-                  <h4 className="font-medium text-white mb-3 flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-purple-400" />
-                    Sources de données
-                  </h4>
-                  <div className="space-y-2 text-sm">
-                    {Object.entries(stats.sources).map(([source, count]) => (
-                      <div key={source} className="flex justify-between">
-                        <span className="text-gray-400 capitalize">{source}:</span>
-                        <span className="text-blue-400 font-medium">{count}</span>
+                  <h4 className="font-medium text-white mb-3">Détail des collections</h4>
+                  <div className="space-y-3 text-sm">
+                    {Object.entries(diagnostic.collections).map(([collectionName, data]) => (
+                      <div key={collectionName} className="border-l-2 border-blue-400 pl-3">
+                        <div className="font-medium text-gray-300 capitalize">{collectionName}</div>
+                        <div className="text-gray-400">
+                          Total: {data.total} | Valides: {data.withEmail || data.active || 'N/A'}
+                        </div>
+                        {data.samples && data.samples.length > 0 && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Échantillon: {data.samples[0]?.email || data.samples[0]?.title || 'N/A'}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
                 </div>
+              )}
 
-                {/* Actions rapides */}
-                <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
-                  <h4 className="font-medium text-white mb-3">Actions rapides</h4>
-                  <div className="space-y-2">
-                    <button
-                      onClick={loadAllMembers}
-                      className="w-full px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/30 text-blue-400 rounded text-sm transition-colors flex items-center justify-center gap-2"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                      Actualiser données
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        console.log('📊 Export membres:', teamMembers);
-                        console.log('📈 Statistiques:', stats);
-                      }}
-                      className="w-full px-3 py-2 bg-gray-600/20 hover:bg-gray-600/30 border border-gray-600/30 text-gray-400 rounded text-sm transition-colors"
-                    >
-                      Exporter en console
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ONGLET RÔLES SYNERGIA */}
-          {activeTab === 'roles' && (
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-white mb-6">Rôles Synergia Disponibles</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Object.values(SYNERGIA_ROLES).map((role) => (
-                  <div
-                    key={role.id}
-                    className={`${role.color} bg-opacity-20 border border-opacity-30 rounded-lg p-4 hover:bg-opacity-30 transition-colors`}
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className="text-2xl">{role.icon}</span>
-                      <div>
-                        <h4 className="font-medium text-white">{role.name}</h4>
-                        <span className="text-xs text-gray-400">{role.difficulty}</span>
-                      </div>
-                    </div>
-                    
-                    <p className="text-sm text-gray-300 mb-3">{role.description}</p>
-                    
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-400">Permissions:</span>
-                      <span className="text-gray-300">{role.permissions.length}</span>
-                    </div>
-                  </div>
-                ))}
+              {/* Actions de diagnostic */}
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={runDiagnostic}
+                  className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/30 text-blue-400 rounded text-sm transition-colors"
+                >
+                  Relancer diagnostic
+                </button>
+                
+                <button
+                  onClick={() => console.log('📊 Diagnostic complet:', diagnostic)}
+                  className="px-4 py-2 bg-gray-600/20 hover:bg-gray-600/30 border border-gray-600/30 text-gray-400 rounded text-sm transition-colors"
+                >
+                  Voir en console
+                </button>
               </div>
             </div>
           )}
         </div>
-
-        {/* Modal détails membre */}
-        {selectedMember && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full border border-gray-700">
-              <h3 className="text-xl font-bold text-white mb-4">
-                Détails de {selectedMember.displayName}
-              </h3>
-              
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="text-gray-400">Email:</span>
-                  <span className="text-white ml-2">{selectedMember.email}</span>
-                </div>
-                <div>
-                  <span className="text-gray-400">Rôle:</span>
-                  <span className="text-white ml-2">{selectedMember.role}</span>
-                </div>
-                <div>
-                  <span className="text-gray-400">Département:</span>
-                  <span className="text-white ml-2">{selectedMember.department}</span>
-                </div>
-                <div>
-                  <span className="text-gray-400">Niveau:</span>
-                  <span className="text-white ml-2">{selectedMember.level} ({selectedMember.xp} XP)</span>
-                </div>
-                <div>
-                  <span className="text-gray-400">Source:</span>
-                  <span className="text-white ml-2">{selectedMember.source}</span>
-                </div>
-                <div>
-                  <span className="text-gray-400">Statut:</span>
-                  <span className={`ml-2 ${selectedMember.isActive ? 'text-green-400' : 'text-red-400'}`}>
-                    {selectedMember.isActive ? 'Actif' : 'Inactif'}
-                  </span>
-                </div>
-                {selectedMember.lastActivity && (
-                  <div>
-                    <span className="text-gray-400">Dernière activité:</span>
-                    <span className="text-white ml-2">
-                      {new Date(selectedMember.lastActivity).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-              </div>
-              
-              <button
-                onClick={() => setSelectedMember(null)}
-                className="mt-4 w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
-              >
-                Fermer
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
