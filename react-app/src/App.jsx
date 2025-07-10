@@ -35,7 +35,7 @@ import ProjectsPage from './pages/ProjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import GamificationPage from './pages/GamificationPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
-import TeamPage from './pages/TeamPage.jsx';  // ✅ TeamPage (pas TeamPageFixed)
+import TeamPageEnhanced from './pages/TeamPageEnhanced.jsx';
 import OnboardingPage from './pages/OnboardingPage.jsx';
 import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
@@ -323,7 +323,7 @@ function App() {
         />
 
         {/* 🏠 Redirections */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/team" element={<TeamPageEnhanced />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Router>
