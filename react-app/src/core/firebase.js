@@ -1,10 +1,16 @@
 // ==========================================
 // 📁 react-app/src/core/firebase.js
-// Configuration Firebase ORIGINALE QUI MARCHAIT
+// Configuration Firebase CORRIGÉE - Export authService ajouté
 // ==========================================
 
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut as firebaseSignOut, // ✅ Alias pour éviter collision
+  onAuthStateChanged // ✅ AJOUT CRITIQUE pour authStore
+} from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -59,7 +65,7 @@ if (isFirebaseConfigured) {
   console.warn('⚠️ Firebase non configuré - Variables d\'environnement manquantes');
 }
 
-// Services d'authentification
+// ✅ CORRECTION CRITIQUE - Services d'authentification EXPORTÉS
 export const authService = {
   // Connexion avec Google
   async signInWithGoogle() {
@@ -74,6 +80,7 @@ export const authService = {
       console.log('✅ Connexion Google réussie:', user.email);
       
       return {
+        success: true,
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
@@ -82,7 +89,7 @@ export const authService = {
       };
     } catch (error) {
       console.error('❌ Erreur connexion Google:', error);
-      throw error;
+      return { success: false, error: error.message };
     }
   },
 
@@ -93,37 +100,50 @@ export const authService = {
     }
     
     try {
-      await signOut(auth);
+      await firebaseSignOut(auth); // ✅ Utilise l'alias
       console.log('✅ Déconnexion réussie');
+      return { success: true };
     } catch (error) {
       console.error('❌ Erreur déconnexion:', error);
-      throw error;
+      return { success: false, error: error.message };
     }
   },
 
-  // Écouter les changements d'état auth
+  // ✅ FONCTION CRITIQUE - Écouter les changements d'état auth
   onAuthStateChanged(callback) {
     if (!auth) {
       console.warn('⚠️ Firebase non configuré - Mode mock');
-      callback(null);
+      // En mode mock, simuler aucun utilisateur connecté
+      setTimeout(() => callback(null), 100);
       return () => {};
     }
     
-    return auth.onAuthStateChanged(callback);
+    // ✅ UTILISE onAuthStateChanged importé depuis firebase/auth
+    return onAuthStateChanged(auth, callback);
   },
 
   // Obtenir l'utilisateur actuel
   getCurrentUser() {
     return auth?.currentUser || null;
+  },
+
+  // ✅ MÉTHODES SUPPLÉMENTAIRES pour authStore
+  getAuth() {
+    return auth;
+  },
+
+  isConfigured() {
+    return isFirebaseConfigured;
   }
 };
 
-// ✅ EXPORTS ORIGINAUX QUI MARCHAIENT
+// ✅ EXPORTS ORIGINAUX QUI MARCHAIENT + authService
 export { isFirebaseConfigured };
 export { auth };
 export { db };
 export { storage };
 export { googleProvider };
+export { onAuthStateChanged }; // ✅ Export direct pour compatibilité
 
 // ✅ Exports avec alias pour compatibilité
 export const firebaseAuth = auth;
@@ -133,3 +153,7 @@ export const firebaseGoogleProvider = googleProvider;
 
 // Export par défaut
 export default app;
+
+// ✅ LOG DE SUCCÈS pour authService
+console.log('✅ authService exporté et disponible pour authStore');
+console.log('🔧 onAuthStateChanged correctement importé et exporté');
