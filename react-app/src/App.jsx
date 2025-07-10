@@ -1,28 +1,29 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// VERSION EMERGENCY - BYPASS TOTAL pour démarrer l'app
+// VERSION PROGRESSIVE - Test étape par étape
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-console.log('🚨 EMERGENCY MODE - Bypass total activé !');
+console.log('🔍 MODE PROGRESSIF - Test étape par étape');
 
-// ✅ COMPOSANTS SIMPLES SANS IMPORTS COMPLEXES
-const EmergencyLayout = ({ children }) => {
-  const [user] = useState({
-    uid: 'emergency-user',
-    email: 'emergency@synergia.com',
-    displayName: 'Mode Emergency'
-  });
+// 🎯 ÉTAPE 1 : Tester DashboardLayout (commenté pour l'instant)
+// import DashboardLayout from './layouts/DashboardLayout.jsx';
 
-  const handleLogout = () => {
-    window.location.reload();
-  };
+// 🎯 ÉTAPE 2 : Tester les pages une par une (commentées pour l'instant)
+// import Dashboard from './pages/Dashboard.jsx';
+// import TasksPage from './pages/TasksPage.jsx';
+// import Login from './pages/Login.jsx';
 
+// 🎯 ÉTAPE 3 : Tester authStore (commenté pour l'instant)
+// import { useAuthStore } from './shared/stores/authStore.js';
+
+// ✅ LAYOUT SIMPLE TEMPORAIRE
+const SimpleLayout = ({ children }) => {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f9fafb' }}>
-      {/* Sidebar simple */}
+      {/* Sidebar */}
       <div style={{
         width: '250px',
         backgroundColor: '#1f2937',
@@ -31,10 +32,10 @@ const EmergencyLayout = ({ children }) => {
       }}>
         <div style={{ marginBottom: '2rem' }}>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0 }}>
-            🚨 Synergia Emergency
+            🔍 Synergia Debug
           </h1>
           <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>
-            Mode de démarrage forcé
+            Mode progressif
           </p>
         </div>
 
@@ -42,8 +43,7 @@ const EmergencyLayout = ({ children }) => {
           {[
             { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
             { name: 'Tasks', href: '/tasks', icon: '✅' },
-            { name: 'Projects', href: '/projects', icon: '📁' },
-            { name: 'Analytics', href: '/analytics', icon: '📊' },
+            { name: 'Projects', href: '/projects', icon: '📁' }
           ].map((item) => (
             <a
               key={item.href}
@@ -56,7 +56,8 @@ const EmergencyLayout = ({ children }) => {
                 margin: '0.25rem 0',
                 borderRadius: '8px',
                 textDecoration: 'none',
-                color: '#d1d5db',
+                color: window.location.pathname === item.href ? '#ffffff' : '#d1d5db',
+                backgroundColor: window.location.pathname === item.href ? '#3b82f6' : 'transparent',
                 fontWeight: '500',
                 fontSize: '0.875rem'
               }}
@@ -71,27 +72,9 @@ const EmergencyLayout = ({ children }) => {
             </a>
           ))}
         </nav>
-
-        <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
-          <button
-            onClick={handleLogout}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              backgroundColor: '#dc2626',
-              border: 'none',
-              borderRadius: '8px',
-              color: 'white',
-              cursor: 'pointer',
-              fontSize: '0.875rem'
-            }}
-          >
-            🚪 Reset
-          </button>
-        </div>
       </div>
 
-      {/* Contenu principal */}
+      {/* Contenu */}
       <div style={{ flex: 1, padding: '2rem' }}>
         {children}
       </div>
@@ -99,219 +82,224 @@ const EmergencyLayout = ({ children }) => {
   );
 };
 
-// ✅ PAGES EMERGENCY SIMPLES
-const EmergencyDashboard = () => (
-  <div>
-    <div style={{
-      background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-      color: 'white',
-      padding: '2rem',
-      borderRadius: '12px',
-      marginBottom: '2rem'
-    }}>
-      <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: '0 0 1rem 0' }}>
-        🚨 Emergency Dashboard
-      </h1>
-      <p style={{ margin: 0, opacity: 0.9 }}>
-        Application démarrée en mode emergency - Tous les services sont bypassés
-      </p>
-    </div>
+// ✅ PAGES SIMPLES PROGRESSIVES
+const ProgressiveDashboard = () => {
+  const [testStep, setTestStep] = useState(1);
+  const [testResults, setTestResults] = useState({});
 
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-      gap: '1rem',
-      marginBottom: '2rem'
-    }}>
-      {[
-        { title: 'Status', value: '🟢 ACTIF', color: '#10b981' },
-        { title: 'Mode', value: 'EMERGENCY', color: '#f59e0b' },
-        { title: 'Firebase', value: 'BYPASS', color: '#ef4444' },
-        { title: 'Services', value: 'MOCKÉS', color: '#8b5cf6' }
-      ].map((card, index) => (
-        <div
-          key={index}
-          style={{
-            backgroundColor: 'white',
-            padding: '1.5rem',
-            borderRadius: '12px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            textAlign: 'center'
-          }}
-        >
-          <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', color: '#6b7280' }}>
-            {card.title}
-          </h3>
-          <p style={{ 
-            margin: 0, 
-            fontSize: '1.25rem', 
-            fontWeight: 'bold',
-            color: card.color
-          }}>
-            {card.value}
-          </p>
-        </div>
-      ))}
-    </div>
+  const runTest = async (step, name, testFn) => {
+    try {
+      console.log(`🧪 Test ${step}: ${name}...`);
+      const result = await testFn();
+      setTestResults(prev => ({ ...prev, [step]: { success: true, name, result } }));
+      console.log(`✅ Test ${step} réussi: ${name}`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Test ${step} échoué: ${name}`, error);
+      setTestResults(prev => ({ ...prev, [step]: { success: false, name, error: error.message } }));
+      return false;
+    }
+  };
 
-    <div style={{
-      backgroundColor: 'white',
-      padding: '1.5rem',
-      borderRadius: '12px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-    }}>
-      <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem', fontWeight: 'bold' }}>
-        🔧 Diagnostic
-      </h2>
-      <div style={{ fontSize: '0.875rem', color: '#6b7280', lineHeight: '1.6' }}>
-        <div>✅ React Router fonctionne</div>
-        <div>✅ Layout s'affiche correctement</div>
-        <div>✅ Navigation fonctionne</div>
-        <div>⚠️ Firebase bypassé</div>
-        <div>⚠️ authStore bypassé</div>
-        <div>⚠️ Services externes bypassés</div>
-      </div>
-    </div>
+  const nextTest = async () => {
+    let success = false;
+    
+    switch (testStep) {
+      case 1:
+        success = await runTest(1, 'Import Firebase Config', async () => {
+          const firebase = await import('../../core/firebase.js');
+          return `Firebase config: ${firebase.isFirebaseConfigured ? 'OK' : 'Manquant'}`;
+        });
+        break;
+        
+      case 2:
+        success = await runTest(2, 'Import authService', async () => {
+          const firebase = await import('../../core/firebase.js');
+          return `authService: ${firebase.authService ? 'OK' : 'Manquant'}`;
+        });
+        break;
+        
+      case 3:
+        success = await runTest(3, 'Import authStore', async () => {
+          const store = await import('../../shared/stores/authStore.js');
+          return `authStore: ${store.useAuthStore ? 'OK' : 'Manquant'}`;
+        });
+        break;
+        
+      case 4:
+        success = await runTest(4, 'Import DashboardLayout', async () => {
+          const layout = await import('../../layouts/DashboardLayout.jsx');
+          return `DashboardLayout: ${layout.default ? 'OK' : 'Manquant'}`;
+        });
+        break;
+        
+      case 5:
+        success = await runTest(5, 'Import Dashboard Page', async () => {
+          const page = await import('../../pages/Dashboard.jsx');
+          return `Dashboard page: ${page.default ? 'OK' : 'Manquant'}`;
+        });
+        break;
+        
+      default:
+        console.log('🏁 Tous les tests terminés !');
+        return;
+    }
+    
+    if (success) {
+      setTestStep(prev => prev + 1);
+    }
+  };
 
-    <div style={{
-      backgroundColor: '#fef3c7',
-      border: '1px solid #f59e0b',
-      padding: '1rem',
-      borderRadius: '8px',
-      marginTop: '1rem'
-    }}>
-      <div style={{ fontWeight: 'bold', color: '#92400e', marginBottom: '0.5rem' }}>
-        📋 Actions de debug :
-      </div>
-      <div style={{ fontSize: '0.875rem', color: '#92400e' }}>
-        1. Si cette page s'affiche = Le problème ne vient pas de React<br/>
-        2. Le problème vient de Firebase ou des imports authStore<br/>
-        3. Vérifier les variables d'environnement Netlify<br/>
-        4. Vérifier la console pour les erreurs d'import
-      </div>
-    </div>
-  </div>
-);
+  useEffect(() => {
+    // Auto-start premier test
+    if (testStep === 1 && Object.keys(testResults).length === 0) {
+      nextTest();
+    }
+  }, [testStep]);
 
-const EmergencyTasks = () => (
-  <div>
-    <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>
-      📋 Tasks (Emergency)
-    </h1>
-    <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '12px' }}>
-      <p>Page Tasks en mode emergency - Services de tâches bypassés</p>
-    </div>
-  </div>
-);
-
-const EmergencyProjects = () => (
-  <div>
-    <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>
-      📁 Projects (Emergency)
-    </h1>
-    <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '12px' }}>
-      <p>Page Projects en mode emergency - Services de projets bypassés</p>
-    </div>
-  </div>
-);
-
-const EmergencyAnalytics = () => (
-  <div>
-    <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>
-      📊 Analytics (Emergency)
-    </h1>
-    <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '12px' }}>
-      <p>Page Analytics en mode emergency - Services analytics bypassés</p>
-    </div>
-  </div>
-);
-
-// ✅ LOADING EMERGENCY
-const EmergencyLoading = () => (
-  <div style={{
-    minHeight: '100vh',
-    background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'white'
-  }}>
-    <div style={{ textAlign: 'center' }}>
+  return (
+    <div>
       <div style={{
-        width: '48px',
-        height: '48px',
-        border: '3px solid rgba(255,255,255,0.3)',
-        borderTop: '3px solid white',
-        borderRadius: '50%',
-        animation: 'spin 1s linear infinite',
-        margin: '0 auto 1rem auto'
-      }}></div>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 0.5rem 0' }}>
-        🚨 Emergency Boot
-      </h1>
-      <p style={{ margin: 0, opacity: 0.8 }}>
-        Démarrage forcé en cours...
-      </p>
+        background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+        color: 'white',
+        padding: '2rem',
+        borderRadius: '12px',
+        marginBottom: '2rem'
+      }}>
+        <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: '0 0 1rem 0' }}>
+          🔍 Debug Progressif
+        </h1>
+        <p style={{ margin: 0, opacity: 0.9 }}>
+          Test étape par étape pour identifier le problème exact
+        </p>
+      </div>
+
+      {/* Tests en cours */}
+      <div style={{
+        backgroundColor: 'white',
+        padding: '1.5rem',
+        borderRadius: '12px',
+        marginBottom: '1rem'
+      }}>
+        <h2 style={{ margin: '0 0 1rem 0' }}>📋 Tests d'imports</h2>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <strong>Étape actuelle : {testStep}</strong>
+          <button
+            onClick={nextTest}
+            style={{
+              marginLeft: '1rem',
+              padding: '0.5rem 1rem',
+              backgroundColor: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+          >
+            ▶️ Test suivant
+          </button>
+        </div>
+
+        {Object.entries(testResults).map(([step, result]) => (
+          <div
+            key={step}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              padding: '0.75rem',
+              margin: '0.5rem 0',
+              borderRadius: '8px',
+              backgroundColor: result.success ? '#f0fdf4' : '#fef2f2',
+              border: `1px solid ${result.success ? '#22c55e' : '#ef4444'}`
+            }}
+          >
+            <span style={{ fontSize: '1.25rem' }}>
+              {result.success ? '✅' : '❌'}
+            </span>
+            <div style={{ flex: 1 }}>
+              <strong>Test {step}: {result.name}</strong>
+              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                {result.success ? result.result : result.error}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Instructions */}
+      <div style={{
+        backgroundColor: '#fef3c7',
+        border: '1px solid #f59e0b',
+        padding: '1rem',
+        borderRadius: '8px'
+      }}>
+        <div style={{ fontWeight: 'bold', color: '#92400e', marginBottom: '0.5rem' }}>
+          📋 Instructions :
+        </div>
+        <div style={{ fontSize: '0.875rem', color: '#92400e' }}>
+          1. Clique sur "Test suivant" pour tester chaque import<br/>
+          2. Si un test échoue, on saura exactement quel fichier pose problème<br/>
+          3. Les erreurs s'afficheront dans la console et ici
+        </div>
+      </div>
     </div>
-    <style dangerouslySetInnerHTML={{
-      __html: '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }'
-    }} />
+  );
+};
+
+const ProgressiveTasks = () => (
+  <div>
+    <h1>📋 Tasks (Mode Progressif)</h1>
+    <p>Cette page testera progressivement les imports liés aux tâches.</p>
   </div>
 );
 
-// 🚀 APP EMERGENCY PRINCIPAL
+const ProgressiveProjects = () => (
+  <div>
+    <h1>📁 Projects (Mode Progressif)</h1>
+    <p>Cette page testera progressivement les imports liés aux projets.</p>
+  </div>
+);
+
+// 🚀 APP PROGRESSIF
 const App = () => {
-  const [loading, setLoading] = useState(true);
   const [currentPath, setCurrentPath] = useState('/dashboard');
 
   useEffect(() => {
-    console.log('🚨 EMERGENCY APP - Démarrage forcé...');
+    console.log('🔍 APP PROGRESSIF - Démarrage des tests...');
     
-    // Simuler un chargement puis démarrer
-    const timer = setTimeout(() => {
-      setLoading(false);
-      console.log('✅ EMERGENCY APP - Démarré avec succès !');
-    }, 2000);
-
-    // Écouter les changements de route
     const handlePopState = () => {
       setCurrentPath(window.location.pathname);
     };
     window.addEventListener('popstate', handlePopState);
+    setCurrentPath(window.location.pathname);
     
     return () => {
-      clearTimeout(timer);
       window.removeEventListener('popstate', handlePopState);
     };
   }, []);
 
-  if (loading) {
-    return <EmergencyLoading />;
-  }
-
   const renderPage = () => {
     switch (currentPath) {
       case '/tasks':
-        return <EmergencyTasks />;
+        return <ProgressiveTasks />;
       case '/projects':
-        return <EmergencyProjects />;
-      case '/analytics':
-        return <EmergencyAnalytics />;
+        return <ProgressiveProjects />;
       default:
-        return <EmergencyDashboard />;
+        return <ProgressiveDashboard />;
     }
   };
 
   return (
     <Router>
-      <EmergencyLayout>
+      <SimpleLayout>
         {renderPage()}
-      </EmergencyLayout>
+      </SimpleLayout>
     </Router>
   );
 };
 
 export default App;
 
-console.log('🚨 EMERGENCY MODE ACTIVÉ - Bypass total Firebase, authStore et tous les services !');
-console.log('🎯 Si cette version fonctionne, le problème vient des imports/services complexes');
+console.log('🔍 MODE PROGRESSIF - Prêt à tester les imports un par un !');
