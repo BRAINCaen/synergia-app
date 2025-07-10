@@ -37,6 +37,7 @@ import {
   doc, 
   getDoc, 
   updateDoc,
+  setDoc,
   arrayUnion,
   arrayRemove,
   serverTimestamp 
@@ -440,41 +441,67 @@ const TeamPage = () => {
         throw new Error('Rôle invalide');
       }
 
-      // Mettre à jour dans teamMembers
+      // Importer setDoc pour créer le document
+      const { setDoc } = await import('firebase/firestore');
+      
       const memberRef = doc(db, 'teamMembers', memberId);
       
       // Vérifier si le document existe
       const memberDoc = await getDoc(memberRef);
+      const memberData = members.find(m => m.id === memberId);
+      
+      if (!memberData) {
+        throw new Error('Membre introuvable dans les données locales');
+      }
+      
+      const newRole = {
+        id: roleId,
+        name: role.name,
+        assignedAt: new Date().toISOString(),
+        assignedBy: user.uid
+      };
       
       if (memberDoc.exists()) {
-        // Ajouter le rôle au tableau existant
+        // Document existe - ajouter le rôle
+        const currentData = memberDoc.data();
+        const currentRoles = currentData.synergiaRoles || [];
+        
+        // Vérifier si le rôle n'est pas déjà assigné
+        const roleExists = currentRoles.some(r => 
+          (typeof r === 'string' ? r : r.id) === roleId
+        );
+        
+        if (roleExists) {
+          console.log('⚠️ Rôle déjà assigné');
+          return { success: true, message: 'Rôle déjà assigné' };
+        }
+        
+        // Ajouter le nouveau rôle
         await updateDoc(memberRef, {
-          synergiaRoles: arrayUnion({
-            id: roleId,
-            name: role.name,
-            assignedAt: new Date().toISOString(),
-            assignedBy: user.uid
-          }),
+          synergiaRoles: arrayUnion(newRole),
           updatedAt: serverTimestamp()
         });
+        
       } else {
-        // Créer le document s'il n'existe pas
-        const memberData = members.find(m => m.id === memberId);
-        if (memberData) {
-          await updateDoc(memberRef, {
-            email: memberData.email,
-            displayName: memberData.displayName,
-            synergiaRoles: [{
-              id: roleId,
-              name: role.name,
-              assignedAt: new Date().toISOString(),
-              assignedBy: user.uid
-            }],
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            status: 'active'
-          });
-        }
+        // Document n'existe pas - le créer
+        console.log('📝 Création du document teamMember pour:', memberId);
+        
+        await setDoc(memberRef, {
+          id: memberId,
+          email: memberData.email,
+          displayName: memberData.displayName,
+          role: memberData.role,
+          department: memberData.department,
+          synergiaRoles: [newRole],
+          status: 'active',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          teamStats: {
+            level: memberData.level || 1,
+            totalXp: memberData.xp || 0,
+            tasksCompleted: memberData.tasksCompleted || 0
+          }
+        });
       }
 
       console.log('✅ Rôle assigné avec succès');
