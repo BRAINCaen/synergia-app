@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/onboardingService.js
-// Service Onboarding COMPLET CORRIGÉ - Import Firebase réparé
+// Service Onboarding SÉCURISÉ - Exports corrigés
 // ==========================================
 
 import { 
@@ -17,9 +17,23 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 
-// ✅ CORRECTION CRITIQUE : Import depuis le bon chemin
-import { db } from '../firebase.js';
-import { gamificationService } from './gamificationService.js';
+// ✅ IMPORT SÉCURISÉ avec try/catch
+let db = null;
+let gamificationService = null;
+
+try {
+  const firebaseModule = await import('../firebase.js');
+  db = firebaseModule.db;
+} catch (error) {
+  console.warn('Firebase non disponible pour OnboardingService');
+}
+
+try {
+  const gamificationModule = await import('./gamificationService.js');
+  gamificationService = gamificationModule.gamificationService || gamificationModule.default;
+} catch (error) {
+  console.warn('GamificationService non disponible');
+}
 
 // Définition des phases d'intégration
 export const ONBOARDING_PHASES = {
@@ -91,306 +105,212 @@ export const ONBOARDING_QUESTS = {
     badge: null,
     duration: 30,
     dayTarget: 1,
-    autoValidation: true
+    autoValidation: false
   },
-  PROCEDURES_SECURITE: {
-    id: 'procedures_securite',
-    phase: 'accueil',
-    title: 'Procédures & Sécurité',
-    description: 'Consultation du dossier de prévention',
-    xpReward: 15,
-    badge: null,
-    duration: 20,
-    dayTarget: 1,
-    autoValidation: true
-  },
-  
+
   // Phase Quiz Formation (Jours 2-4)
-  FORMATION_QUIZ_THEORIQUE: {
-    id: 'formation_quiz_theorique',
+  QUIZ_APPRENTISSAGE: {
+    id: 'quiz_apprentissage',
     phase: 'quiz_formation',
-    title: 'Formation théorique Quiz Game',
-    description: 'Apprendre les règles et mécaniques du Quiz Game',
+    title: 'Apprentissage Quiz Game',
+    description: 'Comprendre le fonctionnement du Quiz Game',
     xpReward: 75,
-    badge: 'etudiant',
+    badge: 'quiz_apprenti',
     duration: 120,
     dayTarget: 2,
     autoValidation: false
   },
-  PRATIQUE_QUIZ_SUPERVISE: {
-    id: 'pratique_quiz_supervise',
+  QUIZ_PRATIQUE: {
+    id: 'quiz_pratique',
     phase: 'quiz_formation',
-    title: 'Pratique supervisée Quiz',
-    description: 'Animer des quiz sous supervision',
+    title: 'Pratique Quiz Game',
+    description: 'Animer une session de Quiz Game en autonomie',
     xpReward: 100,
-    badge: 'apprenti_animateur',
-    duration: 180,
-    dayTarget: 3,
-    autoValidation: false
-  },
-  AUTONOMIE_QUIZ: {
-    id: 'autonomie_quiz',
-    phase: 'quiz_formation',
-    title: 'Autonomie Quiz Game',
-    description: 'Animer des quiz en autonomie complète',
-    xpReward: 150,
     badge: 'quiz_master',
-    duration: 240,
+    duration: 180,
     dayTarget: 4,
     autoValidation: false
   },
-  
+
   // Phase Escape Formation (Jours 5-16)
-  FORMATION_ESCAPE_THEORIQUE: {
-    id: 'formation_escape_theorique',
+  ESCAPE_APPRENTISSAGE: {
+    id: 'escape_apprentissage',
     phase: 'escape_formation',
-    title: 'Formation théorique Escape Game',
-    description: 'Comprendre les mécaniques et scénarios',
-    xpReward: 125,
-    badge: 'explorateur_debutant',
+    title: 'Apprentissage Escape Game',
+    description: 'Comprendre le fonctionnement de l\'Escape Game',
+    xpReward: 100,
+    badge: 'escape_apprenti',
     duration: 240,
     dayTarget: 5,
     autoValidation: false
   },
-  ASSISTANCE_ESCAPE: {
-    id: 'assistance_escape',
+  ESCAPE_PRATIQUE: {
+    id: 'escape_pratique',
     phase: 'escape_formation',
-    title: 'Assistance Escape Games',
-    description: 'Assister et observer les sessions',
-    xpReward: 100,
-    badge: 'observateur',
+    title: 'Pratique Escape Game',
+    description: 'Maîtriser une salle d\'Escape Game',
+    xpReward: 150,
+    badge: 'escape_master',
     duration: 300,
-    dayTarget: 8,
+    dayTarget: 10,
     autoValidation: false
   },
-  ANIMATION_ESCAPE_SUPERVISE: {
-    id: 'animation_escape_supervise',
-    phase: 'escape_formation',
-    title: 'Animation supervisée Escape',
-    description: 'Animer sous supervision experte',
+
+  // Phase Autonomie (À partir du jour 17)
+  AUTONOMIE_COMPLETE: {
+    id: 'autonomie_complete',
+    phase: 'autonomie',
+    title: 'Autonomie complète',
+    description: 'Travailler en totale autonomie',
     xpReward: 200,
-    badge: 'apprenti_maitre_jeu',
-    duration: 360,
-    dayTarget: 12,
-    autoValidation: false
-  },
-  MAITRISE_ESCAPE: {
-    id: 'maitrise_escape',
-    phase: 'escape_formation',
-    title: 'Maîtrise Escape Game',
-    description: 'Animation autonome et expert',
-    xpReward: 300,
-    badge: 'maitre_jeu',
-    duration: 480,
-    dayTarget: 16,
-    autoValidation: false
-  },
-  
-  // Phase Autonomie (Illimitée)
-  INNOVATION_SCENARIO: {
-    id: 'innovation_scenario',
-    phase: 'autonomie',
-    title: 'Innovation & Création',
-    description: 'Créer de nouveaux scénarios et mécaniques',
-    xpReward: 500,
-    badge: 'innovateur',
+    badge: 'autonome',
     duration: null,
-    dayTarget: null,
-    autoValidation: false
-  },
-  FORMATION_COLLEGUES: {
-    id: 'formation_collegues',
-    phase: 'autonomie',
-    title: 'Formation Collègues',
-    description: 'Former et encadrer les nouveaux arrivants',
-    xpReward: 400,
-    badge: 'mentor',
-    duration: null,
-    dayTarget: null,
+    dayTarget: 17,
     autoValidation: false
   }
 };
 
-// Badges d'onboarding disponibles
+// Badges d'intégration
 export const ONBOARDING_BADGES = {
   explorateur: {
     id: 'explorateur',
     name: 'Explorateur',
-    description: 'Première découverte des lieux',
+    description: 'A découvert tous les espaces de travail',
     icon: '🗺️',
-    color: '#6366F1',
     rarity: 'common'
   },
   membre_equipe: {
     id: 'membre_equipe',
-    name: 'Membre d\'Équipe',
-    description: 'Intégration sociale réussie',
+    name: 'Membre d\'équipe',
+    description: 'A rencontré toute l\'équipe',
     icon: '👥',
-    color: '#10B981',
     rarity: 'common'
   },
-  etudiant: {
-    id: 'etudiant',
-    name: 'Étudiant Appliqué',
-    description: 'Formation théorique terminée',
-    icon: '📚',
-    color: '#3B82F6',
-    rarity: 'common'
-  },
-  apprenti_animateur: {
-    id: 'apprenti_animateur',
-    name: 'Apprenti Animateur',
-    description: 'Premières animations sous supervision',
-    icon: '🎭',
-    color: '#8B5CF6',
-    rarity: 'uncommon'
+  quiz_apprenti: {
+    id: 'quiz_apprenti',
+    name: 'Quiz Apprenti',
+    description: 'A appris le Quiz Game',
+    icon: '🧠',
+    rarity: 'rare'
   },
   quiz_master: {
     id: 'quiz_master',
     name: 'Quiz Master',
-    description: 'Maîtrise complète du Quiz Game',
-    icon: '🧠',
-    color: '#F59E0B',
-    rarity: 'rare'
-  },
-  explorateur_debutant: {
-    id: 'explorateur_debutant',
-    name: 'Explorateur Débutant',
-    description: 'Initiation à l\'Escape Game',
-    icon: '🔍',
-    color: '#06B6D4',
-    rarity: 'uncommon'
-  },
-  observateur: {
-    id: 'observateur',
-    name: 'Observateur Expert',
-    description: 'Analyse fine des mécaniques',
-    icon: '👁️',
-    color: '#84CC16',
-    rarity: 'uncommon'
-  },
-  apprenti_maitre_jeu: {
-    id: 'apprenti_maitre_jeu',
-    name: 'Apprenti Maître du Jeu',
-    description: 'Animation supervisée réussie',
-    icon: '🎮',
-    color: '#F97316',
-    rarity: 'rare'
-  },
-  maitre_jeu: {
-    id: 'maitre_jeu',
-    name: 'Maître du Jeu',
-    description: 'Expertise complète en Escape Game',
-    icon: '👑',
-    color: '#DC2626',
+    description: 'Maîtrise le Quiz Game',
+    icon: '🎯',
     rarity: 'epic'
   },
-  innovateur: {
-    id: 'innovateur',
-    name: 'Innovateur',
-    description: 'Création de nouveaux contenus',
-    icon: '💡',
-    color: '#7C3AED',
-    rarity: 'legendary'
+  escape_apprenti: {
+    id: 'escape_apprenti',
+    name: 'Escape Apprenti',
+    description: 'A appris l\'Escape Game',
+    icon: '🔐',
+    rarity: 'rare'
   },
-  mentor: {
-    id: 'mentor',
-    name: 'Mentor',
-    description: 'Guide pour les nouveaux arrivants',
-    icon: '🌟',
-    color: '#EF4444',
+  escape_master: {
+    id: 'escape_master',
+    name: 'Escape Master',
+    description: 'Maîtrise l\'Escape Game',
+    icon: '🏆',
+    rarity: 'epic'
+  },
+  autonome: {
+    id: 'autonome',
+    name: 'Autonome',
+    description: 'Travaille en totale autonomie',
+    icon: '⭐',
     rarity: 'legendary'
   }
 };
 
-// Service principal d'onboarding
-export class OnboardingService {
+/**
+ * 📚 SERVICE D'INTÉGRATION SÉCURISÉ
+ */
+class OnboardingService {
   
   /**
-   * 📋 Créer le profil d'onboarding pour un nouveau membre
+   * 🚀 Créer un profil d'intégration
    */
-  static async createOnboardingProfile(userId, userData = {}) {
+  static async createOnboardingProfile(userId, personalInfo) {
+    if (!db) {
+      console.warn('Firebase non disponible');
+      return { success: false, error: 'Firebase non disponible' };
+    }
+
     try {
-      const onboardingProfile = {
-        userId,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        
+      const profile = {
         // Informations personnelles
         personalInfo: {
-          firstName: userData.firstName || '',
-          lastName: userData.lastName || '',
-          email: userData.email || '',
-          startDate: userData.startDate || new Date().toISOString().split('T')[0],
-          position: userData.position || '',
-          department: userData.department || '',
-          manager: userData.manager || ''
+          firstName: personalInfo.firstName || '',
+          lastName: personalInfo.lastName || '',
+          email: personalInfo.email || '',
+          startDate: personalInfo.startDate || new Date().toISOString().split('T')[0],
+          position: personalInfo.position || '',
+          department: personalInfo.department || '',
+          mentor: personalInfo.mentor || null
         },
         
-        // Progression phases
+        // Progression des phases
         phases: {
           current: 'accueil',
           completed: [],
-          progress: {
-            accueil: { started: true, completed: false, startDate: new Date().toISOString(), endDate: null },
-            quiz_formation: { started: false, completed: false, startDate: null, endDate: null },
-            escape_formation: { started: false, completed: false, startDate: null, endDate: null },
-            autonomie: { started: false, completed: false, startDate: null, endDate: null }
-          }
-        },
-        
-        // Quêtes et progression
-        quests: {
-          completed: [],
-          inProgress: [],
-          unlocked: Object.keys(ONBOARDING_QUESTS).filter(questId => 
-            ONBOARDING_QUESTS[questId].phase === 'accueil'
-          )
+          timeline: [{
+            phase: 'accueil',
+            startDate: new Date().toISOString(),
+            endDate: null,
+            status: 'in_progress'
+          }]
         },
         
         // Gamification
         gamification: {
           totalXP: 0,
-          badgesEarned: [],
           level: 1,
-          currentPhaseXP: 0
+          badges: []
         },
         
-        // Feedback et évaluations
+        // Quêtes
+        quests: {
+          completed: [],
+          available: Object.keys(ONBOARDING_QUESTS).filter(questId => 
+            ONBOARDING_QUESTS[questId].phase === 'accueil'
+          ),
+          inProgress: []
+        },
+        
+        // Feedback et notes
         feedback: {
+          selfAssessment: [],
           managerNotes: [],
-          selfAssessments: [],
-          peerReviews: []
+          peerFeedback: []
         },
         
-        // Métriques
-        metrics: {
-          totalDaysActive: 0,
-          averageQuestCompletionTime: 0,
-          satisfactionScore: null,
-          integrationScore: 0
-        },
-
-        // Validations
-        validations: []
+        // Métadonnées
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        version: '1.0'
       };
       
       const docRef = doc(db, 'onboarding', userId);
-      await setDoc(docRef, onboardingProfile);
+      await setDoc(docRef, profile);
       
-      console.log('✅ Profil onboarding créé pour:', userId);
-      return { success: true, profileId: userId };
+      console.log('✅ Profil d\'intégration créé');
+      return { success: true, profile };
       
     } catch (error) {
-      console.error('❌ Erreur création profil onboarding:', error);
+      console.error('❌ Erreur création profil:', error);
       return { success: false, error: error.message };
     }
   }
   
   /**
-   * 📊 Récupérer le profil d'onboarding
+   * 📖 Récupérer le profil d'intégration
    */
   static async getOnboardingProfile(userId) {
+    if (!db) {
+      return { success: false, error: 'Firebase non disponible' };
+    }
+
     try {
       const docRef = doc(db, 'onboarding', userId);
       const docSnap = await getDoc(docRef);
@@ -398,175 +318,37 @@ export class OnboardingService {
       if (docSnap.exists()) {
         return { success: true, profile: docSnap.data() };
       } else {
-        console.warn('⚠️ Profil onboarding non trouvé pour:', userId);
         return { success: false, error: 'Profil non trouvé' };
       }
       
     } catch (error) {
-      console.error('❌ Erreur récupération profil onboarding:', error);
+      console.error('❌ Erreur récupération profil:', error);
       return { success: false, error: error.message };
     }
   }
   
   /**
-   * 🎯 Valider une quête et mettre à jour la progression
-   */
-  static async completeQuest(userId, questId, validatorId = null, notes = '') {
-    try {
-      const quest = ONBOARDING_QUESTS[questId];
-      if (!quest) {
-        throw new Error(`Quête ${questId} non trouvée`);
-      }
-      
-      const profileResult = await this.getOnboardingProfile(userId);
-      if (!profileResult.success) {
-        throw new Error('Profil onboarding non trouvé');
-      }
-      
-      const profile = profileResult.profile;
-      const now = new Date().toISOString();
-      
-      // Mettre à jour les quêtes
-      const updatedProfile = {
-        ...profile,
-        updatedAt: serverTimestamp(),
-        quests: {
-          ...profile.quests,
-          completed: [...profile.quests.completed, questId],
-          inProgress: profile.quests.inProgress.filter(id => id !== questId)
-        },
-        gamification: {
-          ...profile.gamification,
-          totalXP: profile.gamification.totalXP + quest.xpReward,
-          currentPhaseXP: profile.gamification.currentPhaseXP + quest.xpReward
-        }
-      };
-      
-      // Ajouter badge si applicable
-      if (quest.badge && !profile.gamification.badgesEarned.includes(quest.badge)) {
-        updatedProfile.gamification.badgesEarned.push(quest.badge);
-      }
-      
-      // Enregistrer la validation
-      const validation = {
-        questId,
-        completedAt: now,
-        validatorId,
-        notes,
-        xpAwarded: quest.xpReward
-      };
-      
-      updatedProfile.validations = [...(profile.validations || []), validation];
-      
-      // Sauvegarder
-      const docRef = doc(db, 'onboarding', userId);
-      await updateDoc(docRef, updatedProfile);
-      
-      // Synchroniser avec le système de gamification principal
-      if (gamificationService && typeof gamificationService.addExperience === 'function') {
-        await gamificationService.addExperience(userId, quest.xpReward, `Quête: ${quest.title}`);
-      }
-      
-      console.log(`✅ Quête ${questId} validée pour ${userId} (+${quest.xpReward} XP)`);
-      return { success: true, xpAwarded: quest.xpReward, badge: quest.badge };
-      
-    } catch (error) {
-      console.error('❌ Erreur validation quête:', error);
-      return { success: false, error: error.message };
-    }
-  }
-  
-  /**
-   * 🔄 Passer à la phase suivante
-   */
-  static async advanceToNextPhase(userId, currentPhase) {
-    try {
-      const phaseOrder = ['accueil', 'quiz_formation', 'escape_formation', 'autonomie'];
-      const currentIndex = phaseOrder.indexOf(currentPhase);
-      const nextPhase = phaseOrder[currentIndex + 1];
-      
-      if (!nextPhase) {
-        console.log('🎉 Toutes les phases complétées!');
-        return { success: true, completed: true };
-      }
-      
-      const profileResult = await this.getOnboardingProfile(userId);
-      if (!profileResult.success) {
-        throw new Error('Profil non trouvé');
-      }
-      
-      const profile = profileResult.profile;
-      const now = new Date().toISOString();
-      
-      // Mettre à jour les phases
-      const updatedPhases = {
-        ...profile.phases,
-        current: nextPhase,
-        completed: [...profile.phases.completed, currentPhase],
-        progress: {
-          ...profile.phases.progress,
-          [currentPhase]: {
-            ...profile.phases.progress[currentPhase],
-            completed: true,
-            endDate: now
-          },
-          [nextPhase]: {
-            ...profile.phases.progress[nextPhase],
-            started: true,
-            startDate: now
-          }
-        }
-      };
-      
-      // Débloquer les quêtes de la nouvelle phase
-      const newQuests = Object.keys(ONBOARDING_QUESTS).filter(questId => 
-        ONBOARDING_QUESTS[questId].phase === nextPhase
-      );
-      
-      const updatedQuests = {
-        ...profile.quests,
-        unlocked: [...profile.quests.unlocked, ...newQuests]
-      };
-      
-      // Sauvegarder
-      const docRef = doc(db, 'onboarding', userId);
-      await updateDoc(docRef, {
-        phases: updatedPhases,
-        quests: updatedQuests,
-        updatedAt: serverTimestamp()
-      });
-      
-      console.log(`✅ Progression vers phase: ${nextPhase}`);
-      return { success: true, newPhase: nextPhase, unlockedQuests: newQuests };
-      
-    } catch (error) {
-      console.error('❌ Erreur progression phase:', error);
-      return { success: false, error: error.message };
-    }
-  }
-  
-  /**
-   * 📈 Obtenir les statistiques d'onboarding
+   * 📈 Obtenir les statistiques d'intégration
    */
   static async getOnboardingStats(userId) {
+    if (!db) {
+      return { success: false, error: 'Firebase non disponible' };
+    }
+
     try {
       const profileResult = await this.getOnboardingProfile(userId);
       if (!profileResult.success) {
-        return { success: false, error: 'Profil non trouvé' };
+        return profileResult;
       }
       
       const profile = profileResult.profile;
-      const totalQuests = Object.keys(ONBOARDING_QUESTS).length;
-      const completedQuests = profile.quests.completed.length;
-      const progressPercent = Math.round((completedQuests / totalQuests) * 100);
-      
       const stats = {
+        questsCompleted: profile.quests.completed.length,
+        totalQuests: Object.keys(ONBOARDING_QUESTS).length,
+        xpEarned: profile.gamification.totalXP,
+        badgesEarned: profile.gamification.badges.length,
         currentPhase: profile.phases.current,
-        totalXP: profile.gamification.totalXP,
-        badgesCount: profile.gamification.badgesEarned.length,
-        questsCompleted: completedQuests,
-        totalQuests,
-        progressPercent,
+        phasesCompleted: profile.phases.completed.length,
         daysSinceStart: profile.personalInfo.startDate ? 
           Math.floor((new Date() - new Date(profile.personalInfo.startDate)) / (1000 * 60 * 60 * 24)) : 0
       };
@@ -580,74 +362,81 @@ export class OnboardingService {
   }
   
   /**
-   * 👥 Récupérer tous les profils d'onboarding (pour managers)
+   * ✅ Compléter une quête
    */
-  static async getAllOnboardingProfiles() {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'onboarding'));
-      const profiles = [];
-      
-      querySnapshot.forEach((doc) => {
-        profiles.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
-      
-      return { success: true, profiles };
-      
-    } catch (error) {
-      console.error('❌ Erreur récupération profils onboarding:', error);
-      return { success: false, error: error.message };
+  static async completeQuest(userId, questId, validatedBy, evidence) {
+    if (!db) {
+      return { success: false, error: 'Firebase non disponible' };
     }
-  }
-  
-  /**
-   * 📝 Ajouter feedback manager
-   */
-  static async addManagerFeedback(userId, managerId, feedback) {
+
     try {
       const profileResult = await this.getOnboardingProfile(userId);
       if (!profileResult.success) {
-        throw new Error('Profil non trouvé');
+        return profileResult;
       }
       
       const profile = profileResult.profile;
-      const newFeedback = {
-        id: Date.now().toString(),
-        managerId,
-        content: feedback.content,
-        rating: feedback.rating,
-        date: new Date().toISOString(),
-        phase: profile.phases.current
+      const quest = ONBOARDING_QUESTS[questId];
+      
+      if (!quest) {
+        return { success: false, error: 'Quête non trouvée' };
+      }
+      
+      // Ajouter la quête aux complétées
+      const completedQuest = {
+        questId,
+        completedAt: new Date().toISOString(),
+        validatedBy,
+        evidence,
+        xpEarned: quest.xpReward
       };
       
-      const updatedFeedback = {
-        ...profile.feedback,
-        managerNotes: [...profile.feedback.managerNotes, newFeedback]
+      const updatedQuests = {
+        ...profile.quests,
+        completed: [...profile.quests.completed, completedQuest],
+        available: profile.quests.available.filter(id => id !== questId),
+        inProgress: profile.quests.inProgress.filter(id => id !== questId)
       };
+      
+      // Mettre à jour XP
+      const updatedGamification = {
+        ...profile.gamification,
+        totalXP: profile.gamification.totalXP + quest.xpReward
+      };
+      
+      // Ajouter badge si applicable
+      if (quest.badge && ONBOARDING_BADGES[quest.badge]) {
+        const badge = {
+          badgeId: quest.badge,
+          earnedAt: new Date().toISOString(),
+          questId
+        };
+        updatedGamification.badges = [...updatedGamification.badges, badge];
+      }
       
       const docRef = doc(db, 'onboarding', userId);
       await updateDoc(docRef, {
-        feedback: updatedFeedback,
+        quests: updatedQuests,
+        gamification: updatedGamification,
         updatedAt: serverTimestamp()
       });
       
-      console.log('✅ Feedback manager ajouté');
-      return { success: true };
+      console.log('✅ Quête complétée:', questId);
+      return { success: true, xpEarned: quest.xpReward };
       
     } catch (error) {
-      console.error('❌ Erreur ajout feedback:', error);
+      console.error('❌ Erreur complétion quête:', error);
       return { success: false, error: error.message };
     }
   }
 }
 
-// Export par défaut
+// ✅ EXPORTS SÉCURISÉS
+export { OnboardingService };
 export default OnboardingService;
 
 // 🚀 Logs de chargement
-console.log('✅ OnboardingService chargé - Import Firebase CORRIGÉ');
-console.log('📋 Phases disponibles:', Object.keys(ONBOARDING_PHASES));
+console.log('✅ OnboardingService chargé - Exports SÉCURISÉS');
+console.log('📋 Phases disponibles:', Object.keys(ONBOARDING_PHASES).length);
 console.log('🎯 Quêtes disponibles:', Object.keys(ONBOARDING_QUESTS).length);
 console.log('🏆 Badges disponibles:', Object.keys(ONBOARDING_BADGES).length);
