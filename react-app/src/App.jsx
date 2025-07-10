@@ -1,23 +1,41 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APPLICATION PRINCIPALE AVEC SYSTÈME DE PROGRESSION PAR RÔLES
-// Version clean sans doublons - Compatible build Netlify
+// APPLICATION PRINCIPALE CORRIGÉE - VRAIES PAGES IMPORTÉES
 // ==========================================
 
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// 🎯 Imports existants
+// 🎯 Imports de base
 import { useAuthStore } from './shared/stores/authStore.js';
 import Layout from './components/layout/Layout.jsx';
 import Login from './pages/Login.jsx';
 
-// 📄 Pages principales
+// 📄 VRAIES PAGES PRINCIPALES (toutes existantes !)
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
+
+// 🎮 VRAIES PAGES GAMIFICATION
 import GamificationPage from './pages/GamificationPage.jsx';
+import BadgesPage from './pages/BadgesPage.jsx';
+import RewardsPage from './pages/RewardsPage.jsx';
+import LeaderboardPage from './pages/LeaderboardPage.jsx';
+
+// 👥 VRAIES PAGES ÉQUIPE
+import TeamPage from './pages/TeamPage.jsx';
+import UsersPage from './pages/UsersPage.jsx';
+
+// ⚙️ VRAIES PAGES UTILISATEUR
+import ProfilePage from './pages/ProfilePage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
+import OnboardingPage from './pages/OnboardingPage.jsx';
+import TimeTrackPage from './pages/TimeTrackPage.jsx';
+
+// 🛡️ VRAIES PAGES ADMIN
+import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
+import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 
 // Component de chargement simple
 const LoadingScreen = ({ message }) => (
@@ -35,37 +53,25 @@ const ToastContainer = () => null;
 // ToastProvider simple
 const ToastProvider = ({ children }) => <>{children}</>;
 
-// Page de fallback pour les fonctionnalités en développement
-const FallbackPage = ({ title, description }) => (
+// 🛍️ PAGE BOUTIQUE TEMPORAIRE (sera créée séparément)
+const ShopPage = () => (
   <div className="min-h-screen bg-gray-900 p-6">
     <div className="max-w-4xl mx-auto text-center">
-      <h1 className="text-3xl font-bold text-white mb-4">{title}</h1>
-      <p className="text-gray-400 mb-8">{description}</p>
+      <h1 className="text-3xl font-bold text-white mb-4">🛍️ Boutique</h1>
+      <p className="text-gray-400 mb-8">Échangez vos points contre des récompenses</p>
       
       <div className="bg-gray-800 rounded-lg p-8">
-        <div className="w-16 h-16 bg-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-          <span className="text-white text-2xl">🚀</span>
+        <div className="w-16 h-16 bg-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+          <span className="text-white text-2xl">🛒</span>
         </div>
-        <h3 className="text-white font-semibold mb-2">En développement</h3>
-        <p className="text-gray-400">Cette fonctionnalité sera bientôt disponible</p>
+        <h3 className="text-white font-semibold mb-2">Boutique en préparation</h3>
+        <p className="text-gray-400">La boutique de récompenses sera bientôt disponible</p>
       </div>
     </div>
   </div>
 );
 
-// Pages en développement
-const BadgesPage = () => <FallbackPage title="Badges" description="Système de badges en développement" />;
-const RewardsPage = () => <FallbackPage title="Récompenses" description="Boutique de récompenses" />;
-const TeamPage = () => <FallbackPage title="Équipe" description="Gestion d'équipe" />;
-const UsersPage = () => <FallbackPage title="Utilisateurs" description="Gestion des utilisateurs" />;
-const ProfilePage = () => <FallbackPage title="Profil" description="Profil utilisateur" />;
-const SettingsPage = () => <FallbackPage title="Paramètres" description="Configuration" />;
-const OnboardingPage = () => <FallbackPage title="Aide" description="Guide d'utilisation" />;
-const TimeTrackPage = () => <FallbackPage title="Temps" description="Suivi du temps" />;
-const AdminTaskValidationPage = () => <FallbackPage title="Validation Admin" description="Validation des tâches" />;
-const CompleteAdminTestPage = () => <FallbackPage title="Tests Admin" description="Tests administrateur" />;
-
-// 🆕 Nouvelles pages du système de progression
+// 🆕 Pages du système de progression (nouvelles)
 const RoleProgressionPage = () => (
   <div className="min-h-screen bg-gray-900 p-6">
     <div className="max-w-4xl mx-auto">
@@ -114,15 +120,15 @@ const RoleProgressionPage = () => (
 const RoleTasksPage = () => (
   <div className="min-h-screen bg-gray-900 p-6">
     <div className="max-w-4xl mx-auto text-center">
-      <h1 className="text-3xl font-bold text-white mb-4">Tâches par Rôle</h1>
-      <p className="text-gray-400 mb-8">Système de tâches spécialisées en développement...</p>
+      <h1 className="text-3xl font-bold text-white mb-4">🎯 Tâches par Rôle</h1>
+      <p className="text-gray-400 mb-8">Tâches spécialisées débloquées selon votre progression</p>
       
       <div className="bg-gray-800 rounded-lg p-8">
-        <span className="text-6xl block mb-4">🎯</span>
-        <h3 className="text-white font-semibold mb-2">Tâches Spécialisées</h3>
-        <p className="text-gray-400">
-          Bientôt disponible : tâches qui se débloquent selon votre progression dans chaque rôle
-        </p>
+        <div className="w-16 h-16 bg-green-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+          <span className="text-white text-2xl">🎯</span>
+        </div>
+        <h3 className="text-white font-semibold mb-2">Tâches spécialisées</h3>
+        <p className="text-gray-400">Système en développement</p>
       </div>
     </div>
   </div>
@@ -131,119 +137,43 @@ const RoleTasksPage = () => (
 const RoleBadgesPage = () => (
   <div className="min-h-screen bg-gray-900 p-6">
     <div className="max-w-4xl mx-auto text-center">
-      <h1 className="text-3xl font-bold text-white mb-4">Badges Exclusifs par Rôle</h1>
-      <p className="text-gray-400 mb-8">Collection de badges spécialisés en développement...</p>
+      <h1 className="text-3xl font-bold text-white mb-4">🏆 Badges Exclusifs</h1>
+      <p className="text-gray-400 mb-8">Collection de badges spéciaux par rôle</p>
       
       <div className="bg-gray-800 rounded-lg p-8">
-        <span className="text-6xl block mb-4">🏆</span>
-        <h3 className="text-white font-semibold mb-2">Badges de Rôle</h3>
-        <p className="text-gray-400">
-          Bientôt disponible : badges exclusifs à chaque domaine d'expertise
-        </p>
+        <div className="w-16 h-16 bg-yellow-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+          <span className="text-white text-2xl">🏆</span>
+        </div>
+        <h3 className="text-white font-semibold mb-2">Badges exclusifs</h3>
+        <p className="text-gray-400">Collection spéciale en développement</p>
       </div>
     </div>
   </div>
 );
 
-// Services simplifiés pour éviter les erreurs
-const initializeBadgeSystem = async () => ({ success: true });
-const roleProgressionIntegration = {
-  initialize: async () => ({ success: true }),
-  cleanup: () => {}
-};
-
 const App = () => {
-  const { user, loading, initializeAuth } = useAuthStore();
-  const [systemsInitialized, setSystemsInitialized] = useState(false);
-  const [initializationError, setInitializationError] = useState(null);
+  const { user, checkAuth, isLoading } = useAuthStore();
 
-  // 🚀 Initialisation complète des systèmes
   useEffect(() => {
-    const initializeAllSystems = async () => {
-      try {
-        console.log('🚀 Initialisation des systèmes Synergia v3.5...');
+    checkAuth();
+  }, [checkAuth]);
 
-        // 1. Initialiser l'authentification
-        await initializeAuth();
-
-        // 2. Initialiser le système de badges existant
-        if (user?.uid) {
-          await initializeBadgeSystem(user.uid);
-          console.log('✅ Système de badges initialisé');
-
-          // 3. Initialiser le nouveau système de progression par rôles
-          const progressionResult = await roleProgressionIntegration.initialize(user.uid);
-          if (progressionResult.success) {
-            console.log('✅ Système de progression par rôles initialisé');
-          }
-        }
-
-        setSystemsInitialized(true);
-        console.log('🎉 Tous les systèmes Synergia v3.5 initialisés !');
-
-      } catch (error) {
-        console.error('❌ Erreur initialisation systèmes:', error);
-        setInitializationError(error.message);
-        setSystemsInitialized(true); // Continuer malgré l'erreur
-      }
-    };
-
-    initializeAllSystems();
-  }, [initializeAuth, user?.uid]);
-
-  // 🔄 Cleanup lors du départ de l'utilisateur
-  useEffect(() => {
-    return () => {
-      if (user?.uid && roleProgressionIntegration.cleanup) {
-        roleProgressionIntegration.cleanup(user.uid);
-      }
-    };
-  }, [user?.uid]);
-
-  // 🔄 Écran de chargement
-  if (loading || !systemsInitialized) {
-    return (
-      <LoadingScreen 
-        message={
-          loading ? "Connexion en cours..." :
-          !systemsInitialized ? "Initialisation des systèmes de progression..." :
-          "Chargement terminé..."
-        }
-      />
-    );
-  }
-
-  // ⚠️ Affichage d'erreur d'initialisation
-  if (initializationError) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="bg-red-900 border border-red-700 rounded-lg p-6 max-w-md">
-          <h2 className="text-red-300 font-semibold mb-2">Erreur d'initialisation</h2>
-          <p className="text-red-200 text-sm mb-4">{initializationError}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded transition-colors"
-          >
-            Recharger l'application
-          </button>
-        </div>
-      </div>
-    );
+  if (isLoading) {
+    return <LoadingScreen message="Initialisation de Synergia..." />;
   }
 
   return (
     <ToastProvider>
       <Router>
-        <div className="App">
-          {/* 🎉 Container de notifications */}
-          <ToastContainer />
-
-          {/* 🔐 Routes protégées */}
+        <div className="min-h-screen bg-gray-50">
           <Routes>
             {/* Route de connexion */}
-            <Route path="/login" element={
-              user ? <Navigate to="/dashboard" replace /> : <Login />
-            } />
+            <Route 
+              path="/login" 
+              element={
+                user ? <Navigate to="/dashboard" replace /> : <Login />
+              } 
+            />
 
             {/* Routes principales protégées */}
             <Route path="/" element={
@@ -260,6 +190,8 @@ const App = () => {
               <Route path="gamification" element={<GamificationPage />} />
               <Route path="badges" element={<BadgesPage />} />
               <Route path="rewards" element={<RewardsPage />} />
+              <Route path="leaderboard" element={<LeaderboardPage />} />
+              <Route path="shop" element={<ShopPage />} />
 
               {/* 🆕 Nouvelles pages du système de progression */}
               <Route path="role-progression" element={<RoleProgressionPage />} />
@@ -279,9 +211,6 @@ const App = () => {
               {/* 🛡️ Pages admin */}
               <Route path="admin/task-validation" element={<AdminTaskValidationPage />} />
               <Route path="admin/complete-test" element={<CompleteAdminTestPage />} />
-
-              {/* 🔍 Pages de classement et leaderboard */}
-              <Route path="leaderboard" element={<GamificationPage />} />
             </Route>
 
             {/* 🚫 Page 404 */}
@@ -301,9 +230,10 @@ const App = () => {
             } />
           </Routes>
 
-          {/* 🎨 Effets visuels globaux pour la progression */}
+          {/* 🎨 Effets visuels globaux */}
           <div id="confetti-container" className="pointer-events-none fixed inset-0 z-50" />
           <div id="epic-effects-container" className="pointer-events-none fixed inset-0 z-40" />
+          <ToastContainer />
         </div>
       </Router>
     </ToastProvider>
