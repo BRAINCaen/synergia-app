@@ -9,6 +9,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 // 🛡️ CORRECTIONS
 import './utils/errorHandler.js';
 import './core/simpleRoleFix.js';
+import './core/emergencyRoleFix.js';
 
 // 🔐 AuthStore
 import { useAuthStore } from './shared/stores/authStore.js';
