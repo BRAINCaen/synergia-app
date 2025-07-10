@@ -1,237 +1,317 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// VERSION DEBUG - BYPASS FIREBASE POUR FORCER LE DÉMARRAGE
+// VERSION EMERGENCY - BYPASS TOTAL pour démarrer l'app
 // ==========================================
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// 🎯 Import du Layout qui fonctionne
-import DashboardLayout from './layouts/DashboardLayout.jsx';
+console.log('🚨 EMERGENCY MODE - Bypass total activé !');
 
-// 📄 Pages
-import Login from './pages/Login.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import TasksPage from './pages/TasksPage.jsx';
-import ProjectsPage from './pages/ProjectsPage.jsx';
-import AnalyticsPage from './pages/AnalyticsPage.jsx';
-import GamificationPage from './pages/GamificationPage.jsx';
-import BadgesPage from './pages/BadgesPage.jsx';
-import RewardsPage from './pages/RewardsPage.jsx';
-import LeaderboardPage from './pages/LeaderboardPage.jsx';
-import TeamPage from './pages/TeamPage.jsx';
-import UsersPage from './pages/UsersPage.jsx';
-import ProfilePage from './pages/ProfilePage.jsx';
-import SettingsPage from './pages/SettingsPage.jsx';
-import OnboardingPage from './pages/OnboardingPage.jsx';
-import TimeTrackPage from './pages/TimeTrackPage.jsx';
-import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
-import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
-
-// ✅ LOADING SCREEN AMÉLIORÉ
-const LoadingScreen = ({ message = 'Chargement...', showDebug = false }) => (
-  <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 flex items-center justify-center">
-    <div className="text-center max-w-md">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-      <p className="text-white text-lg font-medium mb-2">{message}</p>
-      <div className="text-blue-200 text-sm mb-4">Synergia v3.5 - Mode Debug</div>
-      
-      {showDebug && (
-        <div className="bg-black/30 rounded-lg p-4 text-left text-xs text-gray-300">
-          <div>🔍 Debug Info:</div>
-          <div>• URL: {window.location.href}</div>
-          <div>• Time: {new Date().toLocaleTimeString()}</div>
-          <div>• Firebase Config: {import.meta.env.VITE_FIREBASE_API_KEY ? '✅' : '❌'}</div>
-        </div>
-      )}
-      
-      <button 
-        onClick={() => window.location.reload()} 
-        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-      >
-        🔄 Forcer le redémarrage
-      </button>
-    </div>
-  </div>
-);
-
-// 🚨 MOCK AUTH STORE POUR BYPASS FIREBASE
-const useMockAuthStore = () => {
-  const [authState, setAuthState] = useState({
-    user: null,
-    loading: true,
-    error: null,
-    isAuthenticated: false
+// ✅ COMPOSANTS SIMPLES SANS IMPORTS COMPLEXES
+const EmergencyLayout = ({ children }) => {
+  const [user] = useState({
+    uid: 'emergency-user',
+    email: 'emergency@synergia.com',
+    displayName: 'Mode Emergency'
   });
 
-  const mockUser = {
-    uid: 'debug-user-123',
-    email: 'debug@synergia.com',
-    displayName: 'Utilisateur Debug',
-    photoURL: null,
-    emailVerified: true
+  const handleLogout = () => {
+    window.location.reload();
   };
 
-  useEffect(() => {
-    console.log('🔧 MOCK AUTH - Simulation connexion...');
-    
-    const timer = setTimeout(() => {
-      console.log('✅ MOCK AUTH - Utilisateur connecté (simulation)');
-      setAuthState({
-        user: mockUser,
-        loading: false,
-        error: null,
-        isAuthenticated: true
-      });
-    }, 2000); // 2 secondes pour voir l'écran de chargement
-    
-    return () => clearTimeout(timer);
-  }, []);
-
-  return {
-    ...authState,
-    signOut: () => {
-      console.log('🚪 MOCK AUTH - Déconnexion (simulation)');
-      setAuthState({
-        user: null,
-        loading: false,
-        error: null,
-        isAuthenticated: false
-      });
-    },
-    signInWithGoogle: () => {
-      console.log('🔐 MOCK AUTH - Connexion Google (simulation)');
-      setAuthState({
-        user: mockUser,
-        loading: false,
-        error: null,
-        isAuthenticated: true
-      });
-    }
-  };
-};
-
-// ✅ PROTECTION DES ROUTES AVEC MOCK
-const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useMockAuthStore();
-  
-  if (loading) {
-    return <LoadingScreen message="Vérification de l'authentification..." showDebug={true} />;
-  }
-  
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return children;
-};
-
-// 🚨 PAGE DE LOGIN MOCK
-const LoginMock = () => {
-  const { signInWithGoogle } = useMockAuthStore();
-  
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 flex items-center justify-center">
-      <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">🚀 Synergia</h1>
-          <p className="text-gray-600">Mode Debug - Connexion simulée</p>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f9fafb' }}>
+      {/* Sidebar simple */}
+      <div style={{
+        width: '250px',
+        backgroundColor: '#1f2937',
+        color: 'white',
+        padding: '1rem'
+      }}>
+        <div style={{ marginBottom: '2rem' }}>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0 }}>
+            🚨 Synergia Emergency
+          </h1>
+          <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>
+            Mode de démarrage forcé
+          </p>
         </div>
-        
-        <button
-          onClick={signInWithGoogle}
-          className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-        >
-          🔐 Se connecter (Mode Debug)
-        </button>
-        
-        <div className="mt-4 text-xs text-gray-500 text-center">
-          ⚠️ Version de debug - Bypass Firebase
+
+        <nav>
+          {[
+            { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
+            { name: 'Tasks', href: '/tasks', icon: '✅' },
+            { name: 'Projects', href: '/projects', icon: '📁' },
+            { name: 'Analytics', href: '/analytics', icon: '📊' },
+          ].map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.75rem',
+                margin: '0.25rem 0',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                color: '#d1d5db',
+                fontWeight: '500',
+                fontSize: '0.875rem'
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                window.history.pushState({}, '', item.href);
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              }}
+            >
+              <span>{item.icon}</span>
+              <span>{item.name}</span>
+            </a>
+          ))}
+        </nav>
+
+        <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
+          <button
+            onClick={handleLogout}
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              backgroundColor: '#dc2626',
+              border: 'none',
+              borderRadius: '8px',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '0.875rem'
+            }}
+          >
+            🚪 Reset
+          </button>
         </div>
+      </div>
+
+      {/* Contenu principal */}
+      <div style={{ flex: 1, padding: '2rem' }}>
+        {children}
       </div>
     </div>
   );
 };
 
-// 🚀 COMPOSANT APP DEBUG
-const App = () => {
-  const [debugMode] = useState(true);
-  const [appReady, setAppReady] = useState(false);
+// ✅ PAGES EMERGENCY SIMPLES
+const EmergencyDashboard = () => (
+  <div>
+    <div style={{
+      background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+      color: 'white',
+      padding: '2rem',
+      borderRadius: '12px',
+      marginBottom: '2rem'
+    }}>
+      <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: '0 0 1rem 0' }}>
+        🚨 Emergency Dashboard
+      </h1>
+      <p style={{ margin: 0, opacity: 0.9 }}>
+        Application démarrée en mode emergency - Tous les services sont bypassés
+      </p>
+    </div>
 
-  // ✅ INITIALISATION SIMPLIFIÉE
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+      gap: '1rem',
+      marginBottom: '2rem'
+    }}>
+      {[
+        { title: 'Status', value: '🟢 ACTIF', color: '#10b981' },
+        { title: 'Mode', value: 'EMERGENCY', color: '#f59e0b' },
+        { title: 'Firebase', value: 'BYPASS', color: '#ef4444' },
+        { title: 'Services', value: 'MOCKÉS', color: '#8b5cf6' }
+      ].map((card, index) => (
+        <div
+          key={index}
+          style={{
+            backgroundColor: 'white',
+            padding: '1.5rem',
+            borderRadius: '12px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            textAlign: 'center'
+          }}
+        >
+          <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', color: '#6b7280' }}>
+            {card.title}
+          </h3>
+          <p style={{ 
+            margin: 0, 
+            fontSize: '1.25rem', 
+            fontWeight: 'bold',
+            color: card.color
+          }}>
+            {card.value}
+          </p>
+        </div>
+      ))}
+    </div>
+
+    <div style={{
+      backgroundColor: 'white',
+      padding: '1.5rem',
+      borderRadius: '12px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+    }}>
+      <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem', fontWeight: 'bold' }}>
+        🔧 Diagnostic
+      </h2>
+      <div style={{ fontSize: '0.875rem', color: '#6b7280', lineHeight: '1.6' }}>
+        <div>✅ React Router fonctionne</div>
+        <div>✅ Layout s'affiche correctement</div>
+        <div>✅ Navigation fonctionne</div>
+        <div>⚠️ Firebase bypassé</div>
+        <div>⚠️ authStore bypassé</div>
+        <div>⚠️ Services externes bypassés</div>
+      </div>
+    </div>
+
+    <div style={{
+      backgroundColor: '#fef3c7',
+      border: '1px solid #f59e0b',
+      padding: '1rem',
+      borderRadius: '8px',
+      marginTop: '1rem'
+    }}>
+      <div style={{ fontWeight: 'bold', color: '#92400e', marginBottom: '0.5rem' }}>
+        📋 Actions de debug :
+      </div>
+      <div style={{ fontSize: '0.875rem', color: '#92400e' }}>
+        1. Si cette page s'affiche = Le problème ne vient pas de React<br/>
+        2. Le problème vient de Firebase ou des imports authStore<br/>
+        3. Vérifier les variables d'environnement Netlify<br/>
+        4. Vérifier la console pour les erreurs d'import
+      </div>
+    </div>
+  </div>
+);
+
+const EmergencyTasks = () => (
+  <div>
+    <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>
+      📋 Tasks (Emergency)
+    </h1>
+    <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '12px' }}>
+      <p>Page Tasks en mode emergency - Services de tâches bypassés</p>
+    </div>
+  </div>
+);
+
+const EmergencyProjects = () => (
+  <div>
+    <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>
+      📁 Projects (Emergency)
+    </h1>
+    <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '12px' }}>
+      <p>Page Projects en mode emergency - Services de projets bypassés</p>
+    </div>
+  </div>
+);
+
+const EmergencyAnalytics = () => (
+  <div>
+    <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>
+      📊 Analytics (Emergency)
+    </h1>
+    <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '12px' }}>
+      <p>Page Analytics en mode emergency - Services analytics bypassés</p>
+    </div>
+  </div>
+);
+
+// ✅ LOADING EMERGENCY
+const EmergencyLoading = () => (
+  <div style={{
+    minHeight: '100vh',
+    background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'white'
+  }}>
+    <div style={{ textAlign: 'center' }}>
+      <div style={{
+        width: '48px',
+        height: '48px',
+        border: '3px solid rgba(255,255,255,0.3)',
+        borderTop: '3px solid white',
+        borderRadius: '50%',
+        animation: 'spin 1s linear infinite',
+        margin: '0 auto 1rem auto'
+      }}></div>
+      <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 0.5rem 0' }}>
+        🚨 Emergency Boot
+      </h1>
+      <p style={{ margin: 0, opacity: 0.8 }}>
+        Démarrage forcé en cours...
+      </p>
+    </div>
+    <style dangerouslySetInnerHTML={{
+      __html: '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }'
+    }} />
+  </div>
+);
+
+// 🚀 APP EMERGENCY PRINCIPAL
+const App = () => {
+  const [loading, setLoading] = useState(true);
+  const [currentPath, setCurrentPath] = useState('/dashboard');
+
   useEffect(() => {
-    console.log('🚨 APP DEBUG - Démarrage en mode bypass Firebase');
+    console.log('🚨 EMERGENCY APP - Démarrage forcé...');
     
+    // Simuler un chargement puis démarrer
     const timer = setTimeout(() => {
-      setAppReady(true);
-      console.log('✅ APP DEBUG - Application prête');
-    }, 1000);
+      setLoading(false);
+      console.log('✅ EMERGENCY APP - Démarré avec succès !');
+    }, 2000);
+
+    // Écouter les changements de route
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePopState);
     
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, []);
 
-  if (!appReady) {
-    return <LoadingScreen message="Démarrage en mode debug..." showDebug={true} />;
+  if (loading) {
+    return <EmergencyLoading />;
   }
+
+  const renderPage = () => {
+    switch (currentPath) {
+      case '/tasks':
+        return <EmergencyTasks />;
+      case '/projects':
+        return <EmergencyProjects />;
+      case '/analytics':
+        return <EmergencyAnalytics />;
+      default:
+        return <EmergencyDashboard />;
+    }
+  };
 
   return (
     <Router>
-      <Routes>
-        {/* ✅ Route de connexion MOCK */}
-        <Route path="/login" element={<LoginMock />} />
-        
-        {/* ✅ Routes protégées avec DashboardLayout */}
-        <Route path="/" element={
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        }>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          
-          {/* Pages principales */}
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="tasks" element={<TasksPage />} />
-          <Route path="projects" element={<ProjectsPage />} />
-          <Route path="analytics" element={<AnalyticsPage />} />
-          
-          {/* Gamification */}
-          <Route path="gamification" element={<GamificationPage />} />
-          <Route path="badges" element={<BadgesPage />} />
-          <Route path="leaderboard" element={<LeaderboardPage />} />
-          <Route path="rewards" element={<RewardsPage />} />
-          
-          {/* Équipe */}
-          <Route path="team" element={<TeamPage />} />
-          <Route path="users" element={<UsersPage />} />
-          
-          {/* Profil */}
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="onboarding" element={<OnboardingPage />} />
-          <Route path="timetrack" element={<TimeTrackPage />} />
-          
-          {/* Admin */}
-          <Route path="admin/task-validation" element={<AdminTaskValidationPage />} />
-          <Route path="admin/complete-test" element={<CompleteAdminTestPage />} />
-        </Route>
-        
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-      
-      {/* Debug panel */}
-      {debugMode && (
-        <div className="fixed bottom-4 right-4 bg-black/80 text-white p-3 rounded-lg text-xs">
-          <div className="font-bold text-yellow-300">🚨 MODE DEBUG</div>
-          <div>Firebase: BYPASS</div>
-          <div>Auth: MOCK</div>
-          <div>Status: {appReady ? 'READY' : 'LOADING'}</div>
-        </div>
-      )}
+      <EmergencyLayout>
+        {renderPage()}
+      </EmergencyLayout>
     </Router>
   );
 };
 
 export default App;
 
-console.log('🚨 APP DEBUG - Firebase complètement bypassé pour identifier le problème !');
-console.log('🎯 Si ça marche = problème Firebase, sinon = problème React/Layout');
+console.log('🚨 EMERGENCY MODE ACTIVÉ - Bypass total Firebase, authStore et tous les services !');
+console.log('🎯 Si cette version fonctionne, le problème vient des imports/services complexes');
