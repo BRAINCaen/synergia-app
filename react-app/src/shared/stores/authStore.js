@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/authStore.js
-// Store d'authentification TEMPORAIRE SANS GAMESTORE
+// Store d'authentification CORRIGÉ - Fonction checkAuth ajoutée
 // ==========================================
 
 import { create } from 'zustand'
@@ -15,6 +15,57 @@ export const useAuthStore = create(
       loading: true,
       error: null,
       isAuthenticated: false,
+
+      // ✅ FONCTION CHECKAUTH AJOUTÉE - C'était ça le problème !
+      checkAuth: async () => {
+        set({ loading: true })
+        
+        try {
+          const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
+            if (firebaseUser) {
+              const userData = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
+                emailVerified: firebaseUser.emailVerified,
+                loginAt: new Date().toISOString(),
+                metadata: {
+                  creationTime: firebaseUser.metadata?.creationTime,
+                  lastSignInTime: firebaseUser.metadata?.lastSignInTime
+                }
+              }
+              
+              set({ 
+                user: userData, 
+                isAuthenticated: true, 
+                loading: false, 
+                error: null 
+              })
+              
+              console.log('✅ Utilisateur connecté:', userData.email)
+              
+            } else {
+              set({ 
+                user: null, 
+                isAuthenticated: false, 
+                loading: false, 
+                error: null 
+              })
+              
+              console.log('ℹ️ Aucun utilisateur connecté')
+            }
+          })
+          
+          return unsubscribe
+        } catch (error) {
+          console.error('❌ Erreur checkAuth:', error)
+          set({ 
+            loading: false, 
+            error: error.message 
+          })
+        }
+      },
 
       // ✅ FONCTION INITIALIZEAUTH SANS GAMESTORE
       initializeAuth: () => {
@@ -58,19 +109,24 @@ export const useAuthStore = create(
             console.log('ℹ️ Aucun utilisateur connecté')
           }
         })
-
-        // Retourner la fonction de désabonnement
+        
         return unsubscribe
       },
 
-      // ✅ CONNEXION GOOGLE ORIGINALE
       signInWithGoogle: async () => {
         try {
           set({ loading: true, error: null })
+          
           const result = await authService.signInWithGoogle()
           
-          console.log('✅ Connexion Google réussie')
-          return { success: true, user: result }
+          if (result.success) {
+            // L'état sera mis à jour par onAuthStateChanged
+            console.log('✅ Connexion Google initiée')
+            return { success: true }
+          } else {
+            set({ error: result.error, loading: false })
+            return { success: false, error: result.error }
+          }
         } catch (error) {
           console.error('❌ Erreur connexion Google:', error)
           set({ error: error.message, loading: false })
@@ -78,32 +134,41 @@ export const useAuthStore = create(
         }
       },
 
-      signIn: async (email, password) => {
+      signInWithEmail: async (email, password) => {
         try {
           set({ loading: true, error: null })
-          const result = await authService.signInWithEmailAndPassword(email, password)
-          console.log('✅ Connexion réussie')
-          return result
+          
+          const result = await authService.signInWithEmail(email, password)
+          
+          if (result.success) {
+            console.log('✅ Connexion email réussie')
+            return { success: true }
+          } else {
+            set({ error: result.error, loading: false })
+            return { success: false, error: result.error }
+          }
         } catch (error) {
-          console.error('❌ Erreur de connexion:', error)
+          console.error('❌ Erreur connexion email:', error)
           set({ error: error.message, loading: false })
           throw error
         }
       },
 
-      signUp: async (email, password, displayName) => {
+      signUpWithEmail: async (email, password, displayName) => {
         try {
           set({ loading: true, error: null })
-          const result = await authService.createUserWithEmailAndPassword(email, password)
           
-          if (displayName && result.user) {
-            await authService.updateProfile(result.user, { displayName })
+          const result = await authService.signUpWithEmail(email, password, displayName)
+          
+          if (result.success) {
+            console.log('✅ Inscription réussie')
+            return { success: true }
+          } else {
+            set({ error: result.error, loading: false })
+            return { success: false, error: result.error }
           }
-          
-          console.log('✅ Inscription réussie')
-          return result
         } catch (error) {
-          console.error('❌ Erreur d\'inscription:', error)
+          console.error('❌ Erreur inscription:', error)
           set({ error: error.message, loading: false })
           throw error
         }
@@ -111,10 +176,7 @@ export const useAuthStore = create(
 
       signOut: async () => {
         try {
-          set({ loading: true })
-          
-          // 🚨 NETTOYAGE GAMESTORE DÉSACTIVÉ TEMPORAIREMENT
-          console.log('ℹ️ Nettoyage GameStore désactivé temporairement')
+          set({ loading: true, error: null })
           
           await authService.signOut()
           
