@@ -1,7 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT PRINCIPAL AVEC SYSTÈME DE PROGRESSION PAR RÔLES
-// Version clean sans doublons - Compatible build Netlify
+// LAYOUT PRINCIPAL CORRIGÉ - Function logout → signOut
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -43,7 +42,8 @@ const isAdmin = (user) => {
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  // 🔧 CORRECTION: logout → signOut
+  const { user, signOut } = useAuthStore();
   
   // États pour la responsivité
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -121,7 +121,7 @@ const Layout = () => {
     },
     {
       id: 'team',
-      title: 'Équipe & Social',
+      title: 'Équipe',
       icon: Users,
       items: [
         { path: '/team', label: 'Mon Équipe', icon: Users },
@@ -134,26 +134,27 @@ const Layout = () => {
       icon: User,
       items: [
         { path: '/profile', label: 'Mon Profil', icon: User },
+        { path: '/timetrack', label: 'Temps', icon: Clock },
         { path: '/settings', label: 'Paramètres', icon: Settings },
-        { path: '/onboarding', label: 'Aide', icon: BookOpen },
-        { path: '/timetrack', label: 'Temps', icon: Clock }
+        { path: '/onboarding', label: 'Aide', icon: BookOpen }
       ]
     }
   ];
 
-  // Ajouter la section admin si l'utilisateur est admin
+  // Ajouter section admin si permissions
   if (isAdmin(user)) {
     navigationSections.push({
       id: 'admin',
       title: 'Administration',
       icon: Shield,
       items: [
-        { path: '/admin/task-validation', label: 'Validation Tâches', icon: CheckSquare },
-        { path: '/admin/complete-test', label: 'Tests Complets', icon: Settings }
+        { path: '/admin/task-validation', label: 'Validation', icon: CheckSquare },
+        { path: '/admin/complete-test', label: 'Tests Système', icon: Settings }
       ]
     });
   }
 
+  // Fonction pour gérer l'expansion des sections
   const toggleSection = (sectionId) => {
     setExpandedSections(prev => ({
       ...prev,
@@ -161,189 +162,150 @@ const Layout = () => {
     }));
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  // 🔧 CORRECTION: Fonction de déconnexion corrigée
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Erreur de déconnexion:', error);
+    }
   };
 
-  const renderNavigationItem = (item, isInSection = false) => {
-    const isActive = location.pathname === item.path;
-    
-    return (
-      <div key={item.path}>
-        <button
-          onClick={() => {
-            navigate(item.path);
-            if (isMobile) setIsSidebarOpen(false);
-          }}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
-            isActive
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
-              : 'text-gray-300 hover:text-white hover:bg-gray-700'
-          } ${isInSection ? 'ml-4' : ''}`}
-        >
-          <item.icon className={`w-5 h-5 ${
-            isActive ? 'text-white' : 'text-gray-400 group-hover:text-blue-400'
-          }`} />
-          
-          <div className="flex-1 text-left">
-            <div className={`font-medium ${isActive ? 'text-white' : ''}`}>
-              {item.label}
-            </div>
-            {item.description && (
-              <div className="text-xs text-gray-400 mt-0.5">
-                {item.description}
-              </div>
-            )}
-          </div>
-
-          {/* Badge "Nouveau" pour les fonctionnalités de progression */}
-          {item.path.includes('role-') && (
-            <span className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-2 py-1 rounded-full font-medium animate-pulse">
-              Nouveau
-            </span>
-          )}
-
-          {/* Indicateur d'activité */}
-          {isActive && (
-            <div className="w-1 h-6 bg-white rounded-full" />
-          )}
-        </button>
-      </div>
-    );
-  };
-
-  const renderNavigationSection = (section) => {
-    const isExpanded = expandedSections[section.id];
-    const SectionIcon = section.icon;
-    
-    return (
-      <div key={section.id} className="space-y-2">
-        {/* En-tête de section */}
-        <button
-          onClick={() => toggleSection(section.id)}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
-            section.highlight 
-              ? 'bg-gradient-to-r from-orange-900 to-red-900 border border-orange-500/50' 
-              : 'hover:bg-gray-700'
-          }`}
-        >
-          <SectionIcon className={`w-5 h-5 ${
-            section.highlight ? 'text-orange-400' : 'text-gray-400 group-hover:text-blue-400'
-          }`} />
-          
-          <span className={`font-medium flex-1 text-left ${
-            section.highlight ? 'text-orange-200' : 'text-gray-300 group-hover:text-white'
-          }`}>
-            {section.title}
-          </span>
-
-          {/* Badge spécial pour la section progression */}
-          {section.highlight && (
-            <div className="flex items-center gap-1">
-              <Flame className="w-3 h-3 text-orange-400" />
-              <span className="text-orange-300 text-xs font-medium">HOT</span>
-            </div>
-          )}
-
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
-            isExpanded ? 'transform rotate-180' : ''
-          }`} />
-        </button>
-
-        {/* Items de section */}
-        {isExpanded && (
-          <div className="space-y-1 overflow-hidden">
-            {section.items.map(item => renderNavigationItem(item, true))}
-          </div>
-        )}
-      </div>
-    );
+  // Vérifier si un chemin est actif
+  const isActiveRoute = (path) => {
+    return location.pathname === path;
   };
 
   return (
-    <div className="flex h-screen bg-gray-900">
-      {/* Overlay mobile */}
-      {isMobile && isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
+    <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
-      <div
-        className={`fixed left-0 top-0 h-full bg-gray-800 border-r border-gray-700 z-50 flex flex-col transition-transform duration-300 ${
-          isMobile 
-            ? `w-80 ${!isSidebarOpen ? '-translate-x-full' : ''}` 
-            : 'w-300 translate-x-0'
-        }`}
-      >
-        {/* En-tête avec profil utilisateur */}
+      <div className={`
+        bg-gray-900 text-white transition-all duration-300 flex flex-col
+        ${isMobile 
+          ? `fixed inset-y-0 left-0 z-50 w-80 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
+          : 'w-80'
+        }
+      `}>
+        {/* Header Sidebar */}
         <div className="p-6 border-b border-gray-700">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-              <span className="text-white font-semibold text-lg">
-                {user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
-              </span>
-            </div>
-            <div className="flex-1">
-              <h3 className="text-white font-semibold">
-                {user?.displayName || 'Utilisateur'}
-              </h3>
-              <p className="text-gray-400 text-sm">
-                {user?.role || 'Membre de l\'équipe'}
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Crown className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold">Synergia</h1>
+                <p className="text-sm text-gray-400">v3.5.3</p>
+              </div>
             </div>
             
-            {/* Menu hamburger mobile */}
             {isMobile && (
               <button
                 onClick={() => setIsSidebarOpen(false)}
-                className="text-gray-400 hover:text-white p-2"
+                className="text-gray-400 hover:text-white"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6" />
               </button>
             )}
-          </div>
-
-          {/* Badge de progression rapide */}
-          <div className="mt-4 bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-blue-200 text-sm font-medium">Progression</span>
-              <Star className="w-4 h-4 text-yellow-400" />
-            </div>
-            <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
-              <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full w-3/4" />
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-400">Niveau 4</span>
-              <span className="text-blue-300">2,450 XP</span>
-            </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {navigationSections.map(section => renderNavigationSection(section))}
+        <div className="flex-1 overflow-y-auto py-4">
+          {navigationSections.map((section) => (
+            <div key={section.id} className="mb-6">
+              {/* Section Header */}
+              <button
+                onClick={() => toggleSection(section.id)}
+                className={`
+                  w-full px-6 py-2 text-left flex items-center justify-between text-sm font-medium
+                  ${section.highlight 
+                    ? 'text-yellow-400 bg-yellow-400/10' 
+                    : 'text-gray-300 hover:text-white'
+                  }
+                `}
+              >
+                <div className="flex items-center space-x-2">
+                  <section.icon className="w-4 h-4" />
+                  <span>{section.title}</span>
+                  {section.highlight && <Star className="w-3 h-3 text-yellow-400" />}
+                </div>
+                <ChevronDown className={`w-4 h-4 transition-transform ${
+                  expandedSections[section.id] ? 'rotate-180' : ''
+                }`} />
+              </button>
+
+              {/* Section Items */}
+              {expandedSections[section.id] && (
+                <div className="mt-2 space-y-1">
+                  {section.items.map((item) => (
+                    <button
+                      key={item.path}
+                      onClick={() => {
+                        navigate(item.path);
+                        if (isMobile) setIsSidebarOpen(false);
+                      }}
+                      className={`
+                        w-full px-8 py-2 text-left flex items-center space-x-3 text-sm
+                        ${isActiveRoute(item.path)
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-300 hover:text-white hover:bg-gray-800'
+                        }
+                      `}
+                    >
+                      <item.icon className="w-4 h-4" />
+                      <div className="flex-1">
+                        <div>{item.label}</div>
+                        {item.description && (
+                          <div className="text-xs text-gray-400">{item.description}</div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
-        {/* Pied de page avec déconnexion */}
-        <div className="p-4 border-t border-gray-700">
+        {/* User Info & Logout */}
+        <div className="p-6 border-t border-gray-700">
+          <div className="flex items-center space-x-3 mb-3">
+            <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
+              <User className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white truncate">
+                {user?.displayName || user?.email || 'Utilisateur'}
+              </p>
+              <p className="text-xs text-gray-400">Membre actif</p>
+            </div>
+          </div>
+          
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:text-white hover:bg-red-600/20 transition-all duration-200 group"
+            className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg"
           >
-            <LogOut className="w-5 h-5 text-gray-400 group-hover:text-red-400" />
-            <span className="font-medium">Déconnexion</span>
+            <LogOut className="w-4 h-4" />
+            <span>Se déconnecter</span>
           </button>
         </div>
       </div>
 
-      {/* Contenu principal */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${
-        isMobile ? 'ml-0' : 'ml-300'
-      }`}>
+      {/* Overlay mobile */}
+      {isMobile && isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Main Content */}
+      <div className={`
+        flex-1 flex flex-col transition-all duration-300
+        ${isMobile ? 'ml-0' : 'ml-300'}
+      `}>
         {/* Header mobile */}
         {isMobile && (
           <div className="bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between">
