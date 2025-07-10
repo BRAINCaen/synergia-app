@@ -45,7 +45,7 @@ import {
 import { db } from '../core/firebase.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// 🎭 RÔLES SYNERGIA COMPLETS
+// 🎭 RÔLES SYNERGIA COMPLETS - VERSION SANS DOUBLONS
 const SYNERGIA_ROLES = {
   direction: {
     id: 'direction',
@@ -83,48 +83,30 @@ const SYNERGIA_ROLES = {
     difficulty: 'Avancé',
     permissions: ['hr_access', 'recruitment', 'employee_management']
   },
-  technique: {
-    id: 'technique',
+  maintenance: {
+    id: 'maintenance',
     name: 'Technique & Maintenance',
     icon: '🔧',
     color: 'bg-gray-500',
-    description: 'Support technique et maintenance',
+    description: 'Support technique, maintenance et réparations',
     difficulty: 'Moyen',
-    permissions: ['technical_access', 'maintenance', 'system_admin']
+    permissions: ['technical_access', 'maintenance', 'repair_management', 'system_admin']
   },
   logistique: {
     id: 'logistique',
     name: 'Logistique & Stock',
     icon: '📦',
     color: 'bg-teal-500',
-    description: 'Gestion logistique et stocks',
+    description: 'Gestion logistique, stocks et inventaires',
     difficulty: 'Facile',
-    permissions: ['inventory_management', 'stock_access', 'supply_chain']
-  },
-  maintenance: {
-    id: 'maintenance',
-    name: 'Entretien & Réparations',
-    icon: '🔧',
-    color: 'bg-orange-600',
-    description: 'Maintenance et réparations',
-    difficulty: 'Facile',
-    permissions: ['maintenance_access', 'repair_management']
-  },
-  stock: {
-    id: 'stock',
-    name: 'Gestion des Stocks',
-    icon: '📦',
-    color: 'bg-blue-600',
-    description: 'Gestion des inventaires',
-    difficulty: 'Facile',
-    permissions: ['stock_management', 'inventory_control']
+    permissions: ['inventory_management', 'stock_access', 'supply_chain', 'stock_management', 'inventory_control']
   },
   organization: {
     id: 'organization',
     name: 'Organisation du Travail',
     icon: '📋',
     color: 'bg-purple-600',
-    description: 'Coordination et organisation',
+    description: 'Coordination et organisation des équipes',
     difficulty: 'Avancé',
     permissions: ['workflow_management', 'team_coordination']
   },
@@ -133,7 +115,7 @@ const SYNERGIA_ROLES = {
     name: 'Création de Contenu',
     icon: '🎨',
     color: 'bg-pink-600',
-    description: 'Création de contenu visuel',
+    description: 'Création de contenu visuel et communication',
     difficulty: 'Moyen',
     permissions: ['content_creation', 'design_access']
   },
@@ -142,7 +124,7 @@ const SYNERGIA_ROLES = {
     name: 'Mentorat & Formation',
     icon: '🎓',
     color: 'bg-green-600',
-    description: 'Formation et accompagnement',
+    description: 'Formation et accompagnement des équipes',
     difficulty: 'Avancé',
     permissions: ['training_access', 'mentoring_rights']
   },
@@ -151,34 +133,34 @@ const SYNERGIA_ROLES = {
     name: 'Partenariats',
     icon: '🤝',
     color: 'bg-indigo-600',
-    description: 'Développement de partenariats',
+    description: 'Développement de partenariats stratégiques',
     difficulty: 'Expert',
     permissions: ['partnership_management', 'networking_access']
   },
   communication: {
     id: 'communication',
-    name: 'Communication',
+    name: 'Communication & Réseaux Sociaux',
     icon: '📢',
     color: 'bg-cyan-600',
-    description: 'Gestion de la communication',
+    description: 'Gestion de la communication digitale',
     difficulty: 'Moyen',
     permissions: ['communication_rights', 'social_media_access']
   },
   b2b: {
     id: 'b2b',
-    name: 'Relations B2B',
+    name: 'Relations B2B & Devis',
     icon: '💼',
     color: 'bg-slate-600',
-    description: 'Gestion B2B et devis',
+    description: 'Gestion des relations entreprises et devis',
     difficulty: 'Expert',
     permissions: ['b2b_access', 'quote_management']
   },
   gamification: {
     id: 'gamification',
-    name: 'Gamification',
+    name: 'Gamification & Système XP',
     icon: '🎮',
     color: 'bg-red-600',
-    description: 'Système de gamification',
+    description: 'Gestion du système de gamification',
     difficulty: 'Expert',
     permissions: ['gamification_admin', 'xp_management']
   }
