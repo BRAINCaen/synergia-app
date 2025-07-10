@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/AnalyticsPage.jsx
-// Page Analytics AUTONOME - Version finale sans dépendances
+// Page Analytics AUTONOME - Version finale avec imports corrigés
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -22,7 +22,7 @@ import {
   Activity,
   CheckCircle2,
   AlertCircle,
-  Progress,
+  Gauge, // ✅ CORRECTION : Progress → Gauge
   PieChart,
   LineChart,
   BarChart,
@@ -30,8 +30,7 @@ import {
   ArrowDown,
   Minus,
   Rocket,
-  Brain,
-  Gauge
+  Brain
 } from 'lucide-react';
 
 // IMPORTS BASIQUES UNIQUEMENT
@@ -88,566 +87,340 @@ const AnalyticsPage = () => {
     };
 
     const rangeStart = getTimeRangeStart();
-    const filteredTasks = tasks.filter(task => new Date(task.createdAt) >= rangeStart);
-    const filteredProjects = projects.filter(project => new Date(project.createdAt) >= rangeStart);
-
-    // Métriques de base
-    const completedTasks = filteredTasks.filter(t => t.status === 'completed');
-    const inProgressTasks = filteredTasks.filter(t => t.status === 'in_progress');
-    const overdueTasks = filteredTasks.filter(t => 
-      t.dueDate && new Date(t.dueDate) < now && t.status !== 'completed'
-    );
-
-    const activeProjects = filteredProjects.filter(p => p.status === 'active');
-    const completedProjects = filteredProjects.filter(p => p.status === 'completed');
-
-    // Calculs de tendances
-    const prevRangeStart = new Date(rangeStart.getTime() - (now.getTime() - rangeStart.getTime()));
-    const prevTasks = tasks.filter(task => {
-      const date = new Date(task.createdAt);
-      return date >= prevRangeStart && date < rangeStart;
+    
+    // Filtrer les tâches et projets dans la période
+    const filteredTasks = tasks.filter(task => {
+      const taskDate = new Date(task.createdAt || task.updatedAt);
+      return taskDate >= rangeStart;
     });
-    const prevCompletedTasks = prevTasks.filter(t => t.status === 'completed');
 
-    const getTrend = (current, previous) => {
-      if (previous === 0) return current > 0 ? 'up' : 'stable';
-      const change = ((current - previous) / previous) * 100;
-      if (change > 5) return 'up';
-      if (change < -5) return 'down';
-      return 'stable';
-    };
+    const filteredProjects = projects.filter(project => {
+      const projectDate = new Date(project.createdAt || project.updatedAt);
+      return projectDate >= rangeStart;
+    });
 
-    // Productivité par jour
-    const getDailyProductivity = () => {
-      const days = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-        const dayTasks = tasks.filter(task => {
-          const taskDate = new Date(task.completedAt || task.createdAt);
-          return taskDate.toDateString() === date.toDateString() && task.status === 'completed';
-        });
-        
-        days.push({
-          day: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
-          tasks: dayTasks.length,
-          xp: dayTasks.length * 25 // XP estimé
-        });
-      }
-      return days;
-    };
+    // Calculer les métriques
+    const completedTasks = filteredTasks.filter(task => task.status === 'completed').length;
+    const totalTasks = filteredTasks.length;
+    const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
-    // Distribution des priorités
-    const getPriorityDistribution = () => {
-      const high = filteredTasks.filter(t => t.priority === 'high').length;
-      const medium = filteredTasks.filter(t => t.priority === 'medium').length;
-      const low = filteredTasks.filter(t => t.priority === 'low').length;
-      
-      return [
-        { name: 'Haute', value: high, color: '#ef4444' },
-        { name: 'Moyenne', value: medium, color: '#f59e0b' },
-        { name: 'Basse', value: low, color: '#10b981' }
-      ];
-    };
+    const activeProjects = filteredProjects.filter(project => project.status === 'active').length;
+    const completedProjects = filteredProjects.filter(project => project.status === 'completed').length;
+    const totalProjects = filteredProjects.length;
 
-    // Temps moyen de complétion (estimation)
-    const getAvgCompletionTime = () => {
-      const completedWithDates = completedTasks.filter(t => t.createdAt && t.completedAt);
-      if (completedWithDates.length === 0) return 0;
-      
-      const totalTime = completedWithDates.reduce((acc, task) => {
-        const created = new Date(task.createdAt);
-        const completed = new Date(task.completedAt);
-        return acc + (completed - created);
-      }, 0);
-      
-      return Math.round(totalTime / completedWithDates.length / (1000 * 60 * 60 * 24)); // en jours
-    };
+    // Calculer XP total
+    const totalXP = filteredTasks.reduce((sum, task) => sum + (task.xp || 0), 0);
+
+    // Calculer tendances
+    const midPoint = new Date(rangeStart.getTime() + (now.getTime() - rangeStart.getTime()) / 2);
+    const firstHalfTasks = filteredTasks.filter(task => {
+      const taskDate = new Date(task.createdAt || task.updatedAt);
+      return taskDate < midPoint;
+    });
+    const secondHalfTasks = filteredTasks.filter(task => {
+      const taskDate = new Date(task.createdAt || task.updatedAt);
+      return taskDate >= midPoint;
+    });
+
+    const firstHalfCompleted = firstHalfTasks.filter(task => task.status === 'completed').length;
+    const secondHalfCompleted = secondHalfTasks.filter(task => task.status === 'completed').length;
+    const trend = secondHalfCompleted > firstHalfCompleted ? 'up' : 
+                  secondHalfCompleted < firstHalfCompleted ? 'down' : 'stable';
 
     return {
-      overview: {
-        totalTasks: filteredTasks.length,
-        completedTasks: completedTasks.length,
-        inProgressTasks: inProgressTasks.length,
-        overdueTasks: overdueTasks.length,
-        completionRate: filteredTasks.length > 0 ? 
-          Math.round((completedTasks.length / filteredTasks.length) * 100) : 0,
-        
-        totalProjects: filteredProjects.length,
-        activeProjects: activeProjects.length,
-        completedProjects: completedProjects.length,
-        
-        avgCompletionTime: getAvgCompletionTime(),
-        
-        // Tendances
-        tasksCompletedTrend: getTrend(completedTasks.length, prevCompletedTasks.length),
-        tasksCompletedChange: prevCompletedTasks.length > 0 ? 
-          Math.round(((completedTasks.length - prevCompletedTasks.length) / prevCompletedTasks.length) * 100) : 0
-      },
-      charts: {
-        dailyProductivity: getDailyProductivity(),
-        priorityDistribution: getPriorityDistribution()
-      },
-      gamification: {
-        level: 4,
-        totalXp: 175,
-        badges: [],
-        streak: 1,
-        weeklyXp: completedTasks.length * 25
-      }
+      totalTasks,
+      completedTasks,
+      completionRate,
+      totalProjects,
+      activeProjects,
+      completedProjects,
+      totalXP,
+      trend,
+      productivity: completionRate > 70 ? 'high' : completionRate > 40 ? 'medium' : 'low'
     };
   };
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadAnalytics();
-    setTimeout(() => setRefreshing(false), 1000);
+    setRefreshing(false);
   };
 
-  const tabs = [
-    { id: 'overview', label: 'Vue d\'ensemble', icon: Activity },
-    { id: 'productivity', label: 'Productivité', icon: TrendingUp },
-    { id: 'projects', label: 'Projets', icon: Target },
-    { id: 'gamification', label: 'Gamification', icon: Trophy }
-  ];
+  const getMetricColor = (value, type) => {
+    switch (type) {
+      case 'completion':
+        return value > 70 ? 'text-green-600' : value > 40 ? 'text-yellow-600' : 'text-red-600';
+      case 'productivity':
+        return value === 'high' ? 'text-green-600' : value === 'medium' ? 'text-yellow-600' : 'text-red-600';
+      default:
+        return 'text-blue-600';
+    }
+  };
 
-  const StatCard = ({ title, value, icon: Icon, color = 'blue', trend, change, subtitle }) => (
-    <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:bg-gray-750 transition-all">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className={`p-3 rounded-xl bg-${color}-500/20`}>
-            <Icon className={`w-6 h-6 text-${color}-400`} />
-          </div>
-          <div>
-            <h3 className="text-sm font-medium text-gray-400">{title}</h3>
-            {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
-          </div>
-        </div>
-        
-        {trend && (
-          <div className={`flex items-center gap-1 text-sm ${
-            trend === 'up' ? 'text-green-400' : 
-            trend === 'down' ? 'text-red-400' : 'text-gray-400'
-          }`}>
-            {trend === 'up' && <ArrowUp className="w-4 h-4" />}
-            {trend === 'down' && <ArrowDown className="w-4 h-4" />}
-            {trend === 'stable' && <Minus className="w-4 h-4" />}
-            {change !== undefined && `${Math.abs(change)}%`}
-          </div>
-        )}
-      </div>
-      
-      <div className="text-3xl font-bold text-white mb-1">
-        {typeof value === 'string' ? value : value.toLocaleString()}
-      </div>
-    </div>
-  );
-
-  const SimpleChart = ({ title, data, type = 'bar' }) => (
-    <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-      <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-        {type === 'bar' && <BarChart className="w-5 h-5 text-blue-400" />}
-        {type === 'pie' && <PieChart className="w-5 h-5 text-purple-400" />}
-        {type === 'line' && <LineChart className="w-5 h-5 text-green-400" />}
-        {title}
-      </h3>
-      
-      {type === 'bar' && data.length > 0 && (
-        <div className="space-y-3">
-          {data.map((item, index) => (
-            <div key={index} className="flex items-center gap-3">
-              <div className="w-12 text-gray-400 text-sm">{item.day}</div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-gray-300">{item.tasks} tâches</span>
-                  <span className="text-xs text-gray-400">{item.xp} XP</span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div
-                    className="bg-gradient-to-r from-blue-400 to-purple-500 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min((item.tasks / Math.max(...data.map(d => d.tasks)) * 100), 100)}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      
-      {type === 'pie' && data.length > 0 && (
-        <div className="space-y-3">
-          {data.map((item, index) => (
-            <div key={index} className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div 
-                  className="w-4 h-4 rounded-full"
-                  style={{ backgroundColor: item.color }}
-                ></div>
-                <span className="text-gray-300">{item.name}</span>
-              </div>
-              <div className="text-white font-medium">{item.value}</div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  const getTrendIcon = (trend) => {
+    switch (trend) {
+      case 'up':
+        return <ArrowUp className="w-4 h-4 text-green-600" />;
+      case 'down':
+        return <ArrowDown className="w-4 h-4 text-red-600" />;
+      default:
+        return <Minus className="w-4 h-4 text-gray-600" />;
+    }
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white flex items-center gap-3">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-          Chargement des analytics...
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Chargement des analytics...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* En-tête Premium */}
-      <div className="border-b border-gray-700 bg-gradient-to-r from-orange-900/20 to-red-900/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* En-tête */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+              <BarChart3 className="w-6 h-6 text-white" />
+            </div>
             <div>
-              <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-                <BarChart3 className="w-10 h-10 text-orange-400" />
-                Analytics
-              </h1>
-              <p className="text-gray-400 text-lg">
-                Intelligence performance • Insights avancés • Optimisation continue
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <select
-                value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value)}
-                className="px-4 py-3 bg-gray-800 border border-gray-600 rounded-xl text-white focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 transition-all"
-              >
-                <option value="week">7 derniers jours</option>
-                <option value="month">30 derniers jours</option>
-                <option value="year">12 derniers mois</option>
-              </select>
-              
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="p-3 bg-gray-800 hover:bg-gray-700 rounded-xl border border-gray-600 transition-all disabled:opacity-50"
-              >
-                <RefreshCw className={`w-5 h-5 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
-              </button>
-              
-              <button className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 shadow-lg shadow-orange-500/25">
-                <Download className="w-5 h-5" />
-                Exporter
-              </button>
+              <h1 className="text-3xl font-bold text-white">Analytics</h1>
+              <p className="text-gray-400">Analyse des performances et statistiques</p>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* Navigation des onglets */}
-        <div className="bg-gray-800 rounded-xl border border-gray-700 p-2 mb-8">
-          <div className="flex gap-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-orange-600 text-white shadow-lg'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Contenu des onglets */}
-        <div className="space-y-8">
           
-          {/* Vue d'ensemble */}
-          {activeTab === 'overview' && analytics && (
-            <>
-              {/* KPIs principaux */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard
-                  title="Tâches terminées"
-                  value={analytics.overview.completedTasks}
-                  icon={CheckCircle2}
-                  color="green"
-                  trend={analytics.overview.tasksCompletedTrend}
-                  change={analytics.overview.tasksCompletedChange}
-                  subtitle={`Sur ${analytics.overview.totalTasks} tâches`}
-                />
-                
-                <StatCard
-                  title="Taux de complétion"
-                  value={`${analytics.overview.completionRate}%`}
-                  icon={Target}
-                  color="blue"
-                  subtitle="Performance globale"
-                />
-                
-                <StatCard
-                  title="Projets actifs"
-                  value={analytics.overview.activeProjects}
-                  icon={Rocket}
-                  color="purple"
-                  subtitle={`${analytics.overview.totalProjects} au total`}
-                />
-                
-                <StatCard
-                  title="Temps moyen"
-                  value={`${analytics.overview.avgCompletionTime}j`}
-                  icon={Clock}
-                  color="yellow"
-                  subtitle="Par tâche"
-                />
-              </div>
+          <div className="flex items-center gap-3">
+            {/* Filtre période */}
+            <select
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value)}
+              className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="week">7 derniers jours</option>
+              <option value="month">30 derniers jours</option>
+              <option value="year">Cette année</option>
+            </select>
+            
+            {/* Bouton actualiser */}
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              Actualiser
+            </button>
+          </div>
+        </div>
 
-              {/* Métriques détaillées */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard
-                  title="En cours"
-                  value={analytics.overview.inProgressTasks}
-                  icon={Activity}
-                  color="blue"
-                />
-                
-                <StatCard
-                  title="En retard"
-                  value={analytics.overview.overdueTasks}
-                  icon={AlertCircle}
-                  color="red"
-                />
-                
-                <StatCard
-                  title="Projets terminés"
-                  value={analytics.overview.completedProjects}
-                  icon={Trophy}
-                  color="green"
-                />
-              </div>
-            </>
-          )}
+        {/* Onglets */}
+        <div className="flex gap-2 mb-8">
+          {[
+            { id: 'overview', label: 'Vue d\'ensemble', icon: Eye },
+            { id: 'tasks', label: 'Tâches', icon: CheckCircle2 },
+            { id: 'projects', label: 'Projets', icon: Target },
+            { id: 'performance', label: 'Performance', icon: TrendingUp }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-          {/* Productivité */}
-          {activeTab === 'productivity' && analytics && (
-            <>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <SimpleChart
-                  title="Productivité des 7 derniers jours"
-                  data={analytics.charts.dailyProductivity}
-                  type="bar"
-                />
-                
-                <SimpleChart
-                  title="Répartition par priorité"
-                  data={analytics.charts.priorityDistribution}
-                  type="pie"
-                />
-              </div>
-
-              {/* Insights productivité */}
-              <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                  <Brain className="w-6 h-6 text-purple-400" />
-                  Insights Productivité
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div className="bg-gray-700/50 rounded-lg p-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-green-500/20 rounded-lg">
-                        <TrendingUp className="w-5 h-5 text-green-400" />
-                      </div>
-                      <h4 className="font-semibold text-white">Performance</h4>
-                    </div>
-                    <p className="text-gray-300 text-sm">
-                      Votre taux de complétion de {analytics.overview.completionRate}% est 
-                      {analytics.overview.completionRate >= 80 ? ' excellent !' : 
-                       analytics.overview.completionRate >= 60 ? ' satisfaisant.' : ' à améliorer.'}
-                    </p>
+        {/* Contenu principal */}
+        {analytics && (
+          <div className="space-y-6">
+            {/* Métriques principales */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Tâches */}
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6 text-blue-400" />
                   </div>
-                  
-                  <div className="bg-gray-700/50 rounded-lg p-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-blue-500/20 rounded-lg">
-                        <Clock className="w-5 h-5 text-blue-400" />
-                      </div>
-                      <h4 className="font-semibold text-white">Efficacité</h4>
-                    </div>
-                    <p className="text-gray-300 text-sm">
-                      Temps moyen de {analytics.overview.avgCompletionTime} jours par tâche.
-                      {analytics.overview.avgCompletionTime <= 2 ? ' Très efficace !' : 
-                       analytics.overview.avgCompletionTime <= 5 ? ' Bien géré.' : ' Optimisable.'}
-                    </p>
-                  </div>
-                  
-                  <div className="bg-gray-700/50 rounded-lg p-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-orange-500/20 rounded-lg">
-                        <Target className="w-5 h-5 text-orange-400" />
-                      </div>
-                      <h4 className="font-semibold text-white">Focus</h4>
-                    </div>
-                    <p className="text-gray-300 text-sm">
-                      {analytics.overview.overdueTasks === 0 
-                        ? 'Aucune tâche en retard ! Excellent suivi.'
-                        : `${analytics.overview.overdueTasks} tâche(s) en retard. Priorisez !`
-                      }
-                    </p>
-                  </div>
+                  {getTrendIcon(analytics.trend)}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-gray-400 text-sm">Tâches terminées</p>
+                  <p className="text-2xl font-bold text-white">
+                    {analytics.completedTasks}/{analytics.totalTasks}
+                  </p>
+                  <p className={`text-sm ${getMetricColor(analytics.completionRate, 'completion')}`}>
+                    {analytics.completionRate.toFixed(1)}% de réussite
+                  </p>
                 </div>
               </div>
-            </>
-          )}
 
-          {/* Projets */}
-          {activeTab === 'projects' && analytics && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard
-                  title="Projets actifs"
-                  value={analytics.overview.activeProjects}
-                  icon={Rocket}
-                  color="green"
-                />
-                
-                <StatCard
-                  title="Projets terminés"
-                  value={analytics.overview.completedProjects}
-                  icon={CheckCircle2}
-                  color="blue"
-                />
-                
-                <StatCard
-                  title="Taux de réussite"
-                  value={analytics.overview.totalProjects > 0 ? 
-                    `${Math.round((analytics.overview.completedProjects / analytics.overview.totalProjects) * 100)}%` : '0%'}
-                  icon={Trophy}
-                  color="yellow"
-                />
-              </div>
-
-              {/* État des projets */}
-              <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                  <Gauge className="w-6 h-6 text-blue-400" />
-                  État des Projets
-                </h3>
-                
-                <div className="space-y-4">
-                  {projects.slice(0, 5).map((project) => {
-                    const projectTasks = tasks.filter(t => t.projectId === project.id);
-                    const completedTasks = projectTasks.filter(t => t.status === 'completed');
-                    const progress = projectTasks.length > 0 ? 
-                      Math.round((completedTasks.length / projectTasks.length) * 100) : 0;
-                    
-                    return (
-                      <div key={project.id} className="bg-gray-700/50 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-medium text-white truncate">{project.name}</h4>
-                          <span className="text-sm text-gray-400">
-                            {completedTasks.length}/{projectTasks.length} tâches
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1">
-                            <div className="w-full bg-gray-600 rounded-full h-2">
-                              <div
-                                className="bg-gradient-to-r from-blue-400 to-purple-500 h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${progress}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                          <span className="text-sm font-medium text-white min-w-0">
-                            {progress}%
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+              {/* Projets */}
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                    <Target className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-gray-400 text-sm">Projets actifs</p>
+                  <p className="text-2xl font-bold text-white">{analytics.activeProjects}</p>
+                  <p className="text-sm text-gray-400">
+                    {analytics.completedProjects} terminés
+                  </p>
                 </div>
               </div>
-            </>
-          )}
 
-          {/* Gamification */}
-          {activeTab === 'gamification' && analytics && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <StatCard
-                  title="Niveau actuel"
-                  value={analytics.gamification.level}
-                  icon={Trophy}
-                  color="yellow"
-                  subtitle="XP gagné cette semaine"
-                />
-                
-                <StatCard
-                  title="XP Total"
-                  value={analytics.gamification.totalXp}
-                  icon={Zap}
-                  color="blue"
-                />
-                
-                <StatCard
-                  title="Badges"
-                  value={analytics.gamification.badges.length}
-                  icon={Star}
-                  color="purple"
-                  subtitle="Débloqués"
-                />
-                
-                <StatCard
-                  title="Série actuelle"
-                  value={`${analytics.gamification.streak} jour${analytics.gamification.streak > 1 ? 's' : ''}`}
-                  icon={Target}
-                  color="orange"
-                />
+              {/* XP */}
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                    <Zap className="w-6 h-6 text-yellow-400" />
+                  </div>
+                  <Trophy className="w-4 h-4 text-yellow-400" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-gray-400 text-sm">XP gagné</p>
+                  <p className="text-2xl font-bold text-white">{analytics.totalXP}</p>
+                  <p className="text-sm text-yellow-400">
+                    Période : {timeRange === 'week' ? '7 jours' : timeRange === 'month' ? '30 jours' : 'année'}
+                  </p>
+                </div>
               </div>
 
-              {/* Progression XP */}
-              <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                  <Activity className="w-6 h-6 text-green-400" />
-                  Progression XP
-                </h3>
-                
+              {/* Productivité */}
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
+                    <Gauge className="w-6 h-6 text-green-400" />
+                  </div>
+                  <Activity className="w-4 h-4 text-green-400" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-gray-400 text-sm">Productivité</p>
+                  <p className={`text-2xl font-bold capitalize ${getMetricColor(analytics.productivity, 'productivity')}`}>
+                    {analytics.productivity === 'high' ? 'Élevée' : 
+                     analytics.productivity === 'medium' ? 'Moyenne' : 'Faible'}
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    Basé sur le taux de réussite
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Contenu des onglets */}
+            {activeTab === 'overview' && (
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+                <h3 className="text-xl font-bold text-white mb-4">Vue d'ensemble</h3>
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Progression niveau {analytics.gamification.level}</span>
-                    <span className="text-white font-medium">
-                      {analytics.gamification.totalXp % 500}/500 XP
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Taux de réussite global</span>
+                    <span className={`font-bold ${getMetricColor(analytics.completionRate, 'completion')}`}>
+                      {analytics.completionRate.toFixed(1)}%
                     </span>
                   </div>
-                  
-                  <div className="w-full bg-gray-700 rounded-full h-4">
-                    <div
-                      className="bg-gradient-to-r from-yellow-400 to-orange-500 h-4 rounded-full transition-all duration-500"
-                      style={{ width: `${((analytics.gamification.totalXp % 500) / 500) * 100}%` }}
-                    ></div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Tendance</span>
+                    <div className="flex items-center gap-2">
+                      {getTrendIcon(analytics.trend)}
+                      <span className="text-white capitalize">{analytics.trend}</span>
+                    </div>
                   </div>
-                  
-                  <div className="text-center">
-                    <p className="text-gray-400 text-sm">
-                      {500 - (analytics.gamification.totalXp % 500)} XP pour atteindre le niveau {analytics.gamification.level + 1}
-                    </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Période analysée</span>
+                    <span className="text-white">
+                      {timeRange === 'week' ? '7 derniers jours' : 
+                       timeRange === 'month' ? '30 derniers jours' : 'Cette année'}
+                    </span>
                   </div>
                 </div>
               </div>
-            </>
-          )}
-        </div>
+            )}
+
+            {activeTab === 'tasks' && (
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+                <h3 className="text-xl font-bold text-white mb-4">Analyse des tâches</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-blue-400">{analytics.totalTasks}</div>
+                    <div className="text-gray-400">Total</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-green-400">{analytics.completedTasks}</div>
+                    <div className="text-gray-400">Terminées</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-yellow-400">{analytics.totalTasks - analytics.completedTasks}</div>
+                    <div className="text-gray-400">En cours</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'projects' && (
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+                <h3 className="text-xl font-bold text-white mb-4">Analyse des projets</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-purple-400">{analytics.totalProjects}</div>
+                    <div className="text-gray-400">Total</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-blue-400">{analytics.activeProjects}</div>
+                    <div className="text-gray-400">Actifs</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-green-400">{analytics.completedProjects}</div>
+                    <div className="text-gray-400">Terminés</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'performance' && (
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+                <h3 className="text-xl font-bold text-white mb-4">Performance</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Productivité</span>
+                    <span className={`font-bold capitalize ${getMetricColor(analytics.productivity, 'productivity')}`}>
+                      {analytics.productivity === 'high' ? 'Élevée' : 
+                       analytics.productivity === 'medium' ? 'Moyenne' : 'Faible'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">XP moyen par tâche</span>
+                    <span className="text-white">
+                      {analytics.completedTasks > 0 ? (analytics.totalXP / analytics.completedTasks).toFixed(1) : 0} XP
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Évolution</span>
+                    <div className="flex items-center gap-2">
+                      {getTrendIcon(analytics.trend)}
+                      <span className="text-white">
+                        {analytics.trend === 'up' ? 'En amélioration' : 
+                         analytics.trend === 'down' ? 'En baisse' : 'Stable'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
