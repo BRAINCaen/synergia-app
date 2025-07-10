@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APPLICATION PRINCIPALE CORRIGÉE - Suppression du code cassé
+// APPLICATION PRINCIPALE COMPLÈTE - FICHIER CORRIGÉ
 // ==========================================
 
 import React, { useEffect, useState } from 'react';
