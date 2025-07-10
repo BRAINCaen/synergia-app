@@ -2,6 +2,7 @@
 // 📁 react-app/src/App.jsx
 // VERSION COMPLÈTE CORRIGÉE AVEC TEAMPAGE
 // ==========================================
+import './core/simpleRoleFix.js';
 import './core/completeRoleFix.js';
 import './core/immediateRoleFix.js';
 import React, { useEffect } from 'react';
