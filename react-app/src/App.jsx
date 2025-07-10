@@ -1,261 +1,288 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// FIX IMPORT TEAMPAGE - VERSION CORRIGÉE
+// APPLICATION PRINCIPALE AVEC SYSTÈME DE PROGRESSION PAR RÔLES INTÉGRÉ
 // ==========================================
-import './core/addMissingRoles.js';
-import './core/forceNewRoleSystem.js';
-import './core/ultimateRoleFix.js';
-import React, { useEffect } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 
-// 🛡️ CORRECTIONS - Imports optionnels
-try {
-  require('./utils/errorHandler.js');
-} catch (e) {
-  console.warn('⚠️ errorHandler non trouvé');
-}
+// 🔥 Imports des systèmes de progression par rôles
+import './core/services/roleProgressionIntegration.js';
+import './core/services/roleUnlockService.js';
+import './core/services/roleTaskManager.js';
+import './core/services/roleBadgeSystem.js';
 
-try {
-  require('./core/simpleRoleFix.js');
-} catch (e) {
-  console.warn('⚠️ simpleRoleFix non trouvé');
-}
-
-// 🔐 AuthStore
+// 🎯 Imports existants
 import { useAuthStore } from './shared/stores/authStore.js';
-
-// 🏗️ Layout
-import DashboardLayout from './layouts/DashboardLayout.jsx';
-
-// 📄 Pages - TOUTES LES VRAIES PAGES
+import { initializeBadgeSystem } from './core/badgeInitializer.js';
+import Layout from './components/layout/Layout.jsx';
 import Login from './pages/Login.jsx';
+import LoadingScreen from './components/ui/LoadingScreen.jsx';
+
+// 📄 Pages principales
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
+
+// 🎮 Pages gamification avec nouvelles fonctionnalités
 import GamificationPage from './pages/GamificationPage.jsx';
-import UsersPage from './pages/UsersPage.jsx';
-
-// ✅ Import TeamPage avec fallback ES6
-import TeamPageComponent from './pages/TeamPage.jsx';
-
-// Vérifier que l'import a fonctionné
-const TeamPage = TeamPageComponent || (() => {
-  console.warn('⚠️ TeamPage fallback utilisé');
-  return React.createElement('div', { style: { padding: '20px' } }, 
-    React.createElement('h1', null, 'Page Équipe'),
-    React.createElement('p', null, 'Page en cours de réparation...')
-  );
-});
-
-console.log('✅ TeamPage importée:', !!TeamPageComponent);
-
-import OnboardingPage from './pages/OnboardingPage.jsx';
-import TimeTrackPage from './pages/TimeTrackPage.jsx';
-import ProfilePage from './pages/ProfilePage.jsx';
-import SettingsPage from './pages/SettingsPage.jsx';
+import BadgesPage from './pages/BadgesPage.jsx';
 import RewardsPage from './pages/RewardsPage.jsx';
 
-// Pages admin avec gestion d'erreur
+// 👥 Pages équipe
+import TeamPage from './pages/TeamPage.jsx';
+import UsersPage from './pages/UsersPage.jsx';
+
+// ⚙️ Pages utilisateur
+import ProfilePage from './pages/ProfilePage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
+import OnboardingPage from './pages/OnboardingPage.jsx';
+import TimeTrackPage from './pages/TimeTrackPage.jsx';
+
+// 🛡️ Pages admin
 import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
+import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 
-/**
- * 🔒 COMPOSANT ROUTE PROTÉGÉE
- */
-const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuthStore();
+// 🆕 Nouvelles pages du système de progression
+import RoleProgressionPage from './pages/RoleProgressionPage.jsx';
+import RoleTasksPage from './pages/RoleTasksPage.jsx';
+import RoleBadgesPage from './pages/RoleBadgesPage.jsx';
 
-  if (loading) {
+// 🎯 Imports des services
+import roleProgressionIntegration from './core/services/roleProgressionIntegration.js';
+
+const App = () => {
+  const { user, loading, initializeAuth } = useAuthStore();
+  const [systemsInitialized, setSystemsInitialized] = useState(false);
+  const [initializationError, setInitializationError] = useState(null);
+
+  // 🚀 Initialisation complète des systèmes
+  useEffect(() => {
+    const initializeAllSystems = async () => {
+      try {
+        console.log('🚀 Initialisation des systèmes Synergia v3.5...');
+
+        // 1. Initialiser l'authentification
+        await initializeAuth();
+
+        // 2. Initialiser le système de badges existant
+        if (user?.uid) {
+          await initializeBadgeSystem(user.uid);
+          console.log('✅ Système de badges initialisé');
+
+          // 3. Initialiser le nouveau système de progression par rôles
+          const progressionResult = await roleProgressionIntegration.initialize(user.uid);
+          if (progressionResult.success) {
+            console.log('✅ Système de progression par rôles initialisé');
+          } else {
+            console.warn('⚠️ Erreur initialisation progression:', progressionResult.error);
+          }
+        }
+
+        setSystemsInitialized(true);
+        console.log('🎉 Tous les systèmes Synergia v3.5 initialisés !');
+
+      } catch (error) {
+        console.error('❌ Erreur initialisation systèmes:', error);
+        setInitializationError(error.message);
+        setSystemsInitialized(true); // Continuer malgré l'erreur
+      }
+    };
+
+    initializeAllSystems();
+  }, [initializeAuth, user?.uid]);
+
+  // 🔄 Cleanup lors du départ de l'utilisateur
+  useEffect(() => {
+    return () => {
+      if (user?.uid) {
+        roleProgressionIntegration.cleanup(user.uid);
+      }
+    };
+  }, [user?.uid]);
+
+  // 📱 Gestion des événements globaux du système de progression
+  useEffect(() => {
+    if (!systemsInitialized || !user?.uid) return;
+
+    // Écouter les événements de level up
+    const handleRoleLevelUp = (event) => {
+      const { roleId, newLevel, newUnlocks } = event.detail;
+      console.log('🎉 Level up détecté dans App:', { roleId, newLevel });
+      
+      // Ici tu peux ajouter des effets globaux, confetti, sons, etc.
+      if (window.showConfetti) {
+        window.showConfetti();
+      }
+    };
+
+    // Écouter les nouveaux badges de rôle
+    const handleRoleBadgeEarned = (event) => {
+      const { badge } = event.detail;
+      console.log('🏆 Nouveau badge de rôle dans App:', badge);
+      
+      // Effet visuel global pour les badges rares
+      if (badge.rarity === 'legendary' || badge.rarity === 'mythic') {
+        if (window.showEpicEffect) {
+          window.showEpicEffect(badge);
+        }
+      }
+    };
+
+    // Écouter les déverrouillages de contenu
+    const handleContentUnlocked = (event) => {
+      const { type, items } = event.detail;
+      console.log('🔓 Contenu débloqué dans App:', { type, count: items.length });
+    };
+
+    // Attacher les listeners
+    window.addEventListener('roleLevelUp', handleRoleLevelUp);
+    window.addEventListener('roleBadgeEarned', handleRoleBadgeEarned);
+    window.addEventListener('contentUnlocked', handleContentUnlocked);
+
+    // Nettoyage
+    return () => {
+      window.removeEventListener('roleLevelUp', handleRoleLevelUp);
+      window.removeEventListener('roleBadgeEarned', handleRoleBadgeEarned);
+      window.removeEventListener('contentUnlocked', handleContentUnlocked);
+    };
+  }, [systemsInitialized, user?.uid]);
+
+  // 🔄 Écran de chargement
+  if (loading || !systemsInitialized) {
+    return (
+      <LoadingScreen 
+        message={
+          loading ? "Connexion en cours..." :
+          !systemsInitialized ? "Initialisation des systèmes de progression..." :
+          "Chargement terminé..."
+        }
+        progress={
+          loading ? 30 :
+          !systemsInitialized ? 70 :
+          100
+        }
+      />
+    );
+  }
+
+  // ⚠️ Affichage d'erreur d'initialisation
+  if (initializationError) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white">Chargement...</div>
+        <div className="bg-red-900 border border-red-700 rounded-lg p-6 max-w-md">
+          <h2 className="text-red-300 font-semibold mb-2">Erreur d'initialisation</h2>
+          <p className="text-red-200 text-sm mb-4">{initializationError}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded transition-colors"
+          >
+            Recharger l'application
+          </button>
+        </div>
       </div>
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <DashboardLayout>{children}</DashboardLayout>;
-};
-
-/**
- * 📄 COMPOSANT PAGE AVEC LAYOUT
- */
-const PageWithLayout = ({ children }) => {
-  return <DashboardLayout>{children}</DashboardLayout>;
-};
-
-/**
- * 🏠 COMPOSANT APP PRINCIPAL
- */
-function App() {
-  const { initializeAuth, user } = useAuthStore();
-
-  useEffect(() => {
-    console.log('🚀 SYNERGIA v3.5.3 - VERSION ORIGINALE RESTAURÉE');
-    initializeAuth();
-  }, [initializeAuth]);
-
   return (
     <Router>
-      <Routes>
-        {/* 🔐 Route de connexion */}
-        <Route 
-          path="/login" 
-          element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
+      <div className="App">
+        {/* 🎉 Notifications globales */}
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#1f2937',
+              color: '#f3f4f6',
+              border: '1px solid #374151'
+            },
+            success: {
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#f3f4f6'
+              }
+            },
+            error: {
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#f3f4f6'
+              }
+            }
+          }}
         />
 
-        {/* 🏠 Dashboard */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
+        {/* 🔐 Routes protégées */}
+        <Routes>
+          {/* Route de connexion */}
+          <Route path="/login" element={
+            user ? <Navigate to="/dashboard" replace /> : <Login />
+          } />
 
-        {/* 📋 Pages de gestion */}
-        <Route
-          path="/tasks"
-          element={
-            <ProtectedRoute>
-              <TasksPage />
-            </ProtectedRoute>
-          }
-        />
+          {/* Routes principales protégées */}
+          <Route path="/" element={
+            user ? <Layout /> : <Navigate to="/login" replace />
+          }>
+            {/* 🏠 Pages principales */}
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="tasks" element={<TasksPage />} />
+            <Route path="projects" element={<ProjectsPage />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
 
-        <Route
-          path="/projects"
-          element={
-            <ProtectedRoute>
-              <ProjectsPage />
-            </ProtectedRoute>
-          }
-        />
+            {/* 🎮 Pages gamification enrichies */}
+            <Route path="gamification" element={<GamificationPage />} />
+            <Route path="badges" element={<BadgesPage />} />
+            <Route path="rewards" element={<RewardsPage />} />
 
-        <Route
-          path="/analytics"
-          element={
-            <ProtectedRoute>
-              <AnalyticsPage />
-            </ProtectedRoute>
-          }
-        />
+            {/* 🆕 Nouvelles pages du système de progression */}
+            <Route path="role-progression" element={<RoleProgressionPage />} />
+            <Route path="role-tasks" element={<RoleTasksPage />} />
+            <Route path="role-badges" element={<RoleBadgesPage />} />
 
-        {/* 🎮 Gamification */}
-        <Route
-          path="/gamification"
-          element={
-            <ProtectedRoute>
-              <GamificationPage />
-            </ProtectedRoute>
-          }
-        />
+            {/* 👥 Pages équipe */}
+            <Route path="team" element={<TeamPage />} />
+            <Route path="users" element={<UsersPage />} />
 
-        <Route
-          path="/rewards"
-          element={
-            <ProtectedRoute>
-              <RewardsPage />
-            </ProtectedRoute>
-          }
-        />
+            {/* ⚙️ Pages utilisateur */}
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="onboarding" element={<OnboardingPage />} />
+            <Route path="timetrack" element={<TimeTrackPage />} />
 
-        {/* 👥 Équipe et social - AVEC GESTION D'ERREUR */}
-        <Route
-          path="/team"
-          element={
-            <ProtectedRoute>
-              <TeamPage />
-            </ProtectedRoute>
-          }
-        />
+            {/* 🛡️ Pages admin */}
+            <Route path="admin/task-validation" element={<AdminTaskValidationPage />} />
+            <Route path="admin/complete-test" element={<CompleteAdminTestPage />} />
 
-        <Route
-          path="/users"
-          element={
-            <ProtectedRoute>
-              <UsersPage />
-            </ProtectedRoute>
-          }
-        />
+            {/* 🔍 Pages de classement et leaderboard */}
+            <Route path="leaderboard" element={<GamificationPage />} />
+          </Route>
 
-        {/* 👤 Profil et paramètres */}
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
-          }
-        />
+          {/* 🚫 Page 404 */}
+          <Route path="*" element={
+            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+              <div className="text-center">
+                <h1 className="text-6xl font-bold text-gray-600 mb-4">404</h1>
+                <p className="text-gray-400 mb-6">Page non trouvée</p>
+                <button 
+                  onClick={() => window.location.href = '/dashboard'}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+                >
+                  Retour au Dashboard
+                </button>
+              </div>
+            </div>
+          } />
+        </Routes>
 
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <SettingsPage />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* 📚 Pages spécialisées */}
-        <Route
-          path="/onboarding"
-          element={
-            <ProtectedRoute>
-              <OnboardingPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/timetrack"
-          element={
-            <ProtectedRoute>
-              <TimeTrackPage />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* 🛡️ Routes admin */}
-        <Route
-          path="/admin/task-validation"
-          element={
-            <ProtectedRoute>
-              <AdminTaskValidationPage />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* 🎯 Aliases pour compatibilité */}
-        <Route
-          path="/badges"
-          element={
-            <ProtectedRoute>
-              <GamificationPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/leaderboard"
-          element={
-            <ProtectedRoute>
-              <UsersPage />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* 🏠 Redirections */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+        {/* 🎨 Effets visuels globaux pour la progression */}
+        <div id="confetti-container" className="pointer-events-none fixed inset-0 z-50" />
+        <div id="epic-effects-container" className="pointer-events-none fixed inset-0 z-40" />
+      </div>
     </Router>
   );
-}
+};
 
 export default App;
