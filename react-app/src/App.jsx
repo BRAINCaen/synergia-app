@@ -2,6 +2,7 @@
 // 📁 react-app/src/App.jsx
 // VERSION ORIGINALE RESTAURÉE - Toutes les pages fonctionnelles
 // ==========================================
+import './core/forceNewRoleSystem.js';
 import './core/ultimateRoleFix.js';
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
