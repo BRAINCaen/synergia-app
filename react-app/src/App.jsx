@@ -1,56 +1,105 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// VERSION COMPLÈTE CORRIGÉE AVEC TOUS LES IMPORTS FIXES
+// VERSION PROPRE SANS CONFLITS DE ROUTING
 // ==========================================
 
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// 🛡️ CORRECTIONS ET GESTIONNAIRE D'ERREURS
+// 🛡️ CORRECTIONS
 import './utils/errorHandler.js';
-import './core/simpleRoleFix.js'; // ✅ Version compatible build (remplace completeRoleFix.js)
+import './core/simpleRoleFix.js';
 
-// 🔐 AuthStore - TESTÉ ET FONCTIONNEL
+// 🔐 AuthStore
 import { useAuthStore } from './shared/stores/authStore.js';
 
-// 🎯 Routes - TESTÉES ET FONCTIONNELLES  
-import ProtectedRoute from './routes/ProtectedRoute.jsx';
-import PublicRoute from './routes/PublicRoute.jsx';
-
-// 🏗️ Layout - TESTÉ ET FONCTIONNEL
+// 🏗️ Layout
 import DashboardLayout from './layouts/DashboardLayout.jsx';
 
-// 📄 Pages - TESTÉES ET FONCTIONNELLES (VERSIONS ORIGINALES)
+// 📄 Pages
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
-import AnalyticsPage from './pages/AnalyticsPage.jsx'; // ✅ Progress → Gauge corrigé
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import GamificationPage from './pages/GamificationPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
-import TeamPage from './pages/TeamPage.jsx'; // ✅ IMPORT TEAMPAGE AJOUTÉ
+import TeamPage from './pages/TeamPage.jsx';
 import OnboardingPage from './pages/OnboardingPage.jsx';
 import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import RewardsPage from './pages/RewardsPage.jsx';
 
-// 🔧 Pages administratives (optionnelles)
-import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
-import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
-
-console.log('🚀 SYNERGIA v3.5.3 - VERSION CORRIGÉE COMPLÈTE');
-console.log('✅ Tous les imports testés et fonctionnels');
-console.log('🔧 Corrections appliquées : simpleRoleFix.js intégré');
+console.log('🚀 SYNERGIA v3.5.3 - VERSION PROPRE');
 
 /**
- * 🚀 APPLICATION PRINCIPALE SYNERGIA v3.5
- * Version corrigée avec tous les imports et corrections
+ * 🔐 COMPOSANT PROTECTED ROUTE INTÉGRÉ
+ */
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuthStore();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+}
+
+/**
+ * 🌐 COMPOSANT PUBLIC ROUTE INTÉGRÉ
+ */
+function PublicRoute({ children }) {
+  const { user, loading } = useAuthStore();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  return children;
+}
+
+/**
+ * 🎯 COMPOSANT PAGE AVEC LAYOUT
+ */
+function PageWithLayout({ children }) {
+  return (
+    <ProtectedRoute>
+      <DashboardLayout>
+        {children}
+      </DashboardLayout>
+    </ProtectedRoute>
+  );
+}
+
+/**
+ * 🚀 APPLICATION PRINCIPALE
  */
 function App() {
-  const { initializeAuth, isAuthenticated, user, loading } = useAuthStore();
+  const { initializeAuth, user, loading } = useAuthStore();
 
-  // Initialisation de l'authentification
   useEffect(() => {
     console.log('🔄 Initialisation de l\'authentification...');
     initializeAuth();
@@ -75,12 +124,9 @@ function App() {
       window.location.reload();
     };
     
-    // 🔧 Fonction de diagnostic des imports
-    window.diagnoseApp = () => {
-      console.log('🔍 DIAGNOSTIC APPLICATION');
-      console.log('✅ AuthStore:', typeof useAuthStore);
-      console.log('✅ Routes:', typeof ProtectedRoute);
-      console.log('✅ Layout:', typeof DashboardLayout);
+    // Diagnostic des pages
+    window.diagnosePages = () => {
+      console.log('🔍 DIAGNOSTIC DES PAGES');
       console.log('✅ Pages:', {
         Login: typeof Login,
         Dashboard: typeof Dashboard,
@@ -96,38 +142,26 @@ function App() {
         SettingsPage: typeof SettingsPage,
         RewardsPage: typeof RewardsPage
       });
-      console.log('✅ Corrections de rôles actives:', typeof window.fixRoleAssignment);
+      console.log('✅ Layout:', typeof DashboardLayout);
+      console.log('✅ Auth:', { user: !!user, loading });
     };
     
-    console.log('✅ Fonctions debug: forceReload(), emergencyClean(), diagnoseApp()');
+    console.log('✅ Fonctions debug: forceReload(), emergencyClean(), diagnosePages()');
   }, []);
 
   // Diagnostic en temps réel
   useEffect(() => {
     console.log('📊 État Auth:', {
       loading,
-      isAuthenticated, 
       hasUser: !!user,
       userEmail: user?.email
     });
-  }, [loading, isAuthenticated, user]);
-
-  // Écran de chargement
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Chargement de Synergia...</p>
-        </div>
-      </div>
-    );
-  }
+  }, [loading, user]);
 
   return (
     <Router>
       <Routes>
-        {/* 🔐 Route publique - Connexion */}
+        {/* 🔐 Route de connexion */}
         <Route
           path="/login"
           element={
@@ -137,49 +171,153 @@ function App() {
           }
         />
 
-        {/* 🏠 Routes protégées avec layout */}
+        {/* 🏠 Page d'accueil */}
         <Route
-          path="/"
+          path="/dashboard"
           element={
-            <ProtectedRoute>
-              <DashboardLayout />
-            </ProtectedRoute>
+            <PageWithLayout>
+              <Dashboard />
+            </PageWithLayout>
           }
-        >
-          {/* 📊 Page d'accueil */}
-          <Route index element={<Dashboard />} />
-          
-          {/* 📋 Pages principales */}
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="tasks" element={<TasksPage />} />
-          <Route path="projects" element={<ProjectsPage />} />
-          <Route path="analytics" element={<AnalyticsPage />} />
-          
-          {/* 🎮 Gamification */}
-          <Route path="gamification" element={<GamificationPage />} />
-          <Route path="rewards" element={<RewardsPage />} />
-          
-          {/* 👥 Équipe et utilisateurs */}
-          <Route path="team" element={<TeamPage />} />
-          <Route path="users" element={<UsersPage />} />
-          
-          {/* 👤 Profil et paramètres */}
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          
-          {/* 📚 Onboarding et temps */}
-          <Route path="onboarding" element={<OnboardingPage />} />
-          <Route path="time-track" element={<TimeTrackPage />} />
-          
-          {/* 🛡️ Pages administratives */}
-          <Route path="admin">
-            <Route path="task-validation" element={<AdminTaskValidationPage />} />
-            <Route path="complete-test" element={<CompleteAdminTestPage />} />
-          </Route>
-        </Route>
+        />
 
-        {/* 🚫 Route par défaut - Redirection */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* 📋 Pages principales */}
+        <Route
+          path="/tasks"
+          element={
+            <PageWithLayout>
+              <TasksPage />
+            </PageWithLayout>
+          }
+        />
+
+        <Route
+          path="/projects"
+          element={
+            <PageWithLayout>
+              <ProjectsPage />
+            </PageWithLayout>
+          }
+        />
+
+        <Route
+          path="/analytics"
+          element={
+            <PageWithLayout>
+              <AnalyticsPage />
+            </PageWithLayout>
+          }
+        />
+
+        {/* 🎮 Gamification */}
+        <Route
+          path="/gamification"
+          element={
+            <PageWithLayout>
+              <GamificationPage />
+            </PageWithLayout>
+          }
+        />
+
+        <Route
+          path="/rewards"
+          element={
+            <PageWithLayout>
+              <RewardsPage />
+            </PageWithLayout>
+          }
+        />
+
+        {/* 👥 Équipe */}
+        <Route
+          path="/team"
+          element={
+            <PageWithLayout>
+              <TeamPage />
+            </PageWithLayout>
+          }
+        />
+
+        <Route
+          path="/users"
+          element={
+            <PageWithLayout>
+              <UsersPage />
+            </PageWithLayout>
+          }
+        />
+
+        {/* 👤 Profil */}
+        <Route
+          path="/profile"
+          element={
+            <PageWithLayout>
+              <ProfilePage />
+            </PageWithLayout>
+          }
+        />
+
+        <Route
+          path="/settings"
+          element={
+            <PageWithLayout>
+              <SettingsPage />
+            </PageWithLayout>
+          }
+        />
+
+        {/* 📚 Autres pages */}
+        <Route
+          path="/onboarding"
+          element={
+            <PageWithLayout>
+              <OnboardingPage />
+            </PageWithLayout>
+          }
+        />
+
+        <Route
+          path="/time-track"
+          element={
+            <PageWithLayout>
+              <TimeTrackPage />
+            </PageWithLayout>
+          }
+        />
+
+        {/* 🎯 Aliases pour compatibilité */}
+        <Route
+          path="/badges"
+          element={
+            <PageWithLayout>
+              <GamificationPage />
+            </PageWithLayout>
+          }
+        />
+
+        <Route
+          path="/leaderboard"
+          element={
+            <PageWithLayout>
+              <UsersPage />
+            </PageWithLayout>
+          }
+        />
+
+        <Route
+          path="/timetrack"
+          element={
+            <PageWithLayout>
+              <TimeTrackPage />
+            </PageWithLayout>
+          }
+        />
+
+        {/* 🏠 Redirection par défaut */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+        {/* 🔄 Route fallback */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Router>
   );
