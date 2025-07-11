@@ -3,6 +3,9 @@
 // APP SIMPLIFIÉ QUI MARCHE - Import AppRouter
 // ==========================================
 
+// À ajouter avec les autres imports
+import './core/services/escapeGameBadgeEngine.js';
+
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { Star } from 'lucide-react';
