@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APPLICATION PRINCIPALE COMPLÈTE - FICHIER CORRIGÉ
+// APPLICATION PRINCIPALE - BOUCLE INFINIE CORRIGÉE
 // ==========================================
 
 import React, { useEffect, useState } from 'react';
@@ -37,40 +37,42 @@ import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
 import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 
-// Component de chargement simple
+// Component de chargement simple et efficace
 const LoadingScreen = ({ message }) => (
-  <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+  <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
     <div className="text-center">
+      <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold shadow-2xl mb-6">
+        ⚡
+      </div>
+      <h1 className="text-3xl font-bold text-white mb-2">Synergia</h1>
       <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-600 mx-auto mb-4"></div>
-      <p className="text-gray-400">{message || 'Chargement...'}</p>
+      <p className="text-blue-200">{message || 'Chargement...'}</p>
     </div>
   </div>
 );
 
-// 🚨 AUTH NUCLEAR GARDÉ (version stable)
-const useNuclearAuth = () => {
-  const { user, loading, signOut, initializeAuth } = useAuthStore();
+// 🔧 HOOK AUTH CORRIGÉ - Plus de boucle infinie !
+const useAuthState = () => {
+  const { user, loading } = useAuthStore();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        await initializeAuth();
-        setIsInitialized(true);
-      } catch (error) {
-        console.error('❌ Erreur initialisation auth:', error);
-        setIsInitialized(true);
-      }
-    };
-    init();
-  }, [initializeAuth]);
+    // ✅ CORRECTION : Pas d'appel à initializeAuth qui n'existe pas
+    // On attend juste que loading devienne false
+    if (!loading) {
+      setIsInitialized(true);
+    }
+  }, [loading]);
 
-  return { user, loading: loading || !isInitialized, signOut };
+  return { 
+    user, 
+    loading: loading || !isInitialized
+  };
 };
 
-// Route protégée
+// Route protégée - VERSION CORRIGÉE
 const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useNuclearAuth();
+  const { user, loading } = useAuthState();
   
   if (loading) {
     return <LoadingScreen message="Vérification de l'authentification..." />;
@@ -83,9 +85,9 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Route publique (redirection si connecté)
+// Route publique - VERSION CORRIGÉE
 const PublicRoute = ({ children }) => {
-  const { user, loading } = useNuclearAuth();
+  const { user, loading } = useAuthState();
   
   if (loading) {
     return <LoadingScreen message="Vérification de l'authentification..." />;
@@ -99,7 +101,7 @@ const PublicRoute = ({ children }) => {
 };
 
 /**
- * 🚀 APPLICATION PRINCIPALE
+ * 🚀 APPLICATION PRINCIPALE - CORRIGÉE
  */
 const App = () => {
   return (
