@@ -94,30 +94,37 @@ const LeaderboardPage = () => {
         console.log('🔥 Chargement leaderboard Firebase...');
         
         const usersRef = collection(db, 'users');
-        const q = query(usersRef, orderBy('totalXp', 'desc'), limit(50));
+        // 🔧 CORRECTION: Requête corrigée pour récupérer tous les utilisateurs d'abord
+        const q = query(usersRef, limit(100));
         
         const snapshot = await getDocs(q);
         const firebaseUsers = [];
         
         snapshot.forEach((doc) => {
           const userData = doc.data();
-          firebaseUsers.push({
-            id: doc.id,
-            name: userData.displayName || userData.email?.split('@')[0] || 'Utilisateur',
-            email: userData.email,
-            avatar: userData.photoURL || '👤',
-            // 🔧 CORRECTION: Ligne corrigée avec les bonnes propriétés
-            xp: userData.totalXp || 0,
-            level: userData.level || 1,
-            tasksCompleted: userData.tasksCompleted || 0,
-            badges: userData.badges?.length || 0,
-            streak: userData.loginStreak || 0,
-            lastActive: userData.lastLoginDate,
-            rank: 0 // Sera calculé après tri
-          });
+          
+          // 🔧 CORRECTION: Vérifier que l'utilisateur a des données valides
+          if (userData.email) {
+            firebaseUsers.push({
+              id: doc.id,
+              // 🔧 CORRECTION: Extraction correcte du nom
+              name: userData.displayName || userData.email?.split('@')[0] || 'Utilisateur',
+              email: userData.email,
+              avatar: userData.photoURL || '👤',
+              // 🔧 CORRECTION: Utiliser la structure gamification correcte
+              xp: userData.gamification?.totalXp || userData.totalXp || 0,
+              level: userData.gamification?.level || userData.level || 1,
+              tasksCompleted: userData.gamification?.tasksCompleted || userData.tasksCompleted || 0,
+              badges: userData.gamification?.badges?.length || userData.badges?.length || 0,
+              streak: userData.gamification?.loginStreak || userData.loginStreak || 0,
+              lastActive: userData.lastLoginDate || userData.gamification?.lastLoginDate,
+              rank: 0 // Sera calculé après tri
+            });
+          }
         });
 
-        // Calculer les rangs
+        // 🔧 CORRECTION: Trier par XP côté client et calculer les rangs
+        firebaseUsers.sort((a, b) => b.xp - a.xp);
         firebaseUsers.forEach((user, index) => {
           user.rank = index + 1;
         });
@@ -353,4 +360,4 @@ const LeaderboardPage = () => {
   );
 };
 
-export default LeaderboardPage;v
+export default LeaderboardPage;
