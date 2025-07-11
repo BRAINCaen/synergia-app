@@ -1,86 +1,127 @@
 // ==========================================
 // 📁 react-app/src/shared/components/ToastNotification.jsx
-// Système de notifications toast moderne
+// BACKUP VERSION - Provider de notifications existant étendu
 // ==========================================
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { CheckCircle, AlertCircle, XCircle, Info, X, Star } from 'lucide-react';
 
-// Contexte pour les toasts
+// Context pour les toasts
 const ToastContext = createContext();
+
+// Configuration des types de toast
+const toastConfigs = {
+  success: {
+    icon: CheckCircle,
+    bgColor: 'bg-green-600',
+    textColor: 'text-white',
+    borderColor: 'border-green-500'
+  },
+  error: {
+    icon: XCircle,
+    bgColor: 'bg-red-600', 
+    textColor: 'text-white',
+    borderColor: 'border-red-500'
+  },
+  warning: {
+    icon: AlertCircle,
+    bgColor: 'bg-yellow-600',
+    textColor: 'text-white', 
+    borderColor: 'border-yellow-500'
+  },
+  info: {
+    icon: Info,
+    bgColor: 'bg-blue-600',
+    textColor: 'text-white',
+    borderColor: 'border-blue-500'
+  },
+  xp: {
+    icon: Star,
+    bgColor: 'bg-purple-600',
+    textColor: 'text-white',
+    borderColor: 'border-purple-500'
+  }
+};
 
 // Hook pour utiliser les toasts
 export const useToast = () => {
   const context = useContext(ToastContext);
   if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
+    // Fallback pour compatibilité
+    console.warn('⚠️ useToast utilisé en dehors du ToastProvider, fallback activé');
+    return {
+      success: (message) => console.log('✅', message),
+      error: (message) => console.error('❌', message),
+      warning: (message) => console.warn('⚠️', message),
+      info: (message) => console.info('ℹ️', message),
+      xp: (amount, source) => console.log(`🌟 +${amount} XP - ${source}`)
+    };
   }
   return context;
 };
 
-// Types de toast
-const TOAST_TYPES = {
-  success: {
-    icon: CheckCircle,
-    bgColor: 'bg-green-50',
-    borderColor: 'border-green-200',
-    iconColor: 'text-green-500',
-    textColor: 'text-green-800'
-  },
-  error: {
-    icon: AlertCircle,
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-200',
-    iconColor: 'text-red-500',
-    textColor: 'text-red-800'
-  },
-  warning: {
-    icon: AlertTriangle,
-    bgColor: 'bg-yellow-50',
-    borderColor: 'border-yellow-200',
-    iconColor: 'text-yellow-500',
-    textColor: 'text-yellow-800'
-  },
-  info: {
-    icon: Info,
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200',
-    iconColor: 'text-blue-500',
-    textColor: 'text-blue-800'
-  }
-};
-
 // Composant Toast individuel
 const Toast = ({ toast, onClose }) => {
-  const config = TOAST_TYPES[toast.type];
+  const [isVisible, setIsVisible] = useState(false);
+  const config = toastConfigs[toast.type] || toastConfigs.info;
   const Icon = config.icon;
 
+  useEffect(() => {
+    // Animation d'entrée
+    const timer = setTimeout(() => setIsVisible(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    // Auto-dismiss
+    if (toast.duration > 0) {
+      const timer = setTimeout(() => {
+        setIsVisible(false);
+        setTimeout(() => onClose(toast.id), 300);
+      }, toast.duration);
+      return () => clearTimeout(timer);
+    }
+  }, [toast.duration, toast.id, onClose]);
+
+  const handleClose = () => {
+    setIsVisible(false);
+    setTimeout(() => onClose(toast.id), 300);
+  };
+
   return (
-    <div className={`
-      flex items-start gap-3 p-4 rounded-lg border shadow-lg max-w-md w-full
-      ${config.bgColor} ${config.borderColor}
-      transform transition-all duration-300 ease-in-out
-      hover:scale-105
-    `}>
-      <Icon className={`h-5 w-5 mt-0.5 flex-shrink-0 ${config.iconColor}`} />
-      
-      <div className="flex-1 min-w-0">
-        {toast.title && (
-          <h4 className={`font-medium ${config.textColor} mb-1`}>
-            {toast.title}
-          </h4>
-        )}
-        <p className={`text-sm ${config.textColor} ${toast.title ? 'opacity-90' : ''}`}>
-          {toast.message}
-        </p>
-      </div>
-      
-      <button
-        onClick={() => onClose(toast.id)}
-        className={`flex-shrink-0 p-1 rounded-lg hover:bg-black/5 transition-colors ${config.textColor}`}
+    <div
+      className={`transform transition-all duration-300 ease-in-out ${
+        isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+      }`}
+    >
+      <div
+        className={`${config.bgColor} border ${config.borderColor} text-white px-6 py-4 rounded-lg shadow-lg border flex items-start space-x-3 max-w-sm`}
       >
-        <X className="h-4 w-4" />
-      </button>
+        <span className="text-xl flex-shrink-0 mt-0.5">
+          <Icon className="w-5 h-5" />
+        </span>
+        <div className="flex-1 min-w-0">
+          {toast.title && (
+            <h4 className="font-semibold text-sm mb-1 flex items-center">
+              {toast.title}
+              {toast.type === 'xp' && toast.xpAmount && (
+                <span className="ml-2 bg-white/20 px-2 py-1 rounded text-xs">
+                  +{toast.xpAmount} XP
+                </span>
+              )}
+            </h4>
+          )}
+          <p className={`text-sm ${toast.title ? 'opacity-90' : ''}`}>
+            {toast.message}
+          </p>
+        </div>
+        <button
+          onClick={handleClose}
+          className={`flex-shrink-0 p-1 rounded-lg hover:bg-black/5 transition-colors ${config.textColor}`}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 };
@@ -113,7 +154,8 @@ export const ToastProvider = ({ children }) => {
       type,
       message,
       title: options.title,
-      duration: options.duration || 5000
+      duration: options.duration || 5000,
+      xpAmount: options.xpAmount
     };
 
     setToasts(prev => [...prev, toast]);
@@ -145,6 +187,13 @@ export const ToastProvider = ({ children }) => {
   const info = useCallback((message, options) => 
     addToast('info', message, options), [addToast]);
 
+  const xp = useCallback((amount, source = 'Action', options = {}) => 
+    addToast('xp', `Vous avez gagné ${amount} XP !`, { 
+      title: source, 
+      xpAmount: amount, 
+      ...options 
+    }), [addToast]);
+
   const value = {
     toasts,
     addToast,
@@ -152,7 +201,8 @@ export const ToastProvider = ({ children }) => {
     success,
     error,
     warning,
-    info
+    info,
+    xp
   };
 
   return (
@@ -163,57 +213,5 @@ export const ToastProvider = ({ children }) => {
   );
 };
 
-// Export du hook principal
-export default useToast;
-
-// ==========================================
-// 📁 react-app/src/shared/stores/notificationStore.js  
-// Store Zustand pour notifications (optionnel)
-// ==========================================
-
-import { create } from 'zustand';
-
-export const useNotificationStore = create((set, get) => ({
-  notifications: [],
-  
-  addNotification: (type, message, options = {}) => {
-    const id = Date.now() + Math.random();
-    const notification = {
-      id,
-      type,
-      message,
-      title: options.title,
-      duration: options.duration || 5000,
-      timestamp: new Date()
-    };
-    
-    set(state => ({
-      notifications: [...state.notifications, notification]
-    }));
-    
-    // Auto-remove
-    if (notification.duration > 0) {
-      setTimeout(() => {
-        get().removeNotification(id);
-      }, notification.duration);
-    }
-    
-    return id;
-  },
-  
-  removeNotification: (id) => {
-    set(state => ({
-      notifications: state.notifications.filter(n => n.id !== id)
-    }));
-  },
-  
-  clearAll: () => {
-    set({ notifications: [] });
-  },
-  
-  // Méthodes de convenance
-  success: (message, options) => get().addNotification('success', message, options),
-  error: (message, options) => get().addNotification('error', message, options),
-  warning: (message, options) => get().addNotification('warning', message, options),
-  info: (message, options) => get().addNotification('info', message, options)
-}));
+// Export par défaut
+export default ToastProvider;
