@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/LeaderboardPage.jsx
-// Leaderboard avec NETTOYAGE des données corrompues
+// REMPLACER ENTIÈREMENT LE FICHIER EXISTANT PAR CE CODE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -80,24 +80,33 @@ const LeaderboardPage = () => {
 
   // 🧹 FONCTION DE NETTOYAGE DES NOMS CORROMPUS
   const cleanUserName = (userData) => {
-    // Détecter si displayName est une URL (contient http ou www)
+    console.log('🧹 Nettoyage nom pour:', userData.email, 'displayName:', userData.displayName);
+    
+    // Détecter si displayName est une URL (contient http, https, ou googleusercontent)
     if (userData.displayName && (
       userData.displayName.includes('http') || 
       userData.displayName.includes('www.') ||
-      userData.displayName.includes('googleusercontent.com')
+      userData.displayName.includes('googleusercontent.com') ||
+      userData.displayName.includes('.com/') ||
+      userData.displayName.length > 100
     )) {
-      console.warn('🧹 Nom corrompu détecté (URL):', userData.displayName.substring(0, 50) + '...');
+      console.warn('🚨 Nom corrompu détecté (URL):', userData.displayName.substring(0, 50) + '...');
       // Utiliser l'email comme fallback
-      return userData.email?.split('@')[0] || 'Utilisateur';
+      const cleanedName = userData.email?.split('@')[0] || 'Utilisateur';
+      console.log('✅ Nom nettoyé:', cleanedName);
+      return cleanedName;
     }
 
     // Si displayName semble normal, l'utiliser
     if (userData.displayName && userData.displayName.length < 100 && !userData.displayName.includes('.')) {
+      console.log('✅ Nom valide conservé:', userData.displayName);
       return userData.displayName;
     }
 
     // Fallback : utiliser l'email
-    return userData.email?.split('@')[0] || 'Utilisateur';
+    const fallbackName = userData.email?.split('@')[0] || 'Utilisateur';
+    console.log('✅ Fallback utilisé:', fallbackName);
+    return fallbackName;
   };
 
   // Charger le leaderboard Firebase
@@ -120,6 +129,8 @@ const LeaderboardPage = () => {
         const snapshot = await getDocs(q);
         const firebaseUsers = [];
         
+        console.log(`📊 ${snapshot.docs.length} documents trouvés`);
+        
         snapshot.forEach((doc) => {
           const userData = doc.data();
           
@@ -128,7 +139,7 @@ const LeaderboardPage = () => {
             // 🧹 NETTOYAGE : Nom propre extrait de façon sécurisée
             const cleanName = cleanUserName(userData);
             
-            firebaseUsers.push({
+            const userEntry = {
               id: doc.id,
               name: cleanName, // ✅ Nom nettoyé
               email: userData.email,
@@ -141,7 +152,10 @@ const LeaderboardPage = () => {
               streak: userData.gamification?.loginStreak || userData.loginStreak || 0,
               lastActive: userData.lastLoginDate || userData.gamification?.lastLoginDate,
               rank: 0 // Sera calculé après tri
-            });
+            };
+            
+            firebaseUsers.push(userEntry);
+            console.log(`👤 Utilisateur ajouté: ${userEntry.name} (${userEntry.email}) - ${userEntry.xp} XP`);
           }
         });
 
@@ -156,7 +170,7 @@ const LeaderboardPage = () => {
         
         // 🧹 Log des noms nettoyés pour debug
         firebaseUsers.slice(0, 5).forEach(user => {
-          console.log(`👤 Utilisateur: ${user.name} (${user.email}) - ${user.xp} XP`);
+          console.log(`🏆 Classement: #${user.rank} - ${user.name} (${user.email}) - ${user.xp} XP`);
         });
         
       } catch (error) {
@@ -230,8 +244,8 @@ const LeaderboardPage = () => {
         <div className="relative z-10">
           <h1 className="text-4xl font-bold mb-4 flex items-center">
             🏆 Classement
-            <span className="ml-3 text-sm bg-amber-600 px-3 py-1 rounded-full">
-              NOMS NETTOYÉS
+            <span className="ml-3 text-sm bg-green-600 px-3 py-1 rounded-full">
+              NOMS NETTOYÉS ✅
             </span>
           </h1>
           <p className="text-xl text-white/90 mb-4">
