@@ -1,0 +1,24 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://rainbow-caramel-df0320.netlify.app/sitemap.xml
+
+# Disallow certain paths
+Disallow: /api/
+Disallow: /_netlify/
+Disallow: /admin/
+Disallow: *.json$
+
+# Allow important pages
+Allow: /dashboard
+Allow: /tasks
+Allow: /projects
+Allow: /badges
+Allow: /analytics
+Allow: /leaderboard
+Allow: /profile
+
+# Crawl delay
+Crawl-delay: 1
