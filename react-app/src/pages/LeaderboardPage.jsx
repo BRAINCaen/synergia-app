@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/LeaderboardPage.jsx
-// Leaderboard TEMPORAIRE SANS GAMESTORE - BUG CORRIGÉ
+// Leaderboard avec NETTOYAGE des données corrompues
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -18,8 +18,6 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
-// 🚨 GAMESTORE TEMPORAIREMENT DÉSACTIVÉ
-// import { useGameStore } from '../shared/stores/gameStore.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 const LeaderboardPage = () => {
@@ -80,6 +78,28 @@ const LeaderboardPage = () => {
 
   const { user } = useAuthStore();
 
+  // 🧹 FONCTION DE NETTOYAGE DES NOMS CORROMPUS
+  const cleanUserName = (userData) => {
+    // Détecter si displayName est une URL (contient http ou www)
+    if (userData.displayName && (
+      userData.displayName.includes('http') || 
+      userData.displayName.includes('www.') ||
+      userData.displayName.includes('googleusercontent.com')
+    )) {
+      console.warn('🧹 Nom corrompu détecté (URL):', userData.displayName.substring(0, 50) + '...');
+      // Utiliser l'email comme fallback
+      return userData.email?.split('@')[0] || 'Utilisateur';
+    }
+
+    // Si displayName semble normal, l'utiliser
+    if (userData.displayName && userData.displayName.length < 100 && !userData.displayName.includes('.')) {
+      return userData.displayName;
+    }
+
+    // Fallback : utiliser l'email
+    return userData.email?.split('@')[0] || 'Utilisateur';
+  };
+
   // Charger le leaderboard Firebase
   useEffect(() => {
     const loadFirebaseLeaderboard = async () => {
@@ -94,7 +114,7 @@ const LeaderboardPage = () => {
         console.log('🔥 Chargement leaderboard Firebase...');
         
         const usersRef = collection(db, 'users');
-        // 🔧 CORRECTION: Requête corrigée pour récupérer tous les utilisateurs d'abord
+        // Récupérer tous les utilisateurs sans filtre pour éviter les erreurs
         const q = query(usersRef, limit(100));
         
         const snapshot = await getDocs(q);
@@ -103,15 +123,17 @@ const LeaderboardPage = () => {
         snapshot.forEach((doc) => {
           const userData = doc.data();
           
-          // 🔧 CORRECTION: Vérifier que l'utilisateur a des données valides
+          // Vérifier que l'utilisateur a des données valides
           if (userData.email) {
+            // 🧹 NETTOYAGE : Nom propre extrait de façon sécurisée
+            const cleanName = cleanUserName(userData);
+            
             firebaseUsers.push({
               id: doc.id,
-              // 🔧 CORRECTION: Extraction correcte du nom
-              name: userData.displayName || userData.email?.split('@')[0] || 'Utilisateur',
+              name: cleanName, // ✅ Nom nettoyé
               email: userData.email,
               avatar: userData.photoURL || '👤',
-              // 🔧 CORRECTION: Utiliser la structure gamification correcte
+              // Support multiple structures de données
               xp: userData.gamification?.totalXp || userData.totalXp || 0,
               level: userData.gamification?.level || userData.level || 1,
               tasksCompleted: userData.gamification?.tasksCompleted || userData.tasksCompleted || 0,
@@ -123,7 +145,7 @@ const LeaderboardPage = () => {
           }
         });
 
-        // 🔧 CORRECTION: Trier par XP côté client et calculer les rangs
+        // Trier par XP et calculer les rangs
         firebaseUsers.sort((a, b) => b.xp - a.xp);
         firebaseUsers.forEach((user, index) => {
           user.rank = index + 1;
@@ -131,6 +153,11 @@ const LeaderboardPage = () => {
 
         setRealLeaderboard(firebaseUsers);
         console.log(`✅ ${firebaseUsers.length} utilisateurs chargés depuis Firebase`);
+        
+        // 🧹 Log des noms nettoyés pour debug
+        firebaseUsers.slice(0, 5).forEach(user => {
+          console.log(`👤 Utilisateur: ${user.name} (${user.email}) - ${user.xp} XP`);
+        });
         
       } catch (error) {
         console.error('❌ Erreur chargement Firebase leaderboard:', error);
@@ -204,7 +231,7 @@ const LeaderboardPage = () => {
           <h1 className="text-4xl font-bold mb-4 flex items-center">
             🏆 Classement
             <span className="ml-3 text-sm bg-amber-600 px-3 py-1 rounded-full">
-              DEBUG MODE
+              NOMS NETTOYÉS
             </span>
           </h1>
           <p className="text-xl text-white/90 mb-4">
@@ -234,7 +261,7 @@ const LeaderboardPage = () => {
           {/* Info debug */}
           <div className="mt-4 text-sm text-white/70">
             <p>
-              Affichage des données {realLeaderboard.length > 0 ? 'Firebase réelles' : 'simulées'}.
+              Affichage des données {realLeaderboard.length > 0 ? 'Firebase réelles (noms nettoyés)' : 'simulées'}.
               {loadingFirebase && ' Chargement Firebase en cours...'}
             </p>
           </div>
@@ -322,7 +349,7 @@ const LeaderboardPage = () => {
                     {/* Info utilisateur */}
                     <div>
                       <div className="font-semibold text-gray-900 flex items-center">
-                        {participant.name}
+                        {participant.name} {/* ✅ Nom nettoyé affiché */}
                         {isCurrentUser && (
                           <span className="ml-2 px-2 py-1 bg-blue-500 text-white text-xs rounded-full">
                             Vous
