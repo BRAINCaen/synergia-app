@@ -87,5 +87,29 @@
   
   <!-- Script principal React -->
   <script type="module" src="/src/index.jsx"></script>
+<script>
+// Fonction pour supprimer la ligne rouge
+function removeRedLogoutLine() {
+  const allElements = document.querySelectorAll('*');
+  allElements.forEach(element => {
+    const text = element.textContent || '';
+    const style = window.getComputedStyle(element);
+    
+    if (text.includes('Déconnexion') && style.position === 'fixed') {
+      const isInSidebar = element.closest('.sidebar');
+      if (!isInSidebar) {
+        element.style.display = 'none';
+      }
+    }
+  });
+}
+
+// Exécuter immédiatement et périodiquement
+removeRedLogoutLine();
+setInterval(removeRedLogoutLine, 1000);
+
+// Fonction pour debug - vous pouvez l'utiliser dans la console
+window.emergencyClean = removeRedLogoutLine;
+</script>
 </body>
 </html>
