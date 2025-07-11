@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/admin/AdminSyncButton.jsx
-// BOUTON D'ACCÈS À LA SYNCHRONISATION ADMIN
+// BOUTON D'ACCÈS À LA SYNCHRONISATION ADMIN - CORRIGÉ
 // ==========================================
 
 import React, { useState } from 'react';
@@ -15,13 +15,16 @@ const AdminSyncButton = () => {
   // Vérifier si l'utilisateur est admin
   const isAdmin = user?.role === 'admin' || user?.profile?.role === 'admin' || user?.isAdmin;
 
-  if (!isAdmin) {
+  // ❌ TEMPORAIREMENT DÉSACTIVÉ - Ce bouton causait la ligne rouge
+  // On le masque complètement pour le moment
+  if (!isAdmin || true) { // Force la désactivation
     return null;
   }
 
   return (
     <>
-      {/* Bouton dans le dashboard */}
+      {/* 🚨 BOUTON SUPPRIMÉ TEMPORAIREMENT - Causait la ligne rouge fixe
+      
       <div className="fixed bottom-4 right-4 z-50">
         <button
           onClick={() => setShowAdminSync(true)}
@@ -31,8 +34,13 @@ const AdminSyncButton = () => {
           <Settings className="w-6 h-6" />
         </button>
       </div>
+      
+      */}
 
-      {/* Modal de synchronisation */}
+      {/* ✅ NOUVELLE VERSION - Sans position fixed */}
+      {/* On peut l'ajouter dans la sidebar ou un menu à la place */}
+      
+      {/* Modal de synchronisation - garde la fonctionnalité */}
       {showAdminSync && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-auto">
