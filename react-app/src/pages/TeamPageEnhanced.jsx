@@ -1,6 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/TeamPageEnhanced.jsx
-// PAGE ÉQUIPE AMÉLIORÉE - AFFICHAGE EXHAUSTIF DES MEMBRES - SPARKLES CORRIGÉ
+// PAGE ÉQUIPE AMÉLIORÉE - SPARKLES → STAR CORRIGÉ
+// REMPLACER ENTIÈREMENT LE FICHIER EXISTANT
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +14,7 @@ import {
   RefreshCw,
   Filter,
   UserPlus,
-  Star, // ✅ Remplace Sparkles par Star
+  Star, // ✅ CORRIGÉ : Sparkles → Star
   CheckCircle,
   XCircle,
   Clock,
@@ -66,49 +67,91 @@ const SYNERGIA_ROLES = {
   },
   technique: {
     id: 'technique',
-    name: 'Technique & IT',
-    icon: '💻',
-    color: 'bg-purple-500',
-    description: 'Développement technique et infrastructure IT',
-    difficulty: 'Expert',
-    permissions: ['tech_access', 'system_admin']
+    name: 'Technique & Maintenance',
+    icon: '🔧',
+    color: 'bg-gray-500',
+    description: 'Support technique et maintenance',
+    difficulty: 'Moyen',
+    permissions: ['technical_access', 'maintenance']
+  },
+  logistique: {
+    id: 'logistique',
+    name: 'Logistique & Stock',
+    icon: '📦',
+    color: 'bg-teal-500',
+    description: 'Gestion logistique et stocks',
+    difficulty: 'Facile',
+    permissions: ['inventory_management', 'stock_access']
   }
 };
 
 /**
- * 🏢 COMPOSANT PRINCIPAL - PAGE ÉQUIPE AMÉLIORÉE
+ * 🏠 COMPOSANT PAGE ÉQUIPE AMÉLIORÉE
  */
 const TeamPageEnhanced = () => {
   const { user } = useAuthStore();
-  const { 
-    members, 
-    loading, 
-    error, 
-    stats, 
-    isOnline,
-    refreshData 
+  
+  // Hook amélioré pour récupérer tous les membres
+  const {
+    teamMembers,
+    filteredMembers,
+    loading,
+    error,
+    lastUpdated,
+    searchTerm,
+    statusFilter,
+    stats,
+    refreshTeam,
+    handleSearchChange,
+    handleStatusFilterChange,
+    totalMembers,
+    visibleMembers,
+    hasMembers
   } = useTeamEnhanced();
 
-  // États locaux pour l'interface
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [sortBy, setSortBy] = useState('name');
-  const [hasMembers, setHasMembers] = useState(false);
+  // États locaux
+  const [activeTab, setActiveTab] = useState('members');
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Vérifier si on a des membres
+  // Détecter la connectivité
   useEffect(() => {
-    setHasMembers(members && members.length > 0);
-  }, [members]);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Fonction pour obtenir l'icône de statut
+  const getStatusIcon = (member) => {
+    if (!member.lastActive) return <XCircle className="w-4 h-4 text-gray-400" />;
+    
+    const lastActive = new Date(member.lastActive);
+    const now = new Date();
+    const diffMinutes = (now - lastActive) / (1000 * 60);
+    
+    if (diffMinutes < 5) return <CheckCircle className="w-4 h-4 text-green-500" />;
+    if (diffMinutes < 60) return <Clock className="w-4 h-4 text-yellow-500" />;
+    if (diffMinutes < 1440) return <Clock className="w-4 h-4 text-blue-500" />;
+    return <XCircle className="w-4 h-4 text-red-500" />;
+  };
 
   // Calcul des statistiques améliorées
   const enhancedStats = {
-    total: members?.length || 0,
-    active: members?.filter(m => m.isOnline)?.length || 0,
-    online: members?.filter(m => m.lastActive && 
+    total: teamMembers?.length || 0,
+    active: teamMembers?.filter(m => m.isOnline)?.length || 0,
+    online: teamMembers?.filter(m => m.lastActive && 
       (new Date() - new Date(m.lastActive)) < 5 * 60 * 1000)?.length || 0,
-    recent: members?.filter(m => m.lastActive && 
+    recent: teamMembers?.filter(m => m.lastActive && 
       (new Date() - new Date(m.lastActive)) < 24 * 60 * 60 * 1000)?.length || 0,
-    inactive: members?.filter(m => !m.lastActive || 
+    inactive: teamMembers?.filter(m => !m.lastActive || 
       (new Date() - new Date(m.lastActive)) > 7 * 24 * 60 * 60 * 1000)?.length || 0
   };
 
@@ -147,7 +190,7 @@ const TeamPageEnhanced = () => {
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
               Gestion d'Équipe Complète
             </h1>
-            <Star className="w-8 h-8 text-purple-400 animate-pulse" /> {/* ✅ Remplace Sparkles par Star */}
+            <Star className="w-8 h-8 text-purple-400 animate-pulse" /> {/* ✅ CORRIGÉ : Sparkles → Star */}
             
             {/* Indicateur de connectivité */}
             <div className="flex items-center gap-2 ml-4">
@@ -200,14 +243,14 @@ const TeamPageEnhanced = () => {
                 type="text"
                 placeholder="Rechercher un membre (nom, email, rôle)..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
               />
             </div>
             
             <div className="flex gap-2">
               <button 
-                onClick={refreshData}
+                onClick={refreshTeam}
                 disabled={loading}
                 className="flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-lg transition-colors"
               >
@@ -227,9 +270,9 @@ const TeamPageEnhanced = () => {
             {filterOptions.map(option => (
               <button
                 key={option.value}
-                onClick={() => setFilterStatus(option.value)}
+                onClick={() => handleStatusFilterChange(option.value)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-                  filterStatus === option.value
+                  statusFilter === option.value
                     ? 'bg-blue-600 border-blue-500 text-white'
                     : 'bg-gray-800/50 border-gray-600 text-gray-300 hover:bg-gray-700'
                 }`}
@@ -237,7 +280,7 @@ const TeamPageEnhanced = () => {
                 <Filter className="w-4 h-4" />
                 <span>{option.label}</span>
                 <span className={`px-2 py-0.5 rounded-full text-xs ${
-                  filterStatus === option.value
+                  statusFilter === option.value
                     ? 'bg-blue-500'
                     : 'bg-gray-600'
                 }`}>
@@ -257,7 +300,7 @@ const TeamPageEnhanced = () => {
             </div>
             <p className="text-red-300 text-sm">{error}</p>
             <button 
-              onClick={refreshData}
+              onClick={refreshTeam}
               className="mt-2 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors"
             >
               Réessayer
@@ -278,11 +321,12 @@ const TeamPageEnhanced = () => {
         {/* Grille des membres */}
         {hasMembers ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {members.map(member => (
+            {filteredMembers?.map(member => (
               <MemberCard 
                 key={member.id} 
                 member={member} 
                 roles={SYNERGIA_ROLES}
+                getStatusIcon={getStatusIcon}
               />
             ))}
           </div>
@@ -298,7 +342,7 @@ const TeamPageEnhanced = () => {
             </p>
             <div className="space-y-3">
               <button 
-                onClick={refreshData}
+                onClick={refreshTeam}
                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
               >
                 <RefreshCw className="w-4 h-4 inline mr-2" />
@@ -315,7 +359,7 @@ const TeamPageEnhanced = () => {
 /**
  * 👤 COMPOSANT CARTE MEMBRE
  */
-const MemberCard = ({ member, roles }) => {
+const MemberCard = ({ member, roles, getStatusIcon }) => {
   const role = roles[member.role] || roles.commercial;
   
   // Calculer le statut de présence
