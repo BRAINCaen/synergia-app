@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/routing/AppRouter.jsx
-// ROUTER PRINCIPAL CORRIGÉ - Routes directes avec Layout wrapper
+// ROUTER PRINCIPAL CORRIGÉ - IMPORTS DE PAGES CORRECTS
 // ==========================================
 
 import React from 'react';
@@ -9,13 +9,12 @@ import Layout from '../layout/Layout.jsx';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { isAdmin } from '../../core/services/adminService.js';
 
-// Import des pages existantes
-import LoginPage from '../../pages/LoginPage.jsx';
-import DashboardPage from '../../pages/DashboardPage.jsx';
+// ✅ IMPORTS CORRIGÉS - Noms exacts des fichiers
+import Login from '../../pages/Login.jsx'; // ✅ Login.jsx pas LoginPage.jsx
+import Dashboard from '../../pages/Dashboard.jsx';
 import TasksPage from '../../pages/TasksPage.jsx';
 import ProjectsPage from '../../pages/ProjectsPage.jsx';
 import AnalyticsPage from '../../pages/AnalyticsPage.jsx';
-import LeaderboardPage from '../../pages/LeaderboardPage.jsx';
 import BadgesPage from '../../pages/BadgesPage.jsx';
 import GamificationPage from '../../pages/GamificationPage.jsx';
 import RewardsPage from '../../pages/RewardsPage.jsx';
@@ -26,10 +25,12 @@ import SettingsPage from '../../pages/SettingsPage.jsx';
 import OnboardingPage from '../../pages/OnboardingPage.jsx';
 import TimeTrackPage from '../../pages/TimeTrackPage.jsx';
 
-// Import des pages admin
-import AdminTaskValidationPage from '../../pages/admin/AdminTaskValidationPage.jsx';
-import AdminProfileTestPage from '../../pages/admin/AdminProfileTestPage.jsx';
-import AdminCompleteTestPage from '../../pages/admin/AdminCompleteTestPage.jsx';
+// ✅ IMPORTS ADMIN CORRIGÉS
+import AdminTaskValidationPage from '../../pages/AdminTaskValidationPage.jsx';
+import CompleteAdminTestPage from '../../pages/CompleteAdminTestPage.jsx';
+
+// ✅ IMPORT COMPONENT FALLBACK SI PAGES MANQUANTES
+import Leaderboard from '../gamification/Leaderboard.jsx';
 
 // Composant de protection des routes
 const ProtectedRoute = ({ children }) => {
@@ -71,143 +72,62 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
-// ✅ WRAPPER pour encapsuler chaque page dans Layout
-const LayoutWrapper = ({ children }) => (
-  <ProtectedRoute>
-    <Layout>
-      {children}
-    </Layout>
-  </ProtectedRoute>
-);
-
 const AppRouter = () => {
   const { user } = useAuthStore();
   
   return (
     <Routes>
-      {/* Route de connexion - SANS Layout */}
+      {/* Route de connexion - ✅ Login.jsx */}
       <Route 
         path="/login" 
-        element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} 
+        element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
       />
       
-      {/* ✅ ROUTES DIRECTES - Chaque page wrappée dans Layout */}
-      
-      {/* Pages principales */}
-      <Route path="/dashboard" element={
-        <LayoutWrapper>
-          <DashboardPage />
-        </LayoutWrapper>
-      } />
-      
-      <Route path="/tasks" element={
-        <LayoutWrapper>
-          <TasksPage />
-        </LayoutWrapper>
-      } />
-      
-      <Route path="/projects" element={
-        <LayoutWrapper>
-          <ProjectsPage />
-        </LayoutWrapper>
-      } />
-      
-      <Route path="/analytics" element={
-        <LayoutWrapper>
-          <AnalyticsPage />
-        </LayoutWrapper>
-      } />
-      
-      {/* Gamification */}
-      <Route path="/leaderboard" element={
-        <LayoutWrapper>
-          <LeaderboardPage />
-        </LayoutWrapper>
-      } />
-      
-      <Route path="/badges" element={
-        <LayoutWrapper>
-          <BadgesPage />
-        </LayoutWrapper>
-      } />
-      
-      <Route path="/gamification" element={
-        <LayoutWrapper>
-          <GamificationPage />
-        </LayoutWrapper>
-      } />
-      
-      <Route path="/rewards" element={
-        <LayoutWrapper>
-          <RewardsPage />
-        </LayoutWrapper>
-      } />
-      
-      {/* Équipe & Social */}
-      <Route path="/team" element={
-        <LayoutWrapper>
-          <TeamPage />
-        </LayoutWrapper>
-      } />
-      
-      <Route path="/users" element={
-        <LayoutWrapper>
-          <UsersPage />
-        </LayoutWrapper>
-      } />
-      
-      {/* Personnel */}
-      <Route path="/profile" element={
-        <LayoutWrapper>
-          <ProfilePage />
-        </LayoutWrapper>
-      } />
-      
-      <Route path="/settings" element={
-        <LayoutWrapper>
-          <SettingsPage />
-        </LayoutWrapper>
-      } />
-      
-      <Route path="/onboarding" element={
-        <LayoutWrapper>
-          <OnboardingPage />
-        </LayoutWrapper>
-      } />
-      
-      <Route path="/timetrack" element={
-        <LayoutWrapper>
-          <TimeTrackPage />
-        </LayoutWrapper>
-      } />
-      
-      {/* Routes admin protégées */}
-      <Route path="/admin/task-validation" element={
-        <LayoutWrapper>
+      {/* Routes protégées avec layout */}
+      <Route path="/" element={
+        <ProtectedRoute>
+          <Layout />
+        </ProtectedRoute>
+      }>
+        {/* Redirection par défaut */}
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        
+        {/* Pages principales */}
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="tasks" element={<TasksPage />} />
+        <Route path="projects" element={<ProjectsPage />} />
+        <Route path="analytics" element={<AnalyticsPage />} />
+        
+        {/* Gamification */}
+        <Route path="leaderboard" element={<Leaderboard />} />
+        <Route path="badges" element={<BadgesPage />} />
+        <Route path="gamification" element={<GamificationPage />} />
+        <Route path="rewards" element={<RewardsPage />} />
+        
+        {/* Équipe & Social */}
+        <Route path="team" element={<TeamPage />} />
+        <Route path="users" element={<UsersPage />} />
+        
+        {/* Personnel */}
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="onboarding" element={<OnboardingPage />} />
+        <Route path="timetrack" element={<TimeTrackPage />} />
+        
+        {/* Routes admin protégées */}
+        <Route path="admin/task-validation" element={
           <AdminRoute>
             <AdminTaskValidationPage />
           </AdminRoute>
-        </LayoutWrapper>
-      } />
-      
-      <Route path="/admin/profile-test" element={
-        <LayoutWrapper>
+        } />
+        <Route path="admin/complete-test" element={
           <AdminRoute>
-            <AdminProfileTestPage />
+            <CompleteAdminTestPage />
           </AdminRoute>
-        </LayoutWrapper>
-      } />
+        } />
+      </Route>
       
-      <Route path="/admin/complete-test" element={
-        <LayoutWrapper>
-          <AdminRoute>
-            <AdminCompleteTestPage />
-          </AdminRoute>
-        </LayoutWrapper>
-      } />
-      
-      {/* Routes de redirection */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      {/* Route de fallback */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
