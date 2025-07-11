@@ -1,95 +1,46 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/authStore.js
-// VERSION SANS FIREBASE - Bypass total du problème d'import
+// AUTHSTORE SIMPLIFIÉ ET STABLE - PLUS DE BOUCLE !
 // ==========================================
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-
-console.log('🚨 authStore SANS FIREBASE - Démarrage...');
-
-// 🚨 MOCK AUTHSERVICE - Remplace Firebase complètement
-const mockAuthService = {
-  async signInWithGoogle() {
-    console.log('🔐 MOCK - Simulation connexion Google');
-    return {
-      success: true,
-      uid: 'mock-user-123',
-      email: 'user@synergia.com',
-      displayName: 'Utilisateur Synergia',
-      photoURL: null,
-      emailVerified: true
-    };
-  },
-
-  async signOut() {
-    console.log('🚪 MOCK - Simulation déconnexion');
-    return { success: true };
-  },
-
-  onAuthStateChanged(callback) {
-    console.log('👂 MOCK - Simulation onAuthStateChanged');
-    // Simuler un utilisateur connecté immédiatement
-    setTimeout(() => {
-      callback({
-        uid: 'mock-user-123',
-        email: 'user@synergia.com',
-        displayName: 'Utilisateur Synergia',
-        photoURL: null,
-        emailVerified: true,
-        metadata: {
-          creationTime: new Date().toISOString(),
-          lastSignInTime: new Date().toISOString()
-        }
-      });
-    }, 1000); // 1 seconde pour simuler le chargement
-    
-    // Retourner une fonction de désabonnement mock
-    return () => console.log('🔇 MOCK - Désabonnement auth');
-  },
-
-  getCurrentUser() {
-    return {
-      uid: 'mock-user-123',
-      email: 'user@synergia.com',
-      displayName: 'Utilisateur Synergia'
-    };
-  }
-};
+import { authService } from '../../core/firebase.js'
 
 export const useAuthStore = create(
   persist(
     (set, get) => ({
-      // ✅ État initial
+      // ✅ ÉTAT SIMPLE ET CLAIR
       user: null,
       loading: true,
       error: null,
       isAuthenticated: false,
       initialized: false,
 
-      // 🚨 INITIALIZE AUTH SANS FIREBASE
-      initializeAuth: async () => {
-        console.log('🚀 initializeAuth SANS FIREBASE - Démarrage...');
-        set({ loading: true, error: null });
+      // ✅ INITIALISATION AUTOMATIQUE AU DÉMARRAGE
+      initialize: () => {
+        console.log('🔄 Initialisation AuthStore...');
+        
+        if (get().initialized) {
+          console.log('ℹ️ AuthStore déjà initialisé');
+          return;
+        }
+
+        set({ loading: true });
         
         try {
-          console.log('🎭 Utilisation mockAuthService au lieu de Firebase');
-          
-          // ✅ Utiliser mockAuthService au lieu de Firebase
-          const unsubscribe = mockAuthService.onAuthStateChanged(async (mockUser) => {
-            console.log('🔄 MOCK auth state change:', mockUser ? 'Connecté' : 'Déconnecté');
-            
-            if (mockUser) {
+          const unsubscribe = authService.onAuthStateChanged((firebaseUser) => {
+            if (firebaseUser) {
               const userData = {
-                uid: mockUser.uid,
-                email: mockUser.email,
-                displayName: mockUser.displayName || mockUser.email,
-                photoURL: mockUser.photoURL || null,
-                emailVerified: mockUser.emailVerified || false,
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
+                emailVerified: firebaseUser.emailVerified,
                 loginAt: new Date().toISOString(),
                 metadata: {
-                  creationTime: mockUser.metadata?.creationTime,
-                  lastSignInTime: mockUser.metadata?.lastSignInTime
+                  creationTime: firebaseUser.metadata?.creationTime,
+                  lastSignInTime: firebaseUser.metadata?.lastSignInTime
                 }
               };
               
@@ -101,8 +52,7 @@ export const useAuthStore = create(
                 initialized: true
               });
               
-              console.log('✅ MOCK - Utilisateur connecté:', userData.email);
-              
+              console.log('✅ Utilisateur connecté:', userData.email);
             } else {
               set({ 
                 user: null, 
@@ -112,15 +62,15 @@ export const useAuthStore = create(
                 initialized: true
               });
               
-              console.log('ℹ️ MOCK - Aucun utilisateur connecté');
+              console.log('ℹ️ Aucun utilisateur connecté');
             }
           });
           
-          console.log('✅ initializeAuth SANS FIREBASE terminé avec succès');
-          return unsubscribe;
+          // Stocker la fonction de désabonnement
+          set({ unsubscribe });
           
         } catch (error) {
-          console.error('❌ Erreur initializeAuth MOCK:', error);
+          console.error('❌ Erreur initialisation auth:', error);
           set({ 
             loading: false, 
             error: error.message,
@@ -129,164 +79,127 @@ export const useAuthStore = create(
         }
       },
 
-      // ✅ Connexion avec mockAuthService
+      // ✅ CONNEXION GOOGLE
       signInWithGoogle: async () => {
         try {
           set({ loading: true, error: null });
           
-          console.log('🔐 MOCK - Tentative de connexion Google...');
-          const result = await mockAuthService.signInWithGoogle();
+          const result = await authService.signInWithGoogle();
           
           if (result.success) {
-            // Créer userData à partir du résultat mock
-            const userData = {
-              uid: result.uid,
-              email: result.email,
-              displayName: result.displayName,
-              photoURL: result.photoURL,
-              emailVerified: result.emailVerified,
-              loginAt: new Date().toISOString()
-            };
-            
-            set({ 
-              user: userData,
-              isAuthenticated: true,
-              loading: false,
-              error: null,
-              initialized: true
-            });
-            
-            console.log('✅ MOCK - Connexion Google réussie');
+            console.log('✅ Connexion Google initiée');
             return { success: true };
           } else {
-            set({ error: 'Erreur connexion mock', loading: false });
-            return { success: false, error: 'Erreur connexion mock' };
+            set({ error: result.error, loading: false });
+            return { success: false, error: result.error };
           }
         } catch (error) {
-          console.error('❌ Erreur connexion Google MOCK:', error);
+          console.error('❌ Erreur connexion Google:', error);
           set({ error: error.message, loading: false });
-          return { success: false, error: error.message };
+          throw error;
         }
       },
 
-      // ✅ Déconnexion avec mockAuthService
+      // ✅ CONNEXION EMAIL/PASSWORD
+      signInWithEmail: async (email, password) => {
+        try {
+          set({ loading: true, error: null });
+          
+          const result = await authService.signInWithEmail(email, password);
+          
+          if (result.success) {
+            console.log('✅ Connexion email réussie');
+            return { success: true };
+          } else {
+            set({ error: result.error, loading: false });
+            return { success: false, error: result.error };
+          }
+        } catch (error) {
+          console.error('❌ Erreur connexion email:', error);
+          set({ error: error.message, loading: false });
+          throw error;
+        }
+      },
+
+      // ✅ INSCRIPTION EMAIL/PASSWORD
+      signUpWithEmail: async (email, password, displayName) => {
+        try {
+          set({ loading: true, error: null });
+          
+          const result = await authService.signUpWithEmail(email, password, displayName);
+          
+          if (result.success) {
+            console.log('✅ Inscription réussie');
+            return { success: true };
+          } else {
+            set({ error: result.error, loading: false });
+            return { success: false, error: result.error };
+          }
+        } catch (error) {
+          console.error('❌ Erreur inscription:', error);
+          set({ error: error.message, loading: false });
+          throw error;
+        }
+      },
+
+      // ✅ DÉCONNEXION
       signOut: async () => {
         try {
           set({ loading: true, error: null });
           
-          console.log('🚪 MOCK - Tentative de déconnexion...');
-          const result = await mockAuthService.signOut();
+          await authService.signOut();
           
-          if (result.success) {
-            set({ 
-              user: null, 
-              isAuthenticated: false, 
-              loading: false, 
-              error: null 
-            });
-            
-            console.log('✅ MOCK - Déconnexion réussie');
-            return { success: true };
-          } else {
-            set({ error: 'Erreur déconnexion mock', loading: false });
-            return { success: false, error: 'Erreur déconnexion mock' };
-          }
+          set({ 
+            user: null, 
+            isAuthenticated: false,
+            loading: false, 
+            error: null 
+          });
+          
+          console.log('✅ Déconnexion réussie');
         } catch (error) {
-          console.error('❌ Erreur déconnexion MOCK:', error);
-          return { success: false, error: error.message };
+          console.error('❌ Erreur de déconnexion:', error);
+          set({ error: error.message, loading: false });
+          throw error;
         }
       },
 
-      // 🚨 FONCTIONS DEBUG AMÉLIORÉES
-      forceUnlock: () => {
-        console.log('🚨 FORCE UNLOCK');
-        set({ 
-          loading: false, 
-          initialized: true,
-          error: null
-        });
+      // ✅ RÉINITIALISATION MOT DE PASSE
+      resetPassword: async (email) => {
+        try {
+          set({ loading: true, error: null });
+          await authService.sendPasswordResetEmail(email);
+          set({ loading: false });
+          console.log('✅ Email de réinitialisation envoyé');
+        } catch (error) {
+          console.error('❌ Erreur réinitialisation:', error);
+          set({ error: error.message, loading: false });
+          throw error;
+        }
       },
 
-      debugLogin: () => {
-        console.log('🔐 DEBUG LOGIN - Utilisateur mock');
-        set({
-          user: {
-            uid: 'debug-user-123',
-            email: 'debug@synergia.com',
-            displayName: 'Utilisateur Debug',
-            photoURL: null,
-            emailVerified: true,
-            loginAt: new Date().toISOString()
-          },
-          isAuthenticated: true,
-          loading: false,
-          error: null,
-          initialized: true
-        });
-      },
-
-      emergencyUnlock: () => {
-        console.log('🆘 EMERGENCY UNLOCK - Force totale');
-        set({ 
-          loading: false, 
-          initialized: true, 
-          error: null 
-        });
-      },
-
-      // ✅ Actions utilitaires
-      setUser: (user) => set({ user }),
-      setLoading: (loading) => set({ loading }),
-      setError: (error) => set({ error }),
-      clearError: () => set({ error: null }),
-      
-      reset: () => set({ 
-        user: null, 
-        loading: false, 
-        error: null, 
-        isAuthenticated: false,
-        initialized: false
-      }),
-
-      // ✅ Getters
-      getCurrentUser: () => get().user,
-      isLoading: () => get().loading,
-      hasError: () => !!get().error,
-      isReady: () => get().initialized && !get().loading
+      // ✅ EFFACER ERREUR
+      clearError: () => set({ error: null })
     }),
     {
-      name: 'synergia-auth-no-firebase',
+      name: 'synergia-auth-store',
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated
-      }),
-      version: 4 // Nouvelle version sans Firebase
+      })
     }
   )
 );
 
-// 🚨 EXPOSITION COMPLÈTE DES FONCTIONS DEBUG
-if (typeof window !== 'undefined') {
-  window.debugAuth = {
-    forceUnlock: () => useAuthStore.getState().forceUnlock(),
-    debugLogin: () => useAuthStore.getState().debugLogin(),
-    emergencyUnlock: () => useAuthStore.getState().emergencyUnlock(),
-    getState: () => useAuthStore.getState(),
-    reset: () => useAuthStore.getState().reset(),
-    // 🆕 Fonction de démarrage forcé
-    forceStart: () => {
-      console.log('🚀 FORCE START - Démarrage forcé de l\'app');
-      useAuthStore.getState().debugLogin();
-      useAuthStore.getState().forceUnlock();
-    }
-  };
-  
-  console.log('🚨 authStore SANS FIREBASE configuré');
-  console.log('🎭 Mode MOCK activé - pas de dépendance Firebase');
-  console.log('🆘 Fonctions disponibles:');
-  console.log('  - window.debugAuth.forceStart() : Démarrage forcé total');
-  console.log('  - window.debugAuth.emergencyUnlock() : Déverrouillage d\'urgence');
-  console.log('  - window.debugAuth.debugLogin() : Connexion de test');
-}
+// ✅ INITIALISATION AUTOMATIQUE AU CHARGEMENT DU MODULE
+const initializeStore = () => {
+  const store = useAuthStore.getState();
+  if (!store.initialized) {
+    store.initialize();
+  }
+};
 
-export default useAuthStore;
+// Initialiser automatiquement
+initializeStore();
+
+console.log('✅ AuthStore chargé et initialisé automatiquement');
