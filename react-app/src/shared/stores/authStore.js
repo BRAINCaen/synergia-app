@@ -1,177 +1,139 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/authStore.js
-// Store d'authentification TEMPORAIRE SANS GAMESTORE
+// Store d'authentification SIMPLIFIÉ QUI FONCTIONNE
 // ==========================================
 
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import { authService } from '../../core/firebase'
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut as firebaseSignOut,
+  onAuthStateChanged 
+} from 'firebase/auth';
+import { auth } from '../../core/firebase.js';
+
+// Créer le provider Google
+const googleProvider = new GoogleAuthProvider();
 
 export const useAuthStore = create(
   persist(
     (set, get) => ({
-      // État
+      // État initial
       user: null,
       loading: true,
       error: null,
       isAuthenticated: false,
+      initialized: false,
 
-      // ✅ FONCTION INITIALIZEAUTH SANS GAMESTORE
+      // Actions
       initializeAuth: () => {
-        set({ loading: true })
+        console.log('🔄 Initialisation de l\'authentification...');
         
-        const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
+        set({ loading: true });
+        
+        const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+          console.log('🔔 Auth state changed:', firebaseUser ? 'Connecté' : 'Déconnecté');
+          
           if (firebaseUser) {
             const userData = {
               uid: firebaseUser.uid,
               email: firebaseUser.email,
               displayName: firebaseUser.displayName,
               photoURL: firebaseUser.photoURL,
-              emailVerified: firebaseUser.emailVerified,
-              loginAt: new Date().toISOString(),
-              metadata: {
-                creationTime: firebaseUser.metadata?.creationTime,
-                lastSignInTime: firebaseUser.metadata?.lastSignInTime
-              }
-            }
+              emailVerified: firebaseUser.emailVerified
+            };
             
             set({ 
               user: userData, 
               isAuthenticated: true, 
               loading: false, 
-              error: null 
-            })
+              error: null,
+              initialized: true
+            });
             
-            console.log('✅ Utilisateur connecté:', userData.email)
-
-            // 🚨 GAMESTORE TEMPORAIREMENT DÉSACTIVÉ
-            console.log('ℹ️ GameStore désactivé temporairement pour debug')
-            
+            console.log('✅ Utilisateur connecté:', userData.email);
           } else {
             set({ 
               user: null, 
               isAuthenticated: false, 
               loading: false, 
-              error: null 
-            })
+              error: null,
+              initialized: true
+            });
             
-            console.log('ℹ️ Aucun utilisateur connecté')
+            console.log('ℹ️ Aucun utilisateur connecté');
           }
-        })
+        });
 
-        // Retourner la fonction de désabonnement
-        return unsubscribe
+        // Retourner la fonction de nettoyage
+        return unsubscribe;
       },
 
-      // ✅ CONNEXION GOOGLE ORIGINALE
+      // Connexion avec Google
       signInWithGoogle: async () => {
         try {
-          set({ loading: true, error: null })
-          const result = await authService.signInWithGoogle()
+          set({ loading: true, error: null });
           
-          console.log('✅ Connexion Google réussie')
-          return { success: true, user: result }
-        } catch (error) {
-          console.error('❌ Erreur connexion Google:', error)
-          set({ error: error.message, loading: false })
-          throw error
-        }
-      },
-
-      signIn: async (email, password) => {
-        try {
-          set({ loading: true, error: null })
-          const result = await authService.signInWithEmailAndPassword(email, password)
-          console.log('✅ Connexion réussie')
-          return result
-        } catch (error) {
-          console.error('❌ Erreur de connexion:', error)
-          set({ error: error.message, loading: false })
-          throw error
-        }
-      },
-
-      signUp: async (email, password, displayName) => {
-        try {
-          set({ loading: true, error: null })
-          const result = await authService.createUserWithEmailAndPassword(email, password)
+          console.log('🔐 Tentative de connexion Google...');
           
-          if (displayName && result.user) {
-            await authService.updateProfile(result.user, { displayName })
+          const result = await signInWithPopup(auth, googleProvider);
+          const user = result.user;
+          
+          console.log('✅ Connexion Google réussie:', user.email);
+          
+          return { success: true, user };
+        } catch (error) {
+          console.error('❌ Erreur connexion Google:', error);
+          
+          let errorMessage = 'Erreur de connexion';
+          if (error.code === 'auth/popup-closed-by-user') {
+            errorMessage = 'Connexion annulée';
+          } else if (error.code === 'auth/popup-blocked') {
+            errorMessage = 'Popup bloquée par le navigateur';
           }
           
-          console.log('✅ Inscription réussie')
-          return result
-        } catch (error) {
-          console.error('❌ Erreur d\'inscription:', error)
-          set({ error: error.message, loading: false })
-          throw error
+          set({ error: errorMessage, loading: false });
+          return { success: false, error: errorMessage };
         }
       },
 
+      // Déconnexion
       signOut: async () => {
         try {
-          set({ loading: true })
+          set({ loading: true, error: null });
           
-          // 🚨 NETTOYAGE GAMESTORE DÉSACTIVÉ TEMPORAIREMENT
-          console.log('ℹ️ Nettoyage GameStore désactivé temporairement')
+          await firebaseSignOut(auth);
           
-          await authService.signOut()
+          console.log('✅ Déconnexion réussie');
           
           set({ 
             user: null, 
             isAuthenticated: false, 
-            loading: false, 
+            loading: false,
             error: null 
-          })
+          });
           
-          console.log('✅ Déconnexion réussie')
+          return { success: true };
         } catch (error) {
-          console.error('❌ Erreur de déconnexion:', error)
-          set({ error: error.message, loading: false })
-          throw error
+          console.error('❌ Erreur déconnexion:', error);
+          
+          set({ error: 'Erreur de déconnexion', loading: false });
+          return { success: false, error: error.message };
         }
       },
 
-      resetPassword: async (email) => {
-        try {
-          set({ loading: true, error: null })
-          await authService.sendPasswordResetEmail(email)
-          set({ loading: false })
-          console.log('✅ Email de réinitialisation envoyé')
-        } catch (error) {
-          console.error('❌ Erreur réinitialisation:', error)
-          set({ error: error.message, loading: false })
-          throw error
-        }
+      // Nettoyer les erreurs
+      clearError: () => {
+        set({ error: null });
       },
 
-      updateProfile: async (updates) => {
-        try {
-          const currentUser = authService.currentUser
-          if (!currentUser) throw new Error('Aucun utilisateur connecté')
-
-          set({ loading: true, error: null })
-          await authService.updateProfile(currentUser, updates)
-          
-          // Mettre à jour le store local
-          const currentState = get()
-          if (currentState.user) {
-            set({
-              user: { ...currentState.user, ...updates },
-              loading: false
-            })
-          }
-          
-          console.log('✅ Profil mis à jour')
-        } catch (error) {
-          console.error('❌ Erreur mise à jour profil:', error)
-          set({ error: error.message, loading: false })
-          throw error
-        }
-      },
-
-      clearError: () => set({ error: null })
+      // Mettre à jour l'utilisateur
+      updateUser: (userData) => {
+        set(state => ({
+          user: { ...state.user, ...userData }
+        }));
+      }
     }),
     {
       name: 'auth-store',
@@ -181,4 +143,16 @@ export const useAuthStore = create(
       })
     }
   )
-)
+);
+
+// Auto-initialisation
+let authInitialized = false;
+
+if (!authInitialized) {
+  const store = useAuthStore.getState();
+  store.initializeAuth();
+  authInitialized = true;
+  console.log('🚀 AuthStore auto-initialisé');
+}
+
+export default useAuthStore;
