@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/routing/AppRouter.jsx
-// ROUTER PRINCIPAL CORRIGÉ - IMPORTS DE PAGES CORRECTS
+// ROUTER PRINCIPAL CORRIGÉ - AVEC ROUTES DE PROGRESSION AJOUTÉES
 // ==========================================
 
 import React from 'react';
@@ -24,6 +24,11 @@ import ProfilePage from '../../pages/ProfilePage.jsx';
 import SettingsPage from '../../pages/SettingsPage.jsx';
 import OnboardingPage from '../../pages/OnboardingPage.jsx';
 import TimeTrackPage from '../../pages/TimeTrackPage.jsx';
+
+// 🎯 IMPORTS PAGES DE PROGRESSION - AJOUTÉES
+import RoleProgressionPage from '../../pages/RoleProgressionPage.jsx';
+import RoleTasksPage from '../../pages/RoleTasksPage.jsx';
+import RoleBadgesPage from '../../pages/RoleBadgesPage.jsx';
 
 // ✅ IMPORTS ADMIN CORRIGÉS
 import AdminTaskValidationPage from '../../pages/AdminTaskValidationPage.jsx';
@@ -103,6 +108,11 @@ const AppRouter = () => {
         <Route path="badges" element={<BadgesPage />} />
         <Route path="gamification" element={<GamificationPage />} />
         <Route path="rewards" element={<RewardsPage />} />
+        
+        {/* 🎯 ROUTES DE PROGRESSION - NOUVELLES ROUTES AJOUTÉES */}
+        <Route path="role/progression" element={<RoleProgressionPage />} />
+        <Route path="role/tasks" element={<RoleTasksPage />} />
+        <Route path="role/badges" element={<RoleBadgesPage />} />
         
         {/* Équipe & Social */}
         <Route path="team" element={<TeamPage />} />
