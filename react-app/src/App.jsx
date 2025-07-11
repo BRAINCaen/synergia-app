@@ -1,8 +1,11 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APPLICATION PRINCIPALE AVEC SYSTÈME DE PROGRESSION PAR RÔLES INTÉGRÉ
-// Version compatible avec build Netlify - ERREUR DE SYNTAXE CORRIGÉE
+// APPLICATION PRINCIPALE AVEC POLYFILL SPARKLES
+// REMPLACER ENTIÈREMENT LE FICHIER EXISTANT
 // ==========================================
+
+// 🚨 POLYFILL SPARKLES - DOIT ÊTRE EN PREMIER
+import './core/sparklesFix.js';
 
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
@@ -19,7 +22,7 @@ import ProjectsPage from './pages/ProjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import GamificationPage from './pages/GamificationPage.jsx';
 
-// Component de chargement simple (CORRIGÉ)
+// Component de chargement simple
 const LoadingScreen = ({ message }) => (
   <div className="min-h-screen bg-gray-900 flex items-center justify-center">
     <div className="text-center">
@@ -35,7 +38,7 @@ const ToastContainer = () => null;
 // ToastProvider simple
 const ToastProvider = ({ children }) => <>{children}</>;
 
-// Page de fallback pour les fonctionnalités en développement (CORRIGÉE)
+// Page de fallback pour les fonctionnalités en développement
 const FallbackPage = ({ title, description }) => (
   <div className="min-h-screen bg-gray-900 p-6">
     <div className="max-w-4xl mx-auto text-center">
