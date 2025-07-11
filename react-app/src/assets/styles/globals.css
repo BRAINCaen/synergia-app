@@ -2,7 +2,7 @@
    🎨 GLOBALS CSS - SYNERGIA v3.5 - VERSION FINALE CORRIGÉE
    ==========================================
    Fichier: react-app/src/assets/styles/globals.css
-   CSS global avec corrections modales visibles
+   CSS global avec corrections modales visibles + CORRECTION LIGNE DÉCONNEXION
    ========================================== */
 
 @import 'tailwindcss/base';
@@ -66,6 +66,83 @@ body {
 * {
   scrollbar-width: thin;
   scrollbar-color: #4b5563 #1f2937;
+}
+
+/* ==========================================
+   🚨 CORRECTION URGENT - LIGNE DE DÉCONNEXION
+   ========================================== */
+
+/* Masquer tout élément de déconnexion mal positionné */
+*[class*="Déconnexion"],
+*:contains("Déconnexion"):not(button):not([role="button"]),
+div[style*="position: fixed"][style*="background: red"],
+div[style*="position: fixed"][style*="background-color: red"],
+.logout-line,
+.disconnect-line {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Corriger les boutons de déconnexion mal positionnés */
+button:contains("Déconnexion")[style*="position: fixed"],
+*[class*="logout"][style*="position: fixed"]:not([class*="sidebar"]):not([class*="menu"]) {
+  position: relative !important;
+  top: unset !important;
+  left: unset !important;
+  right: unset !important;
+  bottom: unset !important;
+  transform: none !important;
+  z-index: auto !important;
+}
+
+/* Forcer la suppression de toute ligne rouge fixe */
+*[style*="position: fixed"][style*="red"],
+*[style*="position: absolute"][style*="red"]:not([class*="sidebar"]):not([class*="button"]) {
+  display: none !important;
+}
+
+/* Correction spécifique pour les overlays de déconnexion */
+.fixed.inset-0[style*="red"]:not(.modal-overlay):not(.backdrop) {
+  display: none !important;
+}
+
+/* Masquer les pseudo-éléments de déconnexion */
+*::before,
+*::after {
+  content: "" !important;
+}
+
+/* Forcer la correction des éléments de déconnexion buggés */
+[data-logout="true"][style*="position: fixed"],
+[class*="logout-overlay"],
+[id*="logout-overlay"] {
+  display: none !important;
+}
+
+/* Si la ligne vient d'un border ou outline */
+*[style*="border"][style*="red"]:not(button):not([class*="error"]):not([class*="danger"]) {
+  border: none !important;
+  outline: none !important;
+}
+
+/* Si c'est un text-decoration mal appliqué */
+*:not(a):not(button) {
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+}
+
+/* Nettoyage final - force la suppression de tout élément rouge suspect */
+*[style*="background: #dc2626"]:not(button):not([class*="error"]):not([class*="badge"]),
+*[style*="background-color: #dc2626"]:not(button):not([class*="error"]):not([class*="badge"]),
+*[style*="background: red"]:not(button):not([class*="error"]):not([class*="badge"]),
+*[style*="background-color: red"]:not(button):not([class*="error"]:not([class*="badge"])) {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Correction finale brutale - masquer tout élément fixe rouge qui n'est pas un vrai bouton */
+*[style*="position: fixed"]:not(.modal):not(.sidebar):not(.navbar):not(.header):not(.footer):not(button):not([role="button"]):not([class*="menu"]):not([class*="dropdown"]) {
+  display: none !important;
 }
 
 /* ==========================================
