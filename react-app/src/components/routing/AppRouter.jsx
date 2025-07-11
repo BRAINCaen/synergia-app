@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/routing/AppRouter.jsx
-// ROUTER PRINCIPAL CORRIGÉ - AVEC ROUTES DE PROGRESSION AJOUTÉES
+// ROUTER PRINCIPAL AVEC NOUVELLE PAGE ESCAPE PROGRESSION
 // ==========================================
 
 import React from 'react';
@@ -10,7 +10,7 @@ import { useAuthStore } from '../../shared/stores/authStore.js';
 import { isAdmin } from '../../core/services/adminService.js';
 
 // ✅ IMPORTS CORRIGÉS - Noms exacts des fichiers
-import Login from '../../pages/Login.jsx'; // ✅ Login.jsx pas LoginPage.jsx
+import Login from '../../pages/Login.jsx';
 import Dashboard from '../../pages/Dashboard.jsx';
 import TasksPage from '../../pages/TasksPage.jsx';
 import ProjectsPage from '../../pages/ProjectsPage.jsx';
@@ -29,6 +29,9 @@ import TimeTrackPage from '../../pages/TimeTrackPage.jsx';
 import RoleProgressionPage from '../../pages/RoleProgressionPage.jsx';
 import RoleTasksPage from '../../pages/RoleTasksPage.jsx';
 import RoleBadgesPage from '../../pages/RoleBadgesPage.jsx';
+
+// 🚀 NOUVELLE PAGE ESCAPE PROGRESSION
+import EscapeProgressionPage from '../../pages/EscapeProgressionPage.jsx';
 
 // ✅ IMPORTS ADMIN CORRIGÉS
 import AdminTaskValidationPage from '../../pages/AdminTaskValidationPage.jsx';
@@ -82,7 +85,7 @@ const AppRouter = () => {
   
   return (
     <Routes>
-      {/* Route de connexion - ✅ Login.jsx */}
+      {/* Route de connexion */}
       <Route 
         path="/login" 
         element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
@@ -113,6 +116,9 @@ const AppRouter = () => {
         <Route path="role/progression" element={<RoleProgressionPage />} />
         <Route path="role/tasks" element={<RoleTasksPage />} />
         <Route path="role/badges" element={<RoleBadgesPage />} />
+        
+        {/* 🚀 NOUVELLE ROUTE ESCAPE PROGRESSION */}
+        <Route path="escape-progression" element={<EscapeProgressionPage />} />
         
         {/* Équipe & Social */}
         <Route path="team" element={<TeamPage />} />
