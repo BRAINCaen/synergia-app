@@ -4,7 +4,17 @@
    Fichier: react-app/src/assets/styles/globals.css
    CSS global avec corrections modales visibles + CORRECTION LIGNE DÉCONNEXION
    ========================================== */
+/* CORRECTION D'URGENCE - à ajouter au début du fichier globals.css */
+*[style*="position: fixed"]:not(.modal):not(.sidebar):not(.navbar):not(.header):not(.menu):not(.dropdown) {
+  display: none !important;
+  visibility: hidden !important;
+}
 
+.bg-red-600:not(button):not(.sidebar *):not(.menu *) {
+  background-color: transparent !important;
+  color: transparent !important;
+  display: none !important;
+}
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
