@@ -1,6 +1,6 @@
 // ==========================================
-// 📁 react-app/src/App.jsx
-// APPLICATION PRINCIPALE - BOUCLE INFINIE CORRIGÉE
+// 📁 react-app/src/App.jsx  
+// SOLUTION D'URGENCE - TIMEOUT DE CHARGEMENT
 // ==========================================
 
 import React, { useEffect, useState } from 'react';
@@ -37,8 +37,8 @@ import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
 import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 
-// Component de chargement simple et efficace
-const LoadingScreen = ({ message }) => (
+// Component de chargement amélioré
+const LoadingScreen = ({ message, showTimeout = false }) => (
   <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
     <div className="text-center">
       <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold shadow-2xl mb-6">
@@ -46,36 +46,67 @@ const LoadingScreen = ({ message }) => (
       </div>
       <h1 className="text-3xl font-bold text-white mb-2">Synergia</h1>
       <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-600 mx-auto mb-4"></div>
-      <p className="text-blue-200">{message || 'Chargement...'}</p>
+      <p className="text-blue-200 mb-4">{message || 'Chargement...'}</p>
+      
+      {showTimeout && (
+        <div className="mt-6 space-y-3">
+          <p className="text-yellow-300 text-sm">Le chargement prend plus de temps que prévu...</p>
+          <button
+            onClick={() => window.location.href = '/login'}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+          >
+            Forcer la redirection
+          </button>
+        </div>
+      )}
     </div>
   </div>
 );
 
-// 🔧 HOOK AUTH CORRIGÉ - Plus de boucle infinie !
-const useAuthState = () => {
+// 🔧 HOOK AUTH AVEC TIMEOUT DE SÉCURITÉ
+const useAuthWithTimeout = () => {
   const { user, loading } = useAuthStore();
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [showTimeout, setShowTimeout] = useState(false);
+  const [forceLoaded, setForceLoaded] = useState(false);
 
   useEffect(() => {
-    // ✅ CORRECTION : Pas d'appel à initializeAuth qui n'existe pas
-    // On attend juste que loading devienne false
-    if (!loading) {
-      setIsInitialized(true);
-    }
-  }, [loading]);
+    // Timeout de sécurité après 5 secondes
+    const timeoutId = setTimeout(() => {
+      if (loading && !user) {
+        console.log('⏰ Timeout de chargement atteint - Force le passage');
+        setShowTimeout(true);
+        
+        // Force le loading à false après 8 secondes
+        setTimeout(() => {
+          setForceLoaded(true);
+        }, 3000);
+      }
+    }, 5000);
 
+    return () => clearTimeout(timeoutId);
+  }, [loading, user]);
+
+  // Si force loaded, on considère que l'auth est terminée
+  const finalLoading = forceLoaded ? false : loading;
+  
   return { 
     user, 
-    loading: loading || !isInitialized
+    loading: finalLoading,
+    showTimeout 
   };
 };
 
-// Route protégée - VERSION CORRIGÉE
+// Route protégée avec timeout
 const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuthState();
+  const { user, loading, showTimeout } = useAuthWithTimeout();
   
   if (loading) {
-    return <LoadingScreen message="Vérification de l'authentification..." />;
+    return (
+      <LoadingScreen 
+        message="Vérification de l'authentification..." 
+        showTimeout={showTimeout}
+      />
+    );
   }
   
   if (!user) {
@@ -85,12 +116,17 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Route publique - VERSION CORRIGÉE
+// Route publique avec timeout
 const PublicRoute = ({ children }) => {
-  const { user, loading } = useAuthState();
+  const { user, loading, showTimeout } = useAuthWithTimeout();
   
   if (loading) {
-    return <LoadingScreen message="Vérification de l'authentification..." />;
+    return (
+      <LoadingScreen 
+        message="Initialisation de l'application..." 
+        showTimeout={showTimeout}
+      />
+    );
   }
   
   if (user) {
@@ -101,9 +137,20 @@ const PublicRoute = ({ children }) => {
 };
 
 /**
- * 🚀 APPLICATION PRINCIPALE - CORRIGÉE
+ * 🚀 APPLICATION PRINCIPALE AVEC TIMEOUT DE SÉCURITÉ
  */
 const App = () => {
+  // Log de debug au démarrage
+  useEffect(() => {
+    console.log('🚀 App.jsx - Démarrage de l\'application');
+    console.log('🔍 AuthStore state:', useAuthStore.getState());
+    
+    // Debug supplémentaire après 3 secondes
+    setTimeout(() => {
+      console.log('🔍 AuthStore state après 3s:', useAuthStore.getState());
+    }, 3000);
+  }, []);
+
   return (
     <Router>
       <div className="App">
