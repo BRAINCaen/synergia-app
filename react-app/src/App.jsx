@@ -3,7 +3,7 @@
 // VERSION ULTRA-SIMPLE QUI MARCHE
 // ==========================================
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './shared/stores/authStore.js';
 import DashboardLayout from './layouts/DashboardLayout.jsx';
@@ -38,13 +38,27 @@ import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 import LeaderboardPage from './pages/LeaderboardPage.jsx';
 
 function App() {
-  const { user, loading } = useAuthStore();
+  const { user, loading, initialized, initializeAuth } = useAuthStore();
 
-  // Affichage de chargement
-  if (loading) {
+  // S'assurer que l'auth est initialisée
+  useEffect(() => {
+    if (!initialized) {
+      console.log('🔄 Initialisation de l\'auth depuis App.jsx');
+      initializeAuth();
+    }
+  }, [initialized, initializeAuth]);
+
+  // Affichage de chargement SEULEMENT si pas encore initialisé
+  if (!initialized || (loading && !user)) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl">Chargement...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <div className="text-white text-xl">Initialisation...</div>
+          <div className="text-gray-400 text-sm mt-2">
+            {!initialized ? 'Configuration de l\'authentification...' : 'Vérification de la session...'}
+          </div>
+        </div>
       </div>
     );
   }
