@@ -1,10 +1,10 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT CORRIGÉ - SANS BOUTON ROUGE PROBLÉMATIQUE
+// LAYOUT CORRIGÉ - UTILISE OUTLET + BOUTON GRIS (PAS ROUGE)
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Outlet } from 'react-router-dom'; // ✅ IMPORT OUTLET
 import { 
   Home, 
   CheckSquare, 
@@ -37,7 +37,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { isAdmin } from '../../core/services/adminService.js';
 
-const Layout = ({ children }) => {
+const Layout = () => { // ✅ PAS DE {children} car on utilise Outlet
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
@@ -104,7 +104,7 @@ const Layout = ({ children }) => {
     { id: 'admin-test', path: '/admin/complete-test', label: 'Test Complet', icon: Zap }
   ];
 
-  // Gestion déconnexion SANS PROBLÈME
+  // Gestion déconnexion
   const handleLogout = async () => {
     try {
       await logout();
@@ -232,7 +232,7 @@ const Layout = ({ children }) => {
               {isAdmin(user) && renderNavSection('Administration', adminItems, 'admin', Shield)}
             </div>
 
-            {/* Footer utilisateur - SANS BOUTON ROUGE */}
+            {/* Footer utilisateur - ✅ BOUTON GRIS AU LIEU DE ROUGE */}
             <div className="p-4 border-t border-gray-700">
               <div className="flex items-center space-x-3 mb-4">
                 <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
@@ -246,7 +246,7 @@ const Layout = ({ children }) => {
                 </div>
               </div>
               
-              {/* ✅ NOUVEAU BOUTON DE DÉCONNEXION - SANS ROUGE */}
+              {/* ✅ BOUTON DÉCONNEXION GRIS - PAS ROUGE */}
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
@@ -288,9 +288,9 @@ const Layout = ({ children }) => {
           </div>
         </header>
 
-        {/* Page content */}
+        {/* Page content - ✅ UTILISE OUTLET */}
         <main className="flex-1 overflow-auto">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>
