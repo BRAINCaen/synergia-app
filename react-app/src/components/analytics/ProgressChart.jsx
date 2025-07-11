@@ -1,102 +1,44 @@
 // react-app/src/modules/analytics/components/ProgressChart.jsx
 import React from 'react';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer 
-} from 'recharts';
 
-const ProgressChart = ({ data, height = 300 }) => {
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('fr-FR', { 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  };
-
-  const customTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-lg">
-          <p className="text-gray-300 text-sm mb-2">
-            {new Date(label).toLocaleDateString('fr-FR', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
-          </p>
-          <div className="space-y-1">
-            {payload.map((entry) => (
-              <div key={entry.dataKey} className="flex items-center gap-2">
-                <div 
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: entry.color }}
-                />
-                <span className="text-white text-sm">
-                  {entry.name}: {entry.value}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
+const ProgressChart = ({ data, title, height = 200 }) => {
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-400">
-        <div className="text-center">
-          <div className="text-4xl mb-2">📈</div>
-          <p>Aucune donnée disponible</p>
+      <div className="p-6 bg-gray-800/50 rounded-xl border border-gray-700">
+        <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
+        <div className="flex items-center justify-center h-32 text-gray-400">
+          📊 Aucune donnée disponible
         </div>
       </div>
     );
   }
 
+  const maxValue = Math.max(...data.map(d => d.value || d.completed || 0));
+
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-        <XAxis 
-          dataKey="date" 
-          stroke="#9ca3af"
-          fontSize={12}
-          tickFormatter={formatDate}
-          interval="preserveStartEnd"
-        />
-        <YAxis 
-          stroke="#9ca3af" 
-          fontSize={12}
-        />
-        <Tooltip content={customTooltip} />
-        <Line 
-          type="monotone" 
-          dataKey="completed" 
-          stroke="#10b981" 
-          strokeWidth={3}
-          name="Complétées"
-          dot={{ fill: '#10b981', r: 4, strokeWidth: 2, stroke: '#064e3b' }}
-          activeDot={{ r: 6, fill: '#10b981' }}
-        />
-        <Line 
-          type="monotone" 
-          dataKey="created" 
-          stroke="#3b82f6" 
-          strokeWidth={3}
-          name="Créées"
-          dot={{ fill: '#3b82f6', r: 4, strokeWidth: 2, stroke: '#1e3a8a' }}
-          activeDot={{ r: 6, fill: '#3b82f6' }}
-        />
-      </LineChart>
-    </ResponsiveContainer>
+    <div className="p-6 bg-gray-800/50 rounded-xl border border-gray-700">
+      <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
+      <div className="space-y-3">
+        {data.slice(0, 10).map((item, index) => (
+          <div key={index} className="flex items-center gap-3">
+            <div className="w-20 text-xs text-gray-400 text-right">
+              {item.date || item.label || item.name}
+            </div>
+            <div className="flex-1 h-6 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-blue-500 to-green-500 transition-all duration-300"
+                style={{ 
+                  width: `${maxValue > 0 ? ((item.value || item.completed || 0) / maxValue) * 100 : 0}%` 
+                }}
+              />
+            </div>
+            <div className="w-12 text-xs text-white text-right">
+              {item.value || item.completed || 0}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };
 
