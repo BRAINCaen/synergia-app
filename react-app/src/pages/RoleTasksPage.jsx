@@ -5,8 +5,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Target, Code, Palette, Users, Clock, Star, Lock, CheckCircle, Plus, Filter } from 'lucide-react';
-import { useAuthStore } from '../shared/stores/authStore';
-import { useGameStore } from '../shared/stores/gameStore';
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { useGameStore } from '../shared/stores/gameStore.js';
 
 const RoleTasksPage = () => {
   const { user } = useAuthStore();
