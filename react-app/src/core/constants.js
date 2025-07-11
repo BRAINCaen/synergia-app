@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/constants.js
-// CONSTANTS COMPLET avec toutes les routes ajoutées
+// CONSTANTS COMPLET avec toutes les routes ajoutées + ROUTES DE PROGRESSION
 // ==========================================
 
 export const ROUTES = {
@@ -19,6 +19,11 @@ export const ROUTES = {
   BADGES: '/badges',
   GAMIFICATION: '/gamification',
   REWARDS: '/rewards',
+  
+  // 🎯 ROUTES DE PROGRESSION DE RÔLE - NOUVELLES ROUTES AJOUTÉES
+  ROLE_PROGRESSION: '/role/progression',
+  ROLE_TASKS: '/role/tasks',
+  ROLE_BADGES: '/role/badges',
   
   // Équipe & Social RECONNECTÉES
   TEAM: '/team',
@@ -59,6 +64,14 @@ export const NAVIGATION_STRUCTURE = {
       { path: ROUTES.BADGES, label: 'Badges', icon: '🏆', priority: 2 },
       { path: ROUTES.LEADERBOARD, label: 'Classement', icon: '🥇', priority: 3 },
       { path: ROUTES.REWARDS, label: 'Récompenses', icon: '🎁', priority: 4 }
+    ]
+  },
+  progression: {
+    title: 'Progression de Rôle',
+    routes: [
+      { path: ROUTES.ROLE_PROGRESSION, label: 'Progression de Rôle', icon: '📈', priority: 1 },
+      { path: ROUTES.ROLE_TASKS, label: 'Tâches de Rôle', icon: '🎯', priority: 2 },
+      { path: ROUTES.ROLE_BADGES, label: 'Badges de Rôle', icon: '🏅', priority: 3 }
     ]
   },
   social: {
@@ -104,77 +117,118 @@ export const GAMIFICATION = {
     GOLD: { min: 500, max: 999, name: 'Or', color: '#FFD700' },
     PLATINUM: { min: 1000, max: 2499, name: 'Platine', color: '#E5E4E2' },
     DIAMOND: { min: 2500, max: 4999, name: 'Diamant', color: '#B9F2FF' },
-    MASTER: { min: 5000, max: 9999, name: 'Maître', color: '#FF6B35' },
-    GRANDMASTER: { min: 10000, max: 19999, name: 'Grand Maître', color: '#8B0000' },
-    LEGEND: { min: 20000, max: 49999, name: 'Légende', color: '#9932CC' },
-    MYTHIC: { min: 50000, max: 99999, name: 'Mythique', color: '#FF1493' },
-    GODLIKE: { min: 100000, max: Infinity, name: 'Divin', color: '#00FFFF' }
+    MASTER: { min: 5000, max: 9999, name: 'Maître', color: '#FF6B6B' },
+    GRANDMASTER: { min: 10000, max: Infinity, name: 'Grand Maître', color: '#FF0000' }
   },
-  
+
   XP_REWARDS: {
-    TASK_EASY: 10,
-    TASK_NORMAL: 25,
-    TASK_HARD: 50,
-    TASK_EXPERT: 100,
-    DAILY_LOGIN: 5,
-    FIRST_TASK_DAY: 15,
-    STREAK_BONUS: 10,
-    PERFECT_WEEK: 100,
-    HELP_COLLEAGUE: 20,
-    INNOVATION: 50
+    TASK_COMPLETION: 25,
+    PROJECT_MILESTONE: 100,
+    BADGE_EARNED: 50,
+    DAILY_LOGIN: 10,
+    WEEKLY_STREAK: 75,
+    MONTHLY_ACHIEVEMENT: 200
   },
-  
-  BADGE_TYPES: {
-    ACHIEVEMENT: 'achievement',
-    MILESTONE: 'milestone',
-    SPECIAL: 'special',
-    EVENT: 'event',
-    SKILL: 'skill'
+
+  BADGES: {
+    CATEGORIES: {
+      ACHIEVEMENT: 'achievement',
+      MILESTONE: 'milestone', 
+      SOCIAL: 'social',
+      SPECIAL: 'special',
+      SEASONAL: 'seasonal'
+    },
+    
+    RARITIES: {
+      COMMON: { name: 'Commun', color: '#9CA3AF', multiplier: 1 },
+      UNCOMMON: { name: 'Peu commun', color: '#10B981', multiplier: 1.5 },
+      RARE: { name: 'Rare', color: '#3B82F6', multiplier: 2 },
+      EPIC: { name: 'Épique', color: '#8B5CF6', multiplier: 3 },
+      LEGENDARY: { name: 'Légendaire', color: '#F59E0B', multiplier: 5 }
+    }
   }
 }
 
-// 🔐 USER ROLES CONSTANTS
+// 👥 USER ROLES CONSTANTS  
 export const USER_ROLES = {
-  USER: 'user',
-  MODERATOR: 'moderator',
   ADMIN: 'admin',
-  SUPER_ADMIN: 'super_admin'
+  MANAGER: 'manager', 
+  DEVELOPER: 'developer',
+  DESIGNER: 'designer',
+  USER: 'user',
+  GUEST: 'guest'
 }
 
-// 📱 APP CONSTANTS
+// 🔧 APP CONFIG
 export const APP_CONFIG = {
-  NAME: 'Synergia',
-  VERSION: '3.5.0',
-  DESCRIPTION: 'Application de gestion collaborative',
-  COMPANY: 'Synergia Team',
+  NAME: 'SYNERGIA',
+  VERSION: '3.5',
+  DESCRIPTION: 'Application de gestion collaborative avancée',
   
-  // Limites
-  MAX_FILE_SIZE: 50 * 1024 * 1024, // 50MB
-  MAX_IMAGE_SIZE: 10 * 1024 * 1024, // 10MB
-  MAX_VIDEO_SIZE: 100 * 1024 * 1024, // 100MB
+  PAGINATION: {
+    DEFAULT_PAGE_SIZE: 20,
+    MAX_PAGE_SIZE: 100
+  },
   
-  // Pagination
-  ITEMS_PER_PAGE: 20,
-  TASKS_PER_PAGE: 15,
-  USERS_PER_PAGE: 25,
+  TIMEOUTS: {
+    API_REQUEST: 30000, // 30 secondes
+    AUTH_TOKEN_REFRESH: 300000, // 5 minutes
+    NOTIFICATION_DISPLAY: 5000 // 5 secondes
+  },
   
-  // Temps
-  SESSION_TIMEOUT: 30 * 60 * 1000, // 30 minutes
-  AUTO_SAVE_INTERVAL: 30 * 1000, // 30 secondes
-  NOTIFICATION_TIMEOUT: 5000, // 5 secondes
+  FEATURES: {
+    REAL_TIME_NOTIFICATIONS: true,
+    DARK_MODE: true,
+    OFFLINE_MODE: false,
+    PWA: true,
+    ANALYTICS: true,
+    
+    // Fonctionnalités de gamification
+    BADGES: true,
+    LEADERBOARD: true,
+    XP_SYSTEM: true,
+    ACHIEVEMENTS: true,
+    
+    // Fonctionnalités sociales
+    TEAM_CHAT: false,
+    USER_PROFILES: true,
+    COLLABORATION: true,
+    
+    // Fonctionnalités avancées
+    AI_SUGGESTIONS: false,
+    WORKFLOW_AUTOMATION: false,
+    ADVANCED_REPORTING: true,
+    
+    // Fonctionnalités expérimentales
+    VOICE_COMMANDS: false,
+    AR_FEATURES: false,
+    BLOCKCHAIN_INTEGRATION: false
+  },
   
-  // Firebase Collections
-  COLLECTIONS: {
-    USERS: 'users',
-    TASKS: 'tasks',
-    PROJECTS: 'projects',
-    TASK_VALIDATIONS: 'task_validations',
-    BADGES: 'badges',
-    USER_BADGES: 'user_badges',
-    NOTIFICATIONS: 'notifications',
-    TEAMS: 'teams',
-    ANALYTICS: 'analytics',
-    ONBOARDING: 'onboarding'
+  STORAGE: {
+    TOKEN_KEY: 'synergia_auth_token',
+    USER_PREFERENCES: 'synergia_user_prefs',
+    THEME_KEY: 'synergia_theme',
+    LANGUAGE_KEY: 'synergia_language'
+  },
+  
+  API: {
+    BASE_URL: process.env.REACT_APP_API_URL || 'https://api.synergia.app',
+    VERSION: 'v1',
+    ENDPOINTS: {
+      AUTH: '/auth',
+      USERS: '/users',
+      TASKS: '/tasks',
+      PROJECTS: '/projects',
+      ANALYTICS: '/analytics',
+      GAMIFICATION: '/gamification',
+      ADMIN: '/admin',
+      UPLOADS: '/uploads',
+      NOTIFICATIONS: '/notifications',
+      TEAMS: '/teams',
+      ANALYTICS: '/analytics',
+      ONBOARDING: '/onboarding'
+    }
   }
 }
 
