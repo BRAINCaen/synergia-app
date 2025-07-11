@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/gamification/Leaderboard.jsx
-// Classement avec VRAIES données Firebase - CONFLIT VARIABLE CORRIGÉ
+// REMPLACER ENTIÈREMENT LE FICHIER EXISTANT PAR CE CODE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -16,6 +16,37 @@ const Leaderboard = () => {
   const [activeTab, setActiveTab] = useState('xp');
   const [timeFrame, setTimeFrame] = useState('all-time');
 
+  // 🧹 FONCTION DE NETTOYAGE DES NOMS CORROMPUS
+  const cleanUserName = (userDocData) => {
+    console.log('🧹 Leaderboard - Nettoyage nom pour:', userDocData.email, 'displayName:', userDocData.displayName);
+    
+    // Détecter si displayName est une URL (contient http, https, ou googleusercontent)
+    if (userDocData.displayName && (
+      userDocData.displayName.includes('http') || 
+      userDocData.displayName.includes('www.') ||
+      userDocData.displayName.includes('googleusercontent.com') ||
+      userDocData.displayName.includes('.com/') ||
+      userDocData.displayName.length > 100
+    )) {
+      console.warn('🚨 Leaderboard - Nom corrompu détecté (URL):', userDocData.displayName.substring(0, 50) + '...');
+      // Utiliser l'email comme fallback
+      const cleanedName = userDocData.email?.split('@')[0] || 'Utilisateur';
+      console.log('✅ Leaderboard - Nom nettoyé:', cleanedName);
+      return cleanedName;
+    }
+
+    // Si displayName semble normal, l'utiliser
+    if (userDocData.displayName && userDocData.displayName.length < 100 && !userDocData.displayName.includes('.')) {
+      console.log('✅ Leaderboard - Nom valide conservé:', userDocData.displayName);
+      return userDocData.displayName;
+    }
+
+    // Fallback : utiliser l'email
+    const fallbackName = userDocData.email?.split('@')[0] || 'Utilisateur';
+    console.log('✅ Leaderboard - Fallback utilisé:', fallbackName);
+    return fallbackName;
+  };
+
   // ✅ VRAIES DONNÉES : Charger le classement depuis Firebase
   useEffect(() => {
     const loadRealLeaderboard = async () => {
@@ -28,6 +59,7 @@ const Leaderboard = () => {
 
       try {
         setLoading(true);
+        console.log('🔥 Leaderboard - Chargement depuis Firebase...');
 
         // ✅ Requête pour récupérer les vrais utilisateurs triés par XP
         let usersQuery;
@@ -55,24 +87,32 @@ const Leaderboard = () => {
         const querySnapshot = await getDocs(usersQuery);
         const realUsers = [];
 
+        console.log(`📊 Leaderboard - ${querySnapshot.docs.length} documents trouvés`);
+
         querySnapshot.forEach((doc, index) => {
           const userDocData = doc.data(); // 🔧 CORRECTION: Renommé userData en userDocData
           if (userDocData.email && userDocData.gamification) {
-            realUsers.push({
+            // 🧹 NETTOYAGE : Nom propre extrait de façon sécurisée
+            const cleanName = cleanUserName(userDocData);
+            
+            const userEntry = {
               id: doc.id,
               rank: index + 1,
-              name: userDocData.displayName || userDocData.email.split('@')[0],
+              name: cleanName, // ✅ Nom nettoyé
               email: userDocData.email,
               role: userDocData.role || 'Membre',
               level: userDocData.gamification.level || 1,
               totalXp: userDocData.gamification.totalXp || 0,
               tasksCompleted: userDocData.gamification.tasksCompleted || 0,
               badges: userDocData.gamification.badges || [],
-              avatar: userDocData.photoURL || getAvatarFromName(userDocData.displayName || userDocData.email),
+              avatar: userDocData.photoURL || getAvatarFromName(cleanName),
               isCurrentUser: doc.id === user?.uid,
               streak: userDocData.gamification.loginStreak || 0,
               lastActivity: userDocData.lastActivity
-            });
+            };
+            
+            realUsers.push(userEntry);
+            console.log(`👤 Leaderboard - Utilisateur: ${userEntry.name} (${userEntry.email}) - ${userEntry.totalXp} XP`);
           }
         });
 
@@ -90,17 +130,20 @@ const Leaderboard = () => {
               const currentUserData = currentUserSnap.docs[0].data();
               const currentUserRank = await calculateUserRank(user.uid, activeTab);
               
+              // 🧹 Nettoyage du nom pour l'utilisateur connecté aussi
+              const cleanName = cleanUserName(currentUserData);
+              
               realUsers.push({
                 id: user.uid,
                 rank: currentUserRank,
-                name: user.displayName || user.email.split('@')[0],
+                name: cleanName, // ✅ Nom nettoyé
                 email: user.email,
                 role: currentUserData.role || 'Membre',
                 level: currentUserData.gamification?.level || 1,
                 totalXp: currentUserData.gamification?.totalXp || 0,
                 tasksCompleted: currentUserData.gamification?.tasksCompleted || 0,
                 badges: currentUserData.gamification?.badges || [],
-                avatar: user.photoURL || getAvatarFromName(user.displayName || user.email),
+                avatar: user.photoURL || getAvatarFromName(cleanName),
                 isCurrentUser: true,
                 streak: currentUserData.gamification?.loginStreak || 0,
                 lastActivity: currentUserData.lastActivity,
@@ -114,6 +157,11 @@ const Leaderboard = () => {
 
         setLeaderboardData(realUsers);
         console.log('✅ Classement réel chargé:', realUsers.length, 'utilisateurs');
+
+        // 🧹 Log des noms nettoyés pour debug
+        realUsers.slice(0, 5).forEach(userInfo => {
+          console.log(`🏆 Leaderboard - Classement: #${userInfo.rank} - ${userInfo.name} (${userInfo.email}) - ${userInfo.totalXp} XP`);
+        });
 
       } catch (error) {
         console.error('❌ Erreur chargement classement:', error);
@@ -226,6 +274,11 @@ const Leaderboard = () => {
     <div className="min-h-screen bg-gray-900 p-6">
       <div className="max-w-4xl mx-auto">
         
+        {/* Message de debug */}
+        <div className="bg-green-800 text-green-200 p-3 rounded-lg text-sm mb-6">
+          🧹 Noms nettoyés activés dans Leaderboard.jsx - Vérifiez la console pour les logs de nettoyage
+        </div>
+
         {/* En-tête */}
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-white mb-2">
@@ -305,7 +358,7 @@ const Leaderboard = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className={`font-medium ${userInfo.isCurrentUser ? 'text-blue-400' : 'text-white'}`}>
-                        {userInfo.name}
+                        {userInfo.name} {/* ✅ Nom nettoyé affiché */}
                       </span>
                       {userInfo.isCurrentUser && (
                         <span className="bg-blue-600 text-xs px-2 py-1 rounded-full text-white">
