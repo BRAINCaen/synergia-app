@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/AnalyticsPage.jsx
-// Page Analytics CORRIGÉE - Bug TypeError: n is not a function RÉSOLU
+// CORRECTION DÉFINITIVE - Bug TypeError: n is not a function RÉSOLU
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -22,7 +22,7 @@ import {
   Activity,
   CheckCircle2,
   AlertCircle,
-  Gauge, // ✅ CORRECTION : Progress → Gauge
+  Gauge,
   PieChart,
   LineChart,
   BarChart,
@@ -33,39 +33,77 @@ import {
   Brain
 } from 'lucide-react';
 
-// IMPORTS BASIQUES UNIQUEMENT
+// ✅ IMPORTS CORRIGÉS - Utiliser les stores directement
 import { useTaskStore } from '../shared/stores/taskStore.js';
 import { useProjectStore } from '../shared/stores/projectStore.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 const AnalyticsPage = () => {
   const { user } = useAuthStore();
-  const { tasks, fetchTasks } = useTaskStore();
-  const { projects, fetchProjects } = useProjectStore();
   
-  // États locaux simplifiés
+  // ✅ STORES CORRIGÉS - Utiliser les bonnes méthodes
+  const { 
+    tasks = [], 
+    loading: tasksLoading, 
+    loadUserTasks 
+  } = useTaskStore();
+  
+  const { 
+    projects = [], 
+    loading: projectsLoading, 
+    fetchUserProjects, 
+    loadUserProjects 
+  } = useProjectStore();
+  
+  // États locaux
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState(null);
   const [timeRange, setTimeRange] = useState('week');
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [error, setError] = useState(null);
 
+  // ✅ EFFET CORRIGÉ - Pas de dépendances qui changent en permanence
   useEffect(() => {
-    if (user) {
+    if (user?.uid) {
       loadAnalytics();
     }
-  }, [user, tasks, projects, timeRange]);
+  }, [user?.uid, timeRange]); // Seulement user.uid et timeRange
 
   const loadAnalytics = async () => {
+    if (!user?.uid) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
+    setError(null);
+    
     try {
-      await Promise.all([fetchTasks(), fetchProjects()]);
+      console.log('🔄 Chargement analytics...');
       
-      // Calcul des analytics avec vérification de sécurité
-      const analytics = calculateAnalytics();
-      setAnalytics(analytics);
+      // ✅ CHARGEMENT SÉCURISÉ - Utiliser les bonnes méthodes
+      const loadTasks = loadUserTasks && typeof loadUserTasks === 'function' 
+        ? loadUserTasks(user.uid) 
+        : Promise.resolve();
+        
+      const loadProjects = (fetchUserProjects && typeof fetchUserProjects === 'function')
+        ? fetchUserProjects(user.uid)
+        : (loadUserProjects && typeof loadUserProjects === 'function')
+        ? loadUserProjects(user.uid)
+        : Promise.resolve();
+
+      await Promise.all([loadTasks, loadProjects]);
+      
+      // ✅ CALCUL SÉCURISÉ - Après le chargement
+      const analyticsResult = calculateAnalytics();
+      setAnalytics(analyticsResult);
+      
+      console.log('✅ Analytics calculés:', analyticsResult);
+      
     } catch (error) {
-      console.error('Erreur chargement analytics:', error);
+      console.error('❌ Erreur chargement analytics:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -73,11 +111,25 @@ const AnalyticsPage = () => {
 
   const calculateAnalytics = () => {
     try {
-      // ✅ CORRECTION MAJEURE: Vérification de sécurité des tableaux
+      // ✅ VALIDATION STRICTE DES DONNÉES
       const safeTasks = Array.isArray(tasks) ? tasks : [];
       const safeProjects = Array.isArray(projects) ? projects : [];
 
-      console.log('🔍 Calcul analytics - Tasks:', safeTasks.length, 'Projects:', safeProjects.length);
+      console.log('🔍 Analytics - Tasks:', safeTasks.length, 'Projects:', safeProjects.length);
+
+      if (safeTasks.length === 0 && safeProjects.length === 0) {
+        return {
+          totalTasks: 0,
+          completedTasks: 0,
+          completionRate: 0,
+          totalProjects: 0,
+          activeProjects: 0,
+          completedProjects: 0,
+          totalXP: 0,
+          trend: 'stable',
+          productivity: 'low'
+        };
+      }
 
       const now = new Date();
       const getTimeRangeStart = () => {
@@ -95,74 +147,99 @@ const AnalyticsPage = () => {
 
       const rangeStart = getTimeRangeStart();
       
-      // ✅ FILTRAGE SÉCURISÉ - Vérification de l'existence des propriétés
+      // ✅ FILTRAGE ULTRA-SÉCURISÉ
       const filteredTasks = safeTasks.filter(task => {
+        if (!task) return false;
         try {
-          const taskDate = new Date(task.createdAt || task.updatedAt || now);
+          const taskDate = task.createdAt?.toDate ? 
+            task.createdAt.toDate() : 
+            new Date(task.createdAt || task.updatedAt || now);
           return taskDate >= rangeStart;
         } catch (error) {
-          console.warn('Tâche avec date invalide:', task);
-          return true; // Inclure la tâche par défaut
+          console.warn('Tâche avec date invalide:', task.id);
+          return true; // Inclure par défaut
         }
       });
 
       const filteredProjects = safeProjects.filter(project => {
+        if (!project) return false;
         try {
-          const projectDate = new Date(project.createdAt || project.updatedAt || now);
+          const projectDate = project.createdAt?.toDate ? 
+            project.createdAt.toDate() : 
+            new Date(project.createdAt || project.updatedAt || now);
           return projectDate >= rangeStart;
         } catch (error) {
-          console.warn('Projet avec date invalide:', project);
-          return true; // Inclure le projet par défaut
+          console.warn('Projet avec date invalide:', project.id);
+          return true; // Inclure par défaut
         }
       });
 
-      // ✅ CALCULS SÉCURISÉS - Vérification de l'existence des propriétés
-      const completedTasks = filteredTasks.filter(task => task.status === 'completed').length;
+      // ✅ CALCULS TOTALEMENT SÉCURISÉS
+      const completedTasks = filteredTasks.filter(task => 
+        task && (task.status === 'completed' || task.status === 'done')
+      ).length;
+      
       const totalTasks = filteredTasks.length;
       const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-      const activeProjects = filteredProjects.filter(project => project.status === 'active').length;
-      const completedProjects = filteredProjects.filter(project => project.status === 'completed').length;
+      const activeProjects = filteredProjects.filter(project => 
+        project && (project.status === 'active' || !project.status)
+      ).length;
+      
+      const completedProjects = filteredProjects.filter(project => 
+        project && project.status === 'completed'
+      ).length;
+      
       const totalProjects = filteredProjects.length;
 
-      // ✅ CALCUL XP SÉCURISÉ - Gestion des valeurs null/undefined
+      // ✅ CALCUL XP ULTRA-SÉCURISÉ
       const totalXP = filteredTasks.reduce((sum, task) => {
-        const xp = task.xp || task.xpReward || 0;
-        return sum + (typeof xp === 'number' ? xp : 0);
+        if (!task) return sum;
+        const xp = task.xp || task.xpReward || task.points || 0;
+        const numericXP = typeof xp === 'number' ? xp : parseInt(xp) || 0;
+        return sum + numericXP;
       }, 0);
 
-      // ✅ CALCUL DE TENDANCES SÉCURISÉ
-      const midPoint = new Date(rangeStart.getTime() + (now.getTime() - rangeStart.getTime()) / 2);
-      
-      const firstHalfTasks = filteredTasks.filter(task => {
-        try {
-          const taskDate = new Date(task.createdAt || task.updatedAt || now);
-          return taskDate < midPoint;
-        } catch (error) {
-          return false;
-        }
-      });
-      
-      const secondHalfTasks = filteredTasks.filter(task => {
-        try {
-          const taskDate = new Date(task.createdAt || task.updatedAt || now);
-          return taskDate >= midPoint;
-        } catch (error) {
-          return false;
-        }
-      });
-
-      const firstHalfCompleted = firstHalfTasks.filter(task => task.status === 'completed').length;
-      const secondHalfCompleted = secondHalfTasks.filter(task => task.status === 'completed').length;
-      
+      // ✅ TENDANCE SÉCURISÉE
       let trend = 'stable';
-      if (secondHalfCompleted > firstHalfCompleted) {
-        trend = 'up';
-      } else if (secondHalfCompleted < firstHalfCompleted) {
-        trend = 'down';
+      try {
+        const midPoint = new Date(rangeStart.getTime() + (now.getTime() - rangeStart.getTime()) / 2);
+        
+        const firstHalfCompleted = filteredTasks.filter(task => {
+          if (!task) return false;
+          try {
+            const taskDate = task.completedAt?.toDate ? 
+              task.completedAt.toDate() : 
+              new Date(task.completedAt || task.createdAt || now);
+            return taskDate < midPoint && (task.status === 'completed' || task.status === 'done');
+          } catch (error) {
+            return false;
+          }
+        }).length;
+        
+        const secondHalfCompleted = filteredTasks.filter(task => {
+          if (!task) return false;
+          try {
+            const taskDate = task.completedAt?.toDate ? 
+              task.completedAt.toDate() : 
+              new Date(task.completedAt || task.createdAt || now);
+            return taskDate >= midPoint && (task.status === 'completed' || task.status === 'done');
+          } catch (error) {
+            return false;
+          }
+        }).length;
+
+        if (secondHalfCompleted > firstHalfCompleted) {
+          trend = 'up';
+        } else if (secondHalfCompleted < firstHalfCompleted) {
+          trend = 'down';
+        }
+      } catch (error) {
+        console.warn('Erreur calcul tendance:', error);
+        trend = 'stable';
       }
 
-      const analyticsResult = {
+      const result = {
         totalTasks,
         completedTasks,
         completionRate,
@@ -174,12 +251,12 @@ const AnalyticsPage = () => {
         productivity: completionRate > 70 ? 'high' : completionRate > 40 ? 'medium' : 'low'
       };
 
-      console.log('✅ Analytics calculés:', analyticsResult);
-      return analyticsResult;
+      console.log('✅ Analytics calculés avec succès:', result);
+      return result;
 
     } catch (error) {
-      console.error('❌ Erreur dans calculateAnalytics:', error);
-      // ✅ FALLBACK SÉCURISÉ - Retourner des valeurs par défaut
+      console.error('❌ Erreur critique dans calculateAnalytics:', error);
+      // ✅ FALLBACK GARANTI
       return {
         totalTasks: 0,
         completedTasks: 0,
@@ -208,27 +285,27 @@ const AnalyticsPage = () => {
   const getMetricColor = (value, type) => {
     switch (type) {
       case 'completion':
-        return value > 70 ? 'text-green-600' : value > 40 ? 'text-yellow-600' : 'text-red-600';
+        return value > 70 ? 'text-green-400' : value > 40 ? 'text-yellow-400' : 'text-red-400';
       case 'productivity':
-        return value === 'high' ? 'text-green-600' : value === 'medium' ? 'text-yellow-600' : 'text-red-600';
+        return value === 'high' ? 'text-green-400' : value === 'medium' ? 'text-yellow-400' : 'text-red-400';
       default:
-        return 'text-blue-600';
+        return 'text-blue-400';
     }
   };
 
   const getTrendIcon = (trend) => {
     switch (trend) {
       case 'up':
-        return <ArrowUp className="w-4 h-4 text-green-500" />;
+        return <ArrowUp className="w-4 h-4 text-green-400" />;
       case 'down':
-        return <ArrowDown className="w-4 h-4 text-red-500" />;
+        return <ArrowDown className="w-4 h-4 text-red-400" />;
       default:
-        return <Minus className="w-4 h-4 text-gray-500" />;
+        return <Minus className="w-4 h-4 text-gray-400" />;
     }
   };
 
-  // ✅ LOADING STATE AMÉLIORÉ
-  if (loading) {
+  // ✅ GESTION D'ÉTATS AMÉLIORÉE
+  if (loading || tasksLoading || projectsLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -240,19 +317,36 @@ const AnalyticsPage = () => {
     );
   }
 
-  // ✅ ERROR STATE - Si pas d'analytics ou erreur
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h2 className="text-xl font-semibold text-white mb-2">Erreur de chargement</h2>
+          <p className="text-gray-400 mb-4">{error}</p>
+          <button 
+            onClick={handleRefresh}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            🔄 Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!analytics) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4">📊</div>
           <h2 className="text-xl font-semibold text-white mb-2">Analytics indisponibles</h2>
-          <p className="text-gray-400 mb-4">Impossible de calculer les métriques</p>
+          <p className="text-gray-400 mb-4">Aucune donnée à analyser</p>
           <button 
             onClick={handleRefresh}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            🔄 Réessayer
+            🔄 Charger les données
           </button>
         </div>
       </div>
@@ -275,7 +369,7 @@ const AnalyticsPage = () => {
             <select 
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
-              className="px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-blue-500"
+              className="px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-blue-500 outline-none"
             >
               <option value="week">7 derniers jours</option>
               <option value="month">30 derniers jours</option>
@@ -295,6 +389,7 @@ const AnalyticsPage = () => {
 
         {/* Métriques principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          
           {/* Tâches */}
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
             <div className="flex items-center justify-between mb-2">
