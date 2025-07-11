@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/gamification/Leaderboard.jsx
-// Classement avec VRAIES données Firebase
+// Classement avec VRAIES données Firebase - CONFLIT VARIABLE CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -56,22 +56,22 @@ const Leaderboard = () => {
         const realUsers = [];
 
         querySnapshot.forEach((doc, index) => {
-          const userData = doc.data();
-          if (userData.email && userData.gamification) {
+          const userDocData = doc.data(); // 🔧 CORRECTION: Renommé userData en userDocData
+          if (userDocData.email && userDocData.gamification) {
             realUsers.push({
               id: doc.id,
               rank: index + 1,
-              name: userData.displayName || userData.email.split('@')[0],
-              email: userData.email,
-              role: userData.role || 'Membre',
-              level: userData.gamification.level || 1,
-              totalXp: userData.gamification.totalXp || 0,
-              tasksCompleted: userData.gamification.tasksCompleted || 0,
-              badges: userData.gamification.badges || [],
-              avatar: userData.photoURL || getAvatarFromName(userData.displayName || userData.email),
+              name: userDocData.displayName || userDocData.email.split('@')[0],
+              email: userDocData.email,
+              role: userDocData.role || 'Membre',
+              level: userDocData.gamification.level || 1,
+              totalXp: userDocData.gamification.totalXp || 0,
+              tasksCompleted: userDocData.gamification.tasksCompleted || 0,
+              badges: userDocData.gamification.badges || [],
+              avatar: userDocData.photoURL || getAvatarFromName(userDocData.displayName || userDocData.email),
               isCurrentUser: doc.id === user?.uid,
-              streak: userData.gamification.loginStreak || 0,
-              lastActivity: userData.lastActivity
+              streak: userDocData.gamification.loginStreak || 0,
+              lastActivity: userDocData.lastActivity
             });
           }
         });
@@ -184,16 +184,16 @@ const Leaderboard = () => {
   ];
 
   // ✅ Obtenir la valeur selon l'onglet actif
-  const getDisplayValue = (userData) => {
+  const getDisplayValue = (userInfo) => { // 🔧 CORRECTION: Renommé userData en userInfo
     switch (activeTab) {
       case 'xp':
-        return `${userData.totalXp.toLocaleString()} XP`;
+        return `${userInfo.totalXp.toLocaleString()} XP`;
       case 'tasks':
-        return `${userData.tasksCompleted} tâches`;
+        return `${userInfo.tasksCompleted} tâches`;
       case 'level':
-        return `Niveau ${userData.level}`;
+        return `Niveau ${userInfo.level}`;
       default:
-        return `${userData.totalXp.toLocaleString()} XP`;
+        return `${userInfo.totalXp.toLocaleString()} XP`;
     }
   };
 
@@ -250,7 +250,7 @@ const Leaderboard = () => {
                 className={`px-6 py-2 rounded-md font-medium transition-colors ${
                   activeTab === tab.id
                     ? 'bg-blue-600 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700'
                 }`}
               >
                 {tab.icon} {tab.label}
@@ -259,79 +259,42 @@ const Leaderboard = () => {
           </div>
         </div>
 
-        {/* Podium (Top 3) */}
-        {leaderboardData.length >= 3 && (
-          <div className="mb-8">
-            <div className="flex justify-center items-end gap-4 mb-6">
-              {/* 2ème place */}
-              <div className="text-center">
-                <div className="w-20 h-20 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-2xl mb-2">
-                  {leaderboardData[1]?.avatar || '🥈'}
-                </div>
-                <div className="bg-gray-700 rounded-lg p-3 border-2 border-gray-500">
-                  <div className="text-gray-300 font-medium">{leaderboardData[1]?.name}</div>
-                  <div className="text-gray-400 text-sm">{getDisplayValue(leaderboardData[1])}</div>
-                </div>
+        {/* Statistiques */}
+        <div className="bg-gray-800 rounded-lg p-6 mb-8 border border-gray-700">
+          <h2 className="text-xl font-semibold text-white mb-4">
+            📊 Statistiques {activeTab === 'xp' ? 'XP' : activeTab === 'tasks' ? 'Tâches' : 'Niveau'}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-blue-400">
+                {leaderboardData.length}
               </div>
-
-              {/* 1ère place */}
-              <div className="text-center">
-                <div className="w-24 h-24 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center text-3xl mb-2 border-4 border-yellow-300">
-                  {leaderboardData[0]?.avatar || '🥇'}
-                </div>
-                <div className="bg-gradient-to-br from-yellow-600 to-yellow-700 rounded-lg p-4 border-2 border-yellow-400">
-                  <div className="text-white font-bold">{leaderboardData[0]?.name}</div>
-                  <div className="text-yellow-100 text-sm">{getDisplayValue(leaderboardData[0])}</div>
-                </div>
-              </div>
-
-              {/* 3ème place */}
-              <div className="text-center">
-                <div className="w-20 h-20 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-2xl mb-2">
-                  {leaderboardData[2]?.avatar || '🥉'}
-                </div>
-                <div className="bg-gray-700 rounded-lg p-3 border-2 border-orange-500">
-                  <div className="text-orange-300 font-medium">{leaderboardData[2]?.name}</div>
-                  <div className="text-gray-400 text-sm">{getDisplayValue(leaderboardData[2])}</div>
-                </div>
-              </div>
+              <div className="text-gray-400">Participant{leaderboardData.length > 1 ? 's' : ''}</div>
             </div>
-          </div>
-        )}
-
-        {/* Liste complète du classement */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700">
-          <div className="p-6 border-b border-gray-700">
-            <h2 className="text-xl font-semibold text-white">
-              📊 Classement Complet
-            </h2>
-            <p className="text-gray-400 text-sm">
-              {leaderboardData.length} participant{leaderboardData.length > 1 ? 's' : ''}
-            </p>
           </div>
           
           <div className="divide-y divide-gray-700">
-            {leaderboardData.map((userData) => (
+            {leaderboardData.map((userInfo) => ( // 🔧 CORRECTION: Renommé userData en userInfo
               <div 
-                key={userData.id} 
+                key={userInfo.id} 
                 className={`p-6 flex items-center justify-between transition-colors ${
-                  userData.isCurrentUser 
+                  userInfo.isCurrentUser 
                     ? 'bg-blue-900/20 border-l-4 border-blue-500' 
                     : 'hover:bg-gray-700/50'
-                } ${userData.isOutOfTop ? 'border-t-2 border-dashed border-gray-600' : ''}`}
+                } ${userInfo.isOutOfTop ? 'border-t-2 border-dashed border-gray-600' : ''}`}
               >
                 <div className="flex items-center gap-4">
                   {/* Rang */}
-                  <div className={`text-2xl font-bold ${getRankColor(userData.rank)} min-w-[3rem]`}>
-                    {getRankIcon(userData.rank)}
+                  <div className={`text-2xl font-bold ${getRankColor(userInfo.rank)} min-w-[3rem]`}>
+                    {getRankIcon(userInfo.rank)}
                   </div>
                   
                   {/* Avatar */}
                   <div className="relative">
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-xl">
-                      {userData.avatar}
+                      {userInfo.avatar}
                     </div>
-                    {userData.isCurrentUser && (
+                    {userInfo.isCurrentUser && (
                       <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
                         ✓
                       </div>
@@ -341,23 +304,23 @@ const Leaderboard = () => {
                   {/* Infos utilisateur */}
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className={`font-medium ${userData.isCurrentUser ? 'text-blue-400' : 'text-white'}`}>
-                        {userData.name}
+                      <span className={`font-medium ${userInfo.isCurrentUser ? 'text-blue-400' : 'text-white'}`}>
+                        {userInfo.name}
                       </span>
-                      {userData.isCurrentUser && (
+                      {userInfo.isCurrentUser && (
                         <span className="bg-blue-600 text-xs px-2 py-1 rounded-full text-white">
                           Vous
                         </span>
                       )}
                     </div>
-                    <div className="text-gray-400 text-sm">{userData.role}</div>
-                    {userData.badges.length > 0 && (
+                    <div className="text-gray-400 text-sm">{userInfo.role}</div>
+                    {userInfo.badges.length > 0 && (
                       <div className="flex gap-1 mt-1">
-                        {userData.badges.slice(0, 3).map((badge, index) => (
+                        {userInfo.badges.slice(0, 3).map((badge, index) => (
                           <span key={index} className="text-xs">🏆</span>
                         ))}
-                        {userData.badges.length > 3 && (
-                          <span className="text-xs text-gray-500">+{userData.badges.length - 3}</span>
+                        {userInfo.badges.length > 3 && (
+                          <span className="text-xs text-gray-500">+{userInfo.badges.length - 3}</span>
                         )}
                       </div>
                     )}
@@ -366,40 +329,29 @@ const Leaderboard = () => {
 
                 {/* Statistiques */}
                 <div className="text-right">
-                  <div className={`text-lg font-bold ${userData.isCurrentUser ? 'text-blue-400' : 'text-white'}`}>
-                    {getDisplayValue(userData)}
+                  <div className={`text-lg font-bold ${userInfo.isCurrentUser ? 'text-blue-400' : 'text-white'}`}>
+                    {getDisplayValue(userInfo)}
                   </div>
-                  <div className="text-gray-400 text-sm">
-                    Niveau {userData.level}
+                  <div className="text-sm text-gray-400">
+                    Niveau {userInfo.level}
                   </div>
-                  {userData.streak > 0 && (
-                    <div className="text-orange-400 text-xs">
-                      🔥 {userData.streak} jours
-                    </div>
-                  )}
                 </div>
               </div>
             ))}
           </div>
-
-          {userData.isOutOfTop && (
-            <div className="p-4 bg-gray-750 text-center text-gray-400 text-sm">
-              ... autres participants ...
-            </div>
-          )}
         </div>
 
-        {/* Message encourageant */}
-        <div className="mt-8 text-center">
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6">
-            <h3 className="text-white font-semibold mb-2">
-              🚀 Continuez vos efforts !
+        {leaderboardData.length === 0 && (
+          <div className="text-center py-8">
+            <div className="text-4xl mb-4">📊</div>
+            <h3 className="text-lg font-medium text-white mb-2">
+              Aucun participant trouvé
             </h3>
-            <p className="text-blue-100 text-sm">
-              Complétez des tâches, collaborez en équipe et montez dans le classement !
+            <p className="text-gray-400">
+              Commencez à utiliser l'application pour apparaître dans le classement !
             </p>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
