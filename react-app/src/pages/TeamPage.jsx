@@ -1,6 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/TeamPage.jsx
-// VERSION COMPLÈTE AVEC TOUTES LES FONCTIONNALITÉS - SPARKLES DÉFINITIVEMENT CORRIGÉ
+// VERSION COMPLÈTE AVEC SPARKLES → STAR CORRIGÉ
+// REMPLACER ENTIÈREMENT LE FICHIER EXISTANT
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
