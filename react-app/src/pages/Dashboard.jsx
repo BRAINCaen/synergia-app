@@ -22,7 +22,7 @@ import {
   Clock
 } from 'lucide-react';
 
-// Import du composant test
+// Import du composant test (défini dans le même fichier pour éviter les erreurs d'import)
 const EscapeProgressionTest = () => {
   const navigate = useNavigate();
 
