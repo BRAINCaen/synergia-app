@@ -6,11 +6,11 @@
 import React, { useState, useEffect } from 'react';
 import { Crown, Target, TrendingUp, Star, Lock, CheckCircle, Users, Award, Zap } from 'lucide-react';
 import { useAuthStore } from '../shared/stores/authStore';
-import { useGamificationStore } from '../shared/stores/gamificationStore';
+import { useGameStore } from '../shared/stores/gameStore';
 
 const RoleProgressionPage = () => {
   const { user } = useAuthStore();
-  const { userStats, badges } = useGamificationStore();
+  const { userStats, badges } = useGameStore();
   const [selectedRole, setSelectedRole] = useState('developer');
   const [userLevel, setUserLevel] = useState(1);
 
