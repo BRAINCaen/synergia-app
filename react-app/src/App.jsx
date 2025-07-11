@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APPLICATION PRINCIPALE AVEC POLYFILL SPARKLES INTÉGRÉ
+// APPLICATION PRINCIPALE AVEC POLYFILL SPARKLES + VRAIES PAGES
 // REMPLACER ENTIÈREMENT LE FICHIER EXISTANT
 // ==========================================
 
@@ -39,12 +39,32 @@ import { useAuthStore } from './shared/stores/authStore.js';
 import Layout from './components/layout/Layout.jsx';
 import Login from './pages/Login.jsx';
 
-// 📄 Pages principales
+// 📄 Pages principales - VRAIES PAGES
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import GamificationPage from './pages/GamificationPage.jsx';
+
+// 🎮 Pages gamification - VRAIES PAGES
+import BadgesPage from './pages/BadgesPage.jsx';
+import RewardsPage from './pages/RewardsPage.jsx';
+
+// 👥 Pages équipe - VRAIES PAGES
+import TeamPage from './pages/TeamPage.jsx';
+import UsersPage from './pages/UsersPage.jsx';
+
+// 👤 Pages profil - VRAIES PAGES
+import ProfilePage from './pages/ProfilePage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
+
+// 🎯 Pages fonctionnalités - VRAIES PAGES
+import OnboardingPage from './pages/OnboardingPage.jsx';
+import TimeTrackPage from './pages/TimeTrackPage.jsx';
+
+// 🛡️ Pages admin - VRAIES PAGES
+import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
+import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 
 // Component de chargement simple
 const LoadingScreen = ({ message }) => (
@@ -62,7 +82,7 @@ const ToastContainer = () => null;
 // ToastProvider simple
 const ToastProvider = ({ children }) => <>{children}</>;
 
-// Page de fallback pour les fonctionnalités en développement
+// Page de fallback SEULEMENT pour les pages manquantes
 const FallbackPage = ({ title, description }) => (
   <div className="min-h-screen bg-gray-900 p-6">
     <div className="max-w-4xl mx-auto text-center">
@@ -73,7 +93,10 @@ const FallbackPage = ({ title, description }) => (
         <div className="text-gray-300 mb-4">
           🚧 Cette fonctionnalité est en cours de développement
         </div>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors">
+        <button 
+          onClick={() => window.location.href = '/dashboard'}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+        >
           Revenir au tableau de bord
         </button>
       </div>
@@ -81,17 +104,7 @@ const FallbackPage = ({ title, description }) => (
   </div>
 );
 
-// Imports avec fallback pour les pages manquantes
-const BadgesPage = () => <FallbackPage title="Badges" description="Gérez vos badges et récompenses" />;
-const RewardsPage = () => <FallbackPage title="Récompenses" description="Consultez vos récompenses disponibles" />;
-const TeamPage = () => <FallbackPage title="Équipe" description="Gérez votre équipe et collaborateurs" />;
-const UsersPage = () => <FallbackPage title="Utilisateurs" description="Administration des utilisateurs" />;
-const ProfilePage = () => <FallbackPage title="Profil" description="Gérez votre profil utilisateur" />;
-const SettingsPage = () => <FallbackPage title="Paramètres" description="Configurez vos préférences" />;
-const OnboardingPage = () => <FallbackPage title="Intégration" description="Guide d'intégration" />;
-const TimeTrackPage = () => <FallbackPage title="Suivi du temps" description="Suivez votre temps de travail" />;
-const AdminTaskValidationPage = () => <FallbackPage title="Validation Admin" description="Validation des tâches administrateur" />;
-const CompleteAdminTestPage = () => <FallbackPage title="Test Admin" description="Tests administrateur complets" />;
+// Fallbacks SEULEMENT pour les pages qui n'existent vraiment pas
 const RoleProgressionPage = () => <FallbackPage title="Progression de rôle" description="Suivez votre progression de rôle" />;
 const RoleTasksPage = () => <FallbackPage title="Tâches de rôle" description="Tâches spécifiques à votre rôle" />;
 const RoleBadgesPage = () => <FallbackPage title="Badges de rôle" description="Badges liés à votre rôle" />;
@@ -176,7 +189,7 @@ function App() {
               user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
             } />
 
-            {/* Routes avec Layout */}
+            {/* Routes avec Layout - VRAIES PAGES */}
             <Route path="/*" element={
               user ? (
                 <Layout>
@@ -208,7 +221,7 @@ function App() {
                     <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
                     <Route path="/admin/complete-test" element={<CompleteAdminTestPage />} />
 
-                    {/* 🏆 Système de rôles */}
+                    {/* 🏆 Système de rôles - Fallbacks pour pages non créées */}
                     <Route path="/role/progression" element={<RoleProgressionPage />} />
                     <Route path="/role/tasks" element={<RoleTasksPage />} />
                     <Route path="/role/badges" element={<RoleBadgesPage />} />
