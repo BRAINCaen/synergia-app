@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/EscapeProgressionPage.jsx
-// PAGE ESCAPE PROGRESSION AVEC LES 9 VRAIS RÔLES
+// PAGE ESCAPE PROGRESSION AVEC LES 9 VRAIS RÔLES - VERSION CORRIGÉE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
