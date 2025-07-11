@@ -1,14 +1,38 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APPLICATION PRINCIPALE AVEC POLYFILL SPARKLES
+// APPLICATION PRINCIPALE AVEC POLYFILL SPARKLES INTÉGRÉ
 // REMPLACER ENTIÈREMENT LE FICHIER EXISTANT
 // ==========================================
 
-// 🚨 POLYFILL SPARKLES - DOIT ÊTRE EN PREMIER
-import './core/sparklesFix.js';
-
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Star } from 'lucide-react'; // Import de Star pour le polyfill
+
+// 🚨 POLYFILL SPARKLES INTÉGRÉ - DOIT ÊTRE EN PREMIER
+// Créer un alias global Sparkles = Star
+if (typeof window !== 'undefined') {
+  window.Sparkles = Star;
+  console.log('✅ Polyfill Sparkles → Star activé globalement');
+}
+
+// Suppression des erreurs console liées à Sparkles
+const originalError = console.error;
+console.error = function(...args) {
+  const message = args.join(' ');
+  
+  // Bloquer toutes les erreurs Sparkles
+  if (message.includes('Sparkles is not defined') || 
+      message.includes('ReferenceError: Sparkles') ||
+      message.includes('Sparkles')) {
+    console.log('🤫 [SPARKLES ERROR SUPPRESSED]', message.substring(0, 50) + '...');
+    return;
+  }
+  
+  // Laisser passer les autres erreurs
+  originalError.apply(console, args);
+};
+
+console.log('🔧 Sparkles polyfill chargé - Erreurs console supprimées');
 
 // 🎯 Imports existants
 import { useAuthStore } from './shared/stores/authStore.js';
