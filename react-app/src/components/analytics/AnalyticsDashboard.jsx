@@ -1,4 +1,8 @@
-// react-app/src/components/analytics/AnalyticsDashboard.jsx
+// ==========================================
+// 📁 react-app/src/components/analytics/AnalyticsDashboard.jsx
+// Dashboard Analytics CORRIGÉ - Version fonctionnelle
+// ==========================================
+
 import React, { useState, useEffect } from 'react';
 import { 
   LineChart, 
@@ -14,6 +18,8 @@ import {
   Pie,
   Cell
 } from 'recharts';
+
+// ✅ IMPORTS CORRIGÉS
 import analyticsService from '../../core/services/analyticsService';
 import { useAuth } from '../../shared/hooks/useAuth';
 import MetricCard from './MetricCard';
@@ -35,6 +41,7 @@ const AnalyticsDashboard = () => {
   useEffect(() => {
     if (!user?.uid) {
       console.log('⚠️ Pas d\'utilisateur connecté');
+      setLoading(false);
       return;
     }
 
@@ -49,7 +56,9 @@ const AnalyticsDashboard = () => {
 
     return () => {
       console.log('🧹 Nettoyage analytics');
-      unsubscribe();
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
     };
   }, [user?.uid, timeRange]);
 
@@ -155,38 +164,41 @@ const AnalyticsDashboard = () => {
     );
   }
 
+  // Couleurs pour les graphiques
+  const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444'];
+
   return (
     <div className="min-h-screen bg-gray-900 p-6">
       <div className="max-w-7xl mx-auto space-y-8">
+        
         {/* Header avec contrôles */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              📊 Analytics Dashboard
-            </h1>
-            <p className="text-gray-400 mt-1">
-              Vue d'ensemble temps réel de votre productivité
-            </p>
+            <h1 className="text-3xl font-bold text-white">📊 Analytics</h1>
+            <p className="text-gray-400 mt-1">Tableau de bord des performances</p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label htmlFor="timeRange" className="text-sm text-gray-300">
-                Période :
-              </label>
-              <select 
-                id="timeRange"
-                value={timeRange} 
-                onChange={(e) => setTimeRange(Number(e.target.value))}
-                className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1 text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value={7}>7 jours</option>
-                <option value={30}>30 jours</option>
-                <option value={90}>3 mois</option>
-              </select>
-            </div>
+          
+          <div className="flex items-center gap-3">
+            <select 
+              value={timeRange}
+              onChange={(e) => setTimeRange(Number(e.target.value))}
+              className="px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-blue-500"
+            >
+              <option value={7}>7 derniers jours</option>
+              <option value={30}>30 derniers jours</option>
+              <option value={90}>90 derniers jours</option>
+            </select>
+            
+            <button 
+              onClick={handleExport}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              📤 Exporter
+            </button>
+            
             <button 
               onClick={loadAnalyticsData}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               🔄 Actualiser
             </button>
@@ -196,134 +208,73 @@ const AnalyticsDashboard = () => {
         {/* Métriques principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
-            icon="🎯"
-            value={metrics.totalProjects}
-            label="Projets Total"
-            color="from-blue-500 to-purple-600"
-            trend={metrics.activeProjects > 0 ? 5 : 0}
+            title="Tâches totales"
+            value={metrics.totalTasks}
+            icon="📋"
+            color="blue"
+            subtitle={`${metrics.completedTasks} terminées`}
           />
           <MetricCard
-            icon="⚡"
+            title="Projets actifs"
             value={metrics.activeProjects}
-            label="Projets Actifs"
-            color="from-green-500 to-teal-600"
+            icon="🚀"
+            color="green"
+            subtitle={`${metrics.totalProjects} au total`}
           />
           <MetricCard
-            icon="✅"
-            value={`${metrics.completedTasks}/${metrics.totalTasks}`}
-            label="Tâches Complétées"
-            color="from-emerald-500 to-green-600"
-            trend={12}
+            title="XP total"
+            value={metrics.totalXP}
+            icon="⭐"
+            color="purple"
+            subtitle={`${metrics.potentialXP} possible`}
           />
           <MetricCard
-            icon="⏰"
-            value={metrics.overdueTasks}
-            label="Tâches En Retard"
-            color="from-red-500 to-pink-600"
-            trend={metrics.overdueTasks > 0 ? -3 : 3}
-          />
-          <MetricCard
-            icon="👥"
-            value={metrics.teamMembers}
-            label="Membres Équipe"
-            color="from-cyan-500 to-blue-600"
-          />
-          <MetricCard
-            icon="📈"
-            value={`${metrics.avgCompletion}%`}
-            label="Completion Moyenne"
-            color="from-yellow-500 to-orange-600"
-            trend={8}
-          />
-          <MetricCard
-            icon="🔥"
-            value={metrics.productivity}
-            label="Complétées Aujourd'hui"
-            color="from-pink-500 to-rose-600"
-          />
-          <MetricCard
-            icon="⚡"
-            value={`${metrics.velocity}`}
-            label="Vélocité (7j)"
-            color="from-indigo-500 to-purple-600"
+            title="Taux de completion"
+            value={`${metrics.completionRate}%`}
+            icon="🎯"
+            color="orange"
+            subtitle={`Streak: ${metrics.streak} jours`}
           />
         </div>
 
         {/* Graphiques principaux */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
           {/* Progression dans le temps */}
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-            <div className="mb-6">
-              <h3 className="text-xl font-semibold text-white mb-2">
-                📈 Progression des Tâches
-              </h3>
-              <p className="text-gray-400 text-sm">
-                Évolution sur {timeRange} derniers jours
-              </p>
-            </div>
-            <ProgressChart data={progressData} height={300} />
+          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h3 className="text-xl font-semibold text-white mb-4">📈 Progression temporelle</h3>
+            {progressData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={progressData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="day" stroke="#9ca3af" />
+                  <YAxis stroke="#9ca3af" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1f2937', 
+                      border: '1px solid #374151',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Line type="monotone" dataKey="completed" stroke="#10b981" strokeWidth={2} />
+                  <Line type="monotone" dataKey="created" stroke="#3b82f6" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-gray-400">
+                Aucune donnée de progression
+              </div>
+            )}
           </div>
 
-          {/* Vélocité par équipe */}
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-            <div className="mb-6">
-              <h3 className="text-xl font-semibold text-white mb-2">
-                ⚡ Vélocité par Équipe
-              </h3>
-              <p className="text-gray-400 text-sm">
-                Comparaison hebdomadaire
-              </p>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={velocityData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis 
-                  dataKey="team" 
-                  stroke="#9ca3af"
-                  fontSize={12}
-                />
-                <YAxis stroke="#9ca3af" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: '#1f2937',
-                    border: '1px solid #374151',
-                    borderRadius: '8px',
-                    color: '#ffffff'
-                  }}
-                />
-                <Bar 
-                  dataKey="thisWeek" 
-                  fill="#3b82f6" 
-                  name="Cette semaine"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar 
-                  dataKey="lastWeek" 
-                  fill="#6366f1" 
-                  name="Semaine dernière"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Distribution des tâches */}
-        {tasksDistribution.length > 0 && (
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-            <div className="mb-6">
-              <h3 className="text-xl font-semibold text-white mb-2">
-                📊 Répartition des Tâches
-              </h3>
-              <p className="text-gray-400 text-sm">
-                État actuel de toutes vos tâches
-              </p>
-            </div>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+          {/* Distribution des tâches */}
+          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h3 className="text-xl font-semibold text-white mb-4">🍰 Distribution par statut</h3>
+            {tasksDistribution.byStatus && tasksDistribution.byStatus.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                   <Pie
-                    data={tasksDistribution}
+                    data={tasksDistribution.byStatus}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -332,48 +283,68 @@ const AnalyticsDashboard = () => {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {tasksDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    {tasksDistribution.byStatus.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: '#1f2937',
-                      border: '1px solid #374151',
-                      borderRadius: '8px',
-                      color: '#ffffff'
-                    }}
-                  />
+                  <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-gray-400">
+                Aucune donnée de distribution
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
-        {/* Progression des projets */}
-        {projectsProgress.length > 0 && (
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-            <div className="mb-6">
-              <h3 className="text-xl font-semibold text-white mb-2">
-                🎯 Progression des Projets
-              </h3>
-              <p className="text-gray-400 text-sm">
-                {projectsProgress.length} projets en cours
-              </p>
-            </div>
-            <div className="space-y-4">
-              {projectsProgress.map((project, index) => (
-                <div key={index} className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-white">{project.name}</h4>
-                      <span className="text-sm text-gray-400">{project.tasks}</span>
+        {/* Vélocité et projets */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Vélocité hebdomadaire */}
+          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h3 className="text-xl font-semibold text-white mb-4">⚡ Vélocité hebdomadaire</h3>
+            {velocityData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={velocityData.slice(0, 8)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="week" stroke="#9ca3af" />
+                  <YAxis stroke="#9ca3af" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1f2937', 
+                      border: '1px solid #374151',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Bar dataKey="tasksCompleted" fill="#3b82f6" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-gray-400">
+                Aucune donnée de vélocité
+              </div>
+            )}
+          </div>
+
+          {/* Progression des projets */}
+          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h3 className="text-xl font-semibold text-white mb-4">📊 Progression des projets</h3>
+            {projectsProgress.length > 0 ? (
+              <div className="space-y-4 max-h-64 overflow-y-auto">
+                {projectsProgress.slice(0, 5).map((project, index) => (
+                  <div key={project.id} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-white text-sm">{project.title}</h4>
+                      <p className="text-xs text-gray-400">
+                        {project.tasksCompleted}/{project.tasksTotal} tâches • {project.xpEarned} XP
+                      </p>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 bg-gray-600 rounded-full h-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-20 h-2 bg-gray-600 rounded-full overflow-hidden">
                         <div 
-                          className="h-2 rounded-full transition-all duration-500"
-                          style={{
+                          className="h-full transition-all duration-300"
+                          style={{ 
                             width: `${project.completion}%`,
                             backgroundColor: project.completion >= 80 ? '#10b981' : 
                                            project.completion >= 60 ? '#f59e0b' : 
@@ -386,11 +357,15 @@ const AnalyticsDashboard = () => {
                       </span>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-gray-400">
+                Aucun projet disponible
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Actions rapides */}
         <div className="flex justify-center gap-4">
