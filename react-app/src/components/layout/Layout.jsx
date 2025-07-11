@@ -1,10 +1,10 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT CORRIGÉ - UTILISE OUTLET + BOUTON GRIS (PAS ROUGE)
+// LAYOUT FINAL CORRIGÉ - UTILISE OUTLET + BOUTON GRIS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate, Outlet } from 'react-router-dom'; // ✅ IMPORT OUTLET
+import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { 
   Home, 
   CheckSquare, 
@@ -37,7 +37,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { isAdmin } from '../../core/services/adminService.js';
 
-const Layout = () => { // ✅ PAS DE {children} car on utilise Outlet
+const Layout = () => { // ✅ Pas de props children car on utilise Outlet
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
@@ -232,7 +232,7 @@ const Layout = () => { // ✅ PAS DE {children} car on utilise Outlet
               {isAdmin(user) && renderNavSection('Administration', adminItems, 'admin', Shield)}
             </div>
 
-            {/* Footer utilisateur - ✅ BOUTON GRIS AU LIEU DE ROUGE */}
+            {/* Footer utilisateur - ✅ BOUTON GRIS */}
             <div className="p-4 border-t border-gray-700">
               <div className="flex items-center space-x-3 mb-4">
                 <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
@@ -288,7 +288,7 @@ const Layout = () => { // ✅ PAS DE {children} car on utilise Outlet
           </div>
         </header>
 
-        {/* Page content - ✅ UTILISE OUTLET */}
+        {/* Page content - ✅ UTILISE OUTLET POUR LES ROUTES IMBRIQUÉES */}
         <main className="flex-1 overflow-auto">
           <Outlet />
         </main>
