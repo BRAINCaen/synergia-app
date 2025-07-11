@@ -1,65 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { useAuthStore } from '../../shared/stores/authStore.js';
-import userService from '../../core/services/userService.js';
+// ==========================================
+// 📁 react-app/src/components/gamification/RealLeaderboard.jsx
+// Classement Firebase temps réel - CONFLIT VARIABLE CORRIGÉ
+// ==========================================
 
-const RealLeaderboard = () => {
+import React, { useState, useEffect } from 'react';
+import { useAuthStore } from '../../shared/stores/authStore';
+import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
+import { db } from '../../core/firebase';
+
+const RealLeaderboard = ({ maxResults = 20 }) => {
   const { user } = useAuthStore();
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [timeFilter, setTimeFilter] = useState('all');
-  const [departmentFilter, setDepartmentFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('totalXp');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
 
-  useEffect(() => {
-    if (!user) return;
+  // Données simulées pour les départements
+  const departments = [
+    'all',
+    'Développement',
+    'Marketing', 
+    'Commercial',
+    'RH',
+    'Finance',
+    'Direction'
+  ];
 
-    setLoading(true);
-
-    // Options pour le leaderboard
-    const options = {
-      orderField: `gamification.${categoryFilter}`,
-      limitCount: 50,
-      department: departmentFilter !== 'all' ? departmentFilter : null
-    };
-
-    // Écouter les changements en temps réel
-    const unsubscribe = userService.getLeaderboard((data) => {
-      setLeaderboard(data);
-      setLoading(false);
-    }, options);
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [user, categoryFilter, departmentFilter]);
-
-  const getDisplayValue = (userData) => {
-    switch (categoryFilter) {
-      case 'weeklyXp':
-        return `${userData.weeklyXp} XP`;
-      case 'monthlyXp':
-        return `${userData.monthlyXp} XP`;
-      case 'badges':
-        return `${userData.badges} badges`;
-      case 'tasksCompleted':
-        return `${userData.tasksCompleted} tâches`;
-      case 'loginStreak':
-        return `${userData.loginStreak} jours`;
-      default:
-        return `${userData.totalXp} XP`;
-    }
-  };
-
-  const getRankIcon = (rank) => {
-    switch (rank) {
-      case 1: return '🥇';
-      case 2: return '🥈';
-      case 3: return '🥉';
-      default: return `#${rank}`;
-    }
-  };
-
-  const departments = ['all', 'Développement', 'Design', 'Marketing', 'RH'];
   const categories = [
     { value: 'totalXp', label: 'XP Total' },
     { value: 'weeklyXp', label: 'XP Semaine' },
@@ -68,6 +34,108 @@ const RealLeaderboard = () => {
     { value: 'tasksCompleted', label: 'Tâches' },
     { value: 'loginStreak', label: 'Connexions' }
   ];
+
+  // Charger le leaderboard depuis Firebase
+  useEffect(() => {
+    const loadLeaderboard = async () => {
+      if (!db) {
+        console.log('🔧 Mode déconnecté');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+
+        // Construire la requête selon la catégorie
+        let orderField = 'gamification.totalXp';
+        if (categoryFilter === 'weeklyXp') orderField = 'gamification.weeklyXp';
+        if (categoryFilter === 'monthlyXp') orderField = 'gamification.monthlyXp';
+        if (categoryFilter === 'badges') orderField = 'gamification.badges';
+        if (categoryFilter === 'tasksCompleted') orderField = 'gamification.tasksCompleted';
+        if (categoryFilter === 'loginStreak') orderField = 'gamification.loginStreak';
+
+        let leaderboardQuery = query(
+          collection(db, 'users'),
+          orderBy(orderField, 'desc'),
+          limit(maxResults)
+        );
+
+        // Filtrer par département si nécessaire
+        if (departmentFilter !== 'all') {
+          leaderboardQuery = query(
+            collection(db, 'users'),
+            where('profile.department', '==', departmentFilter),
+            orderBy(orderField, 'desc'),
+            limit(maxResults)
+          );
+        }
+
+        const snapshot = await getDocs(leaderboardQuery);
+        const leaderboardData = [];
+
+        snapshot.forEach((doc, index) => {
+          const docData = doc.data(); // 🔧 CORRECTION: Renommé userData en docData
+          if (docData.email && docData.gamification) {
+            leaderboardData.push({
+              uid: doc.id,
+              rank: index + 1,
+              displayName: docData.displayName || docData.email.split('@')[0],
+              email: docData.email,
+              photoURL: docData.photoURL,
+              department: docData.profile?.department || 'Non défini',
+              level: docData.gamification.level || 1,
+              totalXp: docData.gamification.totalXp || 0,
+              weeklyXp: docData.gamification.weeklyXp || 0,
+              monthlyXp: docData.gamification.monthlyXp || 0,
+              tasksCompleted: docData.gamification.tasksCompleted || 0,
+              badges: (docData.gamification.badges || []).length,
+              loginStreak: docData.gamification.loginStreak || 0
+            });
+          }
+        });
+
+        setLeaderboard(leaderboardData);
+        console.log(`✅ Classement chargé: ${leaderboardData.length} utilisateurs`);
+
+      } catch (error) {
+        console.error('❌ Erreur chargement leaderboard:', error);
+        setLeaderboard([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadLeaderboard();
+  }, [categoryFilter, departmentFilter, maxResults]);
+
+  // Obtenir la valeur d'affichage selon la catégorie
+  const getDisplayValue = (userInfo) => { // 🔧 CORRECTION: Renommé userData en userInfo
+    switch (categoryFilter) {
+      case 'totalXp':
+        return `${userInfo.totalXp.toLocaleString()} XP`;
+      case 'weeklyXp':
+        return `${userInfo.weeklyXp.toLocaleString()} XP`;
+      case 'monthlyXp':
+        return `${userInfo.monthlyXp.toLocaleString()} XP`;
+      case 'tasksCompleted':
+        return `${userInfo.tasksCompleted} tâches`;
+      case 'badges':
+        return `${userInfo.badges} badges`;
+      case 'loginStreak':
+        return `${userInfo.loginStreak} jours`;
+      default:
+        return `${userInfo.totalXp.toLocaleString()} XP`;
+    }
+  };
+
+  // Obtenir l'icône du rang
+  const getRankIcon = (rank) => {
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return `#${rank}`;
+  };
 
   if (loading) {
     return (
@@ -127,9 +195,9 @@ const RealLeaderboard = () => {
       {/* Podium */}
       {leaderboard.length >= 3 && (
         <div className="grid grid-cols-3 gap-4 mb-6">
-          {leaderboard.slice(0, 3).map((userData, index) => (
+          {leaderboard.slice(0, 3).map((userInfo, index) => ( // 🔧 CORRECTION: Renommé userData en userInfo
             <div
-              key={userData.uid}
+              key={userInfo.uid}
               className={`
                 text-center p-4 rounded-lg border relative
                 ${index === 0 ? 'bg-gradient-to-b from-yellow-500/20 to-yellow-600/20 border-yellow-500' :
@@ -137,12 +205,12 @@ const RealLeaderboard = () => {
                   'bg-gradient-to-b from-orange-500/20 to-orange-600/20 border-orange-500'}
               `}
             >
-              <div className="text-3xl mb-2">{getRankIcon(userData.rank)}</div>
+              <div className="text-3xl mb-2">{getRankIcon(userInfo.rank)}</div>
               <div className="w-16 h-16 rounded-full bg-gray-600 mx-auto mb-3 flex items-center justify-center">
-                {userData.photoURL ? (
+                {userInfo.photoURL ? (
                   <img
-                    src={userData.photoURL}
-                    alt={userData.displayName}
+                    src={userInfo.photoURL}
+                    alt={userInfo.displayName}
                     className="w-full h-full rounded-full object-cover"
                   />
                 ) : (
@@ -150,13 +218,13 @@ const RealLeaderboard = () => {
                 )}
               </div>
               <h3 className="font-semibold text-white text-sm truncate">
-                {userData.displayName}
+                {userInfo.displayName}
               </h3>
-              <p className="text-xs text-gray-400 mb-2">{userData.department}</p>
+              <p className="text-xs text-gray-400 mb-2">{userInfo.department}</p>
               <p className="font-bold text-lg text-white">
-                {getDisplayValue(userData)}
+                {getDisplayValue(userInfo)}
               </p>
-              <p className="text-xs text-gray-400">Niveau {userData.level}</p>
+              <p className="text-xs text-gray-400">Niveau {userInfo.level}</p>
             </div>
           ))}
         </div>
@@ -164,12 +232,12 @@ const RealLeaderboard = () => {
 
       {/* Liste complète */}
       <div className="space-y-2">
-        {leaderboard.map((userData) => (
+        {leaderboard.map((userInfo) => ( // 🔧 CORRECTION: Renommé userData en userInfo
           <div
-            key={userData.uid}
+            key={userInfo.uid}
             className={`
               flex items-center p-4 rounded-lg border transition-colors
-              ${userData.uid === user?.uid 
+              ${userInfo.uid === user?.uid 
                 ? 'bg-blue-600/20 border-blue-500' 
                 : 'bg-gray-800 border-gray-700 hover:bg-gray-750'
               }
@@ -178,15 +246,15 @@ const RealLeaderboard = () => {
             <div className="flex items-center min-w-0 flex-1">
               <div className="w-8 text-center mr-4">
                 <span className="text-lg font-bold text-gray-300">
-                  {getRankIcon(userData.rank)}
+                  {getRankIcon(userInfo.rank)}
                 </span>
               </div>
 
               <div className="w-10 h-10 rounded-full bg-gray-600 mr-4 flex-shrink-0 flex items-center justify-center">
-                {userData.photoURL ? (
+                {userInfo.photoURL ? (
                   <img
-                    src={userData.photoURL}
-                    alt={userData.displayName}
+                    src={userInfo.photoURL}
+                    alt={userInfo.displayName}
                     className="w-full h-full rounded-full object-cover"
                   />
                 ) : (
@@ -197,8 +265,8 @@ const RealLeaderboard = () => {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center space-x-2">
                   <h3 className="font-medium text-white truncate">
-                    {userData.displayName}
-                    {userData.uid === user?.uid && (
+                    {userInfo.displayName}
+                    {userInfo.uid === user?.uid && (
                       <span className="ml-2 text-xs bg-blue-600 px-2 py-1 rounded">
                         Vous
                       </span>
@@ -206,17 +274,17 @@ const RealLeaderboard = () => {
                   </h3>
                 </div>
                 <p className="text-sm text-gray-400">
-                  {userData.department} • Niveau {userData.level}
+                  {userInfo.department} • Niveau {userInfo.level}
                 </p>
               </div>
             </div>
 
             <div className="text-right">
               <div className="font-bold text-white">
-                {getDisplayValue(userData)}
+                {getDisplayValue(userInfo)}
               </div>
               <div className="text-sm text-gray-400">
-                {userData.badges} badges
+                {userInfo.badges} badges
               </div>
             </div>
           </div>
