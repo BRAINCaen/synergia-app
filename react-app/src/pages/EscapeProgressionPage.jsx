@@ -28,7 +28,8 @@ import {
   Palette,
   GraduationCap,
   Handshake,
-  Megaphone
+  Megaphone,
+  X
 } from 'lucide-react';
 
 // 🎯 LES 9 VRAIS RÔLES ESCAPE GAME DE SYNERGIA
