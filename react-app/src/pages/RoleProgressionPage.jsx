@@ -5,8 +5,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Crown, Target, TrendingUp, Star, Lock, CheckCircle, Users, Award, Zap } from 'lucide-react';
-import { useAuthStore } from '../shared/stores/authStore';
-import { useGameStore } from '../shared/stores/gameStore';
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { useGameStore } from '../shared/stores/gameStore.js';
 
 const RoleProgressionPage = () => {
   const { user } = useAuthStore();
