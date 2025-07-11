@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TeamPageEnhanced.jsx
-// PAGE ÉQUIPE AMÉLIORÉE - AFFICHAGE EXHAUSTIF DES MEMBRES
+// PAGE ÉQUIPE AMÉLIORÉE - AFFICHAGE EXHAUSTIF DES MEMBRES - SPARKLES CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +13,7 @@ import {
   RefreshCw,
   Filter,
   UserPlus,
-  Sparkles,
+  Star, // ✅ Remplace Sparkles par Star
   CheckCircle,
   XCircle,
   Clock,
@@ -66,129 +66,59 @@ const SYNERGIA_ROLES = {
   },
   technique: {
     id: 'technique',
-    name: 'Technique & Maintenance',
-    icon: '🔧',
-    color: 'bg-gray-500',
-    description: 'Support technique et maintenance',
-    difficulty: 'Moyen',
-    permissions: ['technical_access', 'maintenance']
-  },
-  logistique: {
-    id: 'logistique',
-    name: 'Logistique & Stock',
-    icon: '📦',
-    color: 'bg-teal-500',
-    description: 'Gestion logistique et stocks',
-    difficulty: 'Facile',
-    permissions: ['inventory_management', 'stock_access']
+    name: 'Technique & IT',
+    icon: '💻',
+    color: 'bg-purple-500',
+    description: 'Développement technique et infrastructure IT',
+    difficulty: 'Expert',
+    permissions: ['tech_access', 'system_admin']
   }
 };
 
 /**
- * 🏠 COMPOSANT PAGE ÉQUIPE AMÉLIORÉE
+ * 🏢 COMPOSANT PRINCIPAL - PAGE ÉQUIPE AMÉLIORÉE
  */
 const TeamPageEnhanced = () => {
   const { user } = useAuthStore();
-  
-  // Hook amélioré pour récupérer tous les membres
-  const {
-    teamMembers,
-    filteredMembers,
-    loading,
-    error,
-    lastUpdated,
-    searchTerm,
-    statusFilter,
-    stats,
-    refreshTeam,
-    handleSearchChange,
-    handleStatusFilterChange,
-    totalMembers,
-    visibleMembers,
-    hasMembers
+  const { 
+    members, 
+    loading, 
+    error, 
+    stats, 
+    isOnline,
+    refreshData 
   } = useTeamEnhanced();
 
-  // États locaux
-  const [activeTab, setActiveTab] = useState('members');
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedMember, setSelectedMember] = useState(null);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // États locaux pour l'interface
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [sortBy, setSortBy] = useState('name');
+  const [hasMembers, setHasMembers] = useState(false);
 
-  // Détecter la connectivité
+  // Vérifier si on a des membres
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+    setHasMembers(members && members.length > 0);
+  }, [members]);
 
-  // Fonction pour obtenir l'icône de statut
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'online': return <CheckCircle className="w-4 h-4 text-green-400" />;
-      case 'recent': return <Clock className="w-4 h-4 text-yellow-400" />;
-      case 'away': return <AlertCircle className="w-4 h-4 text-orange-400" />;
-      case 'inactive': return <XCircle className="w-4 h-4 text-red-400" />;
-      default: return <AlertCircle className="w-4 h-4 text-gray-400" />;
-    }
+  // Calcul des statistiques améliorées
+  const enhancedStats = {
+    total: members?.length || 0,
+    active: members?.filter(m => m.isOnline)?.length || 0,
+    online: members?.filter(m => m.lastActive && 
+      (new Date() - new Date(m.lastActive)) < 5 * 60 * 1000)?.length || 0,
+    recent: members?.filter(m => m.lastActive && 
+      (new Date() - new Date(m.lastActive)) < 24 * 60 * 60 * 1000)?.length || 0,
+    inactive: members?.filter(m => !m.lastActive || 
+      (new Date() - new Date(m.lastActive)) > 7 * 24 * 60 * 60 * 1000)?.length || 0
   };
 
-  // Fonction pour obtenir le badge de statut
-  const getStatusBadge = (status) => {
-    const badges = {
-      online: 'bg-green-500/20 text-green-400 border-green-500/30',
-      recent: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      away: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      inactive: 'bg-red-500/20 text-red-400 border-red-500/30',
-      active: 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-    };
-    
-    return badges[status] || badges.inactive;
-  };
-
-  // Interface des onglets
-  const tabs = [
-    { 
-      id: 'members', 
-      label: 'Membres', 
-      icon: Users, 
-      count: visibleMembers,
-      color: 'text-blue-400'
-    },
-    { 
-      id: 'stats', 
-      label: 'Statistiques', 
-      icon: BarChart3,
-      color: 'text-green-400'
-    },
-    { 
-      id: 'roles', 
-      label: 'Rôles Synergia', 
-      icon: Award, 
-      count: Object.keys(SYNERGIA_ROLES).length,
-      color: 'text-purple-400'
-    },
-    { 
-      id: 'settings', 
-      label: 'Paramètres', 
-      icon: Settings,
-      color: 'text-gray-400'
-    }
-  ];
-
-  // Filtres de statut
-  const statusFilters = [
-    { value: 'all', label: 'Tous', count: totalMembers },
-    { value: 'active', label: 'Actifs', count: stats.active },
-    { value: 'online', label: 'En ligne', count: stats.online },
-    { value: 'recent', label: 'Récents', count: stats.recent },
-    { value: 'inactive', label: 'Inactifs', count: stats.inactive }
+  // Options de filtre
+  const filterOptions = [
+    { value: 'all', label: 'Tous', count: enhancedStats.total },
+    { value: 'active', label: 'Actifs', count: enhancedStats.active },
+    { value: 'online', label: 'En ligne', count: enhancedStats.online },
+    { value: 'recent', label: 'Récents', count: enhancedStats.recent },
+    { value: 'inactive', label: 'Inactifs', count: enhancedStats.inactive }
   ];
 
   // Affichage de l'état de chargement initial
@@ -217,7 +147,7 @@ const TeamPageEnhanced = () => {
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
               Gestion d'Équipe Complète
             </h1>
-            <Sparkles className="w-8 h-8 text-purple-400 animate-pulse" />
+            <Star className="w-8 h-8 text-purple-400 animate-pulse" /> {/* ✅ Remplace Sparkles par Star */}
             
             {/* Indicateur de connectivité */}
             <div className="flex items-center gap-2 ml-4">
@@ -238,508 +168,273 @@ const TeamPageEnhanced = () => {
           {/* Statistiques en header */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 max-w-3xl mx-auto mb-6">
             <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
-              <div className="text-xl font-bold text-blue-400">{stats.total}</div>
+              <div className="text-xl font-bold text-blue-400">{enhancedStats.total}</div>
               <div className="text-xs text-gray-400">Total</div>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
-              <div className="text-xl font-bold text-green-400">{stats.active}</div>
+              <div className="text-xl font-bold text-green-400">{enhancedStats.active}</div>
               <div className="text-xs text-gray-400">Actifs</div>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
-              <div className="text-xl font-bold text-yellow-400">{stats.online}</div>
+              <div className="text-xl font-bold text-emerald-400">{enhancedStats.online}</div>
               <div className="text-xs text-gray-400">En ligne</div>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
-              <div className="text-xl font-bold text-purple-400">{stats.avgLevel}</div>
-              <div className="text-xs text-gray-400">Niveau Moy.</div>
+              <div className="text-xl font-bold text-yellow-400">{enhancedStats.recent}</div>
+              <div className="text-xs text-gray-400">Récents</div>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
-              <div className="text-xl font-bold text-orange-400">{stats.departments}</div>
-              <div className="text-xs text-gray-400">Départements</div>
+              <div className="text-xl font-bold text-red-400">{enhancedStats.inactive}</div>
+              <div className="text-xs text-gray-400">Inactifs</div>
             </div>
-          </div>
-
-          {/* Debug sources */}
-          <div className="text-xs text-gray-500 flex items-center justify-center gap-4">
-            <span>Sources: </span>
-            {Object.entries(stats.sources).map(([source, count]) => (
-              <span key={source} className="bg-gray-800/30 px-2 py-1 rounded">
-                {source}: {count}
-              </span>
-            ))}
-            {lastUpdated && (
-              <span className="text-gray-600">
-                Dernière MAJ: {lastUpdated.toLocaleTimeString()}
-              </span>
-            )}
           </div>
         </div>
 
-        {/* Barre de contrôles */}
-        <div className="bg-gray-800/50 rounded-xl p-4 mb-6 border border-gray-700">
+        {/* Contrôles et filtres */}
+        <div className="mb-6 space-y-4">
+          {/* Barre de recherche et actions */}
           <div className="flex flex-col md:flex-row gap-4">
-            
-            {/* Recherche */}
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
-                placeholder="Rechercher un membre..."
+                placeholder="Rechercher un membre (nom, email, rôle)..."
                 value={searchTerm}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
               />
             </div>
-
-            {/* Boutons d'action */}
+            
             <div className="flex gap-2">
+              <button 
+                onClick={refreshData}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-lg transition-colors"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span>Actualiser</span>
+              </button>
+              
+              <button className="flex items-center gap-2 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">
+                <Settings className="w-4 h-4" />
+                <span>Options</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Filtres par statut */}
+          <div className="flex flex-wrap gap-2">
+            {filterOptions.map(option => (
               <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`px-4 py-2 rounded-lg border transition-colors flex items-center gap-2 ${
-                  showFilters 
-                    ? 'bg-blue-600 border-blue-500 text-white' 
-                    : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                key={option.value}
+                onClick={() => setFilterStatus(option.value)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+                  filterStatus === option.value
+                    ? 'bg-blue-600 border-blue-500 text-white'
+                    : 'bg-gray-800/50 border-gray-600 text-gray-300 hover:bg-gray-700'
                 }`}
               >
                 <Filter className="w-4 h-4" />
-                Filtres
+                <span>{option.label}</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs ${
+                  filterStatus === option.value
+                    ? 'bg-blue-500'
+                    : 'bg-gray-600'
+                }`}>
+                  {option.count}
+                </span>
               </button>
-              
-              <button
-                onClick={refreshTeam}
-                className="px-4 py-2 bg-purple-600 border border-purple-500 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                Actualiser
-              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Messages d'erreur */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-900/20 border border-red-500 rounded-lg">
+            <div className="flex items-center gap-2 text-red-400 mb-2">
+              <AlertCircle className="w-5 h-5" />
+              <span className="font-medium">Erreur de chargement</span>
+            </div>
+            <p className="text-red-300 text-sm">{error}</p>
+            <button 
+              onClick={refreshData}
+              className="mt-2 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors"
+            >
+              Réessayer
+            </button>
+          </div>
+        )}
+
+        {/* État de chargement avec données existantes */}
+        {loading && hasMembers && (
+          <div className="mb-4 p-3 bg-blue-900/20 border border-blue-500 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-400">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              <span>Actualisation des données en cours...</span>
             </div>
           </div>
+        )}
 
-          {/* Filtres de statut */}
-          {showFilters && (
-            <div className="mt-4 pt-4 border-t border-gray-700">
-              <div className="flex flex-wrap gap-2">
-                {statusFilters.map((filter) => (
-                  <button
-                    key={filter.value}
-                    onClick={() => handleStatusFilterChange(filter.value)}
-                    className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                      statusFilter === filter.value
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    {filter.label} ({filter.count})
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Navigation des onglets */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-gray-700 text-white border border-gray-600'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
-              }`}
-            >
-              <tab.icon className={`w-4 h-4 ${tab.color || 'text-current'}`} />
-              {tab.label}
-              {tab.count !== undefined && (
-                <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded-full">
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Contenu principal */}
-        <div className="bg-gray-800/50 rounded-xl border border-gray-700 overflow-hidden">
-          
-          {/* ONGLET MEMBRES */}
-          {activeTab === 'members' && (
-            <div className="p-6">
-              {error && (
-                <div className="mb-4 p-4 bg-red-900/20 border border-red-700 rounded-lg">
-                  <div className="flex items-center gap-2 text-red-400">
-                    <AlertCircle className="w-4 h-4" />
-                    <span className="font-medium">Erreur de chargement</span>
-                  </div>
-                  <p className="text-red-300 text-sm mt-1">{error}</p>
-                </div>
-              )}
-
-              {filteredMembers.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredMembers.map((member) => (
-                    <div
-                      key={member.id}
-                      className="bg-gray-700/50 border border-gray-600 rounded-lg p-4 hover:bg-gray-700/70 transition-colors"
-                    >
-                      {/* Header membre */}
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                          {member.avatar || member.displayName?.charAt(0)?.toUpperCase() || '?'}
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-white truncate">
-                            {member.displayName || 'Nom inconnu'}
-                          </h3>
-                          <div className="flex items-center gap-2">
-                            <Mail className="w-3 h-3 text-gray-400" />
-                            <span className="text-xs text-gray-400 truncate">
-                              {member.email || 'Email non disponible'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Statut */}
-                        <div className="flex items-center gap-1">
-                          {getStatusIcon(member.status)}
-                        </div>
-                      </div>
-
-                      {/* Informations membre */}
-                      <div className="space-y-2">
-                        {/* Rôle et département */}
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-400">Rôle:</span>
-                          <span className="text-gray-300">{member.role || 'Non défini'}</span>
-                        </div>
-                        
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-400">Département:</span>
-                          <span className="text-gray-300">{member.department || 'Non spécifié'}</span>
-                        </div>
-
-                        {/* XP et niveau */}
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-400">Niveau:</span>
-                          <span className="text-blue-400 font-medium">
-                            Niv. {member.level || 1} ({member.xp || 0} XP)
-                          </span>
-                        </div>
-
-                        {/* Statut */}
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-400">Statut:</span>
-                          <span className={`px-2 py-1 rounded border text-xs ${getStatusBadge(member.status)}`}>
-                            {member.status || 'inconnu'}
-                          </span>
-                        </div>
-
-                        {/* Source */}
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-400">Source:</span>
-                          <span className="text-purple-400">{member.source}</span>
-                        </div>
-
-                        {/* Rôles Synergia */}
-                        {member.synergiaRoles && member.synergiaRoles.length > 0 && (
-                          <div className="mt-2">
-                            <span className="text-xs text-gray-400">Rôles Synergia:</span>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {member.synergiaRoles.slice(0, 2).map((role, index) => (
-                                <span
-                                  key={index}
-                                  className="text-xs bg-purple-600/20 text-purple-400 px-2 py-1 rounded border border-purple-600/30"
-                                >
-                                  {typeof role === 'string' ? role : role.name}
-                                </span>
-                              ))}
-                              {member.synergiaRoles.length > 2 && (
-                                <span className="text-xs text-gray-400">
-                                  +{member.synergiaRoles.length - 2}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Projets */}
-                        {member.projects && member.projects.length > 0 && (
-                          <div className="mt-2">
-                            <span className="text-xs text-gray-400">Projets:</span>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {member.projects.slice(0, 2).map((project, index) => (
-                                <span
-                                  key={index}
-                                  className="text-xs bg-green-600/20 text-green-400 px-2 py-1 rounded border border-green-600/30"
-                                >
-                                  {project.title || project.id}
-                                </span>
-                              ))}
-                              {member.projects.length > 2 && (
-                                <span className="text-xs text-gray-400">
-                                  +{member.projects.length - 2}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="mt-3 pt-3 border-t border-gray-600">
-                        <button
-                          onClick={() => setSelectedMember(member)}
-                          className="w-full px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/30 text-blue-400 rounded text-xs transition-colors flex items-center justify-center gap-2"
-                        >
-                          <Eye className="w-3 h-3" />
-                          Voir détails
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <h3 className="text-xl font-medium text-gray-300 mb-2">
-                    {searchTerm ? 'Aucun membre trouvé' : 'Aucun membre dans l\'équipe'}
-                  </h3>
-                  <p className="text-gray-500">
-                    {searchTerm 
-                      ? 'Essayez de modifier vos critères de recherche' 
-                      : 'L\'équipe semble vide pour le moment'
-                    }
-                  </p>
-                  {!searchTerm && (
-                    <button
-                      onClick={refreshTeam}
-                      className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                    >
-                      Rafraîchir les données
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ONGLET STATISTIQUES */}
-          {activeTab === 'stats' && (
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-white mb-6">Statistiques de l'Équipe</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Statistiques générales */}
-                <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
-                  <h4 className="font-medium text-white mb-3 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-blue-400" />
-                    Vue d'ensemble
-                  </h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Total membres:</span>
-                      <span className="text-white font-medium">{stats.total}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Actifs:</span>
-                      <span className="text-green-400 font-medium">{stats.active}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Inactifs:</span>
-                      <span className="text-red-400 font-medium">{stats.inactive}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Niveau moyen:</span>
-                      <span className="text-purple-400 font-medium">{stats.avgLevel}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">XP totale:</span>
-                      <span className="text-yellow-400 font-medium">{stats.totalXp.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Statuts de connexion */}
-                <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
-                  <h4 className="font-medium text-white mb-3 flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
-                    Statuts de connexion
-                  </h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">En ligne:</span>
-                      <span className="text-green-400 font-medium">{stats.online}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Récemment actifs:</span>
-                      <span className="text-yellow-400 font-medium">{stats.recent}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Absents:</span>
-                      <span className="text-orange-400 font-medium">
-                        {stats.total - stats.online - stats.recent}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sources de données */}
-                <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
-                  <h4 className="font-medium text-white mb-3 flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-purple-400" />
-                    Sources de données
-                  </h4>
-                  <div className="space-y-2 text-sm">
-                    {Object.entries(stats.sources).map(([source, count]) => (
-                      <div key={source} className="flex justify-between">
-                        <span className="text-gray-400 capitalize">{source}:</span>
-                        <span className="text-blue-400 font-medium">{count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Graphique de répartition par département */}
-              <div className="mt-6 bg-gray-700/50 rounded-lg p-4 border border-gray-600">
-                <h4 className="font-medium text-white mb-3">Répartition par département</h4>
-                <div className="text-center text-gray-400 py-8">
-                  <BarChart3 className="w-12 h-12 mx-auto mb-2" />
-                  <p>Graphiques détaillés en cours de développement</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ONGLET RÔLES SYNERGIA */}
-          {activeTab === 'roles' && (
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-white mb-6">Rôles Synergia Disponibles</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Object.values(SYNERGIA_ROLES).map((role) => (
-                  <div
-                    key={role.id}
-                    className={`${role.color} bg-opacity-20 border border-opacity-30 rounded-lg p-4 hover:bg-opacity-30 transition-colors`}
-                    style={{
-                      borderColor: role.color.replace('bg-', '').replace('-500', '')
-                    }}
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className="text-2xl">{role.icon}</span>
-                      <div>
-                        <h4 className="font-medium text-white">{role.name}</h4>
-                        <span className="text-xs text-gray-400">{role.difficulty}</span>
-                      </div>
-                    </div>
-                    
-                    <p className="text-sm text-gray-300 mb-3">{role.description}</p>
-                    
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-400">Permissions:</span>
-                      <span className="text-gray-300">{role.permissions.length}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ONGLET PARAMÈTRES */}
-          {activeTab === 'settings' && (
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-white mb-6">Paramètres de l'Équipe</h3>
-              
-              <div className="space-y-6">
-                <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
-                  <h4 className="font-medium text-white mb-3">Configuration de récupération</h4>
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-3">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      <span className="text-gray-300">Inclure les membres inactifs</span>
-                    </label>
-                    <label className="flex items-center gap-3">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      <span className="text-gray-300">Synchronisation temps réel</span>
-                    </label>
-                    <label className="flex items-center gap-3">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      <span className="text-gray-300">Récupération multi-sources</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
-                  <h4 className="font-medium text-white mb-3">Actions avancées</h4>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={refreshTeam}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                      Synchroniser maintenant
-                    </button>
-                    
-                    <button className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
-                      Exporter données
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Modal détails membre */}
-        {selectedMember && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full border border-gray-700">
-              <h3 className="text-xl font-bold text-white mb-4">
-                Détails de {selectedMember.displayName}
-              </h3>
-              
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="text-gray-400">Email:</span>
-                  <span className="text-white ml-2">{selectedMember.email}</span>
-                </div>
-                <div>
-                  <span className="text-gray-400">Rôle:</span>
-                  <span className="text-white ml-2">{selectedMember.role}</span>
-                </div>
-                <div>
-                  <span className="text-gray-400">Département:</span>
-                  <span className="text-white ml-2">{selectedMember.department}</span>
-                </div>
-                <div>
-                  <span className="text-gray-400">Niveau:</span>
-                  <span className="text-white ml-2">{selectedMember.level} ({selectedMember.xp} XP)</span>
-                </div>
-                <div>
-                  <span className="text-gray-400">Source:</span>
-                  <span className="text-white ml-2">{selectedMember.source}</span>
-                </div>
-                {selectedMember.lastActivity && (
-                  <div>
-                    <span className="text-gray-400">Dernière activité:</span>
-                    <span className="text-white ml-2">
-                      {new Date(selectedMember.lastActivity).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-              </div>
-              
-              <button
-                onClick={() => setSelectedMember(null)}
-                className="mt-4 w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+        {/* Grille des membres */}
+        {hasMembers ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {members.map(member => (
+              <MemberCard 
+                key={member.id} 
+                member={member} 
+                roles={SYNERGIA_ROLES}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16">
+            <Users className="w-20 h-20 text-gray-600 mx-auto mb-6" />
+            <h3 className="text-2xl font-bold text-white mb-4">
+              Aucun membre trouvé
+            </h3>
+            <p className="text-gray-400 mb-6 max-w-md mx-auto">
+              Il semble qu'aucun membre d'équipe ne soit disponible. 
+              Vérifiez votre connexion Firebase ou contactez l'administrateur.
+            </p>
+            <div className="space-y-3">
+              <button 
+                onClick={refreshData}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
               >
-                Fermer
+                <RefreshCw className="w-4 h-4 inline mr-2" />
+                Actualiser les données
               </button>
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * 👤 COMPOSANT CARTE MEMBRE
+ */
+const MemberCard = ({ member, roles }) => {
+  const role = roles[member.role] || roles.commercial;
+  
+  // Calculer le statut de présence
+  const getPresenceStatus = () => {
+    if (!member.lastActive) return { status: 'unknown', label: 'Statut inconnu', color: 'gray' };
+    
+    const lastActive = new Date(member.lastActive);
+    const now = new Date();
+    const diffMinutes = (now - lastActive) / (1000 * 60);
+    
+    if (diffMinutes < 5) return { status: 'online', label: 'En ligne', color: 'green' };
+    if (diffMinutes < 60) return { status: 'recent', label: 'Récemment actif', color: 'yellow' };
+    if (diffMinutes < 1440) return { status: 'today', label: 'Actif aujourd\'hui', color: 'blue' };
+    if (diffMinutes < 10080) return { status: 'week', label: 'Cette semaine', color: 'purple' };
+    return { status: 'inactive', label: 'Inactif', color: 'red' };
+  };
+
+  const presence = getPresenceStatus();
+  
+  const statusColors = {
+    green: 'text-green-400 bg-green-900/20 border-green-500/30',
+    yellow: 'text-yellow-400 bg-yellow-900/20 border-yellow-500/30',
+    blue: 'text-blue-400 bg-blue-900/20 border-blue-500/30',
+    purple: 'text-purple-400 bg-purple-900/20 border-purple-500/30',
+    red: 'text-red-400 bg-red-900/20 border-red-500/30',
+    gray: 'text-gray-400 bg-gray-800/20 border-gray-600/30'
+  };
+
+  return (
+    <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-200 hover:shadow-xl">
+      {/* Header avec avatar et statut */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-3">
+          <div className="relative">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+              {member.displayName?.[0] || member.email?.[0] || '?'}
+            </div>
+            {presence.status !== 'unknown' && (
+              <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-gray-800 ${
+                presence.status === 'online' ? 'bg-green-400' :
+                presence.status === 'recent' ? 'bg-yellow-400' :
+                presence.status === 'today' ? 'bg-blue-400' :
+                presence.status === 'week' ? 'bg-purple-400' :
+                'bg-red-400'
+              }`}></div>
+            )}
+          </div>
+          <div>
+            <h3 className="text-white font-semibold text-sm">
+              {member.displayName || member.email}
+            </h3>
+            <p className="text-gray-400 text-xs flex items-center">
+              <span className="mr-1">{role.icon}</span>
+              {role.name}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Statut de présence */}
+      <div className={`mb-4 px-3 py-2 rounded-lg border text-xs font-medium ${statusColors[presence.color]}`}>
+        <div className="flex items-center justify-between">
+          <span>{presence.label}</span>
+          {member.lastActive && (
+            <span className="text-xs opacity-75">
+              {new Date(member.lastActive).toLocaleDateString('fr-FR', { 
+                month: 'short', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Statistiques */}
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="text-center">
+          <div className="text-lg font-bold text-blue-400">{member.level || 1}</div>
+          <div className="text-xs text-gray-500">Niveau</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-purple-400">{member.totalXP || 0}</div>
+          <div className="text-xs text-gray-500">XP</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-yellow-400">{member.badges?.length || 0}</div>
+          <div className="text-xs text-gray-500">Badges</div>
+        </div>
+      </div>
+
+      {/* Barre de progression */}
+      <div className="mb-4">
+        <div className="flex justify-between text-xs text-gray-400 mb-1">
+          <span>Progression</span>
+          <span>{Math.min(100, ((member.totalXP || 0) % 1000) / 10)}%</span>
+        </div>
+        <div className="w-full bg-gray-700 rounded-full h-2">
+          <div 
+            className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${Math.min(100, ((member.totalXP || 0) % 1000) / 10)}%` }}
+          ></div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex justify-between items-center">
+        <button 
+          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs rounded-lg transition-colors"
+        >
+          <Eye className="w-3 h-3" />
+          <span>Voir</span>
+        </button>
+        
+        <div className="flex items-center gap-1 text-xs text-gray-500">
+          <Mail className="w-3 h-3" />
+          <span>Contact</span>
+        </div>
       </div>
     </div>
   );
