@@ -1,21 +1,19 @@
 // ==========================================
 // 📁 react-app/src/pages/RoleTasksPage.jsx
-// PAGE INDIVIDUELLE - Tâches spécialisées par rôle
+// VERSION SIMPLIFIÉE SANS STORES COMPLEXES
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
-import { Target, Code, Palette, Users, Clock, Star, Lock, CheckCircle, Plus, Filter } from 'lucide-react';
-import { useAuthStore } from '../shared/stores/authStore.js';
-import { useGameStore } from '../shared/stores/gameStore.js';
+import React, { useState } from 'react';
+import { Target, Clock, Star, Lock, CheckCircle, Plus } from 'lucide-react';
 
 const RoleTasksPage = () => {
-  const { user } = useAuthStore();
-  const { userStats } = useGameStore();
   const [selectedRole, setSelectedRole] = useState('developer');
-  const [filterLevel, setFilterLevel] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
 
-  // Base de données des tâches spécialisées
+  // Données locales simples - pas de stores externes
+  const mockUserLevel = 2;
+  const mockUserXP = 750;
+
+  // Base de données des tâches spécialisées (simplifiée)
   const roleTasks = {
     developer: {
       name: 'Développeur',
@@ -32,7 +30,6 @@ const RoleTasksPage = () => {
           timeEstimate: '4-6 heures',
           requiredLevel: 2,
           skills: ['Git', 'GitHub Actions', 'Automatisation'],
-          deliverables: ['Fichier .github/workflows', 'Documentation', 'Tests automatisés'],
           status: 'available'
         },
         {
@@ -45,8 +42,7 @@ const RoleTasksPage = () => {
           timeEstimate: '6-8 heures',
           requiredLevel: 3,
           skills: ['React', 'Performance', 'Profiling'],
-          deliverables: ['Rapport de performance', 'Code optimisé', 'Métriques avant/après'],
-          status: 'available'
+          status: 'locked'
         },
         {
           id: 'dev_3',
@@ -58,8 +54,7 @@ const RoleTasksPage = () => {
           timeEstimate: '8-10 heures',
           requiredLevel: 2,
           skills: ['Node.js', 'Express', 'API Design'],
-          deliverables: ['Code API', 'Documentation OpenAPI', 'Tests unitaires'],
-          status: 'locked'
+          status: 'available'
         }
       ]
     },
@@ -78,7 +73,18 @@ const RoleTasksPage = () => {
           timeEstimate: '12-15 heures',
           requiredLevel: 3,
           skills: ['Design System', 'Figma', 'Composants'],
-          deliverables: ['Bibliothèque de composants', 'Guide de style', 'Documentation'],
+          status: 'locked'
+        },
+        {
+          id: 'des_2',
+          title: 'Conduire une recherche utilisateur',
+          description: 'Mener des interviews et analyser les besoins utilisateurs',
+          category: 'UX Research',
+          difficulty: 'Intermédiaire',
+          xpReward: 250,
+          timeEstimate: '6-8 heures',
+          requiredLevel: 2,
+          skills: ['Research', 'Interviews', 'Analyse'],
           status: 'available'
         }
       ]
@@ -98,52 +104,18 @@ const RoleTasksPage = () => {
           timeEstimate: '3-4 heures',
           requiredLevel: 2,
           skills: ['Agile', 'Planning', 'Animation'],
-          deliverables: ['Plan de sprint', 'Estimation des tâches', 'Objectifs clairs'],
           status: 'available'
         }
       ]
     }
   };
 
-  // Calculer le niveau de l'utilisateur
-  const getUserLevel = () => {
-    const xp = userStats?.totalXp || 0;
-    if (xp >= 3000) return 4;
-    if (xp >= 1500) return 3;
-    if (xp >= 500) return 2;
-    return 1;
-  };
-
-  const userLevel = getUserLevel();
   const currentRole = roleTasks[selectedRole];
-
-  // Filtrer les tâches
-  const getFilteredTasks = () => {
-    let tasks = currentRole.tasks;
-
-    if (filterLevel !== 'all') {
-      const levelNum = parseInt(filterLevel);
-      tasks = tasks.filter(task => task.requiredLevel === levelNum);
-    }
-
-    if (filterStatus !== 'all') {
-      tasks = tasks.filter(task => {
-        if (filterStatus === 'available') {
-          return task.status === 'available' && task.requiredLevel <= userLevel;
-        }
-        return task.status === filterStatus;
-      });
-    }
-
-    return tasks;
-  };
-
-  const filteredTasks = getFilteredTasks();
 
   // Déterminer le statut d'une tâche
   const getTaskStatus = (task) => {
     if (task.status === 'completed') return 'completed';
-    if (task.requiredLevel > userLevel) return 'locked';
+    if (task.requiredLevel > mockUserLevel) return 'locked';
     return 'available';
   };
 
@@ -163,6 +135,26 @@ const RoleTasksPage = () => {
           <p className="text-xl text-white/90">
             Développez vos compétences avec des missions ciblées
           </p>
+          
+          {/* Stats utilisateur */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+            <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3">
+              <div className="text-2xl font-bold">{mockUserLevel}</div>
+              <div className="text-sm text-white/80">Votre niveau</div>
+            </div>
+            <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3">
+              <div className="text-2xl font-bold">2</div>
+              <div className="text-sm text-white/80">Complétées</div>
+            </div>
+            <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3">
+              <div className="text-2xl font-bold">3</div>
+              <div className="text-sm text-white/80">Disponibles</div>
+            </div>
+            <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3">
+              <div className="text-2xl font-bold">{mockUserXP}</div>
+              <div className="text-sm text-white/80">XP Total</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -189,7 +181,7 @@ const RoleTasksPage = () => {
 
       {/* Liste des tâches */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredTasks.map((task) => {
+        {currentRole.tasks.map((task) => {
           const status = getTaskStatus(task);
           const isLocked = status === 'locked';
           const isCompleted = status === 'completed';
@@ -303,17 +295,6 @@ const RoleTasksPage = () => {
           );
         })}
       </div>
-
-      {/* Message si aucune tâche */}
-      {filteredTasks.length === 0 && (
-        <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
-          <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Aucune tâche trouvée</h3>
-          <p className="text-gray-600">
-            Sélectionnez un autre rôle pour voir les tâches disponibles.
-          </p>
-        </div>
-      )}
     </div>
   );
 };
