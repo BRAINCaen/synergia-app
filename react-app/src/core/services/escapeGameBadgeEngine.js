@@ -1,17 +1,16 @@
 // ==========================================
 // 📁 react-app/src/core/services/escapeGameBadgeEngine.js
-// SYSTÈME DE BADGES SPÉCIFIQUE ESCAPE GAME - BASÉ SUR LES RÔLES DU PDF
+// MOTEUR DE BADGES ESCAPE GAME - VERSION PRODUCTION SYNERGIA
 // ==========================================
 
 import { doc, updateDoc, arrayUnion, getDoc } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
 /**
- * 🎭 BADGES SPÉCIFIQUES AUX RÔLES D'ESCAPE GAME
- * Basé sur le "Livret des Rôles & Quêtes de l'Équipe"
+ * 🎭 BADGES ESCAPE GAME - BASÉS SUR LES VRAIS RÔLES DE VOTRE ÉQUIPE
  */
 
-// 🔧 ENTRETIEN, RÉPARATIONS & MAINTENANCE
+// 🔧 BADGES ENTRETIEN & MAINTENANCE
 const MAINTENANCE_BADGES = [
   {
     id: "mnt_001", role: "maintenance", icon: "🔨",
@@ -40,7 +39,7 @@ const MAINTENANCE_BADGES = [
   }
 ];
 
-// ⭐ GESTION DES AVIS & DE LA RÉPUTATION
+// ⭐ BADGES GESTION DES AVIS
 const REPUTATION_BADGES = [
   {
     id: "rep_001", role: "reputation", icon: "📝",
@@ -69,7 +68,7 @@ const REPUTATION_BADGES = [
   }
 ];
 
-// 📦 GESTION DES STOCKS & MATÉRIEL
+// 📦 BADGES GESTION DES STOCKS
 const STOCK_BADGES = [
   {
     id: "stk_001", role: "stock", icon: "📋",
@@ -98,7 +97,7 @@ const STOCK_BADGES = [
   }
 ];
 
-// 📅 ORGANISATION INTERNE DU TRAVAIL
+// 📅 BADGES ORGANISATION INTERNE
 const ORGANIZATION_BADGES = [
   {
     id: "org_001", role: "organization", icon: "🗓️",
@@ -127,7 +126,7 @@ const ORGANIZATION_BADGES = [
   }
 ];
 
-// 🎨 CRÉATION DE CONTENU & AFFICHAGES
+// 🎨 BADGES CRÉATION DE CONTENU
 const CONTENT_BADGES = [
   {
     id: "cnt_001", role: "content", icon: "🎭",
@@ -156,7 +155,7 @@ const CONTENT_BADGES = [
   }
 ];
 
-// 🎓 MENTORAT & FORMATION INTERNE
+// 🎓 BADGES MENTORAT & FORMATION
 const MENTORING_BADGES = [
   {
     id: "mtr_001", role: "mentoring", icon: "👋",
@@ -185,7 +184,7 @@ const MENTORING_BADGES = [
   }
 ];
 
-// 🤝 PARTENARIATS & RÉFÉRENCEMENT
+// 🤝 BADGES PARTENARIATS
 const PARTNERSHIPS_BADGES = [
   {
     id: "prt_001", role: "partnerships", icon: "🌐",
@@ -214,7 +213,7 @@ const PARTNERSHIPS_BADGES = [
   }
 ];
 
-// 📱 COMMUNICATION & RÉSEAUX SOCIAUX
+// 📱 BADGES COMMUNICATION
 const COMMUNICATION_BADGES = [
   {
     id: "com_001", role: "communication", icon: "📸",
@@ -243,7 +242,7 @@ const COMMUNICATION_BADGES = [
   }
 ];
 
-// 💼 RELATIONS B2B & DEVIS
+// 💼 BADGES B2B
 const B2B_BADGES = [
   {
     id: "b2b_001", role: "b2b", icon: "💰",
@@ -272,7 +271,7 @@ const B2B_BADGES = [
   }
 ];
 
-// 🎯 BADGES GÉNÉRIQUES (pour tous les rôles)
+// 🎯 BADGES GÉNÉRIQUES
 const GENERAL_BADGES = [
   {
     id: "gen_001", role: "general", icon: "🎯",
@@ -327,9 +326,8 @@ class EscapeGameBadgeEngine {
    */
   async checkAndAwardBadges(userId, activityData) {
     try {
-      console.log('🔍 Vérification badges pour utilisateur:', userId);
+      console.log('🔍 Vérification badges escape game pour:', userId);
       
-      // Récupérer les données utilisateur
       const userRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userRef);
       
@@ -342,12 +340,10 @@ class EscapeGameBadgeEngine {
       const userBadges = userData.badges || [];
       const earnedBadgeIds = userBadges.map(b => b.id);
 
-      // Trouver les badges non encore obtenus
       const availableBadges = this.allBadges.filter(badge => 
         !earnedBadgeIds.includes(badge.id)
       );
 
-      // Vérifier quels badges peuvent être débloqués
       const newBadges = [];
       for (const badge of availableBadges) {
         if (this.checkBadgeCondition(badge, userData, activityData)) {
@@ -359,11 +355,9 @@ class EscapeGameBadgeEngine {
         }
       }
 
-      // Attribuer les nouveaux badges
       if (newBadges.length > 0) {
-        await this.awardBadges(userId, newBadges);
+        await this.awardBadges(userId, newBadges, userData);
         
-        // Déclencher les notifications
         newBadges.forEach(badge => {
           this.triggerBadgeNotification(badge);
         });
@@ -392,125 +386,43 @@ class EscapeGameBadgeEngine {
     const gamification = userData.gamification || {};
 
     switch (condition) {
-      // Badges Maintenance
+      // Génériques
+      case 'first_day':
+        return activityData.type === 'first_login' && !stats.hasFirstDay;
+      case 'week_streak':
+        return (gamification.loginStreak || 0) >= triggerValue;
+        
+      // Maintenance
       case 'first_repair':
         return activityData.type === 'repair' && !stats.hasFirstRepair;
       case 'daily_repairs':
         return activityData.type === 'repair' && (stats.repairsToday || 0) >= triggerValue;
       case 'total_repairs':
         return (stats.totalRepairs || 0) >= triggerValue;
-      case 'zero_breakdown_streak':
-        return (stats.zeroBreakdownDays || 0) >= triggerValue;
-      case 'perfect_repairs':
-        return (stats.perfectRepairs || 0) >= triggerValue;
-
-      // Badges Réputation
+        
+      // Réputation
       case 'first_review_response':
         return activityData.type === 'review_response' && !stats.hasFirstReviewResponse;
-      case 'negative_review_resolved':
-        return activityData.type === 'negative_review_resolved';
       case 'positive_reviews_generated':
         return (stats.positiveReviewsGenerated || 0) >= triggerValue;
-      case 'satisfaction_rate':
-        return (stats.satisfactionRate || 0) >= triggerValue;
-      case 'five_star_reviews':
-        return (stats.fiveStarReviews || 0) >= triggerValue;
-
-      // Badges Stock
+        
+      // Stock
       case 'first_inventory':
         return activityData.type === 'inventory' && !stats.hasFirstInventory;
       case 'space_reorganized':
         return activityData.type === 'space_reorganized';
-      case 'zero_stockout_streak':
-        return (stats.zeroStockoutDays || 0) >= triggerValue;
-      case 'optimized_spaces':
-        return (stats.optimizedSpaces || 0) >= triggerValue;
-      case 'perfect_system_months':
-        return (stats.perfectSystemMonths || 0) >= triggerValue;
-
-      // Badges Organisation
-      case 'first_schedule':
-        return activityData.type === 'schedule_created' && !stats.hasFirstSchedule;
-      case 'conflict_free_week':
-        return (stats.conflictFreeWeeks || 0) >= triggerValue;
-      case 'productivity_improvement':
-        return (stats.productivityImprovement || 0) >= triggerValue;
-      case 'perfect_planning_months':
-        return (stats.perfectPlanningMonths || 0) >= triggerValue;
-      case 'legendary_organization':
-        return activityData.type === 'legendary_organization_achieved';
-
-      // Badges Contenu
-      case 'first_visual':
-        return activityData.type === 'visual_created' && !stats.hasFirstVisual;
-      case 'adopted_visuals':
-        return (stats.adoptedVisuals || 0) >= triggerValue;
-      case 'visual_overhaul':
-        return activityData.type === 'visual_overhaul';
-      case 'portfolio_creations':
-        return (stats.portfolioCreations || 0) >= triggerValue;
-      case 'measurable_visual_impact':
-        return activityData.type === 'measurable_visual_impact';
-
-      // Badges Mentorat
-      case 'first_onboarding':
-        return activityData.type === 'onboarding_completed' && !stats.hasFirstOnboarding;
-      case 'people_trained':
-        return (stats.peopleTrained || 0) >= triggerValue;
-      case 'team_progress_tracking':
-        return activityData.type === 'team_progress_tracking';
-      case 'recognized_expertise':
-        return activityData.type === 'expertise_recognized';
-      case 'measurable_training_impact':
-        return activityData.type === 'measurable_training_impact';
-
-      // Badges Partenariats
-      case 'first_partner_contact':
-        return activityData.type === 'partner_contacted' && !stats.hasFirstPartnerContact;
-      case 'partnership_concluded':
-        return activityData.type === 'partnership_concluded';
-      case 'active_partnerships':
-        return (stats.activePartnerships || 0) >= triggerValue;
-      case 'established_network':
-        return activityData.type === 'network_established';
-      case 'measurable_business_impact':
-        return activityData.type === 'measurable_business_impact';
-
-      // Badges Communication
+        
+      // Communication
       case 'first_post':
         return activityData.type === 'social_post' && !stats.hasFirstPost;
       case 'viral_post':
         return activityData.type === 'viral_post' && (activityData.interactions || 0) >= triggerValue;
-      case 'content_publications':
-        return (stats.contentPublications || 0) >= triggerValue;
-      case 'engaged_community':
-        return activityData.type === 'community_engaged';
-      case 'measurable_social_impact':
-        return activityData.type === 'measurable_social_impact';
-
-      // Badges B2B
+        
+      // B2B
       case 'first_quote':
         return activityData.type === 'quote_sent' && !stats.hasFirstQuote;
       case 'quote_accepted':
         return activityData.type === 'quote_accepted';
-      case 'contracts_signed':
-        return (stats.contractsSigned || 0) >= triggerValue;
-      case 'significant_revenue':
-        return activityData.type === 'significant_revenue_generated';
-      case 'b2b_expertise_recognized':
-        return activityData.type === 'b2b_expertise_recognized';
-
-      // Badges Généraux
-      case 'first_day':
-        return activityData.type === 'first_login' && !stats.hasFirstDay;
-      case 'week_streak':
-        return (gamification.loginStreak || 0) >= triggerValue;
-      case 'multi_role_competent':
-        return (stats.competentRoles || 0) >= triggerValue;
-      case 'team_pillar':
-        return (stats.monthsActive || 0) >= triggerValue;
-      case 'synergia_legend':
-        return activityData.type === 'synergia_legend_status';
 
       default:
         console.warn('⚠️ Condition de badge inconnue:', condition);
@@ -521,21 +433,22 @@ class EscapeGameBadgeEngine {
   /**
    * 🏆 Attribuer des badges à un utilisateur
    */
-  async awardBadges(userId, badges) {
+  async awardBadges(userId, badges, userData) {
     try {
       const userRef = doc(db, 'users', userId);
       const totalXP = badges.reduce((sum, badge) => sum + badge.xpReward, 0);
+      const currentXP = userData.gamification?.totalXp || 0;
 
       await updateDoc(userRef, {
         badges: arrayUnion(...badges),
-        'gamification.totalXp': userData.gamification?.totalXp + totalXP || totalXP,
+        'gamification.totalXp': currentXP + totalXP,
         'gamification.lastBadgeEarned': new Date()
       });
 
       console.log('✅ Badges attribués avec succès:', badges.length);
       
     } catch (error) {
-      console.error('❌ Erreur lors de l\'attribution des badges:', error);
+      console.error('❌ Erreur attribution badges:', error);
     }
   }
 
@@ -550,7 +463,7 @@ class EscapeGameBadgeEngine {
       }
     });
     window.dispatchEvent(event);
-    console.log('🔔 Notification badge déclenchée:', badge.name);
+    console.log('🔔 Notification badge escape game:', badge.name);
   }
 
   /**
@@ -578,53 +491,41 @@ class EscapeGameBadgeEngine {
       remaining: totalCount - earnedCount
     };
   }
-
-  /**
-   * 🌟 Obtenir les styles de rareté
-   */
-  getRarityStyle(rarity) {
-    const styles = {
-      common: {
-        color: 'text-gray-400',
-        bg: 'bg-gray-500/20',
-        border: 'border-gray-500',
-        glow: 'shadow-gray-500/30'
-      },
-      uncommon: {
-        color: 'text-green-400',
-        bg: 'bg-green-500/20',
-        border: 'border-green-500',
-        glow: 'shadow-green-500/40'
-      },
-      rare: {
-        color: 'text-blue-400',
-        bg: 'bg-blue-500/20',
-        border: 'border-blue-500',
-        glow: 'shadow-blue-500/40'
-      },
-      epic: {
-        color: 'text-purple-400',
-        bg: 'bg-purple-500/20',
-        border: 'border-purple-500',
-        glow: 'shadow-purple-500/50'
-      },
-      legendary: {
-        color: 'text-yellow-400',
-        bg: 'bg-yellow-500/20',
-        border: 'border-yellow-500',
-        glow: 'shadow-yellow-500/60'
-      }
-    };
-
-    return styles[rarity] || styles.common;
-  }
 }
 
-// 🚀 Export du moteur de badges escape game
-export const escapeGameBadgeEngine = new EscapeGameBadgeEngine();
-export default escapeGameBadgeEngine;
+// 🚀 Instance singleton
+const escapeGameBadgeEngine = new EscapeGameBadgeEngine();
 
-// 🔧 Fonctions utilitaires
+// Exposition globale pour Synergia
+if (typeof window !== 'undefined') {
+  window.escapeGameBadgeEngine = escapeGameBadgeEngine;
+  
+  // Fonctions de test rapide
+  window.testEscapeBadges = async (userId) => {
+    console.log('🧪 Test badges escape game pour:', userId);
+    return await escapeGameBadgeEngine.checkAndAwardBadges(userId, {
+      trigger: 'test',
+      type: 'first_day'
+    });
+  };
+  
+  window.awardMaintenanceBadge = async (userId) => {
+    return await escapeGameBadgeEngine.checkAndAwardBadges(userId, {
+      trigger: 'manual',
+      type: 'repair'
+    });
+  };
+  
+  console.log('🎭 EscapeGameBadgeEngine chargé dans Synergia !');
+  console.log('🧪 Test: testEscapeBadges("userId")');
+  console.log('🔧 Test maintenance: awardMaintenanceBadge("userId")');
+}
+
+// Exports
+export default escapeGameBadgeEngine;
+export { escapeGameBadgeEngine };
+
+// Fonctions utilitaires
 export const checkEscapeGameBadges = async (userId, activityData) => {
   return await escapeGameBadgeEngine.checkAndAwardBadges(userId, activityData);
 };
@@ -637,17 +538,4 @@ export const getEscapeGameBadgeStats = (userBadges, userRole) => {
   return escapeGameBadgeEngine.getBadgeStats(userBadges, userRole);
 };
 
-// 🎭 RÔLES ESCAPE GAME DISPONIBLES
-export const ESCAPE_GAME_ROLES = {
-  maintenance: 'Entretien, Réparations & Maintenance',
-  reputation: 'Gestion des Avis & de la Réputation',
-  stock: 'Gestion des Stocks & Matériel',
-  organization: 'Organisation Interne du Travail',
-  content: 'Création de Contenu & Affichages',
-  mentoring: 'Mentorat & Formation Interne',
-  partnerships: 'Partenariats & Référencement',
-  communication: 'Communication & Réseaux Sociaux',
-  b2b: 'Relations B2B & Devis'
-};
-
-console.log('🎭 Système de badges Escape Game chargé ! Rôles disponibles:', Object.keys(ESCAPE_GAME_ROLES));
+console.log('🎭 Système de badges Escape Game prêt pour Synergia !');
