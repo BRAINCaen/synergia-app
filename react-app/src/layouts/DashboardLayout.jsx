@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/layouts/DashboardLayout.jsx
-// DASHBOARDLAYOUT CORRIGÉ - BOUTON DÉCONNEXION GRIS
+// DASHBOARD LAYOUT ORIGINAL - Version qui marchait parfaitement
 // ==========================================
 
 import React, { useState } from 'react';
@@ -9,7 +9,7 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
 
 /**
- * 🎨 DASHBOARD LAYOUT CORRIGÉ - Sans bouton rouge
+ * 🎨 DASHBOARD LAYOUT ORIGINAL - Compatible avec children prop
  */
 const DashboardLayout = ({ children }) => {
   const { user, signOut } = useAuthStore();
@@ -263,7 +263,7 @@ const DashboardLayout = ({ children }) => {
           })}
         </nav>
 
-        {/* ✅ BOUTON DÉCONNEXION CORRIGÉ - MAINTENANT GRIS */}
+        {/* Logout Button - GRIS au lieu de ROUGE */}
         <div style={{ 
           padding: '1rem',
           borderTop: '1px solid #e5e7eb'
@@ -276,7 +276,7 @@ const DashboardLayout = ({ children }) => {
               gap: '0.75rem',
               width: '100%',
               padding: '0.75rem',
-              background: 'linear-gradient(135deg, #6b7280, #4b5563)', // ✅ GRIS au lieu de ROUGE
+              background: 'linear-gradient(135deg, #6b7280, #4b5563)', // GRIS au lieu de ROUGE
               color: 'white',
               border: 'none',
               borderRadius: '0.5rem',
@@ -288,7 +288,7 @@ const DashboardLayout = ({ children }) => {
             }}
             onMouseEnter={(e) => {
               e.target.style.transform = 'translateY(-1px)';
-              e.target.style.boxShadow = '0 4px 12px rgba(107, 114, 128, 0.4)'; // ✅ Ombre grise
+              e.target.style.boxShadow = '0 4px 12px rgba(107, 114, 128, 0.4)'; // Ombre grise
             }}
             onMouseLeave={(e) => {
               e.target.style.transform = 'translateY(0)';
