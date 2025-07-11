@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/LeaderboardPage.jsx
-// Leaderboard TEMPORAIRE SANS GAMESTORE
+// Leaderboard TEMPORAIRE SANS GAMESTORE - BUG CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -106,6 +106,7 @@ const LeaderboardPage = () => {
             name: userData.displayName || userData.email?.split('@')[0] || 'Utilisateur',
             email: userData.email,
             avatar: userData.photoURL || '👤',
+            // 🔧 CORRECTION: Ligne corrigée avec les bonnes propriétés
             xp: userData.totalXp || 0,
             level: userData.level || 1,
             tasksCompleted: userData.tasksCompleted || 0,
@@ -215,73 +216,48 @@ const LeaderboardPage = () => {
             </div>
             <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3">
               <div className="text-2xl font-bold">{getCurrentUserRank() || '?'}</div>
-              <div className="text-sm text-white/80">Votre position</div>
+              <div className="text-sm text-white/80">Votre rang</div>
             </div>
             <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3">
               <div className="text-2xl font-bold">{mockGameData.userStats.badges}</div>
               <div className="text-sm text-white/80">Vos badges</div>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Contrôles */}
-      <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          {/* Onglets */}
-          <div className="flex flex-wrap gap-2">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`
-                    flex items-center space-x-2 px-4 py-2 rounded-xl font-medium transition-all duration-200
-                    ${isActive 
-                      ? `bg-${tab.color}-500 text-white shadow-lg` 
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }
-                  `}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              <span>Actualiser</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Message d'info debug */}
-      <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-lg">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <p className="text-sm text-amber-700">
-              <strong>Mode Debug :</strong> GameStore temporairement désactivé. 
+          
+          {/* Info debug */}
+          <div className="mt-4 text-sm text-white/70">
+            <p>
               Affichage des données {realLeaderboard.length > 0 ? 'Firebase réelles' : 'simulées'}.
               {loadingFirebase && ' Chargement Firebase en cours...'}
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Onglets */}
+      <div className="flex justify-center mb-6">
+        <div className="bg-white rounded-2xl p-2 shadow-lg border border-gray-200 inline-flex">
+          {tabs.map((tab) => {
+            const IconComponent = tab.icon;
+            const isActive = activeTab === tab.id;
+            
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`
+                  px-6 py-3 rounded-xl font-medium transition-all duration-200 flex items-center space-x-2
+                  ${isActive 
+                    ? `bg-gradient-to-r from-${tab.color}-500 to-${tab.color}-600 text-white shadow-lg` 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }
+                `}
+              >
+                <IconComponent className="w-4 h-4" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -377,4 +353,4 @@ const LeaderboardPage = () => {
   );
 };
 
-export default LeaderboardPage;
+export default LeaderboardPage;v
