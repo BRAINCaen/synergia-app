@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TeamPage.jsx
-// VERSION COMPLÈTE AVEC TOUTES LES FONCTIONNALITÉS - SPARKLES CORRIGÉ
+// VERSION COMPLÈTE AVEC TOUTES LES FONCTIONNALITÉS - SPARKLES DÉFINITIVEMENT CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +13,7 @@ import {
   RefreshCw,
   Filter,
   UserPlus,
-  Star, // ✅ Remplace Sparkles par Star
+  Star, // ✅ CORRIGÉ : Sparkles → Star
   CheckCircle,
   XCircle,
   Clock,
@@ -511,7 +511,7 @@ const TeamPage = () => {
                   <div className="text-2xl font-bold text-yellow-400">{stats.totalXP.toLocaleString()}</div>
                   <div className="text-sm text-gray-400">XP Total</div>
                 </div>
-                <Star className="w-8 h-8 text-yellow-400" /> {/* ✅ Remplace Sparkles par Star */}
+                <Star className="w-8 h-8 text-yellow-400" /> {/* ✅ CORRIGÉ : Sparkles → Star */}
               </div>
             </div>
           </div>
