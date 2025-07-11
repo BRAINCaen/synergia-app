@@ -27,7 +27,6 @@ import {
   CalendarClock,
   Palette,
   GraduationCap,
-  Handshake,
   Megaphone,
   X
 } from 'lucide-react';
@@ -195,7 +194,7 @@ const ESCAPE_GAME_ROLES = {
     id: 'partnerships',
     name: 'Partenariats & Référencement',
     icon: '🤝',
-    lucideIcon: Handshake,
+    lucideIcon: Users,
     color: 'from-teal-600 to-blue-600',
     description: 'Développe les relations externes, partenariats et visibilité du lieu.',
     competences: [
