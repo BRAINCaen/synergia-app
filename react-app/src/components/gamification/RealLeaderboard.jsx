@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/gamification/RealLeaderboard.jsx
-// Classement Firebase temps réel - CONFLIT VARIABLE CORRIGÉ
+// REMPLACER ENTIÈREMENT LE FICHIER EXISTANT PAR CE CODE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -35,71 +35,102 @@ const RealLeaderboard = ({ maxResults = 20 }) => {
     { value: 'loginStreak', label: 'Connexions' }
   ];
 
+  // 🧹 FONCTION DE NETTOYAGE DES NOMS CORROMPUS
+  const cleanUserName = (userData) => {
+    console.log('🧹 RealLeaderboard - Nettoyage nom pour:', userData.email, 'displayName:', userData.displayName);
+    
+    // Détecter si displayName est une URL (contient http, https, ou googleusercontent)
+    if (userData.displayName && (
+      userData.displayName.includes('http') || 
+      userData.displayName.includes('www.') ||
+      userData.displayName.includes('googleusercontent.com') ||
+      userData.displayName.includes('.com/') ||
+      userData.displayName.length > 100
+    )) {
+      console.warn('🚨 RealLeaderboard - Nom corrompu détecté (URL):', userData.displayName.substring(0, 50) + '...');
+      // Utiliser l'email comme fallback
+      const cleanedName = userData.email?.split('@')[0] || 'Utilisateur';
+      console.log('✅ RealLeaderboard - Nom nettoyé:', cleanedName);
+      return cleanedName;
+    }
+
+    // Si displayName semble normal, l'utiliser
+    if (userData.displayName && userData.displayName.length < 100 && !userData.displayName.includes('.')) {
+      console.log('✅ RealLeaderboard - Nom valide conservé:', userData.displayName);
+      return userData.displayName;
+    }
+
+    // Fallback : utiliser l'email
+    const fallbackName = userData.email?.split('@')[0] || 'Utilisateur';
+    console.log('✅ RealLeaderboard - Fallback utilisé:', fallbackName);
+    return fallbackName;
+  };
+
   // Charger le leaderboard depuis Firebase
   useEffect(() => {
     const loadLeaderboard = async () => {
       if (!db) {
-        console.log('🔧 Mode déconnecté');
+        console.log('🔧 RealLeaderboard - Mode déconnecté');
         setLoading(false);
         return;
       }
 
       try {
         setLoading(true);
+        console.log('🔥 RealLeaderboard - Chargement depuis Firebase...');
 
-        // Construire la requête selon la catégorie
-        let orderField = 'gamification.totalXp';
-        if (categoryFilter === 'weeklyXp') orderField = 'gamification.weeklyXp';
-        if (categoryFilter === 'monthlyXp') orderField = 'gamification.monthlyXp';
-        if (categoryFilter === 'badges') orderField = 'gamification.badges';
-        if (categoryFilter === 'tasksCompleted') orderField = 'gamification.tasksCompleted';
-        if (categoryFilter === 'loginStreak') orderField = 'gamification.loginStreak';
+        // Récupérer tous les utilisateurs sans filtre pour éviter les erreurs
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, limit(100));
 
-        let leaderboardQuery = query(
-          collection(db, 'users'),
-          orderBy(orderField, 'desc'),
-          limit(maxResults)
-        );
-
-        // Filtrer par département si nécessaire
-        if (departmentFilter !== 'all') {
-          leaderboardQuery = query(
-            collection(db, 'users'),
-            where('profile.department', '==', departmentFilter),
-            orderBy(orderField, 'desc'),
-            limit(maxResults)
-          );
-        }
-
-        const snapshot = await getDocs(leaderboardQuery);
+        const snapshot = await getDocs(q);
         const leaderboardData = [];
 
+        console.log(`📊 RealLeaderboard - ${snapshot.docs.length} documents trouvés`);
+
         snapshot.forEach((doc, index) => {
-          const docData = doc.data(); // 🔧 CORRECTION: Renommé userData en docData
-          if (docData.email && docData.gamification) {
-            leaderboardData.push({
+          const docData = doc.data();
+          if (docData.email) {
+            // 🧹 NETTOYAGE : Nom propre extrait de façon sécurisée
+            const cleanName = cleanUserName(docData);
+            
+            const userEntry = {
               uid: doc.id,
               rank: index + 1,
-              displayName: docData.displayName || docData.email.split('@')[0],
+              displayName: cleanName, // ✅ Nom nettoyé
               email: docData.email,
               photoURL: docData.photoURL,
               department: docData.profile?.department || 'Non défini',
-              level: docData.gamification.level || 1,
-              totalXp: docData.gamification.totalXp || 0,
-              weeklyXp: docData.gamification.weeklyXp || 0,
-              monthlyXp: docData.gamification.monthlyXp || 0,
-              tasksCompleted: docData.gamification.tasksCompleted || 0,
-              badges: (docData.gamification.badges || []).length,
-              loginStreak: docData.gamification.loginStreak || 0
-            });
+              level: docData.gamification?.level || docData.level || 1,
+              totalXp: docData.gamification?.totalXp || docData.totalXp || 0,
+              weeklyXp: docData.gamification?.weeklyXp || 0,
+              monthlyXp: docData.gamification?.monthlyXp || 0,
+              tasksCompleted: docData.gamification?.tasksCompleted || docData.tasksCompleted || 0,
+              badges: (docData.gamification?.badges || []).length,
+              loginStreak: docData.gamification?.loginStreak || docData.loginStreak || 0
+            };
+            
+            leaderboardData.push(userEntry);
+            console.log(`👤 RealLeaderboard - Utilisateur: ${userEntry.displayName} (${userEntry.email}) - ${userEntry.totalXp} XP`);
           }
         });
 
+        // Trier par XP et recalculer les rangs
+        leaderboardData.sort((a, b) => b.totalXp - a.totalXp);
+        leaderboardData.forEach((user, index) => {
+          user.rank = index + 1;
+        });
+
         setLeaderboard(leaderboardData);
-        console.log(`✅ Classement chargé: ${leaderboardData.length} utilisateurs`);
+        console.log(`✅ RealLeaderboard - Classement chargé: ${leaderboardData.length} utilisateurs`);
+
+        // 🧹 Log des noms nettoyés pour debug
+        leaderboardData.slice(0, 5).forEach(user => {
+          console.log(`🏆 RealLeaderboard - Classement: #${user.rank} - ${user.displayName} (${user.email}) - ${user.totalXp} XP`);
+        });
 
       } catch (error) {
-        console.error('❌ Erreur chargement leaderboard:', error);
+        console.error('❌ RealLeaderboard - Erreur chargement:', error);
         setLeaderboard([]);
       } finally {
         setLoading(false);
@@ -110,7 +141,7 @@ const RealLeaderboard = ({ maxResults = 20 }) => {
   }, [categoryFilter, departmentFilter, maxResults]);
 
   // Obtenir la valeur d'affichage selon la catégorie
-  const getDisplayValue = (userInfo) => { // 🔧 CORRECTION: Renommé userData en userInfo
+  const getDisplayValue = (userInfo) => {
     switch (categoryFilter) {
       case 'totalXp':
         return `${userInfo.totalXp.toLocaleString()} XP`;
@@ -148,6 +179,11 @@ const RealLeaderboard = ({ maxResults = 20 }) => {
 
   return (
     <div className="space-y-6">
+      {/* Message de debug */}
+      <div className="bg-green-800 text-green-200 p-3 rounded-lg text-sm">
+        🧹 Noms nettoyés activés - Vérifiez la console pour les logs de nettoyage
+      </div>
+
       {/* Filtres */}
       <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -195,7 +231,7 @@ const RealLeaderboard = ({ maxResults = 20 }) => {
       {/* Podium */}
       {leaderboard.length >= 3 && (
         <div className="grid grid-cols-3 gap-4 mb-6">
-          {leaderboard.slice(0, 3).map((userInfo, index) => ( // 🔧 CORRECTION: Renommé userData en userInfo
+          {leaderboard.slice(0, 3).map((userInfo, index) => (
             <div
               key={userInfo.uid}
               className={`
@@ -218,7 +254,7 @@ const RealLeaderboard = ({ maxResults = 20 }) => {
                 )}
               </div>
               <h3 className="font-semibold text-white text-sm truncate">
-                {userInfo.displayName}
+                {userInfo.displayName} {/* ✅ Nom nettoyé affiché */}
               </h3>
               <p className="text-xs text-gray-400 mb-2">{userInfo.department}</p>
               <p className="font-bold text-lg text-white">
@@ -232,7 +268,7 @@ const RealLeaderboard = ({ maxResults = 20 }) => {
 
       {/* Liste complète */}
       <div className="space-y-2">
-        {leaderboard.map((userInfo) => ( // 🔧 CORRECTION: Renommé userData en userInfo
+        {leaderboard.map((userInfo) => (
           <div
             key={userInfo.uid}
             className={`
@@ -265,7 +301,7 @@ const RealLeaderboard = ({ maxResults = 20 }) => {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center space-x-2">
                   <h3 className="font-medium text-white truncate">
-                    {userInfo.displayName}
+                    {userInfo.displayName} {/* ✅ Nom nettoyé affiché */}
                     {userInfo.uid === user?.uid && (
                       <span className="ml-2 text-xs bg-blue-600 px-2 py-1 rounded">
                         Vous
