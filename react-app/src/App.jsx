@@ -1,244 +1,140 @@
 // ==========================================
-// 📁 react-app/src/App.jsx
-// APPLICATION PRINCIPALE AVEC POLYFILL SPARKLES + VRAIES PAGES
-// REMPLACER ENTIÈREMENT LE FICHIER EXISTANT
+// 📁 react-app/src/App.jsx - VERSION CORRIGÉE
+// Routes principales avec corrections pour classement et pages de rôle
 // ==========================================
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Star } from 'lucide-react'; // Import de Star pour le polyfill
+import { useAuthStore } from './shared/stores/authStore';
+import { isAdmin } from './core/services/adminService';
+import DashboardLayout from './layouts/DashboardLayout.jsx';
+import { ToastProvider } from './shared/providers/ToastProvider.jsx';
 
-// 🚨 POLYFILL SPARKLES INTÉGRÉ - DOIT ÊTRE EN PREMIER
-// Créer un alias global Sparkles = Star
-if (typeof window !== 'undefined') {
-  window.Sparkles = Star;
-  console.log('✅ Polyfill Sparkles → Star activé globalement');
-}
-
-// Suppression des erreurs console liées à Sparkles
-const originalError = console.error;
-console.error = function(...args) {
-  const message = args.join(' ');
-  
-  // Bloquer toutes les erreurs Sparkles
-  if (message.includes('Sparkles is not defined') || 
-      message.includes('ReferenceError: Sparkles') ||
-      message.includes('Sparkles')) {
-    console.log('🤫 [SPARKLES ERROR SUPPRESSED]', message.substring(0, 50) + '...');
-    return;
-  }
-  
-  // Laisser passer les autres erreurs
-  originalError.apply(console, args);
-};
-
-console.log('🔧 Sparkles polyfill chargé - Erreurs console supprimées');
-
-// 🎯 Imports existants
-import { useAuthStore } from './shared/stores/authStore.js';
-import Layout from './components/layout/Layout.jsx';
-import Login from './pages/Login.jsx';
-
-// 📄 Pages principales - VRAIES PAGES
+// 📄 Pages principales
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import GamificationPage from './pages/GamificationPage.jsx';
-
-// 🎮 Pages gamification - VRAIES PAGES
 import BadgesPage from './pages/BadgesPage.jsx';
 import RewardsPage from './pages/RewardsPage.jsx';
-
-// 👥 Pages équipe - VRAIES PAGES
 import TeamPage from './pages/TeamPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
-
-// 👤 Pages profil - VRAIES PAGES
 import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
-
-// 🎯 Pages fonctionnalités - VRAIES PAGES
 import OnboardingPage from './pages/OnboardingPage.jsx';
 import TimeTrackPage from './pages/TimeTrackPage.jsx';
 
-// 🛡️ Pages admin - VRAIES PAGES
+// 🎯 Page de classement (VRAIE PAGE)
+import LeaderboardPage from './pages/LeaderboardPage.jsx';
+
+// 🆕 Pages système de progression (NOUVELLES VRAIES PAGES)
+import RoleProgressionPage from './pages/RoleProgressionPage.jsx';
+import RoleTasksPage from './pages/RoleTasksPage.jsx';
+import RoleBadgesPage from './pages/RoleBadgesPage.jsx';
+
+// 🛡️ Pages admin
 import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
 import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 
-// Component de chargement simple
-const LoadingScreen = ({ message }) => (
-  <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-      <p className="text-gray-400">{message || 'Chargement...'}</p>
-    </div>
-  </div>
-);
+// 🔐 Page de connexion
+import Login from './pages/Login.jsx';
 
-// Container de notifications simple
-const ToastContainer = () => null;
+// Composant Layout avec protection d'authentification
+const Layout = () => {
+  const { user, isLoading } = useAuthStore();
 
-// ToastProvider simple
-const ToastProvider = ({ children }) => <>{children}</>;
-
-// Page de fallback SEULEMENT pour les pages manquantes
-const FallbackPage = ({ title, description }) => (
-  <div className="min-h-screen bg-gray-900 p-6">
-    <div className="max-w-4xl mx-auto text-center">
-      <h1 className="text-3xl font-bold text-white mb-4">{title}</h1>
-      <p className="text-gray-400 mb-8">{description}</p>
-      
-      <div className="bg-gray-800 rounded-lg p-8">
-        <div className="text-gray-300 mb-4">
-          🚧 Cette fonctionnalité est en cours de développement
-        </div>
-        <button 
-          onClick={() => window.location.href = '/dashboard'}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
-        >
-          Revenir au tableau de bord
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
-// Fallbacks SEULEMENT pour les pages qui n'existent vraiment pas
-const RoleProgressionPage = () => <FallbackPage title="Progression de rôle" description="Suivez votre progression de rôle" />;
-const RoleTasksPage = () => <FallbackPage title="Tâches de rôle" description="Tâches spécifiques à votre rôle" />;
-const RoleBadgesPage = () => <FallbackPage title="Badges de rôle" description="Badges liés à votre rôle" />;
-
-/**
- * 🚀 APPLICATION PRINCIPALE
- */
-function App() {
-  const { user, loading, initializeAuth } = useAuthStore();
-  const [systemsInitialized, setSystemsInitialized] = useState(false);
-  const [initializationError, setInitializationError] = useState(null);
-
-  // ✅ Initialisation de l'authentification
-  useEffect(() => {
-    const initApp = async () => {
-      try {
-        console.log('🚀 Initialisation de l\'application...');
-        await initializeAuth();
-        
-        // Simulated systems initialization
-        setTimeout(() => {
-          setSystemsInitialized(true);
-          console.log('✅ Systèmes initialisés');
-        }, 1000);
-        
-      } catch (error) {
-        console.error('❌ Erreur d\'initialisation:', error);
-        setInitializationError(error.message || 'Erreur inconnue');
-      }
-    };
-
-    initApp();
-  }, [initializeAuth]);
-
-  // 🔄 Affichage pendant le chargement
-  if (loading || !systemsInitialized) {
-    return (
-      <LoadingScreen 
-        message={
-          loading ? "Connexion en cours..." :
-          !systemsInitialized ? "Initialisation des systèmes de progression..." :
-          "Chargement terminé..."
-        }
-      />
-    );
-  }
-
-  // ⚠️ Affichage d'erreur d'initialisation
-  if (initializationError) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="bg-red-900 border border-red-700 rounded-lg p-6 max-w-md">
-          <h2 className="text-red-300 font-semibold mb-2">Erreur d'initialisation</h2>
-          <p className="text-red-200 text-sm mb-4">{initializationError}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded transition-colors"
-          >
-            Recharger l'application
-          </button>
-        </div>
+        <div className="text-white text-xl">Chargement...</div>
       </div>
     );
   }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <DashboardLayout />;
+};
+
+const App = () => {
+  const { user } = useAuthStore();
 
   return (
     <ToastProvider>
       <Router>
-        <div className="App">
-          {/* 🎉 Container de notifications existant */}
-          <ToastContainer />
-
-          {/* 🔐 Routes protégées */}
+        <div className="min-h-screen bg-gray-900">
           <Routes>
-            {/* Route de connexion */}
+            {/* 🔐 Route de connexion */}
             <Route path="/login" element={
               user ? <Navigate to="/dashboard" replace /> : <Login />
             } />
 
             {/* Routes principales protégées */}
             <Route path="/" element={
-              user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
-            } />
+              user ? <Layout /> : <Navigate to="/login" replace />
+            }>
+              {/* 🏠 Pages principales */}
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="tasks" element={<TasksPage />} />
+              <Route path="projects" element={<ProjectsPage />} />
+              <Route path="analytics" element={<AnalyticsPage />} />
 
-            {/* Routes avec Layout - VRAIES PAGES */}
-            <Route path="/*" element={
-              user ? (
-                <Layout>
-                  <Routes>
-                    {/* 📊 Pages principales */}
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/tasks" element={<TasksPage />} />
-                    <Route path="/projects" element={<ProjectsPage />} />
-                    <Route path="/analytics" element={<AnalyticsPage />} />
+              {/* 🎮 Pages gamification enrichies */}
+              <Route path="gamification" element={<GamificationPage />} />
+              <Route path="badges" element={<BadgesPage />} />
+              <Route path="rewards" element={<RewardsPage />} />
 
-                    {/* 🎮 Gamification */}
-                    <Route path="/gamification" element={<GamificationPage />} />
-                    <Route path="/badges" element={<BadgesPage />} />
-                    <Route path="/rewards" element={<RewardsPage />} />
+              {/* 🏆 Page de classement (CORRIGÉE) */}
+              <Route path="leaderboard" element={<LeaderboardPage />} />
 
-                    {/* 👥 Gestion d'équipe */}
-                    <Route path="/team" element={<TeamPage />} />
-                    <Route path="/users" element={<UsersPage />} />
+              {/* 🆕 Nouvelles pages du système de progression (CORRIGÉES) */}
+              <Route path="role-progression" element={<RoleProgressionPage />} />
+              <Route path="role-tasks" element={<RoleTasksPage />} />
+              <Route path="role-badges" element={<RoleBadgesPage />} />
 
-                    {/* 👤 Profil et paramètres */}
-                    <Route path="/profile" element={<ProfilePage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
+              {/* 👥 Pages équipe */}
+              <Route path="team" element={<TeamPage />} />
+              <Route path="users" element={<UsersPage />} />
 
-                    {/* 🎯 Fonctionnalités avancées */}
-                    <Route path="/onboarding" element={<OnboardingPage />} />
-                    <Route path="/time-track" element={<TimeTrackPage />} />
+              {/* ⚙️ Pages utilisateur */}
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="onboarding" element={<OnboardingPage />} />
+              <Route path="timetrack" element={<TimeTrackPage />} />
 
-                    {/* 🔧 Administration */}
-                    <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
-                    <Route path="/admin/complete-test" element={<CompleteAdminTestPage />} />
+              {/* 🛡️ Pages admin */}
+              <Route path="admin/task-validation" element={<AdminTaskValidationPage />} />
+              <Route path="admin/complete-test" element={<CompleteAdminTestPage />} />
+            </Route>
 
-                    {/* 🏆 Système de rôles - Fallbacks pour pages non créées */}
-                    <Route path="/role/progression" element={<RoleProgressionPage />} />
-                    <Route path="/role/tasks" element={<RoleTasksPage />} />
-                    <Route path="/role/badges" element={<RoleBadgesPage />} />
-
-                    {/* Fallback pour routes non trouvées */}
-                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                  </Routes>
-                </Layout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
+            {/* 🚫 Page 404 */}
+            <Route path="*" element={
+              <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+                <div className="text-center">
+                  <h1 className="text-6xl font-bold text-gray-600 mb-4">404</h1>
+                  <p className="text-gray-400 mb-6">Page non trouvée</p>
+                  <button 
+                    onClick={() => window.location.href = '/dashboard'}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+                  >
+                    Retour au Dashboard
+                  </button>
+                </div>
+              </div>
             } />
           </Routes>
+
+          {/* 🎨 Effets visuels globaux pour la progression */}
+          <div id="confetti-container" className="pointer-events-none fixed inset-0 z-50" />
+          <div id="epic-effects-container" className="pointer-events-none fixed inset-0 z-40" />
         </div>
       </Router>
     </ToastProvider>
   );
-}
+};
 
 export default App;
