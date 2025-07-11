@@ -6,11 +6,11 @@
 import React, { useState, useEffect } from 'react';
 import { Target, Code, Palette, Users, Clock, Star, Lock, CheckCircle, Plus, Filter } from 'lucide-react';
 import { useAuthStore } from '../shared/stores/authStore';
-import { useGamificationStore } from '../shared/stores/gamificationStore';
+import { useGameStore } from '../shared/stores/gameStore';
 
 const RoleTasksPage = () => {
   const { user } = useAuthStore();
-  const { userStats } = useGamificationStore();
+  const { userStats } = useGameStore();
   const [selectedRole, setSelectedRole] = useState('developer');
   const [filterLevel, setFilterLevel] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
