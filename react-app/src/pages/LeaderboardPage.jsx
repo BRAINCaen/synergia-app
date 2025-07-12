@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/LeaderboardPage.jsx
-// Leaderboard AVEC STATISTIQUES RÉELLES - BUG CORRIGÉ
+// Leaderboard AVEC TOUTES LES CORRECTIONS - VERSION FINALE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -31,6 +31,30 @@ const LeaderboardPage = () => {
   const [loadingFirebase, setLoadingFirebase] = useState(true);
   
   const { user } = useAuthStore();
+
+  // 🧹 FONCTION DE NETTOYAGE DES NOMS
+  const cleanDisplayName = (userData) => {
+    let cleanName = userData.displayName || userData.email;
+    
+    // Nettoyer les URLs Google
+    if (cleanName.includes('googleusercontent.com')) {
+      console.log('🧹 LeaderboardPage - Nettoyage URL Google pour:', userData.email);
+      console.log('   Avant:', cleanName);
+      
+      // Extraire le nom depuis l'URL Google si possible
+      const urlParts = cleanName.split('/');
+      cleanName = urlParts[urlParts.length - 1].split('?')[0];
+      
+      // Si c'est encore une URL, utiliser l'email
+      if (cleanName.includes('http') || cleanName.length > 50) {
+        cleanName = userData.email.split('@')[0];
+      }
+      
+      console.log('   Après:', cleanName);
+    }
+    
+    return cleanName;
+  };
 
   // 🔧 CORRECTION: Utiliser les VRAIES données pour les statistiques
   const getStatsFromRealData = () => {
@@ -63,7 +87,7 @@ const LeaderboardPage = () => {
   // ✅ Charger les vraies données Firebase au montage
   useEffect(() => {
     const loadFirebaseLeaderboard = async () => {
-      console.log('🔍 Chargement leaderboard Firebase...');
+      console.log('🔍 LeaderboardPage - Chargement leaderboard Firebase...');
       
       if (!db) {
         console.log('⚠️ Firebase non disponible');
@@ -72,8 +96,8 @@ const LeaderboardPage = () => {
       }
 
       try {
-        // 🎯 Nettoyage des noms activé dans Leaderboard.jsx - Vérifiez la console pour les logs de nettoyage
-        console.log('✅ Noms nettoyés activés dans Leaderboard.jsx');
+        // 🎯 Nettoyage des noms activé dans LeaderboardPage.jsx
+        console.log('✅ Noms nettoyés activés dans LeaderboardPage.jsx');
 
         const usersQuery = query(
           collection(db, 'users'),
@@ -89,27 +113,11 @@ const LeaderboardPage = () => {
           
           if (userData.email && userData.gamification) {
             // 🔧 CORRECTION: Nettoyer les noms d'affichage ici aussi
-            let cleanDisplayName = userData.displayName || userData.email;
-            
-            // Nettoyer les URLs Google
-            if (cleanDisplayName.includes('googleusercontent.com')) {
-              // Extraire le nom depuis l'URL Google si possible
-              const urlParts = cleanDisplayName.split('/');
-              cleanDisplayName = urlParts[urlParts.length - 1].split('?')[0];
-              
-              // Si c'est encore une URL, utiliser l'email
-              if (cleanDisplayName.includes('http') || cleanDisplayName.length > 50) {
-                cleanDisplayName = userData.email.split('@')[0];
-              }
-            }
-
-            console.log('🧹 Nettoyage nom pour:', userData.email);
-            console.log('   Avant:', userData.displayName);
-            console.log('   Après:', cleanDisplayName);
+            const cleanedName = cleanDisplayName(userData);
 
             firebaseUsers.push({
               id: doc.id,
-              name: cleanDisplayName,
+              name: cleanedName, // 🔧 NOM NETTOYÉ
               email: userData.email,
               role: userData.profile?.role || 'Membre',
               xp: userData.gamification.totalXp || 0,
@@ -129,7 +137,7 @@ const LeaderboardPage = () => {
         });
 
         setRealLeaderboard(firebaseUsers);
-        console.log(`✅ ${firebaseUsers.length} utilisateurs chargés depuis Firebase`);
+        console.log(`✅ LeaderboardPage - ${firebaseUsers.length} utilisateurs chargés avec noms nettoyés`);
         
       } catch (error) {
         console.error('❌ Erreur chargement Firebase leaderboard:', error);
@@ -293,7 +301,7 @@ const LeaderboardPage = () => {
             </div>
             <div className="text-sm text-gray-600">Participants</div>
             
-            {/* Affichage des utilisateurs avec vrais noms */}
+            {/* 🔧 CORRECTION: Affichage des utilisateurs avec vrais noms nettoyés */}
             <div className="mt-4 space-y-2">
               {getFilteredData().slice(0, 3).map((participant, index) => (
                 <div key={participant.id} className="flex items-center justify-between text-sm">
@@ -341,13 +349,13 @@ const LeaderboardPage = () => {
         </div>
       </div>
 
-      {/* Leaderboard */}
+      {/* 🔧 CORRECTION: Section Leaderboard avec noms nettoyés */}
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         {/* Header du tableau */}
         <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center">
             <Trophy className="w-5 h-5 mr-2 text-yellow-500" />
-            Classement {tabs.find(t => t.id === activeTab)?.label}
+            🏆 Top Performers - {tabs.find(t => t.id === activeTab)?.label}
             <span className="ml-2 text-sm text-gray-500">
               ({getFilteredData().length} participants)
             </span>
@@ -387,7 +395,7 @@ const LeaderboardPage = () => {
                     {/* Info utilisateur */}
                     <div>
                       <div className="font-medium text-gray-900 flex items-center">
-                        {participant.name}
+                        {participant.name} {/* 🔧 NOMS NETTOYÉS ICI */}
                         {isCurrentUser && (
                           <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                             Vous
