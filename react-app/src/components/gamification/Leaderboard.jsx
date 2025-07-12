@@ -1,458 +1,413 @@
 // ==========================================
-// 📁 react-app/src/pages/LeaderboardPage.jsx
-// Leaderboard AVEC STATISTIQUES RÉELLES - BUG CORRIGÉ
+// 📁 react-app/src/components/gamification/Leaderboard.jsx
+// Classement avec VRAIES données Firebase - IMPORTS CORRIGÉS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Trophy, Medal, Star, Crown, Target, TrendingUp, Calendar, 
-  Users, Award, Zap, Clock, Filter, RefreshCw, Download,
-  ChevronUp, ChevronDown, Flame, Shield, Gem, Sword
-} from 'lucide-react';
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  limit, 
-  getDocs,
-  onSnapshot
-} from 'firebase/firestore';
-import { db } from '../core/firebase.js';
-import { useAuthStore } from '../shared/stores/authStore.js';
+import { useAuthStore } from '../../shared/stores/authStore';
+import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
+import { db } from '../../core/firebase.js'; // 🔧 CORRECTION: Chemin absolu
+import LoadingSpinner from '../ui/LoadingSpinner';
 
-const LeaderboardPage = () => {
-  // États locaux pour la page complète Firebase
-  const [activeTab, setActiveTab] = useState('xp'); // xp, tasks, level, badges
-  const [timePeriod, setTimePeriod] = useState('all'); // week, month, all
-  const [showFilters, setShowFilters] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('overall'); // overall, productivity, consistency
-  const [realLeaderboard, setRealLeaderboard] = useState([]);
-  const [loadingFirebase, setLoadingFirebase] = useState(true);
-  
+const Leaderboard = () => {
   const { user } = useAuthStore();
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('xp');
+  const [timeFrame, setTimeFrame] = useState('all-time');
 
-  // 🔧 CORRECTION: Utiliser les VRAIES données pour les statistiques
-  const getStatsFromRealData = () => {
-    if (realLeaderboard.length === 0) {
-      return {
-        userStats: {
-          level: 1,
-          totalXp: 0,
-          badges: 0,
-          tasksCompleted: 0
-        },
-        totalParticipants: 0
-      };
-    }
-
-    // Trouver l'utilisateur actuel dans le classement réel
-    const currentUser = realLeaderboard.find(u => u.email === user?.email);
+  // 🧹 FONCTION DE NETTOYAGE DES NOMS
+  const cleanDisplayName = (userData) => {
+    let cleanName = userData.displayName || userData.email;
     
-    return {
-      userStats: {
-        level: currentUser?.level || 1,
-        totalXp: currentUser?.xp || 0,
-        badges: currentUser?.badges || 0,
-        tasksCompleted: currentUser?.tasksCompleted || 0
-      },
-      totalParticipants: realLeaderboard.length
-    };
+    // Nettoyer les URLs Google
+    if (cleanName.includes('googleusercontent.com')) {
+      console.log('🧹 Nettoyage URL Google pour:', userData.email);
+      console.log('   Avant:', cleanName);
+      
+      // Extraire le nom depuis l'URL Google si possible
+      const urlParts = cleanName.split('/');
+      cleanName = urlParts[urlParts.length - 1].split('?')[0];
+      
+      // Si c'est encore une URL, utiliser l'email
+      if (cleanName.includes('http') || cleanName.length > 50) {
+        cleanName = userData.email.split('@')[0];
+      }
+      
+      console.log('   Après:', cleanName);
+    }
+    
+    return cleanName;
   };
 
-  // ✅ Charger les vraies données Firebase au montage
+  // ✅ VRAIES DONNÉES : Charger le classement depuis Firebase
   useEffect(() => {
-    const loadFirebaseLeaderboard = async () => {
-      console.log('🔍 Chargement leaderboard Firebase...');
-      
+    const loadRealLeaderboard = async () => {
       if (!db) {
-        console.log('⚠️ Firebase non disponible');
-        setLoadingFirebase(false);
+        console.log('🔧 Mode déconnecté - Données par défaut');
+        setLeaderboardData(getMockLeaderboard());
+        setLoading(false);
         return;
       }
 
       try {
-        // 🎯 Nettoyage des noms activé dans Leaderboard.jsx - Vérifiez la console pour les logs de nettoyage
-        console.log('✅ Noms nettoyés activés dans Leaderboard.jsx');
+        setLoading(true);
+        console.log('🔍 Chargement classement avec nettoyage des noms...');
 
-        const usersQuery = query(
-          collection(db, 'users'),
-          orderBy('gamification.totalXp', 'desc'),
-          limit(50)
-        );
+        // ✅ Requête pour récupérer les vrais utilisateurs triés par XP
+        let usersQuery;
+        
+        if (activeTab === 'xp') {
+          usersQuery = query(
+            collection(db, 'users'),
+            orderBy('gamification.totalXp', 'desc'),
+            limit(20)
+          );
+        } else if (activeTab === 'tasks') {
+          usersQuery = query(
+            collection(db, 'users'),
+            orderBy('gamification.tasksCompleted', 'desc'),
+            limit(20)
+          );
+        } else if (activeTab === 'level') {
+          usersQuery = query(
+            collection(db, 'users'),
+            orderBy('gamification.level', 'desc'),
+            limit(20)
+          );
+        }
 
         const querySnapshot = await getDocs(usersQuery);
-        const firebaseUsers = [];
+        const realUsers = [];
 
-        querySnapshot.forEach((doc) => {
-          const userData = doc.data();
-          
-          if (userData.email && userData.gamification) {
-            // 🔧 CORRECTION: Nettoyer les noms d'affichage ici aussi
-            let cleanDisplayName = userData.displayName || userData.email;
+        querySnapshot.forEach((doc, index) => {
+          const userDocData = doc.data();
+          if (userDocData.email && userDocData.gamification) {
+            // 🔧 CORRECTION: Utiliser la fonction de nettoyage
+            const cleanedName = cleanDisplayName(userDocData);
             
-            // Nettoyer les URLs Google
-            if (cleanDisplayName.includes('googleusercontent.com')) {
-              // Extraire le nom depuis l'URL Google si possible
-              const urlParts = cleanDisplayName.split('/');
-              cleanDisplayName = urlParts[urlParts.length - 1].split('?')[0];
-              
-              // Si c'est encore une URL, utiliser l'email
-              if (cleanDisplayName.includes('http') || cleanDisplayName.length > 50) {
-                cleanDisplayName = userData.email.split('@')[0];
-              }
-            }
-
-            console.log('🧹 Nettoyage nom pour:', userData.email);
-            console.log('   Avant:', userData.displayName);
-            console.log('   Après:', cleanDisplayName);
-
-            firebaseUsers.push({
+            realUsers.push({
               id: doc.id,
-              name: cleanDisplayName,
-              email: userData.email,
-              role: userData.profile?.role || 'Membre',
-              xp: userData.gamification.totalXp || 0,
-              level: userData.gamification.level || 1,
-              tasksCompleted: userData.gamification.tasksCompleted || 0,
-              badges: userData.gamification.badges?.length || 0,
-              streak: userData.gamification.loginStreak || 0,
-              lastActive: userData.gamification.lastLoginDate,
-              rank: 0 // Sera calculé après tri
+              rank: index + 1,
+              name: cleanedName, // 🔧 NOM NETTOYÉ
+              email: userDocData.email,
+              role: userDocData.profile?.role || 'Membre',
+              level: userDocData.gamification.level || 1,
+              totalXp: userDocData.gamification.totalXp || 0,
+              tasksCompleted: userDocData.gamification.tasksCompleted || 0,
+              badges: userDocData.gamification.badges || [],
+              avatar: userDocData.photoURL || '👤',
+              isCurrentUser: doc.id === user?.uid,
+              streak: userDocData.gamification.loginStreak || 0,
+              lastActivity: userDocData.gamification.lastLoginDate
             });
           }
         });
 
-        // Calculer les rangs
-        firebaseUsers.forEach((user, index) => {
-          user.rank = index + 1;
-        });
+        // Ajouter l'utilisateur actuel s'il n'est pas dans le top
+        if (user && !realUsers.find(u => u.id === user.uid)) {
+          try {
+            const currentUserQuery = query(
+              collection(db, 'users'),
+              where('email', '==', user.email),
+              limit(1)
+            );
+            
+            const currentUserSnapshot = await getDocs(currentUserQuery);
+            
+            if (!currentUserSnapshot.empty) {
+              const currentUserDoc = currentUserSnapshot.docs[0];
+              const currentUserData = currentUserDoc.data();
+              const cleanedCurrentName = cleanDisplayName(currentUserData);
+              
+              realUsers.push({
+                id: currentUserDoc.id,
+                rank: realUsers.length + 1,
+                name: cleanedCurrentName, // 🔧 NOM NETTOYÉ
+                email: currentUserData.email,
+                role: currentUserData.profile?.role || 'Membre',
+                level: currentUserData.gamification?.level || 1,
+                totalXp: currentUserData.gamification?.totalXp || 0,
+                tasksCompleted: currentUserData.gamification?.tasksCompleted || 0,
+                badges: currentUserData.gamification?.badges || [],
+                avatar: currentUserData.photoURL || '👤',
+                isCurrentUser: true,
+                streak: currentUserData.gamification?.loginStreak || 0,
+                lastActivity: currentUserData.gamification?.lastLoginDate,
+                isOutOfTop: true
+              });
+            }
+          } catch (error) {
+            console.log('ℹ️ Utilisateur non trouvé dans classement');
+          }
+        }
 
-        setRealLeaderboard(firebaseUsers);
-        console.log(`✅ ${firebaseUsers.length} utilisateurs chargés depuis Firebase`);
-        
+        setLeaderboardData(realUsers);
+        console.log('✅ Classement réel chargé:', realUsers.length, 'utilisateurs avec noms nettoyés');
+
       } catch (error) {
-        console.error('❌ Erreur chargement Firebase leaderboard:', error);
+        console.error('❌ Erreur chargement classement:', error);
+        setLeaderboardData(getMockLeaderboard());
       } finally {
-        setLoadingFirebase(false);
+        setLoading(false);
       }
     };
 
-    loadFirebaseLeaderboard();
-  }, []);
+    loadRealLeaderboard();
+  }, [activeTab, timeFrame, user]);
 
-  // Combiner données Firebase et mock
-  const getDisplayLeaderboard = () => {
-    if (realLeaderboard.length > 0) {
-      return realLeaderboard;
+  // ✅ Calculer le rang d'un utilisateur
+  const calculateUserRank = async (userId, category) => {
+    if (!db) return 0;
+
+    try {
+      let field = 'gamification.totalXp';
+      if (category === 'tasks') field = 'gamification.tasksCompleted';
+      if (category === 'level') field = 'gamification.level';
+
+      const usersQuery = query(
+        collection(db, 'users'),
+        orderBy(field, 'desc')
+      );
+      
+      const snapshot = await getDocs(usersQuery);
+      let rank = 1;
+      
+      snapshot.forEach((doc) => {
+        if (doc.id === userId) {
+          return;
+        }
+        rank++;
+      });
+
+      return rank;
+    } catch (error) {
+      return 0;
     }
-    // Fallback si pas de données Firebase
-    return [{
-      id: user?.uid || '1',
-      name: user?.displayName || user?.email?.split('@')[0] || 'Utilisateur',
+  };
+
+  // ✅ Générer avatar depuis le nom
+  const getAvatarFromName = (name) => {
+    if (!name) return '👤';
+    
+    const avatars = ['👨‍💼', '👩‍💼', '👨‍💻', '👩‍💻', '👨‍🎨', '👩‍🎨', '👨‍📊', '👩‍📊', '🧑‍🔧', '👩‍🔧'];
+    const index = name.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return avatars[index % avatars.length];
+  };
+
+  // ✅ Données mock si pas de Firebase
+  const getMockLeaderboard = () => [
+    {
+      id: user?.uid || 'current-user',
+      rank: 1,
+      name: user?.displayName || user?.email?.split('@')[0] || 'Vous',
       email: user?.email || 'user@example.com',
       role: 'Utilisateur connecté',
-      xp: 0,
       level: 1,
+      totalXp: 0,
       tasksCompleted: 0,
-      badges: 0,
-      streak: 0,
-      rank: 1
-    }];
-  };
+      badges: [],
+      avatar: user?.photoURL || '👤',
+      isCurrentUser: true,
+      streak: 0
+    }
+  ];
 
-  // Fonction refresh
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    console.log('🔄 Actualisation leaderboard...');
-    
-    // Simuler un délai de refresh
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setRefreshing(false);
-    console.log('✅ Leaderboard actualisé');
-  };
-
-  // Obtenir la position de l'utilisateur actuel
-  const getCurrentUserRank = () => {
-    const leaderboard = getDisplayLeaderboard();
-    const userIndex = leaderboard.findIndex(u => u.email === user?.email);
-    return userIndex !== -1 ? userIndex + 1 : null;
-  };
-
-  // Filtrer selon l'onglet actif
-  const getFilteredData = () => {
-    const leaderboard = getDisplayLeaderboard();
-    
+  // ✅ Obtenir la valeur selon l'onglet actif
+  const getDisplayValue = (userInfo) => {
     switch (activeTab) {
+      case 'xp':
+        return `${userInfo.totalXp.toLocaleString()} XP`;
       case 'tasks':
-        return [...leaderboard].sort((a, b) => b.tasksCompleted - a.tasksCompleted);
+        return `${userInfo.tasksCompleted} tâches`;
       case 'level':
-        return [...leaderboard].sort((a, b) => b.level - a.level);
-      case 'badges':
-        return [...leaderboard].sort((a, b) => b.badges - a.badges);
-      default: // xp
-        return [...leaderboard].sort((a, b) => b.xp - a.xp);
+        return `Niveau ${userInfo.level}`;
+      default:
+        return `${userInfo.totalXp.toLocaleString()} XP`;
     }
   };
 
-  const tabs = [
-    { id: 'xp', label: 'Points XP', icon: Zap, color: 'purple' },
-    { id: 'tasks', label: 'Tâches', icon: Target, color: 'green' },
-    { id: 'level', label: 'Niveau', icon: Crown, color: 'yellow' },
-    { id: 'badges', label: 'Badges', icon: Award, color: 'blue' }
-  ];
+  // ✅ Obtenir la couleur du rang
+  const getRankColor = (rank) => {
+    if (rank === 1) return 'text-yellow-400'; // Or
+    if (rank === 2) return 'text-gray-300';   // Argent
+    if (rank === 3) return 'text-orange-400'; // Bronze
+    return 'text-gray-400';
+  };
 
-  // 🔧 CORRECTION: Utiliser les vraies données pour les stats
-  const realStats = getStatsFromRealData();
+  // ✅ Obtenir l'icône du rang
+  const getRankIcon = (rank) => {
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return `#${rank}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-900">
+        <LoadingSpinner />
+        <div className="ml-4 text-white">Chargement du classement...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen p-6 space-y-6">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 rounded-3xl p-8 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-48 h-48 opacity-20">
-          <Trophy className="w-full h-full" />
-        </div>
+    <div className="min-h-screen bg-gray-900 p-6">
+      <div className="max-w-4xl mx-auto">
         
-        <div className="relative z-10">
-          <h1 className="text-4xl font-bold mb-4 flex items-center">
-            🏆 Classement
+        {/* En-tête */}
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold text-white mb-2">
+            🏆 Classement Équipe
           </h1>
-          <p className="text-xl text-white/90 mb-4">
-            Compétition amicale et reconnaissance des contributions
+          <p className="text-gray-400">
+            Performance et achievements en temps réel
           </p>
-          
-          {/* 🔧 CORRECTION: Stats utilisateur avec VRAIES DONNÉES */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-            <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3">
-              <div className="text-2xl font-bold">{realStats.userStats.level}</div>
-              <div className="text-sm text-white/80">Votre niveau</div>
-            </div>
-            <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3">
-              <div className="text-2xl font-bold">{realStats.userStats.totalXp}</div>
-              <div className="text-sm text-white/80">Vos points XP</div>
-            </div>
-            <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3">
-              <div className="text-2xl font-bold">{getCurrentUserRank() || '?'}</div>
-              <div className="text-sm text-white/80">Votre rang</div>
-            </div>
-            <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3">
-              <div className="text-2xl font-bold">{realStats.userStats.badges}</div>
-              <div className="text-sm text-white/80">Vos badges</div>
-            </div>
-          </div>
-          
-          {/* Info debug */}
-          <div className="mt-4 text-sm text-white/70">
-            <p>
-              Affichage des données {realLeaderboard.length > 0 ? 'Firebase réelles' : 'simulées'}.
-              {loadingFirebase && ' Chargement Firebase en cours...'}
-            </p>
-          </div>
         </div>
-      </div>
 
-      {/* Onglets */}
-      <div className="flex justify-center mb-6">
-        <div className="bg-white rounded-2xl p-2 shadow-lg border border-gray-200 inline-flex">
-          {tabs.map((tab) => {
-            const IconComponent = tab.icon;
-            const isActive = activeTab === tab.id;
-            
-            return (
+        {/* Onglets de catégories */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-gray-800 rounded-lg p-1 border border-gray-700">
+            {[
+              { id: 'xp', label: '⭐ Points XP', icon: '⭐' },
+              { id: 'tasks', label: '✅ Tâches', icon: '✅' },
+              { id: 'level', label: '📈 Niveau', icon: '📈' }
+            ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`
-                  px-6 py-3 rounded-xl font-medium transition-all duration-200 flex items-center space-x-2
-                  ${isActive 
-                    ? `bg-gradient-to-r from-${tab.color}-500 to-${tab.color}-600 text-white shadow-lg` 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }
-                `}
+                className={`px-6 py-2 rounded-md font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                }`}
               >
-                <IconComponent className="w-4 h-4" />
-                <span>{tab.label}</span>
+                {tab.icon} {tab.label}
               </button>
-            );
-          })}
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* 🔧 CORRECTION: Section Statistiques avec VRAIES DONNÉES */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900 flex items-center">
-              📊 Statistiques XP
+        {/* Statistiques */}
+        <div className="bg-gray-800 rounded-lg p-6 mb-8 border border-gray-700">
+          <h2 className="text-xl font-semibold text-white mb-4">
+            📊 Statistiques {activeTab === 'xp' ? 'XP' : activeTab === 'tasks' ? 'Tâches' : 'Niveaux'}
+          </h2>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-400">
+                {leaderboardData.length}
+              </div>
+              <div className="text-gray-400 text-sm">Participants</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-400">
+                {leaderboardData.reduce((sum, user) => sum + user.totalXp, 0).toLocaleString()}
+              </div>
+              <div className="text-gray-400 text-sm">XP Total</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-400">
+                {leaderboardData.reduce((sum, user) => sum + user.tasksCompleted, 0)}
+              </div>
+              <div className="text-gray-400 text-sm">Tâches Complétées</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-2xl font-bold text-yellow-400">
+                {Math.round(leaderboardData.reduce((sum, user) => sum + user.level, 0) / leaderboardData.length) || 1}
+              </div>
+              <div className="text-gray-400 text-sm">Niveau Moyen</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Liste du classement */}
+        <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+          <div className="p-6 border-b border-gray-700">
+            <h3 className="text-lg font-semibold text-white">
+              🏆 Top Performers - {activeTab === 'xp' ? 'Points XP' : activeTab === 'tasks' ? 'Tâches' : 'Niveaux'}
             </h3>
           </div>
-          <div className="space-y-3">
-            <div className="text-3xl font-bold text-purple-600">
-              {realStats.totalParticipants}
-            </div>
-            <div className="text-sm text-gray-600">Participants</div>
-            
-            {/* Affichage des utilisateurs avec vrais noms */}
-            <div className="mt-4 space-y-2">
-              {getFilteredData().slice(0, 3).map((participant, index) => (
-                <div key={participant.id} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-gray-400">#{index + 1}</span>
-                    <span className="font-medium">{participant.name}</span>
-                  </div>
-                  <div className="text-gray-600">
-                    {activeTab === 'xp' && `${participant.xp} XP`}
-                    {activeTab === 'tasks' && `${participant.tasksCompleted} tâches`}
-                    {activeTab === 'level' && `Niveau ${participant.level}`}
-                    {activeTab === 'badges' && `${participant.badges} badges`}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
 
-        {/* Autres statistiques */}
-        <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">🎯 Performance</h3>
-          </div>
-          <div className="space-y-3">
-            <div className="text-3xl font-bold text-green-600">
-              {Math.round((realStats.userStats.tasksCompleted / Math.max(realStats.totalParticipants, 1)) * 100)}%
-            </div>
-            <div className="text-sm text-gray-600">Taux de completion</div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">🏆 Votre Position</h3>
-          </div>
-          <div className="space-y-3">
-            <div className="text-3xl font-bold text-yellow-600">
-              #{getCurrentUserRank() || '?'}
-            </div>
-            <div className="text-sm text-gray-600">
-              Sur {realStats.totalParticipants} participants
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Leaderboard */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-        {/* Header du tableau */}
-        <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <Trophy className="w-5 h-5 mr-2 text-yellow-500" />
-            Classement {tabs.find(t => t.id === activeTab)?.label}
-            <span className="ml-2 text-sm text-gray-500">
-              ({getFilteredData().length} participants)
-            </span>
-          </h3>
-        </div>
-
-        {/* Liste */}
-        <div className="divide-y divide-gray-100">
-          {getFilteredData().slice(0, 10).map((participant, index) => {
-            const isCurrentUser = participant.email === user?.email;
-            const position = index + 1;
-            
-            return (
-              <div 
-                key={participant.id}
-                className={`
-                  px-6 py-4 hover:bg-gray-50 transition-colors
-                  ${isCurrentUser ? 'bg-blue-50 border-l-4 border-blue-500' : ''}
-                `}
+          <div className="divide-y divide-gray-700">
+            {leaderboardData.map((userInfo, index) => (
+              <div
+                key={userInfo.id}
+                className={`p-4 hover:bg-gray-750 transition-colors ${
+                  userInfo.isCurrentUser ? 'bg-blue-900/30 border-l-4 border-blue-500' : ''
+                } ${userInfo.isOutOfTop ? 'border-t-2 border-orange-500' : ''}`}
               >
                 <div className="flex items-center justify-between">
+                  {/* Rang et utilisateur */}
                   <div className="flex items-center space-x-4">
-                    {/* Position */}
-                    <div className={`
-                      w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm
-                      ${position === 1 ? 'bg-yellow-100 text-yellow-800' : 
-                        position === 2 ? 'bg-gray-100 text-gray-800' :
-                        position === 3 ? 'bg-orange-100 text-orange-800' :
-                        'bg-gray-50 text-gray-600'}
-                    `}>
-                      {position <= 3 ? 
-                        ['🥇', '🥈', '🥉'][position - 1] : 
-                        `#${position}`
+                    <div className={`text-2xl font-bold ${getRankColor(userInfo.rank)}`}>
+                      {getRankIcon(userInfo.rank)}
+                    </div>
+                    
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+                      {userInfo.avatar === '👤' ? 
+                        userInfo.name.charAt(0).toUpperCase() : 
+                        userInfo.avatar
                       }
                     </div>
-
-                    {/* Info utilisateur */}
+                    
                     <div>
-                      <div className="font-medium text-gray-900 flex items-center">
-                        {participant.name}
-                        {isCurrentUser && (
-                          <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                            Vous
-                          </span>
+                      <span className={`font-semibold text-lg ${userInfo.isCurrentUser ? 'text-blue-400' : 'text-white'}`}>
+                        {userInfo.name}
+                      </span>
+                      {userInfo.isCurrentUser && (
+                        <span className="bg-blue-600 text-xs px-2 py-1 rounded-full text-white">
+                          Vous
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-gray-400 text-sm">{userInfo.role}</div>
+                    {userInfo.badges.length > 0 && (
+                      <div className="flex gap-1 mt-1">
+                        {userInfo.badges.slice(0, 3).map((badge, index) => (
+                          <span key={index} className="text-xs">🏆</span>
+                        ))}
+                        {userInfo.badges.length > 3 && (
+                          <span className="text-xs text-gray-500">+{userInfo.badges.length - 3}</span>
                         )}
                       </div>
-                      <div className="text-sm text-gray-500">{participant.role}</div>
-                    </div>
+                    )}
                   </div>
 
-                  {/* Métriques */}
-                  <div className="flex items-center space-x-6">
-                    {activeTab === 'xp' && (
-                      <div className="text-right">
-                        <div className="font-semibold text-purple-600">{participant.xp.toLocaleString()} XP</div>
-                        <div className="text-xs text-gray-500">Niveau {participant.level}</div>
-                      </div>
-                    )}
-                    
-                    {activeTab === 'tasks' && (
-                      <div className="text-right">
-                        <div className="font-semibold text-green-600">{participant.tasksCompleted}</div>
-                        <div className="text-xs text-gray-500">Tâches</div>
-                      </div>
-                    )}
-                    
-                    {activeTab === 'level' && (
-                      <div className="text-right">
-                        <div className="font-semibold text-yellow-600">Niveau {participant.level}</div>
-                        <div className="text-xs text-gray-500">{participant.xp} XP</div>
-                      </div>
-                    )}
-                    
-                    {activeTab === 'badges' && (
-                      <div className="text-right">
-                        <div className="font-semibold text-blue-600">{participant.badges}</div>
-                        <div className="text-xs text-gray-500">Badges</div>
-                      </div>
-                    )}
+                  {/* Statistiques */}
+                  <div className="text-right">
+                    <div className={`text-lg font-bold ${userInfo.isCurrentUser ? 'text-blue-400' : 'text-white'}`}>
+                      {getDisplayValue(userInfo)}
+                    </div>
+                    <div className="text-sm text-gray-400">
+                      Niveau {userInfo.level}
+                    </div>
                   </div>
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* Actions en bas */}
-      <div className="flex justify-center space-x-4">
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="flex items-center space-x-2 px-6 py-3 bg-white border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          <span>{refreshing ? 'Actualisation...' : 'Actualiser'}</span>
-        </button>
-        
-        <button className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors">
-          <Download className="w-4 h-4" />
-          <span>Exporter</span>
-        </button>
+        {leaderboardData.length === 0 && (
+          <div className="text-center py-8">
+            <div className="text-4xl mb-4">📊</div>
+            <h3 className="text-lg font-medium text-white mb-2">
+              Aucun participant trouvé
+            </h3>
+            <p className="text-gray-400">
+              Commencez à utiliser l'application pour apparaître dans le classement !
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-export default LeaderboardPage;
+export default Leaderboard;
