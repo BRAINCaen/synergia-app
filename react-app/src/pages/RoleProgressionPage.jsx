@@ -1,136 +1,204 @@
 // ==========================================
 // 📁 react-app/src/pages/RoleProgressionPage.jsx
-// VERSION SIMPLIFIÉE SANS STORES COMPLEXES
+// PAGE PROGRESSION DE RÔLE AVEC LES VRAIS RÔLES SYNERGIA
 // ==========================================
 
-import React, { useState } from 'react';
-import { Crown, Target, TrendingUp, Star, CheckCircle, Users, Award, Zap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Crown, 
+  Star, 
+  Award, 
+  Zap, 
+  CheckCircle, 
+  Target,
+  TrendingUp,
+  Trophy,
+  Users,
+  Lock,
+  Play,
+  Calendar
+} from 'lucide-react';
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { ESCAPE_GAME_ROLES } from '../core/services/escapeGameRolesService.js';
+import { SYNERGIA_ROLES, ROLE_LEVELS } from '../core/services/synergiaRolesService.js';
 
 const RoleProgressionPage = () => {
-  const [selectedRole, setSelectedRole] = useState('developer');
+  const { user } = useAuthStore();
+  const [selectedRole, setSelectedRole] = useState('gamemaster'); // Premier rôle par défaut
+  const [userRoles, setUserRoles] = useState({});
+  const [loading, setLoading] = useState(true);
 
-  // Données locales simples - pas de stores externes
-  const mockUserLevel = 2;
-  const mockUserXP = 750;
-
-  // Définition des rôles et leurs progressions
-  const roles = {
-    developer: {
-      name: 'Développeur',
-      icon: '💻',
-      color: 'blue',
-      description: 'Maîtrisez l\'art du code et des technologies',
-      levels: [
-        { 
-          level: 1, 
-          title: 'Junior Developer', 
-          xpRequired: 0,
-          skills: ['HTML/CSS', 'JavaScript', 'Git basics'],
-          tasks: ['Créer 5 tâches', 'Compléter votre profil', 'Premier commit'],
-          rewards: ['Badge Codeur Débutant', '+100 XP']
-        },
-        { 
-          level: 2, 
-          title: 'Developer', 
-          xpRequired: 500,
-          skills: ['React/Vue', 'Node.js', 'Bases de données'],
-          tasks: ['10 tâches complétées', '3 projets créés', 'Code review'],
-          rewards: ['Badge Développeur', '+250 XP', 'Accès projets avancés']
-        },
-        { 
-          level: 3, 
-          title: 'Senior Developer', 
-          xpRequired: 1500,
-          skills: ['Architecture', 'Mentoring', 'CI/CD'],
-          tasks: ['Mentorer un junior', 'Créer une architecture', 'Lead un projet'],
-          rewards: ['Badge Senior', '+500 XP', 'Titre Senior']
+  // 🎯 COMBINER LES RÔLES ESCAPE GAME ET SYNERGIA
+  const allRoles = {
+    // Rôles Escape Game (priorité)
+    ...ESCAPE_GAME_ROLES,
+    // Rôles Synergia (en complément)
+    ...Object.fromEntries(
+      Object.entries(SYNERGIA_ROLES).map(([key, role]) => [
+        key.toLowerCase(),
+        {
+          ...role,
+          icon: role.icon === '🔧' ? '🛠️' : 
+                role.icon === '⭐' ? '🌟' : 
+                role.icon === '📦' ? '📦' : 
+                role.icon === '📋' ? '🗓️' : 
+                role.icon === '🎨' ? '🎨' : 
+                role.icon === '🎓' ? '🎓' : 
+                role.icon === '🤝' ? '🤝' : 
+                role.icon === '📢' ? '📢' : 
+                role.icon === '💼' ? '💼' : 
+                role.icon === '🎮' ? '🎮' : role.icon,
+          color: role.color?.replace('bg-', 'from-') + ' to-blue-600',
+          description: role.description
         }
-      ]
-    },
-    designer: {
-      name: 'Designer',
-      icon: '🎨',
-      color: 'purple',
-      description: 'Créez des expériences visuelles exceptionnelles',
-      levels: [
-        { 
-          level: 1, 
-          title: 'Junior Designer', 
-          xpRequired: 0,
-          skills: ['Design basics', 'Figma/Sketch', 'Color theory'],
-          tasks: ['Créer 3 mockups', 'Compléter profil créatif', 'Premier design'],
-          rewards: ['Badge Designer Débutant', '+100 XP']
-        },
-        { 
-          level: 2, 
-          title: 'UI Designer', 
-          xpRequired: 400,
-          skills: ['Interface design', 'Prototyping', 'User flows'],
-          tasks: ['5 interfaces créées', 'Prototype interactif', 'Design system'],
-          rewards: ['Badge UI Designer', '+200 XP', 'Outils avancés']
-        }
-      ]
-    },
-    manager: {
-      name: 'Manager',
-      icon: '👔',
-      color: 'green',
-      description: 'Guidez les équipes vers le succès',
-      levels: [
-        { 
-          level: 1, 
-          title: 'Team Member', 
-          xpRequired: 0,
-          skills: ['Communication', 'Collaboration', 'Organization'],
-          tasks: ['Participer activement', 'Aider collègues', 'Être proactif'],
-          rewards: ['Badge Team Player', '+100 XP']
-        },
-        { 
-          level: 2, 
-          title: 'Team Lead', 
-          xpRequired: 600,
-          skills: ['Basic leadership', 'Planning', 'Coordination'],
-          tasks: ['Coordonner projet', 'Organiser meetings', 'Suivre progress'],
-          rewards: ['Badge Team Lead', '+250 XP', 'Responsabilités']
-        }
-      ]
-    }
+      ])
+    )
   };
 
-  // Calculer le niveau actuel de l'utilisateur pour un rôle
-  const getCurrentLevel = (roleKey) => {
-    const roleLevels = roles[roleKey].levels;
-    let currentLevel = 1;
-    for (let i = roleLevels.length - 1; i >= 0; i--) {
-      if (mockUserXP >= roleLevels[i].xpRequired) {
-        currentLevel = roleLevels[i].level;
-        break;
+  // Données de niveaux étendues pour chaque rôle
+  const getRoleLevels = (roleId) => {
+    const baseRole = allRoles[roleId];
+    if (!baseRole) return [];
+
+    return [
+      {
+        level: 1,
+        title: `${baseRole.name} - Novice`,
+        xpRequired: 0,
+        maxXp: 499,
+        skills: [
+          'Bases du métier acquises',
+          'Première prise en main des outils',
+          'Compréhension des procédures de base'
+        ],
+        rewards: [
+          'Badge Première Mission',
+          'Accès aux tâches débutant',
+          '+10% XP sur les premières tâches'
+        ]
+      },
+      {
+        level: 2,
+        title: `${baseRole.name} - Apprenti`,
+        xpRequired: 500,
+        maxXp: 1499,
+        skills: [
+          'Autonomie sur les tâches courantes',
+          'Maîtrise des outils principaux',
+          'Début de spécialisation'
+        ],
+        rewards: [
+          'Badge Montée en Compétence',
+          'Accès aux tâches intermédiaires',
+          'Déblocage de nouvelles responsabilités'
+        ]
+      },
+      {
+        level: 3,
+        title: `${baseRole.name} - Compétent`,
+        xpRequired: 1500,
+        maxXp: 2999,
+        skills: [
+          'Expertise technique confirmée',
+          'Capacité à former les nouveaux',
+          'Résolution de problèmes complexes'
+        ],
+        rewards: [
+          'Badge Expert Confirmé',
+          'Accès aux tâches avancées',
+          'Possibilité de mentoring'
+        ]
+      },
+      {
+        level: 4,
+        title: `${baseRole.name} - Expert`,
+        xpRequired: 3000,
+        maxXp: 4999,
+        skills: [
+          'Maîtrise complète du domaine',
+          'Leadership sur les projets complexes',
+          'Innovation et amélioration continue'
+        ],
+        rewards: [
+          'Badge Maître du Domaine',
+          'Accès aux projets stratégiques',
+          'Participation aux décisions'
+        ]
+      },
+      {
+        level: 5,
+        title: `${baseRole.name} - Maître`,
+        xpRequired: 5000,
+        maxXp: Infinity,
+        skills: [
+          'Expertise reconnue par tous',
+          'Capacité à définir les standards',
+          'Vision stratégique du rôle'
+        ],
+        rewards: [
+          'Badge Grand Maître',
+          'Accès privilégié à tous les projets',
+          'Influence sur les orientations stratégiques'
+        ]
+      }
+    ];
+  };
+
+  // Simuler les données utilisateur (à remplacer par de vraies données Firebase)
+  const getUserRoleData = (roleId) => {
+    // Simulation de données utilisateur pour démonstration
+    const mockData = {
+      gamemaster: { xp: 850, level: 2, tasksCompleted: 15 },
+      maintenance: { xp: 1200, level: 2, tasksCompleted: 22 },
+      reputation: { xp: 650, level: 2, tasksCompleted: 12 },
+      stock: { xp: 300, level: 1, tasksCompleted: 8 },
+      organization: { xp: 2100, level: 3, tasksCompleted: 35 },
+      content: { xp: 950, level: 2, tasksCompleted: 18 },
+      mentoring: { xp: 1800, level: 3, tasksCompleted: 28 },
+      partnerships: { xp: 450, level: 1, tasksCompleted: 9 },
+      communication: { xp: 1350, level: 2, tasksCompleted: 25 },
+      b2b: { xp: 720, level: 2, tasksCompleted: 14 }
+    };
+    
+    return mockData[roleId] || { xp: 0, level: 1, tasksCompleted: 0 };
+  };
+
+  // Calculer le niveau actuel basé sur l'XP
+  const getCurrentLevel = (roleId) => {
+    const userRoleData = getUserRoleData(roleId);
+    const levels = getRoleLevels(roleId);
+    
+    for (let i = levels.length - 1; i >= 0; i--) {
+      if (userRoleData.xp >= levels[i].xpRequired) {
+        return levels[i].level;
       }
     }
-    return currentLevel;
+    return 1;
   };
 
-  // Calculer le progress vers le niveau suivant
-  const getProgressToNext = (roleKey) => {
-    const currentLevel = getCurrentLevel(roleKey);
-    const roleLevels = roles[roleKey].levels;
-    
-    const nextLevelData = roleLevels.find(l => l.level === currentLevel + 1);
-    if (!nextLevelData) return 100;
-    
-    const currentLevelData = roleLevels.find(l => l.level === currentLevel);
-    const currentLevelXP = currentLevelData?.xpRequired || 0;
-    const nextLevelXP = nextLevelData.xpRequired;
-    
-    const progress = ((mockUserXP - currentLevelXP) / (nextLevelXP - currentLevelXP)) * 100;
-    return Math.min(Math.max(progress, 0), 100);
-  };
-
-  const currentRole = roles[selectedRole];
+  // Obtenir les données du niveau actuel
+  const currentRole = allRoles[selectedRole];
   const currentLevel = getCurrentLevel(selectedRole);
-  const progressToNext = getProgressToNext(selectedRole);
-  const currentLevelData = currentRole.levels.find(l => l.level === currentLevel);
-  const nextLevelData = currentRole.levels.find(l => l.level === currentLevel + 1);
+  const roleLevels = getRoleLevels(selectedRole);
+  const currentLevelData = roleLevels.find(l => l.level === currentLevel);
+  const nextLevelData = roleLevels.find(l => l.level === currentLevel + 1);
+  const userRoleData = getUserRoleData(selectedRole);
+
+  useEffect(() => {
+    // Charger les données utilisateur
+    setLoading(false);
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement de votre progression...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-6 space-y-6">
@@ -143,10 +211,10 @@ const RoleProgressionPage = () => {
         <div className="relative z-10">
           <h1 className="text-4xl font-bold mb-4 flex items-center">
             <Crown className="w-10 h-10 mr-3" />
-            Progression par Rôles
+            Progression par Rôles Synergia
           </h1>
           <p className="text-xl text-white/90">
-            Développez vos compétences et progressez dans votre carrière
+            Développez vos compétences dans les métiers de l'escape game
           </p>
         </div>
       </div>
@@ -155,10 +223,11 @@ const RoleProgressionPage = () => {
       <div className="bg-white rounded-2xl shadow-xl p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Choisissez votre parcours</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {Object.entries(roles).map(([key, role]) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.entries(allRoles).map(([key, role]) => {
             const isSelected = selectedRole === key;
             const level = getCurrentLevel(key);
+            const userData = getUserRoleData(key);
             
             return (
               <button
@@ -174,10 +243,26 @@ const RoleProgressionPage = () => {
                   <span className="text-3xl mr-3">{role.icon}</span>
                   <div>
                     <h3 className="font-bold text-lg text-gray-900">{role.name}</h3>
-                    <p className="text-sm text-gray-600">Niveau {level}</p>
+                    <p className="text-sm text-gray-600">Niveau {level} • {userData.xp} XP</p>
                   </div>
                 </div>
                 <p className="text-gray-600 text-sm">{role.description}</p>
+                
+                {/* Barre de progression */}
+                <div className="mt-3">
+                  <div className="flex justify-between text-xs text-gray-500 mb-1">
+                    <span>Progression</span>
+                    <span>{userData.tasksCompleted} tâches</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                      style={{ 
+                        width: `${Math.min((userData.xp % 500) / 5, 100)}%` 
+                      }}
+                    ></div>
+                  </div>
+                </div>
               </button>
             );
           })}
@@ -189,10 +274,11 @@ const RoleProgressionPage = () => {
         {/* Niveau actuel */}
         <div className="bg-white rounded-2xl shadow-xl p-6">
           <div className="flex items-center mb-6">
-            <span className="text-4xl mr-4">{currentRole.icon}</span>
+            <span className="text-4xl mr-4">{currentRole?.icon}</span>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">{currentLevelData?.title}</h2>
-              <p className="text-gray-600">Niveau {currentLevel} • {currentRole.name}</p>
+              <p className="text-gray-600">Niveau {currentLevel} • {currentRole?.name}</p>
+              <p className="text-sm text-blue-600 font-medium">{userRoleData.xp} XP</p>
             </div>
           </div>
 
@@ -221,7 +307,7 @@ const RoleProgressionPage = () => {
             <div className="grid grid-cols-1 gap-2">
               {currentLevelData?.rewards.map((reward, index) => (
                 <div key={index} className="flex items-center bg-purple-50 rounded-lg p-3">
-                  <Star className="w-5 h-5 text-purple-500 mr-3" />
+                  <Trophy className="w-5 h-5 text-purple-500 mr-3" />
                   <span className="text-purple-800 font-medium">{reward}</span>
                 </div>
               ))}
@@ -234,51 +320,34 @@ const RoleProgressionPage = () => {
           {nextLevelData ? (
             <>
               <div className="flex items-center mb-6">
-                <div className="relative">
-                  <span className="text-4xl opacity-50">{currentRole.icon}</span>
-                </div>
-                <div className="ml-4">
-                  <h2 className="text-2xl font-bold text-gray-700">{nextLevelData.title}</h2>
-                  <p className="text-gray-500">Niveau {nextLevelData.level} • Objectif suivant</p>
+                <Target className="w-8 h-8 text-orange-500 mr-3" />
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Objectif Suivant</h2>
+                  <p className="text-gray-600">{nextLevelData.title}</p>
                 </div>
               </div>
 
-              {/* Progress vers le niveau suivant */}
+              {/* Progression vers le niveau suivant */}
               <div className="mb-6">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">Progression</span>
-                  <span className="text-sm text-gray-500">{Math.round(progressToNext)}%</span>
+                <div className="flex justify-between text-sm text-gray-600 mb-2">
+                  <span>Progression vers le niveau {nextLevelData.level}</span>
+                  <span>{userRoleData.xp} / {nextLevelData.xpRequired} XP</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div 
-                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${progressToNext}%` }}
+                    className="bg-gradient-to-r from-orange-500 to-red-500 h-3 rounded-full transition-all duration-500"
+                    style={{ 
+                      width: `${Math.min((userRoleData.xp / nextLevelData.xpRequired) * 100, 100)}%` 
+                    }}
                   ></div>
                 </div>
-                <div className="flex justify-between text-sm text-gray-500 mt-1">
-                  <span>{mockUserXP} XP</span>
-                  <span>{nextLevelData.xpRequired} XP requis</span>
-                </div>
-              </div>
-
-              {/* Tâches à accomplir */}
-              <div className="mb-6">
-                <h3 className="font-bold text-gray-900 mb-3 flex items-center">
-                  <Target className="w-5 h-5 mr-2 text-blue-500" />
-                  Tâches à accomplir
-                </h3>
-                <div className="grid grid-cols-1 gap-2">
-                  {nextLevelData.tasks.map((task, index) => (
-                    <div key={index} className="flex items-center bg-blue-50 rounded-lg p-3">
-                      <div className="w-5 h-5 border-2 border-blue-300 rounded mr-3"></div>
-                      <span className="text-blue-800">{task}</span>
-                    </div>
-                  ))}
-                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  Plus que {Math.max(0, nextLevelData.xpRequired - userRoleData.xp)} XP à gagner
+                </p>
               </div>
 
               {/* Nouvelles compétences */}
-              <div>
+              <div className="mb-6">
                 <h3 className="font-bold text-gray-900 mb-3 flex items-center">
                   <Zap className="w-5 h-5 mr-2 text-orange-500" />
                   Nouvelles compétences
@@ -291,6 +360,22 @@ const RoleProgressionPage = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Nouvelles récompenses */}
+              <div>
+                <h3 className="font-bold text-gray-900 mb-3 flex items-center">
+                  <Award className="w-5 h-5 mr-2 text-orange-500" />
+                  Récompenses à débloquer
+                </h3>
+                <div className="grid grid-cols-1 gap-2">
+                  {nextLevelData.rewards.map((reward, index) => (
+                    <div key={index} className="flex items-center bg-orange-50 rounded-lg p-3">
+                      <Lock className="w-5 h-5 text-orange-500 mr-3" />
+                      <span className="text-orange-800">{reward}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </>
           ) : (
             <div className="text-center py-8">
@@ -299,29 +384,41 @@ const RoleProgressionPage = () => {
               <p className="text-gray-600">
                 Félicitations ! Vous avez atteint le niveau maximum pour ce rôle.
               </p>
+              <div className="mt-4 p-4 bg-yellow-50 rounded-lg">
+                <p className="text-yellow-800 font-medium">
+                  🎉 Vous êtes maintenant <strong>Maître {currentRole?.name}</strong> !
+                </p>
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Progression vers le prochain niveau */}
+      {/* Actions rapides */}
       <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-6 text-white">
-        <h3 className="text-xl font-bold mb-4">🚀 Continuez votre progression !</h3>
-        <p className="mb-4 text-white/90">
-          Votre niveau actuel : <strong>Niveau {mockUserLevel}</strong> avec <strong>{mockUserXP} XP</strong>
-        </p>
+        <h3 className="text-xl font-bold mb-4 flex items-center">
+          <Play className="w-6 h-6 mr-2" />
+          Actions recommandées
+        </h3>
         
-        <div className="bg-white/20 rounded-lg p-4">
-          <div className="flex justify-between text-sm mb-2">
-            <span>Progression globale</span>
-            <span>{mockUserXP} / 1500 XP</span>
-          </div>
-          <div className="w-full bg-white/20 rounded-full h-2">
-            <div 
-              className="bg-white h-2 rounded-full transition-all duration-500"
-              style={{ width: `${(mockUserXP / 1500) * 100}%` }}
-            ></div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <button className="bg-white/20 backdrop-blur-sm rounded-xl p-4 text-left hover:bg-white/30 transition-all">
+            <Target className="w-6 h-6 mb-2" />
+            <h4 className="font-semibold mb-1">Voir mes tâches</h4>
+            <p className="text-sm text-white/80">Découvrir les missions disponibles</p>
+          </button>
+          
+          <button className="bg-white/20 backdrop-blur-sm rounded-xl p-4 text-left hover:bg-white/30 transition-all">
+            <Trophy className="w-6 h-6 mb-2" />
+            <h4 className="font-semibold mb-1">Mes badges</h4>
+            <p className="text-sm text-white/80">Consulter mes récompenses</p>
+          </button>
+          
+          <button className="bg-white/20 backdrop-blur-sm rounded-xl p-4 text-left hover:bg-white/30 transition-all">
+            <Users className="w-6 h-6 mb-2" />
+            <h4 className="font-semibold mb-1">Équipe</h4>
+            <p className="text-sm text-white/80">Voir la progression de l'équipe</p>
+          </button>
         </div>
       </div>
     </div>
