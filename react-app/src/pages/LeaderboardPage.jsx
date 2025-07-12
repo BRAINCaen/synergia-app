@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/LeaderboardPage.jsx
-// REMPLACER ENTIÈREMENT LE FICHIER EXISTANT PAR CE CODE
+// Leaderboard AVEC STATISTIQUES RÉELLES - BUG CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -30,148 +30,106 @@ const LeaderboardPage = () => {
   const [realLeaderboard, setRealLeaderboard] = useState([]);
   const [loadingFirebase, setLoadingFirebase] = useState(true);
   
-  // 🚨 DONNÉES GAMESTORE TEMPORAIRES MOCKÉES
-  const mockGameData = {
-    leaderboard: [
-      {
-        id: '1',
-        name: 'Alice Johnson',
-        avatar: '👩',
-        xp: 2450,
-        level: 12,
-        tasksCompleted: 89,
-        badges: 15,
-        streak: 7,
-        rank: 1
-      },
-      {
-        id: '2',
-        name: 'Bob Smith',
-        avatar: '👨',
-        xp: 2120,
-        level: 10,
-        tasksCompleted: 76,
-        badges: 12,
-        streak: 5,
-        rank: 2
-      },
-      {
-        id: '3',
-        name: 'Claire Davis',
-        avatar: '👩‍💼',
-        xp: 1890,
-        level: 9,
-        tasksCompleted: 68,
-        badges: 10,
-        streak: 4,
-        rank: 3
-      }
-    ],
-    loading: false,
-    userStats: {
-      level: 2,
-      totalXp: 175,
-      tasksCompleted: 12,
-      badges: 3
-    }
-  };
-
   const { user } = useAuthStore();
 
-  // 🧹 FONCTION DE NETTOYAGE DES NOMS CORROMPUS
-  const cleanUserName = (userData) => {
-    console.log('🧹 Nettoyage nom pour:', userData.email, 'displayName:', userData.displayName);
+  // 🔧 CORRECTION: Utiliser les VRAIES données pour les statistiques
+  const getStatsFromRealData = () => {
+    if (realLeaderboard.length === 0) {
+      return {
+        userStats: {
+          level: 1,
+          totalXp: 0,
+          badges: 0,
+          tasksCompleted: 0
+        },
+        totalParticipants: 0
+      };
+    }
+
+    // Trouver l'utilisateur actuel dans le classement réel
+    const currentUser = realLeaderboard.find(u => u.email === user?.email);
     
-    // Détecter si displayName est une URL (contient http, https, ou googleusercontent)
-    if (userData.displayName && (
-      userData.displayName.includes('http') || 
-      userData.displayName.includes('www.') ||
-      userData.displayName.includes('googleusercontent.com') ||
-      userData.displayName.includes('.com/') ||
-      userData.displayName.length > 100
-    )) {
-      console.warn('🚨 Nom corrompu détecté (URL):', userData.displayName.substring(0, 50) + '...');
-      // Utiliser l'email comme fallback
-      const cleanedName = userData.email?.split('@')[0] || 'Utilisateur';
-      console.log('✅ Nom nettoyé:', cleanedName);
-      return cleanedName;
-    }
-
-    // Si displayName semble normal, l'utiliser
-    if (userData.displayName && userData.displayName.length < 100 && !userData.displayName.includes('.')) {
-      console.log('✅ Nom valide conservé:', userData.displayName);
-      return userData.displayName;
-    }
-
-    // Fallback : utiliser l'email
-    const fallbackName = userData.email?.split('@')[0] || 'Utilisateur';
-    console.log('✅ Fallback utilisé:', fallbackName);
-    return fallbackName;
+    return {
+      userStats: {
+        level: currentUser?.level || 1,
+        totalXp: currentUser?.xp || 0,
+        badges: currentUser?.badges || 0,
+        tasksCompleted: currentUser?.tasksCompleted || 0
+      },
+      totalParticipants: realLeaderboard.length
+    };
   };
 
-  // Charger le leaderboard Firebase
+  // ✅ Charger les vraies données Firebase au montage
   useEffect(() => {
     const loadFirebaseLeaderboard = async () => {
+      console.log('🔍 Chargement leaderboard Firebase...');
+      
       if (!db) {
-        console.log('🔧 Mode déconnecté - Pas de Firebase');
+        console.log('⚠️ Firebase non disponible');
         setLoadingFirebase(false);
         return;
       }
 
       try {
-        setLoadingFirebase(true);
-        console.log('🔥 Chargement leaderboard Firebase...');
-        
-        const usersRef = collection(db, 'users');
-        // Récupérer tous les utilisateurs sans filtre pour éviter les erreurs
-        const q = query(usersRef, limit(100));
-        
-        const snapshot = await getDocs(q);
+        // 🎯 Nettoyage des noms activé dans Leaderboard.jsx - Vérifiez la console pour les logs de nettoyage
+        console.log('✅ Noms nettoyés activés dans Leaderboard.jsx');
+
+        const usersQuery = query(
+          collection(db, 'users'),
+          orderBy('gamification.totalXp', 'desc'),
+          limit(50)
+        );
+
+        const querySnapshot = await getDocs(usersQuery);
         const firebaseUsers = [];
-        
-        console.log(`📊 ${snapshot.docs.length} documents trouvés`);
-        
-        snapshot.forEach((doc) => {
+
+        querySnapshot.forEach((doc) => {
           const userData = doc.data();
           
-          // Vérifier que l'utilisateur a des données valides
-          if (userData.email) {
-            // 🧹 NETTOYAGE : Nom propre extrait de façon sécurisée
-            const cleanName = cleanUserName(userData);
+          if (userData.email && userData.gamification) {
+            // 🔧 CORRECTION: Nettoyer les noms d'affichage ici aussi
+            let cleanDisplayName = userData.displayName || userData.email;
             
-            const userEntry = {
+            // Nettoyer les URLs Google
+            if (cleanDisplayName.includes('googleusercontent.com')) {
+              // Extraire le nom depuis l'URL Google si possible
+              const urlParts = cleanDisplayName.split('/');
+              cleanDisplayName = urlParts[urlParts.length - 1].split('?')[0];
+              
+              // Si c'est encore une URL, utiliser l'email
+              if (cleanDisplayName.includes('http') || cleanDisplayName.length > 50) {
+                cleanDisplayName = userData.email.split('@')[0];
+              }
+            }
+
+            console.log('🧹 Nettoyage nom pour:', userData.email);
+            console.log('   Avant:', userData.displayName);
+            console.log('   Après:', cleanDisplayName);
+
+            firebaseUsers.push({
               id: doc.id,
-              name: cleanName, // ✅ Nom nettoyé
+              name: cleanDisplayName,
               email: userData.email,
-              avatar: userData.photoURL || '👤',
-              // Support multiple structures de données
-              xp: userData.gamification?.totalXp || userData.totalXp || 0,
-              level: userData.gamification?.level || userData.level || 1,
-              tasksCompleted: userData.gamification?.tasksCompleted || userData.tasksCompleted || 0,
-              badges: userData.gamification?.badges?.length || userData.badges?.length || 0,
-              streak: userData.gamification?.loginStreak || userData.loginStreak || 0,
-              lastActive: userData.lastLoginDate || userData.gamification?.lastLoginDate,
+              role: userData.profile?.role || 'Membre',
+              xp: userData.gamification.totalXp || 0,
+              level: userData.gamification.level || 1,
+              tasksCompleted: userData.gamification.tasksCompleted || 0,
+              badges: userData.gamification.badges?.length || 0,
+              streak: userData.gamification.loginStreak || 0,
+              lastActive: userData.gamification.lastLoginDate,
               rank: 0 // Sera calculé après tri
-            };
-            
-            firebaseUsers.push(userEntry);
-            console.log(`👤 Utilisateur ajouté: ${userEntry.name} (${userEntry.email}) - ${userEntry.xp} XP`);
+            });
           }
         });
 
-        // Trier par XP et calculer les rangs
-        firebaseUsers.sort((a, b) => b.xp - a.xp);
+        // Calculer les rangs
         firebaseUsers.forEach((user, index) => {
           user.rank = index + 1;
         });
 
         setRealLeaderboard(firebaseUsers);
         console.log(`✅ ${firebaseUsers.length} utilisateurs chargés depuis Firebase`);
-        
-        // 🧹 Log des noms nettoyés pour debug
-        firebaseUsers.slice(0, 5).forEach(user => {
-          console.log(`🏆 Classement: #${user.rank} - ${user.name} (${user.email}) - ${user.xp} XP`);
-        });
         
       } catch (error) {
         console.error('❌ Erreur chargement Firebase leaderboard:', error);
@@ -188,7 +146,19 @@ const LeaderboardPage = () => {
     if (realLeaderboard.length > 0) {
       return realLeaderboard;
     }
-    return mockGameData.leaderboard;
+    // Fallback si pas de données Firebase
+    return [{
+      id: user?.uid || '1',
+      name: user?.displayName || user?.email?.split('@')[0] || 'Utilisateur',
+      email: user?.email || 'user@example.com',
+      role: 'Utilisateur connecté',
+      xp: 0,
+      level: 1,
+      tasksCompleted: 0,
+      badges: 0,
+      streak: 0,
+      rank: 1
+    }];
   };
 
   // Fonction refresh
@@ -233,6 +203,9 @@ const LeaderboardPage = () => {
     { id: 'badges', label: 'Badges', icon: Award, color: 'blue' }
   ];
 
+  // 🔧 CORRECTION: Utiliser les vraies données pour les stats
+  const realStats = getStatsFromRealData();
+
   return (
     <div className="min-h-screen p-6 space-y-6">
       {/* Header */}
@@ -244,22 +217,19 @@ const LeaderboardPage = () => {
         <div className="relative z-10">
           <h1 className="text-4xl font-bold mb-4 flex items-center">
             🏆 Classement
-            <span className="ml-3 text-sm bg-green-600 px-3 py-1 rounded-full">
-              NOMS NETTOYÉS ✅
-            </span>
           </h1>
           <p className="text-xl text-white/90 mb-4">
             Compétition amicale et reconnaissance des contributions
           </p>
           
-          {/* Stats utilisateur actuel */}
+          {/* 🔧 CORRECTION: Stats utilisateur avec VRAIES DONNÉES */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
             <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3">
-              <div className="text-2xl font-bold">{mockGameData.userStats.level}</div>
+              <div className="text-2xl font-bold">{realStats.userStats.level}</div>
               <div className="text-sm text-white/80">Votre niveau</div>
             </div>
             <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3">
-              <div className="text-2xl font-bold">{mockGameData.userStats.totalXp}</div>
+              <div className="text-2xl font-bold">{realStats.userStats.totalXp}</div>
               <div className="text-sm text-white/80">Vos points XP</div>
             </div>
             <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3">
@@ -267,7 +237,7 @@ const LeaderboardPage = () => {
               <div className="text-sm text-white/80">Votre rang</div>
             </div>
             <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3">
-              <div className="text-2xl font-bold">{mockGameData.userStats.badges}</div>
+              <div className="text-2xl font-bold">{realStats.userStats.badges}</div>
               <div className="text-sm text-white/80">Vos badges</div>
             </div>
           </div>
@@ -275,7 +245,7 @@ const LeaderboardPage = () => {
           {/* Info debug */}
           <div className="mt-4 text-sm text-white/70">
             <p>
-              Affichage des données {realLeaderboard.length > 0 ? 'Firebase réelles (noms nettoyés)' : 'simulées'}.
+              Affichage des données {realLeaderboard.length > 0 ? 'Firebase réelles' : 'simulées'}.
               {loadingFirebase && ' Chargement Firebase en cours...'}
             </p>
           </div>
@@ -309,6 +279,68 @@ const LeaderboardPage = () => {
         </div>
       </div>
 
+      {/* 🔧 CORRECTION: Section Statistiques avec VRAIES DONNÉES */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900 flex items-center">
+              📊 Statistiques XP
+            </h3>
+          </div>
+          <div className="space-y-3">
+            <div className="text-3xl font-bold text-purple-600">
+              {realStats.totalParticipants}
+            </div>
+            <div className="text-sm text-gray-600">Participants</div>
+            
+            {/* Affichage des utilisateurs avec vrais noms */}
+            <div className="mt-4 space-y-2">
+              {getFilteredData().slice(0, 3).map((participant, index) => (
+                <div key={participant.id} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-400">#{index + 1}</span>
+                    <span className="font-medium">{participant.name}</span>
+                  </div>
+                  <div className="text-gray-600">
+                    {activeTab === 'xp' && `${participant.xp} XP`}
+                    {activeTab === 'tasks' && `${participant.tasksCompleted} tâches`}
+                    {activeTab === 'level' && `Niveau ${participant.level}`}
+                    {activeTab === 'badges' && `${participant.badges} badges`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Autres statistiques */}
+        <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900">🎯 Performance</h3>
+          </div>
+          <div className="space-y-3">
+            <div className="text-3xl font-bold text-green-600">
+              {Math.round((realStats.userStats.tasksCompleted / Math.max(realStats.totalParticipants, 1)) * 100)}%
+            </div>
+            <div className="text-sm text-gray-600">Taux de completion</div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900">🏆 Votre Position</h3>
+          </div>
+          <div className="space-y-3">
+            <div className="text-3xl font-bold text-yellow-600">
+              #{getCurrentUserRank() || '?'}
+            </div>
+            <div className="text-sm text-gray-600">
+              Sur {realStats.totalParticipants} participants
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Leaderboard */}
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         {/* Header du tableau */}
@@ -339,63 +371,85 @@ const LeaderboardPage = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     {/* Position */}
-                    <div className="flex items-center justify-center w-10 h-10">
-                      {position <= 3 ? (
-                        <div className={`
-                          w-8 h-8 rounded-full flex items-center justify-center font-bold text-white
-                          ${position === 1 ? 'bg-yellow-500' : position === 2 ? 'bg-gray-400' : 'bg-amber-600'}
-                        `}>
-                          {position}
-                        </div>
-                      ) : (
-                        <span className="text-xl font-bold text-gray-500">{position}</span>
-                      )}
-                    </div>
-
-                    {/* Avatar */}
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
-                      {participant.avatar === '👤' ? 
-                        participant.name.charAt(0).toUpperCase() : 
-                        participant.avatar
+                    <div className={`
+                      w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm
+                      ${position === 1 ? 'bg-yellow-100 text-yellow-800' : 
+                        position === 2 ? 'bg-gray-100 text-gray-800' :
+                        position === 3 ? 'bg-orange-100 text-orange-800' :
+                        'bg-gray-50 text-gray-600'}
+                    `}>
+                      {position <= 3 ? 
+                        ['🥇', '🥈', '🥉'][position - 1] : 
+                        `#${position}`
                       }
                     </div>
 
                     {/* Info utilisateur */}
                     <div>
-                      <div className="font-semibold text-gray-900 flex items-center">
-                        {participant.name} {/* ✅ Nom nettoyé affiché */}
+                      <div className="font-medium text-gray-900 flex items-center">
+                        {participant.name}
                         {isCurrentUser && (
-                          <span className="ml-2 px-2 py-1 bg-blue-500 text-white text-xs rounded-full">
+                          <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                             Vous
                           </span>
                         )}
                       </div>
-                      <div className="text-sm text-gray-600">
-                        Niveau {participant.level} • {participant.tasksCompleted} tâches
-                      </div>
+                      <div className="text-sm text-gray-500">{participant.role}</div>
                     </div>
                   </div>
 
                   {/* Métriques */}
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-gray-900">
-                      {activeTab === 'xp' && participant.xp}
-                      {activeTab === 'tasks' && participant.tasksCompleted}
-                      {activeTab === 'level' && participant.level}
-                      {activeTab === 'badges' && participant.badges}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {activeTab === 'xp' && 'points XP'}
-                      {activeTab === 'tasks' && 'tâches'}
-                      {activeTab === 'level' && 'niveau'}
-                      {activeTab === 'badges' && 'badges'}
-                    </div>
+                  <div className="flex items-center space-x-6">
+                    {activeTab === 'xp' && (
+                      <div className="text-right">
+                        <div className="font-semibold text-purple-600">{participant.xp.toLocaleString()} XP</div>
+                        <div className="text-xs text-gray-500">Niveau {participant.level}</div>
+                      </div>
+                    )}
+                    
+                    {activeTab === 'tasks' && (
+                      <div className="text-right">
+                        <div className="font-semibold text-green-600">{participant.tasksCompleted}</div>
+                        <div className="text-xs text-gray-500">Tâches</div>
+                      </div>
+                    )}
+                    
+                    {activeTab === 'level' && (
+                      <div className="text-right">
+                        <div className="font-semibold text-yellow-600">Niveau {participant.level}</div>
+                        <div className="text-xs text-gray-500">{participant.xp} XP</div>
+                      </div>
+                    )}
+                    
+                    {activeTab === 'badges' && (
+                      <div className="text-right">
+                        <div className="font-semibold text-blue-600">{participant.badges}</div>
+                        <div className="text-xs text-gray-500">Badges</div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
+      </div>
+
+      {/* Actions en bas */}
+      <div className="flex justify-center space-x-4">
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="flex items-center space-x-2 px-6 py-3 bg-white border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          <span>{refreshing ? 'Actualisation...' : 'Actualiser'}</span>
+        </button>
+        
+        <button className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors">
+          <Download className="w-4 h-4" />
+          <span>Exporter</span>
+        </button>
       </div>
     </div>
   );
