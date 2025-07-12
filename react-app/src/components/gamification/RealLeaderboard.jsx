@@ -261,7 +261,7 @@ const RealLeaderboard = ({ maxResults = 20 }) => {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center space-x-2">
                   <h3 className="font-medium text-white truncate">
-                    {userInfo.displayName}
+{userInfo.displayName}
                     {userInfo.uid === user?.uid && (
                       <span className="ml-2 text-xs bg-blue-600 px-2 py-1 rounded">
                         Vous
