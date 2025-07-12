@@ -1,4 +1,216 @@
-// ==========================================
+) : activeSection === 'entretiens' ? (
+            /* Section Entretiens Référent */
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                <MessageSquare className="w-6 h-6 mr-2 text-purple-600" />
+                Mes Entretiens avec le Référent
+              </h3>
+              
+              {employeeInterviews.length === 0 ? (
+                <div className="text-center py-12">
+                  <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h4 className="text-lg font-semibold text-gray-700 mb-2">Aucun entretien programmé</h4>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    Les entretiens seront ajoutés par votre référent selon votre progression. 
+                    Vous recevrez une notification lorsqu'un entretien sera programmé.
+                  </p>
+                </div>
+              ) : activeSection === 'entretiens' ? (
+            /* Section Entretiens Référent */
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                <MessageSquare className="w-6 h-6 mr-2 text-purple-600" />
+                Mes Entretiens avec le Référent
+              </h3>
+              
+              {employeeInterviews.length === 0 ? (
+                <div className="text-center py-12">
+                  <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h4 className="text-lg font-semibold text-gray-700 mb-2">Aucun entretien programmé</h4>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    Les entretiens seront ajoutés par votre référent selon votre progression. 
+                    Vous recevrez une notification lorsqu'un entretien sera programmé.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {employeeInterviews
+                    .sort((a, b) => new Date(b.scheduledDate) - new Date(a.scheduledDate))
+                    .map((interview) => (
+                    <div key={interview.id} className="border border-gray-200 rounded-lg p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            interview.status === 'completed' 
+                              ? 'bg-green-100 text-green-600' 
+                              : interview.status === 'scheduled'
+                                ? 'bg-blue-100 text-blue-600'
+                                : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {interview.status === 'completed' ? (
+                              <CheckCircle className="w-5 h-5" />
+                            ) : (
+                              <MessageSquare className="w-5 h-5" />
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-gray-800">
+                              {interview.type === 'initial' && 'Entretien Initial'}
+                              {interview.type === 'weekly' && 'Suivi Hebdomadaire'}
+                              {interview.type === 'milestone' && 'Entretien d\'Étape'}
+                              {interview.type === 'final' && 'Entretien de Validation'}
+                              {interview.type === 'support' && 'Entretien de Soutien'}
+                            </h4>
+                            <p className="text-sm text-gray-600">
+                              {interview.status === 'scheduled' && 'Programmé'}
+                              {interview.status === 'completed' && 'Terminé'}
+                              {interview.status === 'cancelled' && 'Annulé'}
+                              {interview.status === 'rescheduled' && 'Reprogrammé'}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="text-right">
+                          <div className="text-sm text-gray-600">
+                            {interview.scheduledDate?.toDate?.()?.toLocaleDateString('fr-FR') || 'Date à définir'}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {interview.duration} minutes
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium text-gray-700">Lieu :</span>
+                          <p className="text-gray-600">{interview.location || 'À définir'}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-700">Type :</span>
+                          <p className="text-gray-600">
+                            {interview.type === 'initial' && 'Premier contact'}
+                            {interview.type === 'weekly' && 'Suivi régulier'}
+                            {interview.type === 'milestone' && 'Validation d\'étape'}
+                            {interview.type === 'final' && 'Bilan final'}
+                            {interview.type === 'support' && 'Accompagnement'}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {interview.objectives && interview.objectives.length > 0 && (
+                        <div className="mt-4">
+                          <span className="font-medium text-gray-700">Objectifs :</span>
+                          <ul className="text-sm text-gray-600 mt-1 space-y-1">
+                            {interview.objectives.map((obj, index) => (
+                              <li key={index} className="flex items-start space-x-2">
+                                <span className="text-purple-500">•</span>
+                                <span>{obj}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      
+                      {interview.notes && (
+                        <div className="mt-4">
+                          <span className="font-medium text-gray-700">Notes :</span>
+                          <p className="text-sm text-gray-600 mt-1">{interview.notes}</p>
+                        </div>
+                      )}
+                      
+                      {interview.status === 'completed' && (
+                        <div className="mt-4 space-y-3">
+                          {interview.globalAssessment && (
+                            <div className="bg-green-50 p-3 rounded-lg">
+                              <span className="font-medium text-green-700">Bilan :</span>
+                              <p className="text-sm text-green-600 mt-1">{interview.globalAssessment}</p>
+                            </div>
+                          )}
+                          
+                          {interview.nextSteps && interview.nextSteps.length > 0 && (
+                            <div className="bg-blue-50 p-3 rounded-lg">
+                              <span className="font-medium text-blue-700">Prochaines étapes :</span>
+                              <ul className="text-sm text-blue-600 mt-1 space-y-1">
+                                {interview.nextSteps.map((step, index) => (
+                                  <li key={index} className="flex items-start space-x-2">
+                                    <span>•</span>
+                                    <span>{step}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {interview.validated && (
+                            <div className="bg-green-100 p-3 rounded-lg flex items-center space-x-2">
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                              <span className="font-medium text-green-700">Entretien validé par le référent</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {interview.status === 'scheduled' && (
+                        <div className="mt-4 bg-blue-50 p-3 rounded-lg">
+                          <div className="flex items-center space-x-2 text-blue-700">
+                            <Calendar className="w-5 h-5" />
+                            <span className="font-medium">Entretien à venir</span>
+                          </div>
+                          <p className="text-sm text-blue-600 mt-1">
+                            Préparez-vous en réfléchissant à vos questions et aux points que vous souhaitez aborder.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Informations pratiques */}
+              <div className="mt-8 bg-purple-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-purple-800 mb-2">À propos des entretiens</h4>
+                <div className="text-sm text-purple-700 space-y-1">
+                  <p>• <strong>Entretien Initial :</strong> Premier contact pour faire connaissance et définir les objectifs</p>
+                  <p>• <strong>Suivi Hebdomadaire :</strong> Points réguliers sur votre progression</p>
+                  <p>• <strong>Entretien d'Étape :</strong> Validation de fin de phase avant passage à l'étape suivante</p>
+                  <p>• <strong>Entretien Final :</strong> Bilan complet de votre intégration</p>
+                  <p>• <strong>Entretien de Soutien :</strong> Accompagnement en cas de besoin spécifique</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+                <div className="space-y-4">
+                  {employeeInterviews
+                    .sort((a, b) => new Date(b.scheduledDate) - new Date(a.scheduledDate))
+                    .map((interview) => (
+                    <div key={interview.id} className="border border-gray-200 rounded-lg p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            interview.status === 'completed' 
+                              ? 'bg-green-100 text-green-600' 
+                              : interview.status === 'scheduled'
+                                ? 'bg-blue-100 text-blue-600'
+                                : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {interview.status === 'completed' ? (
+                              <CheckCircle className="w-5 h-5" />
+                            ) : (
+                              <MessageSquare className="w-5 h-5" />
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-gray-800">
+                              {interview.type === 'initial' && 'Entretien Initial'}
+                              {interview.type === 'weekly' && 'Suivi Hebdomadaire'}
+                              {interview.type === 'milestone' && 'Entretien d\'Étape'}
+                              {interview.type === 'final' && 'Entretien de Validation'}
+                              {interview.type === 'support' && 'Entretien de Soutien'}
+                            </h4>
+                            <p className="text-sm text-gray-600">
+                              {interview.status === 'scheduled' && 'Programmé'}
+                              {interview.status === 'completed' && 'Terminé'}
+                              {interview.status === 'cancelled' && 'Annulé// ==========================================
 // 📁 react-app/src/pages/OnboardingPage.jsx
 // PAGE ONBOARDING ACTUALISÉE - FORMATION BRAIN + ACQUISITION COMPÉTENCES
 // ==========================================
@@ -22,7 +234,8 @@ import {
   Flag,
   Calendar,
   Progress,
-  Zap
+  Zap,
+  MessageSquare
 } from 'lucide-react';
 
 import { useAuthStore } from '../shared/stores/authStore.js';
@@ -36,6 +249,9 @@ import {
 // Import du nouveau composant d'acquisition de compétences
 import SkillsAcquisition from '../components/onboarding/SkillsAcquisition.jsx';
 
+// Import du service et composant d'entretiens
+import InterviewService from '../core/services/interviewService.js';
+
 const OnboardingPage = () => {
   const { user } = useAuthStore();
   const [onboardingData, setOnboardingData] = useState(null);
@@ -44,7 +260,8 @@ const OnboardingPage = () => {
   const [selectedPhase, setSelectedPhase] = useState(null);
   const [stats, setStats] = useState(null);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [activeSection, setActiveSection] = useState('formation'); // 'formation' ou 'competences'
+  const [activeSection, setActiveSection] = useState('formation'); // 'formation', 'competences' ou 'entretiens'
+  const [employeeInterviews, setEmployeeInterviews] = useState([]);
 
   // 📊 Charger les données d'onboarding
   const loadOnboardingData = async () => {
@@ -59,10 +276,27 @@ const OnboardingPage = () => {
         setStats(OnboardingService.calculateStats(profile));
         setSelectedPhase(profile.phases.current);
       }
+      
+      // Charger aussi les entretiens
+      await loadEmployeeInterviews();
     } catch (error) {
       console.error('Erreur chargement onboarding:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 📅 Charger les entretiens de l'employé
+  const loadEmployeeInterviews = async () => {
+    if (!user?.uid) return;
+    
+    try {
+      const result = await InterviewService.getEmployeeInterviews(user.uid);
+      if (result.success) {
+        setEmployeeInterviews(result.interviews);
+      }
+    } catch (error) {
+      console.error('Erreur chargement entretiens:', error);
     }
   };
 
@@ -309,10 +543,10 @@ const OnboardingPage = () => {
             )}
           </div>
 
-          {/* Navigation entre Formation et Acquisition de Compétences */}
+          {/* Navigation entre Formation, Acquisition de Compétences et Entretiens */}
           <div className="bg-white rounded-xl shadow-lg mb-8">
             <div className="border-b border-gray-200">
-              <nav className="flex space-x-8 px-6">
+              <nav className="flex space-x-6 px-6">
                 {[
                   { 
                     id: 'formation', 
@@ -325,12 +559,18 @@ const OnboardingPage = () => {
                     label: 'Acquisition de Compétences', 
                     icon: <Target className="w-5 h-5" />,
                     description: 'Maîtrise par expérience (Psychiatric, Prison, etc.)'
+                  },
+                  { 
+                    id: 'entretiens', 
+                    label: 'Entretiens Référent', 
+                    icon: <MessageSquare className="w-5 h-5" />,
+                    description: 'Suivis et entretiens avec votre référent'
                   }
                 ].map((section) => (
                   <button
                     key={section.id}
                     onClick={() => setActiveSection(section.id)}
-                    className={`py-6 px-4 border-b-2 font-medium text-sm flex flex-col items-center space-y-2 min-w-[200px] ${
+                    className={`py-6 px-4 border-b-2 font-medium text-sm flex flex-col items-center space-y-2 min-w-[180px] ${
                       activeSection === section.id
                         ? 'border-purple-500 text-purple-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700'
