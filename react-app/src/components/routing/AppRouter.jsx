@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/routing/AppRouter.jsx
-// ROUTER PRINCIPAL AVEC NOUVELLE PAGE ESCAPE PROGRESSION
+// ROUTER PRINCIPAL AVEC ROUTE LEADERBOARD CORRIGÉE
 // ==========================================
 
 import React from 'react';
@@ -37,8 +37,8 @@ import EscapeProgressionPage from '../../pages/EscapeProgressionPage.jsx';
 import AdminTaskValidationPage from '../../pages/AdminTaskValidationPage.jsx';
 import CompleteAdminTestPage from '../../pages/CompleteAdminTestPage.jsx';
 
-// ✅ IMPORT COMPONENT FALLBACK SI PAGES MANQUANTES
-import Leaderboard from '../gamification/Leaderboard.jsx';
+// 🔧 CORRECTION: Importer LeaderboardPage au lieu de Leaderboard
+import LeaderboardPage from '../../pages/LeaderboardPage.jsx';
 
 // Composant de protection des routes
 const ProtectedRoute = ({ children }) => {
@@ -106,8 +106,8 @@ const AppRouter = () => {
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         
-        {/* Gamification */}
-        <Route path="leaderboard" element={<Leaderboard />} />
+        {/* 🔧 CORRECTION: Utiliser LeaderboardPage au lieu de Leaderboard */}
+        <Route path="leaderboard" element={<LeaderboardPage />} />
         <Route path="badges" element={<BadgesPage />} />
         <Route path="gamification" element={<GamificationPage />} />
         <Route path="rewards" element={<RewardsPage />} />
