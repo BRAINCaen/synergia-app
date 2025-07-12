@@ -15,7 +15,7 @@
                     Vous recevrez une notification lorsqu'un entretien sera programmé.
                   </p>
                 </div>
-              ) : activeSection === 'entretiens' ? (
+              {activeSection === 'entretiens' ? (
             /* Section Entretiens Référent */
             <div className="bg-white rounded-xl shadow-lg p-6">
               <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
