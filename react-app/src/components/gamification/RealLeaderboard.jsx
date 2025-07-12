@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/gamification/RealLeaderboard.jsx
-// REMPLACER ENTIÈREMENT LE FICHIER EXISTANT PAR CE CODE
+// Classement Firebase temps réel - NOMS NETTOYÉS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -35,102 +35,99 @@ const RealLeaderboard = ({ maxResults = 20 }) => {
     { value: 'loginStreak', label: 'Connexions' }
   ];
 
-  // 🧹 FONCTION DE NETTOYAGE DES NOMS CORROMPUS
-  const cleanUserName = (userData) => {
-    console.log('🧹 RealLeaderboard - Nettoyage nom pour:', userData.email, 'displayName:', userData.displayName);
+  // 🧹 FONCTION DE NETTOYAGE DES NOMS
+  const cleanDisplayName = (userData) => {
+    let cleanName = userData.displayName || userData.email;
     
-    // Détecter si displayName est une URL (contient http, https, ou googleusercontent)
-    if (userData.displayName && (
-      userData.displayName.includes('http') || 
-      userData.displayName.includes('www.') ||
-      userData.displayName.includes('googleusercontent.com') ||
-      userData.displayName.includes('.com/') ||
-      userData.displayName.length > 100
-    )) {
-      console.warn('🚨 RealLeaderboard - Nom corrompu détecté (URL):', userData.displayName.substring(0, 50) + '...');
-      // Utiliser l'email comme fallback
-      const cleanedName = userData.email?.split('@')[0] || 'Utilisateur';
-      console.log('✅ RealLeaderboard - Nom nettoyé:', cleanedName);
-      return cleanedName;
+    // Nettoyer les URLs Google
+    if (cleanName.includes('googleusercontent.com')) {
+      console.log('🧹 Nettoyage URL Google pour:', userData.email);
+      console.log('   Avant:', cleanName);
+      
+      // Extraire le nom depuis l'URL Google si possible
+      const urlParts = cleanName.split('/');
+      cleanName = urlParts[urlParts.length - 1].split('?')[0];
+      
+      // Si c'est encore une URL, utiliser l'email
+      if (cleanName.includes('http') || cleanName.length > 50) {
+        cleanName = userData.email.split('@')[0];
+      }
+      
+      console.log('   Après:', cleanName);
     }
-
-    // Si displayName semble normal, l'utiliser
-    if (userData.displayName && userData.displayName.length < 100 && !userData.displayName.includes('.')) {
-      console.log('✅ RealLeaderboard - Nom valide conservé:', userData.displayName);
-      return userData.displayName;
-    }
-
-    // Fallback : utiliser l'email
-    const fallbackName = userData.email?.split('@')[0] || 'Utilisateur';
-    console.log('✅ RealLeaderboard - Fallback utilisé:', fallbackName);
-    return fallbackName;
+    
+    return cleanName;
   };
 
   // Charger le leaderboard depuis Firebase
   useEffect(() => {
     const loadLeaderboard = async () => {
       if (!db) {
-        console.log('🔧 RealLeaderboard - Mode déconnecté');
+        console.log('🔧 Mode déconnecté');
         setLoading(false);
         return;
       }
 
       try {
         setLoading(true);
-        console.log('🔥 RealLeaderboard - Chargement depuis Firebase...');
+        console.log('🔍 Chargement RealLeaderboard avec nettoyage des noms...');
 
-        // Récupérer tous les utilisateurs sans filtre pour éviter les erreurs
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, limit(100));
+        // Construire la requête selon la catégorie
+        let orderField = 'gamification.totalXp';
+        if (categoryFilter === 'weeklyXp') orderField = 'gamification.weeklyXp';
+        if (categoryFilter === 'monthlyXp') orderField = 'gamification.monthlyXp';
+        if (categoryFilter === 'badges') orderField = 'gamification.badges';
+        if (categoryFilter === 'tasksCompleted') orderField = 'gamification.tasksCompleted';
+        if (categoryFilter === 'loginStreak') orderField = 'gamification.loginStreak';
 
-        const snapshot = await getDocs(q);
+        let leaderboardQuery = query(
+          collection(db, 'users'),
+          orderBy(orderField, 'desc'),
+          limit(maxResults)
+        );
+
+        // Filtrer par département si nécessaire
+        if (departmentFilter !== 'all') {
+          leaderboardQuery = query(
+            collection(db, 'users'),
+            where('profile.department', '==', departmentFilter),
+            orderBy(orderField, 'desc'),
+            limit(maxResults)
+          );
+        }
+
+        const snapshot = await getDocs(leaderboardQuery);
         const leaderboardData = [];
-
-        console.log(`📊 RealLeaderboard - ${snapshot.docs.length} documents trouvés`);
 
         snapshot.forEach((doc, index) => {
           const docData = doc.data();
-          if (docData.email) {
-            // 🧹 NETTOYAGE : Nom propre extrait de façon sécurisée
-            const cleanName = cleanUserName(docData);
+          if (docData.email && docData.gamification) {
+            // 🔧 CORRECTION: Utiliser la fonction de nettoyage
+            const cleanedName = cleanDisplayName(docData);
             
-            const userEntry = {
+            leaderboardData.push({
               uid: doc.id,
               rank: index + 1,
-              displayName: cleanName, // ✅ Nom nettoyé
+              displayName: cleanedName, // 🔧 NOM NETTOYÉ
               email: docData.email,
               photoURL: docData.photoURL,
               department: docData.profile?.department || 'Non défini',
-              level: docData.gamification?.level || docData.level || 1,
-              totalXp: docData.gamification?.totalXp || docData.totalXp || 0,
-              weeklyXp: docData.gamification?.weeklyXp || 0,
-              monthlyXp: docData.gamification?.monthlyXp || 0,
-              tasksCompleted: docData.gamification?.tasksCompleted || docData.tasksCompleted || 0,
-              badges: (docData.gamification?.badges || []).length,
-              loginStreak: docData.gamification?.loginStreak || docData.loginStreak || 0
-            };
-            
-            leaderboardData.push(userEntry);
-            console.log(`👤 RealLeaderboard - Utilisateur: ${userEntry.displayName} (${userEntry.email}) - ${userEntry.totalXp} XP`);
+              level: docData.gamification.level || 1,
+              totalXp: docData.gamification.totalXp || 0,
+              weeklyXp: docData.gamification.weeklyXp || 0,
+              monthlyXp: docData.gamification.monthlyXp || 0,
+              tasksCompleted: docData.gamification.tasksCompleted || 0,
+              badges: (docData.gamification.badges || []).length,
+              loginStreak: docData.gamification.loginStreak || 0
+            });
           }
         });
 
-        // Trier par XP et recalculer les rangs
-        leaderboardData.sort((a, b) => b.totalXp - a.totalXp);
-        leaderboardData.forEach((user, index) => {
-          user.rank = index + 1;
-        });
-
         setLeaderboard(leaderboardData);
-        console.log(`✅ RealLeaderboard - Classement chargé: ${leaderboardData.length} utilisateurs`);
-
-        // 🧹 Log des noms nettoyés pour debug
-        leaderboardData.slice(0, 5).forEach(user => {
-          console.log(`🏆 RealLeaderboard - Classement: #${user.rank} - ${user.displayName} (${user.email}) - ${user.totalXp} XP`);
-        });
+        console.log(`✅ RealLeaderboard chargé: ${leaderboardData.length} utilisateurs avec noms nettoyés`);
 
       } catch (error) {
-        console.error('❌ RealLeaderboard - Erreur chargement:', error);
+        console.error('❌ Erreur chargement leaderboard:', error);
         setLeaderboard([]);
       } finally {
         setLoading(false);
@@ -179,11 +176,6 @@ const RealLeaderboard = ({ maxResults = 20 }) => {
 
   return (
     <div className="space-y-6">
-      {/* Message de debug */}
-      <div className="bg-green-800 text-green-200 p-3 rounded-lg text-sm">
-        🧹 Noms nettoyés activés - Vérifiez la console pour les logs de nettoyage
-      </div>
-
       {/* Filtres */}
       <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -194,7 +186,7 @@ const RealLeaderboard = ({ maxResults = 20 }) => {
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {categories.map(cat => (
                 <option key={cat.value} value={cat.value}>
@@ -211,68 +203,36 @@ const RealLeaderboard = ({ maxResults = 20 }) => {
             <select
               value={departmentFilter}
               onChange={(e) => setDepartmentFilter(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="all">Tous les départements</option>
-              {departments.slice(1).map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
+              {departments.map(dept => (
+                <option key={dept} value={dept}>
+                  {dept === 'all' ? 'Tous les départements' : dept}
+                </option>
               ))}
             </select>
           </div>
 
           <div className="flex items-end">
-            <div className="text-sm text-gray-400">
-              <strong>{leaderboard.length}</strong> participants
+            <div className="bg-gray-700 px-4 py-2 rounded-md border border-gray-600">
+              <div className="text-lg font-bold text-white">
+                {leaderboard.length}
+              </div>
+              <div className="text-sm text-gray-400">
+                Participants
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Podium */}
-      {leaderboard.length >= 3 && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          {leaderboard.slice(0, 3).map((userInfo, index) => (
-            <div
-              key={userInfo.uid}
-              className={`
-                text-center p-4 rounded-lg border relative
-                ${index === 0 ? 'bg-gradient-to-b from-yellow-500/20 to-yellow-600/20 border-yellow-500' :
-                  index === 1 ? 'bg-gradient-to-b from-gray-400/20 to-gray-500/20 border-gray-400' :
-                  'bg-gradient-to-b from-orange-500/20 to-orange-600/20 border-orange-500'}
-              `}
-            >
-              <div className="text-3xl mb-2">{getRankIcon(userInfo.rank)}</div>
-              <div className="w-16 h-16 rounded-full bg-gray-600 mx-auto mb-3 flex items-center justify-center">
-                {userInfo.photoURL ? (
-                  <img
-                    src={userInfo.photoURL}
-                    alt={userInfo.displayName}
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                ) : (
-                  <span className="text-2xl">👤</span>
-                )}
-              </div>
-              <h3 className="font-semibold text-white text-sm truncate">
-                {userInfo.displayName} {/* ✅ Nom nettoyé affiché */}
-              </h3>
-              <p className="text-xs text-gray-400 mb-2">{userInfo.department}</p>
-              <p className="font-bold text-lg text-white">
-                {getDisplayValue(userInfo)}
-              </p>
-              <p className="text-xs text-gray-400">Niveau {userInfo.level}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Liste complète */}
+      {/* Liste du classement */}
       <div className="space-y-2">
-        {leaderboard.map((userInfo) => (
+        {leaderboard.map((userInfo, index) => (
           <div
             key={userInfo.uid}
             className={`
-              flex items-center p-4 rounded-lg border transition-colors
+              p-4 rounded-lg border transition-colors
               ${userInfo.uid === user?.uid 
                 ? 'bg-blue-600/20 border-blue-500' 
                 : 'bg-gray-800 border-gray-700 hover:bg-gray-750'
@@ -301,7 +261,7 @@ const RealLeaderboard = ({ maxResults = 20 }) => {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center space-x-2">
                   <h3 className="font-medium text-white truncate">
-                    {userInfo.displayName} {/* ✅ Nom nettoyé affiché */}
+                    {userInfo.displayName}
                     {userInfo.uid === user?.uid && (
                       <span className="ml-2 text-xs bg-blue-600 px-2 py-1 rounded">
                         Vous
