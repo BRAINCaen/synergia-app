@@ -1,540 +1,379 @@
 // ==========================================
 // 📁 react-app/src/core/services/teamService.js
-// Service centralisé pour la gestion des équipes - VERSION CORRIGÉE
+// SERVICE ÉQUIPE FIREBASE PUR - SANS MOCK
 // ==========================================
 
 import { 
   collection, 
+  getDocs, 
   doc, 
+  getDoc, 
   query, 
   where, 
   orderBy, 
   limit,
-  onSnapshot,
-  updateDoc,
-  addDoc,
-  deleteDoc,
-  serverTimestamp,
-  getDocs 
+  onSnapshot 
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
+/**
+ * 🏢 SERVICE ÉQUIPE FIREBASE PUR
+ * Gestion des équipes sans aucune donnée mock
+ */
 class TeamService {
   constructor() {
     this.listeners = new Map();
     this.cache = new Map();
+    console.log('🏢 TeamService Firebase pur initialisé');
   }
 
-  // ✅ Récupérer les membres de l'équipe avec sources multiples
-  async getTeamMembers(limitCount = 20) {
-    if (!db) {
-      console.log('🔧 Firebase non disponible - Données mock');
-      return this.getMockTeamMembers();
-    }
-
+  /**
+   * 👥 RÉCUPÉRER TOUS LES MEMBRES D'ÉQUIPE
+   * Données réelles depuis Firebase uniquement
+   */
+  async getAllTeamMembers() {
     try {
-      let members = [];
+      console.log('👥 Récupération membres équipe depuis Firebase...');
       
-      // Essai 1: Collection 'users'
-      members = await this.getMembersFromCollection('users', limitCount);
-      
-      // Essai 2: Collection 'userStats' si users vide
-      if (members.length === 0) {
-        members = await this.getMembersFromCollection('userStats', limitCount);
-      }
-      
-      // Essai 3: Collection 'leaderboard' si autres vides
-      if (members.length === 0) {
-        members = await this.getMembersFromCollection('leaderboard', limitCount);
-      }
-
-      console.log(`✅ ${members.length} membres récupérés depuis Firebase`);
-      return members;
-
-    } catch (error) {
-      console.error('❌ Erreur récupération équipe:', error);
-      return this.getMockTeamMembers();
-    }
-  }
-
-  // ✅ Récupérer les membres depuis une collection spécifique
-  async getMembersFromCollection(collectionName, limitCount) {
-    try {
-      let q;
-      
-      if (collectionName === 'leaderboard') {
-        q = query(
-          collection(db, collectionName),
-          orderBy('totalXp', 'desc'),
-          limit(limitCount)
-        );
-      } else {
-        q = query(
-          collection(db, collectionName),
-          orderBy('createdAt', 'desc'),
-          limit(limitCount)
-        );
-      }
-      
-      const querySnapshot = await getDocs(q);
-      const members = [];
-
-      querySnapshot.forEach((doc) => {
-        const userData = doc.data();
-        if (userData.email) {
-          members.push(this.formatMemberData(doc.id, userData, collectionName));
-        }
-      });
-
-      return members;
-    } catch (error) {
-      console.log(`⚠️ Erreur collection ${collectionName}:`, error);
-      return [];
-    }
-  }
-
-  // ✅ Formater les données membre selon la source
-  formatMemberData(id, userData, source) {
-    const baseData = {
-      id,
-      name: userData.displayName || userData.email?.split('@')[0] || 'Utilisateur',
-      email: userData.email,
-      role: userData.role || 'Membre',
-      department: userData.department || 'Non spécifié',
-      photoURL: userData.photoURL,
-      avatar: this.getAvatarFromEmail(userData.email),
-      source
-    };
-
-    // Adaptation selon la source
-    switch (source) {
-      case 'userStats':
-        return {
-          ...baseData,
-          level: userData.level || 1,
-          xp: userData.totalXp || 0,
-          tasksCompleted: userData.tasksCompleted || 0,
-          tasksCreated: userData.tasksCreated || 0,
-          projectsCreated: userData.projectsCreated || 0,
-          badges: userData.badges || [],
-          lastActivity: userData.lastLoginDate || userData.updatedAt,
-          status: this.calculateUserStatus(userData.lastLoginDate),
-          joinedAt: userData.createdAt
-        };
-
-      case 'leaderboard':
-        return {
-          ...baseData,
-          level: userData.level || 1,
-          xp: userData.totalXp || 0,
-          tasksCompleted: 0,
-          tasksCreated: 0,
-          projectsCreated: 0,
-          badges: [],
-          lastActivity: userData.updatedAt,
-          status: 'offline',
-          joinedAt: userData.updatedAt
-        };
-
-      case 'users':
-      default:
-        return {
-          ...baseData,
-          level: userData.gamification?.level || userData.level || 1,
-          xp: userData.gamification?.totalXp || userData.totalXp || 0,
-          tasksCompleted: userData.gamification?.tasksCompleted || userData.tasksCompleted || 0,
-          tasksCreated: userData.gamification?.tasksCreated || userData.tasksCreated || 0,
-          projectsCreated: userData.gamification?.projectsCreated || userData.projectsCreated || 0,
-          badges: userData.gamification?.badges || userData.badges || [],
-          lastActivity: userData.lastActivity || userData.updatedAt,
-          status: this.calculateUserStatus(userData.lastActivity),
-          joinedAt: userData.createdAt || userData.metadata?.creationTime
-        };
-    }
-  }
-
-  // ✅ Récupérer les statistiques équipe
-  async getTeamStats() {
-    if (!db) {
-      return this.getMockTeamStats();
-    }
-
-    try {
-      const [members, tasks, projects] = await Promise.all([
-        this.getTeamMembers(),
-        this.getTeamTasks(),
-        this.getTeamProjects()
-      ]);
-
-      return this.calculateTeamStats(members, tasks, projects);
-    } catch (error) {
-      console.error('❌ Erreur calcul stats équipe:', error);
-      return this.getMockTeamStats();
-    }
-  }
-
-  // ✅ Calculer les statistiques équipe
-  calculateTeamStats(members, tasks, projects) {
-    const totalMembers = members.length;
-    const activeMembers = members.filter(m => m.status === 'online').length;
-    const totalXP = members.reduce((sum, member) => sum + (member.xp || 0), 0);
-    const averageLevel = totalMembers > 0 ? 
-      Math.round(members.reduce((sum, member) => sum + (member.level || 1), 0) / totalMembers) : 1;
-    
-    const completedTasks = tasks.filter(t => t.status === 'completed').length;
-    const inProgressTasks = tasks.filter(t => t.status === 'in_progress').length;
-    const todoTasks = tasks.filter(t => t.status === 'todo').length;
-    const totalTasks = tasks.length;
-    const completionRate = totalTasks > 0 ? 
-      Math.round((completedTasks / totalTasks) * 100) : 0;
-    
-    const activeProjects = projects.filter(p => p.status === 'active' || !p.status).length;
-    const completedProjects = projects.filter(p => p.status === 'completed').length;
-    
-    const topPerformer = members.length > 0 ? 
-      members.reduce((top, member) => (member.xp > (top?.xp || 0)) ? member : top, null) : null;
-
-    return {
-      totalMembers,
-      activeMembers,
-      offlineMembers: totalMembers - activeMembers,
-      totalXP,
-      averageLevel,
-      totalTasks,
-      completedTasks,
-      inProgressTasks,
-      todoTasks,
-      completionRate,
-      activeProjects,
-      completedProjects,
-      totalProjects: projects.length,
-      topPerformer,
-      averageTasksPerMember: totalMembers > 0 ? Math.round(totalTasks / totalMembers) : 0,
-      teamProductivity: this.calculateProductivityScore(members, tasks, projects)
-    };
-  }
-
-  // ✅ Récupérer les tâches de l'équipe
-  async getTeamTasks(limitCount = 50) {
-    if (!db) return [];
-
-    try {
-      const q = query(
-        collection(db, 'tasks'),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const tasks = [];
-
-      querySnapshot.forEach((doc) => {
-        tasks.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
-
-      return tasks;
-    } catch (error) {
-      console.error('❌ Erreur récupération tâches équipe:', error);
-      return [];
-    }
-  }
-
-  // ✅ Récupérer les projets de l'équipe
-  async getTeamProjects(limitCount = 20) {
-    if (!db) return [];
-
-    try {
-      const q = query(
-        collection(db, 'projects'),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const projects = [];
-
-      querySnapshot.forEach((doc) => {
-        projects.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
-
-      return projects;
-    } catch (error) {
-      console.error('❌ Erreur récupération projets équipe:', error);
-      return [];
-    }
-  }
-
-  // ✅ Écouter les changements équipe en temps réel
-  subscribeToTeamUpdates(callback) {
-    if (!db) {
-      console.log('🔧 Firebase non disponible - Pas d\'écoute temps réel');
-      return () => {};
-    }
-
-    try {
-      const unsubscribers = [];
-
-      // Écoute des utilisateurs
       const usersQuery = query(
         collection(db, 'users'),
-        orderBy('lastActivity', 'desc'),
-        limit(20)
+        orderBy('gamification.totalXp', 'desc'),
+        limit(50) // Limiter pour les performances
       );
       
-      const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
-        const members = [];
-        snapshot.forEach((doc) => {
-          const userData = doc.data();
-          if (userData.email) {
-            members.push(this.formatMemberData(doc.id, userData, 'users'));
-          }
-        });
+      const usersSnapshot = await getDocs(usersQuery);
+      
+      const members = usersSnapshot.docs.map(doc => {
+        const userData = doc.data();
+        return {
+          id: doc.id,
+          name: userData.profile?.displayName || userData.displayName || 'Utilisateur',
+          email: userData.email,
+          role: userData.profile?.role || 'member',
+          level: userData.gamification?.level || 1,
+          totalXp: userData.gamification?.totalXp || 0,
+          tasksCompleted: userData.gamification?.tasksCompleted || 0,
+          avatar: userData.photoURL || this.generateAvatar(userData.profile?.displayName || userData.email),
+          status: this.calculateUserStatus(userData),
+          lastActivity: userData.gamification?.lastActivityDate,
+          department: userData.profile?.department || 'general',
+          joinedAt: userData.createdAt?.toDate?.() || new Date(userData.createdAt) || new Date(),
+          source: 'firebase'
+        };
+      });
+      
+      console.log(`✅ ${members.length} membres équipe récupérés depuis Firebase`);
+      
+      // Mettre en cache
+      this.cache.set('allMembers', members);
+      
+      return members;
+      
+    } catch (error) {
+      console.error('❌ Erreur récupération membres équipe:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 📊 STATISTIQUES D'ÉQUIPE RÉELLES
+   */
+  async getTeamStats() {
+    try {
+      console.log('📊 Calcul statistiques équipe...');
+      
+      const members = await this.getAllTeamMembers();
+      
+      if (members.length === 0) {
+        return this.getEmptyStats();
+      }
+      
+      const stats = {
+        totalMembers: members.length,
+        activeMembers: members.filter(m => m.status === 'online' || m.status === 'active').length,
+        totalXP: members.reduce((sum, m) => sum + m.totalXp, 0),
+        averageLevel: Math.round(members.reduce((sum, m) => sum + m.level, 0) / members.length),
+        totalTasks: members.reduce((sum, m) => sum + m.tasksCompleted, 0),
+        completedTasks: members.reduce((sum, m) => sum + m.tasksCompleted, 0),
+        completionRate: 100, // Tâches complétées = 100% par définition
         
-        callback({ type: 'members', data: members });
-      });
-
-      unsubscribers.push(unsubscribeUsers);
-      
-      return () => {
-        unsubscribers.forEach(unsub => unsub());
+        // Répartition par département
+        departmentDistribution: this.calculateDepartmentDistribution(members),
+        
+        // Répartition par niveau
+        levelDistribution: this.calculateLevelDistribution(members),
+        
+        // Top performers
+        topPerformers: members
+          .sort((a, b) => b.totalXp - a.totalXp)
+          .slice(0, 5),
+          
+        // Membres récents
+        recentMembers: members
+          .sort((a, b) => new Date(b.joinedAt) - new Date(a.joinedAt))
+          .slice(0, 3),
+          
+        // Moyennes
+        averageXpPerMember: Math.round(members.reduce((sum, m) => sum + m.totalXp, 0) / members.length),
+        averageTasksPerMember: Math.round(members.reduce((sum, m) => sum + m.tasksCompleted, 0) / members.length)
       };
-
+      
+      console.log('✅ Statistiques équipe calculées:', stats);
+      
+      return stats;
+      
     } catch (error) {
-      console.error('❌ Erreur écoute temps réel:', error);
-      return () => {};
+      console.error('❌ Erreur calcul statistiques équipe:', error);
+      return this.getEmptyStats();
     }
   }
 
-  // ✅ Mettre à jour le statut d'un membre
-  async updateMemberStatus(memberId, status) {
-    if (!db) return false;
-
+  /**
+   * 🔍 RECHERCHER MEMBRES D'ÉQUIPE
+   */
+  async searchTeamMembers(searchTerm, filters = {}) {
     try {
-      const memberRef = doc(db, 'users', memberId);
-      await updateDoc(memberRef, {
-        status,
-        lastActivity: serverTimestamp()
-      });
+      let members = await this.getAllTeamMembers();
       
-      console.log(`✅ Statut membre ${memberId} mis à jour: ${status}`);
-      return true;
-    } catch (error) {
-      console.error('❌ Erreur mise à jour statut:', error);
-      return false;
-    }
-  }
-
-  // ✅ Calculer le statut utilisateur selon activité
-  calculateUserStatus(lastActivity) {
-    if (!lastActivity) return 'offline';
-    
-    try {
-      const now = new Date();
-      const lastActiveDate = lastActivity.toDate ? lastActivity.toDate() : new Date(lastActivity);
-      const diffMinutes = (now - lastActiveDate) / (1000 * 60);
+      // Filtrer par terme de recherche
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        members = members.filter(member => 
+          member.name.toLowerCase().includes(term) ||
+          member.email.toLowerCase().includes(term) ||
+          member.department.toLowerCase().includes(term) ||
+          member.role.toLowerCase().includes(term)
+        );
+      }
       
-      if (diffMinutes < 15) return 'online';
-      if (diffMinutes < 60) return 'away';
-      return 'offline';
-    } catch {
-      return 'offline';
-    }
-  }
-
-  // ✅ Générer avatar depuis email
-  getAvatarFromEmail(email) {
-    if (!email) return '👤';
-    
-    const avatars = [
-      '👤', '👨‍💼', '👩‍💼', '👨‍💻', '👩‍💻', 
-      '👨‍🎨', '👩‍🎨', '👨‍📊', '👩‍📊', '🧑‍🔬', 
-      '👩‍🔬', '👨‍🏫', '👩‍🏫', '👨‍⚕️', '👩‍⚕️'
-    ];
-    
-    const index = email.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-    return avatars[index % avatars.length];
-  }
-
-  // ✅ Calculer score productivité équipe
-  calculateProductivityScore(members, tasks, projects) {
-    if (members.length === 0) return 0;
-
-    const avgTasksPerMember = tasks.length / members.length;
-    const completionRate = tasks.length > 0 ? 
-      (tasks.filter(t => t.status === 'completed').length / tasks.length) : 0;
-    const avgXpPerMember = members.reduce((sum, m) => sum + (m.xp || 0), 0) / members.length;
-    
-    const taskScore = Math.min(avgTasksPerMember * 10, 40);
-    const completionScore = completionRate * 30;
-    const xpScore = Math.min(avgXpPerMember / 10, 30);
-    
-    return Math.round(taskScore + completionScore + xpScore);
-  }
-
-  // ✅ Rechercher des membres par nom/email
-  async searchMembers(searchTerm, limit = 10) {
-    if (!db || !searchTerm) return [];
-
-    try {
-      const searchLower = searchTerm.toLowerCase();
-      const allMembers = await this.getTeamMembers(50);
+      // Appliquer les filtres
+      if (filters.department && filters.department !== 'all') {
+        members = members.filter(m => m.department === filters.department);
+      }
       
-      return allMembers.filter(member => 
-        member.name.toLowerCase().includes(searchLower) ||
-        member.email.toLowerCase().includes(searchLower) ||
-        member.role.toLowerCase().includes(searchLower)
-      ).slice(0, limit);
-
+      if (filters.role && filters.role !== 'all') {
+        members = members.filter(m => m.role === filters.role);
+      }
+      
+      if (filters.status && filters.status !== 'all') {
+        members = members.filter(m => m.status === filters.status);
+      }
+      
+      if (filters.minLevel) {
+        members = members.filter(m => m.level >= filters.minLevel);
+      }
+      
+      console.log(`🔍 Recherche '${searchTerm}': ${members.length} résultats`);
+      
+      return members;
+      
     } catch (error) {
       console.error('❌ Erreur recherche membres:', error);
       return [];
     }
   }
 
-  // ✅ Obtenir les activités récentes de l'équipe
-  async getRecentActivities(limit = 20) {
-    if (!db) return [];
+  /**
+   * 📡 S'ABONNER AUX CHANGEMENTS D'ÉQUIPE
+   */
+  subscribeToTeamUpdates(callback) {
+    const unsubscribe = onSnapshot(
+      query(collection(db, 'users'), orderBy('gamification.totalXp', 'desc')),
+      (snapshot) => {
+        const members = snapshot.docs.map(doc => {
+          const userData = doc.data();
+          return {
+            id: doc.id,
+            name: userData.profile?.displayName || userData.displayName || 'Utilisateur',
+            email: userData.email,
+            level: userData.gamification?.level || 1,
+            totalXp: userData.gamification?.totalXp || 0,
+            tasksCompleted: userData.gamification?.tasksCompleted || 0,
+            status: this.calculateUserStatus(userData),
+            source: 'firebase'
+          };
+        });
+        
+        console.log('📡 Mise à jour équipe temps réel:', members.length);
+        callback(members);
+      },
+      (error) => {
+        console.error('❌ Erreur écoute équipe:', error);
+      }
+    );
+    
+    this.listeners.set('teamUpdates', unsubscribe);
+    return unsubscribe;
+  }
 
+  /**
+   * 🏃 ACTIVITÉS D'ÉQUIPE RÉCENTES
+   */
+  async getTeamActivities(limit = 20) {
     try {
-      const [tasks, projects, members] = await Promise.all([
-        this.getTeamTasks(30),
-        this.getTeamProjects(15),
-        this.getTeamMembers(20)
-      ]);
-
-      const activities = [];
-
-      tasks.forEach(task => {
-        const member = members.find(m => m.id === task.userId) || members[0];
-        if (member) {
-          activities.push({
-            id: `task-${task.id}`,
-            type: task.status === 'completed' ? 'task_completed' : 'task_created',
-            user: member.name,
-            userAvatar: member.avatar,
-            action: task.status === 'completed' ? 'a terminé la tâche' : 'a créé la tâche',
-            target: task.title,
-            targetId: task.id,
-            time: task.updatedAt || task.createdAt,
-            icon: task.status === 'completed' ? '✅' : '📝',
-            color: task.status === 'completed' ? 'green' : 'blue'
-          });
-        }
-      });
-
-      projects.forEach(project => {
-        const member = members.find(m => m.id === project.userId) || members[0];
-        if (member) {
-          activities.push({
-            id: `project-${project.id}`,
-            type: 'project_created',
-            user: member.name,
-            userAvatar: member.avatar,
-            action: 'a créé le projet',
-            target: project.title,
-            targetId: project.id,
-            time: project.createdAt,
-            icon: '🚀',
-            color: 'purple'
-          });
-        }
-      });
-
-      return activities
-        .sort((a, b) => {
-          const timeA = a.time?.toDate ? a.time.toDate() : new Date(a.time);
-          const timeB = b.time?.toDate ? b.time.toDate() : new Date(b.time);
-          return timeB - timeA;
+      console.log('🏃 Récupération activités équipe...');
+      
+      // Récupérer les tâches récemment complétées
+      const tasksQuery = query(
+        collection(db, 'tasks'),
+        where('status', '==', 'completed'),
+        orderBy('updatedAt', 'desc'),
+        limit(limit)
+      );
+      
+      const tasksSnapshot = await getDocs(tasksQuery);
+      
+      const activities = await Promise.all(
+        tasksSnapshot.docs.map(async (taskDoc) => {
+          const taskData = taskDoc.data();
+          
+          // Récupérer les infos utilisateur
+          let userName = 'Utilisateur';
+          if (taskData.userId) {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', taskData.userId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                userName = userData.profile?.displayName || userData.displayName || 'Utilisateur';
+              }
+            } catch (error) {
+              console.warn('⚠️ Impossible de récupérer utilisateur:', taskData.userId);
+            }
+          }
+          
+          return {
+            id: taskDoc.id,
+            type: 'task_completed',
+            title: `${userName} a terminé "${taskData.title}"`,
+            description: taskData.description || '',
+            user: userName,
+            userId: taskData.userId,
+            time: taskData.updatedAt?.toDate?.() || new Date(taskData.updatedAt) || new Date(),
+            xpGained: taskData.xpReward || 0,
+            icon: '✅',
+            source: 'firebase'
+          };
         })
-        .slice(0, limit);
-
+      );
+      
+      // Trier par date
+      activities.sort((a, b) => b.time - a.time);
+      
+      console.log(`✅ ${activities.length} activités équipe récupérées`);
+      
+      return activities;
+      
     } catch (error) {
-      console.error('❌ Erreur récupération activités:', error);
+      console.error('❌ Erreur récupération activités équipe:', error);
       return [];
     }
   }
 
-  // ✅ Données mock pour fallback
-  getMockTeamMembers() {
-    return [
-      {
-        id: 'mock-1',
-        name: 'Alice Dubois',
-        email: 'alice@exemple.com',
-        role: 'Chef de projet',
-        level: 5,
-        xp: 1250,
-        tasksCompleted: 45,
-        avatar: '👩‍💼',
-        status: 'online',
-        source: 'mock'
-      },
-      {
-        id: 'mock-2',
-        name: 'Bob Martin',
-        email: 'bob@exemple.com',
-        role: 'Développeur',
-        level: 4,
-        xp: 980,
-        tasksCompleted: 32,
-        avatar: '👨‍💻',
-        status: 'away',
-        source: 'mock'
-      },
-      {
-        id: 'mock-3',
-        name: 'Claire Dupont',
-        email: 'claire@exemple.com',
-        role: 'Designer',
-        level: 3,
-        xp: 720,
-        tasksCompleted: 28,
-        avatar: '👩‍🎨',
-        status: 'offline',
-        source: 'mock'
-      }
-    ];
+  /**
+   * 🎯 CALCULER LE STATUT UTILISATEUR
+   */
+  calculateUserStatus(userData) {
+    const lastActivity = userData.gamification?.lastActivityDate;
+    
+    if (!lastActivity) return 'offline';
+    
+    const lastActivityDate = new Date(lastActivity);
+    const now = new Date();
+    const hoursSinceActivity = (now - lastActivityDate) / (1000 * 60 * 60);
+    
+    if (hoursSinceActivity <= 1) return 'online';
+    if (hoursSinceActivity <= 24) return 'active';
+    if (hoursSinceActivity <= 168) return 'away'; // 7 jours
+    return 'offline';
   }
 
-  getMockTeamStats() {
+  /**
+   * 🎨 GÉNÉRER UN AVATAR BASÉ SUR LE NOM
+   */
+  generateAvatar(name) {
+    if (!name) return '👤';
+    
+    const firstLetter = name.charAt(0).toUpperCase();
+    const avatars = {
+      A: '👩‍💼', B: '👨‍💻', C: '👩‍🎨', D: '👨‍🔬', E: '👩‍🏫',
+      F: '👨‍🍳', G: '👩‍⚕️', H: '👨‍✈️', I: '👩‍🌾', J: '👨‍🎭',
+      K: '👩‍🎤', L: '👨‍🎨', M: '👩‍💻', N: '👨‍🏫', O: '👩‍🔬',
+      P: '👨‍⚕️', Q: '👩‍✈️', R: '👨‍🌾', S: '👩‍🍳', T: '👨‍💼',
+      U: '👩‍🎭', V: '👨‍🎤', W: '👩‍🏭', X: '👨‍🎯', Y: '👩‍🚀', Z: '👨‍🚀'
+    };
+    
+    return avatars[firstLetter] || '👤';
+  }
+
+  /**
+   * 📊 CALCULER LA RÉPARTITION PAR DÉPARTEMENT
+   */
+  calculateDepartmentDistribution(members) {
+    const distribution = {};
+    
+    members.forEach(member => {
+      const dept = member.department || 'general';
+      distribution[dept] = (distribution[dept] || 0) + 1;
+    });
+    
+    return distribution;
+  }
+
+  /**
+   * 📊 CALCULER LA RÉPARTITION PAR NIVEAU
+   */
+  calculateLevelDistribution(members) {
+    const distribution = {};
+    
+    members.forEach(member => {
+      const level = member.level;
+      const range = `${Math.floor((level - 1) / 5) * 5 + 1}-${Math.floor((level - 1) / 5) * 5 + 5}`;
+      distribution[range] = (distribution[range] || 0) + 1;
+    });
+    
+    return distribution;
+  }
+
+  /**
+   * 📊 STATISTIQUES VIDES PAR DÉFAUT
+   */
+  getEmptyStats() {
     return {
-      totalMembers: 3,
-      activeMembers: 1,
-      totalXP: 2950,
-      averageLevel: 4,
-      totalTasks: 105,
-      completedTasks: 88,
-      completionRate: 84,
-      activeProjects: 3,
-      totalProjects: 5
+      totalMembers: 0,
+      activeMembers: 0,
+      totalXP: 0,
+      averageLevel: 1,
+      totalTasks: 0,
+      completedTasks: 0,
+      completionRate: 0,
+      departmentDistribution: {},
+      levelDistribution: {},
+      topPerformers: [],
+      recentMembers: [],
+      averageXpPerMember: 0,
+      averageTasksPerMember: 0
     };
   }
 
-  // ✅ Nettoyer les listeners
+  /**
+   * 🧹 NETTOYER LES LISTENERS
+   */
   cleanup() {
     this.listeners.forEach((unsubscribe) => {
       if (typeof unsubscribe === 'function') {
         unsubscribe();
       }
     });
+    
     this.listeners.clear();
     this.cache.clear();
+    
+    console.log('🧹 TeamService nettoyé');
   }
 }
 
-// ✅ Instance singleton
+// Instance singleton
 const teamService = new TeamService();
 
 export default teamService;
-
-// ✅ Exports nommés pour flexibilité
-export {
-  TeamService,
-  teamService
-};
+export { TeamService, teamService };
