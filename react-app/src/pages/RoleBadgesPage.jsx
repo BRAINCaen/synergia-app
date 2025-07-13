@@ -20,7 +20,9 @@ import {
   Palette,
   GraduationCap,
   Users, // ✅ CORRECTION: Remplacer Handshake par Users
-  Smartphone
+  Smartphone,
+  Clock, // ✅ CORRECTION: Ajouter Clock manquant
+  Trophy
 } from 'lucide-react';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { gamificationService } from '../core/services/gamificationService.js';
