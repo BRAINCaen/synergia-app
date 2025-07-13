@@ -1,124 +1,151 @@
-// useProjectService.js - Version simplifiée pour éviter les erreurs d'import
-import { useState, useEffect } from 'react'
+// ==========================================
+// 📁 react-app/src/shared/hooks/useProjectService.js
+// REMPLACER ENTIÈREMENT - SERVICE PROJETS FIREBASE PUR
+// ==========================================
 
-// Mock service simple pour les projets
-const mockProjectService = {
-  async getUserProjects(userId) {
-    console.log('🔧 [MOCK] Récupération projets pour:', userId)
-    return [
-      {
-        id: 'proj-1',
-        title: 'Synergia v3.3',
-        description: 'Développement de la plateforme collaborative',
-        status: 'in_progress',
-        progress: 75,
-        tasksTotal: 20,
-        tasksCompleted: 15,
-        createdAt: '2024-01-01T00:00:00Z'
-      },
-      {
-        id: 'proj-2',
-        title: 'Optimisation Performance',
-        description: 'Amélioration des temps de chargement',
-        status: 'planning',
-        progress: 30,
-        tasksTotal: 8,
-        tasksCompleted: 2,
-        createdAt: '2024-01-15T00:00:00Z'
-      }
-    ]
-  },
+import { useState, useEffect } from 'react';
+import { projectService } from '../../core/services/projectService.js';
+import { useAuthStore } from '../stores/authStore.js';
 
-  async createProject(userId, projectData) {
-    console.log('🔧 [MOCK] Création projet:', projectData.title)
-    return { 
-      id: `proj-${Date.now()}`, 
-      ...projectData, 
-      userId,
-      createdAt: new Date().toISOString()
-    }
-  },
+/**
+ * 🚀 HOOK PROJETS FIREBASE COMPLET
+ * Remplace le mock service par du Firebase pur
+ */
+export const useProjectService = () => {
+  const { user } = useAuthStore();
+  
+  // États
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  subscribeToUserProjects(userId, callback) {
-    console.log('👂 [MOCK] Abonnement aux projets pour:', userId)
-    // Simuler des données immédiatement
-    setTimeout(() => {
-      callback(this.getUserProjects(userId))
-    }, 100)
-    return () => {} // Fonction de nettoyage vide
-  }
-}
-
-export const useProjectService = (userId = 'demo-user') => {
-  const [projects, setProjects] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-
+  // Charger les projets utilisateur
   useEffect(() => {
-    const loadProjects = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        
-        const userProjects = await mockProjectService.getUserProjects(userId)
-        setProjects(userProjects)
-        
-        setLoading(false)
-      } catch (err) {
-        setError(err.message)
-        setLoading(false)
-        console.error('Erreur chargement projets:', err)
-      }
+    if (!user?.uid) {
+      setProjects([]);
+      setLoading(false);
+      return;
     }
 
-    if (userId) {
-      loadProjects()
+    loadUserProjects();
+  }, [user?.uid]);
+
+  const loadUserProjects = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('🔄 Chargement projets Firebase pour:', user.uid);
+      
+      const userProjects = await projectService.getUserProjects(user.uid);
+      
+      console.log('✅ Projets chargés:', userProjects.length);
+      setProjects(userProjects || []);
+      
+    } catch (err) {
+      console.error('❌ Erreur chargement projets:', err);
+      setError(err.message);
+      setProjects([]);
+    } finally {
+      setLoading(false);
     }
-  }, [userId])
+  };
 
   const createProject = async (projectData) => {
-    try {
-      const newProject = await mockProjectService.createProject(userId, projectData)
-      setProjects(prev => [newProject, ...prev])
-      return { success: true, project: newProject }
-    } catch (err) {
-      setError(err.message)
-      return { success: false, error: err.message }
+    if (!user?.uid) {
+      return { success: false, error: 'Utilisateur non connecté' };
     }
-  }
+
+    try {
+      console.log('🚀 Création projet:', projectData.title);
+      
+      const newProject = await projectService.createProject(user.uid, projectData);
+      
+      // Ajouter le nouveau projet à la liste
+      setProjects(prev => [newProject, ...prev]);
+      
+      console.log('✅ Projet créé avec succès');
+      return { success: true, project: newProject };
+      
+    } catch (err) {
+      console.error('❌ Erreur création projet:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateProject = async (projectId, updates) => {
+    try {
+      console.log('🔄 Mise à jour projet:', projectId);
+      
+      const updatedProject = await projectService.updateProject(projectId, updates);
+      
+      // Mettre à jour la liste locale
+      setProjects(prev => prev.map(p => 
+        p.id === projectId ? { ...p, ...updatedProject } : p
+      ));
+      
+      console.log('✅ Projet mis à jour');
+      return { success: true, project: updatedProject };
+      
+    } catch (err) {
+      console.error('❌ Erreur mise à jour projet:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const deleteProject = async (projectId) => {
+    try {
+      console.log('🗑️ Suppression projet:', projectId);
+      
+      await projectService.deleteProject(projectId);
+      
+      // Retirer de la liste locale
+      setProjects(prev => prev.filter(p => p.id !== projectId));
+      
+      console.log('✅ Projet supprimé');
+      return { success: true };
+      
+    } catch (err) {
+      console.error('❌ Erreur suppression projet:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const refreshProjects = () => {
+    if (user?.uid) {
+      loadUserProjects();
+    }
+  };
 
   return {
     projects,
     loading,
     error,
     createProject,
-    refreshProjects: () => {
-      const loadProjects = async () => {
-        const userProjects = await mockProjectService.getUserProjects(userId)
-        setProjects(userProjects)
-      }
-      loadProjects()
-    }
-  }
-}
+    updateProject,
+    deleteProject,
+    refreshProjects
+  };
+};
 
-// Export de classe vide pour compatibilité
+// Export de classe pour compatibilité
 export class ProjectService {
   constructor() {
-    console.log('🔧 [MOCK] ProjectService initialisé')
+    console.log('✅ ProjectService Firebase initialisé');
   }
 
   async getUserProjects(userId) {
-    return mockProjectService.getUserProjects(userId)
+    return projectService.getUserProjects(userId);
   }
 
   async createProject(userId, projectData) {
-    return mockProjectService.createProject(userId, projectData)
+    return projectService.createProject(userId, projectData);
   }
 
   subscribeToUserProjects(userId, callback) {
-    return mockProjectService.subscribeToUserProjects(userId, callback)
+    return projectService.subscribeToUserProjects(userId, callback);
   }
 }
 
-export default mockProjectService
+// Export par défaut : service Firebase pur
+export default useProjectService;
