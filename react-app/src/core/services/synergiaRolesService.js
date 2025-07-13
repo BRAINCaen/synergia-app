@@ -3,7 +3,7 @@
 // SERVICE DE GESTION DES RÔLES SYNERGIA - IMPORT FIREBASE CORRIGÉ
 // ==========================================
 
-import { db } from '../firebase.js'; // ✅ CORRIGÉ : ../firebase.js au lieu de ../firebase/config.js
+import { db } from '../firebase.js';
 import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 
 /**
