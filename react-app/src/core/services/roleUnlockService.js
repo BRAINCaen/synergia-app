@@ -3,8 +3,7 @@
 // SERVICE DE DÉVERROUILLAGE PROGRESSIF PAR RÔLES - IMPORT FIREBASE CORRIGÉ
 // ==========================================
 
-import { db } from '../firebase.js';
-import { doc, updateDoc, getDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
+import { db, doc, updateDoc, getDoc, arrayUnion, serverTimestamp } from '../firebase.js';
 import { SYNERGIA_ROLES, ROLE_LEVELS } from './synergiaRolesService.js';
 
 /**
