@@ -1,9 +1,9 @@
 // ==========================================
 // 📁 react-app/src/core/services/synergiaRolesService.js
-// SERVICE DE GESTION DES RÔLES SYNERGIA
+// SERVICE DE GESTION DES RÔLES SYNERGIA - IMPORT FIREBASE CORRIGÉ
 // ==========================================
 
-import { db } from '../firebase/config.js';
+import { db } from '../firebase.js'; // ✅ CORRIGÉ : ../firebase.js au lieu de ../firebase/config.js
 import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 
 /**
@@ -75,7 +75,7 @@ export const SYNERGIA_ROLES = {
     name: 'Partenariats & Référencement',
     icon: '🤝',
     color: 'bg-indigo-500',
-    description: 'Développement de partenariats stratégiques',
+    description: 'Développement des partenariats et visibilité',
     permissions: ['partnership_management', 'networking_access'],
     taskCount: 100
   },
@@ -83,9 +83,9 @@ export const SYNERGIA_ROLES = {
   COMMUNICATION: {
     id: 'communication',
     name: 'Communication & Réseaux Sociaux',
-    icon: '📢',
+    icon: '📱',
     color: 'bg-cyan-500',
-    description: 'Gestion de la communication digitale',
+    description: 'Gestion des réseaux sociaux et communication',
     permissions: ['social_media_access', 'communication_rights'],
     taskCount: 100
   },
@@ -95,96 +95,68 @@ export const SYNERGIA_ROLES = {
     name: 'Relations B2B & Devis',
     icon: '💼',
     color: 'bg-slate-500',
-    description: 'Gestion des relations entreprises et devis',
-    permissions: ['b2b_access', 'quote_management'],
-    taskCount: 100
-  },
-  
-  GAMIFICATION: {
-    id: 'gamification',
-    name: 'Gamification & Système XP',
-    icon: '🎮',
-    color: 'bg-red-500',
-    description: 'Gestion du système de gamification',
-    permissions: ['gamification_admin', 'xp_management'],
+    description: 'Gestion des relations professionnelles',
+    permissions: ['b2b_management', 'quote_access'],
     taskCount: 100
   }
 };
 
 /**
- * 🏷️ NIVEAUX DE RÔLES
+ * 📊 NIVEAUX DE PROGRESSION DANS CHAQUE RÔLE
  */
 export const ROLE_LEVELS = {
   NOVICE: {
     id: 'novice',
     name: 'Novice',
-    icon: '🌱',
-    minXp: 0,
-    maxXp: 499,
-    color: 'text-green-600'
+    xpRequired: 0,
+    color: 'bg-gray-400',
+    description: 'Débutant dans le rôle'
   },
   APPRENTI: {
     id: 'apprenti',
     name: 'Apprenti',
-    icon: '📚',
-    minXp: 500,
-    maxXp: 1499,
-    color: 'text-blue-600'
+    xpRequired: 100,
+    color: 'bg-green-400',
+    description: 'Compétences de base acquises'
   },
   COMPETENT: {
     id: 'competent',
     name: 'Compétent',
-    icon: '⚡',
-    minXp: 1500,
-    maxXp: 2999,
-    color: 'text-purple-600'
+    xpRequired: 300,
+    color: 'bg-blue-400',
+    description: 'Maîtrise solide du rôle'
   },
   EXPERT: {
     id: 'expert',
     name: 'Expert',
-    icon: '🏆',
-    minXp: 3000,
-    maxXp: 4999,
-    color: 'text-orange-600'
+    xpRequired: 600,
+    color: 'bg-purple-400',
+    description: 'Expertise reconnue'
   },
   MAITRE: {
     id: 'maitre',
     name: 'Maître',
-    icon: '👑',
-    minXp: 5000,
-    maxXp: Infinity,
-    color: 'text-yellow-600'
+    xpRequired: 1000,
+    color: 'bg-yellow-400',
+    description: 'Maîtrise exceptionnelle'
   }
 };
 
 /**
- * 🎯 SERVICE DE GESTION DES RÔLES
+ * 🏛️ SERVICE PRINCIPAL DE GESTION DES RÔLES
  */
-class SynergiaRolesService {
+export class SynergiaRolesService {
   
   /**
-   * 📋 Obtenir tous les rôles disponibles
+   * 🎭 Assigner un rôle à un utilisateur
    */
-  getAllRoles() {
-    return Object.values(SYNERGIA_ROLES);
-  }
-  
-  /**
-   * 🔍 Obtenir un rôle par ID
-   */
-  getRoleById(roleId) {
-    return Object.values(SYNERGIA_ROLES).find(role => role.id === roleId);
-  }
-  
-  /**
-   * 👤 Assigner un rôle à un utilisateur
-   */
-  async assignRole(userId, roleId, assignedBy) {
+  async assignRole(userId, roleId, assignedBy = 'system') {
     try {
-      const role = this.getRoleById(roleId);
-      if (!role) {
-        throw new Error('Rôle non trouvé');
+      if (!SYNERGIA_ROLES[roleId.toUpperCase()]) {
+        throw new Error(`Rôle ${roleId} non reconnu`);
       }
+      
+      const role = SYNERGIA_ROLES[roleId.toUpperCase()];
       
       const userRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userRef);
@@ -197,26 +169,31 @@ class SynergiaRolesService {
       const currentRoles = userData.synergiaRoles || [];
       
       // Vérifier si le rôle n'est pas déjà assigné
-      if (currentRoles.some(r => r.roleId === roleId)) {
-        throw new Error('Ce rôle est déjà assigné à cet utilisateur');
+      if (currentRoles.find(r => r.roleId === roleId)) {
+        throw new Error('Rôle déjà assigné');
       }
       
-      // Ajouter le nouveau rôle
+      // Créer le nouveau rôle
       const newRole = {
-        roleId,
+        roleId: roleId,
+        roleName: role.name,
         assignedAt: new Date(),
-        assignedBy,
+        assignedBy: assignedBy,
         xpInRole: 0,
         tasksCompleted: 0,
-        level: 'novice'
+        level: 'novice',
+        permissions: role.permissions,
+        lastActivity: new Date()
       };
       
+      // Mettre à jour l'utilisateur
+      const updatedRoles = [...currentRoles, newRole];
+      
       await updateDoc(userRef, {
-        synergiaRoles: [...currentRoles, newRole],
+        synergiaRoles: updatedRoles,
         updatedAt: new Date()
       });
       
-      console.log(`✅ Rôle ${role.name} assigné à l'utilisateur ${userId}`);
       return { success: true, role: newRole };
       
     } catch (error) {
@@ -226,100 +203,24 @@ class SynergiaRolesService {
   }
   
   /**
-   * ❌ Retirer un rôle d'un utilisateur
-   */
-  async removeRole(userId, roleId, removedBy) {
-    try {
-      const userRef = doc(db, 'users', userId);
-      const userDoc = await getDoc(userRef);
-      
-      if (!userDoc.exists()) {
-        throw new Error('Utilisateur non trouvé');
-      }
-      
-      const userData = userDoc.data();
-      const currentRoles = userData.synergiaRoles || [];
-      
-      // Retirer le rôle
-      const updatedRoles = currentRoles.filter(r => r.roleId !== roleId);
-      
-      await updateDoc(userRef, {
-        synergiaRoles: updatedRoles,
-        updatedAt: new Date()
-      });
-      
-      console.log(`✅ Rôle ${roleId} retiré de l'utilisateur ${userId}`);
-      return { success: true };
-      
-    } catch (error) {
-      console.error('❌ Erreur suppression rôle:', error);
-      return { success: false, error: error.message };
-    }
-  }
-  
-  /**
-   * 📊 Obtenir les statistiques des rôles d'un utilisateur
-   */
-  async getUserRoleStats(userId) {
-    try {
-      const userRef = doc(db, 'users', userId);
-      const userDoc = await getDoc(userRef);
-      
-      if (!userDoc.exists()) {
-        return null;
-      }
-      
-      const userData = userDoc.data();
-      const userRoles = userData.synergiaRoles || [];
-      
-      return userRoles.map(userRole => {
-        const roleInfo = this.getRoleById(userRole.roleId);
-        const level = this.calculateRoleLevel(userRole.xpInRole);
-        
-        return {
-          ...roleInfo,
-          ...userRole,
-          levelInfo: level,
-          progress: this.calculateProgress(userRole.xpInRole, level)
-        };
-      });
-      
-    } catch (error) {
-      console.error('❌ Erreur stats rôles utilisateur:', error);
-      return null;
-    }
-  }
-  
-  /**
-   * 📈 Calculer le niveau d'un rôle basé sur l'XP
+   * 🏆 Calculer le niveau d'un rôle selon l'XP
    */
   calculateRoleLevel(xp) {
-    for (const level of Object.values(ROLE_LEVELS)) {
-      if (xp >= level.minXp && xp <= level.maxXp) {
+    const levels = Object.values(ROLE_LEVELS).sort((a, b) => b.xpRequired - a.xpRequired);
+    
+    for (const level of levels) {
+      if (xp >= level.xpRequired) {
         return level;
       }
     }
+    
     return ROLE_LEVELS.NOVICE;
   }
   
   /**
-   * 📊 Calculer le progrès vers le niveau suivant
+   * 📈 Ajouter de l'XP dans un rôle
    */
-  calculateProgress(xp, currentLevel) {
-    if (currentLevel.maxXp === Infinity) {
-      return 100; // Niveau maximum atteint
-    }
-    
-    const progressInLevel = xp - currentLevel.minXp;
-    const levelRange = currentLevel.maxXp - currentLevel.minXp;
-    
-    return Math.round((progressInLevel / levelRange) * 100);
-  }
-  
-  /**
-   * 🎯 Ajouter de l'XP à un rôle spécifique
-   */
-  async addRoleXp(userId, roleId, xpToAdd, reason = '') {
+  async addRoleXP(userId, roleId, xpToAdd, reason = 'Tâche complétée') {
     try {
       const userRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userRef);
