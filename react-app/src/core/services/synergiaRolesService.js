@@ -3,8 +3,7 @@
 // SERVICE DE GESTION DES RÔLES SYNERGIA - IMPORT FIREBASE CORRIGÉ
 // ==========================================
 
-import { db } from '../firebase.js';
-import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
+import { db, doc, updateDoc, getDoc, setDoc } from '../firebase.js';
 
 /**
  * 🎭 RÔLES SYNERGIA - Basés sur le CSV des tâches
