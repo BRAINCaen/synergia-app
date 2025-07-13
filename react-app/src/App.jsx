@@ -5,7 +5,18 @@
 
 // À ajouter avec les autres imports
 import './core/services/escapeGameBadgeEngine.js';
+import { useUnifiedFirebaseData } from './shared/hooks/useUnifiedFirebaseData.js';
 
+function App() {
+  const { user } = useAuthStore();
+  const { isReady } = useUnifiedFirebaseData(); // Auto-initialise l'utilisateur
+  
+  if (!isReady) {
+    return <LoadingScreen />;
+  }
+  
+  return <MainApp />;
+}
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { Star } from 'lucide-react';
