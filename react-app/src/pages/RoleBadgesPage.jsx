@@ -23,8 +23,7 @@ import {
   Smartphone
 } from 'lucide-react';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { userProgressionService } from '../core/services/userProgressionService.js';
-import roleBadgeSystem from '../core/services/roleBadgeSystem.js';
+import { gamificationService } from '../core/services/gamificationService.js';
 
 /**
  * 🏆 PAGE DES BADGES PAR RÔLE
@@ -46,17 +45,18 @@ const RoleBadgesPage = () => {
     
     setLoading(true);
     try {
-      // Charger la progression utilisateur
-      const progressionData = await userProgressionService.getUserProgression(user.uid);
-      setUserRoles(progressionData.roles || {});
+      // Utiliser le service de gamification existant
+      const gameData = await gamificationService.initializeUserData(user.uid);
       
-      // Charger les badges gagnés
-      const badgesData = await roleBadgeSystem.checkRoleBadges(
-        user.uid, 
-        progressionData.roles || {}, 
-        progressionData.stats || {}
-      );
-      setEarnedBadges(badgesData);
+      // Simuler des rôles basés sur les données de gamification
+      const mockRoles = {
+        developer: { level: Math.min(Math.floor(gameData.level / 2) + 1, 5) },
+        designer: { level: gameData.tasksCompleted > 10 ? 2 : 1 },
+        manager: { level: gameData.projectsCompleted > 0 ? 2 : 1 }
+      };
+      
+      setUserRoles(mockRoles);
+      setEarnedBadges(gameData.badges || []);
       
     } catch (error) {
       console.error('❌ Erreur chargement données:', error);
