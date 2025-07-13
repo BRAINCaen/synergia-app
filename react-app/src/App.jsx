@@ -1,72 +1,62 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APP SIMPLIFIÉ QUI MARCHE - Import AppRouter
+// APPLICATION PRINCIPALE CORRIGÉE - SANS DOUBLE DÉCLARATION
 // ==========================================
 
-// À ajouter avec les autres imports
-import './core/services/escapeGameBadgeEngine.js';
-import { useUnifiedFirebaseData } from './shared/hooks/useUnifiedFirebaseData.js';
-
-function App() {
-  const { user } = useAuthStore();
-  const { isReady } = useUnifiedFirebaseData(); // Auto-initialise l'utilisateur
-  
-  if (!isReady) {
-    return <LoadingScreen />;
-  }
-  
-  return <MainApp />;
-}
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
-import { Star } from 'lucide-react';
-
-// 🚨 POLYFILL SPARKLES INTÉGRÉ
-if (typeof window !== 'undefined') {
-  window.Sparkles = Star;
-  console.log('✅ Polyfill Sparkles → Star activé globalement');
-}
-
-// Suppression des erreurs console liées à Sparkles
-const originalError = console.error;
-console.error = function(...args) {
-  const message = args.join(' ');
-  
-  if (message.includes('Sparkles is not defined') || 
-      message.includes('ReferenceError: Sparkles') ||
-      message.includes('Sparkles')) {
-    console.log('🤫 [SPARKLES ERROR SUPPRESSED]', message.substring(0, 50) + '...');
-    return;
-  }
-  
-  originalError.apply(console, args);
-};
-
-// 🎯 Import du router principal
+import { useAuthStore } from './shared/stores/authStore.js';
 import AppRouter from './components/routing/AppRouter.jsx';
-import { ToastProvider } from './shared/components/ui/Toast.jsx';
 
-// 🔧 CSS
-import './assets/styles/globals.css';
+// ✅ Imports Firebase pour initialisation
+import { auth } from './core/firebase.js';
+import { onAuthStateChanged } from 'firebase/auth';
 
 /**
- * 🚀 APPLICATION PRINCIPALE SIMPLIFIÉE
+ * 🚀 APPLICATION PRINCIPALE SYNERGIA v3.5
+ * Configuration complète et optimisée
  */
 function App() {
+  const { setUser, setLoading, initializeAuth } = useAuthStore();
+
   // 🎯 Initialisation Firebase au démarrage
   useEffect(() => {
-    console.log('🔄 Initialisation de l\'auth depuis App.jsx');
-  }, []);
+    console.log('🚀 Initialisation Synergia v3.5...');
+    
+    // Initialiser l'authentification
+    initializeAuth();
+    
+    // Écouter les changements d'authentification
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        console.log('✅ Utilisateur connecté:', firebaseUser.email);
+        setUser({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL,
+          emailVerified: firebaseUser.emailVerified
+        });
+      } else {
+        console.log('👤 Aucun utilisateur connecté');
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    // Cleanup
+    return () => {
+      console.log('🧹 Nettoyage App.jsx');
+      unsubscribe();
+    };
+  }, [setUser, setLoading, initializeAuth]);
 
   return (
-    <ToastProvider>
-      <Router>
-        <div className="app">
-          {/* ✅ ROUTING SIMPLE - Tout dans AppRouter */}
-          <AppRouter />
-        </div>
-      </Router>
-    </ToastProvider>
+    <Router>
+      <div className="App">
+        <AppRouter />
+      </div>
+    </Router>
   );
 }
 
