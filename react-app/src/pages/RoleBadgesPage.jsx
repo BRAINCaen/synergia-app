@@ -32,7 +32,7 @@ import { gamificationService } from '../core/services/gamificationService.js';
  */
 const RoleBadgesPage = () => {
   const { user } = useAuthStore();
-  const [selectedRole, setSelectedRole] = useState('developer');
+  const [selectedRole, setSelectedRole] = useState('gamemaster');
   const [userRoles, setUserRoles] = useState({});
   const [earnedBadges, setEarnedBadges] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,11 +50,17 @@ const RoleBadgesPage = () => {
       // Utiliser le service de gamification existant
       const gameData = await gamificationService.initializeUserData(user.uid);
       
-      // Simuler des rôles basés sur les données de gamification
+      // Simuler des rôles basés sur les données de gamification - RÔLES ESCAPE GAME
       const mockRoles = {
-        developer: { level: Math.min(Math.floor(gameData.level / 2) + 1, 5) },
-        designer: { level: gameData.tasksCompleted > 10 ? 2 : 1 },
-        manager: { level: gameData.projectsCompleted > 0 ? 2 : 1 }
+        gamemaster: { level: Math.min(Math.floor(gameData.level / 2) + 1, 5) },
+        maintenance: { level: gameData.tasksCompleted > 5 ? 2 : 1 },
+        reputation: { level: gameData.tasksCompleted > 10 ? 2 : 1 },
+        stock: { level: gameData.projectsCompleted > 0 ? 2 : 1 },
+        organization: { level: Math.min(Math.floor(gameData.level / 3) + 1, 4) },
+        content: { level: gameData.badgesUnlocked > 3 ? 3 : 1 },
+        mentoring: { level: gameData.level > 5 ? 3 : 2 },
+        partnerships: { level: gameData.tasksCompleted > 15 ? 2 : 1 },
+        communication: { level: Math.min(Math.floor(gameData.level / 2) + 1, 4) }
       };
       
       setUserRoles(mockRoles);
@@ -67,74 +73,81 @@ const RoleBadgesPage = () => {
     }
   };
 
-  // Définition des rôles avec leurs données
+  // Définition des rôles avec leurs données - LES VRAIS RÔLES ESCAPE GAME SYNERGIA
   const roleDefinitions = {
-    developer: {
-      name: 'Développeur',
-      icon: Code,
-      color: 'blue',
-      description: 'Maîtrise technique et innovation',
-      gradient: 'from-blue-500 to-cyan-500'
-    },
-    designer: {
-      name: 'Designer',
-      icon: Palette,
+    gamemaster: {
+      name: 'Game Master',
+      icon: Smartphone, // Gamepad2 n'existe pas, on utilise Smartphone
       color: 'purple',
-      description: 'Créativité et expérience utilisateur',
+      description: 'Animateur·rice des sessions de jeu, garant·e de l\'immersion et de la satisfaction client',
       gradient: 'from-purple-500 to-pink-500'
     },
-    manager: {
-      name: 'Manager',
-      icon: Crown,
+    maintenance: {
+      name: 'Entretien & Maintenance',
+      icon: Target, // Wrench n'existe pas, on utilise Target
+      color: 'orange',
+      description: 'Garant·e du bon état, de la sécurité et de la qualité des salles',
+      gradient: 'from-orange-500 to-red-500'
+    },
+    reputation: {
+      name: 'Gestion des Avis & Réputation',
+      icon: Star,
       color: 'yellow',
-      description: 'Leadership et coordination d\'équipe',
+      description: 'Surveille, répond et valorise les avis clients pour améliorer la réputation',
       gradient: 'from-yellow-500 to-orange-500'
     },
-    analyst: {
-      name: 'Analyste',
-      icon: Brain,
+    stock: {
+      name: 'Gestion des Stocks',
+      icon: Shield, // Package n'existe pas, on utilise Shield
+      color: 'blue',
+      description: 'Optimise les achats, stocks et ressources matérielles du lieu',
+      gradient: 'from-blue-500 to-cyan-500'
+    },
+    organization: {
+      name: 'Organisation & Planification',
+      icon: Clock,
       color: 'green',
-      description: 'Analyse de données et insights',
+      description: 'Gère le planning, les réservations et l\'organisation globale',
       gradient: 'from-green-500 to-emerald-500'
     },
-    mentor: {
-      name: 'Mentor',
+    content: {
+      name: 'Création de Contenu',
+      icon: Palette,
+      color: 'pink',
+      description: 'Crée du contenu visuel, vidéo et digital pour promouvoir le lieu',
+      gradient: 'from-pink-500 to-rose-500'
+    },
+    mentoring: {
+      name: 'Formation & Accompagnement',
       icon: GraduationCap,
       color: 'indigo',
-      description: 'Formation et accompagnement',
+      description: 'Forme et accompagne les nouveaux arrivants',
       gradient: 'from-indigo-500 to-purple-500'
     },
-    collaborator: {
-      name: 'Collaborateur',
-      icon: Users, // ✅ CORRECTION: Users au lieu de Handshake
+    partnerships: {
+      name: 'Partenariats & Référencement',
+      icon: Users,
       color: 'teal',
-      description: 'Esprit d\'équipe et collaboration',
+      description: 'Développe les relations externes, partenariats et visibilité',
       gradient: 'from-teal-500 to-blue-500'
     },
-    innovator: {
-      name: 'Innovateur',
-      icon: Zap,
-      color: 'amber',
-      description: 'Innovation et nouvelles idées',
-      gradient: 'from-amber-500 to-yellow-500'
-    },
-    specialist: {
-      name: 'Spécialiste',
-      icon: Target,
-      color: 'red',
-      description: 'Expertise dans un domaine spécifique',
-      gradient: 'from-red-500 to-pink-500'
+    communication: {
+      name: 'Communication & Réseaux Sociaux',
+      icon: Zap, // Megaphone n'existe pas, on utilise Zap
+      color: 'violet',
+      description: 'anime la présence en ligne, gère la communication et développe la communauté',
+      gradient: 'from-violet-500 to-purple-500'
     }
   };
 
-  // Badges factices pour la démonstration
+  // Badges factices pour la démonstration - ADAPTÉS AUX NOUVEAUX RÔLES
   const mockBadges = {
-    developer: [
+    gamemaster: [
       {
-        id: 'dev_first_commit',
-        name: 'Premier Commit',
-        description: 'Effectuer votre premier commit dans un projet',
-        icon: '🌱',
+        id: 'gm_first_session',
+        name: 'Première Session',
+        description: 'Animer votre première session de jeu',
+        icon: '🎭',
         rarity: 'common',
         xpReward: 50,
         requiredLevel: 1,
@@ -143,69 +156,238 @@ const RoleBadgesPage = () => {
         progress: 100
       },
       {
-        id: 'dev_code_review',
-        name: 'Reviewer Expert',
-        description: 'Effectuer 10 reviews de code constructives',
-        icon: '👁️',
-        rarity: 'rare',
-        xpReward: 200,
-        requiredLevel: 2,
-        category: 'Collaboration',
-        unlocked: false,
-        progress: 30
-      },
-      {
-        id: 'dev_bug_hunter',
-        name: 'Chasseur de Bugs',
-        description: 'Corriger 25 bugs critiques',
-        icon: '🐛',
-        rarity: 'rare',
-        xpReward: 300,
-        requiredLevel: 2,
-        category: 'Qualité',
-        unlocked: false,
-        progress: 68
-      },
-      {
-        id: 'dev_architect',
-        name: 'Architecte Système',
-        description: 'Concevoir l\'architecture de 3 projets majeurs',
-        icon: '🏗️',
+        id: 'gm_master_actor',
+        name: 'Maître Acteur',
+        description: 'Animer 25 sessions avec excellence',
+        icon: '🎬',
         rarity: 'epic',
         xpReward: 500,
         requiredLevel: 3,
-        category: 'Architecture',
+        category: 'Performance',
         unlocked: false,
-        progress: 0
+        progress: 45
+      },
+      {
+        id: 'gm_crisis_manager',
+        name: 'Gestionnaire de Crise',
+        description: 'Gérer 10 situations difficiles avec brio',
+        icon: '🚨',
+        rarity: 'rare',
+        xpReward: 300,
+        requiredLevel: 2,
+        category: 'Gestion',
+        unlocked: false,
+        progress: 70
       }
     ],
-    designer: [
+    maintenance: [
       {
-        id: 'design_first_mockup',
-        name: 'Premier Mockup',
-        description: 'Créer votre premier mockup approuvé',
-        icon: '🎨',
+        id: 'maint_first_repair',
+        name: 'Premier Dépannage',
+        description: 'Effectuer votre première réparation',
+        icon: '🔧',
         rarity: 'common',
-        xpReward: 50,
+        xpReward: 40,
+        requiredLevel: 1,
+        category: 'Technique',
+        unlocked: true,
+        progress: 100
+      },
+      {
+        id: 'maint_expert_tech',
+        name: 'Expert Technique',
+        description: 'Résoudre 50 problèmes techniques',
+        icon: '⚙️',
+        rarity: 'epic',
+        xpReward: 400,
+        requiredLevel: 3,
+        category: 'Expertise',
+        unlocked: false,
+        progress: 22
+      }
+    ],
+    reputation: [
+      {
+        id: 'rep_first_response',
+        name: 'Première Réponse',
+        description: 'Répondre à votre premier avis client',
+        icon: '💬',
+        rarity: 'common',
+        xpReward: 30,
+        requiredLevel: 1,
+        category: 'Communication',
+        unlocked: true,
+        progress: 100
+      },
+      {
+        id: 'rep_five_stars',
+        name: 'Cinq Étoiles',
+        description: 'Maintenir une moyenne de 4.8/5 pendant 3 mois',
+        icon: '⭐',
+        rarity: 'legendary',
+        xpReward: 800,
+        requiredLevel: 4,
+        category: 'Excellence',
+        unlocked: false,
+        progress: 15
+      }
+    ],
+    stock: [
+      {
+        id: 'stock_first_order',
+        name: 'Première Commande',
+        description: 'Passer votre première commande optimisée',
+        icon: '📦',
+        rarity: 'common',
+        xpReward: 35,
+        requiredLevel: 1,
+        category: 'Gestion',
+        unlocked: true,
+        progress: 100
+      },
+      {
+        id: 'stock_zero_waste',
+        name: 'Zéro Gaspillage',
+        description: 'Atteindre 0% de gaspillage sur un trimestre',
+        icon: '♻️',
+        rarity: 'epic',
+        xpReward: 450,
+        requiredLevel: 3,
+        category: 'Optimisation',
+        unlocked: false,
+        progress: 60
+      }
+    ],
+    organization: [
+      {
+        id: 'org_first_planning',
+        name: 'Premier Planning',
+        description: 'Organiser votre premier planning hebdomadaire',
+        icon: '📅',
+        rarity: 'common',
+        xpReward: 40,
+        requiredLevel: 1,
+        category: 'Organisation',
+        unlocked: true,
+        progress: 100
+      },
+      {
+        id: 'org_efficiency_master',
+        name: 'Maître de l\'Efficacité',
+        description: 'Atteindre 95% de taux d\'occupation optimal',
+        icon: '⚡',
+        rarity: 'legendary',
+        xpReward: 750,
+        requiredLevel: 4,
+        category: 'Performance',
+        unlocked: false,
+        progress: 35
+      }
+    ],
+    content: [
+      {
+        id: 'content_first_video',
+        name: 'Première Vidéo',
+        description: 'Créer votre première vidéo promotionnelle',
+        icon: '🎥',
+        rarity: 'common',
+        xpReward: 45,
         requiredLevel: 1,
         category: 'Création',
         unlocked: true,
         progress: 100
       },
       {
-        id: 'design_ui_master',
-        name: 'Maître UI',
-        description: 'Créer 50 composants UI réutilisables',
-        icon: '🎯',
+        id: 'content_viral_post',
+        name: 'Post Viral',
+        description: 'Créer un contenu avec plus de 10k vues',
+        icon: '🔥',
         rarity: 'epic',
-        xpReward: 400,
+        xpReward: 600,
         requiredLevel: 3,
-        category: 'Interface',
+        category: 'Viralité',
         unlocked: false,
-        progress: 22
+        progress: 80
       }
     ],
-    // Ajouter d'autres rôles...
+    mentoring: [
+      {
+        id: 'mentor_first_student',
+        name: 'Premier Élève',
+        description: 'Former votre premier nouvel arrivant',
+        icon: '👨‍🏫',
+        rarity: 'common',
+        xpReward: 55,
+        requiredLevel: 1,
+        category: 'Formation',
+        unlocked: true,
+        progress: 100
+      },
+      {
+        id: 'mentor_master_teacher',
+        name: 'Maître Formateur',
+        description: 'Former 20 personnes avec succès',
+        icon: '🎓',
+        rarity: 'legendary',
+        xpReward: 900,
+        requiredLevel: 4,
+        category: 'Expertise',
+        unlocked: false,
+        progress: 25
+      }
+    ],
+    partnerships: [
+      {
+        id: 'partner_first_deal',
+        name: 'Premier Partenariat',
+        description: 'Signer votre premier accord de partenariat',
+        icon: '🤝',
+        rarity: 'common',
+        xpReward: 60,
+        requiredLevel: 1,
+        category: 'Business',
+        unlocked: true,
+        progress: 100
+      },
+      {
+        id: 'partner_network_king',
+        name: 'Roi du Réseau',
+        description: 'Établir 15 partenariats actifs',
+        icon: '👑',
+        rarity: 'epic',
+        xpReward: 700,
+        requiredLevel: 3,
+        category: 'Réseau',
+        unlocked: false,
+        progress: 40
+      }
+    ],
+    communication: [
+      {
+        id: 'comm_first_post',
+        name: 'Premier Post',
+        description: 'Publier votre premier post sur les réseaux',
+        icon: '📱',
+        rarity: 'common',
+        xpReward: 25,
+        requiredLevel: 1,
+        category: 'Social Media',
+        unlocked: true,
+        progress: 100
+      },
+      {
+        id: 'comm_influencer',
+        name: 'Micro-Influenceur',
+        description: 'Atteindre 5000 followers engagés',
+        icon: '🌟',
+        rarity: 'epic',
+        xpReward: 550,
+        requiredLevel: 3,
+        category: 'Influence',
+        unlocked: false,
+        progress: 65
+      }
+    ]
   };
 
   // Obtenir les badges du rôle sélectionné
@@ -283,10 +465,10 @@ const RoleBadgesPage = () => {
           className="text-center mb-8"
         >
           <h1 className="text-4xl font-bold text-white mb-4">
-            🏆 Badges par Rôle
+            🏆 Badges des Rôles Escape Game
           </h1>
           <p className="text-xl text-gray-300">
-            Débloquez des badges exclusifs selon vos rôles de prédilection
+            Débloquez des badges exclusifs selon vos rôles dans l'escape game Synergia
           </p>
         </motion.div>
 
@@ -297,9 +479,8 @@ const RoleBadgesPage = () => {
           transition={{ delay: 0.1 }}
           className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 mb-8"
         >
-          <h2 className="text-xl font-semibold text-white mb-4">Choisir un rôle</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-            {Object.entries(roleDefinitions).map(([roleId, role]) => {
+          <h2 className="text-xl font-semibold text-white mb-4">Choisir un rôle Escape Game</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">{Object.entries(roleDefinitions).map(([roleId, role]) => {
               const Icon = role.icon;
               const isSelected = selectedRole === roleId;
               const userLevel = userRoles[roleId]?.level || 0;
