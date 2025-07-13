@@ -1,12 +1,44 @@
 // ==========================================
 // 📁 react-app/src/core/firebase.js
-// Configuration Firebase SIMPLIFIÉE
+// Configuration Firebase COMPLÈTE avec tous les exports
 // ==========================================
 
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+
+// Re-export des fonctions Firestore pour compatibilité
+export {
+  // Fonctions de base
+  doc,
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDoc,
+  getDocs,
+  setDoc,
+  
+  // Requêtes
+  query,
+  where,
+  orderBy,
+  limit,
+  
+  // Temps réel
+  onSnapshot,
+  
+  // Utilitaires
+  serverTimestamp,
+  arrayUnion,
+  arrayRemove,
+  increment,
+  
+  // Transactions et batch
+  writeBatch,
+  runTransaction
+} from 'firebase/firestore';
 
 // Configuration Firebase (utilisez vos vraies clés)
 const firebaseConfig = {
