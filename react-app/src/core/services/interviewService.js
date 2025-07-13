@@ -4,10 +4,7 @@
 // ==========================================
 
 import { 
-  db
-} from '../firebase.js';
-
-import {
+  db,
   collection, 
   doc, 
   addDoc, 
@@ -19,7 +16,7 @@ import {
   orderBy, 
   serverTimestamp,
   arrayUnion 
-} from 'firebase/firestore';
+} from '../firebase.js';
 
 /**
  * 📅 TYPES D'ENTRETIENS
