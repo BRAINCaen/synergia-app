@@ -1,652 +1,627 @@
 // ==========================================
-// 📁 react-app/src/components/forms/TaskForm.jsx
-// FORMULAIRE DE TÂCHE AVEC RÉCURRENCE ET XP ADAPTATIF
+// 📁 react-app/src/modules/tasks/TaskForm.jsx
+// TASK FORM AVEC SYSTÈME RÉCURRENCES XP ADAPTATIF COMPLET
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  X, 
-  Plus, 
-  Calendar, 
-  Flag, 
-  Star, 
-  Tag,
-  Target,
-  Clock,
-  User,
-  Trophy,
-  Repeat,
-  Zap,
-  TrendingUp,
-  Info
-} from 'lucide-react';
+import { X, Save, Calendar, Flag, FileText, Target, Clock, Users, Repeat, Settings, Zap } from 'lucide-react';
+import { useAuthStore } from '../../shared/stores/authStore.js';
 
-/**
- * 🔄 CONFIGURATION DES RÉCURRENCES AVEC XP ADAPTATIF
- */
-const RECURRENCE_CONFIG = {
-  none: {
-    label: 'Tâche unique',
-    icon: '📋',
-    multiplier: 1,
-    description: 'Tâche à faire une seule fois'
-  },
-  daily: {
-    label: 'Quotidienne',
-    icon: '📅',
-    multiplier: 0.5, // Moins d'XP car très fréquent
-    description: 'Se répète tous les jours',
-    intervals: [1, 2, 3, 5, 7], // Tous les X jours
-    defaultInterval: 1
-  },
-  weekly: {
-    label: 'Hebdomadaire',
-    icon: '📆',
-    multiplier: 1.2, // XP standard+
-    description: 'Se répète toutes les semaines',
-    intervals: [1, 2, 3, 4], // Toutes les X semaines
-    defaultInterval: 1
-  },
-  monthly: {
-    label: 'Mensuelle',
-    icon: '🗓️',
-    multiplier: 2.5, // Plus d'XP car plus rare
-    description: 'Se répète tous les mois',
-    intervals: [1, 2, 3, 6], // Tous les X mois
-    defaultInterval: 1
-  },
-  yearly: {
-    label: 'Annuelle',
-    icon: '📊',
-    multiplier: 5, // Beaucoup d'XP car très rare
-    description: 'Se répète tous les ans',
-    intervals: [1], // Tous les X ans
-    defaultInterval: 1
-  }
-};
-
-/**
- * 🏆 CALCUL INTELLIGENT DES XP SELON RÉCURRENCE ET COMPLEXITÉ
- */
-const calculateAdaptiveXP = (baseComplexity, priority, recurrenceType, interval = 1) => {
-  // XP de base selon la complexité
-  const baseXpMap = {
-    'easy': 15,
-    'medium': 25,
-    'hard': 40,
-    'expert': 60
-  };
-  
-  // Multiplicateur de priorité
-  const priorityMultiplier = {
-    'low': 1,
-    'medium': 1.2,
-    'high': 1.5,
-    'urgent': 2
-  };
-  
-  // XP de base
-  const baseXp = baseXpMap[baseComplexity] || 25;
-  const priorityXp = baseXp * (priorityMultiplier[priority] || 1);
-  
-  // Multiplicateur de récurrence
-  const recurrenceMultiplier = RECURRENCE_CONFIG[recurrenceType]?.multiplier || 1;
-  
-  // Multiplicateur d'intervalle (plus l'intervalle est grand, plus c'est rare)
-  const intervalMultiplier = interval > 1 ? 1 + (interval - 1) * 0.3 : 1;
-  
-  // Calcul final
-  const finalXp = Math.round(priorityXp * recurrenceMultiplier * intervalMultiplier);
-  
-  return {
-    baseXp,
-    priorityXp: Math.round(priorityXp),
-    recurrenceMultiplier,
-    intervalMultiplier,
-    finalXp
-  };
-};
-
-/**
- * 📝 FORMULAIRE DE CRÉATION/MODIFICATION DE TÂCHE AVEC RÉCURRENCE
- */
 const TaskForm = ({ 
   isOpen, 
   onClose, 
-  onSubmit, 
-  initialData = null 
+  task = null, 
+  onSave,
+  loading = false 
 }) => {
+  const { user } = useAuthStore();
+
+  // État du formulaire avec récurrence
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    status: 'todo',
     priority: 'medium',
-    complexity: 'medium',
-    xpReward: 25,
     dueDate: '',
-    tags: [],
-    // ✅ NOUVEAUX CHAMPS RÉCURRENCE
+    estimatedHours: '',
+    projectId: '',
+    xpReward: 50,
+    // 🔄 SYSTÈME DE RÉCURRENCE
     isRecurring: false,
-    recurrenceType: 'none', // daily, weekly, monthly, yearly
-    recurrenceInterval: 1, // Tous les X jours/semaines/mois
-    recurrenceEndDate: '', // Date de fin optionnelle
-    maxOccurrences: '', // Nombre max d'occurrences
+    recurrence: {
+      type: 'daily', // 'daily', 'weekly', 'monthly', 'yearly', 'custom'
+      interval: 1, // Tous les X jours/semaines/mois
+      endDate: '', // Date de fin optionnelle
+      maxOccurrences: '', // Nombre max d'occurrences
+      daysOfWeek: [], // Pour récurrence hebdomadaire
+      dayOfMonth: 1, // Pour récurrence mensuelle
+      monthOfYear: 1 // Pour récurrence annuelle
+    }
   });
 
-  const [newTag, setNewTag] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [xpCalculation, setXpCalculation] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [calculatedXP, setCalculatedXP] = useState(50);
 
-  // Charger les données initiales si modification
+  // Options pour les sélects
+  const statusOptions = [
+    { value: 'todo', label: 'À faire' },
+    { value: 'in_progress', label: 'En cours' },
+    { value: 'completed', label: 'Terminée' },
+    { value: 'blocked', label: 'Bloquée' }
+  ];
+
+  const priorityOptions = [
+    { value: 'low', label: 'Basse', color: 'text-green-400', multiplier: 1.0 },
+    { value: 'medium', label: 'Moyenne', color: 'text-yellow-400', multiplier: 1.2 },
+    { value: 'high', label: 'Haute', color: 'text-orange-400', multiplier: 1.5 },
+    { value: 'urgent', label: 'Urgente', color: 'text-red-400', multiplier: 2.0 }
+  ];
+
+  // 🔄 Options de récurrence avec multiplicateurs XP
+  const recurrenceOptions = [
+    { value: 'unique', label: '📋 Tâche unique', multiplier: 1.0, description: 'Une seule fois' },
+    { value: 'daily', label: '📅 Quotidienne', multiplier: 0.5, description: 'Chaque jour' },
+    { value: 'weekly', label: '📆 Hebdomadaire', multiplier: 1.2, description: 'Chaque semaine' },
+    { value: 'monthly', label: '🗓️ Mensuelle', multiplier: 2.5, description: 'Chaque mois' },
+    { value: 'yearly', label: '📊 Annuelle', multiplier: 5.0, description: 'Chaque année' },
+    { value: 'custom', label: '⚙️ Personnalisée', multiplier: 1.0, description: 'Intervalle personnalisé' }
+  ];
+
+  // Complexité basée sur les heures estimées
+  const getComplexityMultiplier = (hours) => {
+    if (!hours) return 1.0;
+    if (hours <= 1) return 0.8;
+    if (hours <= 3) return 1.0;
+    if (hours <= 8) return 1.5;
+    if (hours <= 16) return 2.0;
+    return 3.0; // Plus de 16h = très complexe
+  };
+
+  // 🎯 CALCUL XP ADAPTATIF EN TEMPS RÉEL
+  const calculateAdaptiveXP = () => {
+    const baseXP = parseInt(formData.xpReward) || 50;
+    
+    // Multiplicateur de priorité
+    const priorityMultiplier = priorityOptions.find(p => p.value === formData.priority)?.multiplier || 1.2;
+    
+    // Multiplicateur de récurrence
+    const recurrenceType = formData.isRecurring ? formData.recurrence.type : 'unique';
+    const recurrenceMultiplier = recurrenceOptions.find(r => r.value === recurrenceType)?.multiplier || 1.0;
+    
+    // Multiplicateur de complexité
+    const complexityMultiplier = getComplexityMultiplier(parseFloat(formData.estimatedHours));
+    
+    // Multiplicateur d'intervalle pour récurrence personnalisée
+    let intervalMultiplier = 1.0;
+    if (recurrenceType === 'custom' && formData.recurrence.interval > 1) {
+      intervalMultiplier = 1.0 + (formData.recurrence.interval - 1) * 0.1;
+    }
+    
+    // Calcul final
+    const finalXP = Math.round(baseXP * priorityMultiplier * recurrenceMultiplier * complexityMultiplier * intervalMultiplier);
+    
+    return Math.max(10, finalXP); // Minimum 10 XP
+  };
+
+  // Recalculer XP quand les paramètres changent
   useEffect(() => {
-    if (initialData) {
+    const newXP = calculateAdaptiveXP();
+    setCalculatedXP(newXP);
+    setFormData(prev => ({ ...prev, xpReward: newXP }));
+  }, [formData.priority, formData.isRecurring, formData.recurrence.type, formData.recurrence.interval, formData.estimatedHours]);
+
+  // Initialiser le formulaire quand la tâche change
+  useEffect(() => {
+    if (task) {
       setFormData({
-        title: initialData.title || '',
-        description: initialData.description || '',
-        priority: initialData.priority || 'medium',
-        complexity: initialData.complexity || 'medium',
-        xpReward: initialData.xpReward || 25,
-        dueDate: initialData.dueDate ? 
-          (initialData.dueDate.seconds ? 
-            new Date(initialData.dueDate.seconds * 1000).toISOString().split('T')[0] :
-            new Date(initialData.dueDate).toISOString().split('T')[0]
-          ) : '',
-        tags: initialData.tags || [],
-        // Récurrence existante
-        isRecurring: initialData.isRecurring || false,
-        recurrenceType: initialData.recurrenceType || 'none',
-        recurrenceInterval: initialData.recurrenceInterval || 1,
-        recurrenceEndDate: initialData.recurrenceEndDate || '',
-        maxOccurrences: initialData.maxOccurrences || '',
+        title: task.title || '',
+        description: task.description || '',
+        status: task.status || 'todo',
+        priority: task.priority || 'medium',
+        dueDate: task.dueDate ? new Date(task.dueDate.toDate ? task.dueDate.toDate() : task.dueDate).toISOString().split('T')[0] : '',
+        estimatedHours: task.estimatedHours || '',
+        projectId: task.projectId || '',
+        xpReward: task.xpReward || 50,
+        isRecurring: task.isRecurring || false,
+        recurrence: task.recurrence || {
+          type: 'daily',
+          interval: 1,
+          endDate: '',
+          maxOccurrences: '',
+          daysOfWeek: [],
+          dayOfMonth: 1,
+          monthOfYear: 1
+        }
+      });
+    } else {
+      // Réinitialiser pour une nouvelle tâche
+      setFormData({
+        title: '',
+        description: '',
+        status: 'todo',
+        priority: 'medium',
+        dueDate: '',
+        estimatedHours: '',
+        projectId: '',
+        xpReward: 50,
+        isRecurring: false,
+        recurrence: {
+          type: 'daily',
+          interval: 1,
+          endDate: '',
+          maxOccurrences: '',
+          daysOfWeek: [],
+          dayOfMonth: 1,
+          monthOfYear: 1
+        }
       });
     }
-  }, [initialData]);
+    setErrors({});
+  }, [task]);
 
-  // ✅ CALCUL AUTOMATIQUE DES XP SELON TOUS LES PARAMÈTRES
-  useEffect(() => {
-    const calculation = calculateAdaptiveXP(
-      formData.complexity, 
-      formData.priority, 
-      formData.isRecurring ? formData.recurrenceType : 'none',
-      formData.recurrenceInterval
-    );
+  // Gestion des changements d'input
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
     
-    setXpCalculation(calculation);
-    
-    // Mettre à jour les XP dans le formulaire
-    if (formData.xpReward !== calculation.finalXp) {
-      setFormData(prev => ({ ...prev, xpReward: calculation.finalXp }));
+    if (name.startsWith('recurrence.')) {
+      const field = name.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
+        recurrence: {
+          ...prev.recurrence,
+          [field]: type === 'number' ? parseInt(value) || 1 : value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
     }
-  }, [formData.complexity, formData.priority, formData.isRecurring, formData.recurrenceType, formData.recurrenceInterval]);
-
-  // Gérer l'activation de la récurrence
-  const handleRecurrenceToggle = (enabled) => {
-    setFormData(prev => ({
-      ...prev,
-      isRecurring: enabled,
-      recurrenceType: enabled ? 'weekly' : 'none',
-      recurrenceInterval: 1
-    }));
+    
+    // Effacer l'erreur du champ modifié
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
   };
 
-  // Gérer le changement de type de récurrence
-  const handleRecurrenceTypeChange = (type) => {
-    const config = RECURRENCE_CONFIG[type];
-    setFormData(prev => ({
-      ...prev,
-      recurrenceType: type,
-      recurrenceInterval: config?.defaultInterval || 1
-    }));
+  // Validation du formulaire
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.title.trim()) {
+      newErrors.title = 'Le titre est requis';
+    }
+    
+    if (!formData.description.trim()) {
+      newErrors.description = 'La description est requise';
+    }
+
+    if (formData.estimatedHours && (isNaN(formData.estimatedHours) || formData.estimatedHours <= 0)) {
+      newErrors.estimatedHours = 'Les heures estimées doivent être un nombre positif';
+    }
+
+    if (formData.xpReward && (isNaN(formData.xpReward) || formData.xpReward <= 0)) {
+      newErrors.xpReward = 'La récompense XP doit être un nombre positif';
+    }
+
+    // Validation récurrence
+    if (formData.isRecurring) {
+      if (formData.recurrence.type === 'custom' && formData.recurrence.interval < 1) {
+        newErrors['recurrence.interval'] = 'L\'intervalle doit être au moins 1';
+      }
+      
+      if (formData.recurrence.endDate && formData.dueDate) {
+        const startDate = new Date(formData.dueDate);
+        const endDate = new Date(formData.recurrence.endDate);
+        if (endDate <= startDate) {
+          newErrors['recurrence.endDate'] = 'La date de fin doit être après la date de début';
+        }
+      }
+      
+      if (formData.recurrence.maxOccurrences && (isNaN(formData.recurrence.maxOccurrences) || formData.recurrence.maxOccurrences < 1)) {
+        newErrors['recurrence.maxOccurrences'] = 'Le nombre d\'occurrences doit être un nombre positif';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
+  // Soumission du formulaire
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.title.trim()) {
-      setError('Le titre est obligatoire');
-      return;
-    }
-    
-    // Validation récurrence
-    if (formData.isRecurring && formData.recurrenceType === 'none') {
-      setError('Veuillez sélectionner un type de récurrence');
-      return;
-    }
-    
-    setSubmitting(true);
-    setError('');
+    if (!validateForm()) return;
     
     try {
-      // ✅ PRÉPARER LES DONNÉES AVEC RÉCURRENCE
       const taskData = {
         ...formData,
         dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
-        recurrenceEndDate: formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate) : null,
-        maxOccurrences: formData.maxOccurrences ? parseInt(formData.maxOccurrences) : null,
-        // Métadonnées XP
-        xpCalculation: xpCalculation,
-        baseXpReward: xpCalculation?.baseXp || 25,
-        // Métadonnées récurrence
-        recurrenceConfig: formData.isRecurring ? RECURRENCE_CONFIG[formData.recurrenceType] : null
+        estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : null,
+        xpReward: calculatedXP,
+        recurrence: formData.isRecurring ? {
+          ...formData.recurrence,
+          endDate: formData.recurrence.endDate ? new Date(formData.recurrence.endDate) : null,
+          maxOccurrences: formData.recurrence.maxOccurrences ? parseInt(formData.recurrence.maxOccurrences) : null
+        } : null,
+        updatedAt: new Date()
       };
-      
-      await onSubmit(taskData);
-      console.log('✅ Tâche avec récurrence soumise:', taskData);
+
+      await onSave(taskData);
     } catch (error) {
-      console.error('❌ Erreur soumission tâche:', error);
-      setError(error.message || 'Erreur lors de la soumission');
-    } finally {
-      setSubmitting(false);
+      console.error('Erreur lors de la sauvegarde de la tâche:', error);
+      setErrors({ submit: 'Une erreur est survenue lors de la sauvegarde' });
     }
-  };
-
-  const handleAddTag = () => {
-    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, newTag.trim()]
-      }));
-      setNewTag('');
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }));
-  };
-
-  const handleClose = () => {
-    if (submitting) return;
-    onClose();
   };
 
   if (!isOpen) return null;
 
+  const selectedRecurrence = recurrenceOptions.find(r => r.value === (formData.isRecurring ? formData.recurrence.type : 'unique'));
+
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-        onClick={handleClose}
-      >
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="sticky top-0 bg-white border-b border-gray-200 p-6 rounded-t-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Target className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {initialData ? 'Modifier la tâche' : 'Nouvelle tâche'}
-                  </h2>
-                  <p className="text-sm text-gray-600">
-                    Créez une tâche avec récurrence et XP adaptatif
-                  </p>
-                </div>
-              </div>
-              
-              {/* Affichage XP calculé */}
-              {xpCalculation && (
-                <div className="flex items-center gap-2 bg-gradient-to-r from-yellow-100 to-orange-100 px-4 py-2 rounded-lg">
-                  <Trophy className="w-5 h-5 text-yellow-600" />
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-yellow-800">
-                      +{xpCalculation.finalXp} XP
-                    </div>
-                    <div className="text-xs text-yellow-600">
-                      {formData.isRecurring && `${RECURRENCE_CONFIG[formData.recurrenceType]?.icon} ${RECURRENCE_CONFIG[formData.recurrenceType]?.label}`}
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              <button
-                onClick={handleClose}
-                disabled={submitting}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        
+        {/* Header du modal */}
+        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-white">
+              {task ? 'Modifier la tâche' : 'Nouvelle tâche'}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
           </div>
+        </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            
-            {/* Erreur */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-800">{error}</p>
-              </div>
-            )}
-
+        <form onSubmit={handleSubmit} className="p-6">
+          {/* Informations de base */}
+          <div className="space-y-6">
             {/* Titre */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                <FileText className="w-4 h-4 inline mr-2" />
                 Titre de la tâche *
               </label>
               <input
                 type="text"
+                name="title"
                 value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Ex: Rapport hebdomadaire de performance"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={submitting}
-                required
+                onChange={handleInputChange}
+                className={`w-full px-3 py-2 bg-gray-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.title ? 'border-red-500' : 'border-gray-600'
+                }`}
+                placeholder="Ex: Créer la présentation du projet"
               />
+              {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title}</p>}
             </div>
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Description *
               </label>
               <textarea
+                name="description"
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={handleInputChange}
+                rows="3"
+                className={`w-full px-3 py-2 bg-gray-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.description ? 'border-red-500' : 'border-gray-600'
+                }`}
                 placeholder="Décrivez les détails de la tâche..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none h-24"
-                disabled={submitting}
               />
+              {errors.description && <p className="text-red-400 text-sm mt-1">{errors.description}</p>}
             </div>
 
-            {/* Priorité et Complexité */}
+            {/* Ligne 1 : Statut et Priorité */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Statut */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Flag className="inline w-4 h-4 mr-1" />
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <Flag className="w-4 h-4 inline mr-2" />
+                  Statut
+                </label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {statusOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Priorité */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <Flag className="w-4 h-4 inline mr-2" />
                   Priorité
                 </label>
                 <select
+                  name="priority"
                   value={formData.priority}
-                  onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={submitting}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="low">🟢 Faible (×1.0)</option>
-                  <option value="medium">🟡 Moyenne (×1.2)</option>
-                  <option value="high">🔴 Haute (×1.5)</option>
-                  <option value="urgent">🚨 Urgente (×2.0)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Star className="inline w-4 h-4 mr-1" />
-                  Complexité
-                </label>
-                <select
-                  value={formData.complexity}
-                  onChange={(e) => setFormData(prev => ({ ...prev, complexity: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={submitting}
-                >
-                  <option value="easy">⭐ Facile (15 XP base)</option>
-                  <option value="medium">⭐⭐ Moyenne (25 XP base)</option>
-                  <option value="hard">⭐⭐⭐ Difficile (40 XP base)</option>
-                  <option value="expert">⭐⭐⭐⭐ Expert (60 XP base)</option>
+                  {priorityOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label} (×{option.multiplier})
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
 
-            {/* ✅ SECTION RÉCURRENCE NOUVELLE */}
-            <div className="border-2 border-dashed border-blue-200 rounded-lg p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Repeat className="w-5 h-5 text-blue-600" />
-                  <div>
-                    <h3 className="font-medium text-gray-900">Récurrence de la tâche</h3>
-                    <p className="text-sm text-gray-600">Les tâches récurrentes adaptent automatiquement leurs XP</p>
-                  </div>
-                </div>
-                
+            {/* Ligne 2 : Date et Heures */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Date d'échéance */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <Calendar className="w-4 h-4 inline mr-2" />
+                  Date d'échéance
+                </label>
+                <input
+                  type="date"
+                  name="dueDate"
+                  value={formData.dueDate}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Heures estimées */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <Clock className="w-4 h-4 inline mr-2" />
+                  Heures estimées
+                </label>
+                <input
+                  type="number"
+                  name="estimatedHours"
+                  value={formData.estimatedHours}
+                  onChange={handleInputChange}
+                  min="0.5"
+                  step="0.5"
+                  className={`w-full px-3 py-2 bg-gray-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.estimatedHours ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                  placeholder="ex: 2.5"
+                />
+                {errors.estimatedHours && <p className="text-red-400 text-sm mt-1">{errors.estimatedHours}</p>}
+              </div>
+            </div>
+
+            {/* 🔄 SECTION RÉCURRENCE */}
+            <div className="border border-gray-600 rounded-lg p-4 bg-gray-700/30">
+              <div className="flex items-center gap-3 mb-4">
+                <Repeat className="w-5 h-5 text-blue-400" />
+                <h3 className="text-lg font-semibold text-white">Récurrence et XP Adaptatif</h3>
+                <div className="flex-1"></div>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
+                    name="isRecurring"
                     checked={formData.isRecurring}
-                    onChange={(e) => handleRecurrenceToggle(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    disabled={submitting}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
                   />
-                  <span className="text-sm font-medium text-gray-700">
-                    Tâche récurrente
-                  </span>
+                  <span className="text-sm text-gray-300">Activer la récurrence</span>
                 </label>
               </div>
 
-              {formData.isRecurring && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="space-y-4"
-                >
-                  {/* Type de récurrence */}
+              {/* Type de récurrence */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                {recurrenceOptions.map(option => (
+                  <label
+                    key={option.value}
+                    className={`relative flex flex-col p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                      (!formData.isRecurring && option.value === 'unique') || 
+                      (formData.isRecurring && formData.recurrence.type === option.value)
+                        ? 'border-blue-500 bg-blue-500/10' 
+                        : 'border-gray-600 bg-gray-700/50 hover:border-gray-500'
+                    } ${!formData.isRecurring && option.value !== 'unique' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      name="recurrence.type"
+                      value={option.value}
+                      checked={(!formData.isRecurring && option.value === 'unique') || 
+                               (formData.isRecurring && formData.recurrence.type === option.value)}
+                      onChange={handleInputChange}
+                      disabled={!formData.isRecurring && option.value !== 'unique'}
+                      className="sr-only"
+                    />
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-white">{option.label}</span>
+                      <span className="text-xs px-2 py-1 bg-blue-600 text-white rounded">
+                        ×{option.multiplier}
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-400">{option.description}</span>
+                  </label>
+                ))}
+              </div>
+
+              {/* Options de récurrence avancées */}
+              {formData.isRecurring && formData.recurrence.type === 'custom' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-4 bg-gray-800/50 rounded-lg">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      Type de récurrence
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Tous les (jours)
                     </label>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {Object.entries(RECURRENCE_CONFIG)
-                        .filter(([key]) => key !== 'none')
-                        .map(([key, config]) => (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => handleRecurrenceTypeChange(key)}
-                          className={`p-3 rounded-lg border-2 transition-all ${
-                            formData.recurrenceType === key
-                              ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                          disabled={submitting}
-                        >
-                          <div className="text-2xl mb-1">{config.icon}</div>
-                          <div className="font-medium text-sm">{config.label}</div>
-                          <div className="text-xs text-gray-600 mt-1">
-                            ×{config.multiplier} XP
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                    <input
+                      type="number"
+                      name="recurrence.interval"
+                      value={formData.recurrence.interval}
+                      onChange={handleInputChange}
+                      min="1"
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {errors['recurrence.interval'] && <p className="text-red-400 text-xs mt-1">{errors['recurrence.interval']}</p>}
                   </div>
+                </div>
+              )}
 
-                  {/* Intervalle */}
-                  {formData.recurrenceType !== 'none' && RECURRENCE_CONFIG[formData.recurrenceType]?.intervals && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Intervalle
-                        </label>
-                        <select
-                          value={formData.recurrenceInterval}
-                          onChange={(e) => setFormData(prev => ({ ...prev, recurrenceInterval: parseInt(e.target.value) }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          disabled={submitting}
-                        >
-                          {RECURRENCE_CONFIG[formData.recurrenceType].intervals.map(interval => (
-                            <option key={interval} value={interval}>
-                              Tous les {interval} {
-                                formData.recurrenceType === 'daily' ? (interval === 1 ? 'jour' : 'jours') :
-                                formData.recurrenceType === 'weekly' ? (interval === 1 ? 'semaine' : 'semaines') :
-                                formData.recurrenceType === 'monthly' ? 'mois' :
-                                formData.recurrenceType === 'yearly' ? (interval === 1 ? 'an' : 'ans') : ''
-                              }
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Nombre max d'occurrences (optionnel)
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.maxOccurrences}
-                          onChange={(e) => setFormData(prev => ({ ...prev, maxOccurrences: e.target.value }))}
-                          placeholder="Ex: 10"
-                          min="1"
-                          max="1000"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          disabled={submitting}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Date de fin optionnelle */}
+              {/* Limites de récurrence */}
+              {formData.isRecurring && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-800/50 rounded-lg">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Date de fin de récurrence (optionnelle)
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Date de fin (optionnel)
                     </label>
                     <input
                       type="date"
-                      value={formData.recurrenceEndDate}
-                      onChange={(e) => setFormData(prev => ({ ...prev, recurrenceEndDate: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      disabled={submitting}
+                      name="recurrence.endDate"
+                      value={formData.recurrence.endDate}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                    {errors['recurrence.endDate'] && <p className="text-red-400 text-xs mt-1">{errors['recurrence.endDate']}</p>}
                   </div>
 
-                  {/* Aperçu XP */}
-                  {xpCalculation && (
-                    <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4">
-                      <div className="flex items-start gap-3">
-                        <TrendingUp className="w-5 h-5 text-yellow-600 mt-0.5" />
-                        <div className="flex-1">
-                          <h4 className="font-medium text-yellow-900 mb-2">Calcul des XP adaptatif</h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div>
-                              <div className="text-gray-600">Base (complexité)</div>
-                              <div className="font-medium">{xpCalculation.baseXp} XP</div>
-                            </div>
-                            <div>
-                              <div className="text-gray-600">Avec priorité</div>
-                              <div className="font-medium">{xpCalculation.priorityXp} XP</div>
-                            </div>
-                            <div>
-                              <div className="text-gray-600">Multiplicateur récurrence</div>
-                              <div className="font-medium">×{xpCalculation.recurrenceMultiplier}</div>
-                            </div>
-                            <div>
-                              <div className="text-yellow-700 font-bold">XP Final</div>
-                              <div className="text-lg font-bold text-yellow-800">{xpCalculation.finalXp} XP</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </div>
-
-            {/* Date d'échéance */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Calendar className="inline w-4 h-4 mr-1" />
-                Date d'échéance {formData.isRecurring && '(première occurrence)'}
-              </label>
-              <input
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={submitting}
-              />
-            </div>
-
-            {/* Tags */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Tag className="inline w-4 h-4 mr-1" />
-                Tags
-              </label>
-              
-              {/* Tags existants */}
-              {formData.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {formData.tags.map((tag, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
-                    >
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTag(tag)}
-                        className="hover:text-blue-600"
-                        disabled={submitting}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Nombre max d'occurrences
+                    </label>
+                    <input
+                      type="number"
+                      name="recurrence.maxOccurrences"
+                      value={formData.recurrence.maxOccurrences}
+                      onChange={handleInputChange}
+                      min="1"
+                      placeholder="Illimité si vide"
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {errors['recurrence.maxOccurrences'] && <p className="text-red-400 text-xs mt-1">{errors['recurrence.maxOccurrences']}</p>}
+                  </div>
                 </div>
               )}
-              
-              {/* Ajouter un tag */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                  placeholder="Ajouter un tag..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={submitting}
-                />
-                <button
-                  type="button"
-                  onClick={handleAddTag}
-                  disabled={!newTag.trim() || submitting}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
+            </div>
+
+            {/* 🎯 SECTION XP ADAPTATIF */}
+            <div className="border border-gray-600 rounded-lg p-4 bg-gray-700/30">
+              <div className="flex items-center gap-3 mb-4">
+                <Zap className="w-5 h-5 text-yellow-400" />
+                <h3 className="text-lg font-semibold text-white">Récompense XP Adaptative</h3>
+              </div>
+
+              {/* XP calculé automatiquement */}
+              <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-lg font-bold text-yellow-400">{calculatedXP} XP</p>
+                    <p className="text-sm text-gray-300">Calculé automatiquement</p>
+                  </div>
+                  <Target className="w-8 h-8 text-yellow-400" />
+                </div>
+              </div>
+
+              {/* Détail du calcul */}
+              <div className="bg-gray-800/50 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-300 mb-3">Détail du calcul :</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-400">Base :</span>
+                    <span className="text-white ml-2">{formData.xpReward || 50} XP</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Priorité :</span>
+                    <span className="text-yellow-400 ml-2">
+                      ×{priorityOptions.find(p => p.value === formData.priority)?.multiplier || 1.2}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Récurrence :</span>
+                    <span className="text-blue-400 ml-2">
+                      ×{selectedRecurrence?.multiplier || 1.0}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Complexité :</span>
+                    <span className="text-green-400 ml-2">
+                      ×{getComplexityMultiplier(parseFloat(formData.estimatedHours)).toFixed(1)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Exemples de gains selon récurrence */}
+              <div className="mt-4 p-3 bg-gray-800/30 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-300 mb-2">💡 Exemples de stratégies :</h4>
+                <div className="text-xs text-gray-400 space-y-1">
+                  <p>• <span className="text-green-400">Tâches quotidiennes</span> : XP réduit mais progression constante</p>
+                  <p>• <span className="text-blue-400">Tâches hebdomadaires</span> : Bon équilibre XP/fréquence</p>
+                  <p>• <span className="text-purple-400">Tâches mensuelles</span> : XP élevé, idéal pour gros projets</p>
+                  <p>• <span className="text-orange-400">Tâches annuelles</span> : XP maximum, perfect pour bilans</p>
+                </div>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={handleClose}
-                disabled={submitting}
-                className="px-6 py-2 text-gray-700 hover:text-gray-900 transition-colors disabled:opacity-50"
-              >
-                Annuler
-              </button>
-              
-              <button
-                type="submit"
-                disabled={submitting || !formData.title.trim()}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors flex items-center gap-2"
-              >
-                {submitting && (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                )}
-                {submitting ? 'Création...' : (initialData ? 'Modifier' : 'Créer la tâche')}
-                {formData.isRecurring && <Repeat className="w-4 h-4" />}
-              </button>
+            {/* XP Manuel (optionnel pour override) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                <Target className="w-4 h-4 inline mr-2" />
+                Récompense XP manuelle (optionnel)
+              </label>
+              <input
+                type="number"
+                name="xpReward"
+                value={formData.xpReward}
+                onChange={handleInputChange}
+                min="10"
+                step="10"
+                className={`w-full px-3 py-2 bg-gray-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.xpReward ? 'border-red-500' : 'border-gray-600'
+                }`}
+                placeholder="Laissez vide pour calcul automatique"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Laissez ce champ pour utiliser le calcul automatique, ou saisissez une valeur personnalisée
+              </p>
+              {errors.xpReward && <p className="text-red-400 text-sm mt-1">{errors.xpReward}</p>}
             </div>
-          </form>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+          </div>
+
+          {/* Erreur générale */}
+          {errors.submit && (
+            <div className="mt-6 p-4 bg-red-900/50 border border-red-500 rounded-lg">
+              <p className="text-red-400 text-sm">{errors.submit}</p>
+            </div>
+          )}
+
+          {/* Boutons d'action */}
+          <div className="flex justify-end space-x-3 pt-6 mt-6 border-t border-gray-700">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 text-gray-400 hover:text-white transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-lg transition-colors flex items-center gap-2"
+            >
+              <Save className="w-4 h-4" />
+              {loading ? 'Sauvegarde...' : task ? 'Mettre à jour' : 'Créer la tâche'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 };
 
