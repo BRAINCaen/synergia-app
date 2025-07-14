@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// VERSION FONCTIONNELLE SANS PRÉTENTION - ÉCRASER COMPLÈTEMENT
+// TASKS PAGE COMPLÈTE AVEC TOUTES LES FONCTIONNALITÉS AVANCÉES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -20,7 +20,8 @@ import {
   Camera,
   UserPlus,
   Trophy,
-  AlertCircle
+  AlertCircle,
+  MoreVertical
 } from 'lucide-react';
 
 // Layout et composants premium
@@ -42,20 +43,33 @@ import {
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
+// ✅ IMPORTS DES COMPOSANTS AVANCÉS RESTAURÉS
+import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
+import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal.jsx';
+import { taskValidationService } from '../core/services/taskValidationService.js';
+import { taskAssignmentService } from '../core/services/taskAssignmentService.js';
+
 /**
- * ✅ TASKS PAGE SIMPLE ET FONCTIONNELLE
+ * ✅ TASKS PAGE AVEC TOUTES LES FONCTIONNALITÉS AVANCÉES RESTAURÉES
  */
 const TasksPage = () => {
   const { user } = useAuthStore();
   
-  // États
+  // États Firebase
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // États de filtrage et recherche
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-
-  // Modal simple pour créer une tâche
+  
+  // États des modals avancées
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  
+  // Modal de création simple
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
@@ -64,31 +78,53 @@ const TasksPage = () => {
   useEffect(() => {
     if (!user?.uid) return;
 
-    console.log('🔄 Chargement tâches pour:', user.uid);
+    console.log('🔄 Chargement tâches Firebase pour:', user.uid);
     setLoading(true);
 
-    const tasksQuery = query(
+    // Query multiple pour toutes les tâches utilisateur
+    const userTasksQuery = query(
       collection(db, 'tasks'),
       where('userId', '==', user.uid),
       orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
-      const tasksList = [];
+    const createdTasksQuery = query(
+      collection(db, 'tasks'),
+      where('createdBy', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    // Écoute principale
+    const unsubscribeUserTasks = onSnapshot(userTasksQuery, (snapshot) => {
+      const userTasks = [];
       snapshot.forEach((doc) => {
-        tasksList.push({ id: doc.id, ...doc.data() });
+        userTasks.push({ id: doc.id, ...doc.data() });
       });
 
-      console.log('✅ Tâches chargées:', tasksList.length);
-      setTasks(tasksList);
-      setLoading(false);
+      // Écoute des tâches créées
+      const unsubscribeCreatedTasks = onSnapshot(createdTasksQuery, (createdSnapshot) => {
+        const createdTasks = [];
+        createdSnapshot.forEach((doc) => {
+          const taskData = { id: doc.id, ...doc.data() };
+          if (!userTasks.find(t => t.id === taskData.id)) {
+            createdTasks.push(taskData);
+          }
+        });
+
+        const allTasks = [...userTasks, ...createdTasks];
+        console.log('✅ Tâches Firebase chargées:', allTasks.length);
+        setTasks(allTasks);
+        setLoading(false);
+      });
+
+      return () => unsubscribeCreatedTasks();
     }, (error) => {
-      console.error('❌ Erreur:', error);
+      console.error('❌ Erreur Firebase:', error);
       setError(error.message);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeUserTasks();
   }, [user?.uid]);
 
   // ✅ CRÉATION TÂCHE SIMPLE
@@ -145,21 +181,112 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ SIMULATION FONCTIONNALITÉS AVANCÉES
+  // 📸 FONCTIONNALITÉ AVANCÉE : SOUMISSION AVEC MÉDIAS
   const handleSubmitForValidation = (task) => {
-    alert(`🎯 Fonctionnalité "Soumettre" pour "${task.title}" - En développement`);
+    console.log('📸 Ouverture modal soumission pour:', task.title);
+    setSelectedTask(task);
+    setShowSubmissionModal(true);
   };
 
+  const handleTaskSubmission = async (submissionData) => {
+    try {
+      console.log('📝 Soumission avec médias:', submissionData);
+      
+      // ✅ SERVICE AVANCÉ DE VALIDATION AVEC UPLOAD
+      const result = await taskValidationService.submitTaskForValidation({
+        taskId: selectedTask.id,
+        userId: user.uid,
+        taskTitle: selectedTask.title,
+        projectId: selectedTask.projectId,
+        difficulty: selectedTask.complexity || 'normal',
+        comment: submissionData.comment,
+        photoFile: submissionData.photoFile,
+        videoFile: submissionData.videoFile,
+        xpAmount: selectedTask.xpReward
+      });
+      
+      if (result.success) {
+        // Mise à jour Firebase
+        const taskRef = doc(db, 'tasks', selectedTask.id);
+        await updateDoc(taskRef, {
+          status: 'validation_pending',
+          submittedAt: serverTimestamp(),
+          validationRequestId: result.validationId,
+          hasSubmittedMedia: !!(submissionData.photoFile || submissionData.videoFile)
+        });
+        
+        alert('✅ Tâche soumise avec médias !');
+        
+        if (result.corsWarning) {
+          alert('⚠️ Upload partiel - Validation soumise');
+        }
+      }
+      
+      setShowSubmissionModal(false);
+      setSelectedTask(null);
+    } catch (error) {
+      console.error('❌ Erreur soumission:', error);
+      alert('❌ Erreur: ' + error.message);
+    }
+  };
+
+  // 👥 FONCTIONNALITÉ AVANCÉE : ASSIGNATION D'ÉQUIPE
   const handleAssignTask = (task) => {
-    alert(`👥 Fonctionnalité "Assigner" pour "${task.title}" - En développement`);
+    console.log('👥 Ouverture modal assignation pour:', task.title);
+    setSelectedTask(task);
+    setShowAssignmentModal(true);
   };
 
-  // Statistiques
+  const handleTaskAssignment = async (assignmentData) => {
+    try {
+      console.log('👥 Assignation équipe avec répartition XP:', assignmentData);
+      
+      // ✅ SERVICE AVANCÉ D'ASSIGNATION MULTIPLE
+      const result = await taskAssignmentService.assignTaskToMembers(
+        selectedTask.id,
+        assignmentData.assignedUserIds || [],
+        user.uid
+      );
+      
+      if (result.success) {
+        // Mise à jour Firebase avec données complètes
+        const taskRef = doc(db, 'tasks', selectedTask.id);
+        await updateDoc(taskRef, {
+          assignedTo: assignmentData.assignedUserIds || [],
+          isMultipleAssignment: (assignmentData.assignedUserIds || []).length > 1,
+          assignmentCount: (assignmentData.assignedUserIds || []).length,
+          assignments: result.assignments,
+          status: 'assigned',
+          assignedAt: serverTimestamp(),
+          assignedBy: user.uid,
+          updatedAt: serverTimestamp()
+        });
+        
+        // Répartition XP si multiple
+        if (assignmentData.contributionPercentages && assignmentData.assignedUserIds?.length > 1) {
+          await taskAssignmentService.updateContributionPercentages(
+            selectedTask.id, 
+            assignmentData.contributionPercentages
+          );
+        }
+        
+        alert(`✅ Tâche assignée à ${result.assignedCount || 1} personne(s) !`);
+        setShowAssignmentModal(false);
+        setSelectedTask(null);
+      }
+    } catch (error) {
+      console.error('❌ Erreur assignation:', error);
+      alert('❌ Erreur: ' + error.message);
+    }
+  };
+
+  // Statistiques calculées
   const stats = {
     total: tasks.length,
     completed: tasks.filter(t => t.status === 'completed').length,
     inProgress: tasks.filter(t => t.status === 'in_progress' || t.status === 'in-progress').length,
-    pending: tasks.filter(t => t.status === 'todo').length
+    pending: tasks.filter(t => t.status === 'todo').length,
+    validationPending: tasks.filter(t => t.status === 'validation_pending').length
   };
 
   // Filtrage
@@ -176,7 +303,8 @@ const TasksPage = () => {
       'in_progress': { color: 'bg-yellow-500/20 text-yellow-300', label: 'En cours' },
       'in-progress': { color: 'bg-yellow-500/20 text-yellow-300', label: 'En cours' },
       'completed': { color: 'bg-green-500/20 text-green-300', label: 'Terminée' },
-      'validation_pending': { color: 'bg-blue-500/20 text-blue-300', label: 'En validation' }
+      'validation_pending': { color: 'bg-blue-500/20 text-blue-300', label: 'En validation' },
+      'assigned': { color: 'bg-purple-500/20 text-purple-300', label: 'Assignée' }
     };
     const config = configs[status] || configs['todo'];
     return (
@@ -206,20 +334,25 @@ const TasksPage = () => {
   return (
     <PremiumLayout>
       <div className="space-y-8">
-        {/* Header */}
+        {/* Header avec indicateur Firebase */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
-              Gestion des Tâches 🚀
+              Gestion des Tâches 🔥
             </h1>
             <p className="text-gray-400 mt-2">
-              {tasks.length > 0 ? `✅ ${tasks.length} tâche(s) Firebase chargée(s)` : 'Créez votre première tâche'}
+              Fonctionnalités avancées : Upload médias, Assignation équipe, Validation admin
             </p>
+            {tasks.length > 0 && (
+              <p className="text-blue-400 text-sm mt-1">
+                ✅ {tasks.length} tâche(s) Firebase • {stats.validationPending} en validation
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Statistiques */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* Statistiques complètes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           <StatCard 
             label="Total" 
             value={stats.total} 
@@ -244,6 +377,12 @@ const TasksPage = () => {
             icon={Star} 
             iconColor="text-purple-400" 
           />
+          <StatCard 
+            label="En validation" 
+            value={stats.validationPending} 
+            icon={Camera} 
+            iconColor="text-pink-400" 
+          />
         </div>
 
         {/* Barre d'outils */}
@@ -265,6 +404,8 @@ const TasksPage = () => {
               <option value="todo">À faire</option>
               <option value="in_progress">En cours</option>
               <option value="completed">Terminée</option>
+              <option value="validation_pending">En validation</option>
+              <option value="assigned">Assignée</option>
             </select>
           </div>
           
@@ -277,7 +418,7 @@ const TasksPage = () => {
           </PremiumButton>
         </div>
 
-        {/* Liste des tâches */}
+        {/* Liste des tâches avec fonctionnalités avancées */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
@@ -311,9 +452,13 @@ const TasksPage = () => {
                         </p>
                       )}
                     </div>
+                    
+                    <div className="flex items-center gap-2 ml-4">
+                      <MoreVertical className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer" />
+                    </div>
                   </div>
 
-                  {/* Statut */}
+                  {/* Statut et métadonnées */}
                   <div className="flex items-center justify-between mb-4">
                     {getStatusBadge(task.status)}
                     <div className="flex items-center gap-2 text-sm">
@@ -322,7 +467,45 @@ const TasksPage = () => {
                     </div>
                   </div>
 
-                  {/* Actions AVEC BOUTONS SOUMETTRE ET ASSIGNER */}
+                  {/* Informations d'assignation */}
+                  {task.isMultipleAssignment && task.assignedTo && (
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 text-sm mb-2">
+                        <Users className="w-4 h-4 text-purple-400" />
+                        <span className="text-purple-300">
+                          {task.assignedTo.length} membres assignés
+                        </span>
+                      </div>
+                      {task.assignments && (
+                        <div className="bg-purple-500/10 rounded-lg p-2">
+                          <div className="flex justify-between text-xs text-purple-300 mb-1">
+                            <span>Progression équipe</span>
+                            <span>{task.assignments.filter(a => a.hasSubmitted).length}/{task.assignments.length}</span>
+                          </div>
+                          <div className="w-full bg-purple-800/30 rounded-full h-2">
+                            <div 
+                              className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500"
+                              style={{ 
+                                width: `${(task.assignments.filter(a => a.hasSubmitted).length / task.assignments.length) * 100}%` 
+                              }}
+                            ></div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Indicateur de médias soumis */}
+                  {task.hasSubmittedMedia && (
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 text-sm bg-blue-500/10 rounded-lg p-2">
+                        <Camera className="w-4 h-4 text-blue-400" />
+                        <span className="text-blue-300">Médias soumis pour validation</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions AVANCÉES COMPLÈTES */}
                   <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-700">
                     {task.status === 'todo' && (
                       <>
@@ -393,7 +576,7 @@ const TasksPage = () => {
             <p className="text-gray-400 mb-6">
               {searchTerm || filterStatus !== 'all' 
                 ? 'Aucune tâche ne correspond à vos critères.'
-                : 'Commencez par créer votre première tâche.'}
+                : 'Commencez par créer votre première tâche avec fonctionnalités avancées.'}
             </p>
             <PremiumButton
               onClick={() => setShowCreateModal(true)}
@@ -421,7 +604,7 @@ const TasksPage = () => {
                   type="text"
                   value={newTaskTitle}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
-                  placeholder="Ex: Finaliser le rapport"
+                  placeholder="Ex: Créer vidéo de validation"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -433,7 +616,7 @@ const TasksPage = () => {
                 <textarea
                   value={newTaskDescription}
                   onChange={(e) => setNewTaskDescription(e.target.value)}
-                  placeholder="Décrivez la tâche..."
+                  placeholder="Prendre une vidéo pour prouver la réalisation..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 h-24"
                 />
               </div>
@@ -456,6 +639,31 @@ const TasksPage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ✅ MODALS AVANCÉES FONCTIONNELLES */}
+      {showSubmissionModal && selectedTask && (
+        <TaskSubmissionModal
+          isOpen={showSubmissionModal}
+          onClose={() => {
+            setShowSubmissionModal(false);
+            setSelectedTask(null);
+          }}
+          onSubmit={handleTaskSubmission}
+          task={selectedTask}
+        />
+      )}
+
+      {showAssignmentModal && selectedTask && (
+        <TaskAssignmentModal
+          isOpen={showAssignmentModal}
+          onClose={() => {
+            setShowAssignmentModal(false);
+            setSelectedTask(null);
+          }}
+          onAssignmentSuccess={handleTaskAssignment}
+          task={selectedTask}
+        />
       )}
     </PremiumLayout>
   );
