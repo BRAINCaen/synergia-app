@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/routing/AppRouter.jsx
-// ROUTER PRINCIPAL AVEC ROUTE LEADERBOARD CORRIGÉE
+// ROUTER AVEC NOUVELLE ROUTE ADMIN PERMISSIONS
 // ==========================================
 
 import React from 'react';
@@ -40,6 +40,9 @@ import CompleteAdminTestPage from '../../pages/CompleteAdminTestPage.jsx';
 // 🔧 CORRECTION: Importer LeaderboardPage au lieu de Leaderboard
 import LeaderboardPage from '../../pages/LeaderboardPage.jsx';
 
+// 🆕 NOUVELLE PAGE ADMIN - GESTION DES PERMISSIONS PAR RÔLE
+import AdminRolePermissionsPage from '../../pages/AdminRolePermissionsPage.jsx';
+
 // Composant de protection des routes
 const ProtectedRoute = ({ children }) => {
   const { user, isLoading } = useAuthStore();
@@ -47,10 +50,7 @@ const ProtectedRoute = ({ children }) => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Chargement...</p>
-        </div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white"></div>
       </div>
     );
   }
@@ -64,17 +64,22 @@ const ProtectedRoute = ({ children }) => {
 
 // Composant de protection des routes admin
 const AdminRoute = ({ children }) => {
-  const { user } = useAuthStore();
+  const { user, isLoading } = useAuthStore();
   
-  if (!isAdmin(user)) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center text-white">
-          <h1 className="text-2xl font-bold mb-4">Accès Refusé</h1>
-          <p className="text-gray-300">Vous n'avez pas les permissions d'administrateur.</p>
-        </div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white"></div>
       </div>
     );
+  }
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  if (!isAdmin(user)) {
+    return <Navigate to="/dashboard" replace />;
   }
   
   return children;
@@ -82,7 +87,7 @@ const AdminRoute = ({ children }) => {
 
 const AppRouter = () => {
   const { user } = useAuthStore();
-  
+
   return (
     <Routes>
       {/* Route de connexion */}
@@ -91,60 +96,82 @@ const AppRouter = () => {
         element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
       />
       
-      {/* Routes protégées avec layout */}
-      <Route path="/" element={
+      {/* Routes protégées */}
+      <Route element={
         <ProtectedRoute>
           <Layout />
         </ProtectedRoute>
       }>
-        {/* Redirection par défaut */}
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        
         {/* Pages principales */}
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="tasks" element={<TasksPage />} />
-        <Route path="projects" element={<ProjectsPage />} />
-        <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
         
-        {/* 🔧 CORRECTION: Utiliser LeaderboardPage au lieu de Leaderboard */}
-        <Route path="leaderboard" element={<LeaderboardPage />} />
-        <Route path="badges" element={<BadgesPage />} />
-        <Route path="gamification" element={<GamificationPage />} />
-        <Route path="rewards" element={<RewardsPage />} />
+        {/* Gamification */}
+        <Route path="/gamification" element={<GamificationPage />} />
+        <Route path="/badges" element={<BadgesPage />} />
+        <Route path="/leaderboard" element={<LeaderboardPage />} />
+        <Route path="/rewards" element={<RewardsPage />} />
         
-        {/* 🎯 ROUTES DE PROGRESSION - NOUVELLES ROUTES AJOUTÉES */}
-        <Route path="role/progression" element={<RoleProgressionPage />} />
-        <Route path="role/tasks" element={<RoleTasksPage />} />
-        <Route path="role/badges" element={<RoleBadgesPage />} />
+        {/* 🎯 ROUTES DE PROGRESSION DE RÔLE */}
+        <Route path="/role/progression" element={<RoleProgressionPage />} />
+        <Route path="/role/tasks" element={<RoleTasksPage />} />
+        <Route path="/role/badges" element={<RoleBadgesPage />} />
         
         {/* 🚀 NOUVELLE ROUTE ESCAPE PROGRESSION */}
-        <Route path="escape-progression" element={<EscapeProgressionPage />} />
+        <Route path="/escape-progression" element={<EscapeProgressionPage />} />
         
         {/* Équipe & Social */}
-        <Route path="team" element={<TeamPage />} />
-        <Route path="users" element={<UsersPage />} />
+        <Route path="/team" element={<TeamPage />} />
+        <Route path="/users" element={<UsersPage />} />
         
-        {/* Personnel */}
-        <Route path="profile" element={<ProfilePage />} />
-        <Route path="settings" element={<SettingsPage />} />
-        <Route path="onboarding" element={<OnboardingPage />} />
-        <Route path="timetrack" element={<TimeTrackPage />} />
+        {/* Profil & Paramètres */}
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         
-        {/* Routes admin protégées */}
-        <Route path="admin/task-validation" element={
-          <AdminRoute>
-            <AdminTaskValidationPage />
-          </AdminRoute>
-        } />
-        <Route path="admin/complete-test" element={
-          <AdminRoute>
-            <CompleteAdminTestPage />
-          </AdminRoute>
-        } />
+        {/* Fonctionnalités spécialisées */}
+        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/timetrack" element={<TimeTrackPage />} />
       </Route>
       
-      {/* Route de fallback */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      {/* 🛡️ Routes Admin protégées */}
+      <Route element={
+        <AdminRoute>
+          <Layout />
+        </AdminRoute>
+      }>
+        <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
+        <Route path="/admin/complete-test" element={<CompleteAdminTestPage />} />
+        
+        {/* 🆕 NOUVELLE ROUTE ADMIN - PERMISSIONS PAR RÔLE */}
+        <Route path="/admin/role-permissions" element={<AdminRolePermissionsPage />} />
+        
+        {/* Pages admin génériques (à créer si nécessaire) */}
+        <Route path="/admin/badges" element={<div className="p-8 text-white">Page Admin Badges - À développer</div>} />
+        <Route path="/admin/users" element={<div className="p-8 text-white">Page Admin Utilisateurs - À développer</div>} />
+        <Route path="/admin/analytics" element={<div className="p-8 text-white">Page Admin Analytics - À développer</div>} />
+        <Route path="/admin/settings" element={<div className="p-8 text-white">Page Admin Paramètres - À développer</div>} />
+      </Route>
+      
+      {/* Redirection par défaut */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      
+      {/* Page 404 */}
+      <Route path="*" element={
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-6xl font-bold text-white mb-4">404</h1>
+            <p className="text-gray-400 mb-8">Page non trouvée</p>
+            <button
+              onClick={() => window.location.href = '/dashboard'}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+            >
+              Retour au Dashboard
+            </button>
+          </div>
+        </div>
+      } />
     </Routes>
   );
 };
