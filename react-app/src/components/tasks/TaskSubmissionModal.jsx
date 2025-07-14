@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/tasks/TaskSubmissionModal.jsx
-// MODAL DE SOUMISSION COMPLÈTE AVEC SERVICE INTÉGRÉ
+// MODAL DE SOUMISSION AVEC GESTION CORS AMÉLIORÉE
 // ==========================================
 
 import React, { useState, useRef } from 'react';
@@ -19,7 +19,9 @@ import {
   Play,
   Image as ImageIcon,
   FileVideo,
-  Loader
+  Loader,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { taskValidationService } from '../../core/services/taskValidationService.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
@@ -133,7 +135,7 @@ const MediaPreview = ({ file, fileType, onRemove }) => {
 };
 
 /**
- * 📝 MODAL DE SOUMISSION DE TÂCHE POUR VALIDATION AVEC MÉDIAS
+ * 📝 MODAL DE SOUMISSION AVEC GESTION CORS
  */
 const TaskSubmissionModal = ({ 
   isOpen, 
@@ -148,6 +150,8 @@ const TaskSubmissionModal = ({
   const [fileType, setFileType] = useState(null);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [corsWarning, setCorsWarning] = useState(false);
+  const [submitWithoutMedia, setSubmitWithoutMedia] = useState(false);
   const fileInputRef = useRef(null);
 
   // Reset du formulaire à l'ouverture
@@ -157,6 +161,8 @@ const TaskSubmissionModal = ({
       setSelectedFile(null);
       setFileType(null);
       setError('');
+      setCorsWarning(false);
+      setSubmitWithoutMedia(false);
     }
   }, [isOpen]);
 
@@ -183,6 +189,7 @@ const TaskSubmissionModal = ({
     setSelectedFile(file);
     setFileType(isVideo ? 'video' : 'image');
     setError('');
+    setCorsWarning(false);
     
     console.log('📎 Fichier sélectionné:', {
       name: file.name,
@@ -194,6 +201,7 @@ const TaskSubmissionModal = ({
   const handleRemoveFile = () => {
     setSelectedFile(null);
     setFileType(null);
+    setCorsWarning(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -202,8 +210,8 @@ const TaskSubmissionModal = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!comment.trim() && !selectedFile) {
-      setError('Veuillez ajouter un commentaire ou une preuve (photo/vidéo)');
+    if (!comment.trim() && !selectedFile && !submitWithoutMedia) {
+      setError('Veuillez ajouter un commentaire ou une preuve (photo/vidéo), ou cocher "Soumettre sans média"');
       return;
     }
     
@@ -214,12 +222,14 @@ const TaskSubmissionModal = ({
     
     setSubmitting(true);
     setError('');
+    setCorsWarning(false);
     
     try {
       console.log('📝 Soumission validation tâche:', {
         taskId: task.id,
         userId: user.uid,
-        hasMedia: !!selectedFile
+        hasMedia: !!selectedFile,
+        submitWithoutMedia
       });
 
       // Préparer les données de validation
@@ -230,14 +240,27 @@ const TaskSubmissionModal = ({
         projectId: task.projectId,
         difficulty: task.difficulty || 'normal',
         comment: comment.trim(),
-        photoFile: selectedFile // Le service gère photo et vidéo
+        photoFile: fileType === 'image' ? selectedFile : null,
+        videoFile: fileType === 'video' ? selectedFile : null
       };
+
+      // Si l'utilisateur a choisi de soumettre sans média, on ne passe pas les fichiers
+      if (submitWithoutMedia) {
+        validationData.photoFile = null;
+        validationData.videoFile = null;
+      }
 
       // Soumettre la validation
       const result = await taskValidationService.submitTaskForValidation(validationData);
       
       if (result.success) {
         console.log('✅ Validation soumise avec succès:', result.validationId);
+        
+        // Vérifier s'il y a eu un problème CORS
+        if (result.corsWarning) {
+          setCorsWarning(true);
+          setError('⚠️ Problème d\'upload détecté - Validation soumise sans média');
+        }
         
         // Notifier le parent
         if (onSubmit) {
@@ -248,10 +271,12 @@ const TaskSubmissionModal = ({
           });
         }
         
-        // Message de succès temporaire
-        setTimeout(() => {
-          handleClose();
-        }, 1500);
+        // Fermer le modal après un délai si pas de problème CORS
+        if (!result.corsWarning) {
+          setTimeout(() => {
+            handleClose();
+          }, 1500);
+        }
         
       } else {
         setError('Erreur lors de la soumission');
@@ -259,7 +284,13 @@ const TaskSubmissionModal = ({
       
     } catch (error) {
       console.error('❌ Erreur soumission validation:', error);
-      setError(error.message || 'Erreur lors de la soumission');
+      
+      if (error.message.includes('CORS')) {
+        setCorsWarning(true);
+        setError('⚠️ Problème de connexion détecté. Vous pouvez soumettre sans média.');
+      } else {
+        setError(error.message || 'Erreur lors de la soumission');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -318,6 +349,12 @@ const TaskSubmissionModal = ({
                 </div>
               </div>
               
+              {/* Indicateur XP */}
+              <div className="flex items-center gap-2 bg-yellow-50 px-3 py-1 rounded-full">
+                <Trophy className="w-4 h-4 text-yellow-600" />
+                <span className="text-yellow-800 font-medium">+{expectedXP} XP</span>
+              </div>
+              
               <button
                 onClick={handleClose}
                 disabled={submitting}
@@ -330,11 +367,27 @@ const TaskSubmissionModal = ({
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             
+            {/* Alerte CORS */}
+            {corsWarning && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-start gap-3">
+                <WifiOff className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-orange-800 font-medium">Problème de connexion détecté</p>
+                  <p className="text-orange-700 text-sm mt-1">
+                    L'upload des médias rencontre des difficultés. Vous pouvez continuer sans fichier.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Message de succès */}
             {submitting && !error && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
                 <Loader className="w-5 h-5 text-blue-600 animate-spin" />
-                <p className="text-blue-800">Soumission en cours...</p>
+                <div>
+                  <p className="text-blue-800 font-medium">Soumission en cours...</p>
+                  <p className="text-blue-700 text-sm">Validation de votre travail</p>
+                </div>
               </div>
             )}
 
@@ -417,67 +470,68 @@ const TaskSubmissionModal = ({
                 {selectedFile && (
                   <div className="mt-3 text-center">
                     <p className="text-green-600 text-sm font-medium">
-                      ✅ Vérifiez que votre {fileType === 'video' ? 'fichier vidéo' : 'fichier image'} est lisible et de bonne qualité
+                      ✅ Vérifiez que votre {fileType === 'video' ? 'vidéo' : 'photo'} montre bien votre travail accompli
                     </p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Récompenses */}
-            <div className="bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex items-center gap-3 mb-2">
-                <Trophy className="w-5 h-5 text-yellow-600" />
-                <h3 className="font-medium text-yellow-800">Récompenses à la validation</h3>
+            {/* Option pour soumettre sans média en cas de problème */}
+            {(corsWarning || error.includes('CORS') || error.includes('connexion')) && (
+              <div className="bg-gray-50 rounded-lg p-4">
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={submitWithoutMedia}
+                    onChange={(e) => setSubmitWithoutMedia(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Soumettre sans média (en cas de problème de connexion)
+                  </span>
+                </label>
               </div>
+            )}
+
+            {/* Récompense */}
+            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4 border border-yellow-200">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1">
-                    <Zap className="w-4 h-4 text-yellow-600" />
-                    <span className="text-sm font-medium text-yellow-700">
-                      {expectedXP} XP
-                    </span>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-yellow-100 rounded-lg">
+                    <Trophy className="w-5 h-5 text-yellow-600" />
                   </div>
-                  {selectedFile && (
-                    <div className="flex items-center gap-1">
-                      <Trophy className="w-4 h-4 text-yellow-600" />
-                      <span className="text-sm font-medium text-yellow-700">
-                        +5 XP (bonus preuve)
-                      </span>
-                    </div>
-                  )}
+                  <div>
+                    <p className="font-medium text-gray-900">Récompense à la validation</p>
+                    <p className="text-sm text-gray-600">Une fois validé par un administrateur</p>
+                  </div>
                 </div>
-                <Clock className="w-4 h-4 text-yellow-600" />
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-yellow-600">+{expectedXP}</p>
+                  <p className="text-xs text-gray-600">XP</p>
+                </div>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            {/* Boutons */}
+            <div className="flex items-center justify-end gap-3 pt-4">
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={submitting}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Annuler
               </button>
               
               <button
                 type="submit"
-                disabled={submitting || (!comment.trim() && !selectedFile)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                disabled={submitting || (!comment.trim() && !selectedFile && !submitWithoutMedia)}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
-                {submitting ? (
-                  <>
-                    <Loader className="w-4 h-4 animate-spin" />
-                    <span>Soumission...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    <span>Soumettre pour validation</span>
-                  </>
-                )}
+                {submitting && <Loader className="w-4 h-4 animate-spin" />}
+                {submitting ? 'Soumission...' : 'Soumettre pour validation'}
+                {!submitting && <Send className="w-4 h-4" />}
               </button>
             </div>
           </form>
