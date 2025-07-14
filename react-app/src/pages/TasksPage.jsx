@@ -54,18 +54,19 @@ import {
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-// Modals et composants (imports conditionnels pour éviter les erreurs de build)
-let TaskSubmissionModal, TaskAssignmentModal, TaskForm;
+// ✅ IMPORTS DES COMPOSANTS AVANCÉS DÉVELOPPÉS
+import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
+import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal.jsx';
+import { taskValidationService } from '../core/services/taskValidationService.js';
+import { taskAssignmentService } from '../core/services/taskAssignmentService.js';
+
+// Import conditionnel pour TaskForm
+let TaskForm;
 try {
-  TaskSubmissionModal = require('../components/tasks/TaskSubmissionModal.jsx').default;
-  TaskAssignmentModal = require('../components/tasks/TaskAssignmentModal.jsx').default;
   TaskForm = require('../components/forms/TaskForm.jsx').default;
 } catch (error) {
-  console.warn('Certains composants de modal ne sont pas disponibles:', error.message);
-  // Composants fallback simples
-  TaskSubmissionModal = ({ isOpen, onClose }) => isOpen ? <div>Modal indisponible</div> : null;
-  TaskAssignmentModal = ({ isOpen, onClose }) => isOpen ? <div>Modal indisponible</div> : null;
-  TaskForm = ({ isOpen, onClose }) => isOpen ? <div>Formulaire indisponible</div> : null;
+  console.warn('TaskForm non disponible:', error.message);
+  TaskForm = ({ isOpen, onClose }) => isOpen ? <div>Formulaire non disponible</div> : null;
 }
 
 /**
@@ -259,17 +260,38 @@ const TasksPage = () => {
 
   const handleTaskSubmission = async (submissionData) => {
     try {
-      console.log('📝 Soumission tâche pour validation:', submissionData);
+      console.log('📝 Soumission tâche pour validation avec médias:', submissionData);
       
-      // Mettre à jour le statut de la tâche directement dans Firebase
-      const taskRef = doc(db, 'tasks', selectedTask.id);
-      await updateDoc(taskRef, {
-        status: 'validation_pending',
-        submittedAt: serverTimestamp(),
-        submissionData: submissionData
+      // ✅ UTILISER LE SERVICE AVANCÉ DE VALIDATION
+      const result = await taskValidationService.submitTaskForValidation({
+        taskId: selectedTask.id,
+        userId: user.uid,
+        taskTitle: selectedTask.title,
+        projectId: selectedTask.projectId,
+        difficulty: selectedTask.complexity || 'normal',
+        comment: submissionData.comment,
+        photoFile: submissionData.photoFile,
+        videoFile: submissionData.videoFile,
+        xpAmount: selectedTask.xpReward
       });
       
-      alert('✅ Tâche soumise pour validation avec succès !');
+      if (result.success) {
+        // Mettre à jour le statut de la tâche
+        const taskRef = doc(db, 'tasks', selectedTask.id);
+        await updateDoc(taskRef, {
+          status: 'validation_pending',
+          submittedAt: serverTimestamp(),
+          validationRequestId: result.validationId
+        });
+        
+        alert('✅ Tâche soumise pour validation avec succès !');
+        
+        // Afficher warning si problème CORS
+        if (result.corsWarning) {
+          alert('⚠️ Les médias n\'ont pas pu être uploadés, mais la validation a été soumise.');
+        }
+      }
+      
       setShowSubmissionModal(false);
       setSelectedTask(null);
     } catch (error) {
@@ -285,20 +307,41 @@ const TasksPage = () => {
 
   const handleTaskAssignment = async (assignmentData) => {
     try {
-      console.log('👥 Assignation tâche:', assignmentData);
+      console.log('👥 Assignation tâche avec répartition XP:', assignmentData);
       
-      const taskRef = doc(db, 'tasks', selectedTask.id);
-      await updateDoc(taskRef, {
-        assignedTo: assignmentData.assignedUserIds,
-        isMultipleAssignment: assignmentData.assignedUserIds?.length > 1,
-        assignmentCount: assignmentData.assignedUserIds?.length || 0,
-        status: 'assigned',
-        updatedAt: serverTimestamp()
-      });
+      // ✅ UTILISER LE SERVICE AVANCÉ D'ASSIGNATION
+      const result = await taskAssignmentService.assignTaskToMembers(
+        selectedTask.id,
+        assignmentData.assignedUserIds,
+        user.uid
+      );
       
-      alert(`✅ Tâche assignée avec succès !`);
-      setShowAssignmentModal(false);
-      setSelectedTask(null);
+      if (result.success) {
+        // Mettre à jour la tâche avec les données d'assignation complètes
+        const taskRef = doc(db, 'tasks', selectedTask.id);
+        await updateDoc(taskRef, {
+          assignedTo: assignmentData.assignedUserIds,
+          isMultipleAssignment: assignmentData.assignedUserIds.length > 1,
+          assignmentCount: assignmentData.assignedUserIds.length,
+          assignments: result.assignments, // Données détaillées d'assignation
+          status: 'assigned',
+          assignedAt: serverTimestamp(),
+          assignedBy: user.uid,
+          updatedAt: serverTimestamp()
+        });
+        
+        // Gérer la répartition des XP si assignation multiple
+        if (assignmentData.contributionPercentages && assignmentData.assignedUserIds.length > 1) {
+          await taskAssignmentService.updateContributionPercentages(
+            selectedTask.id, 
+            assignmentData.contributionPercentages
+          );
+        }
+        
+        alert(`✅ Tâche assignée à ${result.assignedCount} personne(s) avec répartition XP !`);
+        setShowAssignmentModal(false);
+        setSelectedTask(null);
+      }
     } catch (error) {
       console.error('❌ Erreur assignation:', error);
       alert('❌ Erreur lors de l\'assignation : ' + error.message);
@@ -550,7 +593,7 @@ const TasksPage = () => {
                     </div>
                   </div>
 
-                  {/* Actions */}
+                  {/* Actions avancées pour chaque tâche */}
                   <div className="flex items-center gap-2 pt-4 border-t border-gray-700">
                     {task.status === 'todo' && (
                       <PremiumButton
@@ -563,14 +606,36 @@ const TasksPage = () => {
                       </PremiumButton>
                     )}
                     
-                    {task.status === 'in_progress' && (
+                    {(task.status === 'in_progress' || task.status === 'in-progress') && (
+                      <>
+                        <PremiumButton
+                          size="sm"
+                          onClick={() => handleSubmitForValidation(task)}
+                          className="bg-purple-600 hover:bg-purple-700"
+                        >
+                          <Camera className="w-4 h-4 mr-1" />
+                          Soumettre
+                        </PremiumButton>
+                        
+                        <PremiumButton
+                          size="sm"
+                          onClick={() => handleStatusChange(task.id, 'completed')}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Terminer
+                        </PremiumButton>
+                      </>
+                    )}
+                    
+                    {task.status === 'todo' && (
                       <PremiumButton
                         size="sm"
-                        onClick={() => handleStatusChange(task.id, 'completed')}
-                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => handleAssignTask(task)}
+                        className="bg-orange-600 hover:bg-orange-700"
                       >
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        Terminer
+                        <UserPlus className="w-4 h-4 mr-1" />
+                        Assigner
                       </PremiumButton>
                     )}
                     
@@ -624,7 +689,7 @@ const TasksPage = () => {
         )}
       </div>
 
-      {/* Modals */}
+      {/* Modals avancés avec toutes les fonctionnalités */}
       {showTaskForm && (
         <TaskForm
           isOpen={showTaskForm}
@@ -640,20 +705,28 @@ const TasksPage = () => {
         />
       )}
 
-      {showSubmissionModal && (
+      {/* Modal de soumission avec upload photo/vidéo */}
+      {showSubmissionModal && selectedTask && (
         <TaskSubmissionModal
           isOpen={showSubmissionModal}
-          onClose={() => setShowSubmissionModal(false)}
+          onClose={() => {
+            setShowSubmissionModal(false);
+            setSelectedTask(null);
+          }}
           onSubmit={handleTaskSubmission}
           task={selectedTask}
         />
       )}
 
-      {showAssignmentModal && (
+      {/* Modal d'assignation avec répartition XP */}
+      {showAssignmentModal && selectedTask && (
         <TaskAssignmentModal
           isOpen={showAssignmentModal}
-          onClose={() => setShowAssignmentModal(false)}
-          onAssign={handleTaskAssignment}
+          onClose={() => {
+            setShowAssignmentModal(false);
+            setSelectedTask(null);
+          }}
+          onAssignmentSuccess={handleTaskAssignment}
           task={selectedTask}
         />
       )}
