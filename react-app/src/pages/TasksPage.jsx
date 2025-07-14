@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// TASKS PAGE COMPLÈTE AVEC TOUTES LES FONCTIONNALITÉS AVANCÉES
+// CORRECTION FIREBASE - DONNÉES PROPRES SANS UNDEFINED
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -50,7 +50,40 @@ import { taskValidationService } from '../core/services/taskValidationService.js
 import { taskAssignmentService } from '../core/services/taskAssignmentService.js';
 
 /**
- * ✅ TASKS PAGE AVEC TOUTES LES FONCTIONNALITÉS AVANCÉES RESTAURÉES
+ * ✅ FONCTION POUR NETTOYER LES DONNÉES FIREBASE
+ */
+const cleanFirebaseData = (data) => {
+  const cleaned = {};
+  
+  for (const [key, value] of Object.entries(data)) {
+    // Exclure les valeurs undefined et null
+    if (value !== undefined && value !== null) {
+      // Si c'est un objet, le nettoyer récursivement
+      if (typeof value === 'object' && !Array.isArray(value) && value.constructor === Object) {
+        const cleanedNested = cleanFirebaseData(value);
+        if (Object.keys(cleanedNested).length > 0) {
+          cleaned[key] = cleanedNested;
+        }
+      } 
+      // Si c'est un tableau, le nettoyer
+      else if (Array.isArray(value)) {
+        const cleanedArray = value.filter(item => item !== undefined && item !== null);
+        if (cleanedArray.length > 0) {
+          cleaned[key] = cleanedArray;
+        }
+      } 
+      // Valeur simple valide
+      else {
+        cleaned[key] = value;
+      }
+    }
+  }
+  
+  return cleaned;
+};
+
+/**
+ * ✅ TASKS PAGE AVEC DONNÉES FIREBASE PROPRES
  */
 const TasksPage = () => {
   const { user } = useAuthStore();
@@ -127,14 +160,14 @@ const TasksPage = () => {
     return () => unsubscribeUserTasks();
   }, [user?.uid]);
 
-  // ✅ CRÉATION TÂCHE SIMPLE
+  // ✅ CRÉATION TÂCHE AVEC DONNÉES PROPRES
   const handleCreateTask = async () => {
     if (!newTaskTitle.trim()) return;
 
     try {
-      await addDoc(collection(db, 'tasks'), {
-        title: newTaskTitle,
-        description: newTaskDescription,
+      const taskData = cleanFirebaseData({
+        title: newTaskTitle.trim(),
+        description: newTaskDescription.trim() || '',
         userId: user.uid,
         createdBy: user.uid,
         status: 'todo',
@@ -145,27 +178,32 @@ const TasksPage = () => {
         updatedAt: serverTimestamp()
       });
 
+      await addDoc(collection(db, 'tasks'), taskData);
+
       setNewTaskTitle('');
       setNewTaskDescription('');
       setShowCreateModal(false);
-      console.log('✅ Tâche créée');
+      console.log('✅ Tâche créée avec données propres');
     } catch (error) {
       console.error('❌ Erreur création:', error);
       alert('Erreur: ' + error.message);
     }
   };
 
-  // ✅ CHANGEMENT STATUT
+  // ✅ CHANGEMENT STATUT AVEC DONNÉES PROPRES
   const handleStatusChange = async (taskId, newStatus) => {
     try {
-      const taskRef = doc(db, 'tasks', taskId);
-      await updateDoc(taskRef, {
+      const updateData = cleanFirebaseData({
         status: newStatus,
         updatedAt: serverTimestamp()
       });
-      console.log('✅ Statut mis à jour');
+
+      const taskRef = doc(db, 'tasks', taskId);
+      await updateDoc(taskRef, updateData);
+      console.log('✅ Statut mis à jour avec données propres');
     } catch (error) {
       console.error('❌ Erreur statut:', error);
+      alert('Erreur changement statut: ' + error.message);
     }
   };
 
@@ -177,6 +215,7 @@ const TasksPage = () => {
         console.log('✅ Tâche supprimée');
       } catch (error) {
         console.error('❌ Erreur suppression:', error);
+        alert('Erreur suppression: ' + error.message);
       }
     }
   };
@@ -197,23 +236,25 @@ const TasksPage = () => {
         taskId: selectedTask.id,
         userId: user.uid,
         taskTitle: selectedTask.title,
-        projectId: selectedTask.projectId,
+        projectId: selectedTask.projectId || null,
         difficulty: selectedTask.complexity || 'normal',
-        comment: submissionData.comment,
-        photoFile: submissionData.photoFile,
-        videoFile: submissionData.videoFile,
-        xpAmount: selectedTask.xpReward
+        comment: submissionData.comment || '',
+        photoFile: submissionData.photoFile || null,
+        videoFile: submissionData.videoFile || null,
+        xpAmount: selectedTask.xpReward || 25
       });
       
       if (result.success) {
-        // Mise à jour Firebase
-        const taskRef = doc(db, 'tasks', selectedTask.id);
-        await updateDoc(taskRef, {
+        // ✅ MISE À JOUR FIREBASE AVEC DONNÉES PROPRES
+        const updateData = cleanFirebaseData({
           status: 'validation_pending',
           submittedAt: serverTimestamp(),
-          validationRequestId: result.validationId,
+          validationRequestId: result.validationId || null,
           hasSubmittedMedia: !!(submissionData.photoFile || submissionData.videoFile)
         });
+
+        const taskRef = doc(db, 'tasks', selectedTask.id);
+        await updateDoc(taskRef, updateData);
         
         alert('✅ Tâche soumise avec médias !');
         
@@ -249,25 +290,31 @@ const TasksPage = () => {
       );
       
       if (result.success) {
-        // Mise à jour Firebase avec données complètes
-        const taskRef = doc(db, 'tasks', selectedTask.id);
-        await updateDoc(taskRef, {
+        // ✅ MISE À JOUR FIREBASE AVEC DONNÉES PROPRES
+        const updateData = cleanFirebaseData({
           assignedTo: assignmentData.assignedUserIds || [],
           isMultipleAssignment: (assignmentData.assignedUserIds || []).length > 1,
           assignmentCount: (assignmentData.assignedUserIds || []).length,
-          assignments: result.assignments,
+          assignments: result.assignments || [],
           status: 'assigned',
           assignedAt: serverTimestamp(),
           assignedBy: user.uid,
           updatedAt: serverTimestamp()
         });
+
+        const taskRef = doc(db, 'tasks', selectedTask.id);
+        await updateDoc(taskRef, updateData);
         
         // Répartition XP si multiple
         if (assignmentData.contributionPercentages && assignmentData.assignedUserIds?.length > 1) {
-          await taskAssignmentService.updateContributionPercentages(
-            selectedTask.id, 
-            assignmentData.contributionPercentages
-          );
+          try {
+            await taskAssignmentService.updateContributionPercentages(
+              selectedTask.id, 
+              assignmentData.contributionPercentages
+            );
+          } catch (percentageError) {
+            console.warn('⚠️ Erreur pourcentages (continué quand même):', percentageError);
+          }
         }
         
         alert(`✅ Tâche assignée à ${result.assignedCount || 1} personne(s) !`);
@@ -345,7 +392,7 @@ const TasksPage = () => {
             </p>
             {tasks.length > 0 && (
               <p className="text-blue-400 text-sm mt-1">
-                ✅ {tasks.length} tâche(s) Firebase • {stats.validationPending} en validation
+                ✅ {tasks.length} tâche(s) Firebase • {stats.validationPending} en validation • Données propres
               </p>
             )}
           </div>
