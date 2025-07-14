@@ -1,581 +1,437 @@
 // ==========================================
 // 📁 react-app/src/pages/AnalyticsPage.jsx
-// CORRECTION DÉFINITIVE - Bug TypeError: n is not a function RÉSOLU
+// ANALYTICS PREMIUM AVEC DESIGN HARMONISÉ TEAM PAGE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { 
   BarChart3, 
   TrendingUp, 
-  TrendingDown, 
-  Target, 
-  Clock, 
-  Users,
+  Users, 
+  Target,
   Calendar,
-  Star,
-  RefreshCw,
-  Filter,
   Download,
+  Filter,
+  RefreshCw,
   Eye,
-  Zap,
-  Trophy,
-  Activity,
   CheckCircle2,
-  AlertCircle,
-  Gauge,
-  PieChart,
-  LineChart,
-  BarChart,
-  ArrowUp,
-  ArrowDown,
-  Minus,
+  Clock,
+  Star,
+  Brain,
   Rocket,
-  Brain
+  Award,
+  Activity,
+  PieChart,
+  LineChart
 } from 'lucide-react';
 
-// ✅ IMPORTS CORRIGÉS - Utiliser les stores directement
-import { useTaskStore } from '../shared/stores/taskStore.js';
-import { useProjectStore } from '../shared/stores/projectStore.js';
-import { useAuthStore } from '../shared/stores/authStore.js';
+// Layout et composants premium
+import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
 
+// Services et stores
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { analyticsService } from '../core/services/analyticsService.js';
+
+/**
+ * 📊 ANALYTICS PREMIUM REDESIGN
+ */
 const AnalyticsPage = () => {
   const { user } = useAuthStore();
   
-  // ✅ STORES CORRIGÉS - Utiliser les bonnes méthodes
-  const { 
-    tasks = [], 
-    loading: tasksLoading, 
-    loadUserTasks 
-  } = useTaskStore();
-  
-  const { 
-    projects = [], 
-    loading: projectsLoading, 
-    fetchUserProjects, 
-    loadUserProjects 
-  } = useProjectStore();
-  
-  // États locaux
-  const [loading, setLoading] = useState(true);
-  const [analytics, setAnalytics] = useState(null);
-  const [timeRange, setTimeRange] = useState('week');
+  const [analytics, setAnalytics] = useState({
+    totalTasks: 0,
+    completedTasks: 0,
+    completionRate: 0,
+    totalXP: 0,
+    activeProjects: 0,
+    totalProjects: 0,
+    productivity: 'medium',
+    trend: 'up'
+  });
+
+  const [timeRange, setTimeRange] = useState('week'); // week, month, quarter, year
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
-  const [error, setError] = useState(null);
 
-  // ✅ EFFET CORRIGÉ - Pas de dépendances qui changent en permanence
-  useEffect(() => {
-    if (user?.uid) {
-      loadAnalytics();
-    }
-  }, [user?.uid, timeRange]); // Seulement user.uid et timeRange
-
+  // Chargement des données analytics
   const loadAnalytics = async () => {
-    if (!user?.uid) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    
     try {
-      console.log('🔄 Chargement analytics...');
-      
-      // ✅ CHARGEMENT SÉCURISÉ - Utiliser les bonnes méthodes
-      const loadTasks = loadUserTasks && typeof loadUserTasks === 'function' 
-        ? loadUserTasks(user.uid) 
-        : Promise.resolve();
-        
-      const loadProjects = (fetchUserProjects && typeof fetchUserProjects === 'function')
-        ? fetchUserProjects(user.uid)
-        : (loadUserProjects && typeof loadUserProjects === 'function')
-        ? loadUserProjects(user.uid)
-        : Promise.resolve();
-
-      await Promise.all([loadTasks, loadProjects]);
-      
-      // ✅ CALCUL SÉCURISÉ - Après le chargement
-      const analyticsResult = calculateAnalytics();
-      setAnalytics(analyticsResult);
-      
-      console.log('✅ Analytics calculés:', analyticsResult);
-      
+      setLoading(true);
+      const data = await analyticsService.getOverallAnalytics();
+      setAnalytics(data);
     } catch (error) {
-      console.error('❌ Erreur chargement analytics:', error);
-      setError(error.message);
+      console.error('Erreur chargement analytics:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateAnalytics = () => {
-    try {
-      // ✅ VALIDATION STRICTE DES DONNÉES
-      const safeTasks = Array.isArray(tasks) ? tasks : [];
-      const safeProjects = Array.isArray(projects) ? projects : [];
-
-      console.log('🔍 Analytics - Tasks:', safeTasks.length, 'Projects:', safeProjects.length);
-
-      if (safeTasks.length === 0 && safeProjects.length === 0) {
-        return {
-          totalTasks: 0,
-          completedTasks: 0,
-          completionRate: 0,
-          totalProjects: 0,
-          activeProjects: 0,
-          completedProjects: 0,
-          totalXP: 0,
-          trend: 'stable',
-          productivity: 'low'
-        };
-      }
-
-      const now = new Date();
-      const getTimeRangeStart = () => {
-        switch (timeRange) {
-          case 'week':
-            return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          case 'month':
-            return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          case 'year':
-            return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-          default:
-            return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        }
-      };
-
-      const rangeStart = getTimeRangeStart();
-      
-      // ✅ FILTRAGE ULTRA-SÉCURISÉ
-      const filteredTasks = safeTasks.filter(task => {
-        if (!task) return false;
-        try {
-          const taskDate = task.createdAt?.toDate ? 
-            task.createdAt.toDate() : 
-            new Date(task.createdAt || task.updatedAt || now);
-          return taskDate >= rangeStart;
-        } catch (error) {
-          console.warn('Tâche avec date invalide:', task.id);
-          return true; // Inclure par défaut
-        }
-      });
-
-      const filteredProjects = safeProjects.filter(project => {
-        if (!project) return false;
-        try {
-          const projectDate = project.createdAt?.toDate ? 
-            project.createdAt.toDate() : 
-            new Date(project.createdAt || project.updatedAt || now);
-          return projectDate >= rangeStart;
-        } catch (error) {
-          console.warn('Projet avec date invalide:', project.id);
-          return true; // Inclure par défaut
-        }
-      });
-
-      // ✅ CALCULS TOTALEMENT SÉCURISÉS
-      const completedTasks = filteredTasks.filter(task => 
-        task && (task.status === 'completed' || task.status === 'done')
-      ).length;
-      
-      const totalTasks = filteredTasks.length;
-      const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-      const activeProjects = filteredProjects.filter(project => 
-        project && (project.status === 'active' || !project.status)
-      ).length;
-      
-      const completedProjects = filteredProjects.filter(project => 
-        project && project.status === 'completed'
-      ).length;
-      
-      const totalProjects = filteredProjects.length;
-
-      // ✅ CALCUL XP ULTRA-SÉCURISÉ
-      const totalXP = filteredTasks.reduce((sum, task) => {
-        if (!task) return sum;
-        const xp = task.xp || task.xpReward || task.points || 0;
-        const numericXP = typeof xp === 'number' ? xp : parseInt(xp) || 0;
-        return sum + numericXP;
-      }, 0);
-
-      // ✅ TENDANCE SÉCURISÉE
-      let trend = 'stable';
-      try {
-        const midPoint = new Date(rangeStart.getTime() + (now.getTime() - rangeStart.getTime()) / 2);
-        
-        const firstHalfCompleted = filteredTasks.filter(task => {
-          if (!task) return false;
-          try {
-            const taskDate = task.completedAt?.toDate ? 
-              task.completedAt.toDate() : 
-              new Date(task.completedAt || task.createdAt || now);
-            return taskDate < midPoint && (task.status === 'completed' || task.status === 'done');
-          } catch (error) {
-            return false;
-          }
-        }).length;
-        
-        const secondHalfCompleted = filteredTasks.filter(task => {
-          if (!task) return false;
-          try {
-            const taskDate = task.completedAt?.toDate ? 
-              task.completedAt.toDate() : 
-              new Date(task.completedAt || task.createdAt || now);
-            return taskDate >= midPoint && (task.status === 'completed' || task.status === 'done');
-          } catch (error) {
-            return false;
-          }
-        }).length;
-
-        if (secondHalfCompleted > firstHalfCompleted) {
-          trend = 'up';
-        } else if (secondHalfCompleted < firstHalfCompleted) {
-          trend = 'down';
-        }
-      } catch (error) {
-        console.warn('Erreur calcul tendance:', error);
-        trend = 'stable';
-      }
-
-      const result = {
-        totalTasks,
-        completedTasks,
-        completionRate,
-        totalProjects,
-        activeProjects,
-        completedProjects,
-        totalXP,
-        trend,
-        productivity: completionRate > 70 ? 'high' : completionRate > 40 ? 'medium' : 'low'
-      };
-
-      console.log('✅ Analytics calculés avec succès:', result);
-      return result;
-
-    } catch (error) {
-      console.error('❌ Erreur critique dans calculateAnalytics:', error);
-      // ✅ FALLBACK GARANTI
-      return {
-        totalTasks: 0,
-        completedTasks: 0,
-        completionRate: 0,
-        totalProjects: 0,
-        activeProjects: 0,
-        completedProjects: 0,
-        totalXP: 0,
-        trend: 'stable',
-        productivity: 'low'
-      };
-    }
-  };
-
+  // Actualisation des données
   const handleRefresh = async () => {
     setRefreshing(true);
-    try {
-      await loadAnalytics();
-    } catch (error) {
-      console.error('Erreur refresh:', error);
-    } finally {
-      setRefreshing(false);
-    }
+    await loadAnalytics();
+    setRefreshing(false);
   };
 
-  const getMetricColor = (value, type) => {
-    switch (type) {
-      case 'completion':
-        return value > 70 ? 'text-green-400' : value > 40 ? 'text-yellow-400' : 'text-red-400';
-      case 'productivity':
-        return value === 'high' ? 'text-green-400' : value === 'medium' ? 'text-yellow-400' : 'text-red-400';
-      default:
-        return 'text-blue-400';
-    }
-  };
+  useEffect(() => {
+    loadAnalytics();
+  }, [timeRange]);
 
+  // Statistiques pour le header
+  const headerStats = [
+    {
+      label: "Tâches totales",
+      value: analytics.totalTasks,
+      icon: CheckCircle2,
+      color: "text-blue-400",
+      iconColor: "text-blue-400"
+    },
+    {
+      label: "Taux de réussite",
+      value: `${analytics.completionRate}%`,
+      icon: Target,
+      color: "text-green-400",
+      iconColor: "text-green-400"
+    },
+    {
+      label: "XP total",
+      value: analytics.totalXP,
+      icon: Star,
+      color: "text-yellow-400",
+      iconColor: "text-yellow-400"
+    },
+    {
+      label: "Projets actifs",
+      value: analytics.activeProjects,
+      icon: Rocket,
+      color: "text-purple-400",
+      iconColor: "text-purple-400"
+    }
+  ];
+
+  // Actions du header
+  const headerActions = (
+    <>
+      <div className="flex items-center space-x-2">
+        <select 
+          value={timeRange}
+          onChange={(e) => setTimeRange(e.target.value)}
+          className="bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="week">Cette semaine</option>
+          <option value="month">Ce mois</option>
+          <option value="quarter">Ce trimestre</option>
+          <option value="year">Cette année</option>
+        </select>
+      </div>
+      
+      <PremiumButton 
+        variant="secondary" 
+        size="md"
+        icon={Download}
+      >
+        Exporter
+      </PremiumButton>
+      
+      <PremiumButton 
+        variant="primary" 
+        size="md"
+        icon={RefreshCw}
+        loading={refreshing}
+        onClick={handleRefresh}
+      >
+        {refreshing ? 'Actualisation...' : 'Actualiser'}
+      </PremiumButton>
+    </>
+  );
+
+  // Fonction pour obtenir l'icône de tendance
   const getTrendIcon = (trend) => {
-    switch (trend) {
-      case 'up':
-        return <ArrowUp className="w-4 h-4 text-green-400" />;
-      case 'down':
-        return <ArrowDown className="w-4 h-4 text-red-400" />;
-      default:
-        return <Minus className="w-4 h-4 text-gray-400" />;
+    switch(trend) {
+      case 'up': return <TrendingUp className="w-4 h-4 text-green-400" />;
+      case 'down': return <TrendingUp className="w-4 h-4 text-red-400 rotate-180" />;
+      default: return <Activity className="w-4 h-4 text-gray-400" />;
     }
   };
 
-  // ✅ GESTION D'ÉTATS AMÉLIORÉE
-  if (loading || tasksLoading || projectsLoading) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Chargement des analytics...</p>
-          <p className="text-gray-500 text-sm mt-2">Analyse en cours...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-xl font-semibold text-white mb-2">Erreur de chargement</h2>
-          <p className="text-gray-400 mb-4">{error}</p>
-          <button 
-            onClick={handleRefresh}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            🔄 Réessayer
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!analytics) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">📊</div>
-          <h2 className="text-xl font-semibold text-white mb-2">Analytics indisponibles</h2>
-          <p className="text-gray-400 mb-4">Aucune donnée à analyser</p>
-          <button 
-            onClick={handleRefresh}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            🔄 Charger les données
-          </button>
-        </div>
-      </div>
+      <PremiumLayout
+        title="Analytics"
+        subtitle="Chargement des données analytiques..."
+        icon={BarChart3}
+      >
+        <PremiumCard className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-400">Analyse des données en cours...</p>
+        </PremiumCard>
+      </PremiumLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              📊 Analytics
-            </h1>
-            <p className="text-gray-400 mt-1">Tableau de bord des performances</p>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <select 
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-              className="px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-blue-500 outline-none"
-            >
-              <option value="week">7 derniers jours</option>
-              <option value="month">30 derniers jours</option>
-              <option value="year">Cette année</option>
-            </select>
-            
-            <button 
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              {refreshing ? 'Actualisation...' : 'Actualiser'}
-            </button>
-          </div>
-        </div>
-
-        {/* Métriques principales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          
-          {/* Tâches */}
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-gray-400">Tâches totales</h3>
-              <CheckCircle2 className="w-5 h-5 text-blue-400" />
-            </div>
-            <div className="text-3xl font-bold text-white mb-1">{analytics.totalTasks}</div>
-            <p className="text-sm text-gray-400">
-              {analytics.completedTasks} terminées ({analytics.completionRate}%)
-            </p>
-          </div>
-
-          {/* Projets */}
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-gray-400">Projets actifs</h3>
-              <Rocket className="w-5 h-5 text-green-400" />
-            </div>
-            <div className="text-3xl font-bold text-white mb-1">{analytics.activeProjects}</div>
-            <p className="text-sm text-gray-400">
-              {analytics.totalProjects} au total
-            </p>
-          </div>
-
-          {/* XP Total */}
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-gray-400">XP total</h3>
-              <Star className="w-5 h-5 text-yellow-400" />
-            </div>
-            <div className="text-3xl font-bold text-white mb-1">{analytics.totalXP}</div>
-            <p className="text-sm text-gray-400">
-              Points d'expérience
-            </p>
-          </div>
-
-          {/* Productivité */}
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-gray-400">Productivité</h3>
-              <Brain className="w-5 h-5 text-purple-400" />
-            </div>
-            <div className="text-3xl font-bold text-white mb-1 capitalize">
-              {analytics.productivity === 'high' ? 'Élevée' : 
-               analytics.productivity === 'medium' ? 'Moyenne' : 'Faible'}
-            </div>
-            <div className="flex items-center gap-2">
-              {getTrendIcon(analytics.trend)}
-              <span className="text-sm text-gray-400 capitalize">
-                {analytics.trend === 'up' ? 'En amélioration' : 
-                 analytics.trend === 'down' ? 'En baisse' : 'Stable'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation des onglets */}
-        <div className="flex items-center gap-4 mb-6">
-          {['overview', 'tasks', 'projects', 'performance'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-lg transition-colors capitalize ${
-                activeTab === tab
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:text-white'
-              }`}
-            >
-              {tab === 'overview' ? 'Vue d\'ensemble' :
-               tab === 'tasks' ? 'Tâches' :
-               tab === 'projects' ? 'Projets' : 'Performance'}
-            </button>
-          ))}
-        </div>
-
-        {/* Contenu des onglets */}
-        {activeTab === 'overview' && (
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
-            <h3 className="text-xl font-bold text-white mb-4">Vue d'ensemble</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Taux de réussite global</span>
-                <span className={`font-bold ${getMetricColor(analytics.completionRate, 'completion')}`}>
-                  {analytics.completionRate}%
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Tendance</span>
-                <div className="flex items-center gap-2">
-                  {getTrendIcon(analytics.trend)}
-                  <span className="text-white capitalize">
-                    {analytics.trend === 'up' ? 'En amélioration' : 
-                     analytics.trend === 'down' ? 'En baisse' : 'Stable'}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Période analysée</span>
-                <span className="text-white">
-                  {timeRange === 'week' ? '7 derniers jours' : 
-                   timeRange === 'month' ? '30 derniers jours' : 'Cette année'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Productivité</span>
-                <span className={`font-bold capitalize ${getMetricColor(analytics.productivity, 'productivity')}`}>
-                  {analytics.productivity === 'high' ? 'Élevée' : 
-                   analytics.productivity === 'medium' ? 'Moyenne' : 'Faible'}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'tasks' && (
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
-            <h3 className="text-xl font-bold text-white mb-4">Analyse des tâches</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-blue-400">{analytics.totalTasks}</div>
-                <div className="text-gray-400">Total</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-400">{analytics.completedTasks}</div>
-                <div className="text-gray-400">Terminées</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-yellow-400">{analytics.totalTasks - analytics.completedTasks}</div>
-                <div className="text-gray-400">En cours</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'projects' && (
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
-            <h3 className="text-xl font-bold text-white mb-4">Analyse des projets</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-purple-400">{analytics.totalProjects}</div>
-                <div className="text-gray-400">Total</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-blue-400">{analytics.activeProjects}</div>
-                <div className="text-gray-400">Actifs</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-400">{analytics.completedProjects}</div>
-                <div className="text-gray-400">Terminés</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'performance' && (
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
-            <h3 className="text-xl font-bold text-white mb-4">Performance</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Productivité</span>
-                <span className={`font-bold capitalize ${getMetricColor(analytics.productivity, 'productivity')}`}>
-                  {analytics.productivity === 'high' ? 'Élevée' : 
-                   analytics.productivity === 'medium' ? 'Moyenne' : 'Faible'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">XP moyen par tâche</span>
-                <span className="text-white">
-                  {analytics.completedTasks > 0 ? Math.round(analytics.totalXP / analytics.completedTasks) : 0} XP
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Évolution</span>
-                <div className="flex items-center gap-2">
-                  {getTrendIcon(analytics.trend)}
-                  <span className="text-white">
-                    {analytics.trend === 'up' ? 'En amélioration' : 
-                     analytics.trend === 'down' ? 'En baisse' : 'Stable'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+    <PremiumLayout
+      title="Analytics"
+      subtitle="Analyse approfondie de vos performances et métriques"
+      icon={BarChart3}
+      headerActions={headerActions}
+      showStats={true}
+      stats={headerStats}
+    >
+      
+      {/* 📈 Section métriques détaillées */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <StatCard
+          title="Productivité"
+          value={analytics.productivity === 'high' ? 'Élevée' : 
+                 analytics.productivity === 'medium' ? 'Moyenne' : 'Faible'}
+          icon={Brain}
+          color="purple"
+          trend={getTrendIcon(analytics.trend)}
+        />
+        <StatCard
+          title="Temps moyen/tâche"
+          value="2.4h"
+          icon={Clock}
+          color="blue"
+          trend="⏱️ Optimisé"
+        />
+        <StatCard
+          title="Score qualité"
+          value="4.7/5"
+          icon={Award}
+          color="green"
+          trend="🏆 Excellent"
+        />
+        <StatCard
+          title="Collaboration"
+          value="8.5/10"
+          icon={Users}
+          color="indigo"
+          trend="🤝 Très active"
+        />
       </div>
-    </div>
+
+      {/* 📊 Section principale - Charts et données */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Colonne principale - Graphiques */}
+        <div className="lg:col-span-2 space-y-6">
+          
+          {/* Évolution des performances */}
+          <PremiumCard>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">Évolution des performances</h3>
+              <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1 text-sm text-gray-400">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <span>Tâches complétées</span>
+                </div>
+                <div className="flex items-center space-x-1 text-sm text-gray-400">
+                  <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                  <span>XP gagné</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Simulation d'un graphique */}
+            <div className="bg-gray-800/30 rounded-lg p-6 h-64 flex items-center justify-center">
+              <div className="text-center text-gray-400">
+                <LineChart className="w-16 h-16 mx-auto mb-4 text-gray-600" />
+                <p className="text-lg font-medium">Graphique d'évolution</p>
+                <p className="text-sm">Performances sur {timeRange === 'week' ? '7 jours' : timeRange === 'month' ? '30 jours' : timeRange === 'quarter' ? '3 mois' : '12 mois'}</p>
+                <div className="mt-4 grid grid-cols-7 gap-1 max-w-sm mx-auto">
+                  {Array.from({length: 7}).map((_, i) => (
+                    <div key={i} className="space-y-1">
+                      <div 
+                        className="bg-blue-500 rounded-sm mx-auto transition-all duration-300"
+                        style={{ 
+                          width: '12px',
+                          height: `${Math.random() * 40 + 20}px`
+                        }}
+                      ></div>
+                      <div 
+                        className="bg-purple-500 rounded-sm mx-auto transition-all duration-300"
+                        style={{ 
+                          width: '12px',
+                          height: `${Math.random() * 30 + 15}px`
+                        }}
+                      ></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </PremiumCard>
+
+          {/* Distribution des tâches */}
+          <PremiumCard>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">Distribution des tâches</h3>
+              <PremiumButton variant="ghost" size="sm" icon={Eye}>
+                Détails
+              </PremiumButton>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <div className="text-2xl font-bold text-green-400">{analytics.completedTasks}</div>
+                <div className="text-sm text-green-300">Terminées</div>
+                <div className="text-xs text-gray-400 mt-1">{analytics.completionRate}%</div>
+              </div>
+              <div className="text-center p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <div className="text-2xl font-bold text-blue-400">12</div>
+                <div className="text-sm text-blue-300">En cours</div>
+                <div className="text-xs text-gray-400 mt-1">32%</div>
+              </div>
+              <div className="text-center p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                <div className="text-2xl font-bold text-yellow-400">5</div>
+                <div className="text-sm text-yellow-300">En attente</div>
+                <div className="text-xs text-gray-400 mt-1">13%</div>
+              </div>
+              <div className="text-center p-4 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                <div className="text-2xl font-bold text-purple-400">3</div>
+                <div className="text-sm text-purple-300">Bloquées</div>
+                <div className="text-xs text-gray-400 mt-1">8%</div>
+              </div>
+            </div>
+          </PremiumCard>
+
+          {/* Métriques de temps */}
+          <PremiumCard>
+            <h3 className="text-xl font-bold text-white mb-6">Analyse temporelle</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Temps total */}
+              <div className="text-center">
+                <div className="bg-gray-800/50 rounded-lg p-4">
+                  <Clock className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-white">142h</div>
+                  <div className="text-sm text-gray-400">Temps total</div>
+                  <div className="text-xs text-blue-400 mt-1">Cette période</div>
+                </div>
+              </div>
+              
+              {/* Temps moyen */}
+              <div className="text-center">
+                <div className="bg-gray-800/50 rounded-lg p-4">
+                  <Target className="w-8 h-8 text-green-400 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-white">2.4h</div>
+                  <div className="text-sm text-gray-400">Temps moyen/tâche</div>
+                  <div className="text-xs text-green-400 mt-1">-12% vs mois dernier</div>
+                </div>
+              </div>
+              
+              {/* Efficacité */}
+              <div className="text-center">
+                <div className="bg-gray-800/50 rounded-lg p-4">
+                  <TrendingUp className="w-8 h-8 text-purple-400 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-white">87%</div>
+                  <div className="text-sm text-gray-400">Efficacité</div>
+                  <div className="text-xs text-purple-400 mt-1">+5% cette semaine</div>
+                </div>
+              </div>
+            </div>
+          </PremiumCard>
+        </div>
+
+        {/* Colonne secondaire - Insights et actions */}
+        <div className="space-y-6">
+          
+          {/* Top performers */}
+          <PremiumCard>
+            <h3 className="text-xl font-bold text-white mb-4">Top performers</h3>
+            <div className="space-y-3">
+              {[
+                { name: "Alice Martin", score: 95, change: "+8%" },
+                { name: "Vous", score: 87, change: "+12%", isUser: true },
+                { name: "Marc Dubois", score: 82, change: "+3%" },
+                { name: "Sophie Chen", score: 79, change: "-2%" }
+              ].map((member, index) => (
+                <div key={index} className={`flex items-center justify-between p-3 rounded-lg ${
+                  member.isUser ? 'bg-blue-500/20 border border-blue-500/30' : 'bg-gray-800/30'
+                }`}>
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                      index === 0 ? 'bg-yellow-500 text-yellow-900' :
+                      index === 1 ? 'bg-gray-300 text-gray-800' :
+                      index === 2 ? 'bg-amber-600 text-amber-100' :
+                      'bg-gray-600 text-gray-200'
+                    }`}>
+                      {index + 1}
+                    </div>
+                    <div>
+                      <div className={`font-medium ${member.isUser ? 'text-blue-400' : 'text-white'}`}>
+                        {member.name}
+                      </div>
+                      <div className="text-xs text-gray-400">Score: {member.score}%</div>
+                    </div>
+                  </div>
+                  <div className={`text-sm font-medium ${
+                    member.change.startsWith('+') ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {member.change}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </PremiumCard>
+
+          {/* Insights & recommandations */}
+          <PremiumCard>
+            <h3 className="text-xl font-bold text-white mb-4">Insights</h3>
+            <div className="space-y-4">
+              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <TrendingUp className="w-5 h-5 text-green-400 mt-0.5" />
+                  <div>
+                    <div className="text-green-400 font-medium text-sm">Performance en hausse</div>
+                    <div className="text-gray-300 text-xs">Votre productivité a augmenté de 15% cette semaine</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <Clock className="w-5 h-5 text-blue-400 mt-0.5" />
+                  <div>
+                    <div className="text-blue-400 font-medium text-sm">Temps optimisé</div>
+                    <div className="text-gray-300 text-xs">Vos tâches prennent 20min de moins en moyenne</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <Target className="w-5 h-5 text-purple-400 mt-0.5" />
+                  <div>
+                    <div className="text-purple-400 font-medium text-sm">Objectif proche</div>
+                    <div className="text-gray-300 text-xs">Plus que 150 XP pour le niveau suivant</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </PremiumCard>
+
+          {/* Actions rapides */}
+          <PremiumCard>
+            <h3 className="text-xl font-bold text-white mb-4">Actions rapides</h3>
+            <div className="space-y-3">
+              <PremiumButton variant="outline" size="sm" className="w-full" icon={Download}>
+                Exporter rapport PDF
+              </PremiumButton>
+              <PremiumButton variant="outline" size="sm" className="w-full" icon={Calendar}>
+                Programmer rapport
+              </PremiumButton>
+              <PremiumButton variant="outline" size="sm" className="w-full" icon={Users}>
+                Partager avec équipe
+              </PremiumButton>
+            </div>
+          </PremiumCard>
+        </div>
+      </div>
+    </PremiumLayout>
   );
 };
 
