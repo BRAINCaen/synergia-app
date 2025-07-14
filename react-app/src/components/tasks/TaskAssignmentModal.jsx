@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/tasks/TaskAssignmentModal.jsx
-// MODAL D'ASSIGNATION MULTIPLE AVEC POURCENTAGES
+// CORRECTION PARAMÈTRES D'ASSIGNATION
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -20,7 +20,7 @@ import { taskAssignmentService } from '../../core/services/taskAssignmentService
 import { useAuthStore } from '../../shared/stores/authStore.js';
 
 /**
- * 👥 MODAL D'ASSIGNATION MULTIPLE DE TÂCHES
+ * 👥 MODAL D'ASSIGNATION MULTIPLE CORRIGÉE
  */
 const TaskAssignmentModal = ({ 
   isOpen, 
@@ -64,111 +64,161 @@ const TaskAssignmentModal = ({
     }
   };
 
-  // Supprimer la fonction de filtrage car on affiche tout
-  // const filteredMembers = availableMembers; // Tous les membres sont affichés
-
   // Gérer la sélection d'un membre
   const toggleMemberSelection = (member) => {
-    const isSelected = selectedMembers.some(m => m.id === member.id);
-    
-    if (isSelected) {
-      // Retirer le membre
-      setSelectedMembers(prev => prev.filter(m => m.id !== member.id));
-      setContributions(prev => {
-        const newContribs = { ...prev };
-        delete newContribs[member.id];
-        return redistributeContributions(newContribs);
-      });
-    } else {
-      // Ajouter le membre
-      setSelectedMembers(prev => [...prev, member]);
-      setContributions(prev => redistributeContributions({ ...prev, [member.id]: 0 }));
-    }
-  };
-
-  // Redistribuer automatiquement les pourcentages
-  const redistributeContributions = (currentContribs) => {
-    const memberIds = Object.keys(currentContribs);
-    if (memberIds.length === 0) return {};
-    
-    const equalShare = Math.floor(100 / memberIds.length);
-    const remainder = 100 - (equalShare * memberIds.length);
-    
-    const newContribs = {};
-    memberIds.forEach((id, index) => {
-      newContribs[id] = equalShare + (index < remainder ? 1 : 0);
+    setSelectedMembers(prev => {
+      const isSelected = prev.find(m => m.id === member.id);
+      let newSelection;
+      
+      if (isSelected) {
+        // Désélectionner
+        newSelection = prev.filter(m => m.id !== member.id);
+        // Supprimer la contribution
+        const newContributions = { ...contributions };
+        delete newContributions[member.id];
+        setContributions(newContributions);
+      } else {
+        // Sélectionner
+        newSelection = [...prev, member];
+      }
+      
+      // Réinitialiser les contributions quand la sélection change
+      if (newSelection.length > 1) {
+        const equalPercentage = Math.floor(100 / newSelection.length);
+        const newContributions = {};
+        newSelection.forEach((m, index) => {
+          if (index === newSelection.length - 1) {
+            // Le dernier membre récupère le reste pour atteindre 100%
+            newContributions[m.id] = 100 - (equalPercentage * (newSelection.length - 1));
+          } else {
+            newContributions[m.id] = equalPercentage;
+          }
+        });
+        setContributions(newContributions);
+      } else {
+        setContributions({});
+      }
+      
+      return newSelection;
     });
-    
-    return newContribs;
-  };
-
-  // Mettre à jour manuellement un pourcentage
-  const updateContribution = (memberId, percentage) => {
-    const numericValue = Math.max(0, Math.min(100, parseInt(percentage) || 0));
-    setContributions(prev => ({
-      ...prev,
-      [memberId]: numericValue
-    }));
   };
 
   // Calculer le total des pourcentages
   const getTotalPercentage = () => {
-    return Object.values(contributions).reduce((sum, pct) => sum + pct, 0);
+    return Object.values(contributions).reduce((sum, val) => sum + (val || 0), 0);
   };
 
-  // Égaliser automatiquement les pourcentages
+  // Égaliser les contributions
   const equalizeContributions = () => {
-    setContributions(redistributeContributions(contributions));
+    if (selectedMembers.length === 0) return;
+    
+    const equalPercentage = Math.floor(100 / selectedMembers.length);
+    const newContributions = {};
+    
+    selectedMembers.forEach((member, index) => {
+      if (index === selectedMembers.length - 1) {
+        // Le dernier membre récupère le reste
+        newContributions[member.id] = 100 - (equalPercentage * (selectedMembers.length - 1));
+      } else {
+        newContributions[member.id] = equalPercentage;
+      }
+    });
+    
+    setContributions(newContributions);
   };
 
-  // Valider et soumettre l'assignation
+  // Mettre à jour une contribution individuelle
+  const updateContribution = (memberId, value) => {
+    const numValue = parseInt(value) || 0;
+    const clampedValue = Math.max(0, Math.min(100, numValue));
+    
+    setContributions(prev => ({
+      ...prev,
+      [memberId]: clampedValue
+    }));
+  };
+
+  // Gérer la soumission
   const handleSubmitAssignment = async () => {
+    // Validation des paramètres
+    if (!task || !task.id) {
+      setError('Tâche invalide');
+      return;
+    }
+
     if (selectedMembers.length === 0) {
       setError('Veuillez sélectionner au moins un membre');
       return;
     }
 
-    if (step === 1) {
+    // Si étape 1 et sélection multiple, passer à l'étape 2
+    if (step === 1 && selectedMembers.length > 1) {
       setStep(2);
       return;
     }
 
-    // Validation finale
-    const totalPercentage = getTotalPercentage();
-    if (Math.abs(totalPercentage - 100) > 0.01) {
-      setError(`Les pourcentages doivent totaliser 100% (actuellement: ${totalPercentage}%)`);
+    // Validation des pourcentages pour assignation multiple
+    if (selectedMembers.length > 1 && getTotalPercentage() !== 100) {
+      setError('Les pourcentages doivent totaliser 100%');
       return;
     }
 
+    setSubmitting(true);
+    setError('');
+
     try {
-      setSubmitting(true);
-      setError('');
-      
-      console.log('🎯 Soumission assignation:', {
+      console.log('🎯 Soumission assignation corrigée:', {
         taskId: task.id,
-        selectedMembers: selectedMembers.map(m => m.id),
-        contributions
+        selectedMembers: selectedMembers.map(m => ({ id: m.id, name: m.name })),
+        contributions,
+        totalPercentage: getTotalPercentage()
       });
 
-      // Assigner la tâche
+      // ✅ PARAMÈTRES CORRIGÉS
+      const assignmentData = {
+        taskId: task.id,
+        assignedUserIds: selectedMembers.map(m => m.id), // ✅ Array d'IDs
+        contributionPercentages: selectedMembers.length > 1 ? contributions : null, // ✅ Null si un seul membre
+        assignedBy: user.uid
+      };
+
+      // Validation finale avant envoi
+      if (!assignmentData.assignedUserIds || assignmentData.assignedUserIds.length === 0) {
+        throw new Error('Aucun membre sélectionné');
+      }
+
+      // Assigner la tâche avec le service
       const result = await taskAssignmentService.assignTaskToMembers(
         task.id,
-        selectedMembers.map(m => m.id),
+        assignmentData.assignedUserIds,
         user.uid
       );
 
-      // Mettre à jour les pourcentages si nécessaire
-      if (selectedMembers.length > 1) {
-        await taskAssignmentService.updateContributionPercentages(task.id, contributions);
+      // Gérer les pourcentages si assignation multiple
+      if (selectedMembers.length > 1 && contributions) {
+        try {
+          await taskAssignmentService.updateContributionPercentages(task.id, contributions);
+          console.log('✅ Pourcentages mis à jour');
+        } catch (percentageError) {
+          console.warn('⚠️ Erreur mise à jour pourcentages:', percentageError);
+          // Continuer quand même, l'assignation principale a réussi
+        }
       }
 
       console.log('✅ Assignation réussie:', result);
       
+      // ✅ SUCCÈS - Notifier le parent avec données corrigées
       if (onAssignmentSuccess) {
-        onAssignmentSuccess(result);
+        onAssignmentSuccess({
+          ...assignmentData,
+          success: true,
+          assignedCount: assignmentData.assignedUserIds.length,
+          assignments: result.assignments || []
+        });
       }
       
-      onClose();
+      // Fermer le modal
+      handleClose();
       
     } catch (error) {
       console.error('❌ Erreur assignation:', error);
@@ -180,6 +230,8 @@ const TaskAssignmentModal = ({
 
   // Reset lors de la fermeture
   const handleClose = () => {
+    if (submitting) return;
+    
     setSelectedMembers([]);
     setContributions({});
     setError('');
@@ -214,7 +266,7 @@ const TaskAssignmentModal = ({
                   <Users className="w-6 h-6 text-blue-600" />
                   Assigner la tâche
                 </h2>
-                <p className="text-gray-600 mt-1">"{task.title}"</p>
+                <p className="text-gray-600 mt-1">"{task?.title}"</p>
               </div>
               
               <div className="flex items-center gap-4">
@@ -291,68 +343,47 @@ const TaskAssignmentModal = ({
                   </div>
                 )}
 
-                {/* Liste des membres - TOUS AFFICHÉS */}
+                {/* Liste des membres */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
                   {loading ? (
-                    <div className="col-span-full text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                      <p className="text-gray-600">Chargement des membres...</p>
+                    <div className="col-span-2 text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                      <p className="text-gray-600 mt-2">Chargement des membres...</p>
                     </div>
                   ) : availableMembers.length === 0 ? (
-                    <div className="col-span-full text-center py-8">
-                      <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <div className="col-span-2 text-center py-8">
+                      <Users className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                       <p className="text-gray-600">Aucun membre disponible</p>
                     </div>
                   ) : (
                     availableMembers.map(member => {
-                      const isSelected = selectedMembers.some(m => m.id === member.id);
+                      const isSelected = selectedMembers.find(m => m.id === member.id);
                       
                       return (
                         <div
                           key={member.id}
                           onClick={() => toggleMemberSelection(member)}
-                          className={`p-4 border-2 rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                          className={`p-4 border rounded-lg cursor-pointer transition-all ${
                             isSelected 
                               ? 'border-blue-500 bg-blue-50 shadow-md' 
-                              : 'border-gray-200 hover:border-gray-300'
+                              : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                           }`}
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="relative">
-                                {member.avatar ? (
-                                  <img
-                                    src={member.avatar}
-                                    alt={member.name}
-                                    className="w-12 h-12 rounded-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                                    <span className="text-white font-medium">
-                                      {member.name.charAt(0).toUpperCase()}
-                                    </span>
-                                  </div>
-                                )}
-                                
-                                {isSelected && (
-                                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                                    <Check className="w-4 h-4 text-white" />
-                                  </div>
-                                )}
-                              </div>
-                              
-                              <div className="min-w-0 flex-1">
-                                <p className="font-medium text-gray-900 truncate">{member.name}</p>
-                                <p className="text-sm text-gray-600 truncate">{member.email}</p>
-                              </div>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+                              isSelected ? 'bg-blue-600' : 'bg-gray-400'
+                            }`}>
+                              {isSelected ? <Check className="w-5 h-5" /> : member.name.charAt(0)}
                             </div>
-                            
-                            <div className="text-right flex-shrink-0 ml-2">
-                              <div className="flex items-center gap-1 text-xs text-gray-600">
-                                <Trophy className="w-3 h-3" />
-                                <span>Niv. {member.level}</span>
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900">{member.name}</div>
+                              <div className="text-sm text-gray-600">{member.email}</div>
+                              <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
+                                <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                                  Niveau {member.level}
+                                </span>
+                                <span>{member.totalXp} XP</span>
                               </div>
-                              <p className="text-xs text-gray-500">{member.totalXp} XP</p>
                             </div>
                           </div>
                         </div>
@@ -375,7 +406,7 @@ const TaskAssignmentModal = ({
                       <h3 className="font-medium text-yellow-900">Répartition des XP</h3>
                       <p className="text-yellow-800 text-sm mt-1">
                         Les XP seront distribués selon les pourcentages définis ci-dessous. 
-                        Total XP de la tâche : <strong>+{task.xpReward || 25} XP</strong>
+                        Total XP de la tâche : <strong>+{task?.xpReward || 25} XP</strong>
                       </p>
                     </div>
                   </div>
@@ -405,40 +436,36 @@ const TaskAssignmentModal = ({
                 <div className="space-y-4">
                   {selectedMembers.map(member => {
                     const percentage = contributions[member.id] || 0;
-                    const xpAmount = Math.round((task.xpReward || 25) * (percentage / 100));
+                    const xpAmount = Math.round((task?.xpReward || 25) * (percentage / 100));
                     
                     return (
-                      <div key={member.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
+                      <div key={member.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                            {member.name.charAt(0)}
+                          </div>
                           
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                              <span className="text-white font-medium text-sm">
-                                {member.name.charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                            
-                            <div>
-                              <p className="font-medium text-gray-900">{member.name}</p>
-                              <p className="text-sm text-gray-600">{member.email}</p>
-                            </div>
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900">{member.name}</div>
+                            <div className="text-sm text-gray-600">{member.email}</div>
                           </div>
                           
                           <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={percentage}
-                                onChange={(e) => updateContribution(member.id, e.target.value)}
-                                className="w-16 px-2 py-1 border border-gray-300 rounded text-center focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              />
-                              <Percent className="w-4 h-4 text-gray-400" />
-                            </div>
-                            
                             <div className="text-right">
-                              <p className="font-medium text-green-600">+{xpAmount} XP</p>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={percentage}
+                                  onChange={(e) => updateContribution(member.id, e.target.value)}
+                                  className="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm"
+                                />
+                                <Percent className="w-4 h-4 text-gray-400" />
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                = {xpAmount} XP
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -449,10 +476,10 @@ const TaskAssignmentModal = ({
               </div>
             )}
 
-            {/* Erreur */}
+            {/* Affichage d'erreur */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+              <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-red-800 font-medium">Erreur</p>
                   <p className="text-red-700 text-sm">{error}</p>
@@ -461,10 +488,9 @@ const TaskAssignmentModal = ({
             )}
           </div>
 
-          {/* Footer */}
-          <div className="p-6 border-t border-gray-200">
+          {/* Footer avec actions */}
+          <div className="p-6 border-t border-gray-200 bg-gray-50">
             <div className="flex items-center justify-between">
-              
               <div className="text-sm text-gray-600">
                 {step === 1 ? (
                   selectedMembers.length > 0 ? (
