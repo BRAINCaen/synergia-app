@@ -1,14 +1,14 @@
 # ==========================================
 # 📁 netlify.toml
-# Configuration Netlify CORRIGÉE - Build fix définitif
+# Configuration Netlify CORRIGÉE - Résolution erreur package-lock.json
 # ==========================================
 
 [build]
   # Répertoire de base pour le build
   base = "react-app"
   
-  # 🚀 COMMANDE BUILD CORRIGÉE - Installation simple et efficace
-  command = "npm ci && npm run build"
+  # 🚀 CORRECTION : Utiliser npm install au lieu de npm ci
+  command = "npm install && npm run build"
   
   # Répertoire à publier (VITE génère dans 'dist', pas 'build')
   publish = "dist"
@@ -68,12 +68,12 @@
 
 # 🚀 CONTEXTES SIMPLIFIÉS - Build plus rapide
 [context.production]
-  command = "npm ci && npm run build"
+  command = "npm install && npm run build"
   [context.production.environment]
     NODE_ENV = "production"
 
 [context.deploy-preview]
-  command = "npm ci && npm run build"
+  command = "npm install && npm run build"
 
 [context.branch-deploy]
-  command = "npm ci && npm run build"
+  command = "npm install && npm run build"
