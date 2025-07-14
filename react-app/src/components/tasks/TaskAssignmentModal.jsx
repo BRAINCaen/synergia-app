@@ -8,7 +8,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
   Users, 
-  Search, 
   Check, 
   User, 
   Trophy,
@@ -35,7 +34,6 @@ const TaskAssignmentModal = ({
   const [availableMembers, setAvailableMembers] = useState([]);
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [contributions, setContributions] = useState({});
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -66,11 +64,8 @@ const TaskAssignmentModal = ({
     }
   };
 
-  // Filtrer les membres selon la recherche
-  const filteredMembers = availableMembers.filter(member =>
-    member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Supprimer la fonction de filtrage car on affiche tout
+  // const filteredMembers = availableMembers; // Tous les membres sont affichés
 
   // Gérer la sélection d'un membre
   const toggleMemberSelection = (member) => {
@@ -187,7 +182,6 @@ const TaskAssignmentModal = ({
   const handleClose = () => {
     setSelectedMembers([]);
     setContributions({});
-    setSearchTerm('');
     setError('');
     setStep(1);
     onClose();
@@ -260,16 +254,14 @@ const TaskAssignmentModal = ({
             {step === 1 && (
               <div className="space-y-6">
                 
-                {/* Barre de recherche */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher des membres..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                {/* Header de sélection */}
+                <div className="text-center mb-4">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Sélectionnez les membres à assigner
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Cliquez sur les membres que vous souhaitez assigner à cette tâche
+                  </p>
                 </div>
 
                 {/* Membres sélectionnés */}
@@ -299,29 +291,29 @@ const TaskAssignmentModal = ({
                   </div>
                 )}
 
-                {/* Liste des membres */}
-                <div className="space-y-2">
+                {/* Liste des membres - TOUS AFFICHÉS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
                   {loading ? (
-                    <div className="text-center py-8">
+                    <div className="col-span-full text-center py-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
                       <p className="text-gray-600">Chargement des membres...</p>
                     </div>
-                  ) : filteredMembers.length === 0 ? (
-                    <div className="text-center py-8">
+                  ) : availableMembers.length === 0 ? (
+                    <div className="col-span-full text-center py-8">
                       <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">Aucun membre trouvé</p>
+                      <p className="text-gray-600">Aucun membre disponible</p>
                     </div>
                   ) : (
-                    filteredMembers.map(member => {
+                    availableMembers.map(member => {
                       const isSelected = selectedMembers.some(m => m.id === member.id);
                       
                       return (
                         <div
                           key={member.id}
                           onClick={() => toggleMemberSelection(member)}
-                          className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                          className={`p-4 border-2 rounded-lg cursor-pointer transition-all hover:shadow-md ${
                             isSelected 
-                              ? 'border-blue-500 bg-blue-50' 
+                              ? 'border-blue-500 bg-blue-50 shadow-md' 
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
@@ -332,32 +324,32 @@ const TaskAssignmentModal = ({
                                   <img
                                     src={member.avatar}
                                     alt={member.name}
-                                    className="w-10 h-10 rounded-full object-cover"
+                                    className="w-12 h-12 rounded-full object-cover"
                                   />
                                 ) : (
-                                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                                    <span className="text-white font-medium text-sm">
+                                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                    <span className="text-white font-medium">
                                       {member.name.charAt(0).toUpperCase()}
                                     </span>
                                   </div>
                                 )}
                                 
                                 {isSelected && (
-                                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
-                                    <Check className="w-3 h-3 text-white" />
+                                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                                    <Check className="w-4 h-4 text-white" />
                                   </div>
                                 )}
                               </div>
                               
-                              <div>
-                                <p className="font-medium text-gray-900">{member.name}</p>
-                                <p className="text-sm text-gray-600">{member.email}</p>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-gray-900 truncate">{member.name}</p>
+                                <p className="text-sm text-gray-600 truncate">{member.email}</p>
                               </div>
                             </div>
                             
-                            <div className="text-right">
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <Trophy className="w-4 h-4" />
+                            <div className="text-right flex-shrink-0 ml-2">
+                              <div className="flex items-center gap-1 text-xs text-gray-600">
+                                <Trophy className="w-3 h-3" />
                                 <span>Niv. {member.level}</span>
                               </div>
                               <p className="text-xs text-gray-500">{member.totalXp} XP</p>
