@@ -98,19 +98,50 @@ const Layout = () => {
     ]
   };
 
-  // 🛡️ MENU ADMIN COMPLET
+  // 🛡️ MENU ADMIN COMPLET - TOUTES LES PAGES ADMIN
   const adminItems = user?.role === 'admin' || user?.isAdmin ? [
     { 
-      id: 'admin-task-validation', 
+      id: 'admin-validation-taches', 
       path: ROUTES.ADMIN_TASK_VALIDATION, 
       label: 'Validation Tâches', 
-      icon: CheckSquare 
+      icon: CheckSquare,
+      badge: '👑'
     },
     { 
-      id: 'admin-complete-test', 
-      path: ROUTES.ADMIN_COMPLETE_TEST, 
-      label: 'Test Complet', 
-      icon: Shield 
+      id: 'admin-gestion-badges', 
+      path: '/admin/badges', 
+      label: 'Gestion Badges', 
+      icon: Medal,
+      badge: '👑'
+    },
+    { 
+      id: 'admin-gestion-utilisateurs', 
+      path: '/admin/users', 
+      label: 'Gestion Utilisateurs', 
+      icon: Users,
+      badge: '👑'
+    },
+    { 
+      id: 'admin-analytics', 
+      path: '/admin/analytics', 
+      label: 'Analytics Admin', 
+      icon: BarChart3,
+      badge: '👑'
+    },
+    { 
+      id: 'admin-permissions-role', 
+      path: '/admin/role-permissions', 
+      label: 'Permissions par Rôle', 
+      icon: Shield,
+      badge: 'Nouveau',
+      isNew: true
+    },
+    { 
+      id: 'admin-parametres-systeme', 
+      path: '/admin/settings', 
+      label: 'Paramètres Système', 
+      icon: Settings,
+      badge: '👑'
     }
   ] : [];
 
@@ -165,15 +196,30 @@ const Layout = () => {
                     key={item.id}
                     onClick={() => navigate(item.path)}
                     className={`
-                      w-full flex items-center space-x-3 px-4 py-2 rounded-lg text-left transition-colors
+                      w-full flex items-center justify-between px-4 py-2 rounded-lg text-left transition-colors
                       ${isActivePath(item.path) 
                         ? 'bg-blue-600 text-white' 
                         : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                       }
                     `}
                   >
-                    <item.icon className="w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
+                    <div className="flex items-center space-x-3">
+                      <item.icon className="w-5 h-5" />
+                      <span className="font-medium">{item.label}</span>
+                    </div>
+                    
+                    {/* Badge pour les éléments admin */}
+                    {item.badge && (
+                      <span className={`
+                        px-2 py-1 text-xs rounded-full font-medium
+                        ${item.isNew 
+                          ? 'bg-green-500/20 text-green-400' 
+                          : 'bg-yellow-500/20 text-yellow-400'
+                        }
+                      `}>
+                        {item.badge}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
