@@ -28,6 +28,34 @@ const ProjectForm = ({ project, onClose, onSave }) => {
   
   const [errors, setErrors] = useState({});
 
+  // Options pour les statuts
+  const statusOptions = [
+    { value: 'active', label: 'Actif' },
+    { value: 'on-hold', label: 'En pause' },
+    { value: 'completed', label: 'Terminé' },
+    { value: 'cancelled', label: 'Annulé' }
+  ];
+
+  // Options pour les priorités
+  const priorityOptions = [
+    { value: 'low', label: 'Basse' },
+    { value: 'medium', label: 'Moyenne' },
+    { value: 'high', label: 'Haute' },
+    { value: 'urgent', label: 'Urgente' }
+  ];
+
+  // Options pour les catégories
+  const categoryOptions = [
+    { value: 'web', label: 'Développement Web' },
+    { value: 'mobile', label: 'Application Mobile' },
+    { value: 'design', label: 'Design & UX' },
+    { value: 'marketing', label: 'Marketing' },
+    { value: 'research', label: 'Recherche & Développement' },
+    { value: 'internal', label: 'Projet Interne' },
+    { value: 'client', label: 'Projet Client' },
+    { value: 'other', label: 'Autre' }
+  ];
+
   // Initialiser le formulaire
   useEffect(() => {
     if (project) {
@@ -98,68 +126,49 @@ const ProjectForm = ({ project, onClose, onSave }) => {
         startDate: formData.startDate ? new Date(formData.startDate) : null,
         dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
         expectedDuration: formData.expectedDuration ? parseInt(formData.expectedDuration) : null,
-        userId: user.uid,
+        createdBy: user?.uid,
         updatedAt: new Date()
       };
 
       if (project) {
+        // Mise à jour
         await updateProject(project.id, projectData);
       } else {
-        projectData.createdAt = new Date();
-        projectData.progress = 0;
+        // Création
         await createProject(projectData);
       }
 
-      onSave?.();
-      onClose();
+      if (onSave) {
+        onSave();
+      }
+      
+      if (onClose) {
+        onClose();
+      }
     } catch (error) {
-      console.error('Erreur sauvegarde projet:', error);
-      setErrors({ submit: 'Erreur lors de la sauvegarde. Veuillez réessayer.' });
+      console.error('Erreur lors de la sauvegarde du projet:', error);
+      setErrors({ submit: 'Une erreur est survenue lors de la sauvegarde' });
     }
   };
 
-  const statusOptions = [
-    { value: 'active', label: 'Actif', color: 'text-green-400' },
-    { value: 'on_hold', label: 'En pause', color: 'text-yellow-400' },
-    { value: 'completed', label: 'Terminé', color: 'text-blue-400' },
-    { value: 'cancelled', label: 'Annulé', color: 'text-red-400' }
-  ];
-
-  const priorityOptions = [
-    { value: 'low', label: 'Faible', color: 'text-green-400' },
-    { value: 'medium', label: 'Moyenne', color: 'text-yellow-400' },
-    { value: 'high', label: 'Haute', color: 'text-red-400' }
-  ];
-
-  const categoryOptions = [
-    { value: 'development', label: 'Développement' },
-    { value: 'design', label: 'Design' },
-    { value: 'marketing', label: 'Marketing' },
-    { value: 'research', label: 'Recherche' },
-    { value: 'maintenance', label: 'Maintenance' },
-    { value: 'other', label: 'Autre' }
-  ];
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700">
-        
-        {/* En-tête */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <h2 className="text-xl font-semibold text-white flex items-center">
-            <Target className="mr-2" size={20} />
-            {project ? 'Modifier le projet' : 'Nouveau projet'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <X size={24} />
-          </button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-white">
+              {project ? 'Modifier le projet' : 'Nouveau projet'}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              <X size={24} />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          
           {/* Titre */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -261,8 +270,8 @@ const ProjectForm = ({ project, onClose, onSave }) => {
             {/* Date de fin */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Calendar size={16} className="inline mr-1" />
-                Date d'échéance
+                <Target size={16} className="inline mr-1" />
+                Date de fin
               </label>
               <input
                 type="date"
@@ -351,4 +360,6 @@ const ProjectForm = ({ project, onClose, onSave }) => {
   );
 };
 
+// 🔧 CORRECTION CRITIQUE : Export nommé ET export par défaut
+export { ProjectForm };
 export default ProjectForm;
