@@ -1,79 +1,101 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx
-// TASK CARD COMPLÈTE AVEC BOUTON DE VALIDATION INTÉGRÉ
+// CARTE DE TÂCHE AVEC SYNTAXE CORRIGÉE
 // ==========================================
 
 import React, { useState } from 'react';
-import { Calendar, Clock, Flag, User, CheckCircle, XCircle, Edit, Trash2, Award, X } from 'lucide-react';
+import { 
+  Calendar, 
+  Clock, 
+  User, 
+  Edit, 
+  Trash2, 
+  Flag,
+  CheckCircle,
+  AlertTriangle,
+  Tag
+} from 'lucide-react';
+import SubmitTaskButton from './SubmitTaskButton.jsx';
 
-// 🔧 CORRECTION : Imports avec chemins corrects
-import { useTaskStore } from '../../shared/stores/taskStore.js';
-import { useAuthStore } from '../../shared/stores/authStore.js';
-import SubmitTaskButton from '../../components/tasks/SubmitTaskButton.jsx';
+/**
+ * 🎯 CARTE D'AFFICHAGE D'UNE TÂCHE
+ */
+const TaskCard = ({ 
+  task, 
+  onEdit, 
+  onDelete, 
+  onStatusChange,
+  showProject = false,
+  compact = false 
+}) => {
+  const [submissionSuccess, setSubmissionSuccess] = useState(false);
 
-export const TaskCard = ({ task, onEdit, onDelete, showProject = false }) => {
-  const { updateTask } = useTaskStore();
-  const { user } = useAuthStore();
-  const [isUpdating, setIsUpdating] = useState(false);
-
-  // Fonction pour marquer comme terminé/non terminé (garde l'ancienne logique en backup)
-  const handleToggleComplete = async () => {
-    if (isUpdating) return;
+  // Gestionnaire de succès de soumission
+  const handleSubmissionSuccess = () => {
+    setSubmissionSuccess(true);
+    if (onStatusChange) {
+      onStatusChange(task);
+    }
     
-    setIsUpdating(true);
-    try {
-      const newStatus = task.status === 'completed' ? 'todo' : 'completed';
-      await updateTask(task.id, { 
-        status: newStatus,
-        completedAt: newStatus === 'completed' ? new Date() : null
-      });
-    } catch (error) {
-      console.error('Erreur mise à jour tâche:', error);
-    } finally {
-      setIsUpdating(false);
-    }
+    // Reset après animation
+    setTimeout(() => {
+      setSubmissionSuccess(false);
+    }, 2000);
   };
 
-  // Gérer le succès de soumission
-  const handleSubmissionSuccess = (result) => {
-    console.log('✅ Soumission réussie:', result);
-    // Recharger les données si nécessaire
-    // Ou mettre à jour l'état local
-  };
-
+  // Obtenir la couleur selon la priorité
   const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'high': return 'border-red-500 bg-red-900/20';
-      case 'medium': return 'border-yellow-500 bg-yellow-900/20';
-      case 'low': return 'border-green-500 bg-green-900/20';
-      default: return 'border-gray-500 bg-gray-900/20';
+    switch(priority) {
+      case 'urgent':
+        return 'border-red-600 bg-red-900/20';
+      case 'high':
+        return 'border-red-500 bg-red-800/20';
+      case 'medium':
+        return 'border-yellow-500 bg-yellow-800/20';
+      case 'low':
+        return 'border-green-500 bg-green-800/20';
+      default:
+        return 'border-gray-600 bg-gray-800/20';
     }
   };
 
+  // Obtenir la couleur selon le statut
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'text-green-400';
-      case 'validation_pending': return 'text-orange-400';
-      case 'rejected': return 'text-red-400';
-      case 'in_progress': return 'text-blue-400';
-      case 'todo': return 'text-gray-400';
-      default: return 'text-gray-400';
+    switch(status) {
+      case 'completed':
+        return 'text-green-400';
+      case 'in_progress':
+        return 'text-blue-400';
+      case 'validation_pending':
+        return 'text-yellow-400';
+      case 'rejected':
+        return 'text-red-400';
+      case 'todo':
+      default:
+        return 'text-gray-400';
     }
   };
 
+  // Obtenir le texte du statut
   const getStatusText = (status) => {
-    switch (status) {
-      case 'completed': return 'Validée';
-      case 'validation_pending': return 'En validation';
-      case 'rejected': return 'Rejetée';
-      case 'in_progress': return 'En cours';
-      case 'todo': return 'À faire';
-      default: return 'Inconnu';
+    switch(status) {
+      case 'completed':
+        return 'Terminée';
+      case 'in_progress':
+        return 'En cours';
+      case 'validation_pending':
+        return 'En validation';
+      case 'rejected':
+        return 'Rejetée';
+      case 'todo':
+      default:
+        return 'À faire';
     }
   };
 
+  // Formater une date
   const formatDate = (date) => {
-    if (!date) return '';
+    if (!date) return 'N/A';
     const dateObj = date.toDate ? date.toDate() : new Date(date);
     return dateObj.toLocaleDateString('fr-FR', {
       day: '2-digit',
@@ -88,46 +110,8 @@ export const TaskCard = ({ task, onEdit, onDelete, showProject = false }) => {
 
   return (
     <div className={`bg-gray-800 border-l-4 ${getPriorityColor(task.priority)} rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow`}>
-      {/* Actions */}
-      <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-700">
-        
-        {/* Boutons d'action à gauche */}
-        <div className="flex space-x-2">
-          {onEdit && (
-            <button
-              onClick={() => onEdit(task)}
-              className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition-colors"
-              title="Modifier la tâche"
-            >
-              <Edit size={16} />
-            </button>
-          )}
-          
-          {onDelete && (
-            <button
-              onClick={() => onDelete(task)}
-              className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg transition-colors"
-              title="Supprimer la tâche"
-            >
-              <Trash2 size={16} />
-            </button>
-          )}
-        </div>
-
-        {/* Bouton de soumission pour validation à droite */}
-        <div className="flex-shrink-0">
-          <SubmitTaskButton 
-            task={task}
-            onSubmissionSuccess={handleSubmissionSuccess}
-            size="default"
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default TaskCard; En-tête avec titre et statut */}
+      
+      {/* En-tête avec titre et statut */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <h3 className="text-lg font-semibold text-white mb-2 leading-tight">
@@ -247,4 +231,43 @@ export default TaskCard; En-tête avec titre et statut */}
         </div>
       </div>
 
-      {/*
+      {/* Actions */}
+      <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-700">
+        
+        {/* Boutons d'action à gauche */}
+        <div className="flex space-x-2">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(task)}
+              className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition-colors"
+              title="Modifier la tâche"
+            >
+              <Edit size={16} />
+            </button>
+          )}
+          
+          {onDelete && (
+            <button
+              onClick={() => onDelete(task)}
+              className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg transition-colors"
+              title="Supprimer la tâche"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+
+        {/* Bouton de soumission pour validation à droite */}
+        <div className="flex-shrink-0">
+          <SubmitTaskButton 
+            task={task}
+            onSubmissionSuccess={handleSubmissionSuccess}
+            size="default"
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TaskCard;
