@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/layouts/PremiumLayout.jsx
-// LAYOUT PREMIUM COMMUN POUR TOUTES LES PAGES SYNERGIA
+// LAYOUT PREMIUM SIMPLE ET FONCTIONNEL
 // ==========================================
 
 import React from 'react';
@@ -8,12 +8,12 @@ import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
 
 /**
- * 🎨 LAYOUT PREMIUM COMMUN - Style Team Page pour toutes les pages
+ * 🎨 LAYOUT PREMIUM SIMPLE
  */
 const PremiumLayout = ({ 
   children, 
-  title, 
-  subtitle, 
+  title = "Page", 
+  subtitle = "", 
   icon: Icon,
   headerActions = null,
   className = "",
@@ -24,7 +24,7 @@ const PremiumLayout = ({
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
       <div className="max-w-7xl mx-auto">
         
-        {/* 🎯 Header Premium unifié */}
+        {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -33,7 +33,7 @@ const PremiumLayout = ({
         >
           <div className="flex items-center justify-between mb-6">
             
-            {/* Titre avec icône et gradient */}
+            {/* Titre avec icône */}
             <div className="flex items-center space-x-4">
               {Icon && (
                 <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -60,7 +60,7 @@ const PremiumLayout = ({
             )}
           </div>
 
-          {/* Statistiques optionnelles */}
+          {/* Statistiques */}
           {showStats && stats.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               {stats.map((stat, index) => (
@@ -69,17 +69,15 @@ const PremiumLayout = ({
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.4, delay: index * 0.1 }}
-                  className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700"
+                  className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className={`text-2xl font-bold ${stat.color || 'text-white'}`}>
-                        {stat.value}
-                      </div>
-                      <div className="text-gray-400 text-sm">{stat.label}</div>
+                      <p className="text-gray-400 text-sm">{stat.label}</p>
+                      <p className="text-2xl font-bold text-white">{stat.value}</p>
                     </div>
                     {stat.icon && (
-                      <stat.icon className={`w-6 h-6 ${stat.iconColor || 'text-gray-400'}`} />
+                      <stat.icon className={`w-6 h-6 ${stat.color || 'text-blue-400'}`} />
                     )}
                   </div>
                 </motion.div>
@@ -88,12 +86,12 @@ const PremiumLayout = ({
           )}
         </motion.div>
 
-        {/* 📄 Contenu principal avec animation */}
+        {/* Contenu */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className={`space-y-6 ${className}`}
+          className={className}
         >
           {children}
         </motion.div>
@@ -103,37 +101,29 @@ const PremiumLayout = ({
 };
 
 /**
- * 🎴 CARD PREMIUM RÉUTILISABLE
+ * 🎴 CARTE PREMIUM
  */
 export const PremiumCard = ({ 
   children, 
-  className = "", 
-  hover = true, 
-  gradient = false,
+  className = "",
+  hover = true,
   ...props 
 }) => {
-  const baseClasses = gradient 
-    ? "bg-gradient-to-br from-gray-800/60 to-gray-900/60" 
-    : "bg-gray-800/50";
-    
-  const hoverClasses = hover 
-    ? "hover:bg-gray-800/70 hover:scale-[1.02] hover:shadow-xl" 
-    : "";
-
   return (
     <motion.div
-      whileHover={hover ? { y: -2 } : {}}
+      whileHover={hover ? { scale: 1.02 } : {}}
       transition={{ duration: 0.2 }}
       className={`
-        ${baseClasses}
+        bg-gray-800/50 
         backdrop-blur-sm 
-        rounded-xl 
-        p-6 
         border 
-        border-gray-700/50
+        border-gray-700/50 
+        rounded-lg 
+        p-6 
+        shadow-lg
+        ${hover ? 'hover:shadow-xl' : ''}
         transition-all 
         duration-300
-        ${hoverClasses}
         ${className}
       `}
       {...props}
@@ -144,7 +134,7 @@ export const PremiumCard = ({
 };
 
 /**
- * 🔘 BUTTON PREMIUM RÉUTILISABLE
+ * 🎯 BOUTON PREMIUM
  */
 export const PremiumButton = ({ 
   children, 
@@ -156,34 +146,32 @@ export const PremiumButton = ({
   ...props 
 }) => {
   const variants = {
-    primary: "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg",
+    primary: "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white",
     secondary: "bg-gray-700 hover:bg-gray-600 text-white border border-gray-600",
-    outline: "border-2 border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white",
-    ghost: "text-gray-400 hover:text-white hover:bg-gray-800"
+    outline: "border border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white"
   };
-
+  
   const sizes = {
-    sm: "px-3 py-1.5 text-sm",
-    md: "px-4 py-2 text-base",
+    sm: "px-3 py-2 text-sm",
+    md: "px-4 py-2",
     lg: "px-6 py-3 text-lg"
   };
 
   return (
     <motion.button
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
       className={`
-        ${variants[variant]}
+        ${variants[variant]} 
         ${sizes[size]}
         rounded-lg 
         font-medium 
-        transition-all 
-        duration-200 
         flex 
         items-center 
-        space-x-2
-        disabled:opacity-50 
-        disabled:cursor-not-allowed
+        space-x-2 
+        transition-all 
+        duration-200
+        disabled:opacity-50
         ${className}
       `}
       disabled={loading}
@@ -200,7 +188,7 @@ export const PremiumButton = ({
 };
 
 /**
- * 📊 STAT CARD PREMIUM
+ * 📊 STAT CARD
  */
 export const StatCard = ({ 
   title, 
@@ -215,8 +203,7 @@ export const StatCard = ({
     purple: "from-purple-500 to-purple-600 text-purple-100",
     green: "from-green-500 to-green-600 text-green-100",
     yellow: "from-yellow-500 to-yellow-600 text-yellow-100",
-    red: "from-red-500 to-red-600 text-red-100",
-    indigo: "from-indigo-500 to-indigo-600 text-indigo-100"
+    red: "from-red-500 to-red-600 text-red-100"
   };
 
   return (
@@ -238,7 +225,7 @@ export const StatCard = ({
 };
 
 /**
- * 🔍 SEARCH BAR PREMIUM
+ * 🔍 SEARCH BAR
  */
 export const PremiumSearchBar = ({ 
   placeholder = "Rechercher...", 
