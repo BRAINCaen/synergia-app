@@ -40,7 +40,7 @@ import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar }
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useTaskStore } from '../shared/stores/taskStore.js';
 
-// ✅ COMPOSANTS FALLBACK SIMPLES (sans require)
+// ✅ COMPOSANTS FALLBACK SIMPLES (AUCUN require)
 const TaskSubmissionModal = ({ isOpen, onClose, task, onSubmit }) => {
   if (!isOpen) return null;
   
