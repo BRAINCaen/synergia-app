@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/ProjectsPage.jsx
-// PROJECTS PAGE CORRIGÉE - SANS require()
+// PROJECTS PAGE COMPLÈTE AVEC TOUTES LES FONCTIONNALITÉS ORIGINALES
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -29,7 +29,23 @@ import {
   Share2,
   Download,
   Award,
-  Zap
+  Zap,
+  UserPlus,
+  FileText,
+  Flag,
+  Upload,
+  Archive,
+  Copy,
+  BarChart3,
+  Activity,
+  GitBranch,
+  Layers,
+  PieChart,
+  Grid,
+  List,
+  Kanban,
+  SortAsc,
+  SortDesc
 } from 'lucide-react';
 
 // Layout et composants premium
@@ -37,125 +53,336 @@ import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar }
 
 // Stores et services
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useProjectStore } from '../shared/stores/projectStore.js';
+import { projectService } from '../core/services/projectService.js';
+import { teamManagementService } from '../core/services/teamManagementService.js';
 
-// 🔧 CORRECTION TEMPORAIRE: Store simple pour éviter l'erreur persist
-const useSimpleProjectStore = () => {
+// Hook pour les projets Firebase
+const useProjectService = () => {
+  const { user } = useAuthStore();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   
-  const createProject = useCallback((projectData) => {
-    const newProject = {
-      id: Date.now().toString(),
-      ...projectData,
-      createdAt: new Date().toISOString(),
-      status: 'active',
-      progress: 0
-    };
-    setProjects(prev => [...prev, newProject]);
-    return newProject;
-  }, []);
-  
-  const updateProject = useCallback((projectId, updates) => {
-    setProjects(prev => prev.map(project =>
-      project.id === projectId ? { ...project, ...updates } : project
-    ));
-  }, []);
-  
-  const deleteProject = useCallback((projectId) => {
-    setProjects(prev => prev.filter(project => project.id !== projectId));
-  }, []);
-  
+  // Charger les projets utilisateur depuis Firebase
   const loadUserProjects = useCallback(async (userId) => {
+    if (!userId) return;
+    
     setLoading(true);
-    // Simulation simple pour éviter les erreurs
-    setTimeout(() => {
-      setProjects([
-        {
-          id: '1',
-          title: 'Premier projet',
-          description: 'Cliquez sur "Nouveau projet" pour commencer',
-          status: 'active',
-          priority: 'medium',
-          progress: 25,
-          createdAt: new Date().toISOString(),
-          userId
-        }
-      ]);
+    setError(null);
+    
+    try {
+      console.log('🔄 Chargement projets Firebase pour:', userId);
+      const userProjects = await projectService.getUserProjects(userId);
+      
+      console.log('✅ Projets chargés:', userProjects.length);
+      setProjects(userProjects || []);
+      
+    } catch (err) {
+      console.error('❌ Erreur chargement projets:', err);
+      setError(err.message);
+      setProjects([]);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
+  }, []);
+  
+  // Créer un nouveau projet
+  const createProject = useCallback(async (projectData) => {
+    if (!user?.uid) {
+      throw new Error('Utilisateur non connecté');
+    }
+
+    try {
+      console.log('🚀 Création projet:', projectData.title);
+      const newProject = await projectService.createProject(projectData, user.uid);
+      
+      // Ajouter le nouveau projet à la liste
+      setProjects(prev => [newProject, ...prev]);
+      
+      console.log('✅ Projet créé avec succès');
+      return newProject;
+      
+    } catch (err) {
+      console.error('❌ Erreur création projet:', err);
+      throw err;
+    }
+  }, [user?.uid]);
+  
+  // Mettre à jour un projet
+  const updateProject = useCallback(async (projectId, updates) => {
+    try {
+      console.log('🔄 Mise à jour projet:', projectId);
+      const updatedProject = await projectService.updateProject(projectId, updates);
+      
+      // Mettre à jour la liste locale
+      setProjects(prev => prev.map(project => {
+        if (project.id === projectId) {
+          return { ...project, ...updatedProject };
+        }
+        return project;
+      }));
+      
+      console.log('✅ Projet mis à jour');
+      return updatedProject;
+      
+    } catch (err) {
+      console.error('❌ Erreur mise à jour projet:', err);
+      throw err;
+    }
+  }, []);
+  
+  // Supprimer un projet
+  const deleteProject = useCallback(async (projectId) => {
+    try {
+      console.log('🗑️ Suppression projet:', projectId);
+      await projectService.deleteProject(projectId);
+      
+      // Retirer de la liste locale
+      setProjects(prev => prev.filter(project => project.id !== projectId));
+      
+      console.log('✅ Projet supprimé');
+      
+    } catch (err) {
+      console.error('❌ Erreur suppression projet:', err);
+      throw err;
+    }
   }, []);
   
   return {
     projects,
     loading,
+    error,
+    loadUserProjects,
     createProject,
     updateProject,
-    deleteProject,
-    loadUserProjects
+    deleteProject
   };
 };
 
-// ✅ COMPOSANT FALLBACK SIMPLE (AUCUN require)
+// Composant modal pour créer/éditer un projet
 const ProjectForm = ({ isOpen, onClose, project, onSave }) => {
-  const [title, setTitle] = useState(project?.title || '');
-  const [description, setDescription] = useState(project?.description || '');
+  const [formData, setFormData] = useState({
+    title: project?.title || '',
+    description: project?.description || '',
+    priority: project?.priority || 'normal',
+    category: project?.category || 'web-app',
+    startDate: project?.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '',
+    endDate: project?.endDate ? new Date(project.endDate).toISOString().split('T')[0] : '',
+    tags: project?.tags?.join(', ') || '',
+    budget: project?.budget || 0,
+    client: project?.client || '',
+    repository: project?.repository || ''
+  });
+  
+  const [saving, setSaving] = useState(false);
   
   if (!isOpen) return null;
   
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (title.trim()) {
-      onSave && onSave({ title: title.trim(), description: description.trim() });
+    if (!formData.title.trim()) return;
+    
+    setSaving(true);
+    try {
+      const projectData = {
+        ...formData,
+        tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+        budget: parseFloat(formData.budget) || 0,
+        startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
+        endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null
+      };
+      
+      await onSave(projectData);
       onClose();
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde projet:', error);
+    } finally {
+      setSaving(false);
     }
   };
   
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg p-6 max-w-lg w-full mx-4">
-        <h3 className="text-xl font-bold text-white mb-4">
+      <div className="bg-gray-800 rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
+          <Folder className="mr-3 text-blue-400" />
           {project ? 'Modifier le projet' : 'Nouveau projet'}
         </h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Informations de base */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-white border-b border-gray-600 pb-2">
+                Informations générales
+              </h4>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Nom du projet *
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({...formData, title: e.target.value})}
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                  placeholder="Ex: Application mobile..."
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Catégorie
+                </label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({...formData, category: e.target.value})}
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
+                >
+                  <option value="web-app">Application Web</option>
+                  <option value="mobile-app">Application Mobile</option>
+                  <option value="api">API / Backend</option>
+                  <option value="documentation">Documentation</option>
+                  <option value="infrastructure">Infrastructure</option>
+                  <option value="design">Design / UI</option>
+                  <option value="marketing">Marketing</option>
+                  <option value="research">Recherche</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Priorité
+                </label>
+                <select
+                  value={formData.priority}
+                  onChange={(e) => setFormData({...formData, priority: e.target.value})}
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
+                >
+                  <option value="low">Basse</option>
+                  <option value="normal">Normale</option>
+                  <option value="high">Haute</option>
+                  <option value="urgent">Urgente</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Client / Équipe
+                </label>
+                <input
+                  type="text"
+                  value={formData.client}
+                  onChange={(e) => setFormData({...formData, client: e.target.value})}
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
+                  placeholder="Ex: Équipe Marketing..."
+                />
+              </div>
+            </div>
+            
+            {/* Détails techniques */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-white border-b border-gray-600 pb-2">
+                Détails techniques
+              </h4>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Budget (€)
+                </label>
+                <input
+                  type="number"
+                  value={formData.budget}
+                  onChange={(e) => setFormData({...formData, budget: e.target.value})}
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
+                  min="0"
+                  step="100"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Date de début
+                </label>
+                <input
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({...formData, startDate: e.target.value})}
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Date de fin prévue
+                </label>
+                <input
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData({...formData, endDate: e.target.value})}
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Repository Git
+                </label>
+                <input
+                  type="url"
+                  value={formData.repository}
+                  onChange={(e) => setFormData({...formData, repository: e.target.value})}
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
+                  placeholder="https://github.com/..."
+                />
+              </div>
+            </div>
+          </div>
+          
+          {/* Description complète */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Nom du projet
+              Description détaillée
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              rows={4}
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400 resize-none"
+              placeholder="Décrivez les objectifs, fonctionnalités et contraintes du projet..."
+            />
+          </div>
+          
+          {/* Tags */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Tags (séparés par des virgules)
             </label>
             <input
               type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Nom du projet..."
-              required
+              value={formData.tags}
+              onChange={(e) => setFormData({...formData, tags: e.target.value})}
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
+              placeholder="urgent, client-facing, innovation..."
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Description du projet..."
-            />
-          </div>
-          <div className="flex space-x-3">
-            <button
-              type="submit"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-            >
-              {project ? 'Modifier' : 'Créer'}
-            </button>
+          
+          <div className="flex space-x-3 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
+              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              disabled={saving}
             >
               Annuler
+            </button>
+            <button
+              type="submit"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
+              disabled={saving}
+            >
+              {saving ? 'Sauvegarde...' : (project ? 'Modifier' : 'Créer')}
             </button>
           </div>
         </form>
@@ -164,325 +391,544 @@ const ProjectForm = ({ isOpen, onClose, project, onSave }) => {
   );
 };
 
+// Composant carte de projet
+const ProjectCard = ({ project, onEdit, onDelete, onView, onClick }) => {
+  const [showMenu, setShowMenu] = useState(false);
+  
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'active': return 'bg-green-500';
+      case 'completed': return 'bg-blue-500';
+      case 'on_hold': return 'bg-yellow-500';
+      case 'cancelled': return 'bg-red-500';
+      default: return 'bg-gray-500';
+    }
+  };
+  
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'urgent': return 'text-red-400 bg-red-500/10';
+      case 'high': return 'text-orange-400 bg-orange-500/10';
+      case 'normal': return 'text-blue-400 bg-blue-500/10';
+      case 'low': return 'text-gray-400 bg-gray-500/10';
+      default: return 'text-gray-400 bg-gray-500/10';
+    }
+  };
+  
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Non définie';
+    return new Date(dateString).toLocaleDateString('fr-FR');
+  };
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all duration-300 cursor-pointer group"
+      onClick={() => onClick(project)}
+    >
+      {/* Header avec statut et menu */}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center space-x-3">
+          <div className={`w-3 h-3 rounded-full ${getStatusColor(project.status)}`} />
+          <h3 className="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors">
+            {project.title}
+          </h3>
+        </div>
+        
+        <div className="relative">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu(!showMenu);
+            }}
+            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-700"
+          >
+            <MoreVertical size={18} />
+          </button>
+          
+          {showMenu && (
+            <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-10">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onView(project);
+                  setShowMenu(false);
+                }}
+                className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 flex items-center space-x-2"
+              >
+                <Eye size={16} />
+                <span>Voir détails</span>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(project);
+                  setShowMenu(false);
+                }}
+                className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 flex items-center space-x-2"
+              >
+                <Edit size={16} />
+                <span>Modifier</span>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
+                    onDelete(project.id);
+                  }
+                  setShowMenu(false);
+                }}
+                className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 flex items-center space-x-2"
+              >
+                <Trash2 size={16} />
+                <span>Supprimer</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Description */}
+      <p className="text-gray-400 text-sm mb-4 line-clamp-2">
+        {project.description || 'Aucune description'}
+      </p>
+      
+      {/* Informations du projet */}
+      <div className="space-y-3 mb-4">
+        {/* Priorité et catégorie */}
+        <div className="flex items-center justify-between">
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(project.priority)}`}>
+            {project.priority === 'urgent' ? 'Urgente' : 
+             project.priority === 'high' ? 'Haute' :
+             project.priority === 'normal' ? 'Normale' : 'Basse'}
+          </span>
+          <span className="text-xs text-gray-500">{project.category}</span>
+        </div>
+        
+        {/* Progression */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-gray-400">Progression</span>
+            <span className="text-xs text-gray-400">{project.progress || 0}%</span>
+          </div>
+          <div className="w-full bg-gray-700 rounded-full h-2">
+            <div 
+              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${project.progress || 0}%` }}
+            />
+          </div>
+        </div>
+        
+        {/* Tâches */}
+        {project.taskCount !== undefined && (
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-400">Tâches</span>
+            <span className="text-gray-300">
+              {project.completedTaskCount || 0} / {project.taskCount || 0}
+            </span>
+          </div>
+        )}
+        
+        {/* Dates */}
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-gray-400">Échéance</span>
+          <span className="text-gray-300">{formatDate(project.endDate)}</span>
+        </div>
+      </div>
+      
+      {/* Tags */}
+      {project.tags && project.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-4">
+          {project.tags.slice(0, 3).map((tag, index) => (
+            <span
+              key={index}
+              className="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded-full"
+            >
+              {tag}
+            </span>
+          ))}
+          {project.tags.length > 3 && (
+            <span className="px-2 py-1 bg-gray-700 text-gray-400 text-xs rounded-full">
+              +{project.tags.length - 3}
+            </span>
+          )}
+        </div>
+      )}
+      
+      {/* Footer avec équipe */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Users size={16} className="text-gray-400" />
+          <span className="text-xs text-gray-400">
+            {project.members?.length || 1} membre{(project.members?.length || 1) > 1 ? 's' : ''}
+          </span>
+        </div>
+        
+        <div className="flex items-center space-x-2 text-xs text-gray-500">
+          <Clock size={14} />
+          <span>Mis à jour {formatDate(project.updatedAt)}</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 /**
- * 📁 PROJECTS PAGE AVEC TOUTES LES FONCTIONNALITÉS
+ * 📁 PROJECTS PAGE COMPLÈTE AVEC TOUTES LES FONCTIONNALITÉS
  */
 const ProjectsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { projects, loading, createProject, updateProject, deleteProject, loadUserProjects } = useSimpleProjectStore();
+  const { projects, loading, createProject, updateProject, deleteProject, loadUserProjects } = useProjectService();
   
+  // États UI
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
-  const [selectedProject, setSelectedProject] = useState(null);
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [sortBy, setSortBy] = useState('updated');
+  const [viewMode, setViewMode] = useState('grid'); // grid | list
+  
+  // États des modals
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-
-  // États pour les statistiques
-  const [projectStats, setProjectStats] = useState({
-    total: 0,
-    active: 0,
-    completed: 0,
-    onHold: 0,
-    completionRate: 0
-  });
-
-  // Charger les projets
+  const [selectedProject, setSelectedProject] = useState(null);
+  
+  // Charger les projets au montage
   useEffect(() => {
     if (user?.uid) {
       loadUserProjects(user.uid);
     }
   }, [user?.uid, loadUserProjects]);
-
-  // Calcul des statistiques
-  useEffect(() => {
-    if (projects?.length) {
-      const total = projects.length;
-      const active = projects.filter(p => p.status === 'active').length;
-      const completed = projects.filter(p => p.status === 'completed').length;
-      const onHold = projects.filter(p => p.status === 'on_hold').length;
-      const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-      
-      setProjectStats({
-        total,
-        active,
-        completed,
-        onHold,
-        completionRate
-      });
-    }
-  }, [projects]);
-
-  // Filtrer les projets
-  const filteredProjects = projects?.filter(project => {
-    const matchesSearch = project.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.description?.toLowerCase().includes(searchTerm.toLowerCase());
+  
+  // Filtrer et trier les projets
+  const filteredProjects = projects.filter(project => {
+    // Filtre par terme de recherche
+    const matchesSearch = !searchTerm || 
+      project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      project.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    // Filtre par statut
     const matchesStatus = filterStatus === 'all' || project.status === filterStatus;
+    
+    // Filtre par priorité
     const matchesPriority = filterPriority === 'all' || project.priority === filterPriority;
     
-    return matchesSearch && matchesStatus && matchesPriority;
-  }) || [];
-
-  // Handlers
-  const handleCreateProject = async (projectData) => {
-    if (!user?.uid) return;
+    // Filtre par catégorie
+    const matchesCategory = filterCategory === 'all' || project.category === filterCategory;
     
+    return matchesSearch && matchesStatus && matchesPriority && matchesCategory;
+  }).sort((a, b) => {
+    // Tri par critère sélectionné
+    switch (sortBy) {
+      case 'title':
+        return a.title.localeCompare(b.title);
+      case 'created':
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      case 'updated':
+        return new Date(b.updatedAt) - new Date(a.updatedAt);
+      case 'priority':
+        const priorities = { urgent: 4, high: 3, normal: 2, low: 1 };
+        return (priorities[b.priority] || 0) - (priorities[a.priority] || 0);
+      case 'progress':
+        return (b.progress || 0) - (a.progress || 0);
+      default:
+        return 0;
+    }
+  });
+  
+  // Calculer les statistiques
+  const stats = {
+    total: projects.length,
+    active: projects.filter(p => p.status === 'active').length,
+    completed: projects.filter(p => p.status === 'completed').length,
+    onHold: projects.filter(p => p.status === 'on_hold').length,
+    avgProgress: projects.length > 0 ? 
+      Math.round(projects.reduce((sum, p) => sum + (p.progress || 0), 0) / projects.length) : 0
+  };
+  
+  // Gestionnaires d'événements
+  const handleCreateProject = async (projectData) => {
     try {
-      await createProject({
-        ...projectData,
-        userId: user.uid,
-        status: 'active',
-        priority: 'medium',
-        createdAt: new Date().toISOString()
-      });
-      console.log('✅ Projet créé avec succès');
+      await createProject(projectData);
+      setShowProjectForm(false);
     } catch (error) {
       console.error('❌ Erreur création projet:', error);
     }
   };
-
-  const handleUpdateProject = async (projectId, updates) => {
+  
+  const handleEditProject = (project) => {
+    setEditingProject(project);
+    setShowProjectForm(true);
+  };
+  
+  const handleUpdateProject = async (projectData) => {
+    if (!editingProject) return;
+    
     try {
-      await updateProject(projectId, updates);
-      console.log('✅ Projet mis à jour avec succès');
+      await updateProject(editingProject.id, projectData);
+      setEditingProject(null);
+      setShowProjectForm(false);
     } catch (error) {
       console.error('❌ Erreur mise à jour projet:', error);
     }
   };
-
+  
   const handleDeleteProject = async (projectId) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
-      try {
-        await deleteProject(projectId);
-        console.log('✅ Projet supprimé avec succès');
-      } catch (error) {
-        console.error('❌ Erreur suppression projet:', error);
-      }
+    try {
+      await deleteProject(projectId);
+    } catch (error) {
+      console.error('❌ Erreur suppression projet:', error);
     }
   };
-
-  // Statistiques pour le header
-  const headerStats = [
-    { label: "Total", value: projectStats.total, icon: Folder, color: "text-blue-400" },
-    { label: "Actifs", value: projectStats.active, icon: Play, color: "text-green-400" },
-    { label: "Terminés", value: projectStats.completed, icon: CheckCircle, color: "text-purple-400" },
-    { label: "Taux", value: `${projectStats.completionRate}%`, icon: TrendingUp, color: "text-yellow-400" }
-  ];
-
-  // Actions du header
-  const headerActions = (
-    <>
-      <PremiumButton variant="secondary" icon={Filter}>
-        Filtres
-      </PremiumButton>
-      <PremiumButton 
-        variant="primary" 
-        icon={Plus}
-        onClick={() => setShowProjectForm(true)}
-      >
-        Nouveau projet
-      </PremiumButton>
-    </>
-  );
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <h2 className="text-white text-xl font-semibold">Chargement des projets...</h2>
-        </div>
-      </div>
-    );
-  }
-
+  
+  const handleViewProject = (project) => {
+    navigate(`/projects/${project.id}`);
+  };
+  
+  const handleProjectClick = (project) => {
+    setSelectedProject(project);
+    navigate(`/projects/${project.id}`);
+  };
+  
   return (
-    <PremiumLayout
-      title="Gestion des Projets"
-      subtitle="Organisez et suivez tous vos projets"
-      icon={Folder}
-      headerActions={headerActions}
-      showStats={true}
-      stats={headerStats}
-    >
-      
-      {/* 🔍 BARRE DE RECHERCHE ET FILTRES */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-        <div className="lg:col-span-2">
-          <PremiumSearchBar
-            placeholder="Rechercher des projets..."
-            value={searchTerm}
-            onChange={setSearchTerm}
-            icon={Search}
+    <PremiumLayout>
+      <div className="space-y-6">
+        {/* Header avec titre et actions */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center">
+              <Folder className="mr-3 text-blue-400" />
+              Mes Projets
+            </h1>
+            <p className="text-gray-400 mt-1">
+              Gérez vos projets et suivez leur progression
+            </p>
+          </div>
+          
+          <div className="flex items-center space-x-3 mt-4 md:mt-0">
+            {/* Boutons de vue */}
+            <div className="flex items-center bg-gray-800 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Grid size={18} />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <List size={18} />
+              </button>
+            </div>
+            
+            <PremiumButton
+              onClick={() => setShowProjectForm(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus size={20} className="mr-2" />
+              Nouveau Projet
+            </PremiumButton>
+          </div>
+        </div>
+        
+        {/* Statistiques */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <StatCard
+            title="Total"
+            value={stats.total}
+            icon={<Folder className="text-blue-400" />}
+            color="blue"
+          />
+          <StatCard
+            title="Actifs"
+            value={stats.active}
+            icon={<Play className="text-green-400" />}
+            color="green"
+          />
+          <StatCard
+            title="Terminés"
+            value={stats.completed}
+            icon={<CheckCircle className="text-blue-400" />}
+            color="blue"
+          />
+          <StatCard
+            title="En pause"
+            value={stats.onHold}
+            icon={<Pause className="text-yellow-400" />}
+            color="yellow"
+          />
+          <StatCard
+            title="Progression Moy."
+            value={`${stats.avgProgress}%`}
+            icon={<TrendingUp className="text-purple-400" />}
+            color="purple"
           />
         </div>
         
-        <div>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="w-full px-4 py-3 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Tous les statuts</option>
-            <option value="active">Actifs</option>
-            <option value="completed">Terminés</option>
-            <option value="on_hold">En pause</option>
-          </select>
-        </div>
-        
-        <div>
-          <select
-            value={filterPriority}
-            onChange={(e) => setFilterPriority(e.target.value)}
-            className="w-full px-4 py-3 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Toutes les priorités</option>
-            <option value="high">Haute</option>
-            <option value="medium">Moyenne</option>
-            <option value="low">Basse</option>
-          </select>
-        </div>
-      </div>
-
-      {/* 📁 LISTE DES PROJETS */}
-      {filteredProjects.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map((project) => (
-            <motion.div
-              key={project.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <PremiumCard className="hover:shadow-xl cursor-pointer">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-white mb-2">
-                      {project.title}
-                    </h3>
-                    {project.description && (
-                      <p className="text-gray-400 text-sm line-clamp-2">
-                        {project.description}
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center space-x-2 ml-4">
-                    <span className={`
-                      px-2 py-1 text-xs rounded-full font-medium
-                      ${project.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                        project.status === 'active' ? 'bg-blue-500/20 text-blue-400' :
-                        'bg-yellow-500/20 text-yellow-400'}
-                    `}>
-                      {project.status === 'completed' ? 'Terminé' :
-                       project.status === 'active' ? 'Actif' : 'En pause'}
-                    </span>
-                    
-                    <button className="text-gray-400 hover:text-white">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-gray-700">
-                  <div className="flex items-center space-x-4 text-sm text-gray-400">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>
-                        {project.createdAt ? 
-                          new Date(project.createdAt).toLocaleDateString() : 
-                          'Récent'
-                        }
-                      </span>
-                    </div>
-                    
-                    <div className={`
-                      flex items-center space-x-1
-                      ${project.priority === 'high' ? 'text-red-400' :
-                        project.priority === 'medium' ? 'text-yellow-400' :
-                        'text-green-400'}
-                    `}>
-                      <Target className="w-4 h-4" />
-                      <span>
-                        {project.priority === 'high' ? 'Haute' :
-                         project.priority === 'medium' ? 'Moyenne' : 'Basse'}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => navigate(`/projects/${project.id}`)}
-                      className="text-blue-400 hover:text-blue-300 p-1 rounded"
-                      title="Voir détails"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        setEditingProject(project);
-                        setShowProjectForm(true);
-                      }}
-                      className="text-green-400 hover:text-green-300 p-1 rounded"
-                      title="Modifier"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    
-                    <button
-                      onClick={() => handleDeleteProject(project.id)}
-                      className="text-red-400 hover:text-red-300 p-1 rounded"
-                      title="Supprimer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </PremiumCard>
-            </motion.div>
-          ))}
-        </div>
-      ) : (
-        <PremiumCard className="text-center py-12">
-          <div className="text-gray-400 mb-4">
-            <Folder className="w-16 h-16 mx-auto mb-4 opacity-50" />
-          </div>
-          <h3 className="text-xl font-semibold text-white mb-2">
-            {searchTerm || filterStatus !== 'all' ? 'Aucun projet trouvé' : 'Aucun projet'}
-          </h3>
-          <p className="text-gray-400 mb-6">
-            {searchTerm || filterStatus !== 'all' 
-              ? 'Aucun projet ne correspond à vos critères de recherche.'
-              : 'Commencez par créer votre premier projet.'}
-          </p>
-          <div className="flex justify-center space-x-3">
-            {(searchTerm || filterStatus !== 'all') && (
-              <PremiumButton 
-                variant="secondary" 
-                size="md"
-                onClick={() => {
-                  setSearchTerm('');
-                  setFilterStatus('all');
-                }}
-              >
-                Réinitialiser les filtres
-              </PremiumButton>
-            )}
-            <PremiumButton 
-              variant="primary" 
-              size="md"
-              icon={Plus}
-              onClick={() => setShowProjectForm(true)}
-            >
-              Créer un projet
-            </PremiumButton>
+        {/* Barre de recherche et filtres */}
+        <PremiumCard>
+          <div className="space-y-4">
+            {/* Recherche */}
+            <PremiumSearchBar
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Rechercher par nom, description ou tags..."
+              className="w-full"
+            />
+            
+            {/* Filtres */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Statut
+                </label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
+                >
+                  <option value="all">Tous</option>
+                  <option value="active">Actifs</option>
+                  <option value="on_hold">En pause</option>
+                  <option value="completed">Terminés</option>
+                  <option value="cancelled">Annulés</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Priorité
+                </label>
+                <select
+                  value={filterPriority}
+                  onChange={(e) => setFilterPriority(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
+                >
+                  <option value="all">Toutes</option>
+                  <option value="urgent">Urgente</option>
+                  <option value="high">Haute</option>
+                  <option value="normal">Normale</option>
+                  <option value="low">Basse</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Catégorie
+                </label>
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
+                >
+                  <option value="all">Toutes</option>
+                  <option value="web-app">Application Web</option>
+                  <option value="mobile-app">Application Mobile</option>
+                  <option value="api">API / Backend</option>
+                  <option value="documentation">Documentation</option>
+                  <option value="infrastructure">Infrastructure</option>
+                  <option value="design">Design / UI</option>
+                  <option value="marketing">Marketing</option>
+                  <option value="research">Recherche</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Trier par
+                </label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
+                >
+                  <option value="updated">Dernière mise à jour</option>
+                  <option value="created">Date de création</option>
+                  <option value="title">Nom (A-Z)</option>
+                  <option value="priority">Priorité</option>
+                  <option value="progress">Progression</option>
+                </select>
+              </div>
+              
+              <div className="flex items-end">
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterStatus('all');
+                    setFilterPriority('all');
+                    setFilterCategory('all');
+                    setSortBy('updated');
+                  }}
+                  className="w-full px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                >
+                  Réinitialiser
+                </button>
+              </div>
+            </div>
           </div>
         </PremiumCard>
-      )}
-
-      {/* 📝 MODAL DE CRÉATION/ÉDITION */}
+        
+        {/* Liste des projets */}
+        <div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+              <span className="ml-3 text-gray-400">Chargement des projets...</span>
+            </div>
+          ) : filteredProjects.length === 0 ? (
+            <PremiumCard>
+              <div className="text-center py-12">
+                <Folder size={48} className="text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-white mb-2">
+                  {projects.length === 0 ? 'Aucun projet' : 'Aucun projet trouvé'}
+                </h3>
+                <p className="text-gray-400 mb-6">
+                  {projects.length === 0 
+                    ? 'Commencez par créer votre premier projet'
+                    : 'Essayez de modifier vos critères de recherche'
+                  }
+                </p>
+                {projects.length === 0 && (
+                  <PremiumButton
+                    onClick={() => setShowProjectForm(true)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus size={20} className="mr-2" />
+                    Créer mon premier projet
+                  </PremiumButton>
+                )}
+              </div>
+            </PremiumCard>
+          ) : (
+            <div className={
+              viewMode === 'grid' 
+                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                : 'space-y-4'
+            }>
+              {filteredProjects.map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  onEdit={handleEditProject}
+                  onDelete={handleDeleteProject}
+                  onView={handleViewProject}
+                  onClick={handleProjectClick}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Modal de création/édition de projet */}
       <ProjectForm
         isOpen={showProjectForm}
         onClose={() => {
@@ -490,10 +936,7 @@ const ProjectsPage = () => {
           setEditingProject(null);
         }}
         project={editingProject}
-        onSave={editingProject ? 
-          (data) => handleUpdateProject(editingProject.id, data) : 
-          handleCreateProject
-        }
+        onSave={editingProject ? handleUpdateProject : handleCreateProject}
       />
     </PremiumLayout>
   );
