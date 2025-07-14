@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/ProjectsPage.jsx
-// PROJECTS PAGE COMPLÈTE AVEC TOUTES LES FONCTIONNALITÉS ORIGINALES
+// PROJECTS PAGE COMPLÈTE - CORRECTION BUG #130
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -48,12 +48,58 @@ import {
   SortDesc
 } from 'lucide-react';
 
-// Layout et composants premium
-import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
+// 🔧 CORRECTION: Import direct sans destructuration problématique
+import PremiumLayout from '../shared/layouts/PremiumLayout.jsx';
 
-// Stores et services
+// Stores
 import { useAuthStore } from '../shared/stores/authStore.js';
+
+// Services
 import { projectService } from '../core/services/projectService.js';
+
+// Composants UI simples pour éviter les imports circulaires
+const StatCard = ({ title, value, icon, color = 'blue' }) => (
+  <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-gray-400 text-sm">{title}</p>
+        <p className="text-2xl font-bold text-white">{value}</p>
+      </div>
+      <div className={`text-${color}-400`}>
+        {icon}
+      </div>
+    </div>
+  </div>
+);
+
+const PremiumCard = ({ children, className = '' }) => (
+  <div className={`bg-gray-800 rounded-lg p-6 border border-gray-700 ${className}`}>
+    {children}
+  </div>
+);
+
+const PremiumButton = ({ children, onClick, className = '', disabled = false }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 ${className}`}
+  >
+    {children}
+  </button>
+);
+
+const PremiumSearchBar = ({ value, onChange, placeholder, className = '' }) => (
+  <div className={`relative ${className}`}>
+    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+    />
+  </div>
+);
 
 // Hook sécurisé pour les projets Firebase
 const useProjectService = () => {
@@ -72,14 +118,13 @@ const useProjectService = () => {
     try {
       console.log('🔄 Chargement projets Firebase pour:', userId);
       
-      // Utiliser directement le service sans import circulaire
-      if (projectService && projectService.getUserProjects) {
+      // Vérification sécurisée du service
+      if (projectService && typeof projectService.getUserProjects === 'function') {
         const userProjects = await projectService.getUserProjects(userId);
         console.log('✅ Projets chargés:', userProjects?.length || 0);
         setProjects(userProjects || []);
       } else {
-        // Fallback avec données de démonstration
-        console.log('⚠️ Service non disponible, utilisation de données de démo');
+        console.log('⚠️ Service non disponible, pas de projets chargés');
         setProjects([]);
       }
       
@@ -101,7 +146,7 @@ const useProjectService = () => {
     try {
       console.log('🚀 Création projet:', projectData.title);
       
-      if (projectService && projectService.createProject) {
+      if (projectService && typeof projectService.createProject === 'function') {
         const newProject = await projectService.createProject(projectData, user.uid);
         setProjects(prev => [newProject, ...prev]);
         console.log('✅ Projet créé avec succès');
@@ -121,7 +166,7 @@ const useProjectService = () => {
     try {
       console.log('🔄 Mise à jour projet:', projectId);
       
-      if (projectService && projectService.updateProject) {
+      if (projectService && typeof projectService.updateProject === 'function') {
         const updatedProject = await projectService.updateProject(projectId, updates);
         
         // Mettre à jour la liste locale
@@ -149,7 +194,7 @@ const useProjectService = () => {
     try {
       console.log('🗑️ Suppression projet:', projectId);
       
-      if (projectService && projectService.deleteProject) {
+      if (projectService && typeof projectService.deleteProject === 'function') {
         await projectService.deleteProject(projectId);
         
         // Retirer de la liste locale
@@ -443,7 +488,7 @@ const ProjectCard = ({ project, onEdit, onDelete, onView, onClick }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all duration-300 cursor-pointer group"
-      onClick={() => onClick(project)}
+      onClick={() => onClick && onClick(project)}
     >
       {/* Header avec statut et menu */}
       <div className="flex items-start justify-between mb-4">
@@ -470,7 +515,7 @@ const ProjectCard = ({ project, onEdit, onDelete, onView, onClick }) => {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onView(project);
+                  onView && onView(project);
                   setShowMenu(false);
                 }}
                 className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 flex items-center space-x-2"
@@ -481,7 +526,7 @@ const ProjectCard = ({ project, onEdit, onDelete, onView, onClick }) => {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onEdit(project);
+                  onEdit && onEdit(project);
                   setShowMenu(false);
                 }}
                 className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 flex items-center space-x-2"
@@ -493,7 +538,7 @@ const ProjectCard = ({ project, onEdit, onDelete, onView, onClick }) => {
                 onClick={(e) => {
                   e.stopPropagation();
                   if (confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
-                    onDelete(project.id);
+                    onDelete && onDelete(project.id);
                   }
                   setShowMenu(false);
                 }}
@@ -598,7 +643,7 @@ const ProjectCard = ({ project, onEdit, onDelete, onView, onClick }) => {
 const ProjectsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { projects, loading, error, createProject, updateProject, deleteProject, loadUserProjects } = useProjectService();
+  const { projects, loading, error, loadUserProjects, createProject, updateProject, deleteProject } = useProjectService();
   
   // États UI
   const [searchTerm, setSearchTerm] = useState('');
@@ -677,11 +722,7 @@ const ProjectsPage = () => {
   // Gestionnaires d'événements
   const handleCreateProject = async (projectData) => {
     try {
-      const result = await createProject(projectData);
-      if (result && !result.success) {
-        console.error('❌ Erreur création:', result.error);
-        return;
-      }
+      await createProject(projectData);
       setShowProjectForm(false);
     } catch (error) {
       console.error('❌ Erreur création projet:', error);
@@ -697,11 +738,7 @@ const ProjectsPage = () => {
     if (!editingProject) return;
     
     try {
-      const result = await updateProject(editingProject.id, projectData);
-      if (result && !result.success) {
-        console.error('❌ Erreur mise à jour:', result.error);
-        return;
-      }
+      await updateProject(editingProject.id, projectData);
       setEditingProject(null);
       setShowProjectForm(false);
     } catch (error) {
@@ -711,10 +748,7 @@ const ProjectsPage = () => {
   
   const handleDeleteProject = async (projectId) => {
     try {
-      const result = await deleteProject(projectId);
-      if (result && !result.success) {
-        console.error('❌ Erreur suppression:', result.error);
-      }
+      await deleteProject(projectId);
     } catch (error) {
       console.error('❌ Erreur suppression projet:', error);
     }
