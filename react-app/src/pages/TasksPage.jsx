@@ -523,12 +523,20 @@ const TasksPage = () => {
               <TaskForm
                 onSubmit={async (taskData) => {
                   try {
-                    await taskService.createTask({ ...taskData, userId: user.uid });
-                    setShowTaskForm(false);
-                    loadTasks();
+                    // 🔧 CORRECTION: Passer les deux paramètres comme attendu par le service
+                    console.log('📝 Création tâche:', taskData);
+                    const result = await taskService.createTask(taskData, user.uid);
+                    
+                    if (result.success) {
+                      console.log('✅ Tâche créée avec succès');
+                      setShowTaskForm(false);
+                      loadTasks();
+                    } else {
+                      throw new Error(result.error || 'Erreur lors de la création');
+                    }
                   } catch (error) {
                     console.error('❌ Erreur création tâche:', error);
-                    alert('Erreur lors de la création de la tâche');
+                    alert('Erreur lors de la création de la tâche: ' + error.message);
                   }
                 }}
                 onCancel={() => setShowTaskForm(false)}
