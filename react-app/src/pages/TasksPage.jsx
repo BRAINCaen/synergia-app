@@ -21,15 +21,18 @@ import {
   Eye,
   Send,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Users,
+  UserPlus
 } from 'lucide-react';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { taskService } from '../core/services/taskService.js';
 import { projectService } from '../core/services/projectService.js';
 import { taskProjectIntegration } from '../core/services/taskProjectIntegration.js';
 import TaskForm from '../modules/tasks/TaskForm.jsx';
-// 🆕 IMPORT DU SYSTÈME DE VALIDATION
+// 🆕 IMPORTS DU SYSTÈME DE VALIDATION ET ASSIGNATION
 import SubmitTaskButton from '../components/tasks/SubmitTaskButton.jsx';
+import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal.jsx';
 
 /**
  * ✅ FONCTION SAFE POUR AFFICHER LA PROGRESSION
@@ -98,6 +101,7 @@ const TasksPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showProjectAssignModal, setShowProjectAssignModal] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   
   // États statistiques
@@ -164,7 +168,7 @@ const TasksPage = () => {
     setStats(stats);
   };
 
-  // Gérer la soumission réussie de validation
+  // Gérer le succès de soumission de validation
   const handleValidationSubmissionSuccess = (result) => {
     console.log('✅ Validation soumise avec succès:', result);
     
@@ -173,6 +177,18 @@ const TasksPage = () => {
     
     // Message de succès (optionnel)
     // Vous pouvez ajouter un toast/notification ici
+  };
+
+  // Gérer le succès d'assignation
+  const handleAssignmentSuccess = (result) => {
+    console.log('✅ Assignation réussie:', result);
+    
+    // Recharger les tâches pour afficher les assignations
+    loadTasks();
+    
+    // Fermer le modal
+    setShowAssignmentModal(false);
+    setSelectedTask(null);
   };
 
   // Associer une tâche à un projet
@@ -411,11 +427,11 @@ const TasksPage = () => {
                         {getStatusLabel(task.status)}
                       </span>
                       
-                      {/* Badge XP si en attente */}
-                      {(task.status === 'validation_pending' || task.status === 'completed') && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-                          <Trophy className="w-3 h-3 mr-1" />
-                          +{task.xpReward || 25} XP
+                      {/* Indicateurs d'assignation */}
+                      {task.assignedTo && Array.isArray(task.assignedTo) && task.assignedTo.length > 1 && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                          <Users className="w-3 h-3 mr-1" />
+                          {task.assignedTo.length} assignés
                         </span>
                       )}
                     </div>
@@ -459,6 +475,19 @@ const TasksPage = () => {
                       onSubmissionSuccess={handleValidationSubmissionSuccess}
                       size="default"
                     />
+                    
+                    {/* Bouton d'assignation multiple - NOUVEAU */}
+                    <button
+                      onClick={() => {
+                        setSelectedTask(task);
+                        setShowAssignmentModal(true);
+                      }}
+                      disabled={updating}
+                      className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50"
+                      title="Assigner à plusieurs personnes"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                    </button>
                     
                     {/* Actions projet */}
                     {task.projectId ? (
@@ -585,6 +614,19 @@ const TasksPage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal d'assignation multiple - NOUVEAU */}
+      {showAssignmentModal && selectedTask && (
+        <TaskAssignmentModal
+          isOpen={showAssignmentModal}
+          onClose={() => {
+            setShowAssignmentModal(false);
+            setSelectedTask(null);
+          }}
+          task={selectedTask}
+          onAssignmentSuccess={handleAssignmentSuccess}
+        />
       )}
     </div>
   );
