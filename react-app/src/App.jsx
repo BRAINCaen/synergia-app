@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APPLICATION PRINCIPALE - Version compatible build production
+// APPLICATION PRINCIPALE - Version complète et corrigée
 // ==========================================
 
 import React, { useEffect } from 'react';
@@ -68,44 +68,40 @@ class ErrorBoundary extends React.Component {
  * Configuration complète et optimisée
  */
 function App() {
-  const { setUser, setLoading, initializeAuth } = useAuthStore();
+  const { user, loading, initializeAuth, setUser, setLoading } = useAuthStore();
 
-  // 🎯 Initialisation Firebase au démarrage
+  // ✅ Initialisation de l'authentification
   useEffect(() => {
-    console.log('🚀 Initialisation Synergia v3.5...');
+    console.log('🚀 Initialisation de App.jsx...');
     
-    // Initialiser l'authentification
-    initializeAuth();
+    // Initialiser le store d'authentification
+    const unsubscribe = initializeAuth();
     
-    // Écouter les changements d'authentification
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        console.log('✅ Utilisateur connecté:', firebaseUser.email);
-        setUser({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName,
-          photoURL: firebaseUser.photoURL,
-          emailVerified: firebaseUser.emailVerified
-        });
-      } else {
-        console.log('👤 Aucun utilisateur connecté');
-        setUser(null);
-      }
-      setLoading(false);
-    });
-
-    // Cleanup
+    // Cleanup function
     return () => {
-      console.log('🧹 Nettoyage App.jsx');
-      unsubscribe();
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
     };
-  }, [setUser, setLoading, initializeAuth]);
+  }, [initializeAuth]);
+
+  // ✅ Écran de chargement pendant l'initialisation
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <h2 className="text-white text-xl font-semibold mb-2">Chargement de Synergia</h2>
+          <p className="text-gray-400">Initialisation en cours...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ErrorBoundary>
       <Router>
-        <div className="App min-h-screen bg-gray-900">
+        <div className="App">
           <AppRouter />
         </div>
       </Router>
@@ -114,3 +110,8 @@ function App() {
 }
 
 export default App;
+
+// ✅ Console de debug
+console.log('✅ App.jsx chargé avec succès');
+console.log('🔧 Mode:', import.meta.env.MODE);
+console.log('🚀 Version:', import.meta.env.VITE_APP_VERSION || '3.5.2');
