@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT FINAL CORRIGÉ - UTILISE ROUTES CONSTANTS CORRECTES
+// LAYOUT AVEC MENU ADMIN ÉTENDU - GESTION DES RÔLES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -31,14 +31,19 @@ import {
   TrendingUp,
   Award,
   Zap,
-  Flame
+  Flame,
+  Lock,
+  UserPlus,
+  Database,
+  FileText,
+  Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { isAdmin } from '../../core/services/adminService.js';
 import { ROUTES } from '../../core/constants.js';
 
-const Layout = () => { // ✅ Pas de props children car on utilise Outlet
+const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
@@ -79,125 +84,133 @@ const Layout = () => { // ✅ Pas de props children car on utilise Outlet
     gamification: [
       { id: 'gamification', path: ROUTES.GAMIFICATION, label: 'Gamification', icon: Gamepad2 },
       { id: 'badges', path: ROUTES.BADGES, label: 'Badges', icon: Medal },
-      { id: 'rewards', path: ROUTES.REWARDS, label: 'Récompenses', icon: Gift },
-      { id: 'leaderboard', path: ROUTES.LEADERBOARD, label: 'Classement', icon: Trophy }
+      { id: 'leaderboard', path: ROUTES.LEADERBOARD, label: 'Classement', icon: Trophy },
+      { id: 'rewards', path: ROUTES.REWARDS, label: 'Récompenses', icon: Gift }
     ],
     progression: [
-      { id: 'role-progression', path: ROUTES.ROLE_PROGRESSION, label: 'Progression de Rôle', icon: TrendingUp },
-      { id: 'role-tasks', path: ROUTES.ROLE_TASKS, label: 'Tâches de Rôle', icon: Target },
-      { id: 'role-badges', path: ROUTES.ROLE_BADGES, label: 'Badges de Rôle', icon: Award }
+      { id: 'role-progression', path: ROUTES.ROLE_PROGRESSION, label: 'Progression Rôles', icon: Target },
+      { id: 'role-tasks', path: ROUTES.ROLE_TASKS, label: 'Tâches par Rôle', icon: CheckSquare },
+      { id: 'role-badges', path: ROUTES.ROLE_BADGES, label: 'Badges Rôles', icon: Award },
+      { id: 'escape-progression', path: ROUTES.ESCAPE_PROGRESSION, label: 'Escape Progression', icon: Flame }
     ],
     team: [
       { id: 'team', path: ROUTES.TEAM, label: 'Équipe', icon: Users },
       { id: 'users', path: ROUTES.USERS, label: 'Utilisateurs', icon: UserCheck }
     ],
     tools: [
+      { id: 'onboarding', path: ROUTES.ONBOARDING, label: 'Onboarding', icon: BookOpen },
+      { id: 'timetrack', path: ROUTES.TIMETRACK, label: 'Pointeuse', icon: Clock },
       { id: 'profile', path: ROUTES.PROFILE, label: 'Profil', icon: User },
-      { id: 'settings', path: ROUTES.SETTINGS, label: 'Paramètres', icon: Settings },
-      { id: 'onboarding', path: ROUTES.ONBOARDING, label: 'Intégration', icon: BookOpen },
-      { id: 'timetrack', path: ROUTES.TIMETRACK, label: 'Time Track', icon: Clock }
+      { id: 'settings', path: ROUTES.SETTINGS, label: 'Paramètres', icon: Settings }
     ]
   };
 
-  // Routes admin conditionnelles
+  // ✅ MENU ADMIN ÉTENDU AVEC GESTION DES RÔLES
   const adminItems = isAdmin(user) ? [
-    { id: 'admin-task-validation', path: ROUTES.ADMIN_TASK_VALIDATION, label: 'Validation Tâches', icon: Shield }
+    { 
+      id: 'admin-task-validation', 
+      path: '/admin/task-validation', 
+      label: 'Validation Tâches', 
+      icon: CheckSquare 
+    },
+    { 
+      id: 'admin-badges', 
+      path: '/admin/badges', 
+      label: 'Gestion Badges', 
+      icon: Trophy 
+    },
+    { 
+      id: 'admin-users', 
+      path: '/admin/users', 
+      label: 'Gestion Utilisateurs', 
+      icon: Users 
+    },
+    { 
+      id: 'admin-analytics', 
+      path: '/admin/analytics', 
+      label: 'Analytics Admin', 
+      icon: BarChart3 
+    },
+    // 🆕 NOUVELLE SECTION - GESTION DES RÔLES
+    { 
+      id: 'admin-role-permissions', 
+      path: '/admin/role-permissions', 
+      label: 'Permissions par Rôle', 
+      icon: Shield,
+      badge: 'Nouveau',
+      description: 'Gérer les accès admin par rôle Synergia'
+    },
+    { 
+      id: 'admin-settings', 
+      path: '/admin/settings', 
+      label: 'Paramètres Système', 
+      icon: Settings 
+    }
   ] : [];
 
-  // Obtenir le titre de la page actuelle
-  const getCurrentPageTitle = () => {
-    const allItems = [
-      ...navigationItems.main,
-      ...navigationItems.gamification,
-      ...navigationItems.progression,
-      ...navigationItems.team,
-      ...navigationItems.tools,
-      ...adminItems
-    ];
-    
-    const currentItem = allItems.find(item => item.path === location.pathname);
-    return currentItem?.label || 'SYNERGIA';
-  };
-
-  // Vérifier si un lien est actif
-  const isActiveLink = (path) => {
-    return location.pathname === path;
-  };
-
-  // Basculer l'expansion d'une section
-  const toggleSection = (sectionKey) => {
+  const toggleSection = (section) => {
     setExpandedSections(prev => ({
       ...prev,
-      [sectionKey]: !prev[sectionKey]
+      [section]: !prev[section]
     }));
   };
 
-  // Gérer la déconnexion
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate(ROUTES.LOGIN);
-    } catch (error) {
-      console.error('❌ Erreur déconnexion:', error);
-    }
-  };
-
-  // Naviguer vers une route
-  const handleNavigation = (path) => {
-    navigate(path);
-    if (isMobile) {
-      setIsSidebarOpen(false);
-    }
-  };
-
-  // Rendu d'une section de navigation
-  const renderNavigationSection = (sectionKey, title, items, defaultExpanded = true) => {
-    const isExpanded = expandedSections[sectionKey] ?? defaultExpanded;
+  const renderNavigationSection = (sectionId, title, items, defaultExpanded = true) => {
+    const isExpanded = expandedSections[sectionId] ?? defaultExpanded;
     
     return (
-      <div key={sectionKey} className="mb-6">
+      <div className="mb-6">
         <button
-          onClick={() => toggleSection(sectionKey)}
-          className="flex items-center justify-between w-full px-4 py-2 text-gray-400 hover:text-white transition-colors"
+          onClick={() => toggleSection(sectionId)}
+          className="flex items-center justify-between w-full px-6 py-2 text-left text-gray-400 hover:text-white transition-colors"
         >
-          <span className="text-sm font-medium uppercase tracking-wide">{title}</span>
-          <ChevronDown className={`w-4 h-4 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+          <span className="text-xs font-semibold uppercase tracking-wider">{title}</span>
+          {isExpanded ? <ChevronDown size={16} /> : <ChevronDown size={16} className="rotate-180" />}
         </button>
         
         <AnimatePresence>
           {isExpanded && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="mt-2 space-y-1">
+              <nav className="space-y-1 px-3">
                 {items.map((item) => {
+                  const isActive = location.pathname === item.path;
                   const IconComponent = item.icon;
-                  const isActive = isActiveLink(item.path);
                   
                   return (
                     <motion.button
                       key={item.id}
+                      onClick={() => navigate(item.path)}
                       whileHover={{ x: 4 }}
-                      onClick={() => handleNavigation(item.path)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                         isActive
                           ? 'bg-blue-600 text-white shadow-lg'
-                          : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                          : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                       }`}
                     >
-                      <IconComponent className="w-5 h-5" />
-                      <span className="font-medium">{item.label}</span>
-                      {isActive && (
-                        <div className="ml-auto w-2 h-2 bg-white rounded-full" />
+                      <IconComponent className="w-4 h-4" />
+                      <span className="flex-1 text-left">{item.label}</span>
+                      
+                      {/* Badge pour nouveautés */}
+                      {item.badge && (
+                        <span className="px-2 py-0.5 bg-green-500 text-white text-xs rounded-full">
+                          {item.badge}
+                        </span>
+                      )}
+                      
+                      {/* Indicateur admin */}
+                      {item.path.startsWith('/admin/') && (
+                        <Crown className="w-3 h-3 text-yellow-400" />
                       )}
                     </motion.button>
                   );
                 })}
-              </div>
+              </nav>
             </motion.div>
           )}
         </AnimatePresence>
@@ -205,20 +218,28 @@ const Layout = () => { // ✅ Pas de props children car on utilise Outlet
     );
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+    }
+  };
+
   return (
-    <div className="flex h-screen bg-gray-100">
-      
-      {/* Overlay mobile */}
+    <div className="flex min-h-screen bg-gray-50">
+      {/* Overlay pour mobile */}
       {isMobile && isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40"
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside className={`${
-        isMobile
+        isMobile 
           ? `fixed left-0 top-0 h-full w-80 transform transition-transform duration-300 z-50 ${
               isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
             }`
@@ -256,7 +277,11 @@ const Layout = () => { // ✅ Pas de props children car on utilise Outlet
           {renderNavigationSection('tools', 'Outils', navigationItems.tools)}
           
           {/* Section admin conditionnelle */}
-          {adminItems.length > 0 && renderNavigationSection('admin', 'Administration', adminItems, false)}
+          {adminItems.length > 0 && (
+            <div className="border-t border-gray-800 pt-6">
+              {renderNavigationSection('admin', 'Administration', adminItems, false)}
+            </div>
+          )}
         </nav>
 
         {/* Footer sidebar - Profil utilisateur */}
@@ -275,7 +300,7 @@ const Layout = () => { // ✅ Pas de props children car on utilise Outlet
             </div>
             <button
               onClick={handleLogout}
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-gray-400 hover:text-red-400 transition-colors"
               title="Déconnexion"
             >
               <LogOut className="w-4 h-4" />
@@ -285,53 +310,29 @@ const Layout = () => { // ✅ Pas de props children car on utilise Outlet
       </aside>
 
       {/* Contenu principal */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        
-        {/* Header principal */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          
-          {/* Bouton menu mobile + titre */}
-          <div className="flex items-center gap-4">
-            {isMobile && (
+      <div className="flex-1 flex flex-col">
+        {/* Header mobile */}
+        {isMobile && (
+          <header className="bg-white border-b border-gray-200 px-4 py-3">
+            <div className="flex items-center justify-between">
               <button
                 onClick={() => setIsSidebarOpen(true)}
                 className="text-gray-600 hover:text-gray-900"
               >
                 <Menu className="w-6 h-6" />
               </button>
-            )}
-            
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {getCurrentPageTitle()}
-              </h1>
-              <p className="text-sm text-gray-600">
-                {new Date().toLocaleDateString('fr-FR', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
-              </p>
+              <div className="flex items-center gap-2">
+                <Zap className="w-6 h-6 text-blue-600" />
+                <span className="font-semibold text-gray-900">SYNERGIA</span>
+              </div>
+              <div className="w-6" /> {/* Spacer */}
             </div>
-          </div>
-
-          {/* Actions header */}
-          <div className="flex items-center gap-4">
-            <button className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
-              <Star className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-            </button>
-            
-            <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-white" />
-            </div>
-          </div>
-        </header>
+          </header>
+        )}
 
         {/* Zone de contenu */}
-        <main className="flex-1 overflow-auto bg-gray-50">
-          <Outlet /> {/* ✅ Utilise Outlet au lieu de children */}
+        <main className="flex-1">
+          <Outlet />
         </main>
       </div>
     </div>
