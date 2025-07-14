@@ -54,6 +54,7 @@ class TaskValidationService {
       // Upload des médias avec gestion d'erreur CORS
       let photoUrl = null;
       let videoUrl = null;
+      let corsIssueDetected = false;
 
       // Essayer l'upload avec gestion d'erreur
       try {
@@ -68,10 +69,11 @@ class TaskValidationService {
         }
       } catch (uploadError) {
         console.warn('⚠️ Erreur upload média (continuant sans):', uploadError.message);
+        corsIssueDetected = true;
         // Continuer sans les médias en cas d'erreur CORS
       }
 
-      // Créer la demande de validation même sans média
+      // ✅ CORRECTION: Convertir les informations en données simples pour Firestore
       const validationRequest = {
         // Identifiants
         taskId,
@@ -100,9 +102,23 @@ class TaskValidationService {
         adminComment: null,
         
         // Données enrichies
-        submissionVersion: '1.1',
+        submissionVersion: '1.2',
         source: 'synergia_app',
-        corsIssue: !photoUrl && !videoUrl && (photoFile || videoFile) // Indicateur si problème CORS
+        
+        // ✅ CORRECTION: Sauvegarder seulement des booléens/strings, pas d'objets File
+        corsIssueDetected: corsIssueDetected,
+        mediaFilesProvided: !!(photoFile || videoFile),
+        mediaUploadSuccess: !!(photoUrl || videoUrl),
+        
+        // Informations sur les fichiers fournis (metadata uniquement)
+        fileMetadata: {
+          photoProvided: !!photoFile,
+          videoProvided: !!videoFile,
+          photoFileName: photoFile?.name || null,
+          videoFileName: videoFile?.name || null,
+          photoSize: photoFile?.size || null,
+          videoSize: videoFile?.size || null
+        }
       };
 
       // Sauvegarder la demande de validation
@@ -123,7 +139,7 @@ class TaskValidationService {
         success: true,
         validationId: docRef.id,
         hasMedia: !!(photoUrl || videoUrl),
-        corsWarning: !photoUrl && !videoUrl && (photoFile || videoFile)
+        corsWarning: corsIssueDetected && !!(photoFile || videoFile)
       };
       
     } catch (error) {
@@ -247,7 +263,7 @@ class TaskValidationService {
       
       const isAdmin = isRoleAdmin || isProfileRoleAdmin || hasAdminFlag || hasValidatePermission;
       
-      console.log('🔍 checkAdminPermissions résultat:', {
+      console.log('🔍 checkAdminPermissions:', {
         userId,
         isRoleAdmin,
         isProfileRoleAdmin,
@@ -255,237 +271,159 @@ class TaskValidationService {
         hasValidatePermission,
         finalResult: isAdmin
       });
-
+      
       return isAdmin;
-
+      
     } catch (error) {
-      console.error('❌ Erreur vérification permissions admin:', error);
+      console.error('❌ Erreur vérification admin:', error);
       return false;
     }
   }
 
   /**
-   * ✅ APPROUVER UNE VALIDATION (Admin seulement)
+   * ✅ VALIDER UNE TÂCHE (ADMIN)
    */
-  async approveValidation(validationId, adminId, adminComment = '') {
+  async validateTask(validationId, adminData) {
     try {
-      const isAdmin = await this.checkAdminPermissions(adminId);
-      if (!isAdmin) {
-        throw new Error('Permissions insuffisantes');
+      const { userId: adminId, approved, comment, xpAwarded } = adminData;
+      
+      // Vérifier les permissions admin
+      const hasPermission = await this.checkAdminPermissions(adminId);
+      if (!hasPermission) {
+        throw new Error('Permissions administrateur requises');
       }
 
+      // Récupérer la demande de validation
       const validationRef = doc(db, 'task_validations', validationId);
       const validationDoc = await getDoc(validationRef);
       
       if (!validationDoc.exists()) {
-        throw new Error('Validation introuvable');
+        throw new Error('Demande de validation introuvable');
       }
 
-      const validationData = validationDoc.data();
-
-      // Mettre à jour la validation
+      const validation = validationDoc.data();
+      
+      // Mettre à jour la demande de validation
       await updateDoc(validationRef, {
-        status: 'approved',
+        status: approved ? 'approved' : 'rejected',
         reviewedBy: adminId,
         reviewedAt: serverTimestamp(),
-        adminComment: adminComment || 'Tâche approuvée'
+        adminComment: comment || '',
+        xpAwarded: approved ? (xpAwarded || validation.xpAmount) : 0,
+        approved: approved
       });
 
-      // Attribuer les XP à l'utilisateur
-      await this.awardXPToUser(
-        validationData.userId, 
-        validationData.xpAmount, 
-        validationData.taskId, 
-        validationData.taskTitle
-      );
-
       // Mettre à jour la tâche
-      await updateDoc(doc(db, 'tasks', validationData.taskId), {
-        status: 'completed',
-        completedAt: serverTimestamp(),
+      const taskRef = doc(db, 'tasks', validation.taskId);
+      await updateDoc(taskRef, {
+        status: approved ? 'completed' : 'assigned',
+        completedAt: approved ? serverTimestamp() : null,
         validatedBy: adminId,
-        adminComment: adminComment,
+        validatedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
 
-      console.log(`✅ Validation ${validationId} approuvée par ${adminId}`);
+      // Si approuvé, attribuer les XP
+      if (approved) {
+        const xpToAward = xpAwarded || validation.xpAmount;
+        await gamificationService.awardXP(validation.userId, xpToAward, {
+          reason: 'task_completion',
+          taskId: validation.taskId,
+          difficulty: validation.difficulty
+        });
+        
+        console.log('🎯 XP attribués:', xpToAward, 'à l\'utilisateur:', validation.userId);
+      }
+      
+      console.log('✅ Tâche validée avec succès:', validation.taskId);
       
       return {
         success: true,
-        message: 'Validation approuvée avec succès'
+        approved: approved,
+        xpAwarded: approved ? (xpAwarded || validation.xpAmount) : 0
       };
-
+      
     } catch (error) {
-      console.error('❌ Erreur approbation validation:', error);
+      console.error('❌ Erreur validation tâche:', error);
       throw error;
     }
   }
 
   /**
-   * 🏆 ATTRIBUER XP À UN UTILISATEUR
-   */
-  async awardXPToUser(userId, xpAmount, taskId, taskTitle) {
-    try {
-      const userRef = doc(db, 'users', userId);
-      const userDoc = await getDoc(userRef);
-      
-      if (!userDoc.exists()) {
-        console.warn('⚠️ Utilisateur introuvable pour attribution XP:', userId);
-        return;
-      }
-
-      const userData = userDoc.data();
-      const currentXP = userData.gamification?.totalXp || 0;
-      const currentLevel = userData.gamification?.level || 1;
-      const tasksCompleted = userData.gamification?.tasksCompleted || 0;
-
-      const newXP = currentXP + xpAmount;
-      const newLevel = this.calculateLevel(newXP);
-
-      await updateDoc(userRef, {
-        'gamification.totalXp': newXP,
-        'gamification.level': newLevel,
-        'gamification.tasksCompleted': tasksCompleted + 1,
-        'gamification.lastActivityDate': serverTimestamp(),
-        'gamification.lastXpGain': {
-          amount: xpAmount,
-          source: 'task_completion',
-          taskId: taskId,
-          taskTitle: taskTitle,
-          date: new Date().toISOString()
-        }
-      });
-
-      console.log('🏆 XP attribués:', { userId, xpAmount, newXP, newLevel });
-
-    } catch (error) {
-      console.error('❌ Erreur attribution XP:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📊 CALCULER LE NIVEAU BASÉ SUR L'XP
-   */
-  calculateLevel(totalXp) {
-    if (totalXp < 100) return 1;
-    if (totalXp < 200) return 2;
-    if (totalXp < 350) return 3;
-    if (totalXp < 550) return 4;
-    if (totalXp < 800) return 5;
-    
-    return Math.floor((totalXp - 800) / 300) + 6;
-  }
-
-  /**
-   * ❌ REJETER UNE VALIDATION (Admin seulement)
-   */
-  async rejectValidation(validationId, adminId, rejectionReason = '') {
-    try {
-      const isAdmin = await this.checkAdminPermissions(adminId);
-      if (!isAdmin) {
-        throw new Error('Permissions insuffisantes');
-      }
-
-      const validationRef = doc(db, 'task_validations', validationId);
-      const validationDoc = await getDoc(validationRef);
-      
-      if (!validationDoc.exists()) {
-        throw new Error('Validation introuvable');
-      }
-
-      const validationData = validationDoc.data();
-
-      // Mettre à jour la validation
-      await updateDoc(validationRef, {
-        status: 'rejected',
-        reviewedBy: adminId,
-        reviewedAt: serverTimestamp(),
-        adminComment: rejectionReason || 'Validation rejetée',
-        rejectionReason: rejectionReason
-      });
-
-      // Mettre à jour la tâche
-      await updateDoc(doc(db, 'tasks', validationData.taskId), {
-        status: 'rejected',
-        rejectedAt: serverTimestamp(),
-        rejectedBy: adminId,
-        rejectionReason: rejectionReason,
-        updatedAt: serverTimestamp()
-      });
-
-      console.log(`❌ Validation ${validationId} rejetée par ${adminId}`);
-      
-      return {
-        success: true,
-        message: 'Validation rejetée'
-      };
-
-    } catch (error) {
-      console.error('❌ Erreur rejet validation:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📋 RÉCUPÉRER LES VALIDATIONS EN ATTENTE
+   * 📋 RÉCUPÉRER LES DEMANDES EN ATTENTE
    */
   async getPendingValidations() {
     try {
-      console.log('📋 Récupération validations en attente...');
-      
       const q = query(
         collection(db, 'task_validations'),
         where('status', '==', 'pending'),
         orderBy('submittedAt', 'desc')
       );
       
-      const querySnapshot = await getDocs(q);
+      const snapshot = await getDocs(q);
       const validations = [];
       
-      for (const doc of querySnapshot.docs) {
-        const validationData = doc.data();
-        
-        // Enrichir avec les données utilisateur
-        const userData = await this.getUserData(validationData.userId);
+      snapshot.forEach(doc => {
         validations.push({
           id: doc.id,
-          ...validationData,
-          userName: userData?.profile?.displayName || userData?.displayName || 'Utilisateur',
-          userEmail: userData?.email || ''
+          ...doc.data()
         });
-      }
+      });
       
-      console.log('✅ Validations récupérées:', validations.length);
+      console.log('📋 Demandes en attente récupérées:', validations.length);
       return validations;
       
     } catch (error) {
       console.error('❌ Erreur récupération validations:', error);
-      return [];
+      throw error;
     }
   }
 
   /**
-   * 👤 RÉCUPÉRER LES DONNÉES D'UN UTILISATEUR
+   * 📊 ÉCOUTER LES DEMANDES EN TEMPS RÉEL
    */
-  async getUserData(userId) {
+  listenToPendingValidations(callback) {
     try {
-      const userRef = doc(db, 'users', userId);
-      const userDoc = await getDoc(userRef);
+      const q = query(
+        collection(db, 'task_validations'),
+        where('status', '==', 'pending'),
+        orderBy('submittedAt', 'desc')
+      );
       
-      if (userDoc.exists()) {
-        return userDoc.data();
-      }
-      
-      return null;
+      return onSnapshot(q, (snapshot) => {
+        const validations = [];
+        snapshot.forEach(doc => {
+          validations.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+        
+        callback(validations);
+      });
       
     } catch (error) {
-      console.error('❌ Erreur récupération données utilisateur:', error);
-      return null;
+      console.error('❌ Erreur écoute validations:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🗑️ SUPPRIMER UNE DEMANDE DE VALIDATION
+   */
+  async deleteValidation(validationId) {
+    try {
+      await deleteDoc(doc(db, 'task_validations', validationId));
+      console.log('🗑️ Demande de validation supprimée:', validationId);
+      return { success: true };
+      
+    } catch (error) {
+      console.error('❌ Erreur suppression validation:', error);
+      throw error;
     }
   }
 }
 
-// Export de l'instance
+// Instance unique du service
 export const taskValidationService = new TaskValidationService();
-export default TaskValidationService;
+export { TaskValidationService };
