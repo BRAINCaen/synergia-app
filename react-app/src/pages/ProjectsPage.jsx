@@ -1,396 +1,409 @@
 // ==========================================
 // 📁 react-app/src/pages/ProjectsPage.jsx
-// PAGE PROJETS AVEC BOUTONS FONCTIONNELS CORRIGÉS
+// PROJECTS PAGE AVEC TOUTES LES FONCTIONNALITÉS ORIGINALES RESTAURÉES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { 
   Folder, 
   Plus, 
   Search, 
   Filter,
-  Download,
-  Eye,
-  Edit,
-  Share2,
-  Star,
-  Play,
-  CheckCircle,
-  Target,
-  TrendingUp,
-  Clock,
-  Users,
   Calendar,
+  Users,
+  Target,
+  Clock,
+  Star,
   MoreVertical,
-  X,
+  Play,
+  Pause,
+  CheckCircle,
+  AlertCircle,
+  TrendingUp,
+  Edit,
+  Trash2,
+  Eye,
   Settings,
-  Trash2
+  Share2,
+  Download,
+  Award,
+  Zap,
+  UserPlus,
+  FileText,
+  Flag,
+  Upload,
+  Archive,
+  Copy
 } from 'lucide-react';
 
-// Layouts et composants UI
+// Layout et composants premium
 import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
 
-// Services et stores
+// Stores et services
 import { useAuthStore } from '../shared/stores/authStore.js';
+import { useProjectStore } from '../shared/stores/projectStore.js';
 import { projectService } from '../core/services/projectService.js';
-import { taskService } from '../core/services/taskService.js';
+import { teamManagementService } from '../core/services/teamManagementService.js';
 
-// Composants de projet
-import { ProjectForm } from '../modules/projects/ProjectForm.jsx';
+// Modals et composants
+import ProjectForm from '../components/forms/ProjectForm.jsx';
 
 /**
- * 📂 PAGE DES PROJETS AVEC BOUTONS FONCTIONNELS
+ * 📁 PROJECTS PAGE AVEC TOUTES LES FONCTIONNALITÉS
  */
 const ProjectsPage = () => {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { projects, loading, createProject, updateProject, deleteProject, loadUserProjects } = useProjectStore();
   
-  // États des données
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
-  // États de l'interface
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [showFilters, setShowFilters] = useState(false);
-  
-  // États des modales
+  const [filterPriority, setFilterPriority] = useState('all');
+  const [selectedProject, setSelectedProject] = useState(null);
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-  const [showProjectActions, setShowProjectActions] = useState(null);
+  const [showTeamModal, setShowTeamModal] = useState(false);
 
-  // ✅ CHARGEMENT DES DONNÉES FIREBASE
+  // États pour les statistiques
+  const [projectStats, setProjectStats] = useState({
+    total: 0,
+    active: 0,
+    completed: 0,
+    onHold: 0,
+    completionRate: 0,
+    totalTasks: 0,
+    avgProgress: 0
+  });
+
+  // Charger les projets
   useEffect(() => {
     if (user?.uid) {
-      loadProjectsData();
+      loadUserProjects(user.uid);
     }
-  }, [user?.uid]);
+  }, [user?.uid, loadUserProjects]);
 
-  const loadProjectsData = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      console.log('🔄 [PROJECTS-PAGE] Chargement projets utilisateur:', user.uid);
-      
-      const userProjects = await projectService.getUserProjects(user.uid);
-      console.log('✅ [PROJECTS-PAGE] Projets chargés:', userProjects.length);
-      
-      // Enrichir avec les statistiques de tâches
-      const enrichedProjects = await Promise.all(
-        userProjects.map(async (project) => {
-          try {
-            const tasks = await taskService.getTasksByProject(project.id);
-            const totalTasks = tasks.length;
-            const completedTasks = tasks.filter(t => t.status === 'completed').length;
-            const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-            
-            return {
-              ...project,
-              totalTasks,
-              completedTasks,
-              progress
-            };
-          } catch (error) {
-            console.warn('⚠️ Erreur chargement tâches pour projet:', project.id);
-            return { ...project, totalTasks: 0, completedTasks: 0, progress: 0 };
-          }
-        })
-      );
-      
-      setProjects(enrichedProjects);
-      
-    } catch (err) {
-      console.error('❌ [PROJECTS-PAGE] Erreur chargement:', err);
-      setError(err.message);
-      setProjects([]);
-    } finally {
-      setLoading(false);
+  // Calcul des statistiques
+  useEffect(() => {
+    if (projects?.length) {
+      const total = projects.length;
+      const active = projects.filter(p => p.status === 'active').length;
+      const completed = projects.filter(p => p.status === 'completed').length;
+      const onHold = projects.filter(p => p.status === 'on_hold').length;
+      const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+      const totalTasks = projects.reduce((sum, p) => sum + (p.taskCount || 0), 0);
+      const avgProgress = total > 0 ? Math.round(projects.reduce((sum, p) => sum + (p.progress || 0), 0) / total) : 0;
+
+      setProjectStats({
+        total,
+        active,
+        completed,
+        onHold,
+        completionRate,
+        totalTasks,
+        avgProgress
+      });
     }
-  };
-
-  // ✅ BOUTON NOUVEAU PROJET - FONCTIONNEL
-  const handleNewProject = () => {
-    console.log('🔄 [PROJECTS-PAGE] Ouverture formulaire nouveau projet');
-    setEditingProject(null);
-    setShowProjectForm(true);
-  };
-
-  // ✅ BOUTON FILTRES - FONCTIONNEL
-  const handleToggleFilters = () => {
-    console.log('🔄 [PROJECTS-PAGE] Toggle filtres:', !showFilters);
-    setShowFilters(!showFilters);
-  };
-
-  // ✅ BOUTON EXPORTER - FONCTIONNEL
-  const handleExportProjects = () => {
-    console.log('🔄 [PROJECTS-PAGE] Export des projets...');
-    
-    try {
-      const csvContent = [
-        'Nom,Description,Statut,Priorité,Progression,Tâches,Créé le',
-        ...projects.map(project => [
-          `"${project.title || ''}"`,
-          `"${project.description || ''}"`,
-          project.status || '',
-          project.priority || '',
-          `${project.progress || 0}%`,
-          `${project.completedTasks || 0}/${project.totalTasks || 0}`,
-          project.createdAt ? new Date(project.createdAt.seconds * 1000).toLocaleDateString('fr-FR') : ''
-        ].join(','))
-      ].join('\n');
-      
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `projets-${Date.now()}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      console.log('✅ [PROJECTS-PAGE] Export réussi');
-    } catch (error) {
-      console.error('❌ [PROJECTS-PAGE] Erreur export:', error);
-      alert('Erreur lors de l\'export');
-    }
-  };
-
-  // ✅ GESTIONNAIRE FERMETURE FORMULAIRE
-  const handleCloseProjectForm = async () => {
-    console.log('🔄 [PROJECTS-PAGE] Fermeture formulaire et rechargement');
-    setShowProjectForm(false);
-    setEditingProject(null);
-    // Recharger les projets après création/modification
-    await loadProjectsData();
-  };
-
-  // ✅ GESTIONNAIRE ÉDITION PROJET
-  const handleEditProject = (project) => {
-    console.log('🔄 [PROJECTS-PAGE] Édition projet:', project.title);
-    setEditingProject(project);
-    setShowProjectForm(true);
-  };
-
-  // ✅ GESTIONNAIRE VISUALISATION PROJET
-  const handleViewProject = (projectId) => {
-    console.log('🔄 [PROJECTS-PAGE] Redirection vers projet:', projectId);
-    window.location.href = `/projects/${projectId}`;
-  };
-
-  // ✅ GESTIONNAIRE ACTIONS PROJET (trois petits points)
-  const handleProjectActions = (projectId) => {
-    console.log('🔄 [PROJECTS-PAGE] Toggle actions projet:', projectId);
-    setShowProjectActions(showProjectActions === projectId ? null : projectId);
-  };
-
-  // ✅ GESTIONNAIRE CHANGEMENT STATUT
-  const handleProjectStatusChange = async (projectId, newStatus) => {
-    try {
-      console.log('🔄 [PROJECTS-PAGE] Changement statut:', projectId, '→', newStatus);
-      
-      const result = await projectService.updateProject(projectId, { status: newStatus });
-      
-      if (result.success) {
-        // Mettre à jour l'état local
-        setProjects(prev => prev.map(project => 
-          project.id === projectId ? { ...project, status: newStatus } : project
-        ));
-        
-        console.log('✅ [PROJECTS-PAGE] Statut mis à jour');
-      }
-      
-      setShowProjectActions(null);
-      
-    } catch (error) {
-      console.error('❌ [PROJECTS-PAGE] Erreur changement statut:', error);
-      alert('Erreur lors du changement de statut');
-    }
-  };
-
-  // ✅ GESTIONNAIRE SUPPRESSION PROJET
-  const handleDeleteProject = async (projectId, projectTitle) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer le projet "${projectTitle}" ?`)) {
-      return;
-    }
-    
-    try {
-      console.log('🔄 [PROJECTS-PAGE] Suppression projet:', projectId);
-      
-      const result = await projectService.deleteProject(projectId);
-      
-      if (result.success) {
-        // Retirer de l'état local
-        setProjects(prev => prev.filter(project => project.id !== projectId));
-        console.log('✅ [PROJECTS-PAGE] Projet supprimé');
-      }
-      
-      setShowProjectActions(null);
-      
-    } catch (error) {
-      console.error('❌ [PROJECTS-PAGE] Erreur suppression:', error);
-      alert('Erreur lors de la suppression');
-    }
-  };
-
-  // ✅ GESTIONNAIRE SAUVEGARDE PROJET
-  const handleSaveProject = async (projectData) => {
-    try {
-      if (editingProject) {
-        // Modification
-        console.log('🔄 [PROJECTS-PAGE] Modification projet:', editingProject.id);
-        await projectService.updateProject(editingProject.id, projectData);
-      } else {
-        // Création
-        console.log('🔄 [PROJECTS-PAGE] Création nouveau projet');
-        await projectService.createProject(projectData, user.uid);
-      }
-      
-      console.log('✅ [PROJECTS-PAGE] Projet sauvegardé');
-      await handleCloseProjectForm();
-      
-    } catch (error) {
-      console.error('❌ [PROJECTS-PAGE] Erreur sauvegarde:', error);
-      throw error;
-    }
-  };
+  }, [projects]);
 
   // Filtrage des projets
   const filteredProjects = projects.filter(project => {
-    const matchesSearch = !searchTerm || 
-      project.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         project.category?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = filterStatus === 'all' || project.status === filterStatus;
+    const matchesPriority = filterPriority === 'all' || project.priority === filterPriority;
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesPriority;
   });
 
-  // Calcul des statistiques
-  const calculateStats = () => {
-    const total = projects.length;
-    const active = projects.filter(p => p.status === 'active').length;
-    const completed = projects.filter(p => p.status === 'completed').length;
-    const onHold = projects.filter(p => p.status === 'on_hold').length;
-    
-    return [
-      {
-        title: 'Total',
-        value: total,
-        icon: Folder,
-        color: 'from-blue-500 to-blue-600',
-        change: null
-      },
-      {
-        title: 'Actifs', 
-        value: active,
-        icon: Play,
-        color: 'from-green-500 to-green-600',
-        change: total > 0 ? `${Math.round((active / total) * 100)}%` : '0%'
-      },
-      {
-        title: 'Terminés',
-        value: completed, 
-        icon: CheckCircle,
-        color: 'from-purple-500 to-purple-600',
-        change: total > 0 ? `${Math.round((completed / total) * 100)}%` : '0%'
-      },
-      {
-        title: 'En pause',
-        value: onHold,
-        icon: Clock,
-        color: 'from-orange-500 to-orange-600', 
-        change: null
-      }
-    ];
+  // 🎯 HANDLERS POUR LES ACTIONS DE PROJETS
+
+  const handleCreateProject = async (projectData) => {
+    try {
+      const newProject = await projectService.createProject({
+        ...projectData,
+        ownerId: user.uid,
+        members: [user.uid], // Créateur automatiquement membre
+        createdBy: user.uid,
+        createdAt: new Date(),
+        status: projectData.status || 'active',
+        progress: 0,
+        taskCount: 0,
+        completedTaskCount: 0
+      }, user.uid);
+
+      // Recharger la liste
+      await loadUserProjects(user.uid);
+      setShowProjectForm(false);
+      
+      alert('✅ Projet créé avec succès !');
+    } catch (error) {
+      console.error('❌ Erreur création projet:', error);
+      alert('❌ Erreur lors de la création : ' + error.message);
+    }
   };
 
-  // Actions d'en-tête avec boutons fonctionnels
+  const handleUpdateProject = async (projectId, updates) => {
+    try {
+      await projectService.updateProject(projectId, {
+        ...updates,
+        updatedAt: new Date(),
+        updatedBy: user.uid
+      });
+
+      // Recharger la liste
+      await loadUserProjects(user.uid);
+      setEditingProject(null);
+      setShowProjectForm(false);
+      
+      alert('✅ Projet mis à jour avec succès !');
+    } catch (error) {
+      console.error('❌ Erreur mise à jour projet:', error);
+      alert('❌ Erreur lors de la mise à jour : ' + error.message);
+    }
+  };
+
+  const handleDeleteProject = async (projectId) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce projet ? Cette action est irréversible.')) {
+      try {
+        await projectService.deleteProject(projectId);
+        await loadUserProjects(user.uid);
+        alert('✅ Projet supprimé avec succès !');
+      } catch (error) {
+        console.error('❌ Erreur suppression projet:', error);
+        alert('❌ Erreur lors de la suppression : ' + error.message);
+      }
+    }
+  };
+
+  const handleStatusChange = async (projectId, newStatus) => {
+    try {
+      await projectService.updateProject(projectId, {
+        status: newStatus,
+        updatedAt: new Date(),
+        updatedBy: user.uid
+      });
+      await loadUserProjects(user.uid);
+    } catch (error) {
+      console.error('❌ Erreur changement statut:', error);
+      alert('❌ Erreur lors du changement de statut : ' + error.message);
+    }
+  };
+
+  const handleArchiveProject = async (projectId) => {
+    if (window.confirm('Archiver ce projet ? Il restera accessible mais ne sera plus actif.')) {
+      await handleStatusChange(projectId, 'archived');
+    }
+  };
+
+  const handleDuplicateProject = async (project) => {
+    try {
+      const duplicatedProject = {
+        ...project,
+        title: `${project.title} (Copie)`,
+        status: 'active',
+        progress: 0,
+        taskCount: 0,
+        completedTaskCount: 0,
+        // Supprimer les champs qui ne doivent pas être dupliqués
+        id: undefined,
+        createdAt: undefined,
+        updatedAt: undefined
+      };
+
+      await handleCreateProject(duplicatedProject);
+    } catch (error) {
+      console.error('❌ Erreur duplication projet:', error);
+      alert('❌ Erreur lors de la duplication : ' + error.message);
+    }
+  };
+
+  const handleManageTeam = async (project) => {
+    setSelectedProject(project);
+    setShowTeamModal(true);
+  };
+
+  const handleAddMembers = async (projectId, memberIds) => {
+    try {
+      await teamManagementService.addMembersToProject(projectId, memberIds, user.uid);
+      await loadUserProjects(user.uid);
+      alert(`✅ ${memberIds.length} membre(s) ajouté(s) au projet !`);
+    } catch (error) {
+      console.error('❌ Erreur ajout membres:', error);
+      alert('❌ Erreur lors de l\'ajout des membres : ' + error.message);
+    }
+  };
+
+  const handleRemoveMember = async (projectId, memberId) => {
+    if (window.confirm('Retirer ce membre du projet ?')) {
+      try {
+        await teamManagementService.removeMemberFromProject(projectId, memberId);
+        await loadUserProjects(user.uid);
+        alert('✅ Membre retiré du projet !');
+      } catch (error) {
+        console.error('❌ Erreur retrait membre:', error);
+        alert('❌ Erreur lors du retrait du membre : ' + error.message);
+      }
+    }
+  };
+
+  const handleViewProjectDetails = (project) => {
+    // Naviguer vers une page de détails du projet (à créer)
+    navigate(`/projects/${project.id}`);
+  };
+
+  const handleExportProject = async (project) => {
+    try {
+      // Créer un export JSON du projet avec ses tâches
+      const exportData = {
+        project: project,
+        exportDate: new Date().toISOString(),
+        exportedBy: user.email
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `projet-${project.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      alert('✅ Projet exporté avec succès !');
+    } catch (error) {
+      console.error('❌ Erreur export projet:', error);
+      alert('❌ Erreur lors de l\'export : ' + error.message);
+    }
+  };
+
+  // Statistiques pour le header
+  const headerStats = [
+    {
+      label: "Total projets",
+      value: projectStats.total,
+      icon: Folder,
+      color: "text-blue-400",
+      iconColor: "text-blue-400"
+    },
+    {
+      label: "Actifs",
+      value: projectStats.active,
+      icon: Play,
+      color: "text-green-400",
+      iconColor: "text-green-400"
+    },
+    {
+      label: "Terminés",
+      value: projectStats.completed,
+      icon: CheckCircle,
+      color: "text-purple-400",
+      iconColor: "text-purple-400"
+    },
+    {
+      label: "Progression moy.",
+      value: `${projectStats.avgProgress}%`,
+      icon: TrendingUp,
+      color: "text-yellow-400",
+      iconColor: "text-yellow-400"
+    }
+  ];
+
+  // Actions du header
   const headerActions = (
     <>
       <PremiumButton 
-        variant="secondary" 
-        size="md"
-        icon={Download}
-        onClick={handleExportProjects}
-      >
-        Exporter
-      </PremiumButton>
-      
-      <PremiumButton 
-        variant="secondary" 
+        variant="outline" 
         size="md"
         icon={Filter}
-        onClick={handleToggleFilters}
       >
-        Filtres
+        Filtres avancés
       </PremiumButton>
-      
       <PremiumButton 
         variant="primary" 
         size="md"
         icon={Plus}
-        onClick={handleNewProject}
+        onClick={() => setShowProjectForm(true)}
       >
         Nouveau projet
       </PremiumButton>
     </>
   );
 
-  // Fonction pour obtenir la couleur de statut
   const getStatusColor = (status) => {
-    switch(status) {
-      case 'active': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'completed': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-      case 'on_hold': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-      case 'cancelled': return 'bg-red-500/20 text-red-400 border-red-500/30';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    switch (status) {
+      case 'completed':
+        return 'border-green-500 bg-green-500/10';
+      case 'active':
+        return 'border-blue-500 bg-blue-500/10';
+      case 'on_hold':
+        return 'border-yellow-500 bg-yellow-500/10';
+      case 'cancelled':
+        return 'border-red-500 bg-red-500/10';
+      case 'archived':
+        return 'border-gray-500 bg-gray-500/10';
+      default:
+        return 'border-gray-500 bg-gray-500/10';
     }
   };
 
-  // Fonction pour obtenir l'icône de statut
+  const getStatusLabel = (status) => {
+    const labels = {
+      active: 'Actif',
+      on_hold: 'En pause',
+      completed: 'Terminé',
+      cancelled: 'Annulé',
+      archived: 'Archivé'
+    };
+    return labels[status] || status;
+  };
+
   const getStatusIcon = (status) => {
-    switch(status) {
-      case 'active': return <Play className="w-4 h-4" />;
-      case 'completed': return <CheckCircle className="w-4 h-4" />;
-      case 'on_hold': return <Clock className="w-4 h-4" />;
-      case 'cancelled': return <X className="w-4 h-4" />;
-      default: return <Folder className="w-4 h-4" />;
+    switch (status) {
+      case 'completed':
+        return <CheckCircle className="w-4 h-4 text-green-400" />;
+      case 'active':
+        return <Play className="w-4 h-4 text-blue-400" />;
+      case 'on_hold':
+        return <Pause className="w-4 h-4 text-yellow-400" />;
+      case 'cancelled':
+        return <AlertCircle className="w-4 h-4 text-red-400" />;
+      case 'archived':
+        return <Archive className="w-4 h-4 text-gray-400" />;
+      default:
+        return <Target className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'urgent':
+        return 'text-red-400 bg-red-500/10';
+      case 'high':
+        return 'text-orange-400 bg-orange-500/10';
+      case 'medium':
+        return 'text-yellow-400 bg-yellow-500/10';
+      case 'low':
+        return 'text-green-400 bg-green-500/10';
+      default:
+        return 'text-gray-400 bg-gray-500/10';
     }
   };
 
   if (loading) {
     return (
       <PremiumLayout
-        title="Projets"
+        title="Mes Projets"
         subtitle="Chargement de vos projets..."
         icon={Folder}
-        showStats={false}
-      >
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        </div>
-      </PremiumLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <PremiumLayout
-        title="Projets"
-        subtitle="Erreur de chargement"
-        icon={Folder}
-        showStats={false}
       >
         <PremiumCard className="text-center py-12">
-          <div className="text-red-400 text-4xl mb-4">⚠️</div>
-          <h3 className="text-xl font-bold text-white mb-2">Erreur de chargement</h3>
-          <p className="text-gray-400 mb-4">{error}</p>
-          <PremiumButton onClick={loadProjectsData} variant="primary">
-            Réessayer
-          </PremiumButton>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-400">Chargement de vos projets...</p>
         </PremiumCard>
       </PremiumLayout>
     );
@@ -399,309 +412,325 @@ const ProjectsPage = () => {
   return (
     <PremiumLayout
       title="Mes Projets"
-      subtitle="Gérez efficacement vos projets d'équipe"
+      subtitle="Gérez efficacement vos projets et leurs équipes"
       icon={Folder}
       headerActions={headerActions}
       showStats={true}
-      stats={calculateStats()}
+      stats={headerStats}
     >
-      {/* ✅ PANEL FILTRES FONCTIONNEL */}
-      <AnimatePresence>
-        {showFilters && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mb-6"
+      
+      {/* 🔍 Barre de recherche et filtres */}
+      <div className="flex flex-col lg:flex-row gap-4 mb-8">
+        <div className="flex-1">
+          <PremiumSearchBar
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Rechercher dans vos projets..."
+          />
+        </div>
+        
+        <div className="flex flex-wrap gap-2">
+          {/* Filtres de statut */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <PremiumCard>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Recherche */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-300">Recherche</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type="text"
-                      placeholder="Rechercher..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                </div>
+            <option value="all">Tous les statuts</option>
+            <option value="active">Actifs</option>
+            <option value="on_hold">En pause</option>
+            <option value="completed">Terminés</option>
+            <option value="archived">Archivés</option>
+          </select>
+          
+          {/* Filtres de priorité */}
+          <select
+            value={filterPriority}
+            onChange={(e) => setFilterPriority(e.target.value)}
+            className="px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">Toutes priorités</option>
+            <option value="urgent">Urgente</option>
+            <option value="high">Haute</option>
+            <option value="medium">Moyenne</option>
+            <option value="low">Basse</option>
+          </select>
+        </div>
+      </div>
 
-                {/* Filtre statut */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-300">Statut</label>
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                  >
-                    <option value="all">Tous les statuts</option>
-                    <option value="active">Actifs</option>
-                    <option value="completed">Terminés</option>
-                    <option value="on_hold">En pause</option>
-                    <option value="cancelled">Annulés</option>
-                  </select>
-                </div>
+      {/* 📊 Statistiques rapides */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <StatCard
+          title="Tâches totales"
+          value={projectStats.totalTasks}
+          icon={Target}
+          color="blue"
+          trend="📋 Toutes équipes"
+        />
+        <StatCard
+          title="Taux réussite"
+          value={`${projectStats.completionRate}%`}
+          icon={Award}
+          color="green"
+          trend="🎯 Projets terminés"
+        />
+        <StatCard
+          title="En pause"
+          value={projectStats.onHold}
+          icon={Clock}
+          color="yellow"
+          trend="⏸️ Nécessitent attention"
+        />
+        <StatCard
+          title="Équipes actives"
+          value={projectStats.active}
+          icon={Users}
+          color="purple"
+          trend="👥 Collaborent activement"
+        />
+      </div>
 
-                {/* Bouton de réinitialisation */}
-                <div className="flex items-end">
-                  <button
-                    onClick={() => {
-                      setSearchTerm('');
-                      setFilterStatus('all');
-                    }}
-                    className="w-full px-4 py-2 text-gray-400 hover:text-white transition-colors border border-gray-600 rounded-lg hover:border-gray-500"
-                  >
-                    Réinitialiser
-                  </button>
-                </div>
-              </div>
-            </PremiumCard>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ✅ GRILLE DES PROJETS AVEC BOUTONS FONCTIONNELS */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      {/* 📁 Grille des projets */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProjects.map((project, index) => (
           <motion.div
             key={project.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.1 }}
+            transition={{ duration: 0.4, delay: index * 0.1 }}
           >
-            <PremiumCard className="h-full">
-              <div className="flex flex-col h-full">
-                {/* En-tête de la carte */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2">
-                      {project.title}
+            <PremiumCard className={`h-full border-l-4 ${getStatusColor(project.status)}`} hover={true}>
+              
+              {/* Header du projet */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    {getStatusIcon(project.status)}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white truncate max-w-[200px]">
+                      {project.title || 'Projet sans nom'}
                     </h3>
-                    
-                    {/* Badge statut */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className={`px-2 py-1 text-xs rounded-full border ${getStatusColor(project.status)}`}>
-                        <span className="flex items-center gap-1">
-                          {getStatusIcon(project.status)}
-                          {project.status === 'active' ? 'Actif' :
-                           project.status === 'completed' ? 'Terminé' :
-                           project.status === 'on_hold' ? 'En pause' :
-                           project.status === 'cancelled' ? 'Annulé' : 'Inconnu'}
-                        </span>
-                      </span>
-                      
-                      {project.priority && project.priority !== 'normal' && (
-                        <span className={`px-2 py-1 text-xs rounded-full border ${
-                          project.priority === 'high' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
-                          project.priority === 'urgent' ? 'bg-red-600/20 text-red-300 border-red-600/30' :
-                          'bg-green-500/20 text-green-400 border-green-500/30'
-                        }`}>
-                          {project.priority === 'high' ? '🔥 Haute' : 
-                           project.priority === 'urgent' ? '🚨 Urgente' : '🟢 Basse'}
-                        </span>
-                      )}
+                    <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs border ${getStatusColor(project.status)}`}>
+                      {getStatusIcon(project.status)}
+                      <span>{getStatusLabel(project.status)}</span>
                     </div>
                   </div>
-
-                  {/* ✅ MENU ACTIONS FONCTIONNEL (trois petits points) */}
-                  <div className="relative">
-                    <button
-                      onClick={() => handleProjectActions(project.id)}
-                      className="p-2 text-gray-400 hover:text-white transition-colors hover:bg-gray-700 rounded-lg"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-
-                    {/* Menu déroulant des actions */}
-                    {showProjectActions === project.id && (
-                      <div className="absolute right-0 top-10 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50">
-                        <div className="py-1">
-                          <button
-                            onClick={() => handleViewProject(project.id)}
-                            className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-2"
-                          >
-                            <Eye className="w-4 h-4" />
-                            Voir le détail
-                          </button>
-                          
-                          <button
-                            onClick={() => handleEditProject(project)}
-                            className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-2"
-                          >
-                            <Edit className="w-4 h-4" />
-                            Modifier
-                          </button>
-                          
-                          {project.status !== 'completed' && (
-                            <button
-                              onClick={() => handleProjectStatusChange(project.id, 'completed')}
-                              className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-2"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                              Marquer terminé
-                            </button>
-                          )}
-                          
-                          {project.status === 'active' && (
-                            <button
-                              onClick={() => handleProjectStatusChange(project.id, 'on_hold')}
-                              className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-2"
-                            >
-                              <Clock className="w-4 h-4" />
-                              Mettre en pause
-                            </button>
-                          )}
-                          
-                          <div className="border-t border-gray-700 my-1"></div>
-                          
-                          <button
-                            onClick={() => handleDeleteProject(project.id, project.title)}
-                            className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-900/20 hover:text-red-300 flex items-center gap-2"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Supprimer
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 </div>
-
-                {/* Description */}
-                {project.description && (
-                  <p className="text-gray-400 text-sm mb-4 line-clamp-3 flex-1">
-                    {project.description}
-                  </p>
-                )}
-
-                {/* Barre de progression */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-400">Progression</span>
-                    <span className="text-sm font-medium text-white">{project.progress}%</span>
-                  </div>
-                  <div className="w-full bg-gray-700 rounded-full h-2">
-                    <div 
-                      className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${project.progress}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Métadonnées */}
-                <div className="mt-auto space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <Target className="w-4 h-4" />
-                      <span>Tâches: {project.completedTasks}/{project.totalTasks}</span>
-                    </div>
-                    
-                    {project.priority && (
-                      <div className="flex items-center gap-1 text-yellow-400">
-                        <Star className="w-3 h-3" />
-                        <span className="text-xs">{project.priority}</span>
-                      </div>
-                    )}
-                  </div>
+                
+                <div className="relative group">
+                  <button className="p-1 text-gray-400 hover:text-white transition-colors">
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
                   
-                  <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <Calendar className="w-4 h-4" />
-                    <span>
-                      Créé le {project.createdAt ? 
-                        new Date(project.createdAt.seconds * 1000).toLocaleDateString('fr-FR') : 
-                        'N/A'
-                      }
-                    </span>
-                  </div>
-                </div>
-
-                {/* ✅ BOUTONS D'ACTIONS RAPIDES */}
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
-                  <div className="flex space-x-2">
+                  {/* Menu déroulant complet */}
+                  <div className="absolute right-0 top-8 bg-gray-800 rounded-lg shadow-xl border border-gray-700 py-2 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
                     <button
-                      onClick={() => handleViewProject(project.id)}
-                      className="p-2 text-gray-400 hover:text-white transition-colors hover:bg-gray-800 rounded-lg"
-                      title="Voir le détail"
+                      onClick={() => handleViewProjectDetails(project)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white w-full text-left"
                     >
                       <Eye className="w-4 h-4" />
+                      Voir les détails
                     </button>
+                    
                     <button
-                      onClick={() => handleEditProject(project)}
-                      className="p-2 text-gray-400 hover:text-white transition-colors hover:bg-gray-800 rounded-lg"
-                      title="Modifier"
+                      onClick={() => {
+                        setEditingProject(project);
+                        setShowProjectForm(true);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white w-full text-left"
                     >
                       <Edit className="w-4 h-4" />
+                      Modifier
                     </button>
-                    <button className="p-2 text-gray-400 hover:text-white transition-colors hover:bg-gray-800 rounded-lg">
-                      <Share2 className="w-4 h-4" />
+                    
+                    <button
+                      onClick={() => handleManageTeam(project)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white w-full text-left"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Gérer l'équipe
                     </button>
-                  </div>
-                  
-                  <div className="flex items-center space-x-1 text-xs text-yellow-400">
-                    <Star className="w-3 h-3" />
-                    <span>{project.rating || '4.5'}</span>
+                    
+                    <div className="border-t border-gray-700 my-1"></div>
+                    
+                    {project.status === 'active' && (
+                      <button
+                        onClick={() => handleStatusChange(project.id, 'on_hold')}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-yellow-400 hover:bg-gray-700 w-full text-left"
+                      >
+                        <Pause className="w-4 h-4" />
+                        Mettre en pause
+                      </button>
+                    )}
+                    
+                    {project.status === 'on_hold' && (
+                      <button
+                        onClick={() => handleStatusChange(project.id, 'active')}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-green-400 hover:bg-gray-700 w-full text-left"
+                      >
+                        <Play className="w-4 h-4" />
+                        Reprendre
+                      </button>
+                    )}
+                    
+                    {project.status !== 'completed' && (
+                      <button
+                        onClick={() => handleStatusChange(project.id, 'completed')}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-green-400 hover:bg-gray-700 w-full text-left"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        Marquer terminé
+                      </button>
+                    )}
+                    
+                    <div className="border-t border-gray-700 my-1"></div>
+                    
+                    <button
+                      onClick={() => handleDuplicateProject(project)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-blue-400 hover:bg-gray-700 w-full text-left"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Dupliquer
+                    </button>
+                    
+                    <button
+                      onClick={() => handleExportProject(project)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-purple-400 hover:bg-gray-700 w-full text-left"
+                    >
+                      <Download className="w-4 h-4" />
+                      Exporter
+                    </button>
+                    
+                    {project.status !== 'archived' && (
+                      <button
+                        onClick={() => handleArchiveProject(project.id)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:bg-gray-700 w-full text-left"
+                      >
+                        <Archive className="w-4 h-4" />
+                        Archiver
+                      </button>
+                    )}
+                    
+                    <div className="border-t border-gray-700 my-1"></div>
+                    
+                    <button
+                      onClick={() => handleDeleteProject(project.id)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-gray-700 w-full text-left"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Supprimer
+                    </button>
                   </div>
                 </div>
+              </div>
+
+              {/* Description */}
+              <p className="text-gray-400 text-sm mb-4 line-clamp-2">
+                {project.description || 'Aucune description disponible'}
+              </p>
+
+              {/* Priorité et catégorie */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(project.priority)}`}>
+                  {project.priority || 'Normale'}
+                </span>
+                {project.category && (
+                  <span className="px-2 py-1 bg-gray-700/50 text-gray-300 rounded-full text-xs">
+                    {project.category}
+                  </span>
+                )}
+              </div>
+
+              {/* Métriques du projet */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="text-center p-2 bg-gray-800/50 rounded-lg">
+                  <div className="text-lg font-bold text-blue-400">{project.taskCount || 0}</div>
+                  <div className="text-xs text-gray-400">Tâches</div>
+                </div>
+                <div className="text-center p-2 bg-gray-800/50 rounded-lg">
+                  <div className="text-lg font-bold text-green-400">{project.members?.length || 0}</div>
+                  <div className="text-xs text-gray-400">Équipe</div>
+                </div>
+                <div className="text-center p-2 bg-gray-800/50 rounded-lg">
+                  <div className="text-lg font-bold text-purple-400">{project.progress || 0}%</div>
+                  <div className="text-xs text-gray-400">Progrès</div>
+                </div>
+              </div>
+
+              {/* Barre de progression */}
+              <div className="mb-4">
+                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                  <span>Progression</span>
+                  <span>{project.progress || 0}%</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(project.progress || 0, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Informations supplémentaires */}
+              <div className="space-y-2 text-sm">
+                {project.dueDate && (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <span className="text-gray-300">
+                      Échéance: {new Date(project.dueDate.toDate ? project.dueDate.toDate() : project.dueDate).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
+                
+                {project.estimatedHours && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    <span className="text-gray-300">
+                      Estimé: {project.estimatedHours}h
+                    </span>
+                  </div>
+                )}
+
+                {project.tags && project.tags.length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap mt-2">
+                    {project.tags.slice(0, 3).map((tag, tagIndex) => (
+                      <span key={tagIndex} className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded">
+                        {tag}
+                      </span>
+                    ))}
+                    {project.tags.length > 3 && (
+                      <span className="text-gray-400 text-xs">+{project.tags.length - 3}</span>
+                    )}
+                  </div>
+                )}
               </div>
             </PremiumCard>
           </motion.div>
         ))}
-
-        {/* ✅ CARTE NOUVEAU PROJET FONCTIONNELLE */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: filteredProjects.length * 0.1 }}
-        >
-          <PremiumCard className="h-full border-dashed border-gray-600 hover:border-blue-500 transition-colors cursor-pointer">
-            <div 
-              className="flex flex-col items-center justify-center h-full min-h-[300px] text-center"
-              onClick={handleNewProject}
-            >
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-2xl flex items-center justify-center mb-4">
-                <Plus className="w-8 h-8 text-blue-400" />
-              </div>
-              <h3 className="text-lg font-bold text-white mb-2">Nouveau projet</h3>
-              <p className="text-gray-400 text-sm mb-4">
-                Créez un nouveau projet pour votre équipe
-              </p>
-              <PremiumButton 
-                variant="primary" 
-                size="sm"
-                onClick={handleNewProject}
-              >
-                Commencer
-              </PremiumButton>
-            </div>
-          </PremiumCard>
-        </motion.div>
       </div>
 
-      {/* État vide avec bouton fonctionnel */}
-      {filteredProjects.length === 0 && (
+      {/* État vide */}
+      {filteredProjects.length === 0 && !loading && (
         <PremiumCard className="text-center py-12">
           <div className="w-20 h-20 bg-gradient-to-r from-gray-600/20 to-gray-700/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <Folder className="w-10 h-10 text-gray-500" />
           </div>
           <h3 className="text-xl font-bold text-white mb-2">Aucun projet trouvé</h3>
           <p className="text-gray-400 mb-6">
-            {searchTerm || filterStatus !== 'all' 
+            {searchTerm || filterStatus !== 'all' || filterPriority !== 'all'
               ? 'Aucun projet ne correspond à vos critères de recherche.'
               : 'Commencez par créer votre premier projet.'}
           </p>
           <div className="flex justify-center space-x-3">
-            {(searchTerm || filterStatus !== 'all') && (
+            {(searchTerm || filterStatus !== 'all' || filterPriority !== 'all') && (
               <PremiumButton 
                 variant="secondary" 
                 size="md"
                 onClick={() => {
                   setSearchTerm('');
                   setFilterStatus('all');
+                  setFilterPriority('all');
                 }}
               >
                 Réinitialiser les filtres
@@ -711,7 +740,7 @@ const ProjectsPage = () => {
               variant="primary" 
               size="md"
               icon={Plus}
-              onClick={handleNewProject}
+              onClick={() => setShowProjectForm(true)}
             >
               Créer un projet
             </PremiumButton>
@@ -719,25 +748,44 @@ const ProjectsPage = () => {
         </PremiumCard>
       )}
 
-      {/* ✅ MODAL FORMULAIRE PROJET FONCTIONNEL */}
+      {/* 📝 MODALS */}
+      
+      {/* Modal de création/édition de projet */}
       {showProjectForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <ProjectForm
-              project={editingProject}
-              onClose={handleCloseProjectForm}
-              onSave={handleSaveProject}
-            />
-          </div>
-        </div>
+        <ProjectForm
+          isOpen={showProjectForm}
+          onClose={() => {
+            setShowProjectForm(false);
+            setEditingProject(null);
+          }}
+          project={editingProject}
+          onSave={editingProject ? 
+            (data) => handleUpdateProject(editingProject.id, data) : 
+            handleCreateProject
+          }
+        />
       )}
 
-      {/* Fermer le menu d'actions si on clique ailleurs */}
-      {showProjectActions && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setShowProjectActions(null)}
-        />
+      {/* Modal de gestion d'équipe (placeholder - à implémenter) */}
+      {showTeamModal && selectedProject && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-white mb-4">
+                Gestion de l'équipe - {selectedProject.title}
+              </h2>
+              <p className="text-gray-400 mb-4">
+                Fonctionnalité de gestion d'équipe en cours de développement...
+              </p>
+              <button
+                onClick={() => setShowTeamModal(false)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </PremiumLayout>
   );
