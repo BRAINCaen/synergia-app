@@ -1,107 +1,79 @@
 # ==========================================
 # 📁 netlify.toml
-# CONFIGURATION NETLIFY OPTIMISÉE POUR ÉVITER TIMEOUT
+# Configuration Netlify CORRIGÉE - Build fix définitif
 # ==========================================
 
 [build]
   # Répertoire de base pour le build
   base = "react-app"
   
-  # ✅ COMMANDE BUILD CORRIGÉE (forcer installation devDependencies)
-  command = "NODE_ENV=development npm install --prefer-offline --no-audit --progress=false && npm run build"
+  # 🚀 COMMANDE BUILD CORRIGÉE - Installation simple et efficace
+  command = "npm ci && npm run build"
   
-  # Répertoire à publier (CORRECTION: chemin simple)
+  # Répertoire à publier (VITE génère dans 'dist', pas 'build')
   publish = "dist"
 
-# ✅ VARIABLES D'ENVIRONNEMENT CORRIGÉES
+# Variables d'environnement OPTIMISÉES
 [build.environment]
-  # Optimisations npm
-  NPM_CONFIG_PROGRESS = "false"
-  NPM_CONFIG_AUDIT = "false"
-  NPM_CONFIG_FUND = "false"
+  # 🚀 CORRECTION : Permettre l'installation des devDependencies
+  NODE_ENV = "development"
   
-  # Optimisations Vite
-  VITE_BUILD_TARGET = "es2020"
+  # Optimisations build
   GENERATE_SOURCEMAP = "false"
   CI = "true"
-  
-  # Désactiver fonctionnalités non nécessaires
   SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
 
-# ✅ CONTEXTE PRODUCTION CORRIGÉ (dev install puis prod build)
-[context.production]
-  command = "NODE_ENV=development npm install --prefer-offline --no-audit --progress=false && NODE_ENV=production npm run build"
-  
-[context.production.environment]
-  NODE_ENV = "production"
-
-# ✅ CONTEXTE DEPLOY-PREVIEW CORRIGÉ
-[context.deploy-preview]
-  command = "NODE_ENV=development npm install --prefer-offline && npm run build"
-
-# ✅ BRANCH DEPLOY CORRIGÉ  
-[context.branch-deploy]
-  command = "NODE_ENV=development npm install --prefer-offline && npm run build"
-
-# ✅ REDIRECTIONS SPA
+# Redirections pour SPA (Single Page Application)
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
   force = false
 
-# ✅ HEADERS OPTIMISÉS
+# Headers de sécurité et performance
 [[headers]]
   for = "/*"
   [headers.values]
-    # Sécurité de base
+    # Sécurité
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff" 
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
     
-    # PWA
+    # PWA et cache
     Service-Worker-Allowed = "/"
     
-    # CORS minimal pour Firebase
+    # CORS pour Firebase
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization"
 
-# ✅ CACHE AGRESSIF POUR ASSETS
+# Cache statique pour assets
 [[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
-    
-# ✅ CACHE SERVICE WORKER
+
+# Cache pour service worker
 [[headers]]
   for = "/sw.js"
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
 
-# ✅ CACHE MANIFEST PWA
+# Cache pour manifest
 [[headers]]
   for = "/manifest.json"
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
-# ✅ FONCTIONS NETLIFY (si nécessaire plus tard)
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
+# 🚀 CONTEXTES SIMPLIFIÉS - Build plus rapide
+[context.production]
+  command = "npm ci && npm run build"
+  [context.production.environment]
+    NODE_ENV = "production"
 
-# ✅ OPTIMISATIONS DE BUILD
-[build.processing]
-  skip_processing = false
+[context.deploy-preview]
+  command = "npm ci && npm run build"
 
-[build.processing.css]
-  bundle = true
-  minify = true
-
-[build.processing.js]
-  bundle = true
-  minify = true
-
-[build.processing.html]
-  pretty_urls = true
+[context.branch-deploy]
+  command = "npm ci && npm run build"
