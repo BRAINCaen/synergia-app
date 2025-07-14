@@ -143,7 +143,13 @@ class TaskValidationService {
       
       console.log('📸 Upload photo vers:', fileName);
       
-      await uploadBytes(photoRef, photoFile);
+      // Timeout rapide pour détecter les problèmes CORS
+      const uploadPromise = uploadBytes(photoRef, photoFile);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('CORS_TIMEOUT')), 5000)
+      );
+      
+      await Promise.race([uploadPromise, timeoutPromise]);
       const downloadURL = await getDownloadURL(photoRef);
       
       console.log('✅ Photo uploadée:', downloadURL);
@@ -152,9 +158,12 @@ class TaskValidationService {
     } catch (error) {
       console.error('❌ Erreur upload photo:', error);
       
-      // Si erreur CORS, essayer une approche alternative
-      if (error.message.includes('CORS') || error.code === 'storage/unauthorized') {
-        console.warn('⚠️ Problème CORS détecté, soumission sans photo');
+      // Détection améliorée des problèmes CORS
+      if (error.message.includes('CORS') || 
+          error.code === 'storage/unauthorized' ||
+          error.message.includes('CORS_TIMEOUT') ||
+          error.message.includes('ERR_FAILED')) {
+        console.warn('⚠️ Problème CORS/réseau détecté, soumission sans photo');
         throw new Error('CORS_ERROR');
       }
       
@@ -174,7 +183,13 @@ class TaskValidationService {
       
       console.log('🎬 Upload vidéo vers:', fileName);
       
-      await uploadBytes(videoRef, videoFile);
+      // Timeout rapide pour détecter les problèmes CORS
+      const uploadPromise = uploadBytes(videoRef, videoFile);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('CORS_TIMEOUT')), 5000)
+      );
+      
+      await Promise.race([uploadPromise, timeoutPromise]);
       const downloadURL = await getDownloadURL(videoRef);
       
       console.log('✅ Vidéo uploadée:', downloadURL);
@@ -183,9 +198,12 @@ class TaskValidationService {
     } catch (error) {
       console.error('❌ Erreur upload vidéo:', error);
       
-      // Si erreur CORS, essayer une approche alternative
-      if (error.message.includes('CORS') || error.code === 'storage/unauthorized') {
-        console.warn('⚠️ Problème CORS détecté, soumission sans vidéo');
+      // Détection améliorée des problèmes CORS
+      if (error.message.includes('CORS') || 
+          error.code === 'storage/unauthorized' ||
+          error.message.includes('CORS_TIMEOUT') ||
+          error.message.includes('ERR_FAILED')) {
+        console.warn('⚠️ Problème CORS/réseau détecté, soumission sans vidéo');
         throw new Error('CORS_ERROR');
       }
       
