@@ -43,7 +43,7 @@ import { taskAssignmentService } from '../core/services/taskAssignmentService.js
 import { taskValidationService } from '../core/services/taskValidationService.js';
 
 // 🔧 CORRECTION : Import corrigé du TaskForm
-import { TaskForm } from '../modules/tasks/index.js';
+import TaskForm from '../components/tasks/TaskForm.jsx';
 
 // Modals et composants (imports conditionnels pour éviter les erreurs de build)
 let TaskSubmissionModal, TaskAssignmentModal;
