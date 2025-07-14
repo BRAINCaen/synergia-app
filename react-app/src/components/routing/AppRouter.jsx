@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/routing/AppRouter.jsx
-// ROUTER AVEC NOUVELLE ROUTE ADMIN PERMISSIONS
+// ROUTER MIS À JOUR AVEC NOUVELLE PAGE ADMIN RÉCOMPENSES
 // ==========================================
 
 import React from 'react';
@@ -48,6 +48,9 @@ import AdminBadgesPage from '../../pages/AdminBadgesPage.jsx';
 import AdminUsersPage from '../../pages/AdminUsersPage.jsx';
 import AdminAnalyticsPage from '../../pages/AdminAnalyticsPage.jsx';
 import AdminSettingsPage from '../../pages/AdminSettingsPage.jsx';
+
+// 🎁 NOUVELLE PAGE ADMIN RÉCOMPENSES
+import AdminRewardsPage from '../../pages/AdminRewardsPage.jsx';
 
 // Composant de protection des routes
 const ProtectedRoute = ({ children }) => {
@@ -158,6 +161,9 @@ const AppRouter = () => {
         <Route path="/admin/users" element={<AdminUsersPage />} />
         <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
         <Route path="/admin/settings" element={<AdminSettingsPage />} />
+        
+        {/* 🎁 NOUVELLE ROUTE ADMIN RÉCOMPENSES */}
+        <Route path="/admin/rewards" element={<AdminRewardsPage />} />
       </Route>
       
       {/* Redirection par défaut */}
