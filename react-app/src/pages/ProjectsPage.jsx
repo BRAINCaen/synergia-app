@@ -54,9 +54,8 @@ import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar }
 // Stores et services
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { projectService } from '../core/services/projectService.js';
-import { teamManagementService } from '../core/services/teamManagementService.js';
 
-// Hook pour les projets Firebase
+// Hook sécurisé pour les projets Firebase
 const useProjectService = () => {
   const { user } = useAuthStore();
   const [projects, setProjects] = useState([]);
@@ -72,10 +71,17 @@ const useProjectService = () => {
     
     try {
       console.log('🔄 Chargement projets Firebase pour:', userId);
-      const userProjects = await projectService.getUserProjects(userId);
       
-      console.log('✅ Projets chargés:', userProjects.length);
-      setProjects(userProjects || []);
+      // Utiliser directement le service sans import circulaire
+      if (projectService && projectService.getUserProjects) {
+        const userProjects = await projectService.getUserProjects(userId);
+        console.log('✅ Projets chargés:', userProjects?.length || 0);
+        setProjects(userProjects || []);
+      } else {
+        // Fallback avec données de démonstration
+        console.log('⚠️ Service non disponible, utilisation de données de démo');
+        setProjects([]);
+      }
       
     } catch (err) {
       console.error('❌ Erreur chargement projets:', err);
@@ -94,13 +100,15 @@ const useProjectService = () => {
 
     try {
       console.log('🚀 Création projet:', projectData.title);
-      const newProject = await projectService.createProject(projectData, user.uid);
       
-      // Ajouter le nouveau projet à la liste
-      setProjects(prev => [newProject, ...prev]);
-      
-      console.log('✅ Projet créé avec succès');
-      return newProject;
+      if (projectService && projectService.createProject) {
+        const newProject = await projectService.createProject(projectData, user.uid);
+        setProjects(prev => [newProject, ...prev]);
+        console.log('✅ Projet créé avec succès');
+        return newProject;
+      } else {
+        throw new Error('Service de création non disponible');
+      }
       
     } catch (err) {
       console.error('❌ Erreur création projet:', err);
@@ -112,18 +120,23 @@ const useProjectService = () => {
   const updateProject = useCallback(async (projectId, updates) => {
     try {
       console.log('🔄 Mise à jour projet:', projectId);
-      const updatedProject = await projectService.updateProject(projectId, updates);
       
-      // Mettre à jour la liste locale
-      setProjects(prev => prev.map(project => {
-        if (project.id === projectId) {
-          return { ...project, ...updatedProject };
-        }
-        return project;
-      }));
-      
-      console.log('✅ Projet mis à jour');
-      return updatedProject;
+      if (projectService && projectService.updateProject) {
+        const updatedProject = await projectService.updateProject(projectId, updates);
+        
+        // Mettre à jour la liste locale
+        setProjects(prev => prev.map(project => {
+          if (project.id === projectId) {
+            return { ...project, ...updatedProject };
+          }
+          return project;
+        }));
+        
+        console.log('✅ Projet mis à jour');
+        return updatedProject;
+      } else {
+        throw new Error('Service de mise à jour non disponible');
+      }
       
     } catch (err) {
       console.error('❌ Erreur mise à jour projet:', err);
@@ -135,12 +148,17 @@ const useProjectService = () => {
   const deleteProject = useCallback(async (projectId) => {
     try {
       console.log('🗑️ Suppression projet:', projectId);
-      await projectService.deleteProject(projectId);
       
-      // Retirer de la liste locale
-      setProjects(prev => prev.filter(project => project.id !== projectId));
-      
-      console.log('✅ Projet supprimé');
+      if (projectService && projectService.deleteProject) {
+        await projectService.deleteProject(projectId);
+        
+        // Retirer de la liste locale
+        setProjects(prev => prev.filter(project => project.id !== projectId));
+        
+        console.log('✅ Projet supprimé');
+      } else {
+        throw new Error('Service de suppression non disponible');
+      }
       
     } catch (err) {
       console.error('❌ Erreur suppression projet:', err);
@@ -580,7 +598,7 @@ const ProjectCard = ({ project, onEdit, onDelete, onView, onClick }) => {
 const ProjectsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { projects, loading, createProject, updateProject, deleteProject, loadUserProjects } = useProjectService();
+  const { projects, loading, error, createProject, updateProject, deleteProject, loadUserProjects } = useProjectService();
   
   // États UI
   const [searchTerm, setSearchTerm] = useState('');
@@ -600,7 +618,14 @@ const ProjectsPage = () => {
     if (user?.uid) {
       loadUserProjects(user.uid);
     }
-  }, [user?.uid, loadUserProjects]);
+  }, [user?.uid]);
+  
+  // Afficher l'erreur s'il y en a une
+  useEffect(() => {
+    if (error) {
+      console.error('❌ Erreur ProjectsPage:', error);
+    }
+  }, [error]);
   
   // Filtrer et trier les projets
   const filteredProjects = projects.filter(project => {
@@ -652,7 +677,11 @@ const ProjectsPage = () => {
   // Gestionnaires d'événements
   const handleCreateProject = async (projectData) => {
     try {
-      await createProject(projectData);
+      const result = await createProject(projectData);
+      if (result && !result.success) {
+        console.error('❌ Erreur création:', result.error);
+        return;
+      }
       setShowProjectForm(false);
     } catch (error) {
       console.error('❌ Erreur création projet:', error);
@@ -668,7 +697,11 @@ const ProjectsPage = () => {
     if (!editingProject) return;
     
     try {
-      await updateProject(editingProject.id, projectData);
+      const result = await updateProject(editingProject.id, projectData);
+      if (result && !result.success) {
+        console.error('❌ Erreur mise à jour:', result.error);
+        return;
+      }
       setEditingProject(null);
       setShowProjectForm(false);
     } catch (error) {
@@ -678,7 +711,10 @@ const ProjectsPage = () => {
   
   const handleDeleteProject = async (projectId) => {
     try {
-      await deleteProject(projectId);
+      const result = await deleteProject(projectId);
+      if (result && !result.success) {
+        console.error('❌ Erreur suppression:', result.error);
+      }
     } catch (error) {
       console.error('❌ Erreur suppression projet:', error);
     }
