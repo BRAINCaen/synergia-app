@@ -43,6 +43,12 @@ import LeaderboardPage from '../../pages/LeaderboardPage.jsx';
 // 🆕 NOUVELLE PAGE ADMIN - GESTION DES PERMISSIONS PAR RÔLE
 import AdminRolePermissionsPage from '../../pages/AdminRolePermissionsPage.jsx';
 
+// 🆕 PAGES ADMIN COMPLÈTES
+import AdminBadgesPage from '../../pages/AdminBadgesPage.jsx';
+import AdminUsersPage from '../../pages/AdminUsersPage.jsx';
+import AdminAnalyticsPage from '../../pages/AdminAnalyticsPage.jsx';
+import AdminSettingsPage from '../../pages/AdminSettingsPage.jsx';
+
 // Composant de protection des routes
 const ProtectedRoute = ({ children }) => {
   const { user, isLoading } = useAuthStore();
@@ -147,11 +153,11 @@ const AppRouter = () => {
         {/* 🆕 NOUVELLE ROUTE ADMIN - PERMISSIONS PAR RÔLE */}
         <Route path="/admin/role-permissions" element={<AdminRolePermissionsPage />} />
         
-        {/* Pages admin génériques (à créer si nécessaire) */}
-        <Route path="/admin/badges" element={<div className="p-8 text-white">Page Admin Badges - À développer</div>} />
-        <Route path="/admin/users" element={<div className="p-8 text-white">Page Admin Utilisateurs - À développer</div>} />
-        <Route path="/admin/analytics" element={<div className="p-8 text-white">Page Admin Analytics - À développer</div>} />
-        <Route path="/admin/settings" element={<div className="p-8 text-white">Page Admin Paramètres - À développer</div>} />
+        {/* 🆕 ROUTES ADMIN COMPLÈTES */}
+        <Route path="/admin/badges" element={<AdminBadgesPage />} />
+        <Route path="/admin/users" element={<AdminUsersPage />} />
+        <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+        <Route path="/admin/settings" element={<AdminSettingsPage />} />
       </Route>
       
       {/* Redirection par défaut */}
