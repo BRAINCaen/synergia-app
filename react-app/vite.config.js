@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/vite.config.js
-// CONFIGURATION VITE OPTIMISÉE POUR NETLIFY
+// Configuration Vite CORRIGÉE pour build production
 // ==========================================
 
 import { defineConfig } from 'vite'
@@ -33,71 +33,35 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    
-    // ✅ OPTIMISATIONS POUR ÉVITER TIMEOUT
-    minify: 'esbuild', // Plus rapide que terser
-    target: 'es2020', // Moins agressif qu'esnext
+    // 🔧 CORRECTION : Target compatible et minification
+    minify: 'esbuild',
+    target: 'esnext', // ✅ Compatible avec top-level await si nécessaire
     
     rollupOptions: {
-      // ✅ CHUNKING OPTIMISÉ POUR RÉDUIRE LE TEMPS DE BUILD
       output: {
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]',
-        
-        // ✅ SÉPARATION MANUELLE DES CHUNKS POUR ÉVITER TIMEOUT
-        manualChunks: {
-          // Vendor chunks
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-firebase': ['firebase/app', 'firebase/firestore', 'firebase/auth', 'firebase/storage'],
-          'vendor-ui': ['lucide-react', 'framer-motion', 'recharts'],
-          'vendor-state': ['zustand'],
-          
-          // App chunks
-          'pages': [
-            './src/pages/Dashboard.jsx',
-            './src/pages/TasksPage.jsx',
-            './src/pages/ProjectsPage.jsx',
-            './src/pages/AnalyticsPage.jsx'
-          ],
-          'components': [
-            './src/shared/layouts/PremiumLayout.jsx',
-            './src/components/layout/Layout.jsx'
-          ]
-        }
-      },
-      
-      // ✅ OPTIMISATIONS ROLLUP
-      treeshake: {
-        preset: 'recommended',
-        moduleSideEffects: false
+        assetFileNames: 'assets/[name]-[hash].[ext]'
       }
     },
     
-    // ✅ RÉDUIRE LA LIMITE D'AVERTISSEMENT
-    chunkSizeWarningLimit: 2000,
+    chunkSizeWarningLimit: 1000,
     
-    // ✅ OPTIMISATIONS MÉMOIRE
-    assetsInlineLimit: 4096,
-    
-    // ✅ DÉSACTIVER LA COMPRESSION GZIP (Netlify le fait)
-    reportCompressedSize: false
-  },
-
-  define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
-    // ✅ OPTIMISER LES VARIABLES D'ENVIRONNEMENT
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
-  },
-
-  css: {
-    devSourcemap: false, // Désactiver en production
-    postcss: {
-      plugins: []
+    // 🚀 Configuration esbuild pour la compatibilité
+    esbuild: {
+      target: 'es2020', // ✅ Compatible avec la plupart des navigateurs modernes
+      format: 'esm'
     }
   },
 
-  // ✅ OPTIMISATIONS DEPENDENCIES
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '3.5.2')
+  },
+
+  css: {
+    devSourcemap: true
+  },
+
   optimizeDeps: {
     include: [
       'react',
@@ -106,26 +70,15 @@ export default defineConfig({
       'firebase/app',
       'firebase/firestore',
       'firebase/auth',
+      'firebase/storage',
       'zustand',
-      'lucide-react'
-    ],
-    exclude: [
-      // Exclure les dépendances problématiques
-      '@firebase/app-compat',
-      '@firebase/firestore-compat'
+      'lucide-react',
+      'framer-motion'
     ]
   },
-  
-  // ✅ CONFIGURATION ESBUILD POUR PERFORMANCE
-  esbuild: {
-    target: 'es2020',
-    format: 'esm',
-    platform: 'browser',
-    treeShaking: true,
-    minifyIdentifiers: true,
-    minifySyntax: true,
-    minifyWhitespace: true,
-    drop: ['console', 'debugger'], // Supprimer en production
-    legalComments: 'none'
+
+  // 🔧 Configuration pour le développement
+  preview: {
+    port: 3000
   }
 })
