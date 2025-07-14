@@ -98,8 +98,11 @@ const Layout = () => {
     ]
   };
 
-  // 🛡️ MENU ADMIN COMPLET - TOUTES LES PAGES ADMIN
-  const adminItems = user?.role === 'admin' || user?.isAdmin ? [
+  // 🛡️ MENU ADMIN COMPLET - CORRECTION DÉTECTION ADMIN
+  const adminItems = (user?.email === 'alan.boehme61@gmail.com' || 
+                     user?.role === 'admin' || 
+                     user?.isAdmin === true ||
+                     user?.profile?.role === 'admin') ? [
     { 
       id: 'admin-validation-taches', 
       path: ROUTES.ADMIN_TASK_VALIDATION, 
@@ -144,6 +147,19 @@ const Layout = () => {
       badge: '👑'
     }
   ] : [];
+
+  // 🔍 DEBUG: Afficher les infos utilisateur pour diagnostic
+  useEffect(() => {
+    if (user) {
+      console.log('🔍 DEBUG Layout - Infos utilisateur:', {
+        email: user.email,
+        role: user.role,
+        isAdmin: user.isAdmin,
+        profile: user.profile,
+        adminItemsLength: adminItems.length
+      });
+    }
+  }, [user, adminItems.length]);
 
   const handleLogout = async () => {
     try {
