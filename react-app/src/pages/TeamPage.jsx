@@ -46,8 +46,33 @@ import { useTeamStore } from '../shared/stores/teamStore.js';
 import { collection, getDocs, doc, getDoc, updateDoc, setDoc, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-// Toast pour notifications
-import Toast from '../components/ui/Toast.jsx';
+// Notifications simples remplaçant Toast
+const showNotification = (message, type = 'info') => {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    padding: 12px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    max-width: 400px;
+    background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+  `;
+  notification.textContent = message;
+  document.body.appendChild(notification);
+  
+  setTimeout(() => notification.style.transform = 'translateX(0)', 100);
+  setTimeout(() => {
+    notification.style.transform = 'translateX(100%)';
+    setTimeout(() => document.body.removeChild(notification), 300);
+  }, 3000);
+};
 
 // ✅ RÔLES SYNERGIA OFFICIELS MIS À JOUR
 const SYNERGIA_ROLES = {
@@ -245,7 +270,7 @@ const TeamPage = () => {
     } catch (error) {
       console.error('❌ Erreur chargement équipe:', error);
       setError('Erreur lors du chargement de l\'équipe');
-      Toast.show('Erreur lors du chargement', 'error');
+      showNotification('Erreur lors du chargement', 'error');
     } finally {
       setLoading(false);
     }
@@ -275,7 +300,7 @@ const TeamPage = () => {
       
       // Vérifier si le rôle n'est pas déjà assigné
       if (currentRoles.find(r => r.roleId === roleId)) {
-        Toast.show('Ce rôle est déjà assigné à ce membre', 'warning');
+        showNotification('Ce rôle est déjà assigné à ce membre', 'error');
         return;
       }
       
@@ -301,13 +326,13 @@ const TeamPage = () => {
         lastModifiedBy: user.uid
       });
       
-      Toast.show(`Rôle "${role.name}" assigné avec succès`, 'success');
+      showNotification(`Rôle "${role.name}" assigné avec succès`, 'success');
       await loadTeamMembers();
       setShowRoleModal(false);
       
     } catch (error) {
       console.error('❌ Erreur assignation rôle:', error);
-      Toast.show('Erreur lors de l\'assignation du rôle', 'error');
+      showNotification('Erreur lors de l\'assignation du rôle', 'error');
     }
   };
 
@@ -334,12 +359,12 @@ const TeamPage = () => {
       });
       
       const roleName = SYNERGIA_ROLES[roleId]?.name || roleId;
-      Toast.show(`Rôle "${roleName}" retiré avec succès`, 'success');
+      showNotification(`Rôle "${roleName}" retiré avec succès`, 'success');
       await loadTeamMembers();
       
     } catch (error) {
       console.error('❌ Erreur suppression rôle:', error);
-      Toast.show('Erreur lors de la suppression du rôle', 'error');
+      showNotification('Erreur lors de la suppression du rôle', 'error');
     }
   };
 
