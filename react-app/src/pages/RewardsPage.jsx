@@ -370,6 +370,88 @@ const RewardsPage = () => {
                             <div className="flex items-start justify-between mb-2">
                               <h4 className="font-semibold text-white text-sm">{reward.name}</h4>
                               <div className={`px-2 py-1 rounded text-xs font-bold ${
+                                canAfford ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-300'
+                              }`}>
+                                {reward.xpCost} XP
+                              </div>
+                            </div>
+                            <p className="text-gray-400 text-xs mb-3">{reward.description}</p>
+                            <div className="flex items-center justify-between">
+                              <span className={`text-xs font-medium ${
+                                canAfford ? 'text-green-400' : 'text-red-400'
+                              }`}>
+                                {canAfford ? '✅ Disponible' : '❌ XP insuffisants'}
+                              </span>
+                              <ChevronRight className="w-4 h-4 text-gray-500" />
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+
+          {activeTab === 'team' && (
+            <div className="space-y-8">
+              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mb-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-white mb-2">XP Collectifs de l'Équipe</h3>
+                    <p className="text-gray-400">Effort combiné de toute l'équipe</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-bold text-purple-400">{teamTotalXP.toLocaleString()}</p>
+                    <p className="text-gray-500 text-sm">XP équipe</p>
+                  </div>
+                </div>
+              </div>
+
+              {teamRewards.map((category, categoryIndex) => {
+                const CategoryIcon = getCategoryIcon(category.icon);
+                
+                return (
+                  <motion.div
+                    key={categoryIndex}
+                    className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6"
+                    variants={itemVariants}
+                  >
+                    <div className="flex items-center mb-6">
+                      <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${category.color} flex items-center justify-center mr-4`}>
+                        <CategoryIcon className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-white">{category.category}</h3>
+                        <p className="text-gray-400">
+                          {category.minXP}-{category.maxXP} XP • {category.rewards.length} récompenses
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {category.rewards.map((reward, rewardIndex) => {
+                        const canTeamAfford = teamTotalXP >= reward.xpCost;
+                        
+                        return (
+                          <motion.div
+                            key={rewardIndex}
+                            className={`bg-gray-700/50 rounded-lg p-4 border transition-all hover:scale-[1.02] cursor-pointer ${
+                              canTeamAfford 
+                                ? 'border-blue-500/50 hover:border-blue-400' 
+                                : 'border-gray-600/50 hover:border-gray-500'
+                            }`}
+                            onClick={() => {
+                              setSelectedReward(reward);
+                              setShowRequestModal(true);
+                            }}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <h4 className="font-semibold text-white text-sm">{reward.name}</h4>
+                              <div className={`px-2 py-1 rounded text-xs font-bold ${
                                 canTeamAfford ? 'bg-blue-600 text-white' : 'bg-gray-600 text-gray-300'
                               }`}>
                                 {reward.xpCost} XP
@@ -631,86 +713,4 @@ const RewardsPage = () => {
   );
 };
 
-export default RewardsPage;d ${
-                                canAfford ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-300'
-                              }`}>
-                                {reward.xpCost} XP
-                              </div>
-                            </div>
-                            <p className="text-gray-400 text-xs mb-3">{reward.description}</p>
-                            <div className="flex items-center justify-between">
-                              <span className={`text-xs font-medium ${
-                                canAfford ? 'text-green-400' : 'text-red-400'
-                              }`}>
-                                {canAfford ? '✅ Disponible' : '❌ XP insuffisants'}
-                              </span>
-                              <ChevronRight className="w-4 h-4 text-gray-500" />
-                            </div>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
-
-          {activeTab === 'team' && (
-            <div className="space-y-8">
-              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mb-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xl font-bold text-white mb-2">XP Collectifs de l'Équipe</h3>
-                    <p className="text-gray-400">Effort combiné de toute l'équipe</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-3xl font-bold text-purple-400">{teamTotalXP.toLocaleString()}</p>
-                    <p className="text-gray-500 text-sm">XP équipe</p>
-                  </div>
-                </div>
-              </div>
-
-              {teamRewards.map((category, categoryIndex) => {
-                const CategoryIcon = getCategoryIcon(category.icon);
-                
-                return (
-                  <motion.div
-                    key={categoryIndex}
-                    className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6"
-                    variants={itemVariants}
-                  >
-                    <div className="flex items-center mb-6">
-                      <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${category.color} flex items-center justify-center mr-4`}>
-                        <CategoryIcon className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-white">{category.category}</h3>
-                        <p className="text-gray-400">
-                          {category.minXP}-{category.maxXP} XP • {category.rewards.length} récompenses
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {category.rewards.map((reward, rewardIndex) => {
-                        const canTeamAfford = teamTotalXP >= reward.xpCost;
-                        
-                        return (
-                          <motion.div
-                            key={rewardIndex}
-                            className={`bg-gray-700/50 rounded-lg p-4 border transition-all hover:scale-[1.02] cursor-pointer ${
-                              canTeamAfford 
-                                ? 'border-blue-500/50 hover:border-blue-400' 
-                                : 'border-gray-600/50 hover:border-gray-500'
-                            }`}
-                            onClick={() => {
-                              setSelectedReward(reward);
-                              setShowRequestModal(true);
-                            }}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                          >
-                            <div className="flex items-start justify-between mb-2">
-                              <h4 className="font-semibold text-white text-sm">{reward.name}</h4>
-                              <div className={`px-2 py-1 rounded text-xs font-bol
+export default RewardsPage;
