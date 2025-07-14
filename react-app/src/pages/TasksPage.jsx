@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// TASKS PAGE COMPLÈTE - REMPLACER ENTIÈREMENT LE FICHIER EXISTANT
+// TASKS PAGE FINALE - CORRECTION COMPLÈTE DES IMPORTS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -39,7 +39,7 @@ import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar }
 // Stores et services
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// ✅ IMPORT FIREBASE DIRECT - Plus de mock !
+// ✅ FIREBASE DIRECT - PLUS DE USETASKSTORE DEMO !
 import { 
   collection, 
   query, 
@@ -54,28 +54,70 @@ import {
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-// ✅ IMPORTS DES COMPOSANTS AVANCÉS DÉVELOPPÉS
-import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
-import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal.jsx';
+// ✅ IMPORTS DIRECTS DES SERVICES (plus de try/catch qui échoue)
 import { taskValidationService } from '../core/services/taskValidationService.js';
 import { taskAssignmentService } from '../core/services/taskAssignmentService.js';
 
-// Import conditionnel pour TaskForm
-let TaskForm;
+// ✅ IMPORTS DIRECTS DES COMPOSANTS (sans fallback qui masque les erreurs)
+import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
+import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal.jsx';
+
+// Import conditionnel UNIQUEMENT pour TaskForm (qui pourrait ne pas exister)
+let TaskForm = ({ isOpen, onClose, onSubmit, initialData }) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full">
+        <h2 className="text-xl font-bold mb-4">Formulaire de tâche</h2>
+        <p className="text-gray-600 mb-4">
+          Le composant TaskForm n'est pas disponible. Vous pouvez créer des tâches via l'interface Firebase Console.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+          >
+            Fermer
+          </button>
+          <button
+            onClick={() => {
+              // Créer une tâche basique
+              const basicTask = {
+                title: 'Nouvelle tâche',
+                description: 'Description de la tâche',
+                priority: 'medium',
+                complexity: 'medium',
+                xpReward: 25,
+                tags: ['manuel']
+              };
+              onSubmit(basicTask);
+            }}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Créer tâche basique
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Essayer de charger le vrai TaskForm
 try {
-  TaskForm = require('../components/forms/TaskForm.jsx').default;
+  const TaskFormModule = require('../components/forms/TaskForm.jsx');
+  TaskForm = TaskFormModule.default || TaskFormModule.TaskForm || TaskForm;
 } catch (error) {
-  console.warn('TaskForm non disponible:', error.message);
-  TaskForm = ({ isOpen, onClose }) => isOpen ? <div>Formulaire non disponible</div> : null;
+  console.warn('TaskForm non disponible, utilisation du fallback:', error.message);
 }
 
 /**
- * ✅ TASKS PAGE 100% FIREBASE AVEC FONCTIONNALITÉS AVANCÉES
+ * ✅ TASKS PAGE 100% FIREBASE AVEC VRAIES FONCTIONNALITÉS
  */
 const TasksPage = () => {
   const { user } = useAuthStore();
   
-  // ✅ ÉTATS FIREBASE RÉELS
+  // ✅ ÉTATS FIREBASE RÉELS (plus de useTaskStore qui utilise des données démo)
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -104,31 +146,58 @@ const TasksPage = () => {
     console.log('🔄 TasksPage - Chargement VRAIES tâches Firebase pour:', user.uid);
     setLoading(true);
 
-    // Query pour récupérer TOUTES les tâches de l'utilisateur
-    const tasksQuery = query(
+    // Query multiple pour capturer TOUTES les tâches de l'utilisateur
+    const userTasksQuery = query(
       collection(db, 'tasks'),
       where('userId', '==', user.uid),
       orderBy('createdAt', 'desc')
     );
 
-    // Écoute des tâches principales
-    const unsubscribeTasks = onSnapshot(tasksQuery, (querySnapshot) => {
+    const createdTasksQuery = query(
+      collection(db, 'tasks'),
+      where('createdBy', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    // Écoute principale des tâches utilisateur
+    const unsubscribeUserTasks = onSnapshot(userTasksQuery, (querySnapshot) => {
       const userTasks = [];
       querySnapshot.forEach((doc) => {
         userTasks.push({ id: doc.id, ...doc.data() });
       });
 
-      console.log('✅ TasksPage - Tâches Firebase chargées:', userTasks.length);
-      setTasks(userTasks);
-      setLoading(false);
+      console.log('✅ TasksPage - Tâches utilisateur chargées:', userTasks.length);
+      
+      // Écoute des tâches créées
+      const unsubscribeCreatedTasks = onSnapshot(createdTasksQuery, (createdSnapshot) => {
+        const createdTasks = [];
+        createdSnapshot.forEach((doc) => {
+          const taskData = { id: doc.id, ...doc.data() };
+          // Éviter les doublons
+          if (!userTasks.find(t => t.id === taskData.id)) {
+            createdTasks.push(taskData);
+          }
+        });
+
+        console.log('✅ TasksPage - Tâches créées chargées:', createdTasks.length);
+        
+        // Combiner toutes les tâches
+        const allTasks = [...userTasks, ...createdTasks];
+        setTasks(allTasks);
+        setLoading(false);
+      }, (error) => {
+        console.error('❌ Erreur chargement tâches créées:', error);
+      });
+
+      return () => unsubscribeCreatedTasks();
     }, (error) => {
-      console.error('❌ Erreur chargement tâches:', error);
+      console.error('❌ Erreur chargement tâches utilisateur:', error);
       setError(error.message);
       setLoading(false);
     });
 
     return () => {
-      unsubscribeTasks();
+      unsubscribeUserTasks();
     };
   }, [user?.uid]);
 
@@ -149,7 +218,7 @@ const TasksPage = () => {
         completionRate
       });
 
-      console.log('📊 TasksPage - Stats calculées:', { total, completed, inProgress, pending, completionRate });
+      console.log('📊 TasksPage - Stats calculées depuis Firebase:', { total, completed, inProgress, pending, completionRate });
     }
   }, [tasks]);
 
@@ -239,9 +308,10 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ FONCTIONNALITÉS AVANCÉES RESTAURÉES
+  // ✅ FONCTIONNALITÉS AVANCÉES AVEC COMPOSANTS RÉELS
 
   const handleSubmitForValidation = (task) => {
+    console.log('📸 Ouverture modal soumission pour:', task.title);
     setSelectedTask(task);
     setShowSubmissionModal(true);
   };
@@ -289,6 +359,7 @@ const TasksPage = () => {
   };
 
   const handleAssignTask = (task) => {
+    console.log('👥 Ouverture modal assignation pour:', task.title);
     setSelectedTask(task);
     setShowAssignmentModal(true);
   };
@@ -300,7 +371,7 @@ const TasksPage = () => {
       // ✅ UTILISER LE SERVICE AVANCÉ D'ASSIGNATION
       const result = await taskAssignmentService.assignTaskToMembers(
         selectedTask.id,
-        assignmentData.assignedUserIds,
+        assignmentData.assignedUserIds || [],
         user.uid
       );
       
@@ -308,9 +379,9 @@ const TasksPage = () => {
         // Mettre à jour la tâche avec les données d'assignation complètes
         const taskRef = doc(db, 'tasks', selectedTask.id);
         await updateDoc(taskRef, {
-          assignedTo: assignmentData.assignedUserIds,
-          isMultipleAssignment: assignmentData.assignedUserIds.length > 1,
-          assignmentCount: assignmentData.assignedUserIds.length,
+          assignedTo: assignmentData.assignedUserIds || [],
+          isMultipleAssignment: (assignmentData.assignedUserIds || []).length > 1,
+          assignmentCount: (assignmentData.assignedUserIds || []).length,
           assignments: result.assignments, // Données détaillées d'assignation
           status: 'assigned',
           assignedAt: serverTimestamp(),
@@ -319,14 +390,14 @@ const TasksPage = () => {
         });
         
         // Gérer la répartition des XP si assignation multiple
-        if (assignmentData.contributionPercentages && assignmentData.assignedUserIds.length > 1) {
+        if (assignmentData.contributionPercentages && assignmentData.assignedUserIds?.length > 1) {
           await taskAssignmentService.updateContributionPercentages(
             selectedTask.id, 
             assignmentData.contributionPercentages
           );
         }
         
-        alert(`✅ Tâche assignée à ${result.assignedCount} personne(s) avec répartition XP !`);
+        alert(`✅ Tâche assignée à ${result.assignedCount || 1} personne(s) avec répartition XP !`);
         setShowAssignmentModal(false);
         setSelectedTask(null);
       }
@@ -438,11 +509,16 @@ const TasksPage = () => {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
-              Gestion des Tâches
+              Gestion des Tâches 🔥
             </h1>
             <p className="text-gray-400 mt-2">
-              Gérez vos tâches et suivez votre progression
+              Gérez vos tâches et suivez votre progression avec fonctionnalités avancées
             </p>
+            {tasks.length > 0 && (
+              <p className="text-blue-400 text-sm mt-1">
+                ✅ Données Firebase chargées - {tasks.length} tâche(s) trouvée(s)
+              </p>
+            )}
           </div>
         </div>
 
@@ -601,16 +677,27 @@ const TasksPage = () => {
                   )}
 
                   {/* Actions avancées pour chaque tâche */}
-                  <div className="flex items-center gap-2 pt-4 border-t border-gray-700">
+                  <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-gray-700">
                     {task.status === 'todo' && (
-                      <PremiumButton
-                        size="sm"
-                        onClick={() => handleStatusChange(task.id, 'in_progress')}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        <Play className="w-4 h-4 mr-1" />
-                        Démarrer
-                      </PremiumButton>
+                      <>
+                        <PremiumButton
+                          size="sm"
+                          onClick={() => handleStatusChange(task.id, 'in_progress')}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          <Play className="w-4 h-4 mr-1" />
+                          Démarrer
+                        </PremiumButton>
+                        
+                        <PremiumButton
+                          size="sm"
+                          onClick={() => handleAssignTask(task)}
+                          className="bg-orange-600 hover:bg-orange-700"
+                        >
+                          <UserPlus className="w-4 h-4 mr-1" />
+                          Assigner
+                        </PremiumButton>
+                      </>
                     )}
                     
                     {(task.status === 'in_progress' || task.status === 'in-progress') && (
@@ -633,17 +720,6 @@ const TasksPage = () => {
                           Terminer
                         </PremiumButton>
                       </>
-                    )}
-                    
-                    {task.status === 'todo' && (
-                      <PremiumButton
-                        size="sm"
-                        onClick={() => handleAssignTask(task)}
-                        className="bg-orange-600 hover:bg-orange-700"
-                      >
-                        <UserPlus className="w-4 h-4 mr-1" />
-                        Assigner
-                      </PremiumButton>
                     )}
                     
                     <PremiumButton
@@ -696,7 +772,7 @@ const TasksPage = () => {
         )}
       </div>
 
-      {/* Modals avancés avec toutes les fonctionnalités */}
+      {/* ✅ MODALS AVEC COMPOSANTS RÉELS */}
       {showTaskForm && (
         <TaskForm
           isOpen={showTaskForm}
