@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/tasks/SubmitTaskButton.jsx
-// BOUTON DE SOUMISSION COMPLET AVEC MODAL INTÉGRÉ
+// BOUTON DE SOUMISSION CORRIGÉ - VERSION FONCTIONNELLE
 // ==========================================
 
 import React, { useState } from 'react';
@@ -12,19 +12,11 @@ import {
   AlertTriangle,
   Eye
 } from 'lucide-react';
-import TaskSubmissionModal from './TaskSubmissionModal.jsx';
-
-// Constantes de statut (backup si import échoue)
-const TASK_STATUS = {
-  TODO: 'todo',
-  IN_PROGRESS: 'in_progress',
-  VALIDATION_PENDING: 'validation_pending',
-  COMPLETED: 'completed',
-  REJECTED: 'rejected'
-};
+// Utiliser le modal simplifié par défaut pour éviter les problèmes CORS
+import TaskSubmissionQuick from './TaskSubmissionQuick.jsx';
 
 /**
- * 🎯 BOUTON INTELLIGENT DE SOUMISSION DE TÂCHE
+ * 🎯 BOUTON INTELLIGENT DE SOUMISSION DE TÂCHE - VERSION CORRIGÉE
  */
 const SubmitTaskButton = ({ 
   task, 
@@ -34,72 +26,88 @@ const SubmitTaskButton = ({
 }) => {
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
 
-  // Déterminer l'apparence selon le statut
+  // Debug : afficher le statut de la tâche
+  console.log('🔍 SubmitTaskButton - Statut tâche:', {
+    taskId: task.id,
+    status: task.status,
+    title: task.title
+  });
+
+  // Déterminer l'apparence selon le statut - VERSION CORRIGÉE
   const getButtonConfig = () => {
     const status = task.status || 'todo';
     
-    switch (status) {
-      case TASK_STATUS.TODO:
-      case TASK_STATUS.IN_PROGRESS:
-      case 'todo':
-      case 'in_progress':
-        return {
-          text: 'Soumettre',
-          icon: Send,
-          className: 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600',
-          disabled: false,
-          tooltip: 'Soumettre cette tâche pour validation admin'
-        };
-        
-      case TASK_STATUS.VALIDATION_PENDING:
-      case 'validation_pending':
-        return {
-          text: 'En validation',
-          icon: Clock,
-          className: 'bg-orange-100 text-orange-700 border-orange-300 cursor-not-allowed',
-          disabled: true,
-          tooltip: 'Tâche en attente de validation par un administrateur'
-        };
-        
-      case TASK_STATUS.COMPLETED:
-      case 'completed':
-        return {
-          text: 'Validée',
-          icon: CheckCircle,
-          className: 'bg-green-100 text-green-700 border-green-300 cursor-not-allowed',
-          disabled: true,
-          tooltip: 'Tâche validée et XP attribués'
-        };
-        
-      case TASK_STATUS.REJECTED:
-      case 'rejected':
-        return {
-          text: 'Rejetée',
-          icon: AlertTriangle,
-          className: 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200',
-          disabled: false,
-          tooltip: 'Tâche rejetée - Cliquer pour resoumettre'
-        };
-        
-      default:
-        return {
-          text: 'Soumettre',
-          icon: Send,
-          className: 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed',
-          disabled: true,
-          tooltip: 'Statut inconnu'
-        };
+    console.log('🔍 getButtonConfig - Statut analysé:', status);
+    
+    // Vérifier tous les statuts possibles
+    if (status === 'todo' || status === 'pending' || status === 'in_progress' || !status) {
+      return {
+        text: 'Soumettre',
+        icon: Send,
+        className: 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600',
+        disabled: false,
+        tooltip: 'Soumettre cette tâche pour validation admin'
+      };
     }
+    
+    if (status === 'validation_pending') {
+      return {
+        text: 'En validation',
+        icon: Clock,
+        className: 'bg-orange-100 text-orange-700 border-orange-300 cursor-not-allowed',
+        disabled: true,
+        tooltip: 'Tâche en attente de validation par un administrateur'
+      };
+    }
+    
+    if (status === 'completed') {
+      return {
+        text: 'Validée',
+        icon: CheckCircle,
+        className: 'bg-green-100 text-green-700 border-green-300 cursor-not-allowed',
+        disabled: true,
+        tooltip: 'Tâche validée et XP attribués'
+      };
+    }
+    
+    if (status === 'rejected') {
+      return {
+        text: 'Rejetée',
+        icon: AlertTriangle,
+        className: 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200',
+        disabled: false,
+        tooltip: 'Tâche rejetée - Cliquer pour resoumettre'
+      };
+    }
+    
+    // Fallback par défaut - toujours permettre la soumission
+    return {
+      text: 'Soumettre',
+      icon: Send,
+      className: 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600',
+      disabled: false,
+      tooltip: 'Soumettre cette tâche pour validation admin'
+    };
   };
 
   const buttonConfig = getButtonConfig();
   const IconComponent = buttonConfig.icon;
 
+  console.log('🔍 ButtonConfig généré:', buttonConfig);
+
   // Gérer le clic selon le statut
   const handleClick = () => {
-    if (buttonConfig.disabled) return;
+    console.log('🎯 Clic sur SubmitTaskButton:', {
+      disabled: buttonConfig.disabled,
+      status: task.status
+    });
     
-    console.log('🎯 Ouverture modal soumission pour:', task.title);
+    if (buttonConfig.disabled) {
+      console.log('⚠️ Bouton désactivé, pas d\'action');
+      return;
+    }
+    
+    console.log('✅ Ouverture modal soumission pour:', task.title);
     setShowSubmissionModal(true);
   };
 
@@ -131,7 +139,7 @@ const SubmitTaskButton = ({
 
   // Gérer le succès de soumission
   const handleSubmissionSuccess = (result) => {
-    console.log('✅ Soumission réussie:', result);
+    console.log('✅ Soumission réussie dans SubmitTaskButton:', result);
     setShowSubmissionModal(false);
     
     if (onSubmissionSuccess) {
@@ -144,13 +152,13 @@ const SubmitTaskButton = ({
       <div className="relative group">
         <button
           onClick={handleClick}
-          disabled={buttonConfig.disabled && task.status !== 'rejected'}
+          disabled={buttonConfig.disabled}
           className={`
             ${buttonConfig.className}
             ${getSizeClasses()}
             ${className}
             inline-flex items-center space-x-2 rounded-lg font-medium transition-all duration-200 border
-            disabled:opacity-75 disabled:cursor-not-allowed
+            disabled:opacity-50 disabled:cursor-not-allowed
             ${!buttonConfig.disabled ? 'hover:shadow-md hover:scale-105 transform' : ''}
           `}
           title={buttonConfig.tooltip}
@@ -158,11 +166,8 @@ const SubmitTaskButton = ({
           <IconComponent className={`${size === 'small' ? 'w-3 h-3' : size === 'large' ? 'w-5 h-5' : 'w-4 h-4'}`} />
           <span>{buttonConfig.text}</span>
           
-          {/* Afficher l'XP pour les tâches pas encore validées */}
-          {(task.status === 'todo' || 
-            task.status === 'in_progress' || 
-            task.status === 'validation_pending' ||
-            task.status === 'rejected') && (
+          {/* Afficher l'XP pour les tâches soumissibles */}
+          {!buttonConfig.disabled && (
             <div className="flex items-center space-x-1 bg-white/20 rounded-full px-2 py-0.5">
               <Trophy className="w-3 h-3" />
               <span className="text-xs font-bold">+{expectedXP}</span>
@@ -191,14 +196,13 @@ const SubmitTaskButton = ({
         </div>
       </div>
 
-      {/* Modal de soumission */}
+      {/* Modal de soumission simplifié */}
       {showSubmissionModal && (
-        <TaskSubmissionModal
+        <TaskSubmissionQuick
           isOpen={showSubmissionModal}
           onClose={() => setShowSubmissionModal(false)}
           task={task}
           onSubmit={handleSubmissionSuccess}
-          submitting={false}
         />
       )}
     </>
