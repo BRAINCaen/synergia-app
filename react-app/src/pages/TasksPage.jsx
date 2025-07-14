@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// TASKS PAGE 100% FIREBASE - DONNÉES RÉELLES UNIQUEMENT
+// TASKS PAGE COMPLÈTE - REMPLACER ENTIÈREMENT LE FICHIER EXISTANT
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -70,7 +70,7 @@ try {
 }
 
 /**
- * ✅ TASKS PAGE 100% FIREBASE - PLUS DE DONNÉES DEMO
+ * ✅ TASKS PAGE 100% FIREBASE AVEC FONCTIONNALITÉS AVANCÉES
  */
 const TasksPage = () => {
   const { user } = useAuthStore();
@@ -108,20 +108,6 @@ const TasksPage = () => {
     const tasksQuery = query(
       collection(db, 'tasks'),
       where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    );
-
-    // Query pour les tâches créées par l'utilisateur
-    const createdTasksQuery = query(
-      collection(db, 'tasks'),
-      where('createdBy', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    );
-
-    // Query pour les tâches assignées à l'utilisateur
-    const assignedTasksQuery = query(
-      collection(db, 'tasks'),
-      where('assignedTo', '==', user.uid),
       orderBy('createdAt', 'desc')
     );
 
@@ -252,6 +238,8 @@ const TasksPage = () => {
       alert('Erreur lors du changement de statut : ' + error.message);
     }
   };
+
+  // ✅ FONCTIONNALITÉS AVANCÉES RESTAURÉES
 
   const handleSubmitForValidation = (task) => {
     setSelectedTask(task);
@@ -493,6 +481,7 @@ const TasksPage = () => {
               <option value="in_progress">En cours</option>
               <option value="completed">Terminée</option>
               <option value="validation_pending">En validation</option>
+              <option value="assigned">Assignée</option>
             </select>
           </div>
           
@@ -592,6 +581,24 @@ const TasksPage = () => {
                       </span>
                     </div>
                   </div>
+
+                  {/* Barre de progression pour tâches multiples */}
+                  {task.isMultipleAssignment && task.assignments && (
+                    <div className="mb-4">
+                      <div className="flex justify-between text-xs text-gray-400 mb-1">
+                        <span>Progression équipe</span>
+                        <span>{task.assignments.filter(a => a.hasSubmitted).length}/{task.assignments.length}</span>
+                      </div>
+                      <div className="w-full bg-gray-700 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+                          style={{ 
+                            width: `${(task.assignments.filter(a => a.hasSubmitted).length / task.assignments.length) * 100}%` 
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Actions avancées pour chaque tâche */}
                   <div className="flex items-center gap-2 pt-4 border-t border-gray-700">
