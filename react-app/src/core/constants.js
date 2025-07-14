@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/constants.js
-// CONSTANTS COMPLET avec toutes les routes + ESCAPE PROGRESSION
+// CONSTANTS COMPLET - VERSION CORRIGÉE ET COMPLÈTE
 // ==========================================
 
 export const ROUTES = {
@@ -20,7 +20,7 @@ export const ROUTES = {
   GAMIFICATION: '/gamification',
   REWARDS: '/rewards',
   
-  // 🎯 ROUTES DE PROGRESSION DE RÔLE - NOUVELLES ROUTES AJOUTÉES
+  // 🎯 ROUTES DE PROGRESSION DE RÔLE
   ROLE_PROGRESSION: '/role/progression',
   ROLE_TASKS: '/role/tasks',
   ROLE_BADGES: '/role/badges',
@@ -49,7 +49,7 @@ export const ROUTES = {
   TEST_DASHBOARD: '/test-dashboard'
 }
 
-// 📊 NAVIGATION STRUCTURE POUR ORGANISATION
+// 📊 NAVIGATION STRUCTURE
 export const NAVIGATION_STRUCTURE = {
   main: {
     title: 'Principal',
@@ -69,56 +69,50 @@ export const NAVIGATION_STRUCTURE = {
       { path: ROUTES.REWARDS, label: 'Récompenses', icon: '🎁', priority: 4 }
     ]
   },
-  progression: {
-    title: 'Progression',
-    routes: [
-      { path: ROUTES.ROLE_PROGRESSION, label: 'Progression de Rôle', icon: '📈', priority: 1 },
-      { path: ROUTES.ROLE_TASKS, label: 'Tâches de Rôle', icon: '🎯', priority: 2 },
-      { path: ROUTES.ROLE_BADGES, label: 'Badges de Rôle', icon: '🎖️', priority: 3 },
-      { path: ROUTES.ESCAPE_PROGRESSION, label: 'Escape Progression', icon: '🚀', priority: 4 }
-    ]
-  },
-  team: {
-    title: 'Équipe',
+  social: {
+    title: 'Social',
     routes: [
       { path: ROUTES.TEAM, label: 'Équipe', icon: '👥', priority: 1 },
       { path: ROUTES.USERS, label: 'Utilisateurs', icon: '👤', priority: 2 }
     ]
   },
-  tools: {
-    title: 'Outils',
+  personal: {
+    title: 'Personnel',
     routes: [
-      { path: ROUTES.PROFILE, label: 'Profil', icon: '👨‍💼', priority: 1 },
+      { path: ROUTES.PROFILE, label: 'Profil', icon: '👤', priority: 1 },
       { path: ROUTES.SETTINGS, label: 'Paramètres', icon: '⚙️', priority: 2 },
-      { path: ROUTES.ONBOARDING, label: 'Intégration', icon: '🎓', priority: 3 },
-      { path: ROUTES.TIMETRACK, label: 'Time Track', icon: '⏱️', priority: 4 }
+      { path: ROUTES.TIMETRACK, label: 'Temps', icon: '⏰', priority: 3 }
     ]
   },
   admin: {
     title: 'Administration',
     routes: [
-      { path: ROUTES.ADMIN_TASK_VALIDATION, label: 'Validation Tâches', icon: '🛡️', priority: 1 },
+      { path: ROUTES.ADMIN_TASK_VALIDATION, label: 'Validation Tâches', icon: '✅', priority: 1 },
       { path: ROUTES.ADMIN_COMPLETE_TEST, label: 'Test Complet', icon: '🧪', priority: 2 }
     ]
   }
 }
 
-// 🎯 LES 9 NOUVEAUX RÔLES ESCAPE GAME
-export const ESCAPE_GAME_ROLES = {
-  GAME_MASTER: 'gamemaster',
-  MAINTENANCE: 'maintenance', 
+// 👥 RÔLES UTILISATEURS
+export const USER_ROLES = {
+  ADMIN: 'admin',
+  MANAGER: 'manager',
+  EMPLOYEE: 'employee',
+  VISITOR: 'visitor',
+  // Nouveaux rôles escape game
+  GAMEMASTER: 'gamemaster',
+  MAINTENANCE: 'maintenance',
   REPUTATION: 'reputation',
   STOCK: 'stock',
   ORGANIZATION: 'organization',
   CONTENT: 'content',
   MENTORING: 'mentoring',
-  PARTNERSHIPS: 'partnerships',
-  COMMUNICATION: 'communication'
+  PARTNERSHIP: 'partnership'
 }
 
-// 📈 NIVEAUX DE PROGRESSION
-export const PROGRESSION_LEVELS = {
-  NOVICE: { id: 'novice', name: 'Novice', xpMin: 0, xpMax: 500 },
+// 🏅 NIVEAUX D'EXPÉRIENCE
+export const XP_LEVELS = {
+  DEBUTANT: { id: 'debutant', name: 'Débutant', xpMin: 0, xpMax: 500 },
   APPRENTI: { id: 'apprenti', name: 'Apprenti', xpMin: 501, xpMax: 1500 },
   COMPETENT: { id: 'competent', name: 'Compétent', xpMin: 1501, xpMax: 3000 },
   EXPERT: { id: 'expert', name: 'Expert', xpMin: 3001, xpMax: 5000 },
@@ -279,3 +273,76 @@ export const SYSTEM_MESSAGES = {
   LOGOUT_SUCCESS: 'Déconnexion réussie',
   LOGIN_SUCCESS: 'Connexion réussie'
 }
+
+// 📝 MESSAGES D'ERREUR
+export const ERROR_MESSAGES = {
+  AUTH: {
+    INVALID_CREDENTIALS: 'Email ou mot de passe incorrect',
+    WEAK_PASSWORD: 'Le mot de passe doit contenir au moins 6 caractères',
+    EMAIL_IN_USE: 'Cette adresse email est déjà utilisée',
+    USER_NOT_FOUND: 'Aucun utilisateur trouvé avec cette adresse email',
+    ACCOUNT_DISABLED: 'Ce compte a été désactivé'
+  },
+  VALIDATION: {
+    REQUIRED_FIELD: 'Ce champ est obligatoire',
+    INVALID_EMAIL: 'Adresse email invalide',
+    INVALID_PHONE: 'Numéro de téléphone invalide',
+    PASSWORD_MISMATCH: 'Les mots de passe ne correspondent pas',
+    FILE_TOO_LARGE: 'Le fichier est trop volumineux (max 10MB)',
+    INVALID_FILE_TYPE: 'Type de fichier non supporté'
+  },
+  NETWORK: {
+    CONNECTION_ERROR: 'Erreur de connexion réseau',
+    TIMEOUT: 'La requête a expiré',
+    SERVER_ERROR: 'Erreur serveur (500)',
+    NOT_FOUND: 'Ressource introuvable (404)',
+    UNAUTHORIZED: 'Accès non autorisé (401)',
+    FORBIDDEN: 'Accès interdit (403)'
+  },
+  TASKS: {
+    CREATE_FAILED: 'Impossible de créer la tâche',
+    UPDATE_FAILED: 'Impossible de mettre à jour la tâche',
+    DELETE_FAILED: 'Impossible de supprimer la tâche',
+    NOT_FOUND: 'Tâche introuvable'
+  },
+  PROJECTS: {
+    CREATE_FAILED: 'Impossible de créer le projet',
+    UPDATE_FAILED: 'Impossible de mettre à jour le projet',
+    DELETE_FAILED: 'Impossible de supprimer le projet',
+    NOT_FOUND: 'Projet introuvable'
+  }
+}
+
+// 🎯 ESCAPE GAME - STATUTS DE PROGRESSION
+export const ESCAPE_PROGRESSION_STATUS = {
+  NOT_STARTED: 'not_started',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+  TIMEOUT: 'timeout'
+}
+
+// 🎮 ESCAPE GAME - TYPES DE DÉFIS
+export const ESCAPE_CHALLENGE_TYPES = {
+  PUZZLE: 'puzzle',
+  RIDDLE: 'riddle',
+  CODE_BREAKING: 'code_breaking',
+  PHYSICAL_TASK: 'physical_task',
+  TEAMWORK: 'teamwork',
+  OBSERVATION: 'observation',
+  LOGIC: 'logic'
+}
+
+// ⭐ ESCAPE GAME - NIVEAUX DE DIFFICULTÉ
+export const ESCAPE_DIFFICULTY = {
+  BEGINNER: { id: 'beginner', name: 'Débutant', points: 100 },
+  INTERMEDIATE: { id: 'intermediate', name: 'Intermédiaire', points: 200 },
+  ADVANCED: { id: 'advanced', name: 'Avancé', points: 300 },
+  EXPERT: { id: 'expert', name: 'Expert', points: 500 },
+  MASTER: { id: 'master', name: 'Maître', points: 1000 }
+}
+
+console.log('✅ Constants.js - Version complète et corrigée chargée');
+console.log('📊 Routes disponibles:', Object.keys(ROUTES).length);
+console.log('🎯 Permissions disponibles:', Object.keys(PERMISSIONS).length);
+console.log('🏆 Niveaux XP disponibles:', Object.keys(XP_LEVELS).length);
