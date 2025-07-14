@@ -1,348 +1,377 @@
 // ==========================================
 // 📁 react-app/src/components/forms/TaskForm.jsx
-// Modal complète pour créer/éditer des tâches
+// COMPOSANT TASKFORM MANQUANT - CRÉER CE FICHIER
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, Calendar, Flag, FileText, Target, Clock, Users } from 'lucide-react';
-import { useAuthStore } from '../../shared/stores/authStore.js';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  X, 
+  Plus, 
+  Calendar, 
+  Flag, 
+  Star, 
+  Tag,
+  Target,
+  Clock,
+  User,
+  Trophy
+} from 'lucide-react';
 
+/**
+ * 📝 FORMULAIRE DE CRÉATION/MODIFICATION DE TÂCHE
+ */
 const TaskForm = ({ 
   isOpen, 
   onClose, 
-  task = null, 
-  onSave,
-  loading = false 
+  onSubmit, 
+  initialData = null 
 }) => {
-  const { user } = useAuthStore();
-
-  // État du formulaire
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    status: 'todo',
     priority: 'medium',
+    complexity: 'medium',
+    xpReward: 25,
     dueDate: '',
-    estimatedHours: '',
-    projectId: '',
-    xpReward: 50
+    tags: []
   });
 
-  const [errors, setErrors] = useState({});
+  const [newTag, setNewTag] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-  // Options pour les sélects
-  const statusOptions = [
-    { value: 'todo', label: 'À faire' },
-    { value: 'in_progress', label: 'En cours' },
-    { value: 'completed', label: 'Terminée' },
-    { value: 'blocked', label: 'Bloquée' }
-  ];
-
-  const priorityOptions = [
-    { value: 'low', label: 'Basse', color: 'text-green-400' },
-    { value: 'medium', label: 'Moyenne', color: 'text-yellow-400' },
-    { value: 'high', label: 'Haute', color: 'text-orange-400' },
-    { value: 'urgent', label: 'Urgente', color: 'text-red-400' }
-  ];
-
-  // Initialiser le formulaire quand la tâche change
+  // Charger les données initiales si modification
   useEffect(() => {
-    if (task) {
+    if (initialData) {
       setFormData({
-        title: task.title || '',
-        description: task.description || '',
-        status: task.status || 'todo',
-        priority: task.priority || 'medium',
-        dueDate: task.dueDate ? new Date(task.dueDate.toDate ? task.dueDate.toDate() : task.dueDate).toISOString().split('T')[0] : '',
-        estimatedHours: task.estimatedHours || '',
-        projectId: task.projectId || '',
-        xpReward: task.xpReward || 50
-      });
-    } else {
-      // Réinitialiser pour une nouvelle tâche
-      setFormData({
-        title: '',
-        description: '',
-        status: 'todo',
-        priority: 'medium',
-        dueDate: '',
-        estimatedHours: '',
-        projectId: '',
-        xpReward: 50
+        title: initialData.title || '',
+        description: initialData.description || '',
+        priority: initialData.priority || 'medium',
+        complexity: initialData.complexity || 'medium',
+        xpReward: initialData.xpReward || 25,
+        dueDate: initialData.dueDate ? 
+          (initialData.dueDate.seconds ? 
+            new Date(initialData.dueDate.seconds * 1000).toISOString().split('T')[0] :
+            new Date(initialData.dueDate).toISOString().split('T')[0]
+          ) : '',
+        tags: initialData.tags || []
       });
     }
-    setErrors({});
-  }, [task]);
+  }, [initialData]);
 
-  // Gestion des changements d'input
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  // Calculer l'XP automatiquement selon la complexité
+  useEffect(() => {
+    const xpMap = {
+      'easy': 15,
+      'medium': 25,
+      'hard': 40,
+      'expert': 60
+    };
     
-    // Effacer l'erreur du champ modifié
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-  };
-
-  // Validation du formulaire
-  const validateForm = () => {
-    const newErrors = {};
+    const baseXp = xpMap[formData.complexity] || 25;
+    const priorityMultiplier = {
+      'low': 1,
+      'medium': 1.2,
+      'high': 1.5,
+      'urgent': 2
+    };
     
-    if (!formData.title.trim()) {
-      newErrors.title = 'Le titre est requis';
-    }
+    const finalXp = Math.round(baseXp * (priorityMultiplier[formData.priority] || 1));
     
-    if (!formData.description.trim()) {
-      newErrors.description = 'La description est requise';
+    if (formData.xpReward !== finalXp) {
+      setFormData(prev => ({ ...prev, xpReward: finalXp }));
     }
+  }, [formData.complexity, formData.priority]);
 
-    if (formData.estimatedHours && (isNaN(formData.estimatedHours) || formData.estimatedHours <= 0)) {
-      newErrors.estimatedHours = 'Les heures estimées doivent être un nombre positif';
-    }
-
-    if (formData.xpReward && (isNaN(formData.xpReward) || formData.xpReward <= 0)) {
-      newErrors.xpReward = 'La récompense XP doit être un nombre positif';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // Soumission du formulaire
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    if (!formData.title.trim()) {
+      setError('Le titre est obligatoire');
+      return;
+    }
+    
+    setSubmitting(true);
+    setError('');
     
     try {
       const taskData = {
         ...formData,
-        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
-        estimatedHours: formData.estimatedHours ? parseInt(formData.estimatedHours) : null,
-        xpReward: formData.xpReward ? parseInt(formData.xpReward) : 50,
-        updatedAt: new Date()
+        dueDate: formData.dueDate ? new Date(formData.dueDate) : null
       };
-
-      await onSave(taskData);
+      
+      await onSubmit(taskData);
+      console.log('✅ Tâche soumise:', taskData);
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde de la tâche:', error);
-      setErrors({ submit: 'Une erreur est survenue lors de la sauvegarde' });
+      console.error('❌ Erreur soumission tâche:', error);
+      setError(error.message || 'Erreur lors de la soumission');
+    } finally {
+      setSubmitting(false);
     }
+  };
+
+  const handleAddTag = () => {
+    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, newTag.trim()]
+      }));
+      setNewTag('');
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
+    }));
+  };
+
+  const handleClose = () => {
+    if (submitting) return;
+    onClose();
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        
-        {/* Header du modal */}
-        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-white">
-              {task ? 'Modifier la tâche' : 'Nouvelle tâche'}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <X size={24} />
-            </button>
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        onClick={handleClose}
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="sticky top-0 bg-white border-b border-gray-200 p-6 rounded-t-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Target className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {initialData ? 'Modifier la tâche' : 'Nouvelle tâche'}
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Créez une tâche avec tous les détails nécessaires
+                  </p>
+                </div>
+              </div>
+              
+              <button
+                onClick={handleClose}
+                disabled={submitting}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Formulaire */}
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="space-y-6">
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
             
+            {/* Erreur */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-800">{error}</p>
+              </div>
+            )}
+
             {/* Titre */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <FileText className="w-4 h-4 inline mr-2" />
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Titre de la tâche *
               </label>
               <input
                 type="text"
-                name="title"
                 value={formData.title}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 bg-gray-700 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.title ? 'border-red-500' : 'border-gray-600'
-                }`}
-                placeholder="Ex: Développer la page d'accueil"
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Ex: Finaliser le rapport mensuel"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={submitting}
+                required
               />
-              {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title}</p>}
             </div>
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Description *
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description
               </label>
               <textarea
-                name="description"
                 value={formData.description}
-                onChange={handleInputChange}
-                rows={4}
-                className={`w-full px-3 py-2 bg-gray-700 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.description ? 'border-red-500' : 'border-gray-600'
-                }`}
-                placeholder="Décrivez la tâche en détail..."
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Décrivez les détails de la tâche..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none h-24"
+                disabled={submitting}
               />
-              {errors.description && <p className="text-red-400 text-sm mt-1">{errors.description}</p>}
             </div>
 
-            {/* Statut et Priorité */}
+            {/* Priorité et Complexité */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              
-              {/* Statut */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Statut
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {statusOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Priorité */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  <Flag className="w-4 h-4 inline mr-2" />
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Flag className="inline w-4 h-4 mr-1" />
                   Priorité
                 </label>
                 <select
-                  name="priority"
                   value={formData.priority}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={submitting}
                 >
-                  {priorityOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
+                  <option value="low">🟢 Faible</option>
+                  <option value="medium">🟡 Moyenne</option>
+                  <option value="high">🔴 Haute</option>
+                  <option value="urgent">🚨 Urgente</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Star className="inline w-4 h-4 mr-1" />
+                  Complexité
+                </label>
+                <select
+                  value={formData.complexity}
+                  onChange={(e) => setFormData(prev => ({ ...prev, complexity: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={submitting}
+                >
+                  <option value="easy">⭐ Facile</option>
+                  <option value="medium">⭐⭐ Moyenne</option>
+                  <option value="hard">⭐⭐⭐ Difficile</option>
+                  <option value="expert">⭐⭐⭐⭐ Expert</option>
                 </select>
               </div>
             </div>
 
-            {/* Date d'échéance */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Calendar className="w-4 h-4 inline mr-2" />
-                Date d'échéance
-              </label>
-              <input
-                type="date"
-                name="dueDate"
-                value={formData.dueDate}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Heures estimées et XP */}
+            {/* XP et Date d'échéance */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              
-              {/* Heures estimées */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  <Clock className="w-4 h-4 inline mr-2" />
-                  Heures estimées
-                </label>
-                <input
-                  type="number"
-                  name="estimatedHours"
-                  value={formData.estimatedHours}
-                  onChange={handleInputChange}
-                  min="0.5"
-                  step="0.5"
-                  className={`w-full px-3 py-2 bg-gray-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.estimatedHours ? 'border-red-500' : 'border-gray-600'
-                  }`}
-                  placeholder="ex: 2.5"
-                />
-                {errors.estimatedHours && <p className="text-red-400 text-sm mt-1">{errors.estimatedHours}</p>}
-              </div>
-
-              {/* Récompense XP */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  <Target className="w-4 h-4 inline mr-2" />
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Trophy className="inline w-4 h-4 mr-1" />
                   Récompense XP
                 </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={formData.xpReward}
+                    onChange={(e) => setFormData(prev => ({ ...prev, xpReward: parseInt(e.target.value) || 0 }))}
+                    min="0"
+                    max="500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={submitting}
+                  />
+                  <span className="absolute right-3 top-2 text-sm text-gray-500">XP</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Calculé automatiquement selon la priorité et complexité
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Calendar className="inline w-4 h-4 mr-1" />
+                  Date d'échéance
+                </label>
                 <input
-                  type="number"
-                  name="xpReward"
-                  value={formData.xpReward}
-                  onChange={handleInputChange}
-                  min="10"
-                  step="10"
-                  className={`w-full px-3 py-2 bg-gray-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.xpReward ? 'border-red-500' : 'border-gray-600'
-                  }`}
-                  placeholder="ex: 50"
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={submitting}
                 />
-                {errors.xpReward && <p className="text-red-400 text-sm mt-1">{errors.xpReward}</p>}
               </div>
             </div>
 
-            {/* Suggestions XP basées sur la priorité */}
-            <div className="bg-gray-700/30 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-gray-300 mb-2">Suggestions de récompense XP :</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                <span className="text-green-400">Basse: 25-50 XP</span>
-                <span className="text-yellow-400">Moyenne: 50-100 XP</span>
-                <span className="text-orange-400">Haute: 100-200 XP</span>
-                <span className="text-red-400">Urgente: 200+ XP</span>
+            {/* Tags */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Tag className="inline w-4 h-4 mr-1" />
+                Tags
+              </label>
+              
+              {/* Tags existants */}
+              {formData.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {formData.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        className="hover:text-blue-600"
+                        disabled={submitting}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              
+              {/* Ajouter un tag */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                  placeholder="Ajouter un tag..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={submitting}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddTag}
+                  disabled={!newTag.trim() || submitting}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
               </div>
             </div>
-          </div>
 
-          {/* Erreur générale */}
-          {errors.submit && (
-            <div className="mt-6 p-4 bg-red-900/50 border border-red-500 rounded-lg">
-              <p className="text-red-400 text-sm">{errors.submit}</p>
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={submitting}
+                className="px-6 py-2 text-gray-700 hover:text-gray-900 transition-colors disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              
+              <button
+                type="submit"
+                disabled={submitting || !formData.title.trim()}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors flex items-center gap-2"
+              >
+                {submitting && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                )}
+                {submitting ? 'Création...' : (initialData ? 'Modifier' : 'Créer la tâche')}
+              </button>
             </div>
-          )}
-
-          {/* Boutons d'action */}
-          <div className="flex justify-end space-x-3 pt-6 mt-6 border-t border-gray-700">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 text-gray-400 hover:text-white transition-colors"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-lg transition-colors flex items-center gap-2"
-            >
-              <Save className="w-4 h-4" />
-              {loading ? 'Sauvegarde...' : task ? 'Mettre à jour' : 'Créer la tâche'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          </form>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 
