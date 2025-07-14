@@ -1,347 +1,343 @@
 // ==========================================
 // 📁 react-app/src/pages/Dashboard.jsx
-// DASHBOARD PRINCIPAL AVEC TEST ESCAPE PROGRESSION
+// DASHBOARD PREMIUM AVEC DESIGN HARMONISÉ TEAM PAGE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../shared/stores/authStore.js';
+import { motion } from 'framer-motion';
 import { 
-  TrendingUp, 
+  Home, 
+  Target, 
   Users, 
-  CheckCircle, 
-  Trophy,
+  Trophy, 
+  Clock, 
+  Calendar,
+  CheckCircle2,
   Rocket,
   Star,
-  ChevronRight,
-  Play,
-  Calendar,
+  Brain,
+  TrendingUp,
+  Bell,
+  Plus,
   BarChart3,
-  Target,
-  Award,
-  Clock
+  Activity,
+  Zap,
+  Award
 } from 'lucide-react';
 
-// Import du composant test (défini dans le même fichier pour éviter les erreurs d'import)
-const EscapeProgressionTest = () => {
-  const navigate = useNavigate();
+// Layout et composants premium
+import PremiumLayout, { PremiumCard, StatCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
 
-  const handleNavigateToEscape = () => {
-    navigate('/escape-progression');
-  };
+// Stores et services
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { useTaskStore } from '../shared/stores/taskStore.js';
 
-  return (
-    <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center">
-            <Rocket size={32} className="text-white" />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold">🚀 Nouvelle Page Escape Progression</h3>
-            <p className="text-purple-100 mt-1">
-              Page avec les 9 vrais rôles escape game créée !
-            </p>
-            <div className="flex items-center gap-4 mt-3 text-sm">
-              <div className="flex items-center gap-1">
-                <CheckCircle size={16} />
-                <span>9 Rôles Authentiques</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Trophy size={16} />
-                <span>Système de Progression</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Star size={16} />
-                <span>Interface Interactive</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <button
-          onClick={handleNavigateToEscape}
-          className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 
-                     rounded-lg px-6 py-3 font-medium transition-all duration-200
-                     flex items-center gap-2 hover:scale-105"
-        >
-          <Play size={20} />
-          Tester la Page
-          <ChevronRight size={16} />
-        </button>
-      </div>
-      
-      <div className="mt-4 pt-4 border-t border-white/20">
-        <h4 className="font-medium mb-2">🎯 Fonctionnalités disponibles :</h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-white rounded-full" />
-            <span>9 Rôles Escape Game</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-white rounded-full" />
-            <span>Progression par Niveau</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-white rounded-full" />
-            <span>Simulation de Données</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-white rounded-full" />
-            <span>Modal de Détail</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-white rounded-full" />
-            <span>Compétences & Actions</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-white rounded-full" />
-            <span>Interface Responsive</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4 p-3 bg-white/10 rounded-lg">
-        <div className="flex items-center gap-2 text-sm">
-          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-          <span className="font-medium">URL directe :</span>
-          <code className="bg-black/20 px-2 py-1 rounded text-xs">
-            /escape-progression
-          </code>
-        </div>
-      </div>
-    </div>
-  );
-};
-
+/**
+ * 🏠 DASHBOARD PREMIUM REDESIGN
+ */
 const Dashboard = () => {
   const { user } = useAuthStore();
-  const navigate = useNavigate();
+  const { tasks } = useTaskStore();
+  
   const [stats, setStats] = useState({
-    totalTasks: 0,
-    completedTasks: 0,
-    totalProjects: 0,
-    teamMembers: 0
+    tasksCompleted: 0,
+    totalXP: 0,
+    currentStreak: 0,
+    teamRanking: 0,
+    weeklyProgress: 0
   });
 
-  const userId = user?.uid || user?.id || 'user-demo';
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [upcomingTasks, setUpcomingTasks] = useState([]);
 
+  // Calcul des statistiques
   useEffect(() => {
-    // Simuler le chargement des statistiques
-    setStats({
-      totalTasks: 127,
-      completedTasks: 89,
-      totalProjects: 8,
-      teamMembers: 12
-    });
-  }, []);
+    if (tasks?.length) {
+      const completed = tasks.filter(task => task.status === 'completed').length;
+      const totalXP = tasks.reduce((sum, task) => sum + (task.xp || 0), 0);
+      
+      setStats(prev => ({
+        ...prev,
+        tasksCompleted: completed,
+        totalXP,
+        weeklyProgress: Math.min(100, (completed / Math.max(1, tasks.length)) * 100)
+      }));
+    }
+  }, [tasks]);
 
-  const quickActions = [
+  // Statistiques pour le header
+  const headerStats = [
     {
-      title: 'Créer une Tâche',
-      description: 'Ajouter une nouvelle tâche',
-      icon: Target,
-      color: 'bg-blue-500',
-      action: () => navigate('/tasks')
+      label: "Tâches complétées",
+      value: stats.tasksCompleted,
+      icon: CheckCircle2,
+      color: "text-green-400",
+      iconColor: "text-green-400"
     },
     {
-      title: 'Voir les Projets',
-      description: 'Gérer vos projets',
-      icon: BarChart3,
-      color: 'bg-green-500',
-      action: () => navigate('/projects')
+      label: "XP Total",
+      value: stats.totalXP,
+      icon: Star,
+      color: "text-yellow-400",
+      iconColor: "text-yellow-400"
     },
     {
-      title: 'Analytics',
-      description: 'Voir les statistiques',
-      icon: TrendingUp,
-      color: 'bg-purple-500',
-      action: () => navigate('/analytics')
+      label: "Série actuelle",
+      value: `${stats.currentStreak} j`,
+      icon: Zap,
+      color: "text-purple-400",
+      iconColor: "text-purple-400"
     },
     {
-      title: 'Badges',
-      description: 'Vos accomplissements',
-      icon: Award,
-      color: 'bg-yellow-500',
-      action: () => navigate('/badges')
+      label: "Rang équipe",
+      value: `#${stats.teamRanking || '-'}`,
+      icon: Trophy,
+      color: "text-blue-400",
+      iconColor: "text-blue-400"
     }
   ];
 
-  const recentActivities = [
-    { text: 'Nouvelle tâche créée: "Optimiser interface"', time: 'il y a 2h', icon: Target },
-    { text: 'Badge obtenu: "Producteur de contenu"', time: 'il y a 4h', icon: Trophy },
-    { text: 'Projet complété: "Migration v3.5"', time: 'il y a 1 jour', icon: CheckCircle },
-    { text: 'Équipe mise à jour', time: 'il y a 2 jours', icon: Users }
-  ];
+  // Actions du header
+  const headerActions = (
+    <>
+      <PremiumButton 
+        variant="outline" 
+        size="md"
+        icon={Bell}
+      >
+        Notifications
+      </PremiumButton>
+      <PremiumButton 
+        variant="primary" 
+        size="md"
+        icon={Plus}
+      >
+        Nouvelle tâche
+      </PremiumButton>
+    </>
+  );
 
   return (
-    <div className="space-y-6">
-      {/* Header du Dashboard */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Bienvenue sur Synergia ! 👋
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Voici un aperçu de votre activité
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Calendar size={16} />
-            <span>{new Date().toLocaleDateString('fr-FR', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}</span>
-          </div>
-        </div>
+    <PremiumLayout
+      title="Dashboard"
+      subtitle={`Bienvenue ${user?.displayName || 'Utilisateur'} ! Voici votre vue d'ensemble`}
+      icon={Home}
+      headerActions={headerActions}
+      showStats={true}
+      stats={headerStats}
+    >
+      
+      {/* 📊 Section métriques détaillées */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <StatCard
+          title="Productivité"
+          value="Élevée"
+          icon={Brain}
+          color="purple"
+          trend="↗️ +15% cette semaine"
+        />
+        <StatCard
+          title="Temps moyen"
+          value="2.3h"
+          icon={Clock}
+          color="blue"
+          trend="⏱️ Par tâche"
+        />
+        <StatCard
+          title="Projets actifs"
+          value="8"
+          icon={Rocket}
+          color="green"
+          trend="🚀 3 nouveaux ce mois"
+        />
+        <StatCard
+          title="Niveau"
+          value="12"
+          icon={Award}
+          color="yellow"
+          trend="🏆 Prochaine étape: 1,250 XP"
+        />
       </div>
 
-      {/* Nouveau Composant Test Escape Progression */}
-      <EscapeProgressionTest />
-
-      {/* Statistiques principales */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Target className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Tâches Total</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.totalTasks}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <CheckCircle className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Terminées</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.completedTasks}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <BarChart3 className="h-6 w-6 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Projets</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.totalProjects}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <Users className="h-6 w-6 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Équipe</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.teamMembers}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Actions rapides et activité récente */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Actions rapides */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions Rapides</h2>
-          <div className="grid grid-cols-2 gap-4">
-            {quickActions.map((action, index) => (
-              <button
-                key={index}
-                onClick={action.action}
-                className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
-              >
-                <div className={`w-8 h-8 ${action.color} rounded-lg flex items-center justify-center mb-2`}>
-                  <action.icon className="h-4 w-4 text-white" />
-                </div>
-                <h3 className="font-medium text-gray-900 text-sm">{action.title}</h3>
-                <p className="text-xs text-gray-500 mt-1">{action.description}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Activité récente */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Activité Récente</h2>
-          <div className="space-y-4">
-            {recentActivities.map((activity, index) => (
-              <div key={index} className="flex items-start gap-3">
-                <div className="p-1 bg-gray-100 rounded-full">
-                  <activity.icon className="h-4 w-4 text-gray-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900">{activity.text}</p>
-                  <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                    <Clock size={12} />
-                    {activity.time}
-                  </p>
-                </div>
+      {/* 📈 Section principale - 2 colonnes */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Colonne principale - Progression et activité */}
+        <div className="lg:col-span-2 space-y-6">
+          
+          {/* Progression de la semaine */}
+          <PremiumCard>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">Progression cette semaine</h3>
+              <div className="flex items-center space-x-2 text-sm text-gray-400">
+                <TrendingUp className="w-4 h-4" />
+                <span>{stats.weeklyProgress.toFixed(0)}% complété</span>
               </div>
-            ))}
-          </div>
+            </div>
+            
+            {/* Barre de progression premium */}
+            <div className="mb-6">
+              <div className="flex justify-between text-sm text-gray-400 mb-2">
+                <span>Objectif hebdomadaire</span>
+                <span>{stats.tasksCompleted}/15 tâches</span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-3">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${stats.weeklyProgress}%` }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full relative overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                </motion.div>
+              </div>
+            </div>
+
+            {/* Métriques de performance */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-gray-800/50 rounded-lg">
+                <div className="text-2xl font-bold text-green-400">92%</div>
+                <div className="text-sm text-gray-400">Taux de complétion</div>
+              </div>
+              <div className="text-center p-4 bg-gray-800/50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-400">4.8</div>
+                <div className="text-sm text-gray-400">Score qualité</div>
+              </div>
+              <div className="text-center p-4 bg-gray-800/50 rounded-lg">
+                <div className="text-2xl font-bold text-purple-400">7</div>
+                <div className="text-sm text-gray-400">Jours de série</div>
+              </div>
+            </div>
+          </PremiumCard>
+
+          {/* Activité récente */}
+          <PremiumCard>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">Activité récente</h3>
+              <PremiumButton variant="ghost" size="sm">
+                Voir tout
+              </PremiumButton>
+            </div>
+            
+            <div className="space-y-4">
+              {[
+                { action: "Tâche complétée", item: "Révision code backend", time: "il y a 2h", xp: "+50 XP", type: "complete" },
+                { action: "Badge débloqué", item: "Code Master", time: "il y a 4h", xp: "+100 XP", type: "badge" },
+                { action: "Projet avancé", item: "Migration API v2", time: "hier", xp: "+75 XP", type: "progress" },
+                { action: "Collaboration", item: "Review de Marie", time: "il y a 2j", xp: "+25 XP", type: "collab" }
+              ].map((activity, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-3 h-3 rounded-full ${
+                      activity.type === 'complete' ? 'bg-green-400' :
+                      activity.type === 'badge' ? 'bg-yellow-400' :
+                      activity.type === 'progress' ? 'bg-blue-400' :
+                      'bg-purple-400'
+                    }`}></div>
+                    <div>
+                      <div className="text-white font-medium">{activity.action}</div>
+                      <div className="text-gray-400 text-sm">{activity.item}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-green-400 font-medium text-sm">{activity.xp}</div>
+                    <div className="text-gray-500 text-xs">{activity.time}</div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </PremiumCard>
+        </div>
+
+        {/* Colonne secondaire - Tâches à venir et raccourcis */}
+        <div className="space-y-6">
+          
+          {/* Tâches prioritaires */}
+          <PremiumCard>
+            <h3 className="text-xl font-bold text-white mb-4">Priorités du jour</h3>
+            <div className="space-y-3">
+              {[
+                { title: "Finaliser rapport mensuel", priority: "high", deadline: "14:00" },
+                { title: "Réunion équipe design", priority: "medium", deadline: "16:30" },
+                { title: "Code review PR #245", priority: "high", deadline: "EOD" }
+              ].map((task, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-2 h-2 rounded-full ${
+                      task.priority === 'high' ? 'bg-red-400' : 'bg-yellow-400'
+                    }`}></div>
+                    <div>
+                      <div className="text-white font-medium text-sm">{task.title}</div>
+                      <div className="text-gray-400 text-xs">{task.deadline}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4">
+              <PremiumButton variant="outline" size="sm" className="w-full">
+                Voir toutes les tâches
+              </PremiumButton>
+            </div>
+          </PremiumCard>
+
+          {/* Raccourcis rapides */}
+          <PremiumCard>
+            <h3 className="text-xl font-bold text-white mb-4">Actions rapides</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <PremiumButton variant="ghost" size="sm" icon={Plus}>
+                Nouvelle tâche
+              </PremiumButton>
+              <PremiumButton variant="ghost" size="sm" icon={Users}>
+                Équipe
+              </PremiumButton>
+              <PremiumButton variant="ghost" size="sm" icon={BarChart3}>
+                Analytics
+              </PremiumButton>
+              <PremiumButton variant="ghost" size="sm" icon={Calendar}>
+                Planning
+              </PremiumButton>
+            </div>
+          </PremiumCard>
+
+          {/* Mini leaderboard */}
+          <PremiumCard>
+            <h3 className="text-xl font-bold text-white mb-4">Top équipe</h3>
+            <div className="space-y-3">
+              {[
+                { name: "Marie D.", xp: 2450, rank: 1 },
+                { name: "Vous", xp: 2380, rank: 2, isUser: true },
+                { name: "Alex R.", xp: 2290, rank: 3 }
+              ].map((member, index) => (
+                <div key={index} className={`flex items-center justify-between p-2 rounded ${
+                  member.isUser ? 'bg-blue-500/20 border border-blue-500/30' : 'bg-gray-800/30'
+                }`}>
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                      member.rank === 1 ? 'bg-yellow-500 text-yellow-900' :
+                      member.rank === 2 ? 'bg-gray-300 text-gray-800' :
+                      'bg-amber-600 text-amber-100'
+                    }`}>
+                      {member.rank}
+                    </div>
+                    <span className={`font-medium ${member.isUser ? 'text-blue-400' : 'text-white'}`}>
+                      {member.name}
+                    </span>
+                  </div>
+                  <span className="text-gray-400 text-sm">{member.xp} XP</span>
+                </div>
+              ))}
+            </div>
+          </PremiumCard>
         </div>
       </div>
-
-      {/* Statut de l'application */}
-      <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg p-6 text-white">
-        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-          <Trophy className="h-6 w-6" />
-          Statut Synergia v3.5
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
-          <div>
-            <div className="text-3xl font-bold">13</div>
-            <div className="text-sm opacity-90">Pages créées</div>
-          </div>
-          <div>
-            <div className="text-3xl font-bold">95%</div>
-            <div className="text-sm opacity-90">Complétude</div>
-          </div>
-          <div>
-            <div className="text-3xl font-bold">60+</div>
-            <div className="text-sm opacity-90">Badges disponibles</div>
-          </div>
-          <div>
-            <div className="text-3xl font-bold">100%</div>
-            <div className="text-sm opacity-90">Services actifs</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Debug info technique */}
-      <div className="bg-gray-100 rounded-lg p-4">
-        <details className="cursor-pointer">
-          <summary className="font-medium text-gray-700 hover:text-gray-900">
-            🔧 Informations techniques (cliquer pour développer)
-          </summary>
-          <div className="mt-4 space-y-2 text-sm text-gray-600">
-            <p><strong>User ID:</strong> {userId}</p>
-            <p><strong>URL actuelle:</strong> {window.location.href}</p>
-            <p><strong>User Agent:</strong> {navigator.userAgent.substring(0, 100)}...</p>
-            <p><strong>Timestamp:</strong> {new Date().toISOString()}</p>
-            <p><strong>AuthStore State:</strong> {JSON.stringify({
-              isAuthenticated: !!user,
-              hasUser: !!user,
-              loading: false
-            })}</p>
-          </div>
-        </details>
-      </div>
-    </div>
+    </PremiumLayout>
   );
 };
 
