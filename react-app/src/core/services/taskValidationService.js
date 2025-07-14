@@ -281,7 +281,7 @@ class TaskValidationService {
   }
 
   /**
-   * ✅ VALIDER UNE TÂCHE (ADMIN)
+   * ✅ VALIDER UNE TÂCHE (ADMIN) - VERSION CORRIGÉE
    */
   async validateTask(validationId, adminData) {
     try {
@@ -326,11 +326,9 @@ class TaskValidationService {
       // Si approuvé, attribuer les XP
       if (approved) {
         const xpToAward = xpAwarded || validation.xpAmount;
-        await gamificationService.awardXP(validation.userId, xpToAward, {
-          reason: 'task_completion',
-          taskId: validation.taskId,
-          difficulty: validation.difficulty
-        });
+        
+        // ✅ CORRECTION: Utiliser addXP au lieu de awardXP
+        await gamificationService.addXP(validation.userId, xpToAward, `Tâche validée: ${validation.taskTitle}`);
         
         console.log('🎯 XP attribués:', xpToAward, 'à l\'utilisateur:', validation.userId);
       }
