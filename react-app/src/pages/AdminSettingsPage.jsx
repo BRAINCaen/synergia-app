@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminSettingsPage.jsx
-// PAGE PARAMÈTRES SYSTÈME ADMINISTRATION
+// PAGE PARAMÈTRES SYSTÈME ADMINISTRATION - VERSION CORRIGÉE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -86,7 +86,7 @@ const AdminSettingsPage = () => {
       description: 'Application de gestion collaborative',
       maintenanceMode: false,
       maxUsers: 1000,
-      sessionTimeout: 3600 // en secondes
+      sessionTimeout: 3600
     },
     gamification: {
       enabled: true,
@@ -110,7 +110,7 @@ const AdminSettingsPage = () => {
       passwordRequireNumbers: true,
       sessionSecure: true,
       maxLoginAttempts: 5,
-      lockoutDuration: 900 // en secondes
+      lockoutDuration: 900
     },
     features: {
       roleSystem: true,
@@ -137,7 +137,6 @@ const AdminSettingsPage = () => {
       
       console.log('⚙️ Chargement des paramètres système...');
       
-      // Récupérer les paramètres depuis Firebase
       const settingsRef = doc(db, 'systemSettings', 'main');
       const settingsDoc = await getDoc(settingsRef);
       
@@ -148,7 +147,6 @@ const AdminSettingsPage = () => {
           ...savedSettings
         }));
       } else {
-        // Initialiser avec les valeurs par défaut
         await saveSettings(settings);
       }
       
@@ -208,11 +206,7 @@ const AdminSettingsPage = () => {
   const cleanupDatabase = async () => {
     try {
       console.log('🧹 Nettoyage de la base de données...');
-      
-      // Ici on pourrait implémenter un nettoyage réel
-      // Pour l'instant, on simule
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
       showNotification('Base de données nettoyée avec succès', 'success');
     } catch (error) {
       console.error('❌ Erreur nettoyage base de données:', error);
@@ -261,7 +255,6 @@ const AdminSettingsPage = () => {
     setPendingChanges(true);
   };
 
-  // Charger les paramètres au montage
   useEffect(() => {
     loadSettings();
   }, []);
@@ -289,7 +282,7 @@ const AdminSettingsPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
       <div className="max-w-7xl mx-auto">
         
-        {/* 📊 Header */}
+        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-4">
@@ -335,7 +328,6 @@ const AdminSettingsPage = () => {
             </div>
           </div>
 
-          {/* Alertes */}
           {pendingChanges && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -352,7 +344,7 @@ const AdminSettingsPage = () => {
           )}
         </div>
 
-        {/* 📋 Onglets */}
+        {/* Onglets */}
         <div className="mb-8">
           <div className="flex space-x-1 bg-gray-800 p-1 rounded-lg">
             {tabs.map(tab => {
@@ -375,7 +367,7 @@ const AdminSettingsPage = () => {
           </div>
         </div>
 
-        {/* 📱 Contenu Application */}
+        {/* Contenu Application */}
         {activeTab === 'app' && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -465,7 +457,7 @@ const AdminSettingsPage = () => {
           </motion.div>
         )}
 
-        {/* 🎮 Contenu Gamification */}
+        {/* Contenu Gamification */}
         {activeTab === 'gamification' && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -476,7 +468,6 @@ const AdminSettingsPage = () => {
               <h3 className="text-xl font-semibold text-white mb-6">Paramètres de gamification</h3>
               
               <div className="space-y-6">
-                {/* Activation générale */}
                 <div className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
                   <div>
                     <h4 className="text-white font-medium">Système de gamification</h4>
@@ -503,6 +494,111 @@ const AdminSettingsPage = () => {
                       step="0.1"
                       value={settings.gamification.xpMultiplier}
                       onChange={(e) => updateSetting('gamification', 'xpMultiplier', parseFloat(e.target.value) || 1.0)}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">
+                      XP par défaut pour les tâches
+                    </label>
+                    <input
+                      type="number"
+                      value={settings.gamification.defaultXpReward}
+                      onChange={(e) => updateSetting('gamification', 'defaultXpReward', parseInt(e.target.value) || 10)}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-white font-medium">Système de badges</span>
+                      <p className="text-gray-400 text-sm">Activer l'attribution de badges</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.gamification.badgeSystem}
+                      onChange={(e) => updateSetting('gamification', 'badgeSystem', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-white font-medium">Classement public</span>
+                      <p className="text-gray-400 text-sm">Afficher le leaderboard</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.gamification.leaderboard}
+                      onChange={(e) => updateSetting('gamification', 'leaderboard', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Contenu Notifications */}
+        {activeTab === 'notifications' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h3 className="text-xl font-semibold text-white mb-6">Paramètres de notifications</h3>
+              
+              <div className="space-y-4">
+                {Object.entries({
+                  emailEnabled: 'Notifications par email',
+                  pushEnabled: 'Notifications push',
+                  adminAlerts: 'Alertes administrateur',
+                  userWelcome: 'Message de bienvenue',
+                  badgeNotifications: 'Notifications de badges',
+                  taskReminders: 'Rappels de tâches'
+                }).map(([key, label]) => (
+                  <div key={key} className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
+                    <div>
+                      <span className="text-white font-medium">{label}</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.notifications[key]}
+                      onChange={(e) => updateSetting('notifications', key, e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Contenu Sécurité */}
+        {activeTab === 'security' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h3 className="text-xl font-semibold text-white mb-6">Paramètres de sécurité</h3>
+              
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">
+                      Longueur minimale du mot de passe
+                    </label>
+                    <input
+                      type="number"
+                      value={settings.security.passwordMinLength}
+                      onChange={(e) => updateSetting('security', 'passwordMinLength', parseInt(e.target.value) || 8)}
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       min="6"
                       max="20"
@@ -583,7 +679,7 @@ const AdminSettingsPage = () => {
           </motion.div>
         )}
 
-        {/* ⚡ Contenu Fonctionnalités */}
+        {/* Contenu Fonctionnalités */}
         {activeTab === 'features' && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -622,7 +718,7 @@ const AdminSettingsPage = () => {
           </motion.div>
         )}
 
-        {/* 🛠️ Actions système */}
+        {/* Actions système */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -666,7 +762,7 @@ const AdminSettingsPage = () => {
           </div>
         </motion.div>
 
-        {/* 📊 Informations système */}
+        {/* Informations système */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -725,7 +821,7 @@ const AdminSettingsPage = () => {
         </motion.div>
       </div>
 
-      {/* 🚨 Modal de confirmation reset */}
+      {/* Modal de confirmation reset */}
       <AnimatePresence>
         {showConfirmModal && (
           <motion.div
@@ -759,7 +855,6 @@ const AdminSettingsPage = () => {
               <div className="flex space-x-3">
                 <button
                   onClick={() => {
-                    // Réinitialiser les paramètres
                     const defaultSettings = {
                       app: {
                         name: 'Synergia',
@@ -825,7 +920,7 @@ const AdminSettingsPage = () => {
         )}
       </AnimatePresence>
 
-      {/* 🔔 Toast de sauvegarde automatique */}
+      {/* Toast de sauvegarde automatique */}
       {pendingChanges && (
         <motion.div
           initial={{ opacity: 0, x: 100 }}
@@ -847,7 +942,7 @@ const AdminSettingsPage = () => {
         </motion.div>
       )}
 
-      {/* 📊 Indicateur de statut système */}
+      {/* Indicateur de statut système */}
       <motion.div
         initial={{ opacity: 0, y: 100 }}
         animate={{ opacity: 1, y: 0 }}
@@ -868,107 +963,3 @@ const AdminSettingsPage = () => {
 };
 
 export default AdminSettingsPage;
-                  
-                  <div>
-                    <label className="block text-gray-300 text-sm font-medium mb-2">
-                      XP par défaut pour les tâches
-                    </label>
-                    <input
-                      type="number"
-                      value={settings.gamification.defaultXpReward}
-                      onChange={(e) => updateSetting('gamification', 'defaultXpReward', parseInt(e.target.value) || 10)}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-                
-                {/* Options individuelles */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-white font-medium">Système de badges</span>
-                      <p className="text-gray-400 text-sm">Activer l'attribution de badges</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={settings.gamification.badgeSystem}
-                      onChange={(e) => updateSetting('gamification', 'badgeSystem', e.target.checked)}
-                      className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-white font-medium">Classement public</span>
-                      <p className="text-gray-400 text-sm">Afficher le leaderboard</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={settings.gamification.leaderboard}
-                      onChange={(e) => updateSetting('gamification', 'leaderboard', e.target.checked)}
-                      className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* 🔔 Contenu Notifications */}
-        {activeTab === 'notifications' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-          >
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h3 className="text-xl font-semibold text-white mb-6">Paramètres de notifications</h3>
-              
-              <div className="space-y-4">
-                {Object.entries({
-                  emailEnabled: 'Notifications par email',
-                  pushEnabled: 'Notifications push',
-                  adminAlerts: 'Alertes administrateur',
-                  userWelcome: 'Message de bienvenue',
-                  badgeNotifications: 'Notifications de badges',
-                  taskReminders: 'Rappels de tâches'
-                }).map(([key, label]) => (
-                  <div key={key} className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
-                    <div>
-                      <span className="text-white font-medium">{label}</span>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={settings.notifications[key]}
-                      onChange={(e) => updateSetting('notifications', key, e.target.checked)}
-                      className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* 🛡️ Contenu Sécurité */}
-        {activeTab === 'security' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-          >
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h3 className="text-xl font-semibold text-white mb-6">Paramètres de sécurité</h3>
-              
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-gray-300 text-sm font-medium mb-2">
-                      Longueur minimale du mot de passe
-                    </label>
-                    <input
-                      type="number"
-                      value={settings.security.passwordMinLength}
-                      onChange={(e) => updateSetting('security', 'passwordMinLength', parseInt(e.target.value) || 8)}
-                      className="w-full px-3 py-2 bg-gray-700
