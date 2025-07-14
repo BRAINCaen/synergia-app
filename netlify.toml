@@ -7,18 +7,14 @@
   # Répertoire de base pour le build
   base = "react-app"
   
-  # ✅ COMMANDE BUILD OPTIMISÉE POUR ÉVITER TIMEOUT
-  command = "npm ci --prefer-offline --no-audit --progress=false && npm run build"
+  # ✅ COMMANDE BUILD CORRIGÉE (npm install au lieu de npm ci)
+  command = "npm install --prefer-offline --no-audit --progress=false && npm run build"
   
-  # Répertoire à publier
-  publish = "react-app/dist"
+  # Répertoire à publier (CORRECTION: chemin simple)
+  publish = "dist"
 
-# ✅ VARIABLES D'ENVIRONNEMENT OPTIMISÉES
+# ✅ VARIABLES D'ENVIRONNEMENT CORRIGÉES
 [build.environment]
-  # Optimisations Node.js
-  NODE_ENV = "production"
-  NODE_OPTIONS = "--max_old_space_size=4096"
-  
   # Optimisations npm
   NPM_CONFIG_PROGRESS = "false"
   NPM_CONFIG_AUDIT = "false"
@@ -32,21 +28,20 @@
   # Désactiver fonctionnalités non nécessaires
   SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
 
-# ✅ CONTEXTE PRODUCTION OPTIMISÉ
+# ✅ CONTEXTE PRODUCTION CORRIGÉ
 [context.production]
-  command = "npm ci --prefer-offline --no-audit --progress=false && NODE_ENV=production npm run build"
+  command = "npm install --prefer-offline --no-audit --progress=false && npm run build"
   
 [context.production.environment]
   NODE_ENV = "production"
-  NODE_OPTIONS = "--max_old_space_size=6144"
 
-# ✅ CONTEXTE DEPLOY-PREVIEW ALLÉGÉ
+# ✅ CONTEXTE DEPLOY-PREVIEW CORRIGÉ
 [context.deploy-preview]
-  command = "npm ci --prefer-offline && npm run build"
+  command = "npm install --prefer-offline && npm run build"
 
-# ✅ BRANCH DEPLOY SIMPLIFIÉ  
+# ✅ BRANCH DEPLOY CORRIGÉ  
 [context.branch-deploy]
-  command = "npm ci --prefer-offline && npm run build"
+  command = "npm install --prefer-offline && npm run build"
 
 # ✅ REDIRECTIONS SPA
 [[redirects]]
