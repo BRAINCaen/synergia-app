@@ -25,8 +25,14 @@ import {
   Activity
 } from 'lucide-react';
 
-// Layout compatible existant
-import DashboardLayout from '../layouts/DashboardLayout.jsx';
+// Layout minimal inline pour éviter les imports problématiques
+const SimpleLayout = ({ children }) => (
+  <div className="min-h-screen bg-gray-900">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {children}
+    </div>
+  </div>
+);
 
 // Stores existants seulement
 import { useAuthStore } from '../shared/stores/authStore.js';
@@ -191,7 +197,7 @@ const GamificationPage = () => {
   ];
 
   return (
-    <DashboardLayout>
+    <SimpleLayout>
       <div className="space-y-8">
         {/* En-tête avec gradient */}
         <motion.div
@@ -359,10 +365,10 @@ const GamificationPage = () => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {quickActions.map((action, index) => (
-                      <a
+                      <div
                         key={index}
-                        href={action.href}
-                        className={`flex items-center justify-between p-4 bg-gradient-to-r ${action.gradient} border ${action.border} rounded-lg hover:opacity-80 transition-all group`}
+                        className={`flex items-center justify-between p-4 bg-gradient-to-r ${action.gradient} border ${action.border} rounded-lg cursor-pointer hover:opacity-80 transition-all group`}
+                        onClick={() => window.location.href = action.href}
                       >
                         <div className="flex items-center">
                           <action.icon className="w-6 h-6 text-white mr-3" />
@@ -372,7 +378,7 @@ const GamificationPage = () => {
                           </div>
                         </div>
                         <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-                      </a>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -545,7 +551,7 @@ const GamificationPage = () => {
           )}
         </motion.div>
       </div>
-    </DashboardLayout>
+    </SimpleLayout>
   );
 };
 
