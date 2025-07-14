@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES AVEC BOUTONS FONCTIONNELS CORRIGÉS
+// PAGE TÂCHES AVEC IMPORT TASKFORM CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -34,9 +34,9 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 import { taskService } from '../core/services/taskService.js';
 import { projectService } from '../core/services/projectService.js';
 
-// Composants de tâches
-import { TaskForm } from '../modules/tasks/TaskForm.jsx';
-import { TaskCard } from '../modules/tasks/TaskCard.jsx';
+// ✅ CORRECTION: Import default au lieu d'import nommé
+import TaskForm from '../modules/tasks/TaskForm.jsx';
+import TaskCard from '../modules/tasks/TaskCard.jsx';
 
 /**
  * 📋 PAGE DES TÂCHES AVEC BOUTONS FONCTIONNELS
@@ -108,6 +108,28 @@ const TasksPage = () => {
   const handleToggleFilters = () => {
     console.log('🔄 [TASKS-PAGE] Toggle filtres:', !showFilters);
     setShowFilters(!showFilters);
+  };
+
+  // ✅ GESTIONNAIRE SAUVEGARDE TÂCHE
+  const handleSaveTask = async (taskData) => {
+    try {
+      if (editingTask) {
+        // Modification
+        console.log('🔄 [TASKS-PAGE] Modification tâche:', editingTask.id);
+        await taskService.updateTask(editingTask.id, taskData);
+      } else {
+        // Création
+        console.log('🔄 [TASKS-PAGE] Création nouvelle tâche');
+        await taskService.createTask(taskData, user.uid);
+      }
+      
+      console.log('✅ [TASKS-PAGE] Tâche sauvegardée');
+      await handleCloseTaskForm();
+      
+    } catch (error) {
+      console.error('❌ [TASKS-PAGE] Erreur sauvegarde:', error);
+      throw error;
+    }
   };
 
   // ✅ GESTIONNAIRE FERMETURE FORMULAIRE
@@ -698,8 +720,8 @@ const TasksPage = () => {
           <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <TaskForm
               task={editingTask}
-              onClose={handleCloseTaskForm}
-              onSave={handleCloseTaskForm}
+              onSubmit={handleSaveTask}
+              onCancel={handleCloseTaskForm}
             />
           </div>
         </div>
