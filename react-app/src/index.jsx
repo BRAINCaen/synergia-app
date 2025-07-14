@@ -7,25 +7,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 
-// Import sécurisé de l'App
-let App;
-try {
-  App = (await import('./App.jsx')).default;
-} catch (error) {
-  console.error('❌ Erreur import App.jsx:', error);
-  // Fallback simple en cas d'erreur
-  App = () => (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-white text-2xl mb-4">Synergia v3.5</h1>
-        <p className="text-gray-400">Chargement en cours...</p>
-        <div className="mt-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-        </div>
-      </div>
-    </div>
-  );
-}
+// Import direct et simple (compatible es2020)
+import App from './App.jsx';
 
 // Vérification que l'élément root existe
 const rootElement = document.getElementById('root');
@@ -37,7 +20,7 @@ if (!rootElement) {
 // Créer le root React 18
 const root = ReactDOM.createRoot(rootElement);
 
-// Fonction de rendu avec gestion d'erreurs
+// Fonction de rendu simple et robuste
 const renderApp = () => {
   try {
     root.render(
