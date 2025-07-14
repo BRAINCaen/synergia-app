@@ -13,10 +13,11 @@
   # Répertoire à publier (VITE génère dans 'dist', pas 'build')
   publish = "dist"
 
-# Variables d'environnement OPTIMISÉES
+# Variables d'environnement CORRIGÉES
 [build.environment]
-  # 🚀 CORRECTION : Permettre l'installation des devDependencies
-  NODE_ENV = "development"
+  # 🚀 CORRECTION CRITIQUE : Forcer l'installation des devDependencies
+  # NPM_CONFIG_PRODUCTION = "false" force npm à installer les devDependencies
+  NPM_CONFIG_PRODUCTION = "false"
   
   # Optimisations build
   GENERATE_SOURCEMAP = "false"
@@ -66,11 +67,11 @@
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
-# 🚀 CONTEXTES SIMPLIFIÉS - Build plus rapide
+# 🚀 CONTEXTES CORRIGÉS - Installation forcée des devDependencies
 [context.production]
   command = "npm install && npm run build"
   [context.production.environment]
-    NODE_ENV = "production"
+    NPM_CONFIG_PRODUCTION = "false"
 
 [context.deploy-preview]
   command = "npm install && npm run build"
