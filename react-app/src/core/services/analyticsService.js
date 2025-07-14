@@ -16,7 +16,7 @@ import {
   writeBatch,
   serverTimestamp
 } from 'firebase/firestore';
-import { db } from '../firebase.js';
+import { db, auth } from '../firebase.js'; // ✅ CORRECTION : Import auth
 
 /**
  * 📊 SERVICE ANALYTICS AVEC VRAIES DONNÉES FIREBASE
@@ -457,9 +457,7 @@ class AnalyticsService {
     try {
       console.log('📊 Récupération analytics globales RÉELLES...');
       
-      // Récupérer les métriques pour l'utilisateur connecté
-      // (Note: dans un contexte réel, vous devriez avoir l'userId du contexte)
-      const auth = getAuth ? getAuth() : null;
+      // ✅ CORRECTION : Utiliser auth importé au lieu de getAuth
       const currentUser = auth?.currentUser;
       
       if (!currentUser) {
