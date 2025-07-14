@@ -31,34 +31,53 @@ class TaskAssignmentService {
     try {
       console.log('👥 Récupération des membres disponibles...');
       
-      const usersQuery = query(
-        collection(db, 'users'),
-        where('isActive', '==', true)
-      );
+      // Récupérer TOUS les utilisateurs (sans filtre isActive qui peut ne pas exister)
+      const usersSnapshot = await getDocs(collection(db, 'users'));
       
-      const usersSnapshot = await getDocs(usersQuery);
+      const members = [];
       
-      const members = usersSnapshot.docs.map(doc => {
+      usersSnapshot.forEach(doc => {
         const userData = doc.data();
-        return {
-          id: doc.id,
-          uid: doc.id,
-          name: userData.profile?.displayName || userData.displayName || userData.email?.split('@')[0] || 'Utilisateur',
-          email: userData.email,
-          avatar: userData.photoURL || userData.profile?.avatar,
-          role: userData.profile?.role || 'member',
-          level: userData.gamification?.level || 1,
-          totalXp: userData.gamification?.totalXp || 0,
-          isActive: userData.isActive !== false,
-          lastActivity: userData.gamification?.lastActivityDate
-        };
+        
+        // Inclure l'utilisateur s'il a au moins un email
+        if (userData.email) {
+          const member = {
+            id: doc.id,
+            uid: doc.id,
+            name: userData.profile?.displayName || 
+                  userData.displayName || 
+                  userData.email?.split('@')[0] || 
+                  'Utilisateur',
+            email: userData.email,
+            avatar: userData.photoURL || userData.profile?.avatar,
+            role: userData.profile?.role || 'member',
+            level: userData.gamification?.level || 1,
+            totalXp: userData.gamification?.totalXp || 0,
+            isActive: userData.isActive !== false, // Par défaut true si pas défini
+            lastActivity: userData.gamification?.lastActivityDate,
+            tasksCompleted: userData.gamification?.tasksCompleted || 0
+          };
+          
+          members.push(member);
+        }
+      });
+      
+      // Trier par niveau décroissant puis par XP
+      members.sort((a, b) => {
+        if (a.level !== b.level) {
+          return b.level - a.level;
+        }
+        return b.totalXp - a.totalXp;
       });
       
       console.log('✅ Membres récupérés:', members.length);
+      console.log('📋 Premiers membres:', members.slice(0, 3).map(m => ({ name: m.name, email: m.email })));
+      
       return members;
       
     } catch (error) {
       console.error('❌ Erreur récupération membres:', error);
+      console.error('Détails erreur:', error.message);
       return [];
     }
   }
