@@ -39,7 +39,7 @@ import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar }
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useProjectStore } from '../shared/stores/projectStore.js';
 
-// ✅ COMPOSANT FALLBACK SIMPLE (sans require)
+// ✅ COMPOSANT FALLBACK SIMPLE (AUCUN require)
 const ProjectForm = ({ isOpen, onClose, project, onSave }) => {
   const [title, setTitle] = useState(project?.title || '');
   const [description, setDescription] = useState(project?.description || '');
