@@ -1,80 +1,112 @@
 # ==========================================
 # 📁 netlify.toml
-# Configuration Netlify RÉPARÉE - Vite build fix
+# CONFIGURATION NETLIFY OPTIMISÉE POUR ÉVITER TIMEOUT
 # ==========================================
 
 [build]
   # Répertoire de base pour le build
   base = "react-app"
   
-  # 🚀 COMMANDE BUILD RÉPARÉE - Force l'installation des devDependencies
-  command = "rm -rf node_modules package-lock.json && NODE_ENV=development npm install && npm run build"
+  # ✅ COMMANDE BUILD OPTIMISÉE POUR ÉVITER TIMEOUT
+  command = "npm ci --prefer-offline --no-audit --progress=false && npm run build"
   
-  # Répertoire à publier (VITE génère dans 'dist', pas 'build')
-  publish = "dist"
+  # Répertoire à publier
+  publish = "react-app/dist"
 
-# Variables d'environnement RÉPARÉES
+# ✅ VARIABLES D'ENVIRONNEMENT OPTIMISÉES
 [build.environment]
-  # 🚨 NODE_ENV RETIRÉ pour permettre installation devDependencies
-  # NODE_ENV sera défini seulement dans les contextes spécifiques
+  # Optimisations Node.js
+  NODE_ENV = "production"
+  NODE_OPTIONS = "--max_old_space_size=4096"
   
-  # Désactiver le scan de secrets qui causait des erreurs
-  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+  # Optimisations npm
+  NPM_CONFIG_PROGRESS = "false"
+  NPM_CONFIG_AUDIT = "false"
+  NPM_CONFIG_FUND = "false"
   
-  # Variables de build
+  # Optimisations Vite
+  VITE_BUILD_TARGET = "es2020"
   GENERATE_SOURCEMAP = "false"
-  CI = "false"
+  CI = "true"
+  
+  # Désactiver fonctionnalités non nécessaires
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
 
-# Redirections pour SPA (Single Page Application)
+# ✅ CONTEXTE PRODUCTION OPTIMISÉ
+[context.production]
+  command = "npm ci --prefer-offline --no-audit --progress=false && NODE_ENV=production npm run build"
+  
+[context.production.environment]
+  NODE_ENV = "production"
+  NODE_OPTIONS = "--max_old_space_size=6144"
+
+# ✅ CONTEXTE DEPLOY-PREVIEW ALLÉGÉ
+[context.deploy-preview]
+  command = "npm ci --prefer-offline && npm run build"
+
+# ✅ BRANCH DEPLOY SIMPLIFIÉ  
+[context.branch-deploy]
+  command = "npm ci --prefer-offline && npm run build"
+
+# ✅ REDIRECTIONS SPA
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
   force = false
 
-# Headers de sécurité et performance
+# ✅ HEADERS OPTIMISÉS
 [[headers]]
   for = "/*"
   [headers.values]
-    # Sécurité
+    # Sécurité de base
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff" 
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
     
-    # PWA et cache
+    # PWA
     Service-Worker-Allowed = "/"
     
-    # CORS pour Firebase
+    # CORS minimal pour Firebase
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization"
 
-# Cache statique pour assets
+# ✅ CACHE AGRESSIF POUR ASSETS
 [[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
-
-# Cache pour service worker
+    
+# ✅ CACHE SERVICE WORKER
 [[headers]]
   for = "/sw.js"
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
 
-# Cache pour manifest
+# ✅ CACHE MANIFEST PWA
 [[headers]]
   for = "/manifest.json"
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
-# 🚀 CONTEXTES RÉPARÉS - NODE_ENV défini correctement
-[context.production]
-  command = "rm -rf node_modules package-lock.json && NODE_ENV=development npm install && NODE_ENV=production npm run build"
-  # On installe en development puis on build en production
+# ✅ FONCTIONS NETLIFY (si nécessaire plus tard)
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
 
-[context.deploy-preview]
-  command = "rm -rf node_modules package-lock.json && npm install && npm run build"
+# ✅ OPTIMISATIONS DE BUILD
+[build.processing]
+  skip_processing = false
 
-[context.branch-deploy]
-  command = "rm -rf node_modules package-lock.json && npm install && npm run build"
+[build.processing.css]
+  bundle = true
+  minify = true
+
+[build.processing.js]
+  bundle = true
+  minify = true
+
+[build.processing.html]
+  pretty_urls = true
