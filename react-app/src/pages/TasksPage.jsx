@@ -90,6 +90,8 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [availableMembers, setAvailableMembers] = useState([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
   // Configuration récurrence avec XP adaptatif
   const recurrenceConfig = {
@@ -112,6 +114,56 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
   };
 
   const calculatedXP = calculateXP();
+
+  // 👥 CHARGER LES VRAIS MEMBRES DE SYNERGIA
+  const loadAvailableMembers = async () => {
+    try {
+      setLoadingMembers(true);
+      console.log('👥 Chargement des membres de Synergia...');
+      
+      // 🔥 RÉCUPÉRER TOUS LES UTILISATEURS DEPUIS FIREBASE
+      const usersQuery = query(
+        collection(db, 'users'),
+        orderBy('displayName', 'asc')
+      );
+      
+      const usersSnapshot = await getDocs(usersQuery);
+      const members = [];
+      
+      usersSnapshot.forEach(doc => {
+        const userData = doc.data();
+        if (userData.email && doc.id !== user?.uid) { // Exclure soi-même
+          members.push({
+            id: doc.id,
+            uid: doc.id,
+            name: userData.displayName || userData.email?.split('@')[0] || 'Utilisateur',
+            email: userData.email,
+            avatar: userData.photoURL || userData.profile?.avatar,
+            level: userData.gamification?.level || 1,
+            totalXp: userData.gamification?.totalXp || 0,
+            tasksCompleted: userData.gamification?.tasksCompleted || 0,
+            department: userData.profile?.department || 'Général'
+          });
+        }
+      });
+      
+      console.log('✅ Membres Synergia chargés:', members.length);
+      setAvailableMembers(members);
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement membres:', error);
+      setAvailableMembers([]);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  // Charger les membres quand le modal s'ouvre et qu'on active l'assignation multiple
+  useEffect(() => {
+    if (isOpen && formData.isMultipleAssignment && availableMembers.length === 0) {
+      loadAvailableMembers();
+    }
+  }, [isOpen, formData.isMultipleAssignment]);
 
   useEffect(() => {
     if (task) {
@@ -390,85 +442,205 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
                 {/* Interface assignation multiple */}
                 {formData.isMultipleAssignment && (
                   <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                    <h4 className="text-sm font-medium text-gray-900 mb-3">
-                      Sélection des membres et répartition XP
-                    </h4>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-medium text-gray-900">
+                        Sélection des membres Synergia
+                      </h4>
+                      {!loadingMembers && availableMembers.length === 0 && (
+                        <button
+                          type="button"
+                          onClick={loadAvailableMembers}
+                          className="text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          Charger les membres
+                        </button>
+                      )}
+                    </div>
                     
-                    {/* Sélection membres simulée */}
-                    <div className="space-y-2 mb-4">
-                      <div className="text-xs text-gray-600 mb-2">Membres disponibles :</div>
-                      {['Member 1', 'Member 2', 'Member 3'].map((memberName, index) => (
-                        <label key={index} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.selectedMembers.includes(`member_${index}`)}
+                    {/* Loading des membres */}
+                    {loadingMembers && (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                        <span className="ml-2 text-sm text-gray-600">Chargement des membres...</span>
+                      </div>
+                    )}
+                    
+                    {/* Liste des membres réels */}
+                    {!loadingMembers && availableMembers.length > 0 && (
+                      <div className="max-h-48 overflow-y-auto border border-gray-200 rounded mb-4">
+                        <div className="space-y-1 p-2">
+                          {availableMembers.map((member) => (
+                            <label key={member.id} className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={formData.selectedMembers.includes(member.id)}
+                                onChange={(e) => {
+                                  const memberId = member.id;
+                                  setFormData(prev => {
+                                    const newSelected = e.target.checked 
+                                      ? [...prev.selectedMembers, memberId]
+                                      : prev.selectedMembers.filter(id => id !== memberId);
+                                    
+                                    // Répartition égale automatique
+                                    const newPercentages = {};
+                                    const equalShare = newSelected.length > 0 ? Math.floor(100 / newSelected.length) : 0;
+                                    newSelected.forEach(id => {
+                                      newPercentages[id] = equalShare;
+                                    });
+                                    
+                                    return {
+                                      ...prev,
+                                      selectedMembers: newSelected,
+                                      contributionPercentages: newPercentages
+                                    };
+                                  });
+                                }}
+                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                disabled={submitting}
+                              />
+                              
+                              {/* Avatar */}
+                              <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                                {member.name.charAt(0).toUpperCase()}
+                              </div>
+                              
+                              {/* Infos membre */}
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-gray-900 truncate">
+                                  {member.name}
+                                </div>
+                                <div className="text-xs text-gray-500 truncate">
+                                  {member.email} • Niveau {member.level} • {member.totalXp} XP
+                                </div>
+                              </div>
+                              
+                              {/* Pourcentage XP */}
+                              {formData.selectedMembers.includes(member.id) && (
+                                <div className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                                  {formData.contributionPercentages[member.id] || 0}%
+                                </div>
+                              )}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Message si aucun membre */}
+                    {!loadingMembers && availableMembers.length === 0 && (
+                      <div className="text-center py-4 text-sm text-gray-500">
+                        <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                        <p>Aucun membre disponible</p>
+                        <button
+                          type="button"
+                          onClick={loadAvailableMembers}
+                          className="text-blue-600 hover:text-blue-800 mt-1"
+                        >
+                          Réessayer
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* Mode de répartition XP */}
+                    {formData.selectedMembers.length > 0 && (
+                      <>
+                        <div className="mb-3">
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Mode de répartition XP :
+                          </label>
+                          <select
+                            value={formData.xpDistribution}
                             onChange={(e) => {
-                              const memberId = `member_${index}`;
+                              const mode = e.target.value;
                               setFormData(prev => {
-                                const newSelected = e.target.checked 
-                                  ? [...prev.selectedMembers, memberId]
-                                  : prev.selectedMembers.filter(id => id !== memberId);
+                                let newPercentages = { ...prev.contributionPercentages };
                                 
-                                // Répartition égale automatique
-                                const newPercentages = {};
-                                const equalShare = Math.floor(100 / newSelected.length);
-                                newSelected.forEach(id => {
-                                  newPercentages[id] = equalShare;
-                                });
+                                if (mode === 'equal') {
+                                  // Répartition égale
+                                  const equalShare = Math.floor(100 / prev.selectedMembers.length);
+                                  prev.selectedMembers.forEach(id => {
+                                    newPercentages[id] = equalShare;
+                                  });
+                                } else if (mode === 'performance') {
+                                  // Basé sur les performances (XP total)
+                                  const selectedMembersData = availableMembers.filter(m => prev.selectedMembers.includes(m.id));
+                                  const totalXp = selectedMembersData.reduce((sum, m) => sum + m.totalXp, 0);
+                                  
+                                  if (totalXp > 0) {
+                                    selectedMembersData.forEach(member => {
+                                      newPercentages[member.id] = Math.floor((member.totalXp / totalXp) * 100);
+                                    });
+                                  } else {
+                                    // Fallback à égal si aucun XP
+                                    const equalShare = Math.floor(100 / prev.selectedMembers.length);
+                                    prev.selectedMembers.forEach(id => {
+                                      newPercentages[id] = equalShare;
+                                    });
+                                  }
+                                }
                                 
                                 return {
                                   ...prev,
-                                  selectedMembers: newSelected,
+                                  xpDistribution: mode,
                                   contributionPercentages: newPercentages
                                 };
                               });
                             }}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                             disabled={submitting}
-                          />
-                          <span className="text-sm text-gray-700">{memberName}</span>
-                          {formData.selectedMembers.includes(`member_${index}`) && (
-                            <span className="text-xs text-blue-600 ml-auto">
-                              {formData.contributionPercentages[`member_${index}`] || 0}% XP
-                            </span>
-                          )}
-                        </label>
-                      ))}
-                    </div>
-                    
-                    {/* Mode de répartition XP */}
-                    <div className="mb-3">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Mode de répartition XP :
-                      </label>
-                      <select
-                        value={formData.xpDistribution}
-                        onChange={(e) => setFormData(prev => ({ ...prev, xpDistribution: e.target.value }))}
-                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                        disabled={submitting}
-                      >
-                        <option value="equal">Répartition égale</option>
-                        <option value="custom">Répartition personnalisée</option>
-                        <option value="performance">Basé sur les performances</option>
-                      </select>
-                    </div>
-                    
-                    {/* Aperçu répartition */}
-                    {formData.selectedMembers.length > 0 && (
-                      <div className="bg-blue-50 border border-blue-200 rounded p-2">
-                        <div className="text-xs font-medium text-blue-800 mb-1">
-                          Répartition finale des {calculatedXP} XP :
+                          >
+                            <option value="equal">Répartition égale</option>
+                            <option value="custom">Répartition personnalisée</option>
+                            <option value="performance">Basé sur les performances</option>
+                          </select>
                         </div>
-                        {formData.selectedMembers.map(memberId => (
-                          <div key={memberId} className="text-xs text-blue-700 flex justify-between">
-                            <span>Membre {memberId}</span>
+                        
+                        {/* Aperçu répartition */}
+                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                          <div className="text-xs font-medium text-blue-800 mb-2">
+                            💰 Répartition des {calculatedXP} XP total :
+                          </div>
+                          <div className="space-y-1">
+                            {formData.selectedMembers.map(memberId => {
+                              const member = availableMembers.find(m => m.id === memberId);
+                              const percentage = formData.contributionPercentages[memberId] || 0;
+                              const xpAmount = Math.round(calculatedXP * percentage / 100);
+                              
+                              return (
+                                <div key={memberId} className="flex items-center justify-between text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                                      {member?.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <span className="text-blue-700 font-medium">
+                                      {member?.name || `Membre ${memberId}`}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-blue-600 font-bold">
+                                      {xpAmount} XP
+                                    </span>
+                                    <span className="text-blue-500">
+                                      ({percentage}%)
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          
+                          {/* Total de contrôle */}
+                          <div className="border-t border-blue-300 mt-2 pt-2 flex justify-between text-xs font-bold text-blue-800">
+                            <span>Total :</span>
                             <span>
-                              {Math.round(calculatedXP * (formData.contributionPercentages[memberId] || 0) / 100)} XP
-                              ({formData.contributionPercentages[memberId] || 0}%)
+                              {formData.selectedMembers.reduce((sum, memberId) => {
+                                const percentage = formData.contributionPercentages[memberId] || 0;
+                                return sum + Math.round(calculatedXP * percentage / 100);
+                              }, 0)} XP ({Object.values(formData.contributionPercentages).reduce((sum, p) => sum + p, 0)}%)
                             </span>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
