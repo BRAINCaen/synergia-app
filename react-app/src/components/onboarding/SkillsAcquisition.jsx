@@ -1,63 +1,48 @@
 // ==========================================
 // 📁 react-app/src/components/onboarding/SkillsAcquisition.jsx
-// COMPOSANT ACQUISITION DE COMPÉTENCES - NAVIGATION STABILISÉE
+// COMPOSANT ACQUISITION DE COMPÉTENCES - CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  CheckCircle2, 
-  Circle, 
-  User, 
-  Calendar, 
-  MessageSquare, 
-  Award, 
-  BookOpen,
-  Target,
-  Clock,
-  FileText,
-  Star,
-  TrendingUp,
+  BookOpen, 
+  Target, 
+  CheckCircle, 
+  Clock, 
+  Star, 
+  Award,
   Users,
-  Shield,
-  Eye,
-  Settings,
-  Heart,
-  Zap
+  Calendar,
+  MessageSquare,
+  AlertCircle,
+  Zap,
+  Trophy,
+  Plus,
+  RefreshCw
 } from 'lucide-react';
 
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import { 
-  SkillsAcquisitionService, 
+import SkillsAcquisitionService, { 
   BRAIN_EXPERIENCES, 
-  EXPERIENCE_SKILLS, 
-  EXPERIENCE_BADGES,
+  EXPERIENCE_SKILLS,
   WEEKLY_FOLLOW_UP_TEMPLATE 
 } from '../../core/services/skillsAcquisitionService.js';
 
 const SkillsAcquisition = () => {
   const { user } = useAuthStore();
-  const [skillsProfile, setSkillsProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [skillsProfile, setSkillsProfile] = useState(null);
   const [selectedExperience, setSelectedExperience] = useState(null);
-  const [activeTab, setActiveTab] = useState('skills');
   const [stats, setStats] = useState(null);
-  const [showWeeklyForm, setShowWeeklyForm] = useState(false);
-  const [weeklyFormData, setWeeklyFormData] = useState(WEEKLY_FOLLOW_UP_TEMPLATE);
+  const [showWeeklyModal, setShowWeeklyModal] = useState(false);
+  const [weeklyFollowUp, setWeeklyFollowUp] = useState(WEEKLY_FOLLOW_UP_TEMPLATE);
+  const [submittingFollowUp, setSubmittingFollowUp] = useState(false);
 
-  // 🔧 CORRECTION: Fonction stable pour changer d'expérience
-  const handleExperienceChange = useCallback((experienceId) => {
-    console.log('🎯 Changement d\'expérience vers:', experienceId);
-    setSelectedExperience(experienceId);
-    setActiveTab('skills'); // Reset de l'onglet actif
-  }, []);
-
-  // 🔧 CORRECTION: Empêcher les changements d'état pendant les renders
-  const handleSkillToggle = useCallback(async (experienceId, skillId) => {
+  // 🔄 Toggle une compétence
+  const toggleSkill = useCallback(async (experienceId, skillId) => {
     if (!user?.uid) return;
     
     try {
-      console.log('🔄 Toggle skill:', skillId, 'pour expérience:', experienceId);
-      
       const result = await SkillsAcquisitionService.toggleSkill(
         user.uid, 
         experienceId, 
@@ -83,7 +68,8 @@ const SkillsAcquisition = () => {
       
       if (result.success) {
         setSkillsProfile(result.data);
-        setStats(SkillsAcquisitionService.calculateStats(result.data));
+        // 🔧 CORRECTION: Utiliser le bon nom de méthode
+        setStats(SkillsAcquisitionService.calculateProfileStats(result.data));
         
         // 🔧 CORRECTION: Définir l'expérience sélectionnée seulement si nécessaire
         if (!selectedExperience && result.data.experiences) {
@@ -106,7 +92,8 @@ const SkillsAcquisition = () => {
     
     try {
       setLoading(true);
-      const result = await SkillsAcquisitionService.initializeProfile(user.uid, experienceIds);
+      // 🔧 CORRECTION: Utiliser le bon nom de méthode
+      const result = await SkillsAcquisitionService.createSkillsProfile(user.uid, experienceIds);
       
       if (result.success) {
         await loadSkillsData();
@@ -123,587 +110,378 @@ const SkillsAcquisition = () => {
     if (!user?.uid || !selectedExperience) return;
     
     try {
-      const result = await SkillsAcquisitionService.submitWeeklyFollowUp(
+      setSubmittingFollowUp(true);
+      
+      const result = await SkillsAcquisitionService.addWeeklyFollowUp(
         user.uid,
         selectedExperience,
-        weeklyFormData
+        weeklyFollowUp
       );
       
       if (result.success) {
-        setShowWeeklyForm(false);
-        setWeeklyFormData(WEEKLY_FOLLOW_UP_TEMPLATE);
+        setShowWeeklyModal(false);
+        setWeeklyFollowUp(WEEKLY_FOLLOW_UP_TEMPLATE);
         await loadSkillsData();
       }
     } catch (error) {
-      console.error('Erreur soumission suivi:', error);
+      console.error('❌ Erreur soumission suivi:', error);
+    } finally {
+      setSubmittingFollowUp(false);
     }
   };
 
-  // 🎨 Obtenir l'icône pour chaque catégorie
-  const getCategoryIcon = (category) => {
-    const icons = {
-      knowledge: <BookOpen className="w-5 h-5" />,
-      technical: <Settings className="w-5 h-5" />,
-      safety: <Shield className="w-5 h-5" />,
-      soft_skills: <Heart className="w-5 h-5" />,
-      practice: <Target className="w-5 h-5" />,
-      validation: <Award className="w-5 h-5" />
-    };
-    return icons[category] || <Circle className="w-5 h-5" />;
-  };
-
-  // 🎨 Obtenir la couleur pour chaque catégorie
-  const getCategoryColor = (category) => {
-    const colors = {
-      knowledge: 'bg-blue-100 text-blue-600 border-blue-200',
-      technical: 'bg-gray-100 text-gray-600 border-gray-200',
-      safety: 'bg-red-100 text-red-600 border-red-200',
-      soft_skills: 'bg-pink-100 text-pink-600 border-pink-200',
-      practice: 'bg-green-100 text-green-600 border-green-200',
-      validation: 'bg-yellow-100 text-yellow-600 border-yellow-200'
-    };
-    return colors[category] || 'bg-gray-100 text-gray-600 border-gray-200';
-  };
-
-  // 📊 Calculer le taux de completion par catégorie
-  const getCategoryProgress = (experienceId, categoryName) => {
-    if (!skillsProfile?.experiences[experienceId]) return { completed: 0, total: 0, percentage: 0 };
-    
-    const experience = skillsProfile.experiences[experienceId];
-    const categorySkills = EXPERIENCE_SKILLS[experienceId]?.[categoryName] || [];
-    
-    const completed = categorySkills.filter(skill => 
-      experience.skills[skill.id]?.completed
-    ).length;
-    
-    const total = categorySkills.length;
-    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-    
-    return { completed, total, percentage };
-  };
-
+  // 🔄 Charger les données au montage
   useEffect(() => {
     loadSkillsData();
   }, [loadSkillsData]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-        <span className="ml-3 text-gray-600">Chargement des compétences...</span>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-400">Chargement des compétences...</p>
+        </div>
       </div>
     );
   }
 
+  // Si aucun profil de compétences n'existe
   if (!skillsProfile) {
     return (
-      <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-        <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Award className="w-8 h-8 text-purple-600" />
-        </div>
-        
-        <h3 className="text-xl font-bold text-gray-800 mb-4">
-          Acquisition de Compétences par Expérience
+      <div className="text-center py-12">
+        <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-6" />
+        <h3 className="text-xl font-semibold text-white mb-4">
+          Acquisition de Compétences
         </h3>
-        
-        <p className="text-gray-600 mb-8 max-w-md mx-auto">
-          Choisissez les expériences Brain que vous souhaitez maîtriser pour commencer votre parcours d'acquisition de compétences.
+        <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
+          Commencez votre parcours d'acquisition de compétences en sélectionnant les expériences 
+          qui vous intéressent. Chaque expérience vous permettra de développer des compétences 
+          spécifiques validées par votre équipe.
         </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {Object.values(BRAIN_EXPERIENCES).map((exp) => (
-            <div key={exp.id} className="border-2 border-gray-200 rounded-lg p-4 hover:border-purple-300 transition-colors">
-              <div className="flex items-center space-x-3 mb-2">
-                <div className="text-2xl">{exp.icon}</div>
-                <div>
-                  <h4 className="font-semibold text-gray-800">{exp.name}</h4>
-                  <p className="text-sm text-gray-600">{exp.difficulty}</p>
-                </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          {Object.entries(BRAIN_EXPERIENCES).map(([expId, experience]) => (
+            <div 
+              key={expId}
+              className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-blue-500 transition-colors"
+            >
+              <div className="text-3xl mb-4">{experience.icon}</div>
+              <h4 className="text-lg font-semibold text-white mb-2">
+                {experience.name}
+              </h4>
+              <p className="text-gray-400 text-sm mb-4">
+                {experience.description}
+              </p>
+              <div className="flex items-center justify-between text-sm text-gray-500">
+                <span>{experience.duration}</span>
+                <span className={`px-2 py-1 rounded text-xs ${
+                  experience.difficulty === 'beginner' ? 'bg-green-900 text-green-300' :
+                  experience.difficulty === 'intermediate' ? 'bg-yellow-900 text-yellow-300' :
+                  'bg-red-900 text-red-300'
+                }`}>
+                  {experience.difficulty}
+                </span>
               </div>
-              <p className="text-sm text-gray-600">{exp.description}</p>
             </div>
           ))}
         </div>
         
         <button
-          onClick={() => initializeSkillsProfile(['psychiatric', 'prison', 'back_to_80s', 'quiz_game'])}
-          className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors"
+          onClick={() => initializeSkillsProfile(['gamemaster', 'maintenance', 'reputation'])}
+          className="mt-8 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center mx-auto"
         >
-          🚀 Commencer l'Acquisition de Compétences
+          <Plus className="h-5 w-5 mr-2" />
+          Commencer l'acquisition de compétences
         </button>
       </div>
     );
   }
 
-  const experience = skillsProfile.experiences[selectedExperience];
-  const experienceData = BRAIN_EXPERIENCES[selectedExperience?.toUpperCase()];
+  const currentExperience = skillsProfile.experiences[selectedExperience];
+  const currentSkills = selectedExperience ? EXPERIENCE_SKILLS[selectedExperience] : null;
 
   return (
     <div className="space-y-6">
-      
-      {/* Header avec statistiques */}
+      {/* 📊 Statistiques globales */}
       {stats && (
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-            <Award className="w-8 h-8 mr-3 text-purple-600" />
-            Acquisition de Compétences Brain
-          </h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Expériences</p>
+                <p className="text-2xl font-bold text-white">
+                  {stats.completedExperiences}/{stats.totalExperiences}
+                </p>
+              </div>
+              <Trophy className="h-8 w-8 text-yellow-500" />
+            </div>
+          </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-purple-600">{stats.completedExperiences}/{stats.totalExperiences}</div>
-              <div className="text-sm text-gray-600">Expériences</div>
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Compétences</p>
+                <p className="text-2xl font-bold text-white">
+                  {stats.validatedSkills}/{stats.totalSkills}
+                </p>
+              </div>
+              <Target className="h-8 w-8 text-blue-500" />
             </div>
-            <div>
-              <div className="text-2xl font-bold text-green-600">{stats.validatedSkills}/{stats.totalSkills}</div>
-              <div className="text-sm text-gray-600">Compétences</div>
+          </div>
+          
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Progression</p>
+                <p className="text-2xl font-bold text-white">
+                  {stats.averageCompletionRate}%
+                </p>
+              </div>
+              <Zap className="h-8 w-8 text-green-500" />
             </div>
-            <div>
-              <div className="text-2xl font-bold text-blue-600">{stats.averageCompletionRate}%</div>
-              <div className="text-sm text-gray-600">Progression</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-yellow-600">{stats.badgesEarned}</div>
-              <div className="text-sm text-gray-600">Badges</div>
+          </div>
+          
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Badges</p>
+                <p className="text-2xl font-bold text-white">
+                  {stats.badgesEarned}
+                </p>
+              </div>
+              <Award className="h-8 w-8 text-purple-500" />
             </div>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        
-        {/* Sidebar - Sélection d'expérience */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl shadow-lg p-6 sticky top-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Expériences Brain</h3>
+      {/* 🎯 Sélecteur d'expérience */}
+      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+        <h3 className="text-lg font-semibold text-white mb-4">Mes Expériences</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {Object.entries(skillsProfile.experiences).map(([expId, experience]) => {
+            const expData = BRAIN_EXPERIENCES[expId.toUpperCase()];
+            const isSelected = selectedExperience === expId;
             
-            <div className="space-y-3">
-              {Object.keys(skillsProfile.experiences).map((expId) => {
-                const exp = BRAIN_EXPERIENCES[expId.toUpperCase()];
-                const expData = skillsProfile.experiences[expId];
-                const isSelected = selectedExperience === expId;
-                
-                if (!exp) return null;
-                
-                return (
-                  <button
-                    key={expId}
-                    onClick={() => handleExperienceChange(expId)}
-                    className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
-                      isSelected 
-                        ? 'border-purple-500 bg-purple-50' 
-                        : 'border-gray-200 hover:border-purple-300'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="text-2xl">{exp.icon}</div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-gray-800 text-sm">{exp.name}</h4>
-                        <p className="text-xs text-gray-600">{exp.difficulty}</p>
-                        
-                        {/* Barre de progression */}
-                        <div className="mt-2">
-                          <div className="bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-purple-500 h-2 rounded-full transition-all"
-                              style={{ 
-                                width: `${((expData.completedSkills || 0) / (expData.totalSkills || 1)) * 100}%` 
-                              }}
-                            ></div>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {expData.completedSkills || 0}/{expData.totalSkills || 0} compétences
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Contenu principal */}
-        <div className="lg:col-span-3">
-          {selectedExperience && experienceData && (
-            <div className="bg-white rounded-xl shadow-lg">
-              
-              {/* Header de l'expérience */}
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center space-x-4">
-                  <div className="text-4xl">{experienceData.icon}</div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-800">{experienceData.name}</h2>
-                    <p className="text-gray-600">{experienceData.description}</p>
-                    <div className="flex items-center space-x-4 mt-2">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor('knowledge')}`}>
-                        {experienceData.difficulty}
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        Sessions minimum: {experienceData.minSessions}
-                      </span>
-                    </div>
-                  </div>
+            return (
+              <button
+                key={expId}
+                onClick={() => setSelectedExperience(expId)}
+                className={`p-4 rounded-lg border text-left transition-colors ${
+                  isSelected 
+                    ? 'bg-blue-900 border-blue-500 text-white' 
+                    : 'bg-gray-700 border-gray-600 text-gray-300 hover:border-gray-500'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-2xl">{expData?.icon}</span>
+                  {experience.completed && (
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  )}
                 </div>
-              </div>
-
-              {/* Navigation des onglets */}
-              <div className="border-b border-gray-200">
-                <nav className="flex space-x-6 px-6">
-                  {[
-                    { id: 'skills', label: 'Compétences', icon: <Target className="w-4 h-4" /> },
-                    { id: 'progress', label: 'Progression', icon: <TrendingUp className="w-4 h-4" /> },
-                    { id: 'badges', label: 'Badges', icon: <Award className="w-4 h-4" /> },
-                    { id: 'follow-up', label: 'Suivi', icon: <Calendar className="w-4 h-4" /> }
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`py-4 px-2 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                        activeTab === tab.id
-                          ? 'border-purple-500 text-purple-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      {tab.icon}
-                      <span>{tab.label}</span>
-                    </button>
-                  ))}
-                </nav>
-              </div>
-
-              {/* Contenu des onglets */}
-              <div className="p-6">
-                
-                {/* Onglet Compétences */}
-                {activeTab === 'skills' && (
-                  <div className="space-y-6">
-                    {Object.entries(EXPERIENCE_SKILLS[selectedExperience] || {}).map(([categoryName, skills]) => {
-                      const progress = getCategoryProgress(selectedExperience, categoryName);
-                      
-                      return (
-                        <div key={categoryName} className="border border-gray-200 rounded-lg p-4">
-                          
-                          {/* Header de catégorie */}
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center space-x-3">
-                              {getCategoryIcon(skills[0]?.category)}
-                              <h3 className="text-lg font-semibold text-gray-800 capitalize">
-                                {categoryName.replace('_', ' ')}
-                              </h3>
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(skills[0]?.category)}`}>
-                                {progress.completed}/{progress.total}
-                              </span>
-                            </div>
-                            
-                            {/* Barre de progression de catégorie */}
-                            <div className="flex items-center space-x-2">
-                              <div className="bg-gray-200 rounded-full h-2 w-24">
-                                <div 
-                                  className="bg-purple-500 h-2 rounded-full transition-all"
-                                  style={{ width: `${progress.percentage}%` }}
-                                ></div>
-                              </div>
-                              <span className="text-sm text-gray-600">{progress.percentage}%</span>
-                            </div>
-                          </div>
-                          
-                          {/* Liste des compétences */}
-                          <div className="space-y-2">
-                            {skills.map((skill) => {
-                              const isCompleted = experience?.skills[skill.id]?.completed || false;
-                              
-                              return (
-                                <div
-                                  key={skill.id}
-                                  onClick={() => handleSkillToggle(selectedExperience, skill.id)}
-                                  className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
-                                >
-                                  {isCompleted ? (
-                                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                                  ) : (
-                                    <Circle className="w-5 h-5 text-gray-400" />
-                                  )}
-                                  
-                                  <div className="flex-1">
-                                    <h4 className={`font-medium ${isCompleted ? 'text-green-800 line-through' : 'text-gray-800'}`}>
-                                      {skill.title}
-                                    </h4>
-                                  </div>
-                                  
-                                  {isCompleted && (
-                                    <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                                      Validé
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Onglet Progression */}
-                {activeTab === 'progress' && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="text-center p-4 border border-gray-200 rounded-lg">
-                        <div className="text-2xl font-bold text-purple-600">
-                          {experience?.completedSkills || 0}/{experience?.totalSkills || 0}
-                        </div>
-                        <div className="text-sm text-gray-600">Compétences acquises</div>
-                      </div>
-                      
-                      <div className="text-center p-4 border border-gray-200 rounded-lg">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {Math.round(((experience?.completedSkills || 0) / (experience?.totalSkills || 1)) * 100)}%
-                        </div>
-                        <div className="text-sm text-gray-600">Progression globale</div>
-                      </div>
-                      
-                      <div className="text-center p-4 border border-gray-200 rounded-lg">
-                        <div className="text-2xl font-bold text-green-600">
-                          {experience?.sessionsCompleted || 0}/{experienceData.minSessions}
-                        </div>
-                        <div className="text-sm text-gray-600">Sessions réalisées</div>
-                      </div>
-                    </div>
-
-                    {/* Timeline de progression */}
-                    <div className="border border-gray-200 rounded-lg p-4">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Historique des validations</h3>
-                      
-                      {experience?.progressHistory?.length > 0 ? (
-                        <div className="space-y-3">
-                          {experience.progressHistory.map((entry, index) => (
-                            <div key={index} className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
-                              <CheckCircle2 className="w-4 h-4 text-green-600" />
-                              <span className="text-sm text-gray-800">{entry.skill}</span>
-                              <span className="text-xs text-gray-500 ml-auto">
-                                {new Date(entry.date).toLocaleDateString('fr-FR')}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-gray-500 text-center py-4">
-                          Aucune validation enregistrée pour cette expérience
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Onglet Badges */}
-                {activeTab === 'badges' && (
-                  <div className="space-y-6">
-                    <div className="text-center">
-                      <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                        Badge Expert {experienceData.name}
-                      </h3>
-                      
-                      {experience?.badgeEarned ? (
-                        <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-yellow-100 to-orange-100 border-2 border-yellow-300 rounded-xl p-6">
-                          <div className="text-4xl">{experienceData.icon}</div>
-                          <div>
-                            <h4 className="text-lg font-bold text-yellow-800">Badge Obtenu !</h4>
-                            <p className="text-yellow-700">Expert {experienceData.name}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center space-x-3 bg-gray-100 border-2 border-gray-300 rounded-xl p-6">
-                          <div className="text-4xl opacity-50">{experienceData.icon}</div>
-                          <div>
-                            <h4 className="text-lg font-bold text-gray-600">Badge à débloquer</h4>
-                            <p className="text-gray-500">Complétez toutes les compétences</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Critères pour obtenir le badge */}
-                    <div className="border border-gray-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-gray-800 mb-3">Critères de validation :</h4>
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          {(experience?.completedSkills || 0) === (experience?.totalSkills || 0) ? (
-                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <Circle className="w-4 h-4 text-gray-400" />
-                          )}
-                          <span className="text-sm">Toutes les compétences validées</span>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          {(experience?.sessionsCompleted || 0) >= experienceData.minSessions ? (
-                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <Circle className="w-4 h-4 text-gray-400" />
-                          )}
-                          <span className="text-sm">
-                            Minimum {experienceData.minSessions} sessions réalisées
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          {experience?.mentorValidation ? (
-                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <Circle className="w-4 h-4 text-gray-400" />
-                          )}
-                          <span className="text-sm">Validation du référent/mentor</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Onglet Suivi */}
-                {activeTab === 'follow-up' && (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-gray-800">Suivi Hebdomadaire</h3>
-                      <button
-                        onClick={() => setShowWeeklyForm(true)}
-                        className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
-                      >
-                        <MessageSquare className="w-4 h-4 inline mr-2" />
-                        Nouveau suivi
-                      </button>
-                    </div>
-
-                    {/* Historique des suivis */}
-                    {experience?.weeklyFollowUps?.length > 0 ? (
-                      <div className="space-y-4">
-                        {experience.weeklyFollowUps.map((followUp, index) => (
-                          <div key={index} className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <h4 className="font-medium text-gray-800">
-                                Semaine du {new Date(followUp.date).toLocaleDateString('fr-FR')}
-                              </h4>
-                              <span className="text-sm text-gray-500">
-                                Par {followUp.mentorName || 'Mentor'}
-                              </span>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <span className="font-medium text-gray-700">Difficultés:</span>
-                                <p className="text-gray-600">{followUp.difficulties || 'Aucune'}</p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-gray-700">Réussites:</span>
-                                <p className="text-gray-600">{followUp.successes || 'Aucune'}</p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-gray-700">Objectifs:</span>
-                                <p className="text-gray-600">{followUp.nextWeekGoals || 'Aucun'}</p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-gray-700">Note:</span>
-                                <p className="text-gray-600">{followUp.globalRating}/5</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                        <p>Aucun suivi enregistré pour cette expérience</p>
-                        <p className="text-sm">Cliquez sur "Nouveau suivi" pour commencer</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+                <h4 className="font-semibold">{expData?.name}</h4>
+                <p className="text-sm text-gray-400 mt-1">
+                  {experience.completed ? 'Terminée' : 'En cours'}
+                </p>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Modal de suivi hebdomadaire */}
-      {showWeeklyForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">
-              Suivi Hebdomadaire - {experienceData?.name}
+      {/* 📋 Détail de l'expérience sélectionnée */}
+      {selectedExperience && currentExperience && currentSkills && (
+        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-white">
+              {BRAIN_EXPERIENCES[selectedExperience.toUpperCase()]?.name}
             </h3>
-            
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setShowWeeklyModal(true)}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center"
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Suivi hebdomadaire
+              </button>
+            </div>
+          </div>
+
+          {/* 🏆 Compétences par catégorie */}
+          <div className="space-y-6">
+            {Object.entries(currentSkills).map(([category, skills]) => (
+              <div key={category} className="border border-gray-700 rounded-lg p-4">
+                <h4 className="font-semibold text-white mb-4 capitalize">
+                  {category.replace('_', ' ')}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {skills.map((skill) => {
+                    const skillStatus = currentExperience.skills[skill.id];
+                    const isCompleted = skillStatus?.completed;
+                    const isValidated = skillStatus?.validatedBy;
+                    
+                    return (
+                      <div
+                        key={skill.id}
+                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                          isCompleted 
+                            ? 'bg-green-900 border-green-500' 
+                            : 'bg-gray-700 border-gray-600 hover:border-gray-500'
+                        }`}
+                        onClick={() => toggleSkill(selectedExperience, skill.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            {isCompleted ? (
+                              <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
+                            ) : (
+                              <div className="h-5 w-5 border-2 border-gray-400 rounded-full mr-3" />
+                            )}
+                            <div>
+                              <p className="font-medium text-white text-sm">
+                                {skill.name}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                {skill.description}
+                              </p>
+                            </div>
+                          </div>
+                          {isValidated && (
+                            <Star className="h-4 w-4 text-yellow-500" />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 📝 Modal suivi hebdomadaire */}
+      {showWeeklyModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl mx-4 border border-gray-700">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-white">
+                Suivi Hebdomadaire - {BRAIN_EXPERIENCES[selectedExperience?.toUpperCase()]?.name}
+              </h3>
+              <button
+                onClick={() => setShowWeeklyModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Difficultés rencontrées cette semaine
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Compétences techniques développées
                 </label>
                 <textarea
-                  value={weeklyFormData.difficulties}
-                  onChange={(e) => setWeeklyFormData({...weeklyFormData, difficulties: e.target.value})}
-                  className="w-full p-3 border border-gray-300 rounded-lg"
-                  rows="3"
-                  placeholder="Décrivez les principales difficultés..."
+                  value={weeklyFollowUp.competences_techniques}
+                  onChange={(e) => setWeeklyFollowUp({
+                    ...weeklyFollowUp,
+                    competences_techniques: e.target.value
+                  })}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  rows={3}
+                  placeholder="Décrivez les compétences que vous avez développées cette semaine..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Réussites et points positifs
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Difficultés rencontrées
                 </label>
                 <textarea
-                  value={weeklyFormData.successes}
-                  onChange={(e) => setWeeklyFormData({...weeklyFormData, successes: e.target.value})}
-                  className="w-full p-3 border border-gray-300 rounded-lg"
-                  rows="3"
-                  placeholder="Décrivez vos réussites..."
+                  value={weeklyFollowUp.difficultes_rencontrees}
+                  onChange={(e) => setWeeklyFollowUp({
+                    ...weeklyFollowUp,
+                    difficultes_rencontrees: e.target.value
+                  })}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  rows={3}
+                  placeholder="Quelles difficultés avez-vous rencontrées ?"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Objectifs pour la semaine prochaine
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Situations marquantes
                 </label>
                 <textarea
-                  value={weeklyFormData.nextWeekGoals}
-                  onChange={(e) => setWeeklyFormData({...weeklyFormData, nextWeekGoals: e.target.value})}
-                  className="w-full p-3 border border-gray-300 rounded-lg"
-                  rows="3"
-                  placeholder="Définissez vos objectifs..."
+                  value={weeklyFollowUp.situations_marquantes}
+                  onChange={(e) => setWeeklyFollowUp({
+                    ...weeklyFollowUp,
+                    situations_marquantes: e.target.value
+                  })}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  rows={3}
+                  placeholder="Décrivez les situations les plus marquantes..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Note globale (1-5)
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Compétences à approfondir
                 </label>
-                <select
-                  value={weeklyFormData.globalRating}
-                  onChange={(e) => setWeeklyFormData({...weeklyFormData, globalRating: parseInt(e.target.value)})}
-                  className="w-full p-3 border border-gray-300 rounded-lg"
-                >
-                  <option value={1}>1 - Très difficile</option>
-                  <option value={2}>2 - Difficile</option>
-                  <option value={3}>3 - Moyen</option>
-                  <option value={4}>4 - Bien</option>
-                  <option value={5}>5 - Excellent</option>
-                </select>
+                <textarea
+                  value={weeklyFollowUp.competences_approfondir}
+                  onChange={(e) => setWeeklyFollowUp({
+                    ...weeklyFollowUp,
+                    competences_approfondir: e.target.value
+                  })}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  rows={2}
+                  placeholder="Sur quoi souhaitez-vous vous concentrer ?"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Besoin d'aide
+                </label>
+                <textarea
+                  value={weeklyFollowUp.besoin_aide}
+                  onChange={(e) => setWeeklyFollowUp({
+                    ...weeklyFollowUp,
+                    besoin_aide: e.target.value
+                  })}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  rows={2}
+                  placeholder="Avez-vous besoin d'aide sur quelque chose ?"
+                />
               </div>
             </div>
 
             <div className="flex justify-end space-x-3 mt-6">
               <button
-                onClick={() => setShowWeeklyForm(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                onClick={() => setShowWeeklyModal(false)}
+                className="px-4 py-2 text-gray-300 hover:text-white border border-gray-600 rounded-lg transition-colors"
               >
                 Annuler
               </button>
               <button
                 onClick={submitWeeklyFollowUp}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                disabled={submittingFollowUp}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center"
               >
-                Enregistrer
+                {submittingFollowUp ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Envoi...
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Soumettre
+                  </>
+                )}
               </button>
             </div>
           </div>
