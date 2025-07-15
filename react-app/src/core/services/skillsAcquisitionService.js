@@ -337,19 +337,23 @@ export class SkillsAcquisitionService {
         completedExperiences: 0,
         totalSkills: 0,
         validatedSkills: 0,
+        selfAssessedSkills: 0,
         averageCompletionRate: 0,
+        selfAssessmentRate: 0,
         badgesEarned: 0,
         weeklyFollowUps: 0,
-        adminInterviews: 0
+        adminInterviews: 0,
+        isGameMasterCertified: false
       };
     }
 
     const gameMasterExp = profile.experiences.gamemaster;
-    const allSkills = EXPERIENCE_SKILLS.gamemaster;
     
-    // 🔧 CORRECTION: Vérifier que skills existe
+    // 🔧 CORRECTION: Vérifier et réparer la structure si nécessaire
     if (!gameMasterExp.skills) {
-      console.warn('⚠️ Skills Game Master non initialisés');
+      console.warn('⚠️ Skills Game Master manquants - réparation automatique');
+      // Réparer la structure automatiquement
+      this.repairGameMasterProfile(profile.userId);
       return {
         totalExperiences: 1,
         completedExperiences: 0,
@@ -365,6 +369,7 @@ export class SkillsAcquisitionService {
       };
     }
     
+    const allSkills = EXPERIENCE_SKILLS.gamemaster;
     let totalSkills = 0;
     let validatedSkills = 0;
     let selfAssessedSkills = 0;
@@ -399,6 +404,52 @@ export class SkillsAcquisitionService {
 
     console.log('✅ Stats Game Master calculées:', stats);
     return stats;
+  }
+
+  /**
+   * 🔧 Réparer un profil Game Master mal initialisé
+   */
+  static async repairGameMasterProfile(userId) {
+    try {
+      console.log('🔧 Réparation profil Game Master pour:', userId);
+      
+      // Récupérer le profil existant
+      const profileResult = await this.getSkillsProfile(userId);
+      if (!profileResult.success) return;
+      
+      const profile = profileResult.data;
+      const gameMasterExp = profile.experiences.gamemaster;
+      
+      // Réparer la structure skills si elle manque
+      if (!gameMasterExp.skills) {
+        console.log('🔧 Ajout de la structure skills manquante');
+        
+        const skillsToAdd = {};
+        const gameMasterSkills = EXPERIENCE_SKILLS.gamemaster;
+        
+        Object.keys(gameMasterSkills).forEach(category => {
+          gameMasterSkills[category].forEach(skill => {
+            skillsToAdd[skill.id] = {
+              completed: false,
+              validatedBy: null,
+              validationDate: null,
+              adminComments: '',
+              selfAssessment: false
+            };
+          });
+        });
+        
+        await updateDoc(doc(db, 'skillsAcquisition', userId), {
+          'experiences.gamemaster.skills': skillsToAdd,
+          updatedAt: serverTimestamp()
+        });
+        
+        console.log('✅ Structure skills réparée');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur réparation profil Game Master:', error);
+    }
   }
 
   /**
