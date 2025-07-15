@@ -287,7 +287,7 @@ const SkillsAcquisition = () => {
           </h3>
           
           {allSkills[activeCategory]?.map((skill) => {
-            const skillStatus = gameMasterExp.skills[skill.id];
+            const skillStatus = gameMasterExp.skills?.[skill.id]; // 🔧 CORRECTION: Accès sécurisé
             const isCompleted = skillStatus?.completed;
             const isSelfAssessed = skillStatus?.selfAssessment;
             const isValidated = skillStatus?.validatedBy;
