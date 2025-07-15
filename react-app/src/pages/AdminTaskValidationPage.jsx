@@ -24,7 +24,8 @@ import {
   Gift,
   Settings,
   Award,
-  X
+  X,
+  Shield
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../shared/stores/authStore.js';
