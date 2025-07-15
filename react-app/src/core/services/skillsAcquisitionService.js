@@ -1,226 +1,178 @@
 // ==========================================
 // 📁 react-app/src/core/services/skillsAcquisitionService.js
-// SERVICE ACQUISITION DE COMPÉTENCES PAR EXPÉRIENCE - BRAIN
+// SERVICE ACQUISITION COMPÉTENCES - BUGS CORRIGÉS
 // ==========================================
 
 import { 
   collection, 
   doc, 
   setDoc, 
-  updateDoc, 
   getDoc, 
+  updateDoc, 
   getDocs, 
-  query, 
-  where, 
-  orderBy, 
   arrayUnion, 
   serverTimestamp 
 } from 'firebase/firestore';
+import { db } from '../config/firebase.js';
 
-import { db } from '../firebase.js';
-
-// 🎯 DÉFINITION DES EXPÉRIENCES BRAIN
+// 🧠 MODÈLE D'EXPÉRIENCES BRAIN
 export const BRAIN_EXPERIENCES = {
-  PSYCHIATRIC: {
-    id: 'psychiatric',
-    name: '🩺 Psychiatric',
-    description: 'Escape Game d\'horreur psychologique',
-    difficulty: 'Expert',
-    color: '#DC2626',
-    icon: '🩺',
-    minSessions: 2,
-    category: 'escape_game'
+  GAMEMASTER: {
+    id: 'gamemaster',
+    name: 'Game Master',
+    icon: '🎮',
+    description: 'Maîtriser l\'animation et la gestion des sessions de jeu',
+    duration: '4-6 semaines',
+    difficulty: 'intermediate',
+    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
   },
-  PRISON: {
-    id: 'prison',
-    name: '🚨 Prison',
-    description: 'Escape Game carcéral en équipes',
-    difficulty: 'Avancé',
-    color: '#F97316',
-    icon: '🚨',
-    minSessions: 2,
-    category: 'escape_game'
+  MAINTENANCE: {
+    id: 'maintenance', 
+    name: 'Entretien & Maintenance',
+    icon: '🔧',
+    description: 'Gérer la maintenance et l\'entretien des salles',
+    duration: '3-4 semaines',
+    difficulty: 'beginner',
+    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
   },
-  BACK_TO_80S: {
-    id: 'back_to_80s',
-    name: '🎸 Back to the 80\'s',
-    description: 'Escape Game rétro années 80',
-    difficulty: 'Intermédiaire',
-    color: '#8B5CF6',
-    icon: '🎸',
-    minSessions: 2,
-    category: 'escape_game'
+  REPUTATION: {
+    id: 'reputation',
+    name: 'Gestion des Avis',
+    icon: '⭐',
+    description: 'Optimiser la réputation en ligne et gérer les avis clients',
+    duration: '3-5 semaines', 
+    difficulty: 'intermediate',
+    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
   },
-  QUIZ_GAME: {
-    id: 'quiz_game',
-    name: '🏆 Quiz Game',
-    description: 'Animation quiz interactif',
-    difficulty: 'Débutant',
-    color: '#10B981',
-    icon: '🏆',
-    minSessions: 2,
-    category: 'animation'
+  STOCK: {
+    id: 'stock',
+    name: 'Gestion des Stocks',
+    icon: '📦',
+    description: 'Organiser et gérer les stocks et le matériel',
+    duration: '2-3 semaines',
+    difficulty: 'beginner', 
+    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
+  },
+  ORGANIZATION: {
+    id: 'organization',
+    name: 'Organisation Interne',
+    icon: '📋',
+    description: 'Gérer les plannings, RH et l\'organisation interne',
+    duration: '4-6 semaines',
+    difficulty: 'advanced',
+    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
+  },
+  CONTENT: {
+    id: 'content',
+    name: 'Création de Contenu',
+    icon: '🎨',
+    description: 'Créer du contenu créatif et engageant',
+    duration: '5-7 semaines',
+    difficulty: 'intermediate',
+    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
+  },
+  MENTORING: {
+    id: 'mentoring',
+    name: 'Mentorat & Formation',
+    icon: '🎓',
+    description: 'Former et accompagner les nouveaux membres',
+    duration: '6-8 semaines',
+    difficulty: 'advanced',
+    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
+  },
+  PARTNERSHIPS: {
+    id: 'partnerships',
+    name: 'Partenariats',
+    icon: '🤝',
+    description: 'Développer des partenariats et relations externes',
+    duration: '4-6 semaines',
+    difficulty: 'intermediate',
+    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
+  },
+  COMMUNICATION: {
+    id: 'communication',
+    name: 'Communication & Réseaux',
+    icon: '📱',
+    description: 'Gérer la communication et les réseaux sociaux',
+    duration: '3-5 semaines',
+    difficulty: 'intermediate',
+    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
+  },
+  B2B: {
+    id: 'b2b',
+    name: 'Relations B2B',
+    icon: '💼',
+    description: 'Développer les relations et devis B2B',
+    duration: '5-7 semaines',
+    difficulty: 'advanced',
+    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
   }
 };
 
 // 🎯 COMPÉTENCES PAR EXPÉRIENCE
 export const EXPERIENCE_SKILLS = {
-  psychiatric: {
-    decouverte_immersion: [
-      { id: 'scenario_psychiatric', title: 'J\'ai lu et compris le scénario Psychiatric', category: 'knowledge' },
-      { id: 'ambiance_psychiatric', title: 'Je peux présenter l\'ambiance, les enjeux et les moments clés', category: 'knowledge' },
-      { id: 'musiques_psychiatric', title: 'Je connais les musiques et effets sonores principaux', category: 'knowledge' }
+  gamemaster: {
+    animation: [
+      { id: 'accueil_briefing', name: 'Accueil et briefing', description: 'Maîtriser l\'accueil et le briefing des équipes' },
+      { id: 'mastering_live', name: 'Mastering en live', description: 'Animer les sessions en temps réel' },
+      { id: 'debriefing', name: 'Débriefing', description: 'Conduire un débriefing efficace' }
     ],
-    gestion_technique: [
-      { id: 'cameras_psychiatric', title: 'Je sais utiliser les caméras et micros spécifiques à la salle', category: 'technical' },
-      { id: 'effets_psychiatric', title: 'Je maîtrise l\'utilisation des effets spéciaux Psychiatric', category: 'technical' },
-      { id: 'reset_psychiatric', title: 'Je sais faire un reset complet et rapide avec check de tous les éléments', category: 'technical' },
-      { id: 'accessoires_psychiatric', title: 'Je sais gérer les accessoires fragiles et repérer les mécanismes sensibles', category: 'technical' },
-      { id: 'urgence_psychiatric', title: 'Je connais la procédure d\'urgence (incendie, malaise joueur)', category: 'safety' }
+    technique: [
+      { id: 'gestion_cameras', name: 'Gestion caméras', description: 'Utiliser le système de caméras' },
+      { id: 'gestion_sons', name: 'Gestion sons', description: 'Maîtriser le système audio' },
+      { id: 'gestion_enigmes', name: 'Gestion énigmes', description: 'Gérer les mécanismes d\'énigmes' }
     ],
-    gestion_joueur: [
-      { id: 'rassurer_psychiatric', title: 'Je sais rassurer et accompagner un groupe anxieux ou effrayé', category: 'soft_skills' },
-      { id: 'indices_psychiatric', title: 'Je sais donner des indices adaptés sans casser l\'immersion', category: 'soft_skills' },
-      { id: 'public_psychiatric', title: 'Je m\'adapte au public : briefing spécifique selon âge/expérience', category: 'soft_skills' },
-      { id: 'gestion_situation_psychiatric', title: 'Je sais gérer une situation de blocage, de peur ou de conflit', category: 'soft_skills' },
-      { id: 'briefing_psychiatric', title: 'J\'ai pratiqué le briefing Psychiatric en jeu de rôle ou réel', category: 'practice' },
-      { id: 'debriefing_psychiatric', title: 'J\'ai pratiqué le débriefing Psychiatric en jeu de rôle ou réel', category: 'practice' }
-    ],
-    soft_skills: [
-      { id: 'attitude_psychiatric', title: 'Je garde une attitude bienveillante même en cas de stress', category: 'soft_skills' },
-      { id: 'apaiser_psychiatric', title: 'Je sais apaiser un joueur en difficulté émotionnelle', category: 'soft_skills' },
-      { id: 'diplomatie_psychiatric', title: 'Je gère les situations conflictuelles avec diplomatie', category: 'soft_skills' }
-    ],
-    validation: [
-      { id: 'sessions_psychiatric', title: 'J\'ai animé au moins 2 sessions Psychiatric (dont 1 en quasi-autonomie)', category: 'validation' },
-      { id: 'referent_psychiatric', title: 'Mon référent a validé ma prise en main de la salle', category: 'validation' }
+    relationnel: [
+      { id: 'gestion_stress', name: 'Gestion du stress', description: 'Gérer le stress des participants' },
+      { id: 'adaptation_public', name: 'Adaptation au public', description: 'S\'adapter à différents types de groupes' }
     ]
   },
-
-  prison: {
-    decouverte_immersion: [
-      { id: 'scenario_prison', title: 'J\'ai lu et compris le scénario Prison', category: 'knowledge' },
-      { id: 'ambiance_prison', title: 'Je sais expliquer les enjeux et l\'ambiance carcérale', category: 'knowledge' },
-      { id: 'temps_forts_prison', title: 'Je repère les temps forts : stress, compétition, coopération', category: 'knowledge' },
-      { id: 'equipes_prison', title: 'Je connais la gestion des équipes multiples (si applicable)', category: 'knowledge' }
+  maintenance: {
+    technique: [
+      { id: 'verification_salles', name: 'Vérification des salles', description: 'Contrôler l\'état des salles quotidiennement' },
+      { id: 'maintenance_base', name: 'Maintenance de base', description: 'Effectuer la maintenance préventive' },
+      { id: 'reparations_simples', name: 'Réparations simples', description: 'Réaliser des petites réparations' }
     ],
-    gestion_technique: [
-      { id: 'securite_prison', title: 'Je maîtrise l\'utilisation des dispositifs de sécurité (portes, menottes, alarmes)', category: 'technical' },
-      { id: 'effets_prison', title: 'Je sais lancer/arrêter les effets sonores et lumineux au bon moment', category: 'technical' },
-      { id: 'reset_prison', title: 'Je sais faire un reset complet (cellules, objets cachés, routine nettoyage)', category: 'technical' },
-      { id: 'fragiles_prison', title: 'Je repère les éléments fragiles à surveiller', category: 'technical' },
-      { id: 'urgence_prison', title: 'Je connais les procédures d\'urgence spécifiques Prison', category: 'safety' }
-    ],
-    gestion_joueur: [
-      { id: 'equipes_prison_gestion', title: 'Je gère les interactions entre équipes (compétition ou coopération)', category: 'soft_skills' },
-      { id: 'intervention_prison', title: 'J\'interviens discrètement en cas de triche ou blocage technique', category: 'soft_skills' },
-      { id: 'aide_prison', title: 'J\'adapte l\'aide au niveau des joueurs', category: 'soft_skills' },
-      { id: 'briefing_prison', title: 'J\'ai pratiqué le briefing Prison (jeu de rôle ou réel)', category: 'practice' },
-      { id: 'debriefing_prison', title: 'J\'ai pratiqué le débriefing Prison (jeu de rôle ou réel)', category: 'practice' }
-    ],
-    soft_skills: [
-      { id: 'recadrer_prison', title: 'Je sais recadrer sans casser l\'ambiance', category: 'soft_skills' },
-      { id: 'valoriser_prison', title: 'Je valorise le groupe, même en cas d\'échec', category: 'soft_skills' },
-      { id: 'calme_prison', title: 'Je reste calme face à des comportements "limite" (énervement, provocation)', category: 'soft_skills' }
-    ],
-    validation: [
-      { id: 'sessions_prison', title: 'J\'ai animé au moins 2 sessions Prison (dont 1 en quasi-autonomie)', category: 'validation' },
-      { id: 'referent_prison', title: 'Mon référent a validé ma prise en main de la salle', category: 'validation' }
+    organisation: [
+      { id: 'planning_maintenance', name: 'Planning maintenance', description: 'Organiser les tâches de maintenance' },
+      { id: 'gestion_materiel', name: 'Gestion matériel', description: 'Gérer l\'outillage et les pièces' }
     ]
   },
-
-  back_to_80s: {
-    decouverte_immersion: [
-      { id: 'scenario_80s', title: 'J\'ai lu et compris le scénario Back to the 80\'s', category: 'knowledge' },
-      { id: 'references_80s', title: 'Je connais les références, anecdotes, musiques et objets emblématiques', category: 'knowledge' },
-      { id: 'playlist_80s', title: 'Je sais gérer la playlist et renforcer l\'ambiance rétro', category: 'knowledge' }
+  reputation: {
+    communication: [
+      { id: 'veille_avis', name: 'Veille des avis', description: 'Surveiller les avis en ligne' },
+      { id: 'reponses_avis', name: 'Réponses aux avis', description: 'Rédiger des réponses personnalisées' },
+      { id: 'gestion_negatifs', name: 'Gestion avis négatifs', description: 'Gérer les retours négatifs' }
     ],
-    gestion_technique: [
-      { id: 'objets_80s', title: 'Je maîtrise l\'utilisation des objets et mécanismes vintage (téléphone, cassettes)', category: 'technical' },
-      { id: 'reset_80s', title: 'Je sais faire un reset complet (remise en place de tous les éléments fragiles)', category: 'technical' },
-      { id: 'entretien_80s', title: 'Je connais les points sensibles et la routine nettoyage', category: 'technical' }
-    ],
-    gestion_joueur: [
-      { id: 'culture_80s', title: 'J\'adapte l\'accompagnement selon la culture 80\'s du groupe', category: 'soft_skills' },
-      { id: 'inclusif_80s', title: 'Je rends l\'expérience inclusive et fun, quel que soit l\'âge', category: 'soft_skills' },
-      { id: 'humour_80s', title: 'Je gère l\'humour et les clins d\'œil à l\'époque pour détendre', category: 'soft_skills' },
-      { id: 'briefing_80s', title: 'J\'ai pratiqué le briefing 80\'s (jeu de rôle ou réel)', category: 'practice' },
-      { id: 'debriefing_80s', title: 'J\'ai pratiqué le débriefing 80\'s (jeu de rôle ou réel)', category: 'practice' }
-    ],
-    soft_skills: [
-      { id: 'nostalgie_80s', title: 'Je stimule la nostalgie sans exclure les plus jeunes', category: 'soft_skills' },
-      { id: 'ambiance_80s', title: 'Je crée une ambiance légère même en cas de difficulté', category: 'soft_skills' },
-      { id: 'valorisation_80s', title: 'Je valorise chaque membre du groupe', category: 'soft_skills' }
-    ],
-    validation: [
-      { id: 'sessions_80s', title: 'J\'ai animé au moins 2 sessions Back to the 80\'s (dont 1 en quasi-autonomie)', category: 'validation' },
-      { id: 'referent_80s', title: 'Mon référent a validé ma prise en main de la salle', category: 'validation' }
-    ]
-  },
-
-  quiz_game: {
-    decouverte_animation: [
-      { id: 'modes_quiz', title: 'Je connais tous les modes de jeu et les règles du Quiz Game', category: 'knowledge' },
-      { id: 'plateau_quiz', title: 'Je sais présenter le plateau et ses fonctionnalités', category: 'knowledge' },
-      { id: 'micro_quiz', title: 'Je maîtrise la prise de micro et l\'animation de base', category: 'knowledge' }
-    ],
-    gestion_technique: [
-      { id: 'modes_quiz_tech', title: 'Je sais lancer chaque mode de jeu (buzzers, tablettes, pupitres)', category: 'technical' },
-      { id: 'scores_quiz', title: 'Je gère l\'affichage des scores et la gestion des transitions', category: 'technical' },
-      { id: 'bugs_quiz', title: 'Je sais réagir en cas de bug technique ou litige sur une réponse', category: 'technical' },
-      { id: 'securite_quiz', title: 'Je maîtrise la sécurité : déplacements sur le plateau, surveillance du matériel', category: 'safety' }
-    ],
-    gestion_public: [
-      { id: 'ambiance_quiz', title: 'Je crée l\'ambiance et motive chaque équipe', category: 'soft_skills' },
-      { id: 'improvisation_quiz', title: 'J\'improvise en cas de problème ou de question litigieuse', category: 'soft_skills' },
-      { id: 'adaptation_quiz', title: 'J\'adapte l\'animation au public (enfants, EVJF/G, entreprises, familles)', category: 'soft_skills' },
-      { id: 'lancement_quiz', title: 'J\'ai pratiqué le lancement d\'une session Quiz Game', category: 'practice' },
-      { id: 'debriefing_quiz', title: 'J\'ai pratiqué le débriefing Quiz Game (jeu de rôle ou réel)', category: 'practice' }
-    ],
-    soft_skills: [
-      { id: 'micro_aisance', title: 'Je suis à l\'aise au micro, je parle clairement', category: 'soft_skills' },
-      { id: 'humour_quiz', title: 'Je fais preuve d\'humour et de diplomatie', category: 'soft_skills' },
-      { id: 'energie_quiz', title: 'Je garde l\'énergie même avec des publics difficiles', category: 'soft_skills' }
-    ],
-    validation: [
-      { id: 'sessions_quiz', title: 'J\'ai animé au moins 2 sessions Quiz Game (dont 1 en quasi-autonomie)', category: 'validation' },
-      { id: 'referent_quiz', title: 'Mon référent a validé ma prise en main du Quiz Game', category: 'validation' }
+    analyse: [
+      { id: 'analyse_trends', name: 'Analyse des tendances', description: 'Analyser les tendances des avis' },
+      { id: 'reporting', name: 'Reporting', description: 'Créer des rapports de réputation' }
     ]
   }
+  // Ajoutez les autres expériences...
 };
 
-// 🏆 BADGES PAR EXPÉRIENCE
+// 🏆 BADGES D'EXPÉRIENCE
 export const EXPERIENCE_BADGES = {
-  psychiatric: {
-    id: 'expert_psychiatric',
-    name: 'Expert Psychiatric',
-    description: 'Maîtrise complète de l\'expérience Psychiatric',
-    icon: '🩺',
-    color: '#DC2626',
+  gamemaster: {
+    id: 'master_animator',
+    name: 'Maître Animateur',
+    description: 'Expert en animation de sessions',
+    icon: '🎮',
     rarity: 'epic'
   },
-  prison: {
-    id: 'expert_prison',
-    name: 'Expert Prison',
-    description: 'Maîtrise complète de l\'expérience Prison',
-    icon: '🚨',
-    color: '#F97316',
-    rarity: 'epic'
+  maintenance: {
+    id: 'tech_expert', 
+    name: 'Expert Technique',
+    description: 'Maître de la maintenance',
+    icon: '🔧',
+    rarity: 'rare'
   },
-  back_to_80s: {
-    id: 'expert_80s',
-    name: 'Expert Back to the 80\'s',
-    description: 'Maîtrise complète de l\'expérience Back to the 80\'s',
-    icon: '🎸',
-    color: '#8B5CF6',
-    rarity: 'epic'
-  },
-  quiz_game: {
-    id: 'expert_quiz',
-    name: 'Expert Quiz Game',
-    description: 'Maîtrise complète du Quiz Game',
-    icon: '🏆',
-    color: '#10B981',
+  reputation: {
+    id: 'reputation_guardian',
+    name: 'Gardien de la Réputation', 
+    description: 'Protecteur de l\'image de marque',
+    icon: '⭐',
     rarity: 'epic'
   }
 };
@@ -313,6 +265,7 @@ export class SkillsAcquisitionService {
 
   /**
    * 📊 Récupérer le profil de compétences
+   * 🔧 CORRECTION: Retourner 'data' au lieu de 'profile'
    */
   static async getSkillsProfile(userId) {
     try {
@@ -320,7 +273,7 @@ export class SkillsAcquisitionService {
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        return { success: true, profile: docSnap.data() };
+        return { success: true, data: docSnap.data() };
       }
       return { success: false, error: 'Profil non trouvé' };
 
@@ -331,22 +284,31 @@ export class SkillsAcquisitionService {
   }
 
   /**
-   * ✅ Auto-évaluation d'une compétence par l'utilisateur
+   * 🔄 Toggle une compétence (auto-évaluation)
    */
-  static async selfAssessSkill(userId, experienceId, skillId, selfAssessment = true) {
+  static async toggleSkill(userId, experienceId, skillId) {
     try {
+      // D'abord récupérer le profil actuel
+      const profileResult = await this.getSkillsProfile(userId);
+      if (!profileResult.success) {
+        return { success: false, error: 'Profil non trouvé' };
+      }
+
+      const currentSkill = profileResult.data.experiences[experienceId]?.skills[skillId];
+      const newState = !currentSkill?.selfAssessment;
+
       const updatePath = `experiences.${experienceId}.skills.${skillId}.selfAssessment`;
       const updates = {
-        [updatePath]: selfAssessment,
+        [updatePath]: newState,
         [`experiences.${experienceId}.skills.${skillId}.selfAssessmentDate`]: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
 
       await updateDoc(doc(db, 'skillsAcquisition', userId), updates);
-      return { success: true };
+      return { success: true, newState };
 
     } catch (error) {
-      console.error('Erreur auto-évaluation compétence:', error);
+      console.error('Erreur toggle compétence:', error);
       return { success: false, error: error.message };
     }
   }
@@ -454,10 +416,10 @@ export class SkillsAcquisitionService {
    */
   static async checkExperienceCompletion(userId, experienceId) {
     try {
-      const profile = await this.getSkillsProfile(userId);
-      if (!profile.success) return;
+      const profileResult = await this.getSkillsProfile(userId);
+      if (!profileResult.success) return;
 
-      const experience = profile.profile.experiences[experienceId];
+      const experience = profileResult.data.experiences[experienceId];
       if (!experience) return;
 
       const expSkills = EXPERIENCE_SKILLS[experienceId];
@@ -509,8 +471,24 @@ export class SkillsAcquisitionService {
 
   /**
    * 📊 Calculer les statistiques d'un profil
+   * 🔧 CORRECTION: Vérifier que profile existe avant d'accéder à ses propriétés
    */
   static calculateProfileStats(profile) {
+    // 🔧 CORRECTION: Vérification de l'existence du profil et de ses expériences
+    if (!profile || !profile.experiences) {
+      console.warn('⚠️ Profil invalide pour calcul de stats:', profile);
+      return {
+        totalExperiences: 0,
+        completedExperiences: 0,
+        totalSkills: 0,
+        validatedSkills: 0,
+        averageCompletionRate: 0,
+        badgesEarned: 0,
+        weeklyFollowUps: 0,
+        adminInterviews: 0
+      };
+    }
+
     const experiences = Object.keys(profile.experiences);
     const totalExperiences = experiences.length;
     const completedExperiences = experiences.filter(exp => profile.experiences[exp].completed).length;
@@ -520,10 +498,12 @@ export class SkillsAcquisitionService {
 
     experiences.forEach(expId => {
       const experience = profile.experiences[expId];
-      Object.values(experience.skills).forEach(skill => {
-        totalSkills++;
-        if (skill.completed) validatedSkills++;
-      });
+      if (experience && experience.skills) {
+        Object.values(experience.skills).forEach(skill => {
+          totalSkills++;
+          if (skill.completed) validatedSkills++;
+        });
+      }
     });
 
     return {
@@ -532,9 +512,9 @@ export class SkillsAcquisitionService {
       totalSkills,
       validatedSkills,
       averageCompletionRate: totalSkills > 0 ? Math.round((validatedSkills / totalSkills) * 100) : 0,
-      badgesEarned: profile.earnedBadges.length,
-      weeklyFollowUps: profile.weeklyFollowUps.length,
-      adminInterviews: profile.adminInterviews.length
+      badgesEarned: profile.earnedBadges ? profile.earnedBadges.length : 0,
+      weeklyFollowUps: profile.weeklyFollowUps ? profile.weeklyFollowUps.length : 0,
+      adminInterviews: profile.adminInterviews ? profile.adminInterviews.length : 0
     };
   }
 
