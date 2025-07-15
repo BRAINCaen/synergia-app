@@ -14,7 +14,8 @@ import {
   arrayUnion,
   arrayRemove,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  addDoc
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import { membersAvailableService } from './membersAvailableService.js';
@@ -67,322 +68,441 @@ class TaskAssignmentService {
   }
 
   /**
-   * 🔍 RECHERCHER MEMBRES DISPONIBLES
+   * 🎯 ASSIGNER UNE TÂCHE À PLUSIEURS MEMBRES
    */
-  async searchAvailableMembers(searchTerm) {
+  async assignTaskToMembers(taskId, assignments, assignerId) {
     try {
-      console.log('🔍 Recherche membres:', searchTerm);
-      
-      const filteredMembers = membersAvailableService.searchMembers(searchTerm);
-      
-      console.log(`✅ ${filteredMembers.length} membres trouvés pour "${searchTerm}"`);
-      
-      return filteredMembers;
-      
-    } catch (error) {
-      console.error('❌ Erreur recherche membres:', error);
-      return [];
-    }
-  }
+      console.log('🎯 Assignation tâche multiple:', {
+        taskId,
+        membersCount: assignments.length,
+        assignerId
+      });
 
-  /**
-   * 📊 OBTENIR STATISTIQUES DES MEMBRES DISPONIBLES
-   */
-  getAvailableMembersStats() {
-    try {
-      return membersAvailableService.getMembersStats();
-    } catch (error) {
-      console.error('❌ Erreur stats membres:', error);
-      return {
-        total: 0,
-        active: 0,
-        inactive: 0,
-        totalXp: 0,
-        averageLevel: 0,
-        departments: 0
+      // Vérifier que la tâche existe
+      const taskRef = doc(db, 'tasks', taskId);
+      const taskSnap = await getDoc(taskRef);
+      
+      if (!taskSnap.exists()) {
+        throw new Error('Tâche non trouvée');
+      }
+
+      const taskData = taskSnap.data();
+
+      // Utiliser une transaction pour la cohérence
+      const batch = writeBatch(db);
+
+      // Préparer les assignations
+      const assignmentRecords = [];
+      let totalContribution = 0;
+
+      assignments.forEach(assignment => {
+        const { memberId, memberName, memberEmail, contribution } = assignment;
+        
+        assignmentRecords.push({
+          memberId,
+          memberName: memberName || 'Membre inconnu',
+          memberEmail: memberEmail || '',
+          contribution: contribution || 0,
+          assignedAt: serverTimestamp(),
+          assignedBy: assignerId,
+          status: 'assigned',
+          startedAt: null,
+          completedAt: null
+        });
+
+        totalContribution += (contribution || 0);
+      });
+
+      // Vérifier que les contributions totalisent 100%
+      if (Math.abs(totalContribution - 100) > 0.1) {
+        throw new Error(`Les contributions doivent totaliser 100% (actuellement: ${totalContribution}%)`);
+      }
+
+      // Mettre à jour la tâche
+      const updatedTaskData = {
+        assignedTo: assignments.map(a => a.memberId),
+        assignedMembers: assignmentRecords,
+        assignments: assignmentRecords, // Alias pour compatibilité
+        status: taskData.status === 'draft' ? 'assigned' : taskData.status,
+        assignedAt: serverTimestamp(),
+        assignedBy: assignerId,
+        totalMembers: assignments.length,
+        updatedAt: serverTimestamp()
       };
-    }
-  }
 
-  /**
-   * 🔄 FORCER LE RECHARGEMENT DES MEMBRES
-   */
-  async reloadAvailableMembers() {
-    try {
-      console.log('🔄 Rechargement forcé des membres...');
-      
-      const members = await membersAvailableService.forceReload();
-      
-      console.log('✅ Rechargement terminé:', members.length, 'membres');
-      
-      return members;
-      
+      batch.update(taskRef, updatedTaskData);
+
+      // Créer des enregistrements individuels d'assignation
+      assignments.forEach(assignment => {
+        const assignmentRef = doc(collection(db, 'taskAssignments'));
+        batch.set(assignmentRef, {
+          taskId,
+          taskTitle: taskData.title || 'Tâche sans titre',
+          memberId: assignment.memberId,
+          memberName: assignment.memberName,
+          memberEmail: assignment.memberEmail,
+          contribution: assignment.contribution,
+          assignedAt: serverTimestamp(),
+          assignedBy: assignerId,
+          status: 'assigned',
+          dueDate: taskData.dueDate || null,
+          priority: taskData.priority || 'normal',
+          projectId: taskData.projectId || null
+        });
+      });
+
+      // Commit de la transaction
+      await batch.commit();
+
+      console.log('✅ Tâche assignée avec succès à', assignments.length, 'membres');
+
+      // Notifier les membres (optionnel)
+      await this.notifyAssignedMembers(taskId, assignments, taskData);
+
+      return {
+        success: true,
+        taskId,
+        assignedMembers: assignments.length,
+        contributions: assignments.map(a => ({
+          member: a.memberName,
+          contribution: a.contribution
+        }))
+      };
+
     } catch (error) {
-      console.error('❌ Erreur rechargement membres:', error);
-      return [];
+      console.error('❌ Erreur assignation tâche:', error);
+      throw error;
     }
   }
 
   /**
-   * 🎯 ASSIGNER UNE TÂCHE À PLUSIEURS PERSONNES
+   * 📧 NOTIFIER LES MEMBRES ASSIGNÉS
    */
-  async assignTaskToMembers(taskId, assignedUserIds, assignedBy) {
+  async notifyAssignedMembers(taskId, assignments, taskData) {
     try {
-      console.log('🎯 Assignation tâche multiple:', { taskId, assignedUserIds, assignedBy });
-      
-      // Validation des paramètres
-      if (!taskId) {
-        throw new Error('ID de tâche manquant');
-      }
-      
-      if (!assignedUserIds || !Array.isArray(assignedUserIds) || assignedUserIds.length === 0) {
-        throw new Error('Liste des utilisateurs assignés invalide');
-      }
-      
-      if (!assignedBy) {
-        throw new Error('Utilisateur assigneur manquant');
-      }
+      console.log('📧 Notification des membres assignés...');
+
+      // Créer des notifications pour chaque membre
+      const notifications = assignments.map(assignment => ({
+        userId: assignment.memberId,
+        type: 'task_assigned',
+        title: 'Nouvelle tâche assignée',
+        message: `Vous avez été assigné à la tâche "${taskData.title}" (${assignment.contribution}% de contribution)`,
+        data: {
+          taskId,
+          taskTitle: taskData.title,
+          contribution: assignment.contribution,
+          dueDate: taskData.dueDate
+        },
+        read: false,
+        createdAt: serverTimestamp()
+      }));
+
+      // Enregistrer les notifications
+      const batch = writeBatch(db);
+      notifications.forEach(notification => {
+        const notificationRef = doc(collection(db, 'notifications'));
+        batch.set(notificationRef, notification);
+      });
+
+      await batch.commit();
+      console.log('✅ Notifications envoyées');
+
+    } catch (error) {
+      console.error('❌ Erreur notification membres:', error);
+      // Ne pas faire planter l'assignation pour ça
+    }
+  }
+
+  /**
+   * 🔄 MODIFIER UNE ASSIGNATION EXISTANTE
+   */
+  async updateTaskAssignment(taskId, newAssignments, assignerId) {
+    try {
+      console.log('🔄 Modification assignation tâche:', taskId);
 
       // Récupérer la tâche actuelle
       const taskRef = doc(db, 'tasks', taskId);
-      const taskDoc = await getDoc(taskRef);
+      const taskSnap = await getDoc(taskRef);
       
-      if (!taskDoc.exists()) {
-        throw new Error('Tâche introuvable');
+      if (!taskSnap.exists()) {
+        throw new Error('Tâche non trouvée');
       }
 
-      const taskData = taskDoc.data();
-      
-      // Préparer les données d'assignation
-      const assignmentData = assignedUserIds.map(userId => ({
-        userId: userId,
-        assignedAt: new Date().toISOString(),
-        assignedBy: assignedBy,
-        status: 'assigned', // assigned, completed, declined
-        contributionPercentage: Math.round(100 / assignedUserIds.length), // Distribution égale
-        hasSubmitted: false,
-        submissionDate: null
-      }));
+      const taskData = taskSnap.data();
 
-      // Nettoyer les données avant mise à jour Firebase
-      const cleanAssignmentData = assignmentData.map(assignment => ({
-        ...assignment,
-        // S'assurer qu'aucune valeur n'est undefined
-        userId: assignment.userId || '',
-        assignedAt: assignment.assignedAt || new Date().toISOString(),
-        assignedBy: assignment.assignedBy || assignedBy,
-        status: assignment.status || 'assigned',
-        contributionPercentage: assignment.contributionPercentage || 0,
-        hasSubmitted: assignment.hasSubmitted || false,
-        submissionDate: assignment.submissionDate || null
-      }));
+      // Supprimer les anciennes assignations individuelles
+      await this.removeOldAssignments(taskId);
 
-      // Mettre à jour la tâche avec des données propres
-      await updateDoc(taskRef, {
-        assignedTo: assignedUserIds, // Liste des IDs assignés
-        assignments: cleanAssignmentData, // Détails des assignations
-        isMultipleAssignment: assignedUserIds.length > 1,
-        assignmentCount: assignedUserIds.length,
-        status: 'assigned',
-        assignedAt: serverTimestamp(),
-        lastAssignedBy: assignedBy,
-        updatedAt: serverTimestamp()
-      });
+      // Créer les nouvelles assignations
+      const result = await this.assignTaskToMembers(taskId, newAssignments, assignerId);
 
-      console.log('✅ Tâche assignée à', assignedUserIds.length, 'personnes');
-      
-      return {
-        success: true,
-        assignedCount: assignedUserIds.length,
-        taskId: taskId,
-        assignments: cleanAssignmentData
-      };
+      console.log('✅ Assignation modifiée avec succès');
+      return result;
 
     } catch (error) {
-      console.error('❌ Erreur assignation multiple:', error);
-      throw new Error(`Erreur assignation: ${error.message}`);
+      console.error('❌ Erreur modification assignation:', error);
+      throw error;
     }
   }
 
   /**
-   * 📊 METTRE À JOUR LES POURCENTAGES DE CONTRIBUTION
+   * 🗑️ SUPPRIMER LES ANCIENNES ASSIGNATIONS
    */
-  async updateContributionPercentages(taskId, contributions) {
+  async removeOldAssignments(taskId) {
     try {
-      console.log('📊 Mise à jour pourcentages:', { taskId, contributions });
-      
-      if (!taskId || !contributions) {
-        throw new Error('Paramètres de contribution invalides');
-      }
-      
-      // Validation que le total fait 100%
-      const totalPercentage = Object.values(contributions).reduce((sum, val) => sum + (parseInt(val) || 0), 0);
-      if (totalPercentage !== 100) {
-        throw new Error(`Total des pourcentages incorrect: ${totalPercentage}% (attendu: 100%)`);
-      }
-
-      const taskRef = doc(db, 'tasks', taskId);
-      const taskDoc = await getDoc(taskRef);
-      
-      if (!taskDoc.exists()) {
-        throw new Error('Tâche introuvable');
-      }
-
-      const taskData = taskDoc.data();
-      const assignments = taskData.assignments || [];
-      
-      // Mettre à jour les pourcentages dans les assignations
-      const updatedAssignments = assignments.map(assignment => ({
-        ...assignment,
-        contributionPercentage: contributions[assignment.userId] || assignment.contributionPercentage || 0
-      }));
-      
-      await updateDoc(taskRef, {
-        assignments: updatedAssignments,
-        contributionsUpdated: true,
-        contributionsUpdatedAt: serverTimestamp()
-      });
-      
-      console.log('✅ Pourcentages mis à jour avec succès');
-      
-      return { success: true };
-
-    } catch (error) {
-      console.error('❌ Erreur mise à jour contributions:', error);
-      throw new Error(`Erreur mise à jour pourcentages: ${error.message}`);
-    }
-  }
-
-  /**
-   * ✅ MARQUER LA SOUMISSION D'UN ASSIGNÉ
-   */
-  async markUserSubmission(taskId, userId, submissionData) {
-    try {
-      console.log('📝 Soumission utilisateur:', { taskId, userId });
-      
-      if (!taskId || !userId) {
-        throw new Error('Paramètres de soumission invalides');
-      }
-      
-      const taskRef = doc(db, 'tasks', taskId);
-      const taskDoc = await getDoc(taskRef);
-      
-      if (!taskDoc.exists()) {
-        throw new Error('Tâche introuvable');
-      }
-
-      const taskData = taskDoc.data();
-      const assignments = taskData.assignments || [];
-      
-      // Trouver l'assignation de cet utilisateur
-      const userAssignmentIndex = assignments.findIndex(a => a.userId === userId);
-      if (userAssignmentIndex === -1) {
-        throw new Error('Utilisateur non assigné à cette tâche');
-      }
-
-      // Mettre à jour l'assignation
-      const updatedAssignments = [...assignments];
-      updatedAssignments[userAssignmentIndex] = {
-        ...updatedAssignments[userAssignmentIndex],
-        hasSubmitted: true,
-        submissionDate: new Date().toISOString(),
-        submissionData: submissionData || {},
-        status: 'submitted'
-      };
-
-      // Vérifier si tous ont soumis
-      const allSubmitted = updatedAssignments.every(a => a.hasSubmitted);
-      
-      await updateDoc(taskRef, {
-        assignments: updatedAssignments,
-        allSubmitted: allSubmitted,
-        status: allSubmitted ? 'awaiting_validation' : 'partially_submitted',
-        lastSubmissionAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-
-      console.log('✅ Soumission enregistrée');
-      
-      return {
-        success: true,
-        allSubmitted: allSubmitted,
-        userSubmitted: true
-      };
-
-    } catch (error) {
-      console.error('❌ Erreur soumission:', error);
-      throw new Error(`Erreur soumission: ${error.message}`);
-    }
-  }
-
-  /**
-   * 👥 RÉCUPÉRER LES TÂCHES ASSIGNÉES À UN UTILISATEUR
-   */
-  async getUserAssignedTasks(userId) {
-    try {
-      console.log('📋 Récupération tâches assignées:', userId);
-      
-      if (!userId) {
-        throw new Error('ID utilisateur manquant');
-      }
-      
-      const tasksQuery = query(
-        collection(db, 'tasks'),
-        where('assignedTo', 'array-contains', userId)
+      const assignmentsQuery = query(
+        collection(db, 'taskAssignments'),
+        where('taskId', '==', taskId)
       );
+
+      const snapshot = await getDocs(assignmentsQuery);
       
-      const tasksSnapshot = await getDocs(tasksQuery);
-      
-      const tasks = tasksSnapshot.docs.map(doc => {
-        const taskData = doc.data();
-        const userAssignment = taskData.assignments?.find(a => a.userId === userId);
-        
-        return {
-          id: doc.id,
-          ...taskData,
-          userAssignment: userAssignment,
-          isMultipleAssignment: taskData.assignedTo?.length > 1,
-          assignmentCount: taskData.assignedTo?.length || 1
-        };
-      });
-      
-      console.log('✅ Tâches assignées récupérées:', tasks.length);
-      return tasks;
+      if (!snapshot.empty) {
+        const batch = writeBatch(db);
+        snapshot.docs.forEach(doc => {
+          batch.delete(doc.ref);
+        });
+        await batch.commit();
+        console.log('🗑️ Anciennes assignations supprimées');
+      }
 
     } catch (error) {
-      console.error('❌ Erreur récupération tâches assignées:', error);
+      console.error('❌ Erreur suppression anciennes assignations:', error);
+    }
+  }
+
+  /**
+   * ❌ DÉSASSIGNER UNE TÂCHE
+   */
+  async unassignTask(taskId, assignerId) {
+    try {
+      console.log('❌ Désassignation tâche:', taskId);
+
+      const taskRef = doc(db, 'tasks', taskId);
+      
+      // Supprimer les assignations individuelles
+      await this.removeOldAssignments(taskId);
+
+      // Mettre à jour la tâche
+      await updateDoc(taskRef, {
+        assignedTo: [],
+        assignedMembers: [],
+        assignments: [],
+        status: 'draft',
+        assignedAt: null,
+        assignedBy: null,
+        totalMembers: 0,
+        updatedAt: serverTimestamp(),
+        unassignedAt: serverTimestamp(),
+        unassignedBy: assignerId
+      });
+
+      console.log('✅ Tâche désassignée avec succès');
+      return { success: true, taskId };
+
+    } catch (error) {
+      console.error('❌ Erreur désassignation tâche:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📊 OBTENIR LES ASSIGNATIONS D'UN MEMBRE
+   */
+  async getMemberAssignments(memberId, status = null) {
+    try {
+      let assignmentsQuery = query(
+        collection(db, 'taskAssignments'),
+        where('memberId', '==', memberId)
+      );
+
+      if (status) {
+        assignmentsQuery = query(assignmentsQuery, where('status', '==', status));
+      }
+
+      const snapshot = await getDocs(assignmentsQuery);
+      const assignments = [];
+
+      snapshot.forEach(doc => {
+        assignments.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      console.log(`📊 ${assignments.length} assignations trouvées pour ${memberId}`);
+      return assignments;
+
+    } catch (error) {
+      console.error('❌ Erreur récupération assignations membre:', error);
       return [];
     }
   }
 
   /**
-   * 📊 OBTENIR STATISTIQUES D'ASSIGNATION
+   * 📈 OBTENIR LES STATISTIQUES D'ASSIGNATION
    */
-  async getAssignmentStats(userId) {
+  async getAssignmentStats() {
     try {
-      const tasks = await this.getUserAssignedTasks(userId);
-      
-      return {
-        totalAssigned: tasks.length,
-        completed: tasks.filter(t => t.userAssignment?.status === 'submitted').length,
-        pending: tasks.filter(t => t.userAssignment?.status === 'assigned').length,
-        multipleAssignments: tasks.filter(t => t.isMultipleAssignment).length,
-        soloAssignments: tasks.filter(t => !t.isMultipleAssignment).length
+      const assignmentsQuery = query(collection(db, 'taskAssignments'));
+      const snapshot = await getDocs(assignmentsQuery);
+
+      const stats = {
+        total: 0,
+        byStatus: {
+          assigned: 0,
+          in_progress: 0,
+          completed: 0,
+          overdue: 0
+        },
+        byMember: {},
+        averageContribution: 0,
+        totalContribution: 0
       };
-      
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        stats.total++;
+        
+        // Par statut
+        if (stats.byStatus[data.status] !== undefined) {
+          stats.byStatus[data.status]++;
+        }
+
+        // Par membre
+        if (data.memberId) {
+          if (!stats.byMember[data.memberId]) {
+            stats.byMember[data.memberId] = {
+              memberName: data.memberName,
+              count: 0,
+              totalContribution: 0
+            };
+          }
+          stats.byMember[data.memberId].count++;
+          stats.byMember[data.memberId].totalContribution += (data.contribution || 0);
+        }
+
+        // Contribution totale
+        stats.totalContribution += (data.contribution || 0);
+      });
+
+      // Contribution moyenne
+      if (stats.total > 0) {
+        stats.averageContribution = stats.totalContribution / stats.total;
+      }
+
+      console.log('📈 Statistiques assignations calculées:', stats);
+      return stats;
+
     } catch (error) {
-      console.error('❌ Erreur stats assignation:', error);
+      console.error('❌ Erreur calcul statistiques assignations:', error);
       return {
-        totalAssigned: 0,
-        completed: 0,
-        pending: 0,
-        multipleAssignments: 0,
-        soloAssignments: 0
+        total: 0,
+        byStatus: { assigned: 0, in_progress: 0, completed: 0, overdue: 0 },
+        byMember: {},
+        averageContribution: 0,
+        totalContribution: 0
       };
+    }
+  }
+
+  /**
+   * 🔍 RECHERCHER DES ASSIGNATIONS
+   */
+  async searchAssignments(filters = {}) {
+    try {
+      let assignmentsQuery = query(collection(db, 'taskAssignments'));
+
+      // Appliquer les filtres
+      if (filters.memberId) {
+        assignmentsQuery = query(assignmentsQuery, where('memberId', '==', filters.memberId));
+      }
+
+      if (filters.status) {
+        assignmentsQuery = query(assignmentsQuery, where('status', '==', filters.status));
+      }
+
+      if (filters.projectId) {
+        assignmentsQuery = query(assignmentsQuery, where('projectId', '==', filters.projectId));
+      }
+
+      const snapshot = await getDocs(assignmentsQuery);
+      const assignments = [];
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        
+        // Filtres additionnels (qui ne peuvent pas être dans la query Firestore)
+        if (filters.taskTitle && !data.taskTitle?.toLowerCase().includes(filters.taskTitle.toLowerCase())) {
+          return;
+        }
+
+        if (filters.memberName && !data.memberName?.toLowerCase().includes(filters.memberName.toLowerCase())) {
+          return;
+        }
+
+        assignments.push({
+          id: doc.id,
+          ...data
+        });
+      });
+
+      return assignments;
+
+    } catch (error) {
+      console.error('❌ Erreur recherche assignations:', error);
+      return [];
+    }
+  }
+
+  /**
+   * ✅ MARQUER UNE ASSIGNATION COMME TERMINÉE
+   */
+  async completeAssignment(assignmentId, completedBy) {
+    try {
+      const assignmentRef = doc(db, 'taskAssignments', assignmentId);
+      
+      await updateDoc(assignmentRef, {
+        status: 'completed',
+        completedAt: serverTimestamp(),
+        completedBy: completedBy,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ Assignation marquée comme terminée:', assignmentId);
+      return { success: true, assignmentId };
+
+    } catch (error) {
+      console.error('❌ Erreur finalisation assignation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🚀 DÉMARRER UNE ASSIGNATION
+   */
+  async startAssignment(assignmentId, startedBy) {
+    try {
+      const assignmentRef = doc(db, 'taskAssignments', assignmentId);
+      
+      await updateDoc(assignmentRef, {
+        status: 'in_progress',
+        startedAt: serverTimestamp(),
+        startedBy: startedBy,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('🚀 Assignation démarrée:', assignmentId);
+      return { success: true, assignmentId };
+
+    } catch (error) {
+      console.error('❌ Erreur démarrage assignation:', error);
+      throw error;
     }
   }
 }
 
-// Export de l'instance
-export const taskAssignmentService = new TaskAssignmentService();
-export default TaskAssignmentService;
+// Créer et exporter une instance unique
+const taskAssignmentService = new TaskAssignmentService();
+export { taskAssignmentService };
