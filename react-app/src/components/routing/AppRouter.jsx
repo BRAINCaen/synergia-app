@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/routing/AppRouter.jsx
-// ROUTER MIS À JOUR AVEC DASHBOARD MANAGER
+// ROUTER MIS À JOUR AVEC DASHBOARD TUTEUR
 // ==========================================
 
 import React from 'react';
@@ -52,8 +52,8 @@ import AdminSettingsPage from '../../pages/AdminSettingsPage.jsx';
 // 🎁 NOUVELLE PAGE ADMIN RÉCOMPENSES
 import AdminRewardsPage from '../../pages/AdminRewardsPage.jsx';
 
-// 🎛️ NOUVELLE PAGE ADMIN DASHBOARD MANAGER
-import AdminDashboardManagerPage from '../../pages/AdminDashboardManagerPage.jsx';
+// 👨‍🏫 NOUVELLE PAGE ADMIN DASHBOARD TUTEUR
+import AdminDashboardTuteurPage from '../../pages/AdminDashboardTuteurPage.jsx';
 
 // Composant de protection pour les routes admin
 const AdminRoute = ({ children }) => {
@@ -139,8 +139,8 @@ const AppRouter = () => {
           <Layout />
         </AdminRoute>
       }>
-        {/* 🎛️ NOUVELLE ROUTE ADMIN DASHBOARD MANAGER */}
-        <Route path="/admin/dashboard-manager" element={<AdminDashboardManagerPage />} />
+        {/* 👨‍🏫 NOUVELLE ROUTE ADMIN DASHBOARD TUTEUR */}
+        <Route path="/admin/dashboard-tuteur" element={<AdminDashboardTuteurPage />} />
         
         <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
         <Route path="/admin/complete-test" element={<CompleteAdminTestPage />} />
