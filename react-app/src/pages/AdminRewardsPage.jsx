@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminRewardsPage.jsx
-// PAGE D'ADMINISTRATION DES RÉCOMPENSES
+// PAGE ADMIN RÉCOMPENSES SIMPLE ET FONCTIONNELLE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -8,159 +8,129 @@ import { motion } from 'framer-motion';
 import { 
   Shield, 
   Crown, 
-  Star, 
-  Users, 
-  Clock, 
-  Sparkles,
-  CheckCircle,
-  X,
-  Eye,
-  User,
-  Calendar,
-  AlertCircle,
-  TrendingUp,
-  BarChart3,
-  Settings,
-  Filter,
-  Search,
-  RefreshCw,
-  Download,
-  Upload,
-  Plus,
-  Edit,
-  Trash2,
-  MessageSquare,
-  Award,
-  Gift,
-  Target,
+  CheckCircle, 
+  X, 
+  Eye, 
+  User, 
+  Calendar, 
+  AlertCircle, 
+  BarChart3, 
+  RefreshCw, 
+  Gift, 
   Coins,
-  Activity
+  Clock4,
+  MessageSquare
 } from 'lucide-react';
 
 // Stores
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useRewardsStore } from '../shared/stores/rewardsStore.js';
 
 /**
- * 👑 PAGE D'ADMINISTRATION DES RÉCOMPENSES
+ * 👑 PAGE ADMIN RÉCOMPENSES SIMPLE
  */
 const AdminRewardsPage = () => {
   const { user } = useAuthStore();
-  const {
-    pendingRequests,
-    loading,
-    error,
-    loadPendingRequests,
-    approveRequest,
-    rejectRequest,
-    startListeningToPendingRequests,
-    stopListeningToPendingRequests,
-    clearError
-  } = useRewardsStore();
-
+  
   // États locaux
-  const [activeTab, setActiveTab] = useState('pending');
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState('view'); // 'view', 'approve', 'reject'
+  const [modalType, setModalType] = useState('view');
   const [rejectionReason, setRejectionReason] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [refreshing, setRefreshing] = useState(false);
 
-  // Statistiques simulées pour la démo
-  const [adminStats, setAdminStats] = useState({
-    totalRequests: 0,
-    pendingRequests: 0,
-    approvedToday: 0,
-    totalXpDistributed: 0,
-    mostRequestedReward: 'Pizza du midi',
-    activeUsers: 45
+  // Statistiques simulées
+  const [stats] = useState({
+    totalRequests: 24,
+    pendingRequests: 3,
+    approvedToday: 8,
+    totalXpDistributed: 12450
   });
 
-  // Charger les données au montage
+  // Charger les demandes simulées
   useEffect(() => {
-    if (user) {
-      loadPendingRequests();
-      startListeningToPendingRequests();
-      
-      // Simuler des statistiques
-      setAdminStats({
-        totalRequests: 156,
-        pendingRequests: pendingRequests.length,
-        approvedToday: 8,
-        totalXpDistributed: 12450,
-        mostRequestedReward: 'Pizza du midi',
-        activeUsers: 45
-      });
-    }
+    const mockRequests = [
+      {
+        id: '1',
+        userId: 'user1',
+        rewardId: 'pizza_lunch',
+        rewardName: 'Pizza du midi',
+        rewardCost: 380,
+        userName: 'Alice Martin',
+        userEmail: 'alice@synergia.com',
+        userXP: 450,
+        status: 'pending',
+        requestedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // Il y a 2h
+        type: 'individual'
+      },
+      {
+        id: '2',
+        userId: 'user2',
+        rewardId: 'cinema_tickets',
+        rewardName: '2 places de cinéma',
+        rewardCost: 1100,
+        userName: 'Bob Dupont',
+        userEmail: 'bob@synergia.com',
+        userXP: 1200,
+        status: 'pending',
+        requestedAt: new Date(Date.now() - 5 * 60 * 60 * 1000), // Il y a 5h
+        type: 'individual'
+      },
+      {
+        id: '3',
+        userId: 'user3',
+        rewardId: 'snack_personal',
+        rewardName: 'Goûter personnalisé',
+        rewardCost: 50,
+        userName: 'Claire Moreau',
+        userEmail: 'claire@synergia.com',
+        userXP: 75,
+        status: 'pending',
+        requestedAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // Il y a 1 jour
+        type: 'individual'
+      }
+    ];
 
-    return () => {
-      stopListeningToPendingRequests();
-    };
-  }, [user, loadPendingRequests, startListeningToPendingRequests, stopListeningToPendingRequests]);
-
-  // Mettre à jour les stats quand les demandes changent
-  useEffect(() => {
-    setAdminStats(prev => ({
-      ...prev,
-      pendingRequests: pendingRequests.length
-    }));
-  }, [pendingRequests]);
-
-  /**
-   * 🔄 RAFRAÎCHIR LES DONNÉES
-   */
-  const handleRefresh = async () => {
-    try {
-      setRefreshing(true);
-      await loadPendingRequests();
-    } catch (error) {
-      console.error('❌ Erreur rafraîchissement:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
+    setRequests(mockRequests);
+    setLoading(false);
+  }, []);
 
   /**
    * ✅ APPROUVER UNE DEMANDE
    */
-  const handleApprove = async (request) => {
-    try {
-      const userCurrentXP = request.userData?.gamification?.totalXp || 0;
-      await approveRequest(request.id, user.uid, userCurrentXP);
-      setShowModal(false);
-      setSelectedRequest(null);
-      alert('✅ Demande approuvée avec succès !');
-    } catch (error) {
-      console.error('❌ Erreur approbation:', error);
-      alert('❌ Erreur lors de l\'approbation : ' + error.message);
-    }
+  const handleApprove = (request) => {
+    console.log('✅ Approbation de la demande:', request.id);
+    
+    // Retirer de la liste
+    setRequests(prev => prev.filter(r => r.id !== request.id));
+    setShowModal(false);
+    setSelectedRequest(null);
+    
+    alert(`✅ Demande approuvée !\n\n"${request.rewardName}" pour ${request.userName}\n${request.rewardCost} XP déduits.`);
   };
 
   /**
    * ❌ REJETER UNE DEMANDE
    */
-  const handleReject = async (request) => {
+  const handleReject = (request) => {
     if (!rejectionReason.trim()) {
       alert('⚠️ Veuillez indiquer une raison pour le rejet');
       return;
     }
 
-    try {
-      await rejectRequest(request.id, user.uid, rejectionReason);
-      setShowModal(false);
-      setSelectedRequest(null);
-      setRejectionReason('');
-      alert('❌ Demande rejetée avec succès');
-    } catch (error) {
-      console.error('❌ Erreur rejet:', error);
-      alert('❌ Erreur lors du rejet : ' + error.message);
-    }
+    console.log('❌ Rejet de la demande:', request.id, 'Raison:', rejectionReason);
+    
+    // Retirer de la liste
+    setRequests(prev => prev.filter(r => r.id !== request.id));
+    setShowModal(false);
+    setSelectedRequest(null);
+    setRejectionReason('');
+    
+    alert(`❌ Demande rejetée.\n\nRaison: ${rejectionReason}`);
   };
 
   /**
-   * 👁️ OUVRIR LE MODAL DE DÉTAIL
+   * 👁️ OUVRIR LE MODAL
    */
   const openModal = (request, type = 'view') => {
     setSelectedRequest(request);
@@ -169,74 +139,37 @@ const AdminRewardsPage = () => {
   };
 
   /**
-   * 🎁 OBTENIR LES DÉTAILS D'UNE RÉCOMPENSE
+   * 📊 FORMATER UNE DATE
    */
-  const getRewardDetails = (rewardId) => {
-    // Simuler la récupération des détails de récompense
-    const rewardMap = {
-      'snack_personal': { name: 'Goûter personnalisé', xpCost: 50, category: 'Mini-plaisirs' },
-      'pizza_lunch': { name: 'Pizza du midi', xpCost: 380, category: 'Plaisirs utiles' },
-      'cinema_tickets': { name: '2 places de cinéma', xpCost: 1100, category: 'Loisirs & sorties' },
-      'streaming_subscription': { name: 'Abonnement streaming', xpCost: 1600, category: 'Lifestyle & bonus' }
-    };
-    
-    return rewardMap[rewardId] || { name: rewardId, xpCost: '???', category: 'Inconnue' };
+  const formatDate = (date) => {
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   /**
-   * 📊 FORMATER UNE DATE
+   * ⏰ TEMPS RELATIF
    */
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'Date inconnue';
+  const getRelativeTime = (date) => {
+    const now = new Date();
+    const diff = now - date;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
     
-    try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return date.toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch (error) {
-      return 'Date invalide';
-    }
+    if (hours < 1) return 'Il y a moins d\'1h';
+    if (hours < 24) return `Il y a ${hours}h`;
+    return `Il y a ${Math.floor(hours / 24)} jour(s)`;
   };
 
-  // Filtrer les demandes
-  const filteredRequests = pendingRequests.filter(request => {
-    const matchSearch = !searchTerm || 
-      request.userData?.profile?.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.rewardId.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchStatus = statusFilter === 'all' || request.status === statusFilter;
-    
-    return matchSearch && matchStatus;
-  });
-
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
-  };
-
-  if (loading && pendingRequests.length === 0) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-white">Chargement de l'administration...</h2>
-          <p className="text-gray-400 mt-2">Synchronisation avec Firebase</p>
+          <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-white">Chargement administration...</h2>
         </div>
       </div>
     );
@@ -246,7 +179,7 @@ const AdminRewardsPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* En-tête administrateur */}
+        {/* En-tête admin */}
         <motion.div 
           className="mb-8"
           initial={{ opacity: 0, y: -20 }}
@@ -259,159 +192,60 @@ const AdminRewardsPage = () => {
                 Administration des Récompenses
               </h1>
               <p className="text-gray-400 text-lg mt-2">
-                Gérer les demandes de récompenses et les validations
+                Gérer les demandes et validations
               </p>
             </div>
             
             <div className="flex items-center space-x-3">
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+              <a
+                href="/rewards"
+                className="flex items-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
               >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                <span>Actualiser</span>
-              </button>
-              
-              <button className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors">
-                <Download className="w-4 h-4" />
-                <span>Export</span>
-              </button>
+                <Gift className="w-4 h-4" />
+                <span>Page utilisateur</span>
+              </a>
             </div>
           </div>
 
-          {/* Statistiques administrateur */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-            {/* Demandes en attente */}
-            <motion.div 
-              className="bg-yellow-600/20 border border-yellow-500/50 rounded-xl p-4"
-              variants={itemVariants}
-            >
+          {/* Statistiques */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-yellow-600/20 border border-yellow-500/50 rounded-xl p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-yellow-400 text-sm font-medium">En attente</p>
-                  <p className="text-2xl font-bold text-yellow-300">{adminStats.pendingRequests}</p>
+                  <p className="text-2xl font-bold text-yellow-300">{requests.length}</p>
                 </div>
-                <Clock className="w-6 h-6 text-yellow-400" />
+                <Clock4 className="w-6 h-6 text-yellow-400" />
               </div>
-            </motion.div>
+            </div>
 
-            {/* Total demandes */}
-            <motion.div 
-              className="bg-blue-600/20 border border-blue-500/50 rounded-xl p-4"
-              variants={itemVariants}
-            >
+            <div className="bg-blue-600/20 border border-blue-500/50 rounded-xl p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-400 text-sm font-medium">Total demandes</p>
-                  <p className="text-2xl font-bold text-blue-300">{adminStats.totalRequests}</p>
+                  <p className="text-2xl font-bold text-blue-300">{stats.totalRequests}</p>
                 </div>
                 <BarChart3 className="w-6 h-6 text-blue-400" />
               </div>
-            </motion.div>
+            </div>
 
-            {/* Approuvées aujourd'hui */}
-            <motion.div 
-              className="bg-green-600/20 border border-green-500/50 rounded-xl p-4"
-              variants={itemVariants}
-            >
+            <div className="bg-green-600/20 border border-green-500/50 rounded-xl p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-green-400 text-sm font-medium">Approuvées aujourd'hui</p>
-                  <p className="text-2xl font-bold text-green-300">{adminStats.approvedToday}</p>
+                  <p className="text-2xl font-bold text-green-300">{stats.approvedToday}</p>
                 </div>
                 <CheckCircle className="w-6 h-6 text-green-400" />
               </div>
-            </motion.div>
+            </div>
 
-            {/* XP distribués */}
-            <motion.div 
-              className="bg-purple-600/20 border border-purple-500/50 rounded-xl p-4"
-              variants={itemVariants}
-            >
+            <div className="bg-purple-600/20 border border-purple-500/50 rounded-xl p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-400 text-sm font-medium">XP distribués</p>
-                  <p className="text-2xl font-bold text-purple-300">{adminStats.totalXpDistributed.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-purple-300">{stats.totalXpDistributed.toLocaleString()}</p>
                 </div>
                 <Coins className="w-6 h-6 text-purple-400" />
-              </div>
-            </motion.div>
-
-            {/* Utilisateurs actifs */}
-            <motion.div 
-              className="bg-orange-600/20 border border-orange-500/50 rounded-xl p-4"
-              variants={itemVariants}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-400 text-sm font-medium">Utilisateurs actifs</p>
-                  <p className="text-2xl font-bold text-orange-300">{adminStats.activeUsers}</p>
-                </div>
-                <Users className="w-6 h-6 text-orange-400" />
-              </div>
-            </motion.div>
-
-            {/* Plus demandée */}
-            <motion.div 
-              className="bg-pink-600/20 border border-pink-500/50 rounded-xl p-4"
-              variants={itemVariants}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-pink-400 text-sm font-medium">Plus demandée</p>
-                  <p className="text-sm font-bold text-pink-300">{adminStats.mostRequestedReward}</p>
-                </div>
-                <Trophy className="w-6 h-6 text-pink-400" />
-              </div>
-            </motion.div>
-          </div>
-        </motion.div>
-
-        {/* Filtres et recherche */}
-        <motion.div 
-          className="mb-6"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-              {/* Barre de recherche */}
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher par utilisateur ou récompense..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="all">Tous les statuts</option>
-                  <option value="pending">En attente</option>
-                  <option value="approved">Approuvées</option>
-                  <option value="rejected">Rejetées</option>
-                </select>
-              </div>
-
-              {/* Actions rapides */}
-              <div className="flex items-center space-x-2">
-                <button className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg transition-colors">
-                  <Filter className="w-4 h-4" />
-                  <span>Filtres</span>
-                </button>
-                <button className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg transition-colors">
-                  <Settings className="w-4 h-4" />
-                  <span>Paramètres</span>
-                </button>
               </div>
             </div>
           </div>
@@ -419,41 +253,31 @@ const AdminRewardsPage = () => {
 
         {/* Liste des demandes */}
         <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
         >
-          {filteredRequests.length === 0 ? (
-            <motion.div 
-              className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8 text-center"
-              variants={itemVariants}
-            >
-              <Gift className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">
-                {pendingRequests.length === 0 ? 'Aucune demande en attente' : 'Aucun résultat trouvé'}
-              </h3>
-              <p className="text-gray-400">
-                {pendingRequests.length === 0 
-                  ? 'Toutes les demandes ont été traitées ! 🎉' 
-                  : 'Essayez de modifier vos critères de recherche.'
-                }
-              </p>
-            </motion.div>
+          {requests.length === 0 ? (
+            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8 text-center">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">Aucune demande en attente</h3>
+              <p className="text-gray-400">Toutes les demandes ont été traitées ! 🎉</p>
+            </div>
           ) : (
             <div className="space-y-4">
-              {filteredRequests.map((request, index) => {
-                const rewardDetails = getRewardDetails(request.rewardId);
-                const userName = request.userData?.profile?.displayName || 
-                                request.userData?.email?.split('@')[0] || 
-                                'Utilisateur inconnu';
-                const userXP = request.userData?.gamification?.totalXp || 0;
-                const canAfford = userXP >= rewardDetails.xpCost;
+              <h2 className="text-xl font-bold text-white mb-4">
+                Demandes en attente ({requests.length})
+              </h2>
+              
+              {requests.map((request) => {
+                const canAfford = request.userXP >= request.rewardCost;
 
                 return (
                   <motion.div
                     key={request.id}
                     className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:border-purple-500/50 transition-colors"
-                    variants={itemVariants}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-start space-x-4">
@@ -463,36 +287,33 @@ const AdminRewardsPage = () => {
                         
                         <div className="flex-1">
                           <div className="flex items-center space-x-3 mb-2">
-                            <h4 className="font-semibold text-white text-lg">{rewardDetails.name}</h4>
+                            <h4 className="font-semibold text-white text-lg">{request.rewardName}</h4>
                             <span className={`px-2 py-1 rounded text-xs font-bold ${
                               canAfford ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
                             }`}>
-                              {rewardDetails.xpCost} XP
-                            </span>
-                            <span className="px-2 py-1 bg-gray-600 text-gray-200 rounded text-xs">
-                              {rewardDetails.category}
+                              {request.rewardCost} XP
                             </span>
                           </div>
                           
                           <div className="flex items-center space-x-4 text-sm text-gray-400">
                             <div className="flex items-center space-x-1">
                               <User className="w-4 h-4" />
-                              <span>{userName}</span>
+                              <span>{request.userName}</span>
                             </div>
                             <div className="flex items-center space-x-1">
                               <Calendar className="w-4 h-4" />
-                              <span>{formatDate(request.requestedAt)}</span>
+                              <span>{getRelativeTime(request.requestedAt)}</span>
                             </div>
                             <div className="flex items-center space-x-1">
                               <Coins className="w-4 h-4" />
-                              <span>{userXP} XP disponibles</span>
+                              <span>{request.userXP} XP disponibles</span>
                             </div>
                           </div>
 
                           {!canAfford && (
                             <div className="mt-2 flex items-center space-x-2 text-red-400 text-sm">
                               <AlertCircle className="w-4 h-4" />
-                              <span>⚠️ Utilisateur n'a pas assez d'XP ({userXP}/{rewardDetails.xpCost})</span>
+                              <span>⚠️ Utilisateur n'a pas assez d'XP ({request.userXP}/{request.rewardCost})</span>
                             </div>
                           )}
                         </div>
@@ -532,19 +353,13 @@ const AdminRewardsPage = () => {
           )}
         </motion.div>
 
-        {/* Modal de détail/action */}
+        {/* Modal d'action */}
         {showModal && selectedRequest && (
-          <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <motion.div
-              className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-2xl w-full"
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
             >
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-white">
@@ -568,27 +383,19 @@ const AdminRewardsPage = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-gray-400">Nom:</span>
-                      <span className="text-white ml-2">
-                        {selectedRequest.userData?.profile?.displayName || 'Non renseigné'}
-                      </span>
+                      <span className="text-white ml-2">{selectedRequest.userName}</span>
                     </div>
                     <div>
                       <span className="text-gray-400">Email:</span>
-                      <span className="text-white ml-2">
-                        {selectedRequest.userData?.email || 'Non renseigné'}
-                      </span>
+                      <span className="text-white ml-2">{selectedRequest.userEmail}</span>
                     </div>
                     <div>
                       <span className="text-gray-400">XP actuels:</span>
-                      <span className="text-blue-400 ml-2 font-bold">
-                        {selectedRequest.userData?.gamification?.totalXp || 0} XP
-                      </span>
+                      <span className="text-blue-400 ml-2 font-bold">{selectedRequest.userXP} XP</span>
                     </div>
                     <div>
-                      <span className="text-gray-400">Niveau:</span>
-                      <span className="text-purple-400 ml-2 font-bold">
-                        {selectedRequest.userData?.gamification?.level || 1}
-                      </span>
+                      <span className="text-gray-400">Demandée le:</span>
+                      <span className="text-white ml-2">{formatDate(selectedRequest.requestedAt)}</span>
                     </div>
                   </div>
                 </div>
@@ -599,21 +406,15 @@ const AdminRewardsPage = () => {
                   <div className="space-y-2 text-sm">
                     <div>
                       <span className="text-gray-400">Nom:</span>
-                      <span className="text-white ml-2">{getRewardDetails(selectedRequest.rewardId).name}</span>
+                      <span className="text-white ml-2">{selectedRequest.rewardName}</span>
                     </div>
                     <div>
                       <span className="text-gray-400">Coût:</span>
-                      <span className="text-yellow-400 ml-2 font-bold">
-                        {getRewardDetails(selectedRequest.rewardId).xpCost} XP
-                      </span>
+                      <span className="text-yellow-400 ml-2 font-bold">{selectedRequest.rewardCost} XP</span>
                     </div>
                     <div>
-                      <span className="text-gray-400">Catégorie:</span>
-                      <span className="text-white ml-2">{getRewardDetails(selectedRequest.rewardId).category}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Demandée le:</span>
-                      <span className="text-white ml-2">{formatDate(selectedRequest.requestedAt)}</span>
+                      <span className="text-gray-400">Type:</span>
+                      <span className="text-white ml-2">{selectedRequest.type === 'individual' ? 'Individuelle' : 'Équipe'}</span>
                     </div>
                   </div>
                 </div>
@@ -623,7 +424,7 @@ const AdminRewardsPage = () => {
                   <h4 className="font-semibold text-white mb-3">Vérifications</h4>
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
-                      {(selectedRequest.userData?.gamification?.totalXp || 0) >= getRewardDetails(selectedRequest.rewardId).xpCost ? (
+                      {selectedRequest.userXP >= selectedRequest.rewardCost ? (
                         <CheckCircle className="w-5 h-5 text-green-400" />
                       ) : (
                         <X className="w-5 h-5 text-red-400" />
@@ -641,7 +442,7 @@ const AdminRewardsPage = () => {
                   </div>
                 </div>
 
-                {/* Actions selon le type de modal */}
+                {/* Zone de rejet */}
                 {modalType === 'reject' && (
                   <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4">
                     <h4 className="font-semibold text-red-400 mb-3">Raison du rejet</h4>
@@ -666,8 +467,8 @@ const AdminRewardsPage = () => {
                   {modalType === 'approve' && (
                     <button
                       onClick={() => handleApprove(selectedRequest)}
-                      disabled={(selectedRequest.userData?.gamification?.totalXp || 0) < getRewardDetails(selectedRequest.rewardId).xpCost}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                      disabled={selectedRequest.userXP < selectedRequest.rewardCost}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center space-x-2"
                     >
                       <CheckCircle className="w-4 h-4" />
                       <span>Approuver</span>
@@ -686,28 +487,7 @@ const AdminRewardsPage = () => {
                 </div>
               </div>
             </motion.div>
-          </motion.div>
-        )}
-
-        {/* Message d'erreur */}
-        {error && (
-          <motion.div
-            className="fixed bottom-4 right-4 bg-red-600 text-white p-4 rounded-lg shadow-lg max-w-sm"
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 100 }}
-          >
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="w-5 h-5" />
-              <span>{error}</span>
-              <button
-                onClick={clearError}
-                className="ml-2 text-red-200 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </motion.div>
+          </div>
         )}
       </div>
     </div>
