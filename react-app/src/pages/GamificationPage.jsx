@@ -20,7 +20,7 @@ import {
   Calendar,
   BarChart3
 } from 'lucide-react';
-import SimpleLayout from '../layouts/SimpleLayout.jsx';
+import PremiumLayout from '../shared/layouts/PremiumLayout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useGamificationStore } from '../shared/stores/gamificationStore.js';
 import gamificationService from '../core/services/gamificationService.js';
@@ -195,7 +195,13 @@ const GamificationPage = () => {
   };
 
   return (
-    <SimpleLayout>
+    <PremiumLayout
+      title="🏆 Gamification"
+      subtitle="Suivez votre progression et débloquez des récompenses"
+      icon={Trophy}
+      showStats={true}
+      stats={statCards}
+    >
       <div className="space-y-8">
         {/* En-tête avec titre et statistiques rapides */}
         <motion.div
@@ -229,7 +235,7 @@ const GamificationPage = () => {
                   <p className={`text-2xl font-bold ${stat.color}`}>
                     {stat.value}
                   </p>
-                </div>
+                </PremiumLayout>
                 <stat.icon className={`w-8 h-8 ${stat.iconColor}`} />
               </div>
             </div>
@@ -481,8 +487,7 @@ const GamificationPage = () => {
             </div>
           )}
         </motion.div>
-      </div>
-    </SimpleLayout>
+      </PremiumLayout>
   );
 };
 
