@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/routing/AppRouter.jsx
-// ROUTER MIS À JOUR AVEC PAGE ADMIN RÉCOMPENSES
+// ROUTER MIS À JOUR AVEC DASHBOARD ADMIN MANAGER
 // ==========================================
 
 import React from 'react';
@@ -52,40 +52,12 @@ import AdminSettingsPage from '../../pages/AdminSettingsPage.jsx';
 // 🎁 NOUVELLE PAGE ADMIN RÉCOMPENSES
 import AdminRewardsPage from '../../pages/AdminRewardsPage.jsx';
 
-// Composant de protection des routes
-const ProtectedRoute = ({ children }) => {
-  const { user, isLoading } = useAuthStore();
-  
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white"></div>
-      </div>
-    );
-  }
-  
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return children;
-};
+// 📊 NOUVELLE PAGE DASHBOARD ADMIN MANAGER
+import AdminDashboardManager from '../../pages/AdminDashboardManager.jsx';
 
-// Composant de protection des routes admin
+// Composant de protection admin
 const AdminRoute = ({ children }) => {
-  const { user, isLoading } = useAuthStore();
-  
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white"></div>
-      </div>
-    );
-  }
-  
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
+  const { user } = useAuthStore();
   
   if (!isAdmin(user)) {
     return <Navigate to="/dashboard" replace />;
@@ -96,34 +68,34 @@ const AdminRoute = ({ children }) => {
 
 const AppRouter = () => {
   const { user } = useAuthStore();
+  
+  // Si pas connecté, rediriger vers login
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
 
   return (
     <Routes>
-      {/* Route de connexion */}
-      <Route 
-        path="/login" 
-        element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
-      />
-      
-      {/* Routes protégées */}
-      <Route element={
-        <ProtectedRoute>
-          <Layout />
-        </ProtectedRoute>
-      }>
+      {/* Routes protégées avec Layout */}
+      <Route element={<Layout />}>
         {/* Pages principales */}
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         
-        {/* Gamification */}
+        {/* Gamification RECONNECTÉES */}
         <Route path="/gamification" element={<GamificationPage />} />
         <Route path="/badges" element={<BadgesPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/rewards" element={<RewardsPage />} />
         
-        {/* 🎯 ROUTES DE PROGRESSION DE RÔLE */}
+        {/* 🎯 ROUTES PROGRESSION AJOUTÉES */}
         <Route path="/role/progression" element={<RoleProgressionPage />} />
         <Route path="/role/tasks" element={<RoleTasksPage />} />
         <Route path="/role/badges" element={<RoleBadgesPage />} />
@@ -150,6 +122,9 @@ const AppRouter = () => {
           <Layout />
         </AdminRoute>
       }>
+        {/* 📊 NOUVELLE ROUTE DASHBOARD ADMIN MANAGER */}
+        <Route path="/admin/dashboard-manager" element={<AdminDashboardManager />} />
+        
         <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
         <Route path="/admin/complete-test" element={<CompleteAdminTestPage />} />
         
