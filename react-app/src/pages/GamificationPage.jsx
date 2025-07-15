@@ -22,33 +22,39 @@ import {
 } from 'lucide-react';
 import PremiumLayout from '../shared/layouts/PremiumLayout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useGamificationStore } from '../shared/stores/gamificationStore.js';
-import gamificationService from '../core/services/gamificationService.js';
+import { useGameStore } from '../shared/stores/gameStore.js';
 
 const GamificationPage = () => {
   const { user } = useAuthStore();
-  const { userStats, loadUserStats } = useGamificationStore();
+  const { userStats, addXP, initializeGameStore } = useGameStore();
   const [activeTab, setActiveTab] = useState('overview');
   const [isClaimingReward, setIsClaimingReward] = useState(false);
   const [claimedGoals, setClaimedGoals] = useState(new Set());
 
   useEffect(() => {
     if (user?.uid) {
-      loadUserStats(user.uid);
+      initializeGameStore(user.uid);
     }
-  }, [user, loadUserStats]);
+  }, [user, initializeGameStore]);
 
   // Données statistiques par défaut si pas encore chargées
   const defaultStats = {
-    totalXP: 0,
+    totalXp: 0,
     level: 1,
-    badgesEarned: 0,
+    badges: [],
     tasksCompleted: 0,
-    streakDays: 0,
+    loginStreak: 0,
     nextLevelXP: 100
   };
 
-  const finalStats = { ...defaultStats, ...userStats };
+  const finalStats = userStats ? {
+    totalXP: userStats.totalXp || 0,
+    level: userStats.level || 1,
+    badgesEarned: userStats.badges?.length || 0,
+    tasksCompleted: userStats.tasksCompleted || 0,
+    streakDays: userStats.loginStreak || 0,
+    nextLevelXP: 100
+  } : defaultStats;
 
   // Cartes de statistiques
   const statCards = [
@@ -165,26 +171,21 @@ const GamificationPage = () => {
     try {
       console.log('🎁 Réclamation récompense pour objectif:', goal.title);
 
-      // Simuler l'attribution de l'XP via le service gamification
-      await gamificationService.addXP(
-        user.uid,
-        goal.xpReward,
-        `Objectif complété: ${goal.title}`
-      );
-
-      // Marquer comme réclamé
-      setClaimedGoals(prev => new Set(prev).add(goal.id));
-
-      // Notification de succès
-      console.log(`✅ Récompense réclamée: +${goal.xpReward} XP`);
+      // Utiliser addXP du gameStore directement
+      const result = await addXP(goal.xpReward, `Objectif complété: ${goal.title}`);
       
-      // Notification visuelle (peut être remplacée par un toast plus tard)
-      alert(`🎉 Félicitations!\n+${goal.xpReward} XP réclamés pour "${goal.title}"`);
+      if (result.success) {
+        // Marquer comme réclamé
+        setClaimedGoals(prev => new Set(prev).add(goal.id));
 
-      // Recharger les stats après réclamation
-      setTimeout(() => {
-        loadUserStats(user.uid);
-      }, 1000);
+        // Notification de succès
+        console.log(`✅ Récompense réclamée: +${goal.xpReward} XP`);
+        
+        // Notification visuelle (peut être remplacée par un toast plus tard)
+        alert(`🎉 Félicitations!\n+${goal.xpReward} XP réclamés pour "${goal.title}"`);
+      } else {
+        throw new Error(result.error || 'Erreur inconnue');
+      }
 
     } catch (error) {
       console.error('❌ Erreur réclamation récompense:', error);
