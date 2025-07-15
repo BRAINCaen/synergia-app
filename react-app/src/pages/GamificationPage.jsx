@@ -1,100 +1,81 @@
 // ==========================================
 // 📁 react-app/src/pages/GamificationPage.jsx
-// GAMIFICATION PAGE CORRIGÉE - BASÉE SUR L'ARCHITECTURE EXISTANTE
+// PAGE GAMIFICATION AVEC BOUTON RÉCLAMÉE FONCTIONNEL
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Trophy, 
-  Star, 
-  Award, 
-  Flame, 
-  Crown, 
-  Target, 
-  Zap,
+import {
+  Trophy,
+  Star,
+  Award,
+  Flame,
   TrendingUp,
-  Calendar,
-  Clock,
-  Users,
+  Target,
+  Activity,
   CheckCircle,
-  ArrowRight,
   Gift,
-  Sparkles,
-  Medal,
-  Activity
+  Crown,
+  Zap,
+  Calendar,
+  BarChart3
 } from 'lucide-react';
-
-// Layout minimal inline pour éviter les imports problématiques
-const SimpleLayout = ({ children }) => (
-  <div className="min-h-screen bg-gray-900">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {children}
-    </div>
-  </div>
-);
-
-// Stores existants seulement
+import SimpleLayout from '../layouts/SimpleLayout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
+import { useGamificationStore } from '../shared/stores/gamificationStore.js';
+import gamificationService from '../core/services/gamificationService.js';
 
-/**
- * 🎮 PAGE GAMIFICATION CORRIGÉE SANS DÉPENDANCES MANQUANTES
- */
 const GamificationPage = () => {
   const { user } = useAuthStore();
-  
-  // États locaux
+  const { userStats, loadUserStats } = useGamificationStore();
   const [activeTab, setActiveTab] = useState('overview');
-  const [userStats, setUserStats] = useState({
-    level: 1,
-    totalXP: 0,
-    badgesEarned: 0,
-    streakDays: 0,
-    completedTasks: 0,
-    weeklyProgress: 0
-  });
+  const [isClaimingReward, setIsClaimingReward] = useState(false);
+  const [claimedGoals, setClaimedGoals] = useState(new Set());
 
-  // Simulation des données utilisateur (remplace les données manquantes)
   useEffect(() => {
-    if (user) {
-      // Simuler des statistiques basées sur l'utilisateur connecté
-      setUserStats({
-        level: 3,
-        totalXP: 285,
-        badgesEarned: 8,
-        streakDays: 7,
-        completedTasks: 23,
-        weeklyProgress: 85
-      });
+    if (user?.uid) {
+      loadUserStats(user.uid);
     }
-  }, [user]);
+  }, [user, loadUserStats]);
 
-  // Statistiques en en-tête
-  const headerStats = [
+  // Données statistiques par défaut si pas encore chargées
+  const defaultStats = {
+    totalXP: 0,
+    level: 1,
+    badgesEarned: 0,
+    tasksCompleted: 0,
+    streakDays: 0,
+    nextLevelXP: 100
+  };
+
+  const finalStats = { ...defaultStats, ...userStats };
+
+  // Cartes de statistiques
+  const statCards = [
     {
-      label: "Niveau",
-      value: userStats.level,
-      icon: Crown,
+      label: "XP Total",
+      value: finalStats.totalXP,
+      icon: Star,
       color: "text-yellow-400",
       iconColor: "text-yellow-400"
     },
     {
-      label: "XP Total",
-      value: userStats.totalXP,
-      icon: Star,
+      label: "Niveau",
+      value: finalStats.level,
+      icon: Crown,
       color: "text-blue-400",
       iconColor: "text-blue-400"
     },
     {
-      label: "Badges gagnés",
-      value: userStats.badgesEarned,
+      label: "Badges",
+      value: finalStats.badgesEarned,
       icon: Award,
       color: "text-purple-400",
       iconColor: "text-purple-400"
     },
     {
       label: "Série actuelle",
-      value: `${userStats.streakDays}j`,
+      value: `${finalStats.streakDays}j`,
       icon: Flame,
       color: "text-red-400",
       iconColor: "text-red-400"
@@ -145,6 +126,7 @@ const GamificationPage = () => {
       description: 'Terminez au moins 3 tâches avant la fin de la journée',
       progress: 67,
       reward: '60 XP + Badge Productif',
+      xpReward: 60,
       status: 'active',
       icon: CheckCircle
     },
@@ -154,6 +136,7 @@ const GamificationPage = () => {
       description: 'Accumulez au moins 100 points d\'expérience',
       progress: 85,
       reward: '200 XP + Badge Hebdomadaire',
+      xpReward: 200,
       status: 'active',
       icon: Star
     },
@@ -163,117 +146,112 @@ const GamificationPage = () => {
       description: 'Complétez au moins une tâche chaque jour pendant 7 jours',
       progress: 100,
       reward: '300 XP + Badge Consistance',
+      xpReward: 300,
       status: 'completed',
       icon: Flame
     }
   ];
 
-  // Actions rapides vers d'autres pages
-  const quickActions = [
-    {
-      title: 'Mes Badges',
-      description: `${userStats.badgesEarned} débloqués`,
-      href: '/badges',
-      icon: Award,
-      gradient: 'from-purple-600/20 to-pink-600/20',
-      border: 'border-purple-500/30'
-    },
-    {
-      title: 'Classement',
-      description: 'Position #2',
-      href: '/leaderboard',
-      icon: Trophy,
-      gradient: 'from-yellow-600/20 to-orange-600/20',
-      border: 'border-yellow-500/30'
-    },
-    {
-      title: 'Récompenses',
-      description: '3 disponibles',
-      href: '/rewards',
-      icon: Gift,
-      gradient: 'from-green-600/20 to-blue-600/20',
-      border: 'border-green-500/30'
+  /**
+   * 🎁 GESTIONNAIRE DE RÉCLAMATION DE RÉCOMPENSE
+   */
+  const handleClaimReward = async (goal) => {
+    if (goal.status !== 'completed' || claimedGoals.has(goal.id) || isClaimingReward) {
+      return;
     }
-  ];
+
+    setIsClaimingReward(true);
+
+    try {
+      console.log('🎁 Réclamation récompense pour objectif:', goal.title);
+
+      // Simuler l'attribution de l'XP via le service gamification
+      await gamificationService.addXP(
+        user.uid,
+        goal.xpReward,
+        `Objectif complété: ${goal.title}`
+      );
+
+      // Marquer comme réclamé
+      setClaimedGoals(prev => new Set(prev).add(goal.id));
+
+      // Notification de succès
+      console.log(`✅ Récompense réclamée: +${goal.xpReward} XP`);
+      
+      // Notification visuelle (peut être remplacée par un toast plus tard)
+      alert(`🎉 Félicitations!\n+${goal.xpReward} XP réclamés pour "${goal.title}"`);
+
+      // Recharger les stats après réclamation
+      setTimeout(() => {
+        loadUserStats(user.uid);
+      }, 1000);
+
+    } catch (error) {
+      console.error('❌ Erreur réclamation récompense:', error);
+      alert('❌ Erreur lors de la réclamation. Veuillez réessayer.');
+    } finally {
+      setIsClaimingReward(false);
+    }
+  };
 
   return (
     <SimpleLayout>
       <div className="space-y-8">
-        {/* En-tête avec gradient */}
+        {/* En-tête avec titre et statistiques rapides */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center"
+        >
+          <h1 className="text-4xl font-bold text-white mb-2">
+            🏆 Gamification
+          </h1>
+          <p className="text-gray-400">
+            Suivez votre progression et débloquez des récompenses
+          </p>
+        </motion.div>
+
+        {/* Cartes de statistiques */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="relative bg-gradient-to-br from-purple-600/20 via-blue-600/20 to-purple-800/20 rounded-2xl p-8 border border-purple-500/30 overflow-hidden"
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
         >
-          {/* Effets de fond */}
-          <div className="absolute inset-0 opacity-30">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-blue-500/10"></div>
-            <div className="absolute inset-0" style={{
-              backgroundImage: `url("data:image/svg+xml,${encodeURIComponent('<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><g fill="#9C92AC" fill-opacity="0.1"><circle cx="30" cy="30" r="2"/></g></g></svg>')}")`,
-              backgroundSize: '60px 60px'
-            }}></div>
-          </div>
-          
-          <div className="relative z-10">
-            {/* Titre */}
-            <div className="flex items-center mb-8">
-              <div className="bg-gradient-to-r from-purple-500 to-blue-500 p-3 rounded-2xl mr-4">
-                <Trophy className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  Gamification
-                </h1>
-                <p className="text-gray-400 mt-2 text-lg">
-                  Suivez votre progression et atteignez vos objectifs
-                </p>
+          {statCards.map((stat, index) => (
+            <div
+              key={stat.label}
+              className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all duration-300"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">{stat.label}</p>
+                  <p className={`text-2xl font-bold ${stat.color}`}>
+                    {stat.value}
+                  </p>
+                </div>
+                <stat.icon className={`w-8 h-8 ${stat.iconColor}`} />
               </div>
             </div>
-
-            {/* Statistiques */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {headerStats.map((stat, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className={`text-2xl font-bold ${stat.color}`}>
-                        {stat.value}
-                      </div>
-                      <div className="text-gray-400 text-sm">{stat.label}</div>
-                    </div>
-                    <stat.icon className={`w-6 h-6 ${stat.iconColor}`} />
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
+          ))}
         </motion.div>
-        
-        {/* Navigation des onglets */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 mb-8">
-          <div className="flex space-x-1 bg-gray-800/50 rounded-lg p-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-md font-medium transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                }`}
-              >
-                <tab.icon size={18} />
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </div>
+
+        {/* Navigation par onglets */}
+        <div className="flex flex-wrap gap-2 bg-gray-800/30 p-2 rounded-xl border border-gray-700">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              <span>{tab.label}</span>
+            </button>
+          ))}
         </div>
 
         {/* Contenu des onglets */}
@@ -286,34 +264,32 @@ const GamificationPage = () => {
           {/* ONGLET VUE D'ENSEMBLE */}
           {activeTab === 'overview' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              
-              {/* Progression du niveau */}
+              {/* Progression niveau */}
               <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-white">Progression du niveau</h3>
                   <Crown className="w-6 h-6 text-yellow-400" />
                 </div>
                 
-                <div className="text-center mb-6">
-                  <div className="text-4xl font-bold text-yellow-400 mb-2">
-                    Niveau {userStats.level}
-                  </div>
-                  <div className="text-gray-400">
-                    {userStats.totalXP} / {userStats.level * 100} XP
-                  </div>
-                </div>
-                
                 <div className="space-y-4">
-                  <div className="bg-gray-700 rounded-full h-3 overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold text-white">Niveau {finalStats.level}</span>
+                    <span className="text-blue-400">
+                      {finalStats.totalXP} / {finalStats.nextLevelXP} XP
+                    </span>
+                  </div>
+                  
+                  <div className="bg-gray-700 rounded-full h-4">
                     <div 
-                      className="bg-gradient-to-r from-yellow-400 to-orange-500 h-full transition-all duration-1000"
+                      className="bg-gradient-to-r from-blue-500 to-purple-600 h-4 rounded-full transition-all duration-1000"
                       style={{ 
-                        width: `${((userStats.totalXP % 100) / 100) * 100}%` 
+                        width: `${Math.min((finalStats.totalXP / finalStats.nextLevelXP) * 100, 100)}%` 
                       }}
                     />
                   </div>
+                  
                   <div className="text-center text-sm text-gray-400">
-                    {100 - (userStats.totalXP % 100)} XP pour le niveau suivant
+                    {finalStats.nextLevelXP - finalStats.totalXP} XP pour le niveau suivant
                   </div>
                 </div>
               </div>
@@ -354,83 +330,13 @@ const GamificationPage = () => {
                     </div>
                   </div>
                 </div>
-                
-                {/* Message d'encouragement */}
-                <div className="mt-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg">
-                  <div className="flex items-center text-blue-400">
-                    <Zap className="w-4 h-4 mr-2" />
-                    <span className="text-sm font-medium">Plus que 2 tâches pour votre bonus quotidien !</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions rapides */}
-              <div className="lg:col-span-2">
-                <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
-                  <h3 className="text-xl font-bold text-white mb-6">Actions rapides</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {quickActions.map((action, index) => (
-                      <div
-                        key={index}
-                        className={`flex items-center justify-between p-4 bg-gradient-to-r ${action.gradient} border ${action.border} rounded-lg cursor-pointer hover:opacity-80 transition-all group`}
-                        onClick={() => window.location.href = action.href}
-                      >
-                        <div className="flex items-center">
-                          <action.icon className="w-6 h-6 text-white mr-3" />
-                          <div className="text-left">
-                            <div className="font-medium text-white">{action.title}</div>
-                            <div className="text-sm text-gray-300">{action.description}</div>
-                          </div>
-                        </div>
-                        <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
             </div>
           )}
 
           {/* ONGLET PROGRESSION */}
           {activeTab === 'progress' && (
-            <div className="space-y-8">
-              {/* Progression hebdomadaire */}
-              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
-                <h3 className="text-xl font-bold text-white mb-6">Progression cette semaine</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-blue-400 mb-2">
-                      {userStats.completedTasks}
-                    </div>
-                    <div className="text-gray-400">Tâches complétées</div>
-                  </div>
-                  
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-purple-400 mb-2">
-                      {userStats.totalXP}
-                    </div>
-                    <div className="text-gray-400">XP gagnée</div>
-                  </div>
-                  
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-green-400 mb-2">
-                      {userStats.weeklyProgress}%
-                    </div>
-                    <div className="text-gray-400">Objectif hebdomadaire</div>
-                  </div>
-                </div>
-
-                <div className="mt-6 bg-gray-700 rounded-full h-3">
-                  <div 
-                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-1000"
-                    style={{ width: `${userStats.weeklyProgress}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Tendances */}
+            <div className="space-y-6">
               <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
                 <h3 className="text-xl font-bold text-white mb-6">Tendances de performance</h3>
                 
@@ -446,7 +352,7 @@ const GamificationPage = () => {
                   <div className="flex items-center justify-between p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                     <div>
                       <div className="text-lg font-semibold text-white">Consistance</div>
-                      <div className="text-sm text-gray-400">{userStats.streakDays} jours de suite</div>
+                      <div className="text-sm text-gray-400">{finalStats.streakDays} jours de suite</div>
                     </div>
                     <Flame className="w-8 h-8 text-red-400" />
                   </div>
@@ -479,23 +385,19 @@ const GamificationPage = () => {
                         <p className="text-gray-400 text-sm">{goal.description}</p>
                       </div>
                     </div>
-                    
-                    {goal.status === 'completed' && (
-                      <div className="flex items-center bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm">
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        Terminé
+                    <div className="text-right">
+                      <div className={`text-sm font-medium ${
+                        goal.status === 'completed' ? 'text-green-400' : 'text-blue-400'
+                      }`}>
+                        {goal.progress}%
                       </div>
-                    )}
+                    </div>
                   </div>
                   
                   <div className="mb-4">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-gray-400">Progression</span>
-                      <span className="text-white">{goal.progress}%</span>
-                    </div>
                     <div className="bg-gray-700 rounded-full h-2">
                       <div 
-                        className={`h-2 rounded-full transition-all duration-500 ${
+                        className={`h-2 rounded-full transition-all duration-1000 ${
                           goal.status === 'completed' 
                             ? 'bg-gradient-to-r from-green-400 to-green-500' 
                             : 'bg-gradient-to-r from-blue-400 to-purple-500'
@@ -511,8 +413,31 @@ const GamificationPage = () => {
                     </div>
                     
                     {goal.status === 'completed' && (
-                      <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
-                        Réclamée
+                      <button 
+                        onClick={() => handleClaimReward(goal)}
+                        disabled={claimedGoals.has(goal.id) || isClaimingReward}
+                        className={`px-4 py-2 rounded-lg text-sm transition-all duration-200 flex items-center gap-2 ${
+                          claimedGoals.has(goal.id)
+                            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                            : 'bg-green-600 hover:bg-green-700 text-white hover:scale-105'
+                        }`}
+                      >
+                        {isClaimingReward && !claimedGoals.has(goal.id) ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Réclamation...
+                          </>
+                        ) : claimedGoals.has(goal.id) ? (
+                          <>
+                            <CheckCircle className="w-4 h-4" />
+                            Réclamée
+                          </>
+                        ) : (
+                          <>
+                            <Gift className="w-4 h-4" />
+                            Réclamer
+                          </>
+                        )}
                       </button>
                     )}
                   </div>
