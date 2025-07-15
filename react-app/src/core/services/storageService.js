@@ -88,126 +88,95 @@ class StorageService {
         url: downloadURL,
         type: file.type.startsWith('video/') ? 'video' : 'image',
         size: file.size,
-        name: file.name,
-        uploadedAt: new Date().toISOString(),
-        bucket: this.bucketName,
-        fullPath: result.name || path
+        metadata: result
       };
       
     } catch (error) {
       console.error('❌ Erreur upload API REST:', error);
+      
+      // ✅ Détecter les erreurs CORS
+      if (error.message.includes('CORS') || 
+          error.message.includes('TypeError: Failed to fetch') ||
+          error.message.includes('ERR_FAILED')) {
+        throw new Error('CORS_ERROR');
+      }
+      
       throw error;
     }
   }
 
   /**
-   * 🔗 Obtenir l'URL de téléchargement publique (CORRIGÉE POUR LECTEUR VIDÉO)
+   * 🔗 Obtenir une URL de téléchargement publique
    */
   async getPublicDownloadURL(path) {
     try {
       const token = await this.getAuthToken();
       const encodedPath = encodeURIComponent(path);
       
-      // ✅ Obtenir un token de téléchargement publique
-      const metadataUrl = `${this.baseUrl}/${encodedPath}`;
+      // ✅ URL publique avec token d'authentification
+      const publicUrl = `${this.baseUrl}/${encodedPath}?alt=media&token=${token}`;
       
-      const response = await fetch(metadataUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      console.log('🔗 URL publique générée:', publicUrl.substring(0, 100) + '...');
       
-      if (!response.ok) {
-        throw new Error(`Failed to get metadata: ${response.status}`);
-      }
-      
-      const metadata = await response.json();
-      
-      // ✅ Vérifier si le fichier a déjà un downloadToken
-      let downloadToken = metadata.downloadTokens;
-      
-      // ✅ Si pas de token, en créer un
-      if (!downloadToken) {
-        console.log('🔑 Création token de téléchargement publique...');
-        downloadToken = await this.createDownloadToken(path);
-      }
-      
-      // ✅ Construire l'URL publique avec token
-      const publicURL = `https://firebasestorage.googleapis.com/v0/b/${this.bucketName}/o/${encodedPath}?alt=media&token=${downloadToken}`;
-      
-      console.log('✅ URL publique générée:', publicURL);
-      return publicURL;
+      return publicUrl;
       
     } catch (error) {
-      console.error('❌ Erreur récupération URL publique:', error);
-      
-      // ✅ Fallback : URL simple (peut nécessiter auth)
-      const encodedPath = encodeURIComponent(path);
-      const fallbackURL = `https://firebasestorage.googleapis.com/v0/b/${this.bucketName}/o/${encodedPath}?alt=media`;
-      
-      console.warn('⚠️ Utilisation URL fallback (peut nécessiter auth):', fallbackURL);
-      return fallbackURL;
+      console.error('❌ Erreur génération URL publique:', error);
+      throw error;
     }
   }
 
   /**
-   * 🔑 Créer un token de téléchargement public
+   * 📸 Upload d'une image avec gestion d'erreur
    */
-  async createDownloadToken(path) {
+  async uploadImage(imageFile, folder = 'uploads') {
     try {
-      const token = await this.getAuthToken();
-      const encodedPath = encodeURIComponent(path);
+      const timestamp = Date.now();
+      const extension = imageFile.name.split('.').pop() || 'jpg';
+      const filename = `image-${timestamp}.${extension}`;
+      const path = `${folder}/${filename}`;
       
-      // ✅ Générer un UUID simple pour le token
-      const downloadToken = 'synergia-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-      
-      // ✅ Mettre à jour les métadonnées avec le token
-      const metadataUrl = `${this.baseUrl}/${encodedPath}`;
-      
-      const response = await fetch(metadataUrl, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          metadata: {
-            downloadTokens: downloadToken
-          }
-        })
-      });
-      
-      if (response.ok) {
-        console.log('✅ Token de téléchargement créé:', downloadToken);
-        return downloadToken;
-      } else {
-        throw new Error(`Failed to create download token: ${response.status}`);
-      }
+      return await this.uploadFile(imageFile, path);
       
     } catch (error) {
-      console.error('❌ Erreur création token:', error);
-      // Retourner un token par défaut
-      return 'public-' + Date.now();
+      console.error('❌ Erreur upload image:', error);
+      throw error;
     }
   }
 
   /**
-   * 🔗 Obtenir l'URL de téléchargement avec token d'auth (pour cas spéciaux)
+   * 🎬 Upload d'une vidéo avec gestion d'erreur
    */
-  async getAuthenticatedDownloadURL(path) {
+  async uploadVideo(videoFile, folder = 'uploads') {
     try {
-      const token = await this.getAuthToken();
-      const encodedPath = encodeURIComponent(path);
+      const timestamp = Date.now();
+      const extension = videoFile.name.split('.').pop() || 'mp4';
+      const filename = `video-${timestamp}.${extension}`;
+      const path = `${folder}/${filename}`;
       
-      // ✅ URL avec token d'authentification
-      const authURL = `${this.baseUrl}/${encodedPath}?alt=media&auth=${token}`;
-      
-      console.log('✅ URL authentifiée générée:', authURL);
-      return authURL;
+      return await this.uploadFile(videoFile, path);
       
     } catch (error) {
-      console.error('❌ Erreur URL authentifiée:', error);
+      console.error('❌ Erreur upload vidéo:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📱 Upload pour validation de tâche
+   */
+  async uploadTaskValidation(file, taskId, userId) {
+    try {
+      const timestamp = Date.now();
+      const extension = file.name.split('.').pop();
+      const fileType = file.type.startsWith('video/') ? 'video' : 'photo';
+      const filename = `${taskId}-${fileType}-${timestamp}.${extension}`;
+      const path = `task-validations/${userId}/${filename}`;
+      
+      return await this.uploadFile(file, path);
+      
+    } catch (error) {
+      console.error('❌ Erreur upload validation tâche:', error);
       throw error;
     }
   }
@@ -228,91 +197,194 @@ class StorageService {
         }
       });
       
-      if (!response.ok && response.status !== 404) {
+      if (!response.ok) {
         throw new Error(`Delete failed: ${response.status}`);
       }
       
-      console.log('✅ Fichier supprimé:', path);
+      console.log('🗑️ Fichier supprimé:', path);
       return true;
       
     } catch (error) {
-      console.error('❌ Erreur suppression:', error);
-      // Ne pas faire échouer si le fichier n'existe pas
-      if (error.message.includes('404')) {
-        return true;
-      }
+      console.error('❌ Erreur suppression fichier:', error);
       throw error;
     }
   }
 
   /**
-   * 🎯 Upload spécialisé pour les tâches
+   * 📊 Obtenir les informations d'un fichier
    */
-  async uploadTaskMedia(taskId, userId, mediaFile) {
+  async getFileMetadata(path) {
     try {
-      const timestamp = Date.now();
-      const fileExtension = mediaFile.name.split('.').pop()?.toLowerCase() || 'bin';
-      const fileName = `tasks/${userId}/${taskId}_${timestamp}.${fileExtension}`;
+      const token = await this.getAuthToken();
+      const encodedPath = encodeURIComponent(path);
+      const metadataUrl = `${this.baseUrl}/${encodedPath}`;
       
-      console.log('📸 Upload média tâche avec URL publique:', fileName);
+      const response = await fetch(metadataUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
-      const result = await this.uploadFile(mediaFile, fileName);
-      
-      console.log('✅ Média tâche uploadé avec URL publique:', result.url);
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Erreur upload média tâche:', error);
-      throw new Error(`Erreur upload média: ${error.message}`);
-    }
-  }
-
-  /**
-   * 🎯 Upload spécialisé pour les profils utilisateur
-   */
-  async uploadUserProfile(userId, imageFile) {
-    try {
-      const timestamp = Date.now();
-      const fileExtension = imageFile.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const fileName = `profiles/${userId}/avatar_${timestamp}.${fileExtension}`;
-      
-      console.log('👤 Upload avatar avec URL publique:', fileName);
-      
-      const result = await this.uploadFile(imageFile, fileName);
-      
-      console.log('✅ Avatar uploadé avec URL publique:', result.url);
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Erreur upload avatar:', error);
-      throw new Error(`Erreur upload avatar: ${error.message}`);
-    }
-  }
-
-  /**
-   * 🔄 Convertir une URL privée en URL publique (utilitaire)
-   */
-  async makeUrlPublic(privateUrl) {
-    try {
-      // Extraire le chemin de l'URL privée
-      const urlParts = privateUrl.split('/o/');
-      if (urlParts.length < 2) {
-        throw new Error('URL invalide');
+      if (!response.ok) {
+        throw new Error(`Metadata fetch failed: ${response.status}`);
       }
       
-      const pathPart = urlParts[1].split('?')[0];
-      const decodedPath = decodeURIComponent(pathPart);
+      const metadata = await response.json();
+      console.log('📊 Métadonnées fichier:', metadata);
       
-      // Générer une nouvelle URL publique
-      return await this.getPublicDownloadURL(decodedPath);
+      return metadata;
       
     } catch (error) {
-      console.error('❌ Erreur conversion URL publique:', error);
-      return privateUrl; // Retourner l'URL originale en cas d'erreur
+      console.error('❌ Erreur récupération métadonnées:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📋 Lister les fichiers d'un dossier
+   */
+  async listFiles(folder = '', maxResults = 100) {
+    try {
+      const token = await this.getAuthToken();
+      const prefix = folder ? `&prefix=${encodeURIComponent(folder)}` : '';
+      const listUrl = `${this.baseUrl}?maxResults=${maxResults}${prefix}`;
+      
+      const response = await fetch(listUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`List failed: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('📋 Fichiers listés:', result.items?.length || 0);
+      
+      return result.items || [];
+      
+    } catch (error) {
+      console.error('❌ Erreur listage fichiers:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🔄 Créer une URL de téléchargement temporaire
+   */
+  async createTemporaryDownloadURL(path, expirationMinutes = 60) {
+    try {
+      const token = await this.getAuthToken();
+      const encodedPath = encodeURIComponent(path);
+      
+      // Calculer la date d'expiration
+      const expirationTime = new Date();
+      expirationTime.setMinutes(expirationTime.getMinutes() + expirationMinutes);
+      const expiration = expirationTime.toISOString();
+      
+      // URL temporaire avec expiration
+      const temporaryUrl = `${this.baseUrl}/${encodedPath}?alt=media&token=${token}&expires=${expiration}`;
+      
+      console.log('🔄 URL temporaire créée, expire dans', expirationMinutes, 'minutes');
+      
+      return {
+        url: temporaryUrl,
+        expiresAt: expirationTime,
+        expiresIn: expirationMinutes * 60 * 1000 // en millisecondes
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur création URL temporaire:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🎯 Valider un fichier avant upload
+   */
+  validateFile(file, options = {}) {
+    const {
+      maxSize = 100 * 1024 * 1024, // 100MB par défaut
+      allowedTypes = ['image/*', 'video/*'],
+      maxDuration = null // Pour les vidéos
+    } = options;
+
+    const errors = [];
+
+    // Vérifier la taille
+    if (file.size > maxSize) {
+      errors.push(`Fichier trop volumineux: ${(file.size / 1024 / 1024).toFixed(2)}MB (max: ${(maxSize / 1024 / 1024).toFixed(2)}MB)`);
+    }
+
+    // Vérifier le type
+    const isTypeAllowed = allowedTypes.some(type => {
+      if (type.endsWith('/*')) {
+        return file.type.startsWith(type.replace('/*', '/'));
+      }
+      return file.type === type;
+    });
+
+    if (!isTypeAllowed) {
+      errors.push(`Type de fichier non autorisé: ${file.type}`);
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
+   * 📈 Obtenir les statistiques d'utilisation
+   */
+  async getStorageStats(folder = '') {
+    try {
+      const files = await this.listFiles(folder);
+      
+      const stats = {
+        totalFiles: files.length,
+        totalSize: 0,
+        byType: {
+          images: 0,
+          videos: 0,
+          others: 0
+        },
+        sizeByType: {
+          images: 0,
+          videos: 0,
+          others: 0
+        }
+      };
+
+      files.forEach(file => {
+        const size = parseInt(file.size) || 0;
+        stats.totalSize += size;
+
+        if (file.contentType?.startsWith('image/')) {
+          stats.byType.images++;
+          stats.sizeByType.images += size;
+        } else if (file.contentType?.startsWith('video/')) {
+          stats.byType.videos++;
+          stats.sizeByType.videos += size;
+        } else {
+          stats.byType.others++;
+          stats.sizeByType.others += size;
+        }
+      });
+
+      console.log('📈 Statistiques stockage:', stats);
+      return stats;
+      
+    } catch (error) {
+      console.error('❌ Erreur statistiques stockage:', error);
+      throw error;
     }
   }
 }
 
-export default StorageService;
+// Créer et exporter une instance unique
+const storageService = new StorageService();
+export { storageService };
