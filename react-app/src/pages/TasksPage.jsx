@@ -76,7 +76,12 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
     recurrenceType: 'daily',
     recurrenceInterval: 1,
     recurrenceEndDate: '',
-    maxOccurrences: ''
+    maxOccurrences: '',
+    // 👤 ASSIGNATION
+    assignedTo: '',
+    assignToSelf: true,
+    teamMembers: [],
+    tags: []
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -117,7 +122,12 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
         recurrenceType: task.recurrenceType || 'daily',
         recurrenceInterval: task.recurrenceInterval || 1,
         recurrenceEndDate: task.recurrenceEndDate ? new Date(task.recurrenceEndDate.toDate?.() || task.recurrenceEndDate).toISOString().split('T')[0] : '',
-        maxOccurrences: task.maxOccurrences || ''
+        maxOccurrences: task.maxOccurrences || '',
+        // 👤 ASSIGNATION
+        assignedTo: task.assignedTo || '',
+        assignToSelf: !task.assignedTo || task.assignedTo === user?.uid,
+        teamMembers: task.teamMembers || [],
+        tags: task.tags || []
       });
     } else {
       setFormData({
@@ -131,7 +141,12 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
         recurrenceType: 'daily',
         recurrenceInterval: 1,
         recurrenceEndDate: '',
-        maxOccurrences: ''
+        maxOccurrences: '',
+        // 👤 ASSIGNATION
+        assignedTo: '',
+        assignToSelf: true,
+        teamMembers: [],
+        tags: []
       });
     }
     setError(null);
@@ -160,7 +175,11 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
         // Métadonnées
         isRecurring: formData.isRecurring,
         recurrenceType: formData.isRecurring ? formData.recurrenceType : null,
-        recurrenceInterval: formData.isRecurring ? formData.recurrenceInterval : null
+        recurrenceInterval: formData.isRecurring ? formData.recurrenceInterval : null,
+        // 👤 Assignation
+        assignedTo: formData.assignToSelf ? user?.uid : formData.assignedTo || user?.uid,
+        teamMembers: formData.teamMembers,
+        tags: formData.tags
       };
       
       await onSubmit(taskData);
@@ -279,19 +298,57 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
             </div>
           </div>
 
-          {/* Date d'échéance */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Calendar className="inline w-4 h-4 mr-1" />
-              Date d'échéance {formData.isRecurring && '(première occurrence)'}
-            </label>
-            <input
-              type="date"
-              value={formData.dueDate}
-              onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={submitting}
-            />
+          {/* Date d'échéance et Assignation */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Date d'échéance */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Calendar className="inline w-4 h-4 mr-1" />
+                Date d'échéance {formData.isRecurring && '(première occurrence)'}
+              </label>
+              <input
+                type="date"
+                value={formData.dueDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={submitting}
+              />
+            </div>
+
+            {/* Assignation */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Users className="inline w-4 h-4 mr-1" />
+                Assigné à
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.assignToSelf}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      assignToSelf: e.target.checked,
+                      assignedTo: e.target.checked ? user?.uid || '' : ''
+                    }))}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    disabled={submitting}
+                  />
+                  <span className="text-sm text-gray-700">M'assigner cette tâche</span>
+                </label>
+                
+                {!formData.assignToSelf && (
+                  <input
+                    type="email"
+                    value={formData.assignedTo}
+                    onChange={(e) => setFormData(prev => ({ ...prev, assignedTo: e.target.value }))}
+                    placeholder="Email du membre de l'équipe"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    disabled={submitting}
+                  />
+                )}
+              </div>
+            </div>
           </div>
 
           {/* 🔄 SECTION RÉCURRENCE AVANCÉE */}
@@ -409,6 +466,81 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* 🏷️ SECTION TAGS */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Star className="inline w-4 h-4 mr-1" />
+              Tags (optionnel)
+            </label>
+            
+            {/* Tags existants */}
+            {formData.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {formData.tags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({
+                        ...prev,
+                        tags: prev.tags.filter((_, i) => i !== index)
+                      }))}
+                      disabled={submitting}
+                      className="ml-1 text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Ajouter nouveau tag */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={formData.newTag || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, newTag: e.target.value }))}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const newTag = formData.newTag?.trim();
+                    if (newTag && !formData.tags.includes(newTag)) {
+                      setFormData(prev => ({
+                        ...prev,
+                        tags: [...prev.tags, newTag],
+                        newTag: ''
+                      }));
+                    }
+                  }
+                }}
+                placeholder="Ajouter un tag..."
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                disabled={submitting}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const newTag = formData.newTag?.trim();
+                  if (newTag && !formData.tags.includes(newTag)) {
+                    setFormData(prev => ({
+                      ...prev,
+                      tags: [...prev.tags, newTag],
+                      newTag: ''
+                    }));
+                  }
+                }}
+                disabled={!formData.newTag?.trim() || submitting}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* 🎯 PREVIEW XP ADAPTATIF */}
@@ -635,6 +767,7 @@ const TasksPage = () => {
         assignedTo: user.uid,
         status: 'todo',
         isRecurring: false,
+        tags: [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -701,6 +834,33 @@ const TasksPage = () => {
             <h3 className="font-semibold text-white mb-1">{task.title}</h3>
             {task.description && (
               <p className="text-gray-400 text-sm line-clamp-2">{task.description}</p>
+            )}
+            
+            {/* Tags */}
+            {task.tags && task.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {task.tags.slice(0, 3).map((tag, index) => (
+                  <span
+                    key={index}
+                    className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {task.tags.length > 3 && (
+                  <span className="px-2 py-1 bg-gray-600 text-gray-300 text-xs rounded-full">
+                    +{task.tags.length - 3}
+                  </span>
+                )}
+              </div>
+            )}
+            
+            {/* Assignation */}
+            {task.assignedTo && task.assignedTo !== user?.uid && (
+              <div className="flex items-center gap-1 mt-2 text-xs text-purple-400">
+                <Users className="w-3 h-3" />
+                <span>Assigné à {task.assignedTo}</span>
+              </div>
             )}
           </div>
           
