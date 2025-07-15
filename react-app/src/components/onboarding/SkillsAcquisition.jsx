@@ -56,7 +56,7 @@ const SkillsAcquisition = () => {
     } catch (error) {
       console.error('❌ Erreur toggle skill:', error);
     }
-  }, [user?.uid]);
+  }, [user?.uid, loadSkillsData]); // 🔧 CORRECTION: Ajouter loadSkillsData aux dépendances
 
   // 📊 Charger les données de compétences
   const loadSkillsData = useCallback(async () => {
@@ -78,13 +78,18 @@ const SkillsAcquisition = () => {
             setSelectedExperience(firstExp);
           }
         }
+      } else {
+        // 🔧 CORRECTION: Gérer le cas où le profil n'existe pas
+        console.log('📝 Profil de compétences non trouvé');
+        setSkillsProfile(null);
+        setStats(null);
       }
     } catch (error) {
       console.error('❌ Erreur chargement compétences:', error);
     } finally {
       setLoading(false);
     }
-  }, [user?.uid, selectedExperience]);
+  }, [user?.uid]); // 🔧 CORRECTION: Enlever selectedExperience des dépendances
 
   // 🚀 Initialiser le profil de compétences
   const initializeSkillsProfile = async (experienceIds) => {
