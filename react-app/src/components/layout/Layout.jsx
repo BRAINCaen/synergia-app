@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT MIS À JOUR AVEC MENU ADMIN RÉCOMPENSES
+// LAYOUT MIS À JOUR AVEC DASHBOARD MANAGER
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -31,7 +31,8 @@ import {
   PieChart,
   UsersIcon,
   SettingsIcon,
-  Gamepad2
+  Gamepad2,
+  Activity // ← Import ajouté pour Dashboard Manager
 } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { ROUTES } from '../../core/constants.js';
@@ -87,12 +88,13 @@ const Layout = () => {
     ]
   };
 
-  // 🛡️ MENU ADMIN COMPLET AVEC RÉCOMPENSES
+  // 🛡️ MENU ADMIN COMPLET AVEC DASHBOARD MANAGER
   const adminItems = (user?.email === 'alan.boehme61@gmail.com' || 
                      user?.role === 'admin' || 
                      user?.isAdmin === true ||
                      user?.profile?.role === 'admin') ?
     [
+      { id: 'admin-dashboard-manager', path: ROUTES.ADMIN_DASHBOARD_MANAGER, label: 'Dashboard Manager', icon: Activity }, // ← AJOUTÉ
       { id: 'admin-task-validation', path: ROUTES.ADMIN_TASK_VALIDATION, label: 'Validation Tâches', icon: Shield },
       { id: 'admin-complete-test', path: ROUTES.ADMIN_COMPLETE_TEST, label: 'Test Complet', icon: TestTube },
       { id: 'admin-role-permissions', path: ROUTES.ADMIN_ROLE_PERMISSIONS, label: 'Permissions Rôles', icon: Lock },
@@ -194,30 +196,28 @@ const Layout = () => {
           <div className="flex items-center space-x-3 mb-3">
             <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
               {user?.photoURL ? (
-                <img src={user.photoURL} alt="Avatar" className="w-10 h-10 rounded-full" />
+                <img 
+                  src={user.photoURL} 
+                  alt="Profile" 
+                  className="w-10 h-10 rounded-full object-cover"
+                />
               ) : (
                 <User className="w-5 h-5 text-gray-300" />
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-white truncate">
+              <p className="text-sm font-medium text-white truncate">
                 {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
-              </div>
-              <div className="text-xs text-gray-400 truncate">
+              </p>
+              <p className="text-xs text-gray-400 truncate">
                 {user?.email}
-              </div>
-              {isAdminUser && (
-                <div className="flex items-center space-x-1 mt-1">
-                  <Crown className="w-3 h-3 text-yellow-400" />
-                  <span className="text-xs text-yellow-400 font-medium">Admin</span>
-                </div>
-              )}
+              </p>
             </div>
           </div>
           
           <button
             onClick={handleLogout}
-            className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-colors"
+            className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg transition-colors"
           >
             <LogOut className="w-4 h-4" />
             <span>Déconnexion</span>
@@ -228,37 +228,25 @@ const Layout = () => {
       {/* Overlay mobile */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Contenu principal */}
-      <div className="flex-1 flex flex-col lg:ml-0">
-        
+      <div className="flex-1 flex flex-col">
         {/* Header mobile */}
-        <div className="lg:hidden bg-white shadow-sm border-b border-gray-200 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-            
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">S</span>
-              </div>
-              <h1 className="text-xl font-bold text-gray-900">Synergia</h1>
-            </div>
-            
-            <div className="w-6" /> {/* Spacer */}
-          </div>
+        <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-gray-600 hover:text-gray-900"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
         </div>
 
-        {/* Contenu de la page */}
-        <main className="flex-1">
+        {/* Zone de contenu */}
+        <main className="flex-1 overflow-auto">
           <Outlet />
         </main>
       </div>
