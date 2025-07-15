@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/skillsAcquisitionService.js
-// SERVICE ACQUISITION COMPÉTENCES - VERSION FINALE GAME MASTER UNIQUEMENT
+// SERVICE GAME MASTER - VERSION ULTRA-ROBUSTE
 // ==========================================
 
 import { 
@@ -9,6 +9,7 @@ import {
   setDoc, 
   getDoc, 
   updateDoc, 
+  deleteDoc,
   getDocs, 
   arrayUnion, 
   serverTimestamp 
@@ -82,7 +83,7 @@ export const WEEKLY_FOLLOW_UP_TEMPLATE = {
   feedback_referent: ''
 };
 
-// 🎯 SERVICE PRINCIPAL - VERSION FINALE
+// 🎯 SERVICE PRINCIPAL - VERSION ULTRA-ROBUSTE
 export class SkillsAcquisitionService {
 
   /**
@@ -91,6 +92,17 @@ export class SkillsAcquisitionService {
   static async createSkillsProfile(userId, experiences = ['gamemaster']) {
     try {
       console.log('🚀 Création profil Game Master pour:', userId);
+      
+      // 🔧 CORRECTION: Toujours supprimer l'ancien profil d'abord
+      try {
+        const existingProfile = await this.getSkillsProfile(userId);
+        if (existingProfile.success) {
+          console.log('🗑️ Suppression ancien profil Game Master');
+          await this.deleteSkillsProfile(userId);
+        }
+      } catch (error) {
+        console.log('ℹ️ Pas d\'ancien profil à supprimer');
+      }
       
       const skillsProfile = {
         userId,
@@ -109,13 +121,13 @@ export class SkillsAcquisitionService {
         }
       };
 
-      // Initialiser l'expérience Game Master
+      // Initialiser l'expérience Game Master avec structure complète
       skillsProfile.experiences.gamemaster = {
         started: true,
         completed: false,
         startDate: new Date().toISOString(),
         completionDate: null,
-        skills: {},
+        skills: {}, // 🔧 CORRECTION: Initialiser explicitement
         adminValidations: [],
         sessionsCompleted: 0,
         currentPhase: 'decouverte_immersion'
@@ -153,7 +165,19 @@ export class SkillsAcquisitionService {
   }
 
   /**
-   * 📊 Récupérer le profil de compétences
+   * 🗑️ Supprimer un profil Game Master
+   */
+  static async deleteSkillsProfile(userId) {
+    try {
+      await deleteDoc(doc(db, 'skillsAcquisition', userId));
+      console.log('🗑️ Profil Game Master supprimé');
+    } catch (error) {
+      console.error('❌ Erreur suppression profil:', error);
+    }
+  }
+
+  /**
+   * 📊 Récupérer le profil de compétences avec réparation automatique
    */
   static async getSkillsProfile(userId) {
     try {
@@ -164,7 +188,15 @@ export class SkillsAcquisitionService {
       
       if (docSnap.exists()) {
         console.log('✅ Profil Game Master trouvé');
-        return { success: true, data: docSnap.data() };
+        let profileData = docSnap.data();
+        
+        // 🔧 CORRECTION: Vérifier et réparer la structure IMMÉDIATEMENT
+        if (!profileData.experiences?.gamemaster?.skills) {
+          console.log('🔧 Réparation structure Game Master...');
+          profileData = await this.repairProfileStructure(userId, profileData);
+        }
+        
+        return { success: true, data: profileData };
       }
       
       console.log('❌ Profil Game Master non trouvé');
@@ -173,6 +205,65 @@ export class SkillsAcquisitionService {
     } catch (error) {
       console.error('❌ Erreur récupération profil Game Master:', error);
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🔧 Réparer la structure d'un profil Game Master
+   */
+  static async repairProfileStructure(userId, profileData) {
+    try {
+      console.log('🔧 Réparation structure Game Master');
+      
+      // S'assurer que la structure experiences existe
+      if (!profileData.experiences) {
+        profileData.experiences = {};
+      }
+      
+      // S'assurer que l'expérience gamemaster existe
+      if (!profileData.experiences.gamemaster) {
+        profileData.experiences.gamemaster = {
+          started: true,
+          completed: false,
+          startDate: new Date().toISOString(),
+          completionDate: null,
+          skills: {},
+          adminValidations: [],
+          sessionsCompleted: 0,
+          currentPhase: 'decouverte_immersion'
+        };
+      }
+      
+      // S'assurer que skills existe
+      if (!profileData.experiences.gamemaster.skills) {
+        profileData.experiences.gamemaster.skills = {};
+      }
+      
+      // Ajouter toutes les compétences Game Master manquantes
+      const gameMasterSkills = EXPERIENCE_SKILLS.gamemaster;
+      Object.keys(gameMasterSkills).forEach(category => {
+        gameMasterSkills[category].forEach(skill => {
+          if (!profileData.experiences.gamemaster.skills[skill.id]) {
+            profileData.experiences.gamemaster.skills[skill.id] = {
+              completed: false,
+              validatedBy: null,
+              validationDate: null,
+              adminComments: '',
+              selfAssessment: false
+            };
+          }
+        });
+      });
+      
+      // Sauvegarder la structure réparée
+      await setDoc(doc(db, 'skillsAcquisition', userId), profileData);
+      console.log('✅ Structure Game Master réparée');
+      
+      return profileData;
+      
+    } catch (error) {
+      console.error('❌ Erreur réparation structure:', error);
+      return profileData; // Retourner les données originales en cas d'erreur
     }
   }
 
@@ -189,7 +280,7 @@ export class SkillsAcquisitionService {
         return { success: false, error: 'Profil non trouvé' };
       }
 
-      const currentSkill = profileResult.data.experiences.gamemaster?.skills?.[skillId]; // 🔧 CORRECTION: Accès sécurisé
+      const currentSkill = profileResult.data.experiences.gamemaster?.skills?.[skillId];
       const newState = !currentSkill?.selfAssessment;
 
       const updatePath = `experiences.gamemaster.skills.${skillId}.selfAssessment`;
@@ -205,95 +296,6 @@ export class SkillsAcquisitionService {
 
     } catch (error) {
       console.error('❌ Erreur toggle compétence Game Master:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 🛡️ Validation admin d'une compétence Game Master
-   */
-  static async adminValidateSkill(userId, experienceId, skillId, validatorId, validated = true, comments = '') {
-    try {
-      const updatePath = `experiences.gamemaster.skills.${skillId}`;
-      const updates = {
-        [`${updatePath}.completed`]: validated,
-        [`${updatePath}.validatedBy`]: validatorId,
-        [`${updatePath}.validationDate`]: serverTimestamp(),
-        [`${updatePath}.adminComments`]: comments,
-        updatedAt: serverTimestamp()
-      };
-
-      // Ajouter l'historique de validation
-      const validationEntry = {
-        skillId,
-        validated,
-        validatorId,
-        comments,
-        date: serverTimestamp()
-      };
-
-      updates[`experiences.gamemaster.adminValidations`] = arrayUnion(validationEntry);
-
-      await updateDoc(doc(db, 'skillsAcquisition', userId), updates);
-
-      // Vérifier si le parcours Game Master est complet
-      await this.checkGameMasterCompletion(userId);
-
-      return { success: true };
-
-    } catch (error) {
-      console.error('❌ Erreur validation admin Game Master:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 🏆 Vérifier la completion du parcours Game Master
-   */
-  static async checkGameMasterCompletion(userId) {
-    try {
-      const profileResult = await this.getSkillsProfile(userId);
-      if (!profileResult.success) return;
-
-      const gameMasterExp = profileResult.data.experiences.gamemaster;
-      if (!gameMasterExp || !gameMasterExp.skills) return; // 🔧 CORRECTION: Vérifier skills
-
-      const allSkills = EXPERIENCE_SKILLS.gamemaster;
-      let totalSkills = 0;
-      let validatedSkills = 0;
-
-      Object.keys(allSkills).forEach(category => {
-        allSkills[category].forEach(skill => {
-          totalSkills++;
-          // 🔧 CORRECTION: Accès sécurisé
-          if (gameMasterExp.skills[skill.id]?.completed) {
-            validatedSkills++;
-          }
-        });
-      });
-
-      const completionRate = (validatedSkills / totalSkills) * 100;
-
-      // Si 100% des compétences sont validées = Game Master certifié
-      if (completionRate === 100 && !gameMasterExp.completed) {
-        const updates = {
-          'experiences.gamemaster.completed': true,
-          'experiences.gamemaster.completionDate': serverTimestamp(),
-          'metrics.completedExperiences': 1,
-          earnedBadges: arrayUnion('gamemaster'),
-          updatedAt: serverTimestamp()
-        };
-
-        await updateDoc(doc(db, 'skillsAcquisition', userId), updates);
-
-        console.log('🏆 GAME MASTER CERTIFIÉ !', userId);
-        return { success: true, gameMasterCertified: true };
-      }
-
-      return { success: true, gameMasterCertified: false, completionRate };
-
-    } catch (error) {
-      console.error('❌ Erreur vérification completion Game Master:', error);
       return { success: false, error: error.message };
     }
   }
@@ -325,48 +327,32 @@ export class SkillsAcquisitionService {
   }
 
   /**
-   * 📊 Calculer les statistiques Game Master
+   * 📊 Calculer les statistiques Game Master - VERSION ULTRA-SÉCURISÉE
    */
   static calculateProfileStats(profile) {
     console.log('📊 Calcul stats Game Master');
     
-    if (!profile || !profile.experiences || !profile.experiences.gamemaster) {
-      console.warn('⚠️ Profil Game Master invalide');
-      return {
-        totalExperiences: 1,
-        completedExperiences: 0,
-        totalSkills: 0,
-        validatedSkills: 0,
-        selfAssessedSkills: 0,
-        averageCompletionRate: 0,
-        selfAssessmentRate: 0,
-        badgesEarned: 0,
-        weeklyFollowUps: 0,
-        adminInterviews: 0,
-        isGameMasterCertified: false
-      };
+    // 🔧 CORRECTION: Vérifications multiples
+    if (!profile) {
+      console.warn('⚠️ Profil null');
+      return this.getDefaultStats();
     }
-
+    
+    if (!profile.experiences) {
+      console.warn('⚠️ Pas d\'expériences');
+      return this.getDefaultStats();
+    }
+    
+    if (!profile.experiences.gamemaster) {
+      console.warn('⚠️ Pas d\'expérience gamemaster');
+      return this.getDefaultStats();
+    }
+    
     const gameMasterExp = profile.experiences.gamemaster;
     
-    // 🔧 CORRECTION: Vérifier et réparer la structure si nécessaire
     if (!gameMasterExp.skills) {
-      console.warn('⚠️ Skills Game Master manquants - réparation automatique');
-      // Réparer la structure automatiquement
-      this.repairGameMasterProfile(profile.userId);
-      return {
-        totalExperiences: 1,
-        completedExperiences: 0,
-        totalSkills: 0,
-        validatedSkills: 0,
-        selfAssessedSkills: 0,
-        averageCompletionRate: 0,
-        selfAssessmentRate: 0,
-        badgesEarned: profile.earnedBadges ? profile.earnedBadges.length : 0,
-        weeklyFollowUps: profile.weeklyFollowUps ? profile.weeklyFollowUps.length : 0,
-        adminInterviews: profile.adminInterviews ? profile.adminInterviews.length : 0,
-        isGameMasterCertified: false
-      };
+      console.warn('⚠️ Pas de skills gamemaster');
+      return this.getDefaultStats();
     }
     
     const allSkills = EXPERIENCE_SKILLS.gamemaster;
@@ -374,18 +360,25 @@ export class SkillsAcquisitionService {
     let validatedSkills = 0;
     let selfAssessedSkills = 0;
 
+    // 🔧 CORRECTION: Vérifier que allSkills existe
+    if (!allSkills) {
+      console.warn('⚠️ EXPERIENCE_SKILLS.gamemaster manquant');
+      return this.getDefaultStats();
+    }
+
     Object.keys(allSkills).forEach(category => {
-      allSkills[category].forEach(skill => {
-        totalSkills++;
-        // 🔧 CORRECTION: Vérifier l'existence avant accès
-        const skillData = gameMasterExp.skills[skill.id];
-        if (skillData?.completed) {
-          validatedSkills++;
-        }
-        if (skillData?.selfAssessment) {
-          selfAssessedSkills++;
-        }
-      });
+      if (allSkills[category] && Array.isArray(allSkills[category])) {
+        allSkills[category].forEach(skill => {
+          totalSkills++;
+          const skillData = gameMasterExp.skills[skill.id];
+          if (skillData?.completed) {
+            validatedSkills++;
+          }
+          if (skillData?.selfAssessment) {
+            selfAssessedSkills++;
+          }
+        });
+      }
     });
 
     const stats = {
@@ -407,49 +400,22 @@ export class SkillsAcquisitionService {
   }
 
   /**
-   * 🔧 Réparer un profil Game Master mal initialisé
+   * 📊 Statistiques par défaut
    */
-  static async repairGameMasterProfile(userId) {
-    try {
-      console.log('🔧 Réparation profil Game Master pour:', userId);
-      
-      // Récupérer le profil existant
-      const profileResult = await this.getSkillsProfile(userId);
-      if (!profileResult.success) return;
-      
-      const profile = profileResult.data;
-      const gameMasterExp = profile.experiences.gamemaster;
-      
-      // Réparer la structure skills si elle manque
-      if (!gameMasterExp.skills) {
-        console.log('🔧 Ajout de la structure skills manquante');
-        
-        const skillsToAdd = {};
-        const gameMasterSkills = EXPERIENCE_SKILLS.gamemaster;
-        
-        Object.keys(gameMasterSkills).forEach(category => {
-          gameMasterSkills[category].forEach(skill => {
-            skillsToAdd[skill.id] = {
-              completed: false,
-              validatedBy: null,
-              validationDate: null,
-              adminComments: '',
-              selfAssessment: false
-            };
-          });
-        });
-        
-        await updateDoc(doc(db, 'skillsAcquisition', userId), {
-          'experiences.gamemaster.skills': skillsToAdd,
-          updatedAt: serverTimestamp()
-        });
-        
-        console.log('✅ Structure skills réparée');
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur réparation profil Game Master:', error);
-    }
+  static getDefaultStats() {
+    return {
+      totalExperiences: 1,
+      completedExperiences: 0,
+      totalSkills: 19, // Total des compétences Game Master
+      validatedSkills: 0,
+      selfAssessedSkills: 0,
+      averageCompletionRate: 0,
+      selfAssessmentRate: 0,
+      badgesEarned: 0,
+      weeklyFollowUps: 0,
+      adminInterviews: 0,
+      isGameMasterCertified: false
+    };
   }
 
   /**
