@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import { SkillsAcquisitionService, GAME_MASTER_SKILLS, WEEKLY_FOLLOW_UP_TEMPLATE } from '../../core/services/skillsAcquisitionService.js';
+import { SkillsAcquisitionService, EXPERIENCE_SKILLS, WEEKLY_FOLLOW_UP_TEMPLATE } from '../../core/services/skillsAcquisitionService.js';
 
 const SkillsAcquisition = () => {
   const { user } = useAuthStore();
@@ -213,7 +213,7 @@ const SkillsAcquisition = () => {
 
       {/* 📋 Compétences par catégorie */}
       <div className="space-y-6">
-        {Object.entries(GAME_MASTER_SKILLS).map(([categoryKey, skills]) => {
+        {Object.entries(EXPERIENCE_SKILLS.gamemaster).map(([categoryKey, skills]) => {
           const validatedCount = skills.filter(skill => 
             skillsProfile?.experiences?.gamemaster?.skills?.[skill.id]?.selfAssessment
           ).length;
