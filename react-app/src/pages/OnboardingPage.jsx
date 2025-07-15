@@ -19,6 +19,7 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 // Import des composants d'onboarding
 import SkillsAcquisition from '../components/onboarding/SkillsAcquisition.jsx';
 import FormationGenerale from '../components/onboarding/FormationGenerale.jsx';
+import EntretiensReferent from '../components/onboarding/EntretiensReferent.jsx';
 
 const OnboardingPage = () => {
   const { user } = useAuthStore();
@@ -54,8 +55,8 @@ const OnboardingPage = () => {
           </div>
         </div>
         <div className="mt-6">
-          <button className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-lg font-medium hover:shadow-lg transition-all opacity-50 cursor-not-allowed">
-            🚧 Prochainement disponible
+          <button className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-lg font-medium hover:shadow-lg transition-all">
+            🚀 Système Complet Disponible
           </button>
         </div>
       </div>
@@ -202,10 +203,10 @@ const OnboardingPage = () => {
         <div className="mt-6 bg-green-900/20 border border-green-700/50 rounded-lg p-4">
           <p className="text-green-300 text-sm">
             ✅ <strong>Version complète OnboardingPage</strong><br/>
-            - Formation Générale : Programme complet avec 7 phases Brain<br/>
-            - Acquisition de Compétences : 19 compétences Game Master<br/>
-            - Entretiens Référent : Prochainement disponible<br/>
-            - Navigation premium avec gradients et animations
+            - Formation Générale : Programme complet avec 7 phases Brain ✅<br/>
+            - Acquisition de Compétences : 19 compétences Game Master ✅<br/>
+            - Entretiens Référent : Système de planification et suivi ✅<br/>
+            - Navigation premium avec gradients et animations ✅
           </p>
         </div>
       </div>
