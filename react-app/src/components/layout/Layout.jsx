@@ -1,73 +1,62 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT COMPLET AVEC MENU ORIGINAL TOUTES LES PAGES
+// LAYOUT MIS À JOUR AVEC MENU ADMIN RÉCOMPENSES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate, Outlet } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
   CheckSquare, 
   FolderOpen, 
   BarChart3, 
   Trophy, 
-  Medal, 
-  Gamepad2, 
-  Gift,
   Users, 
-  UserCheck, 
-  User, 
   Settings, 
-  BookOpen, 
-  Clock,
-  Shield,
-  Menu,
-  X,
+  Menu, 
+  X, 
+  User, 
   LogOut,
-  ChevronDown,
-  ChevronRight,
-  Star,
   Target,
   Award,
-  Flame
+  Flame,
+  Clock,
+  BookOpen,
+  UserCheck,
+  Shield,
+  Crown,
+  TestTube,
+  Lock,
+  Gift,
+  PieChart,
+  UsersIcon,
+  SettingsIcon,
+  Gamepad2
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { ROUTES } from '../../core/constants.js';
 
 const Layout = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const { user, signOut } = useAuthStore();
-  
-  // États pour la responsivité
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
-  const [expandedSections, setExpandedSections] = useState({
-    main: true,
-    gamification: true,
-    progression: true,
-    team: true,
-    tools: true,
-    admin: false
-  });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Détection mobile
+  // Gérer la fermeture automatique du sidebar sur mobile
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth < 768) {
-        setIsSidebarOpen(false);
-      }
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
-  // 🎯 MENU COMPLET AVEC TOUTES TES PAGES
-  const navigationItems = {
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      console.log('👋 Déconnexion réussie');
+    } catch (error) {
+      console.error('❌ Erreur déconnexion:', error);
+    }
+  };
+
+  // 📊 NAVIGATION PRINCIPALE
+  const mainNavItems = {
     main: [
       { id: 'dashboard', path: ROUTES.DASHBOARD, label: 'Dashboard', icon: Home },
       { id: 'tasks', path: ROUTES.TASKS, label: 'Tâches', icon: CheckSquare },
@@ -76,7 +65,7 @@ const Layout = () => {
     ],
     gamification: [
       { id: 'gamification', path: ROUTES.GAMIFICATION, label: 'Gamification', icon: Gamepad2 },
-      { id: 'badges', path: ROUTES.BADGES, label: 'Badges', icon: Medal },
+      { id: 'badges', path: ROUTES.BADGES, label: 'Badges', icon: Award },
       { id: 'leaderboard', path: ROUTES.LEADERBOARD, label: 'Classement', icon: Trophy },
       { id: 'rewards', path: ROUTES.REWARDS, label: 'Récompenses', icon: Gift }
     ],
@@ -98,281 +87,178 @@ const Layout = () => {
     ]
   };
 
-  // 🛡️ MENU ADMIN COMPLET - CORRECTION DÉTECTION ADMIN
+  // 🛡️ MENU ADMIN COMPLET AVEC RÉCOMPENSES
   const adminItems = (user?.email === 'alan.boehme61@gmail.com' || 
                      user?.role === 'admin' || 
                      user?.isAdmin === true ||
-                     user?.profile?.role === 'admin') ? [
-    { 
-      id: 'admin-validation-taches', 
-      path: ROUTES.ADMIN_TASK_VALIDATION, 
-      label: 'Validation Tâches', 
-      icon: CheckSquare,
-      badge: '👑'
-    },
-    { 
-      id: 'admin-gestion-badges', 
-      path: '/admin/badges', 
-      label: 'Gestion Badges', 
-      icon: Medal,
-      badge: '👑'
-    },
-    { 
-      id: 'admin-gestion-utilisateurs', 
-      path: '/admin/users', 
-      label: 'Gestion Utilisateurs', 
-      icon: Users,
-      badge: '👑'
-    },
-    { 
-      id: 'admin-analytics', 
-      path: '/admin/analytics', 
-      label: 'Analytics Admin', 
-      icon: BarChart3,
-      badge: '👑'
-    },
-    { 
-      id: 'admin-permissions-role', 
-      path: '/admin/role-permissions', 
-      label: 'Permissions par Rôle', 
-      icon: Shield,
-      badge: 'Nouveau',
-      isNew: true
-    },
-    { 
-      id: 'admin-parametres-systeme', 
-      path: '/admin/settings', 
-      label: 'Paramètres Système', 
-      icon: Settings,
-      badge: '👑'
-    }
-  ] : [];
+                     user?.profile?.role === 'admin') ?
+    [
+      { id: 'admin-task-validation', path: ROUTES.ADMIN_TASK_VALIDATION, label: 'Validation Tâches', icon: Shield },
+      { id: 'admin-complete-test', path: ROUTES.ADMIN_COMPLETE_TEST, label: 'Test Complet', icon: TestTube },
+      { id: 'admin-role-permissions', path: ROUTES.ADMIN_ROLE_PERMISSIONS, label: 'Permissions Rôles', icon: Lock },
+      { id: 'admin-rewards', path: ROUTES.ADMIN_REWARDS, label: 'Gestion Récompenses', icon: Gift },
+      { id: 'admin-badges', path: ROUTES.ADMIN_BADGES, label: 'Gestion Badges', icon: Trophy },
+      { id: 'admin-users', path: ROUTES.ADMIN_USERS, label: 'Gestion Utilisateurs', icon: UsersIcon },
+      { id: 'admin-analytics', path: ROUTES.ADMIN_ANALYTICS, label: 'Analytics Admin', icon: PieChart },
+      { id: 'admin-settings', path: ROUTES.ADMIN_SETTINGS, label: 'Paramètres Admin', icon: SettingsIcon }
+    ] : [];
 
-  // 🔍 DEBUG: Afficher les infos utilisateur pour diagnostic
-  useEffect(() => {
-    if (user) {
-      console.log('🔍 DEBUG Layout - Infos utilisateur:', {
-        email: user.email,
-        role: user.role,
-        isAdmin: user.isAdmin,
-        profile: user.profile,
-        adminItemsLength: adminItems.length
-      });
-    }
-  }, [user, adminItems.length]);
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate('/login');
-    } catch (error) {
-      console.error('❌ Erreur déconnexion:', error);
-    }
-  };
-
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
-
-  const isActivePath = (path) => {
+  const isActive = (path) => {
     return location.pathname === path;
   };
 
-  const renderNavigationSection = (sectionId, title, items) => {
-    const isExpanded = expandedSections[sectionId];
-    
-    return (
-      <div className="mb-4">
-        <button
-          onClick={() => toggleSection(sectionId)}
-          className="flex items-center justify-between w-full px-4 py-2 text-left text-gray-400 hover:text-white transition-colors"
-        >
-          <span className="text-xs font-semibold uppercase tracking-wider">{title}</span>
-          {isExpanded ? 
-            <ChevronDown className="w-4 h-4" /> : 
-            <ChevronRight className="w-4 h-4" />
-          }
-        </button>
-        
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="space-y-1 mt-2">
-                {items.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => navigate(item.path)}
-                    className={`
-                      w-full flex items-center justify-between px-4 py-2 rounded-lg text-left transition-colors
-                      ${isActivePath(item.path) 
-                        ? 'bg-blue-600 text-white' 
-                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                      }
-                    `}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <item.icon className="w-5 h-5" />
-                      <span className="font-medium">{item.label}</span>
-                    </div>
-                    
-                    {/* Badge pour les éléments admin */}
-                    {item.badge && (
-                      <span className={`
-                        px-2 py-1 text-xs rounded-full font-medium
-                        ${item.isNew 
-                          ? 'bg-green-500/20 text-green-400' 
-                          : 'bg-yellow-500/20 text-yellow-400'
-                        }
-                      `}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+  const isAdminUser = adminItems.length > 0;
+
+  // Composant MenuItem
+  const MenuItem = ({ item, isAdmin = false }) => (
+    <Link
+      to={item.path}
+      className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors duration-200 ${
+        isActive(item.path)
+          ? isAdmin 
+            ? 'bg-red-600 text-white'
+            : 'bg-blue-600 text-white'
+          : isAdmin
+            ? 'text-red-300 hover:bg-red-800/50 hover:text-red-100'
+            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+      }`}
+      title={item.label}
+    >
+      <item.icon className="w-5 h-5 flex-shrink-0" />
+      <span className="font-medium">{item.label}</span>
+    </Link>
+  );
+
+  // Composant Section
+  const MenuSection = ({ title, items, isAdmin = false }) => (
+    <div className="mb-6">
+      <h3 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${
+        isAdmin ? 'text-red-400' : 'text-gray-400'
+      }`}>
+        {title}
+      </h3>
+      <div className="space-y-1">
+        {items.map((item) => (
+          <MenuItem key={item.id} item={item} isAdmin={isAdmin} />
+        ))}
       </div>
-    );
-  };
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex">
-      
-      {/* 📱 OVERLAY MOBILE */}
-      {isMobile && isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* 🎯 SIDEBAR COMPLÈTE */}
-      <motion.aside
-        initial={false}
-        animate={{
-          width: isSidebarOpen ? (isMobile ? 280 : 280) : 0
-        }}
-        transition={{ duration: 0.3 }}
-        className={`
-          ${isMobile ? 'fixed' : 'relative'} 
-          top-0 left-0 h-screen bg-gray-800/90 backdrop-blur-sm border-r border-gray-700 
-          overflow-hidden z-50 flex flex-col
-        `}
-      >
+    <div className="min-h-screen bg-gray-100 flex">
+      {/* Sidebar Desktop & Mobile */}
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
         
-        {/* 🔥 HEADER SIDEBAR */}
-        <div className="p-6 border-b border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">S</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-white">Synergia</h1>
-                <p className="text-xs text-gray-400">v3.5</p>
-              </div>
+        {/* Logo et titre */}
+        <div className="flex items-center justify-between h-16 px-6 bg-gray-800 border-b border-gray-700">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">S</span>
             </div>
-            
-            {isMobile && (
-              <button
-                onClick={() => setIsSidebarOpen(false)}
-                className="text-gray-400 hover:text-white p-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
+            <h1 className="text-xl font-bold text-white">Synergia</h1>
           </div>
+          
+          {/* Bouton fermeture mobile */}
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-gray-400 hover:text-white"
+          >
+            <X className="w-6 h-6" />
+          </button>
         </div>
 
-        {/* 👤 PROFIL UTILISATEUR */}
-        <div className="p-4 border-b border-gray-700">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-bold">
-                {user?.displayName?.[0] || user?.email?.[0] || 'U'}
-              </span>
+        {/* Navigation */}
+        <div className="flex-1 overflow-y-auto px-4 py-6">
+          
+          {/* Navigation principale */}
+          <MenuSection title="Principal" items={mainNavItems.main} />
+          <MenuSection title="Gamification" items={mainNavItems.gamification} />
+          <MenuSection title="Progression" items={mainNavItems.progression} />
+          <MenuSection title="Équipe & Social" items={mainNavItems.team} />
+          <MenuSection title="Outils" items={mainNavItems.tools} />
+          
+          {/* Navigation admin */}
+          {isAdminUser && (
+            <>
+              <div className="border-t border-gray-700 my-6"></div>
+              <MenuSection title="Administration" items={adminItems} isAdmin={true} />
+            </>
+          )}
+        </div>
+
+        {/* Profile utilisateur */}
+        <div className="border-t border-gray-700 p-4">
+          <div className="flex items-center space-x-3 mb-3">
+            <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
+              {user?.photoURL ? (
+                <img src={user.photoURL} alt="Avatar" className="w-10 h-10 rounded-full" />
+              ) : (
+                <User className="w-5 h-5 text-gray-300" />
+              )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">
-                {user?.displayName || user?.email || 'Utilisateur'}
-              </p>
-              <p className="text-xs text-gray-400">
-                {user?.role || 'Membre'}
-              </p>
+              <div className="text-sm font-medium text-white truncate">
+                {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
+              </div>
+              <div className="text-xs text-gray-400 truncate">
+                {user?.email}
+              </div>
+              {isAdminUser && (
+                <div className="flex items-center space-x-1 mt-1">
+                  <Crown className="w-3 h-3 text-yellow-400" />
+                  <span className="text-xs text-yellow-400 font-medium">Admin</span>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-
-        {/* 🧭 NAVIGATION COMPLÈTE */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
           
-          {/* Section Principale */}
-          {renderNavigationSection('main', 'Principal', navigationItems.main)}
-          
-          {/* Section Gamification */}
-          {renderNavigationSection('gamification', 'Gamification', navigationItems.gamification)}
-          
-          {/* Section Progression */}
-          {renderNavigationSection('progression', 'Progression', navigationItems.progression)}
-          
-          {/* Section Équipe */}
-          {renderNavigationSection('team', 'Équipe', navigationItems.team)}
-          
-          {/* Section Outils */}
-          {renderNavigationSection('tools', 'Outils', navigationItems.tools)}
-          
-          {/* Section Admin */}
-          {adminItems.length > 0 && 
-            renderNavigationSection('admin', 'Administration', adminItems)
-          }
-        </div>
-
-        {/* 🚪 DÉCONNEXION */}
-        <div className="p-4 border-t border-gray-700">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center space-x-3 px-4 py-2 text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-lg transition-colors"
+            className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-colors"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="w-4 h-4" />
             <span>Déconnexion</span>
           </button>
         </div>
-      </motion.aside>
+      </div>
 
-      {/* 📄 CONTENU PRINCIPAL */}
-      <div className="flex-1 flex flex-col min-h-screen">
+      {/* Overlay mobile */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Contenu principal */}
+      <div className="flex-1 flex flex-col lg:ml-0">
         
-        {/* 📱 HEADER MOBILE */}
-        {isMobile && (
-          <header className="bg-gray-800/90 backdrop-blur-sm border-b border-gray-700 p-4">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="text-gray-400 hover:text-white"
-              >
-                <Menu className="w-6 h-6" />
-              </button>
-              
-              <h1 className="text-lg font-bold text-white">Synergia</h1>
-              
-              <div className="w-6" /> {/* Spacer */}
+        {/* Header mobile */}
+        <div className="lg:hidden bg-white shadow-sm border-b border-gray-200 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">S</span>
+              </div>
+              <h1 className="text-xl font-bold text-gray-900">Synergia</h1>
             </div>
-          </header>
-        )}
+            
+            <div className="w-6" /> {/* Spacer */}
+          </div>
+        </div>
 
-        {/* 🎯 CONTENU DES PAGES */}
-        <main className="flex-1 overflow-hidden">
+        {/* Contenu de la page */}
+        <main className="flex-1">
           <Outlet />
         </main>
       </div>
