@@ -189,7 +189,7 @@ export class SkillsAcquisitionService {
         return { success: false, error: 'Profil non trouvé' };
       }
 
-      const currentSkill = profileResult.data.experiences.gamemaster?.skills[skillId];
+      const currentSkill = profileResult.data.experiences.gamemaster?.skills?.[skillId]; // 🔧 CORRECTION: Accès sécurisé
       const newState = !currentSkill?.selfAssessment;
 
       const updatePath = `experiences.gamemaster.skills.${skillId}.selfAssessment`;
@@ -256,7 +256,7 @@ export class SkillsAcquisitionService {
       if (!profileResult.success) return;
 
       const gameMasterExp = profileResult.data.experiences.gamemaster;
-      if (!gameMasterExp) return;
+      if (!gameMasterExp || !gameMasterExp.skills) return; // 🔧 CORRECTION: Vérifier skills
 
       const allSkills = EXPERIENCE_SKILLS.gamemaster;
       let totalSkills = 0;
@@ -265,6 +265,7 @@ export class SkillsAcquisitionService {
       Object.keys(allSkills).forEach(category => {
         allSkills[category].forEach(skill => {
           totalSkills++;
+          // 🔧 CORRECTION: Accès sécurisé
           if (gameMasterExp.skills[skill.id]?.completed) {
             validatedSkills++;
           }
@@ -346,6 +347,24 @@ export class SkillsAcquisitionService {
     const gameMasterExp = profile.experiences.gamemaster;
     const allSkills = EXPERIENCE_SKILLS.gamemaster;
     
+    // 🔧 CORRECTION: Vérifier que skills existe
+    if (!gameMasterExp.skills) {
+      console.warn('⚠️ Skills Game Master non initialisés');
+      return {
+        totalExperiences: 1,
+        completedExperiences: 0,
+        totalSkills: 0,
+        validatedSkills: 0,
+        selfAssessedSkills: 0,
+        averageCompletionRate: 0,
+        selfAssessmentRate: 0,
+        badgesEarned: profile.earnedBadges ? profile.earnedBadges.length : 0,
+        weeklyFollowUps: profile.weeklyFollowUps ? profile.weeklyFollowUps.length : 0,
+        adminInterviews: profile.adminInterviews ? profile.adminInterviews.length : 0,
+        isGameMasterCertified: false
+      };
+    }
+    
     let totalSkills = 0;
     let validatedSkills = 0;
     let selfAssessedSkills = 0;
@@ -353,10 +372,12 @@ export class SkillsAcquisitionService {
     Object.keys(allSkills).forEach(category => {
       allSkills[category].forEach(skill => {
         totalSkills++;
-        if (gameMasterExp.skills[skill.id]?.completed) {
+        // 🔧 CORRECTION: Vérifier l'existence avant accès
+        const skillData = gameMasterExp.skills[skill.id];
+        if (skillData?.completed) {
           validatedSkills++;
         }
-        if (gameMasterExp.skills[skill.id]?.selfAssessment) {
+        if (skillData?.selfAssessment) {
           selfAssessedSkills++;
         }
       });
