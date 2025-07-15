@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/tasks/TaskAssignmentModal.jsx
-// CORRECTION PARAMÈTRES D'ASSIGNATION
+// MODAL ASSIGNATION TÂCHES - VERSION CORRIGÉE SANS BUG USER
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -14,13 +14,16 @@ import {
   Percent,
   UserPlus,
   AlertTriangle,
-  Info
+  Info,
+  Loader
 } from 'lucide-react';
-import { taskAssignmentService } from '../../core/services/taskAssignmentService.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
+import { membersAvailableService } from '../../core/services/membersAvailableService.js';
+import { taskAssignmentService } from '../../core/services/taskAssignmentService.js';
 
 /**
  * 👥 MODAL D'ASSIGNATION MULTIPLE CORRIGÉE
+ * Utilise directement membersAvailableService pour éviter les bugs
  */
 const TaskAssignmentModal = ({ 
   isOpen, 
@@ -39,86 +42,107 @@ const TaskAssignmentModal = ({
   const [error, setError] = useState('');
   const [step, setStep] = useState(1); // 1: Sélection, 2: Pourcentages
 
-  // Charger les membres disponibles
-  useEffect(() => {
-    if (isOpen) {
-      loadAvailableMembers();
-    }
-  }, [isOpen]);
-
+  // ✅ CHARGEMENT DIRECT AVEC SERVICE CORRIGÉ
   const loadAvailableMembers = async () => {
     try {
       setLoading(true);
-      console.log('👥 Chargement des membres disponibles...');
+      setError('');
+      console.log('👥 Chargement des membres disponibles via service corrigé...');
       
-      const members = await taskAssignmentService.getAvailableMembers();
-      setAvailableMembers(members);
+      // Utiliser directement le service corrigé
+      const members = await membersAvailableService.getAllAvailableMembers();
       
-      console.log('✅ Membres chargés:', members.length);
+      console.log('✅ Membres chargés sans erreur:', members.length);
+      
+      if (members.length === 0) {
+        console.log('⚠️ Aucun membre trouvé, tentative de rechargement...');
+        const reloadedMembers = await membersAvailableService.forceReload();
+        setAvailableMembers(reloadedMembers);
+      } else {
+        setAvailableMembers(members);
+      }
       
     } catch (error) {
       console.error('❌ Erreur chargement membres:', error);
-      setError('Erreur lors du chargement des membres');
+      setError('Erreur lors du chargement des membres. Réessayez.');
+      
+      // Fallback : essayer avec une méthode alternative
+      try {
+        console.log('🔄 Tentative de rechargement forcé...');
+        const fallbackMembers = await membersAvailableService.forceReload();
+        setAvailableMembers(fallbackMembers);
+        setError(''); // Effacer l'erreur si le fallback fonctionne
+      } catch (fallbackError) {
+        console.error('❌ Erreur fallback:', fallbackError);
+        setError('Impossible de charger les membres. Vérifiez votre connexion.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Gérer la sélection d'un membre
+  // Charger les membres quand le modal s'ouvre
+  useEffect(() => {
+    if (isOpen) {
+      loadAvailableMembers();
+      // Reset des états
+      setSelectedMembers([]);
+      setContributions({});
+      setStep(1);
+      setError('');
+    }
+  }, [isOpen]);
+
+  // Gérer la fermeture
+  const handleClose = () => {
+    setSelectedMembers([]);
+    setContributions({});
+    setStep(1);
+    setError('');
+    onClose();
+  };
+
+  // Sélectionner/désélectionner un membre
   const toggleMemberSelection = (member) => {
     setSelectedMembers(prev => {
       const isSelected = prev.find(m => m.id === member.id);
-      let newSelection;
       
       if (isSelected) {
-        // Désélectionner
-        newSelection = prev.filter(m => m.id !== member.id);
-        // Supprimer la contribution
-        const newContributions = { ...contributions };
-        delete newContributions[member.id];
-        setContributions(newContributions);
-      } else {
-        // Sélectionner
-        newSelection = [...prev, member];
-      }
-      
-      // Réinitialiser les contributions quand la sélection change
-      if (newSelection.length > 1) {
-        const equalPercentage = Math.floor(100 / newSelection.length);
-        const newContributions = {};
-        newSelection.forEach((m, index) => {
-          if (index === newSelection.length - 1) {
-            // Le dernier membre récupère le reste pour atteindre 100%
-            newContributions[m.id] = 100 - (equalPercentage * (newSelection.length - 1));
-          } else {
-            newContributions[m.id] = equalPercentage;
-          }
+        // Retirer le membre
+        const updated = prev.filter(m => m.id !== member.id);
+        
+        // Retirer de contributions si présent
+        setContributions(prevContrib => {
+          const newContrib = { ...prevContrib };
+          delete newContrib[member.id];
+          return newContrib;
         });
-        setContributions(newContributions);
+        
+        return updated;
       } else {
-        setContributions({});
+        // Ajouter le membre
+        return [...prev, member];
       }
-      
-      return newSelection;
     });
   };
 
   // Calculer le total des pourcentages
   const getTotalPercentage = () => {
-    return Object.values(contributions).reduce((sum, val) => sum + (val || 0), 0);
+    return Object.values(contributions).reduce((sum, val) => sum + (parseInt(val) || 0), 0);
   };
 
-  // Égaliser les contributions
-  const equalizeContributions = () => {
+  // Distribuer équitablement les pourcentages
+  const distributeEqually = () => {
     if (selectedMembers.length === 0) return;
     
     const equalPercentage = Math.floor(100 / selectedMembers.length);
-    const newContributions = {};
+    const remainder = 100 - (equalPercentage * selectedMembers.length);
     
+    const newContributions = {};
     selectedMembers.forEach((member, index) => {
       if (index === selectedMembers.length - 1) {
         // Le dernier membre récupère le reste
-        newContributions[member.id] = 100 - (equalPercentage * (selectedMembers.length - 1));
+        newContributions[member.id] = equalPercentage + remainder;
       } else {
         newContributions[member.id] = equalPercentage;
       }
@@ -141,7 +165,7 @@ const TaskAssignmentModal = ({
   // Gérer la soumission
   const handleSubmitAssignment = async () => {
     // Validation des paramètres
-    if (!task || !task.id) {
+    if (!task?.id) {
       setError('Tâche invalide');
       return;
     }
@@ -154,12 +178,13 @@ const TaskAssignmentModal = ({
     // Si étape 1 et sélection multiple, passer à l'étape 2
     if (step === 1 && selectedMembers.length > 1) {
       setStep(2);
+      distributeEqually(); // Distribuer automatiquement
       return;
     }
 
     // Validation des pourcentages pour assignation multiple
     if (selectedMembers.length > 1 && getTotalPercentage() !== 100) {
-      setError('Les pourcentages doivent totaliser 100%');
+      setError(`Les pourcentages doivent totaliser 100% (actuellement ${getTotalPercentage()}%)`);
       return;
     }
 
@@ -167,30 +192,16 @@ const TaskAssignmentModal = ({
     setError('');
 
     try {
-      console.log('🎯 Soumission assignation corrigée:', {
+      console.log('🎯 Soumission assignation:', {
         taskId: task.id,
         selectedMembers: selectedMembers.map(m => ({ id: m.id, name: m.name })),
-        contributions,
-        totalPercentage: getTotalPercentage()
+        contributions: selectedMembers.length > 1 ? contributions : null
       });
 
-      // ✅ PARAMÈTRES CORRIGÉS
-      const assignmentData = {
-        taskId: task.id,
-        assignedUserIds: selectedMembers.map(m => m.id), // ✅ Array d'IDs
-        contributionPercentages: selectedMembers.length > 1 ? contributions : null, // ✅ Null si un seul membre
-        assignedBy: user.uid
-      };
-
-      // Validation finale avant envoi
-      if (!assignmentData.assignedUserIds || assignmentData.assignedUserIds.length === 0) {
-        throw new Error('Aucun membre sélectionné');
-      }
-
-      // Assigner la tâche avec le service
+      // Assigner la tâche avec le service corrigé
       const result = await taskAssignmentService.assignTaskToMembers(
         task.id,
-        assignmentData.assignedUserIds,
+        selectedMembers.map(m => m.id),
         user.uid
       );
 
@@ -207,13 +218,14 @@ const TaskAssignmentModal = ({
 
       console.log('✅ Assignation réussie:', result);
       
-      // ✅ SUCCÈS - Notifier le parent avec données corrigées
+      // Notifier le parent
       if (onAssignmentSuccess) {
         onAssignmentSuccess({
-          ...assignmentData,
           success: true,
-          assignedCount: assignmentData.assignedUserIds.length,
-          assignments: result.assignments || []
+          assignedMembers: selectedMembers,
+          taskId: task.id,
+          assignmentCount: selectedMembers.length,
+          contributions: selectedMembers.length > 1 ? contributions : null
         });
       }
       
@@ -222,23 +234,13 @@ const TaskAssignmentModal = ({
       
     } catch (error) {
       console.error('❌ Erreur assignation:', error);
-      setError(error.message || 'Erreur lors de l\'assignation');
+      setError(`Erreur lors de l'assignation: ${error.message}`);
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Reset lors de la fermeture
-  const handleClose = () => {
-    if (submitting) return;
-    
-    setSelectedMembers([]);
-    setContributions({});
-    setError('');
-    setStep(1);
-    onClose();
-  };
-
+  // Si pas ouvert, ne rien rendre
   if (!isOpen) return null;
 
   return (
@@ -247,31 +249,30 @@ const TaskAssignmentModal = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-        onClick={handleClose}
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        onClick={(e) => e.target === e.currentTarget && handleClose()}
       >
         <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
+          initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
+          exit={{ scale: 0.9, opacity: 0 }}
+          className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
         >
-          
           {/* Header */}
-          <div className="p-6 border-b border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
             <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <Users className="w-6 h-6 text-blue-600" />
-                  Assigner la tâche
-                </h2>
-                <p className="text-gray-600 mt-1">"{task?.title}"</p>
-              </div>
               
+              {/* Titre avec étapes */}
               <div className="flex items-center gap-4">
-                {/* Indicateur d'étape */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <UserPlus className="w-6 h-6 text-blue-600" />
+                  <h2 className="text-xl font-bold text-gray-900">
+                    Assigner des membres
+                  </h2>
+                </div>
+                
+                {/* Indicateur d'étapes */}
+                <div className="flex items-center gap-2 ml-4">
                   <span className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-medium ${
                     step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
                   }`}>
@@ -300,19 +301,42 @@ const TaskAssignmentModal = ({
           </div>
 
           {/* Contenu */}
-          <div className="p-6 overflow-y-auto max-h-[60vh]">
+          <div className="overflow-y-auto max-h-[60vh]">
             
+            {/* Affichage des erreurs */}
+            {error && (
+              <div className="m-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center gap-2 text-red-800">
+                  <AlertTriangle className="w-5 h-5" />
+                  <span className="font-medium">Erreur</span>
+                </div>
+                <p className="text-red-700 mt-1">{error}</p>
+                
+                {/* Bouton retry si erreur de chargement */}
+                {error.includes('chargement') && (
+                  <button
+                    onClick={loadAvailableMembers}
+                    disabled={loading}
+                    className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {loading && <Loader className="w-4 h-4 animate-spin" />}
+                    Réessayer
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Étape 1: Sélection des membres */}
             {step === 1 && (
-              <div className="space-y-6">
+              <div className="p-6 space-y-6">
                 
                 {/* Header de sélection */}
-                <div className="text-center mb-4">
+                <div className="text-center">
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
                     Sélectionnez les membres à assigner
                   </h3>
                   <p className="text-sm text-gray-600">
-                    Cliquez sur les membres que vous souhaitez assigner à cette tâche
+                    Tâche: <span className="font-medium">{task?.title || 'Sans titre'}</span>
                   </p>
                 </div>
 
@@ -344,153 +368,156 @@ const TaskAssignmentModal = ({
                 )}
 
                 {/* Liste des membres */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
+                <div className="space-y-3">
                   {loading ? (
-                    <div className="col-span-2 text-center py-8">
+                    <div className="text-center py-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                       <p className="text-gray-600 mt-2">Chargement des membres...</p>
                     </div>
                   ) : availableMembers.length === 0 ? (
-                    <div className="col-span-2 text-center py-8">
+                    <div className="text-center py-8">
                       <Users className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-600">Aucun membre disponible</p>
+                      <p className="text-gray-600 mb-4">Aucun membre disponible</p>
+                      <button
+                        onClick={loadAvailableMembers}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Recharger
+                      </button>
                     </div>
                   ) : (
-                    availableMembers.map(member => {
-                      const isSelected = selectedMembers.find(m => m.id === member.id);
-                      
-                      return (
-                        <div
-                          key={member.id}
-                          onClick={() => toggleMemberSelection(member)}
-                          className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                            isSelected 
-                              ? 'border-blue-500 bg-blue-50 shadow-md' 
-                              : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
-                              isSelected ? 'bg-blue-600' : 'bg-gray-400'
-                            }`}>
-                              {isSelected ? <Check className="w-5 h-5" /> : member.name.charAt(0)}
-                            </div>
-                            <div className="flex-1">
-                              <div className="font-medium text-gray-900">{member.name}</div>
-                              <div className="text-sm text-gray-600">{member.email}</div>
-                              <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
-                                <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-                                  Niveau {member.level}
-                                </span>
-                                <span>{member.totalXp} XP</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
+                      {availableMembers.map(member => {
+                        const isSelected = selectedMembers.find(m => m.id === member.id);
+                        
+                        return (
+                          <div
+                            key={member.id}
+                            onClick={() => toggleMemberSelection(member)}
+                            className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                              isSelected 
+                                ? 'border-blue-500 bg-blue-50 shadow-md' 
+                                : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+                                isSelected ? 'bg-blue-600' : 'bg-gray-400'
+                              }`}>
+                                {isSelected ? (
+                                  <Check className="w-5 h-5" />
+                                ) : (
+                                  member.name.charAt(0).toUpperCase()
+                                )}
                               </div>
+                              
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium text-gray-900 truncate">
+                                  {member.name}
+                                </h4>
+                                <p className="text-sm text-gray-600 truncate">
+                                  {member.email}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Trophy className="w-3 h-3 text-yellow-500" />
+                                  <span className="text-xs text-gray-500">
+                                    Niveau {member.level} • {member.totalXp} XP
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {isSelected && (
+                                <div className="text-blue-600">
+                                  <Check className="w-5 h-5" />
+                                </div>
+                              )}
                             </div>
                           </div>
-                        </div>
-                      );
-                    })
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Étape 2: Répartition des contributions */}
+            {/* Étape 2: Répartition des pourcentages */}
             {step === 2 && (
-              <div className="space-y-6">
+              <div className="p-6 space-y-6">
                 
-                {/* Informations XP */}
-                <div className="bg-yellow-50 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <Info className="w-5 h-5 text-yellow-600 mt-0.5" />
-                    <div>
-                      <h3 className="font-medium text-yellow-900">Répartition des XP</h3>
-                      <p className="text-yellow-800 text-sm mt-1">
-                        Les XP seront distribués selon les pourcentages définis ci-dessous. 
-                        Total XP de la tâche : <strong>+{task?.xpReward || 25} XP</strong>
-                      </p>
-                    </div>
-                  </div>
+                {/* Header répartition */}
+                <div className="text-center">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Définir la répartition des contributions
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Total: <span className={`font-bold ${getTotalPercentage() === 100 ? 'text-green-600' : 'text-red-600'}`}>
+                      {getTotalPercentage()}%
+                    </span>
+                  </p>
                 </div>
 
-                {/* Résumé des pourcentages */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-medium text-gray-900">Total : {getTotalPercentage()}%</h3>
-                    <button
-                      onClick={equalizeContributions}
-                      className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                    >
-                      Égaliser automatiquement
-                    </button>
-                  </div>
-                  
-                  {getTotalPercentage() !== 100 && (
-                    <div className="flex items-center gap-2 text-sm text-red-600">
-                      <AlertTriangle className="w-4 h-4" />
-                      <span>Les pourcentages doivent totaliser 100%</span>
-                    </div>
-                  )}
+                {/* Bouton distribution automatique */}
+                <div className="flex justify-center">
+                  <button
+                    onClick={distributeEqually}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+                  >
+                    <Percent className="w-4 h-4" />
+                    Distribuer équitablement
+                  </button>
                 </div>
 
-                {/* Répartition pour chaque membre */}
+                {/* Répartition par membre */}
                 <div className="space-y-4">
-                  {selectedMembers.map(member => {
-                    const percentage = contributions[member.id] || 0;
-                    const xpAmount = Math.round((task?.xpReward || 25) * (percentage / 100));
-                    
-                    return (
-                      <div key={member.id} className="bg-white border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                            {member.name.charAt(0)}
-                          </div>
-                          
-                          <div className="flex-1">
-                            <div className="font-medium text-gray-900">{member.name}</div>
-                            <div className="text-sm text-gray-600">{member.email}</div>
-                          </div>
-                          
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  value={percentage}
-                                  onChange={(e) => updateContribution(member.id, e.target.value)}
-                                  className="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm"
-                                />
-                                <Percent className="w-4 h-4 text-gray-400" />
-                              </div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                = {xpAmount} XP
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                  {selectedMembers.map(member => (
+                    <div key={member.id} className="flex items-center gap-4 p-4 border rounded-lg">
+                      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                        {member.name.charAt(0).toUpperCase()}
                       </div>
-                    );
-                  })}
+                      
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">{member.name}</h4>
+                        <p className="text-sm text-gray-600">{member.email}</p>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={contributions[member.id] || 0}
+                          onChange={(e) => updateContribution(member.id, e.target.value)}
+                          className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span className="text-gray-600">%</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            )}
 
-            {/* Affichage d'erreur */}
-            {error && (
-              <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-red-800 font-medium">Erreur</p>
-                  <p className="text-red-700 text-sm">{error}</p>
-                </div>
+                {/* Validation pourcentages */}
+                {getTotalPercentage() !== 100 && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-orange-800">
+                      <Info className="w-5 h-5" />
+                      <span className="font-medium">Attention</span>
+                    </div>
+                    <p className="text-orange-700 mt-1">
+                      Le total doit être exactement 100%. 
+                      Actuellement: {getTotalPercentage()}%
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           {/* Footer avec actions */}
-          <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
             <div className="flex items-center justify-between">
+              
+              {/* Info étape */}
               <div className="text-sm text-gray-600">
                 {step === 1 ? (
                   selectedMembers.length > 0 ? (
@@ -503,6 +530,7 @@ const TaskAssignmentModal = ({
                 )}
               </div>
               
+              {/* Actions */}
               <div className="flex items-center gap-3">
                 {step === 2 && (
                   <button
