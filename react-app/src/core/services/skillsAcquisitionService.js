@@ -1,49 +1,39 @@
 // ==========================================
 // 📁 react-app/src/core/services/skillsAcquisitionService.js
-// SERVICE GAME MASTER - VERSION ULTRA-ROBUSTE
+// SERVICE ACQUISITION DE COMPÉTENCES GAME MASTER - IMPORTS FIREBASE CORRIGÉS
 // ==========================================
 
 import { 
   collection, 
   doc, 
   setDoc, 
-  getDoc, 
   updateDoc, 
+  getDoc, 
+  getDocs,
   deleteDoc,
-  getDocs, 
+  query, 
+  where, 
+  orderBy, 
   arrayUnion, 
   serverTimestamp 
 } from 'firebase/firestore';
+
 import { db } from '../firebase.js';
 
-// 🎮 EXPÉRIENCE GAME MASTER UNIQUEMENT
-export const BRAIN_EXPERIENCES = {
-  GAMEMASTER: {
-    id: 'gamemaster',
-    name: 'Game Master',
-    icon: '🎮',
-    description: 'Maîtriser l\'animation et la gestion des sessions de jeu',
-    duration: '4-6 semaines',
-    difficulty: 'intermediate',
-    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
-  }
-};
-
-// 🎯 COMPÉTENCES GAME MASTER COMPLÈTES
+// 🎯 COMPÉTENCES PAR EXPÉRIENCE
 export const EXPERIENCE_SKILLS = {
   gamemaster: {
     decouverte_immersion: [
-      { id: 'scenario_psychiatric', name: 'Scénario Psychiatric', description: 'Connaître le scénario et l\'univers Psychiatric' },
-      { id: 'scenario_prison', name: 'Scénario Prison', description: 'Connaître le scénario et l\'univers Prison' },
-      { id: 'scenario_back80s', name: 'Scénario Back to 80s', description: 'Connaître le scénario et l\'univers années 80' },
-      { id: 'ambiance_generale', name: 'Ambiance générale', description: 'Maîtriser l\'ambiance et l\'immersion' },
-      { id: 'regles_base', name: 'Règles de base', description: 'Connaître les règles fondamentales' }
+      { id: 'connaissance_scenarios', name: 'Connaissance des scénarios', description: 'Maîtriser tous les scénarios et leurs variantes' },
+      { id: 'culture_escape', name: 'Culture escape game', description: 'Comprendre l\'univers et les codes des escape games' },
+      { id: 'immersion_joueur', name: 'Immersion joueur', description: 'Savoir créer une ambiance immersive' },
+      { id: 'storytelling', name: 'Storytelling', description: 'Raconter une histoire captivante' }
     ],
     gestion_technique: [
-      { id: 'cameras_psychiatric', name: 'Caméras Psychiatric', description: 'Utiliser le système de caméras Psychiatric' },
-      { id: 'cameras_prison', name: 'Caméras Prison', description: 'Utiliser le système de caméras Prison' },
-      { id: 'cameras_back80s', name: 'Caméras Back to 80s', description: 'Utiliser le système de caméras Back to 80s' },
-      { id: 'effets_sonores', name: 'Effets sonores', description: 'Maîtriser les effets sonores et musiques' },
+      { id: 'manipulation_cameras', name: 'Manipulation caméras', description: 'Utiliser efficacement le système de caméras' },
+      { id: 'gestion_son', name: 'Gestion du son', description: 'Maîtriser l\'ambiance sonore et les effets' },
+      { id: 'eclairage_ambiance', name: 'Éclairage et ambiance', description: 'Contrôler l\'éclairage pour l\'immersion' },
+      { id: 'maintenance_materiel', name: 'Maintenance matériel', description: 'Entretenir et réparer le matériel technique' },
       { id: 'effets_speciaux', name: 'Effets spéciaux', description: 'Gérer les effets spéciaux de chaque salle' },
       { id: 'reset_salles', name: 'Reset des salles', description: 'Savoir faire un reset complet et rapide' }
     ],
@@ -133,26 +123,36 @@ export class SkillsAcquisitionService {
         currentPhase: 'decouverte_immersion'
       };
 
-      // Initialiser toutes les compétences Game Master
+      // 🔧 CORRECTION: Initialiser toutes les compétences Game Master avec vérification
       const gameMasterSkills = EXPERIENCE_SKILLS.gamemaster;
-      Object.keys(gameMasterSkills).forEach(category => {
-        gameMasterSkills[category].forEach(skill => {
-          skillsProfile.experiences.gamemaster.skills[skill.id] = {
-            completed: false,
-            validatedBy: null,
-            validationDate: null,
-            adminComments: '',
-            selfAssessment: false
-          };
+      if (gameMasterSkills && typeof gameMasterSkills === 'object') {
+        Object.keys(gameMasterSkills).forEach(category => {
+          const categorySkills = gameMasterSkills[category];
+          if (Array.isArray(categorySkills)) {
+            categorySkills.forEach(skill => {
+              if (skill && skill.id) {
+                skillsProfile.experiences.gamemaster.skills[skill.id] = {
+                  completed: false,
+                  validatedBy: null,
+                  validationDate: null,
+                  adminComments: '',
+                  selfAssessment: false
+                };
+              }
+            });
+          }
         });
-      });
 
-      // Calculer le total des compétences
-      let totalSkills = 0;
-      Object.keys(gameMasterSkills).forEach(category => {
-        totalSkills += gameMasterSkills[category].length;
-      });
-      skillsProfile.metrics.totalSkills = totalSkills;
+        // Calculer le total des compétences
+        let totalSkills = 0;
+        Object.keys(gameMasterSkills).forEach(category => {
+          const categorySkills = gameMasterSkills[category];
+          if (Array.isArray(categorySkills)) {
+            totalSkills += categorySkills.length;
+          }
+        });
+        skillsProfile.metrics.totalSkills = totalSkills;
+      }
 
       await setDoc(doc(db, 'skillsAcquisition', userId), skillsProfile);
       console.log('✅ Profil Game Master créé avec succès');
@@ -241,19 +241,24 @@ export class SkillsAcquisitionService {
       
       // Ajouter toutes les compétences Game Master manquantes
       const gameMasterSkills = EXPERIENCE_SKILLS.gamemaster;
-      Object.keys(gameMasterSkills).forEach(category => {
-        gameMasterSkills[category].forEach(skill => {
-          if (!profileData.experiences.gamemaster.skills[skill.id]) {
-            profileData.experiences.gamemaster.skills[skill.id] = {
-              completed: false,
-              validatedBy: null,
-              validationDate: null,
-              adminComments: '',
-              selfAssessment: false
-            };
+      if (gameMasterSkills && typeof gameMasterSkills === 'object') {
+        Object.keys(gameMasterSkills).forEach(category => {
+          const categorySkills = gameMasterSkills[category];
+          if (Array.isArray(categorySkills)) {
+            categorySkills.forEach(skill => {
+              if (skill && skill.id && !profileData.experiences.gamemaster.skills[skill.id]) {
+                profileData.experiences.gamemaster.skills[skill.id] = {
+                  completed: false,
+                  validatedBy: null,
+                  validationDate: null,
+                  adminComments: '',
+                  selfAssessment: false
+                };
+              }
+            });
           }
         });
-      });
+      }
       
       // Sauvegarder la structure réparée
       await setDoc(doc(db, 'skillsAcquisition', userId), profileData);
@@ -349,40 +354,34 @@ export class SkillsAcquisitionService {
     }
     
     if (!profile.experiences.gamemaster) {
-      console.warn('⚠️ Pas d\'expérience gamemaster');
+      console.warn('⚠️ Pas d\'expérience Game Master');
       return this.getDefaultStats();
     }
-    
+
     const gameMasterExp = profile.experiences.gamemaster;
     
     if (!gameMasterExp.skills) {
-      console.warn('⚠️ Pas de skills gamemaster');
+      console.warn('⚠️ Pas de compétences Game Master');
       return this.getDefaultStats();
     }
-    
-    const allSkills = EXPERIENCE_SKILLS.gamemaster;
+
     let totalSkills = 0;
     let validatedSkills = 0;
     let selfAssessedSkills = 0;
 
-    // 🔧 CORRECTION: Vérifier que allSkills existe
-    if (!allSkills) {
-      console.warn('⚠️ EXPERIENCE_SKILLS.gamemaster manquant');
-      return this.getDefaultStats();
-    }
-
-    Object.keys(allSkills).forEach(category => {
-      if (allSkills[category] && Array.isArray(allSkills[category])) {
-        allSkills[category].forEach(skill => {
-          totalSkills++;
-          const skillData = gameMasterExp.skills[skill.id];
-          if (skillData?.completed) {
-            validatedSkills++;
-          }
-          if (skillData?.selfAssessment) {
-            selfAssessedSkills++;
-          }
-        });
+    // 🔧 CORRECTION: Compter toutes les compétences avec vérification
+    Object.keys(gameMasterExp.skills).forEach(skillId => {
+      const skill = gameMasterExp.skills[skillId];
+      if (skill && typeof skill === 'object') {
+        totalSkills++;
+        
+        if (skill.completed || skill.validatedBy) {
+          validatedSkills++;
+        }
+        
+        if (skill.selfAssessment) {
+          selfAssessedSkills++;
+        }
       }
     });
 
@@ -439,6 +438,8 @@ export class SkillsAcquisitionService {
    */
   static async getAllSkillsProfiles() {
     try {
+      console.log('🔍 Récupération tous profils Game Master...');
+      
       const querySnapshot = await getDocs(collection(db, 'skillsAcquisition'));
       const profiles = [];
       
@@ -449,10 +450,66 @@ export class SkillsAcquisitionService {
         });
       });
 
+      console.log(`✅ ${profiles.length} profils Game Master récupérés`);
       return { success: true, profiles };
 
     } catch (error) {
       console.error('❌ Erreur récupération profils Game Master:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * ✅ Validation admin d'une compétence
+   */
+  static async adminValidateSkill(userId, experienceId, skillId, adminId, validated, comments = '') {
+    try {
+      console.log('✅ Validation admin compétence:', skillId);
+      
+      const updatePath = `experiences.${experienceId}.skills.${skillId}`;
+      const updates = {
+        [`${updatePath}.completed`]: validated,
+        [`${updatePath}.validatedBy`]: validated ? adminId : null,
+        [`${updatePath}.validationDate`]: validated ? serverTimestamp() : null,
+        [`${updatePath}.adminComments`]: comments,
+        updatedAt: serverTimestamp()
+      };
+
+      await updateDoc(doc(db, 'skillsAcquisition', userId), updates);
+      console.log('✅ Compétence validée par admin');
+      return { success: true };
+
+    } catch (error) {
+      console.error('❌ Erreur validation admin:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🎤 Ajouter un entretien admin
+   */
+  static async addAdminInterview(userId, adminId, interviewData) {
+    try {
+      console.log('🎤 Ajout entretien admin...');
+      
+      const interview = {
+        adminId,
+        date: new Date().toISOString(),
+        timestamp: Date.now(),
+        ...interviewData
+      };
+
+      const updates = {
+        adminInterviews: arrayUnion(interview),
+        updatedAt: serverTimestamp()
+      };
+
+      await updateDoc(doc(db, 'skillsAcquisition', userId), updates);
+      console.log('✅ Entretien admin ajouté');
+      return { success: true };
+
+    } catch (error) {
+      console.error('❌ Erreur ajout entretien admin:', error);
       return { success: false, error: error.message };
     }
   }
