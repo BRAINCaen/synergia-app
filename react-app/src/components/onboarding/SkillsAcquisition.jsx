@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/onboarding/SkillsAcquisition.jsx
-// COMPOSANT ACQUISITION COMPÉTENCES GAME MASTER - VERSION FINALE
+// COMPOSANT ACQUISITION COMPÉTENCES GAME MASTER - VERSION FINALE FIREBASE
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -47,6 +47,7 @@ const SkillsAcquisition = () => {
     if (!user?.uid) return;
     
     try {
+      console.log('🔄 Toggle compétence Game Master:', skillId);
       const result = await SkillsAcquisitionService.toggleSkill(
         user.uid, 
         'gamemaster', 
@@ -67,9 +68,11 @@ const SkillsAcquisition = () => {
     
     try {
       setLoading(true);
+      console.log('📊 Chargement données Game Master...');
       const result = await SkillsAcquisitionService.getSkillsProfile(user.uid);
       
       if (result.success) {
+        console.log('✅ Profil Game Master trouvé');
         setSkillsProfile(result.data);
         setStats(SkillsAcquisitionService.calculateProfileStats(result.data));
       } else {
@@ -79,6 +82,8 @@ const SkillsAcquisition = () => {
       }
     } catch (error) {
       console.error('❌ Erreur chargement Game Master:', error);
+      setSkillsProfile(null);
+      setStats(null);
     } finally {
       setLoading(false);
     }
@@ -90,13 +95,19 @@ const SkillsAcquisition = () => {
     
     try {
       setLoading(true);
+      console.log('🚀 Initialisation profil Game Master...');
       const result = await SkillsAcquisitionService.createSkillsProfile(user.uid, ['gamemaster']);
       
       if (result.success) {
+        console.log('✅ Profil Game Master créé');
         await loadSkillsData();
+      } else {
+        console.error('❌ Échec création profil Game Master');
+        alert('Erreur lors de la création du profil Game Master');
       }
     } catch (error) {
       console.error('❌ Erreur initialisation Game Master:', error);
+      alert('Erreur lors de l\'initialisation du profil Game Master');
     } finally {
       setLoading(false);
     }
@@ -119,9 +130,11 @@ const SkillsAcquisition = () => {
         setShowWeeklyModal(false);
         setWeeklyFollowUp(WEEKLY_FOLLOW_UP_TEMPLATE);
         await loadSkillsData();
+        console.log('✅ Suivi hebdomadaire soumis');
       }
     } catch (error) {
       console.error('❌ Erreur soumission suivi Game Master:', error);
+      alert('Erreur lors de la soumission du suivi hebdomadaire');
     } finally {
       setSubmittingFollowUp(false);
     }
@@ -196,10 +209,20 @@ const SkillsAcquisition = () => {
         
         <button
           onClick={initializeGameMasterProfile}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center mx-auto"
+          disabled={loading}
+          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-3 rounded-lg transition-colors flex items-center mx-auto"
         >
-          <Plus className="h-5 w-5 mr-2" />
-          Commencer ma formation Game Master
+          {loading ? (
+            <>
+              <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
+              Création...
+            </>
+          ) : (
+            <>
+              <Plus className="h-5 w-5 mr-2" />
+              Commencer ma formation Game Master
+            </>
+          )}
         </button>
       </div>
     );
@@ -287,7 +310,7 @@ const SkillsAcquisition = () => {
           </h3>
           
           {allSkills[activeCategory]?.map((skill) => {
-            const skillStatus = gameMasterExp.skills?.[skill.id]; // 🔧 CORRECTION: Accès sécurisé
+            const skillStatus = gameMasterExp.skills?.[skill.id]; // 🔧 Accès sécurisé
             const isCompleted = skillStatus?.completed;
             const isSelfAssessed = skillStatus?.selfAssessment;
             const isValidated = skillStatus?.validatedBy;
