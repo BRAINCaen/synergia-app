@@ -1,4 +1,1035 @@
+a// ==========================================
+// 📁 react-app/src/pages/TasksPage.jsx
+// TASKS PAGE AVEC MODAL D'ASSIGNATION INTÉGRÉ - SANS BUG USER
 // ==========================================
+
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  CheckSquare, 
+  Plus, 
+  Search, 
+  Calendar,
+  Users,
+  Clock,
+  Star,
+  Play,
+  CheckCircle,
+  Edit,
+  Trash2,
+  Camera,
+  UserPlus,
+  Trophy,
+  AlertTriangle,
+  MoreVertical,
+  X,
+  Check,
+  User,
+  Percent,
+  Info,
+  Loader
+} from 'lucide-react';
+
+// Layout et composants premium
+import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
+
+// Store et Firebase
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  getDocs
+} from 'firebase/firestore';
+import { db } from '../core/firebase.js';
+
+/**
+ * 🎯 MODAL D'ASSIGNATION INTÉGRÉ SANS BUG
+ * Version complètement autonome qui évite les erreurs d'import
+ */
+const IntegratedAssignmentModal = ({ 
+  isOpen, 
+  onClose, 
+  task, 
+  onAssignmentSuccess 
+}) => {
+  const { user } = useAuthStore();
+  
+  // États
+  const [availableMembers, setAvailableMembers] = useState([]);
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [contributions, setContributions] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [step, setStep] = useState(1);
+
+  // ✅ CHARGEMENT DIRECT DEPUIS FIREBASE - SANS SERVICE EXTERNE
+  const loadAvailableMembers = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      console.log('👥 Chargement direct des membres depuis Firebase...');
+      
+      // Récupérer TOUS les utilisateurs directement depuis Firebase
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const members = [];
+      
+      usersSnapshot.forEach(doc => {
+        const userData = doc.data();
+        
+        // Inclure l'utilisateur s'il a un email
+        if (userData.email) {
+          const member = {
+            id: doc.id,
+            uid: doc.id,
+            name: userData.profile?.displayName || 
+                  userData.displayName || 
+                  userData.email?.split('@')[0] || 
+                  'Utilisateur',
+            email: userData.email,
+            avatar: userData.photoURL || userData.profile?.avatar,
+            role: userData.profile?.role || 'member',
+            level: userData.gamification?.level || 1,
+            totalXp: userData.gamification?.totalXp || 0,
+            isActive: userData.isActive !== false,
+            lastActivity: userData.gamification?.lastActivityDate,
+            tasksCompleted: userData.gamification?.tasksCompleted || 0
+          };
+          
+          members.push(member);
+        }
+      });
+      
+      // Trier par niveau et XP
+      members.sort((a, b) => {
+        if (a.level !== b.level) return b.level - a.level;
+        return b.totalXp - a.totalXp;
+      });
+      
+      setAvailableMembers(members);
+      console.log('✅ Membres chargés directement:', members.length);
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement membres direct:', error);
+      setError('Erreur lors du chargement des membres');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Charger les membres quand le modal s'ouvre
+  useEffect(() => {
+    if (isOpen) {
+      loadAvailableMembers();
+      setSelectedMembers([]);
+      setContributions({});
+      setStep(1);
+      setError('');
+    }
+  }, [isOpen]);
+
+  // Gérer la fermeture
+  const handleClose = () => {
+    setSelectedMembers([]);
+    setContributions({});
+    setStep(1);
+    setError('');
+    onClose();
+  };
+
+  // Sélectionner/désélectionner un membre
+  const toggleMemberSelection = (member) => {
+    setSelectedMembers(prev => {
+      const isSelected = prev.find(m => m.id === member.id);
+      
+      if (isSelected) {
+        const updated = prev.filter(m => m.id !== member.id);
+        setContributions(prevContrib => {
+          const newContrib = { ...prevContrib };
+          delete newContrib[member.id];
+          return newContrib;
+        });
+        return updated;
+      } else {
+        return [...prev, member];
+      }
+    });
+  };
+
+  // Calculer le total des pourcentages
+  const getTotalPercentage = () => {
+    return Object.values(contributions).reduce((sum, val) => sum + (parseInt(val) || 0), 0);
+  };
+
+  // Distribuer équitablement
+  const distributeEqually = () => {
+    if (selectedMembers.length === 0) return;
+    
+    const equalPercentage = Math.floor(100 / selectedMembers.length);
+    const remainder = 100 - (equalPercentage * selectedMembers.length);
+    
+    const newContributions = {};
+    selectedMembers.forEach((member, index) => {
+      if (index === selectedMembers.length - 1) {
+        newContributions[member.id] = equalPercentage + remainder;
+      } else {
+        newContributions[member.id] = equalPercentage;
+      }
+    });
+    
+    setContributions(newContributions);
+  };
+
+  // Mettre à jour une contribution
+  const updateContribution = (memberId, value) => {
+    const numValue = parseInt(value) || 0;
+    const clampedValue = Math.max(0, Math.min(100, numValue));
+    
+    setContributions(prev => ({
+      ...prev,
+      [memberId]: clampedValue
+    }));
+  };
+
+  // ✅ ASSIGNATION DIRECTE FIREBASE - SANS SERVICE EXTERNE
+  const handleSubmitAssignment = async () => {
+    if (!task?.id) {
+      setError('Tâche invalide');
+      return;
+    }
+
+    if (selectedMembers.length === 0) {
+      setError('Veuillez sélectionner au moins un membre');
+      return;
+    }
+
+    // Si étape 1 et sélection multiple, passer à l'étape 2
+    if (step === 1 && selectedMembers.length > 1) {
+      setStep(2);
+      distributeEqually();
+      return;
+    }
+
+    // Validation des pourcentages
+    if (selectedMembers.length > 1 && getTotalPercentage() !== 100) {
+      setError(`Les pourcentages doivent totaliser 100% (actuellement ${getTotalPercentage()}%)`);
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+
+    try {
+      console.log('🎯 Assignation directe Firebase:', {
+        taskId: task.id,
+        selectedMembers: selectedMembers.map(m => ({ id: m.id, name: m.name }))
+      });
+
+      // Préparer les données d'assignation
+      const assignmentData = selectedMembers.map(member => ({
+        userId: member.id,
+        assignedAt: new Date().toISOString(),
+        assignedBy: user.uid,
+        status: 'assigned',
+        contributionPercentage: selectedMembers.length > 1 ? (contributions[member.id] || 0) : 100,
+        hasSubmitted: false,
+        submissionDate: null
+      }));
+
+      // Mettre à jour la tâche directement dans Firebase
+      const taskRef = doc(db, 'tasks', task.id);
+      await updateDoc(taskRef, {
+        assignedTo: selectedMembers.map(m => m.id),
+        assignments: assignmentData,
+        isMultipleAssignment: selectedMembers.length > 1,
+        assignmentCount: selectedMembers.length,
+        status: 'assigned',
+        assignedAt: serverTimestamp(),
+        lastAssignedBy: user.uid,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ Assignation réussie directement');
+      
+      // Notifier le parent
+      if (onAssignmentSuccess) {
+        onAssignmentSuccess({
+          success: true,
+          assignedMembers: selectedMembers,
+          taskId: task.id,
+          assignmentCount: selectedMembers.length
+        });
+      }
+      
+      handleClose();
+      
+    } catch (error) {
+      console.error('❌ Erreur assignation directe:', error);
+      setError(`Erreur lors de l'assignation: ${error.message}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        onClick={(e) => e.target === e.currentTarget && handleClose()}
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
+        >
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <UserPlus className="w-6 h-6 text-blue-600" />
+                <h2 className="text-xl font-bold text-gray-900">
+                  Assigner des membres
+                </h2>
+              </div>
+              
+              <button
+                onClick={handleClose}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Contenu */}
+          <div className="overflow-y-auto max-h-[60vh]">
+            
+            {/* Affichage des erreurs */}
+            {error && (
+              <div className="m-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center gap-2 text-red-800">
+                  <AlertTriangle className="w-5 h-5" />
+                  <span className="font-medium">Erreur</span>
+                </div>
+                <p className="text-red-700 mt-1">{error}</p>
+                
+                {error.includes('chargement') && (
+                  <button
+                    onClick={loadAvailableMembers}
+                    disabled={loading}
+                    className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {loading && <Loader className="w-4 h-4 animate-spin" />}
+                    Réessayer
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Étape 1: Sélection des membres */}
+            {step === 1 && (
+              <div className="p-6 space-y-6">
+                
+                <div className="text-center">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Sélectionnez les membres à assigner
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Tâche: <span className="font-medium">{task?.title || 'Sans titre'}</span>
+                  </p>
+                </div>
+
+                {/* Membres sélectionnés */}
+                {selectedMembers.length > 0 && (
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h3 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+                      <Check className="w-4 h-4" />
+                      Membres sélectionnés ({selectedMembers.length})
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedMembers.map(member => (
+                        <span
+                          key={member.id}
+                          className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                        >
+                          <User className="w-3 h-3" />
+                          {member.name}
+                          <button
+                            onClick={() => toggleMemberSelection(member)}
+                            className="hover:text-blue-600"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Liste des membres */}
+                <div className="space-y-3">
+                  {loading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                      <p className="text-gray-600 mt-2">Chargement des membres...</p>
+                    </div>
+                  ) : availableMembers.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Users className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-600 mb-4">Aucun membre disponible</p>
+                      <button
+                        onClick={loadAvailableMembers}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Recharger
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
+                      {availableMembers.map(member => {
+                        const isSelected = selectedMembers.find(m => m.id === member.id);
+                        
+                        return (
+                          <div
+                            key={member.id}
+                            onClick={() => toggleMemberSelection(member)}
+                            className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                              isSelected 
+                                ? 'border-blue-500 bg-blue-50 shadow-md' 
+                                : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+                                isSelected ? 'bg-blue-600' : 'bg-gray-400'
+                              }`}>
+                                {isSelected ? (
+                                  <Check className="w-5 h-5" />
+                                ) : (
+                                  member.name.charAt(0).toUpperCase()
+                                )}
+                              </div>
+                              
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium text-gray-900 truncate">
+                                  {member.name}
+                                </h4>
+                                <p className="text-sm text-gray-600 truncate">
+                                  {member.email}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Trophy className="w-3 h-3 text-yellow-500" />
+                                  <span className="text-xs text-gray-500">
+                                    Niveau {member.level} • {member.totalXp} XP
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {isSelected && (
+                                <div className="text-blue-600">
+                                  <Check className="w-5 h-5" />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Étape 2: Répartition */}
+            {step === 2 && (
+              <div className="p-6 space-y-6">
+                
+                <div className="text-center">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Définir la répartition des contributions
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Total: <span className={`font-bold ${getTotalPercentage() === 100 ? 'text-green-600' : 'text-red-600'}`}>
+                      {getTotalPercentage()}%
+                    </span>
+                  </p>
+                </div>
+
+                <div className="flex justify-center">
+                  <button
+                    onClick={distributeEqually}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+                  >
+                    <Percent className="w-4 h-4" />
+                    Distribuer équitablement
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {selectedMembers.map(member => (
+                    <div key={member.id} className="flex items-center gap-4 p-4 border rounded-lg">
+                      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                        {member.name.charAt(0).toUpperCase()}
+                      </div>
+                      
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">{member.name}</h4>
+                        <p className="text-sm text-gray-600">{member.email}</p>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={contributions[member.id] || 0}
+                          onChange={(e) => updateContribution(member.id, e.target.value)}
+                          className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span className="text-gray-600">%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {getTotalPercentage() !== 100 && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-orange-800">
+                      <Info className="w-5 h-5" />
+                      <span className="font-medium">Attention</span>
+                    </div>
+                    <p className="text-orange-700 mt-1">
+                      Le total doit être exactement 100%. Actuellement: {getTotalPercentage()}%
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between">
+              
+              <div className="text-sm text-gray-600">
+                {step === 1 ? (
+                  selectedMembers.length > 0 ? (
+                    `${selectedMembers.length} membre${selectedMembers.length > 1 ? 's' : ''} sélectionné${selectedMembers.length > 1 ? 's' : ''}`
+                  ) : (
+                    'Sélectionnez au moins un membre'
+                  )
+                ) : (
+                  `Répartition pour ${selectedMembers.length} membre${selectedMembers.length > 1 ? 's' : ''}`
+                )}
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {step === 2 && (
+                  <button
+                    onClick={() => setStep(1)}
+                    disabled={submitting}
+                    className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  >
+                    Retour
+                  </button>
+                )}
+                
+                <button
+                  onClick={handleClose}
+                  disabled={submitting}
+                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                
+                <button
+                  onClick={handleSubmitAssignment}
+                  disabled={submitting || selectedMembers.length === 0 || (step === 2 && getTotalPercentage() !== 100)}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {submitting && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
+                  {step === 1 ? (
+                    selectedMembers.length > 1 ? 'Définir la répartition' : 'Assigner'
+                  ) : (
+                    submitting ? 'Assignation...' : 'Confirmer l\'assignation'
+                  )}
+                  {step === 1 && selectedMembers.length > 0 && <UserPlus className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+/**
+ * 🎯 COMPOSANT PRINCIPAL TASKS PAGE
+ */
+const TasksPage = () => {
+  const { user } = useAuthStore();
+  
+  // États principaux
+  const [tasks, setTasks] = useState([]);
+  const [filteredTasks, setFilteredTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // États de filtrage
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterPriority, setFilterPriority] = useState('all');
+  const [sortBy, setSortBy] = useState('dueDate');
+
+  // États des modals
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+
+  // États des actions rapides
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+
+  // Charger les tâches depuis Firebase
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const loadTasks = () => {
+      const tasksQuery = query(
+        collection(db, 'tasks'),
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      );
+
+      const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
+        const tasksData = [];
+        snapshot.forEach((doc) => {
+          tasksData.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+        setTasks(tasksData);
+        setLoading(false);
+      });
+
+      return unsubscribe;
+    };
+
+    const unsubscribe = loadTasks();
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  // Filtrer et trier les tâches
+  useEffect(() => {
+    let filtered = [...tasks];
+
+    // Filtrer par terme de recherche
+    if (searchTerm) {
+      filtered = filtered.filter(task =>
+        task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filtrer par statut
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(task => task.status === filterStatus);
+    }
+
+    // Filtrer par priorité
+    if (filterPriority !== 'all') {
+      filtered = filtered.filter(task => task.priority === filterPriority);
+    }
+
+    // Trier
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'dueDate':
+          return new Date(a.dueDate || 0) - new Date(b.dueDate || 0);
+        case 'priority':
+          const priorityOrder = { high: 3, medium: 2, low: 1 };
+          return priorityOrder[b.priority] - priorityOrder[a.priority];
+        case 'created':
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        default:
+          return 0;
+      }
+    });
+
+    setFilteredTasks(filtered);
+  }, [tasks, searchTerm, filterStatus, filterPriority, sortBy]);
+
+  // Actions sur les tâches
+  const handleCreateTask = async () => {
+    if (!newTaskTitle.trim()) return;
+
+    try {
+      await addDoc(collection(db, 'tasks'), {
+        title: newTaskTitle,
+        description: '',
+        status: 'todo',
+        priority: 'medium',
+        userId: user.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      setNewTaskTitle('');
+      setShowQuickCreate(false);
+    } catch (error) {
+      console.error('Erreur création tâche:', error);
+    }
+  };
+
+  const handleUpdateTask = async (taskId, updates) => {
+    try {
+      await updateDoc(doc(db, 'tasks', taskId), {
+        ...updates,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Erreur mise à jour tâche:', error);
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    try {
+      await deleteDoc(doc(db, 'tasks', taskId));
+    } catch (error) {
+      console.error('Erreur suppression tâche:', error);
+    }
+  };
+
+  // Gestion des assignations
+  const handleTaskAssignment = (result) => {
+    console.log('✅ Assignation terminée:', result);
+    // Optionnel: afficher une notification de succès
+  };
+
+  // Statistiques rapides
+  const stats = {
+    total: tasks.length,
+    completed: tasks.filter(t => t.status === 'completed').length,
+    pending: tasks.filter(t => t.status === 'todo').length,
+    inProgress: tasks.filter(t => t.status === 'in_progress').length
+  };
+
+  // Composant Card de tâche
+  const TaskCard = ({ task }) => {
+    const getPriorityColor = (priority) => {
+      switch (priority) {
+        case 'high': return 'bg-red-100 text-red-800 border-red-200';
+        case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        case 'low': return 'bg-green-100 text-green-800 border-green-200';
+        default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      }
+    };
+
+    const getStatusColor = (status) => {
+      switch (status) {
+        case 'completed': return 'text-green-600';
+        case 'in_progress': return 'text-blue-600';
+        case 'todo': return 'text-gray-600';
+        default: return 'text-gray-600';
+      }
+    };
+
+    return (
+      <PremiumCard className="p-4 hover:shadow-lg transition-shadow">
+        <div className="flex items-start justify-between mb-3">
+          <h3 className="font-medium text-gray-900 line-clamp-2">{task.title}</h3>
+          
+          <div className="flex items-center gap-2">
+            <span className={`px-2 py-1 text-xs font-medium border rounded-full ${getPriorityColor(task.priority)}`}>
+              {task.priority}
+            </span>
+            
+            <div className="relative">
+              <button className="p-1 hover:bg-gray-100 rounded">
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {task.description && (
+          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{task.description}</p>
+        )}
+
+        <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+          {task.dueDate && (
+            <div className="flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              {new Date(task.dueDate).toLocaleDateString()}
+            </div>
+          )}
+          
+          <div className={`flex items-center gap-1 ${getStatusColor(task.status)}`}>
+            <Clock className="w-3 h-3" />
+            {task.status}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setSelectedTask(task);
+              setShowSubmissionModal(true);
+            }}
+            className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+          >
+            <Play className="w-3 h-3" />
+            Terminer
+          </button>
+          
+          <button
+            onClick={() => {
+              setSelectedTask(task);
+              setShowAssignmentModal(true);
+            }}
+            className="px-3 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+          >
+            <UserPlus className="w-3 h-3" />
+            Assigner
+          </button>
+          
+          <button
+            onClick={() => {
+              setEditingTask(task);
+              setShowTaskForm(true);
+            }}
+            className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
+          >
+            <Edit className="w-4 h-4" />
+          </button>
+          
+          <button
+            onClick={() => handleDeleteTask(task.id)}
+            className="p-2 text-gray-600 hover:text-red-600 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </PremiumCard>
+    );
+  };
+
+  return (
+    <PremiumLayout title="Gestion des Tâches">
+      {/* Header avec statistiques */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <StatCard
+          title="Total"
+          value={stats.total}
+          icon={CheckSquare}
+          color="blue"
+        />
+        <StatCard
+          title="Terminées"
+          value={stats.completed}
+          icon={CheckCircle}
+          color="green"
+        />
+        <StatCard
+          title="En cours"
+          value={stats.inProgress}
+          icon={Clock}
+          color="yellow"
+        />
+        <StatCard
+          title="En attente"
+          value={stats.pending}
+          icon={Star}
+          color="gray"
+        />
+      </div>
+
+      {/* Barre d'outils */}
+      <PremiumCard className="p-4 mb-6">
+        <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+          
+          {/* Recherche */}
+          <div className="flex-1 max-w-md">
+            <PremiumSearchBar
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Rechercher des tâches..."
+            />
+          </div>
+
+          {/* Filtres */}
+          <div className="flex items-center gap-3">
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Tous les statuts</option>
+              <option value="todo">À faire</option>
+              <option value="in_progress">En cours</option>
+              <option value="completed">Terminé</option>
+            </select>
+
+            <select
+              value={filterPriority}
+              onChange={(e) => setFilterPriority(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Toutes priorités</option>
+              <option value="high">Haute</option>
+              <option value="medium">Moyenne</option>
+              <option value="low">Basse</option>
+            </select>
+
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="dueDate">Date d'échéance</option>
+              <option value="priority">Priorité</option>
+              <option value="created">Date de création</option>
+            </select>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2">
+            <PremiumButton
+              onClick={() => setShowQuickCreate(!showQuickCreate)}
+              variant="secondary"
+              icon={Plus}
+            >
+              Création rapide
+            </PremiumButton>
+            
+            <PremiumButton
+              onClick={() => setShowTaskForm(true)}
+              icon={Plus}
+            >
+              Nouvelle tâche
+            </PremiumButton>
+          </div>
+        </div>
+
+        {/* Création rapide */}
+        {showQuickCreate && (
+          <div className="mt-4 flex items-center gap-2">
+            <input
+              type="text"
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              placeholder="Titre de la tâche..."
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onKeyPress={(e) => e.key === 'Enter' && handleCreateTask()}
+            />
+            <button
+              onClick={handleCreateTask}
+              disabled={!newTaskTitle.trim()}
+              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              Créer
+            </button>
+          </div>
+        )}
+      </PremiumCard>
+
+      {/* Liste des tâches */}
+      <div className="space-y-4">
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="text-gray-600 mt-2">Chargement des tâches...</p>
+          </div>
+        ) : filteredTasks.length === 0 ? (
+          <div className="text-center py-12">
+            <CheckSquare className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-400 mb-2">Aucune tâche trouvée</h3>
+            <p className="text-gray-500">
+              {searchTerm || filterStatus !== 'all' || filterPriority !== 'all'
+                ? 'Essayez de modifier vos filtres'
+                : 'Créez votre première tâche pour commencer'
+              }
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredTasks.map((task) => (
+              <TaskCard key={task.id} task={task} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Modal de soumission simple */}
+      {showSubmissionModal && selectedTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Terminer la tâche</h3>
+            <p className="text-gray-600 mb-6">
+              Êtes-vous sûr de vouloir marquer la tâche "{selectedTask.title}" comme terminée ?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowSubmissionModal(false);
+                  setSelectedTask(null);
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  handleUpdateTask(selectedTask.id, { 
+                    status: 'completed', 
+                    completedAt: serverTimestamp() 
+                  });
+                  setShowSubmissionModal(false);
+                  setSelectedTask(null);
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Terminer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ MODAL D'ASSIGNATION INTÉGRÉ - SANS BUG */}
+      {showAssignmentModal && selectedTask && (
+        <IntegratedAssignmentModal
+          isOpen={showAssignmentModal}
+          onClose={() => {
+            setShowAssignmentModal(false);
+            setSelectedTask(null);
+          }}
+          onAssignmentSuccess={handleTaskAssignment}
+          task={selectedTask}
+        />
+      )}
+    </PremiumLayout>
+  );
+};
+
+export default TasksPage;// ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
 // TASKS PAGE VERSION SÉCURISÉE - SANS IMPORTS PROBLÉMATIQUES
 // ==========================================
