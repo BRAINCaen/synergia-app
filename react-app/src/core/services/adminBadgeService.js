@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/adminBadgeService.js  
-// SERVICE ADMIN BADGES AVEC EXPORT CORRIGÉ
+// SERVICE ADMIN BADGES AVEC TOUTES LES FONCTIONS CORRIGÉES
 // ==========================================
 
 import { 
@@ -117,7 +117,14 @@ class AdminBadgeService {
       
       const users = [];
       querySnapshot.forEach((doc) => {
-        users.push({ id: doc.id, ...doc.data() });
+        const userData = doc.data();
+        users.push({ 
+          id: doc.id, 
+          ...userData,
+          // Calculer le nombre de badges pour chaque utilisateur
+          badgeCount: (userData.badges || []).length,
+          lastBadge: userData.lastBadgeReceived || null
+        });
       });
       
       console.log('👥 Utilisateurs récupérés:', users.length);
@@ -130,97 +137,223 @@ class AdminBadgeService {
   }
 
   /**
+   * 🤖 FONCTION MANQUANTE : getAIUserWithBadges
+   * Cette fonction était appelée mais n'existait pas
+   */
+  async getAIUserWithBadges(userId) {
+    try {
+      console.log('🤖 Récupération utilisateur avec badges:', userId);
+      
+      // Récupérer les données utilisateur
+      const userRef = doc(db, this.USERS_COLLECTION, userId);
+      const userSnap = await getDoc(userRef);
+      
+      if (!userSnap.exists()) {
+        console.warn('⚠️ Utilisateur non trouvé:', userId);
+        return null;
+      }
+      
+      const userData = userSnap.data();
+      
+      // Enrichir avec des informations de badges détaillées
+      const userBadges = userData.badges || [];
+      const enrichedBadges = [];
+      
+      // Pour chaque badge de l'utilisateur, récupérer les détails complets
+      for (const badge of userBadges) {
+        try {
+          if (badge.badgeId) {
+            const badgeRef = doc(db, this.COLLECTION_NAME, badge.badgeId);
+            const badgeSnap = await getDoc(badgeRef);
+            
+            if (badgeSnap.exists()) {
+              enrichedBadges.push({
+                ...badge,
+                ...badgeSnap.data(),
+                id: badge.badgeId
+              });
+            } else {
+              // Garder le badge même si les détails ne sont pas trouvés
+              enrichedBadges.push(badge);
+            }
+          } else {
+            enrichedBadges.push(badge);
+          }
+        } catch (badgeError) {
+          console.warn('⚠️ Erreur récupération détails badge:', badgeError);
+          enrichedBadges.push(badge);
+        }
+      }
+      
+      const result = {
+        id: userSnap.id,
+        ...userData,
+        badges: enrichedBadges,
+        badgeCount: enrichedBadges.length,
+        totalXpFromBadges: enrichedBadges.reduce((total, badge) => {
+          return total + (badge.xpReward || 0);
+        }, 0)
+      };
+      
+      console.log('✅ Utilisateur avec badges enrichi:', {
+        userId: result.id,
+        email: result.email,
+        badgeCount: result.badgeCount,
+        totalXp: result.totalXpFromBadges
+      });
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Erreur getAIUserWithBadges:', error);
+      return null;
+    }
+  }
+
+  /**
    * 📊 OBTENIR LES STATISTIQUES DES BADGES
    */
   async getBadgeStatistics() {
     try {
+      console.log('📊 Calcul statistiques badges...');
+      
       const [badges, users] = await Promise.all([
         this.getAllBadges(),
         this.getAllUsers()
       ]);
-
-      // Calculer les types de badges
-      const badgesByType = badges.reduce((acc, badge) => {
-        const type = badge.type || 'general';
-        acc[type] = (acc[type] || 0) + 1;
-        return acc;
-      }, {});
-
-      // Badges créés ce mois
-      const thisMonth = new Date();
-      thisMonth.setDate(1);
-      thisMonth.setHours(0, 0, 0, 0);
       
-      const recentBadges = badges.filter(badge => {
-        if (!badge.createdAt) return false;
-        const createdAt = badge.createdAt.toDate ? badge.createdAt.toDate() : new Date(badge.createdAt);
-        return createdAt >= thisMonth;
+      // Calculer les statistiques
+      const totalBadges = badges.length;
+      const totalUsers = users.length;
+      
+      let totalAwarded = 0;
+      let totalXpDistributed = 0;
+      const badgeUsage = {};
+      const recentAwards = [];
+      
+      // Analyser chaque utilisateur
+      users.forEach(user => {
+        const userBadges = user.badges || [];
+        totalAwarded += userBadges.length;
+        
+        userBadges.forEach(badge => {
+          // Compter l'usage de chaque badge
+          if (badge.badgeId) {
+            badgeUsage[badge.badgeId] = (badgeUsage[badge.badgeId] || 0) + 1;
+          }
+          
+          // XP total distribué
+          totalXpDistributed += badge.xpReward || 0;
+          
+          // Badges récents (dernières 24h)
+          if (badge.awardedAt && badge.awardedAt.toDate) {
+            const awardDate = badge.awardedAt.toDate();
+            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            
+            if (awardDate > oneDayAgo) {
+              recentAwards.push({
+                ...badge,
+                userName: user.displayName || user.email,
+                userId: user.id,
+                awardedAt: awardDate
+              });
+            }
+          }
+        });
       });
-
-      const totalBadgesAwarded = users.reduce((total, user) => total + (user.badges?.length || 0), 0);
-
-      return {
-        totalBadges: badges.length,
-        totalUsers: users.length,
-        badgesByType,
-        totalAwarded: totalBadgesAwarded,
+      
+      // Badge le plus populaire
+      const mostPopularBadgeId = Object.keys(badgeUsage).reduce((a, b) => 
+        badgeUsage[a] > badgeUsage[b] ? a : b, Object.keys(badgeUsage)[0]
+      );
+      
+      const mostPopularBadge = badges.find(b => b.id === mostPopularBadgeId);
+      
+      const stats = {
+        totalBadges,
+        totalUsers,
+        totalAwarded,
+        totalXpDistributed,
+        averageBadgesPerUser: totalUsers > 0 ? (totalAwarded / totalUsers).toFixed(1) : 0,
+        badgeUsage,
+        mostPopularBadge: mostPopularBadge ? {
+          ...mostPopularBadge,
+          awardCount: badgeUsage[mostPopularBadgeId] || 0
+        } : null,
+        recentAwards: recentAwards.sort((a, b) => b.awardedAt - a.awardedAt).slice(0, 10),
         thisMonth: {
-          newBadges: recentBadges.length,
-          awarded: Math.floor(totalBadgesAwarded * 0.1), // Estimation
-          newUsers: Math.floor(users.length * 0.05) // Estimation
+          newBadges: badges.filter(b => {
+            if (!b.createdAt || !b.createdAt.toDate) return false;
+            const createdDate = b.createdAt.toDate();
+            const thisMonth = new Date();
+            thisMonth.setDate(1);
+            thisMonth.setHours(0, 0, 0, 0);
+            return createdDate >= thisMonth;
+          }).length,
+          awarded: recentAwards.length,
+          newUsers: users.filter(u => {
+            if (!u.createdAt || !u.createdAt.toDate) return false;
+            const createdDate = u.createdAt.toDate();
+            const thisMonth = new Date();
+            thisMonth.setDate(1);
+            thisMonth.setHours(0, 0, 0, 0);
+            return createdDate >= thisMonth;
+          }).length
         }
       };
+      
+      console.log('✅ Statistiques calculées:', stats);
+      return stats;
       
     } catch (error) {
       console.error('❌ Erreur calcul statistiques:', error);
       return {
         totalBadges: 0,
         totalUsers: 0,
-        badgesByType: {},
         totalAwarded: 0,
+        totalXpDistributed: 0,
+        averageBadgesPerUser: 0,
+        badgeUsage: {},
+        mostPopularBadge: null,
+        recentAwards: [],
         thisMonth: { newBadges: 0, awarded: 0, newUsers: 0 }
       };
     }
   }
 
   /**
-   * 🎨 CRÉER UN BADGE PERSONNALISÉ
+   * 🆕 CRÉER UN BADGE PERSONNALISÉ
    */
   async createCustomBadge(badgeData, imageFile = null) {
     try {
-      console.log('🎨 Création badge personnalisé:', badgeData.name);
-
-      // Upload de l'image si fournie
+      console.log('🆕 Création badge personnalisé:', badgeData.name);
+      
       let imageUrl = null;
+      
+      // Upload de l'image si fournie
       if (imageFile) {
-        imageUrl = await this.uploadBadgeImage(imageFile, badgeData.name);
+        imageUrl = await this.uploadBadgeImage(imageFile);
       }
-
-      // Préparer les données du badge
-      const newBadge = {
+      
+      // Données du badge
+      const badge = {
         name: badgeData.name,
         description: badgeData.description,
-        imageUrl: imageUrl,
-        icon: badgeData.icon || '🏆',
+        imageUrl: imageUrl || badgeData.imageUrl || '/default-badge.png',
+        xpReward: badgeData.xpReward || 50,
         rarity: badgeData.rarity || 'common',
         category: badgeData.category || 'custom',
-        role: badgeData.role || 'Général',
-        condition: badgeData.condition || '',
-        triggerValue: badgeData.triggerValue || 1,
+        isCustom: true,
         createdAt: serverTimestamp(),
         createdBy: 'admin',
-        isActive: badgeData.isActive !== undefined ? badgeData.isActive : true,
-        xpReward: badgeData.xpReward || 50,
-        type: badgeData.type || 'custom'
+        isActive: true
       };
-
-      const docRef = await addDoc(collection(db, this.COLLECTION_NAME), newBadge);
-      console.log('✅ Badge créé avec ID:', docRef.id);
       
-      return {
-        id: docRef.id,
-        ...newBadge
-      };
+      // Ajouter à Firestore
+      const badgeRef = await addDoc(collection(db, this.COLLECTION_NAME), badge);
+      
+      console.log('✅ Badge créé avec succès:', badgeRef.id);
+      return { success: true, badgeId: badgeRef.id, ...badge };
       
     } catch (error) {
       console.error('❌ Erreur création badge:', error);
@@ -229,12 +362,11 @@ class AdminBadgeService {
   }
 
   /**
-   * 📸 UPLOAD IMAGE DE BADGE
+   * 📸 UPLOAD IMAGE BADGE
    */
-  async uploadBadgeImage(imageFile, badgeName) {
+  async uploadBadgeImage(imageFile) {
     try {
-      const timestamp = Date.now();
-      const fileName = `badges/${badgeName}-${timestamp}.${imageFile.name.split('.').pop()}`;
+      const fileName = `badges/${Date.now()}_${imageFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
       const imageRef = ref(storage, fileName);
       
       await uploadBytes(imageRef, imageFile);
@@ -288,7 +420,8 @@ class AdminBadgeService {
           imageUrl: badgeData.imageUrl,
           awardedAt: serverTimestamp(),
           awardedBy: 'admin',
-          reason: reason
+          reason: reason,
+          xpReward: badgeData.xpReward || 50
         };
         
         const updatedBadges = [...currentBadges, newBadge];
@@ -448,4 +581,9 @@ export const diagnoseAdmin = (user) => {
 
 export const forceAdminAccess = (userEmail = 'alan.boehme61@gmail.com') => {
   return adminBadgeService.forceAdminAccess(userEmail);
+};
+
+// 🤖 EXPORT DE LA FONCTION MANQUANTE
+export const getAIUserWithBadges = async (userId) => {
+  return await adminBadgeService.getAIUserWithBadges(userId);
 };
