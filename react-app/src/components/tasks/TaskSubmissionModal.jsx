@@ -21,7 +21,9 @@ import {
   FileVideo,
   Loader,
   Wifi,
-  WifiOff
+  WifiOff,
+  MessageSquare,
+  Star
 } from 'lucide-react';
 import { taskValidationService } from '../../core/services/taskValidationService.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
@@ -152,6 +154,7 @@ const TaskSubmissionModal = ({
   const [submitting, setSubmitting] = useState(false);
   const [corsWarning, setCorsWarning] = useState(false);
   const [submitWithoutMedia, setSubmitWithoutMedia] = useState(false);
+  const [success, setSuccess] = useState(false);
   const fileInputRef = useRef(null);
 
   // Reset du formulaire à l'ouverture
@@ -163,6 +166,7 @@ const TaskSubmissionModal = ({
       setError('');
       setCorsWarning(false);
       setSubmitWithoutMedia(false);
+      setSuccess(false);
     }
   }, [isOpen]);
 
@@ -255,6 +259,7 @@ const TaskSubmissionModal = ({
       
       if (result.success) {
         console.log('✅ Validation soumise avec succès:', result.validationId);
+        setSuccess(true);
         
         // Vérifier s'il y a eu un problème CORS
         if (result.corsWarning) {
@@ -275,7 +280,7 @@ const TaskSubmissionModal = ({
         if (!result.corsWarning) {
           setTimeout(() => {
             handleClose();
-          }, 1500);
+          }, 2000);
         }
         
       } else {
@@ -312,6 +317,15 @@ const TaskSubmissionModal = ({
     }
   };
 
+  const getDifficultyColor = (difficulty) => {
+    switch (difficulty) {
+      case 'easy': return 'text-green-600 bg-green-100';
+      case 'hard': return 'text-orange-600 bg-orange-100';
+      case 'expert': return 'text-red-600 bg-red-100';
+      default: return 'text-blue-600 bg-blue-100';
+    }
+  };
+
   const expectedXP = getExpectedXP();
 
   if (!isOpen) return null;
@@ -329,209 +343,181 @@ const TaskSubmissionModal = ({
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+          className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* En-tête */}
-          <div className="sticky top-0 bg-white border-b border-gray-200 p-6 rounded-t-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Send className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Soumettre pour validation
-                  </h2>
-                  <p className="text-sm text-gray-600">
-                    {task.title}
-                  </p>
-                </div>
-              </div>
-              
-              {/* Indicateur XP */}
-              <div className="flex items-center gap-2 bg-yellow-50 px-3 py-1 rounded-full">
-                <Trophy className="w-4 h-4 text-yellow-600" />
-                <span className="text-yellow-800 font-medium">+{expectedXP} XP</span>
-              </div>
-              
+          {/* Header */}
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">
+                Soumettre la tâche
+              </h2>
               <button
                 onClick={handleClose}
                 disabled={submitting}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6" />
               </button>
+            </div>
+            
+            {/* Informations de la tâche */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
+              <div className="flex items-center gap-3 text-sm">
+                <span className={`px-2 py-1 rounded-full font-medium ${getDifficultyColor(task.difficulty)}`}>
+                  {task.difficulty || 'normal'}
+                </span>
+                <div className="flex items-center gap-1 text-green-600">
+                  <Trophy className="w-4 h-4" />
+                  <span className="font-medium">+{expectedXP} XP</span>
+                </div>
+              </div>
             </div>
           </div>
 
+          {/* Formulaire */}
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            
-            {/* Alerte CORS */}
-            {corsWarning && (
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-start gap-3">
-                <WifiOff className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-orange-800 font-medium">Problème de connexion détecté</p>
-                  <p className="text-orange-700 text-sm mt-1">
-                    L'upload des médias rencontre des difficultés. Vous pouvez continuer sans fichier.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Message de succès */}
-            {submitting && !error && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
-                <Loader className="w-5 h-5 text-blue-600 animate-spin" />
-                <div>
-                  <p className="text-blue-800 font-medium">Soumission en cours...</p>
-                  <p className="text-blue-700 text-sm">Validation de votre travail</p>
-                </div>
-              </div>
-            )}
-
-            {/* Affichage des erreurs */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-red-800 font-medium">Erreur</p>
-                  <p className="text-red-700 text-sm">{error}</p>
-                </div>
-              </div>
-            )}
-            
             {/* Commentaire */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                💬 Commentaire de soumission
+                <MessageSquare className="w-4 h-4 inline mr-2" />
+                Décrivez votre travail *
               </label>
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="Décrivez votre travail, les difficultés rencontrées, ce que vous avez appris..."
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none h-24"
+                placeholder="Décrivez comment vous avez accompli cette tâche..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                rows="4"
                 disabled={submitting}
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Optionnel mais recommandé pour faciliter la validation
-              </p>
             </div>
 
-            {/* Zone d'upload de média */}
+            {/* Upload de fichier */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                📎 Preuve de réalisation (optionnel)
+                <Camera className="w-4 h-4 inline mr-2" />
+                Preuve (photo ou vidéo)
               </label>
               
-              <input
-                ref={fileInputRef}
-                type="file"
-                id="media-upload"
-                accept="image/*,video/*"
-                onChange={handleFileChange}
-                className="hidden"
-                disabled={submitting}
-              />
-
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                {selectedFile ? (
-                  <MediaPreview 
-                    file={selectedFile} 
-                    fileType={fileType} 
-                    onRemove={handleRemoveFile}
+              {!selectedFile ? (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    onChange={handleFileChange}
+                    accept="image/*,video/*"
+                    className="hidden"
+                    disabled={submitting}
                   />
-                ) : (
-                  <label htmlFor="media-upload" className="cursor-pointer">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-center gap-4">
-                        <Camera className="w-8 h-8 text-gray-400" />
-                        <Video className="w-8 h-8 text-gray-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600 font-medium">
-                          Cliquez pour ajouter une photo ou vidéo
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Images : JPG, PNG, GIF, WEBP (max 10MB)<br/>
-                          Vidéos : MP4, MOV, AVI, WEBM (max 100MB)
-                        </p>
-                      </div>
-                      <div className="bg-blue-50 rounded-lg p-3">
-                        <p className="text-blue-800 text-xs">
-                          💡 Une preuve photo/vidéo augmente vos chances de validation rapide
-                        </p>
-                      </div>
-                    </div>
-                  </label>
-                )}
-                
-                {selectedFile && (
-                  <div className="mt-3 text-center">
-                    <p className="text-green-600 text-sm font-medium">
-                      ✅ Vérifiez que votre {fileType === 'video' ? 'vidéo' : 'photo'} montre bien votre travail accompli
-                    </p>
-                  </div>
-                )}
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={submitting}
+                    className="flex flex-col items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    <Upload className="w-8 h-8" />
+                    <span className="text-sm">
+                      Cliquez pour ajouter une photo ou vidéo
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      Images: 10MB max • Vidéos: 100MB max
+                    </span>
+                  </button>
+                </div>
+              ) : (
+                <MediaPreview
+                  file={selectedFile}
+                  fileType={fileType}
+                  onRemove={handleRemoveFile}
+                />
+              )}
             </div>
 
-            {/* Option pour soumettre sans média en cas de problème */}
-            {(corsWarning || error.includes('CORS') || error.includes('connexion')) && (
-              <div className="bg-gray-50 rounded-lg p-4">
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={submitWithoutMedia}
-                    onChange={(e) => setSubmitWithoutMedia(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">
-                    Soumettre sans média (en cas de problème de connexion)
-                  </span>
-                </label>
+            {/* Option soumettre sans média */}
+            <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <input
+                type="checkbox"
+                id="submitWithoutMedia"
+                checked={submitWithoutMedia}
+                onChange={(e) => setSubmitWithoutMedia(e.target.checked)}
+                disabled={submitting}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="submitWithoutMedia" className="text-sm text-yellow-800 flex-1">
+                Soumettre sans média (si upload impossible)
+              </label>
+            </div>
+
+            {/* Messages d'état */}
+            {success && (
+              <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+                <span className="text-green-800 font-medium">
+                  Tâche soumise avec succès ! En attente de validation.
+                </span>
               </div>
             )}
 
-            {/* Récompense */}
-            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4 border border-yellow-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-yellow-100 rounded-lg">
-                    <Trophy className="w-5 h-5 text-yellow-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Récompense à la validation</p>
-                    <p className="text-sm text-gray-600">Une fois validé par un administrateur</p>
-                  </div>
+            {corsWarning && (
+              <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                <WifiOff className="w-5 h-5 text-orange-600" />
+                <div className="text-orange-800">
+                  <p className="font-medium">Problème d'upload détecté</p>
+                  <p className="text-sm">La tâche a été soumise sans média. Vous pouvez fermer cette fenêtre.</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-yellow-600">+{expectedXP}</p>
-                  <p className="text-xs text-gray-600">XP</p>
+              </div>
+            )}
+
+            {error && !corsWarning && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <span className="text-red-800">{error}</span>
+              </div>
+            )}
+
+            {/* Informations sur la validation */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <Clock className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div className="text-blue-800">
+                  <p className="font-medium text-sm">À propos de la validation</p>
+                  <ul className="text-xs mt-2 space-y-1">
+                    <li>• Votre soumission sera examinée par un administrateur</li>
+                    <li>• Vous recevrez {expectedXP} XP une fois validée</li>
+                    <li>• Un commentaire peut être demandé si la preuve n'est pas claire</li>
+                  </ul>
                 </div>
               </div>
             </div>
 
             {/* Boutons */}
-            <div className="flex items-center justify-end gap-3 pt-4">
+            <div className="flex gap-3 pt-4">
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={submitting}
-                className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
               >
                 Annuler
               </button>
-              
               <button
                 type="submit"
                 disabled={submitting || (!comment.trim() && !selectedFile && !submitWithoutMedia)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting && <Loader className="w-4 h-4 animate-spin" />}
-                {submitting ? 'Soumission...' : 'Soumettre pour validation'}
-                {!submitting && <Send className="w-4 h-4" />}
+                {submitting ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin" />
+                    Soumission...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    {success ? 'Soumis ✓' : 'Soumettre pour validation'}
+                  </>
+                )}
               </button>
             </div>
           </form>
