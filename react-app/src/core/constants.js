@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/constants.js
-// CONSTANTS AVEC ROUTE ADMIN RÉCOMPENSES AJOUTÉE
+// CONSTANTS AVEC ROUTE ADMIN DASHBOARD MANAGER AJOUTÉE
 // ==========================================
 
 export const ROUTES = {
@@ -45,7 +45,10 @@ export const ROUTES = {
   ADMIN_PROFILE_TEST: '/admin/profile-test',
   ADMIN_COMPLETE_TEST: '/admin/complete-test',
   
-  // 🎁 NOUVELLE ROUTE ADMIN RÉCOMPENSES
+  // 📊 NOUVELLE ROUTE DASHBOARD ADMIN MANAGER
+  ADMIN_DASHBOARD_MANAGER: '/admin/dashboard-manager',
+  
+  // 🎁 ROUTE ADMIN RÉCOMPENSES
   ADMIN_REWARDS: '/admin/rewards',
   
   // 🆕 ROUTES ADMIN COMPLÈTES
@@ -107,14 +110,15 @@ export const NAVIGATION_STRUCTURE = {
   admin: {
     title: 'Administration',
     routes: [
-      { path: ROUTES.ADMIN_TASK_VALIDATION, label: 'Validation Tâches', icon: '🛡️', priority: 1 },
-      { path: ROUTES.ADMIN_COMPLETE_TEST, label: 'Test Complet', icon: '🧪', priority: 2 },
-      { path: ROUTES.ADMIN_ROLE_PERMISSIONS, label: 'Permissions Rôles', icon: '🔐', priority: 3 },
-      { path: ROUTES.ADMIN_REWARDS, label: 'Gestion Récompenses', icon: '🎁', priority: 4 },
-      { path: ROUTES.ADMIN_BADGES, label: 'Gestion Badges', icon: '🏆', priority: 5 },
-      { path: ROUTES.ADMIN_USERS, label: 'Gestion Utilisateurs', icon: '👥', priority: 6 },
-      { path: ROUTES.ADMIN_ANALYTICS, label: 'Analytics Admin', icon: '📈', priority: 7 },
-      { path: ROUTES.ADMIN_SETTINGS, label: 'Paramètres Admin', icon: '⚙️', priority: 8 }
+      { path: ROUTES.ADMIN_DASHBOARD_MANAGER, label: 'Dashboard Manager', icon: '📊', priority: 1 },
+      { path: ROUTES.ADMIN_TASK_VALIDATION, label: 'Validation Tâches', icon: '🛡️', priority: 2 },
+      { path: ROUTES.ADMIN_COMPLETE_TEST, label: 'Test Complet', icon: '🧪', priority: 3 },
+      { path: ROUTES.ADMIN_ROLE_PERMISSIONS, label: 'Permissions Rôles', icon: '🔐', priority: 4 },
+      { path: ROUTES.ADMIN_REWARDS, label: 'Gestion Récompenses', icon: '🎁', priority: 5 },
+      { path: ROUTES.ADMIN_BADGES, label: 'Gestion Badges', icon: '🏆', priority: 6 },
+      { path: ROUTES.ADMIN_USERS, label: 'Gestion Utilisateurs', icon: '👥', priority: 7 },
+      { path: ROUTES.ADMIN_ANALYTICS, label: 'Analytics Admin', icon: '📈', priority: 8 },
+      { path: ROUTES.ADMIN_SETTINGS, label: 'Paramètres Admin', icon: '⚙️', priority: 9 }
     ]
   }
 }
@@ -186,6 +190,7 @@ export const ROUTES_BY_CATEGORY = {
     ROUTES.SETTINGS
   ],
   ADMIN: [
+    ROUTES.ADMIN_DASHBOARD_MANAGER,
     ROUTES.ADMIN_TASK_VALIDATION,
     ROUTES.ADMIN_COMPLETE_TEST,
     ROUTES.ADMIN_ROLE_PERMISSIONS,
@@ -197,4 +202,4 @@ export const ROUTES_BY_CATEGORY = {
   ]
 };
 
-console.log('✅ Constants mis à jour avec la route admin récompenses');
+console.log('✅ Constants mis à jour avec Dashboard Admin Manager');
