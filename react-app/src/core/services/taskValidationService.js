@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskValidationService.js
-// SERVICE DE VALIDATION CORRIGÉ - VERSION STABLE
+// SERVICE DE VALIDATION CORRIGÉ - AVEC TOUTES LES VALIDATIONS
 // ==========================================
 
 import { 
@@ -19,7 +19,7 @@ import {
 import { db } from '../firebase.js';
 
 /**
- * 🔄 SERVICE DE VALIDATION DES TÂCHES - VERSION CORRIGÉE
+ * 🔄 SERVICE DE VALIDATION DES TÂCHES - VERSION CORRIGÉE COMPLÈTE
  */
 class TaskValidationService {
   
@@ -79,7 +79,7 @@ class TaskValidationService {
   }
 
   /**
-   * 📋 RÉCUPÉRER LES DEMANDES EN ATTENTE
+   * 📋 RÉCUPÉRER LES DEMANDES EN ATTENTE SEULEMENT
    */
   async getPendingValidations() {
     try {
@@ -105,8 +105,90 @@ class TaskValidationService {
       return validations;
       
     } catch (error) {
-      console.error('❌ Erreur récupération validations:', error);
-      // Retourner un tableau vide au lieu de lever une erreur
+      console.error('❌ Erreur récupération validations pending:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 📋 RÉCUPÉRER TOUTES LES VALIDATIONS (PENDING, APPROVED, REJECTED)
+   */
+  async getAllValidations() {
+    try {
+      console.log('📋 Récupération de TOUTES les validations...');
+      
+      const q = query(
+        collection(db, 'task_validations'),
+        orderBy('submittedAt', 'desc')
+      );
+      
+      const snapshot = await getDocs(q);
+      const validations = [];
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        validations.push({
+          id: doc.id,
+          ...data,
+          // S'assurer que les dates sont lisibles
+          submittedAt: data.submittedAt,
+          reviewedAt: data.reviewedAt
+        });
+      });
+      
+      console.log('✅ TOUTES les validations récupérées:', {
+        total: validations.length,
+        pending: validations.filter(v => v.status === 'pending').length,
+        approved: validations.filter(v => v.status === 'approved').length,
+        rejected: validations.filter(v => v.status === 'rejected').length
+      });
+      
+      return validations;
+      
+    } catch (error) {
+      console.error('❌ Erreur récupération toutes validations:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 📋 RÉCUPÉRER LES VALIDATIONS PAR STATUT
+   */
+  async getValidationsByStatus(status) {
+    try {
+      console.log('📋 Récupération des validations avec statut:', status);
+      
+      let q;
+      if (status === 'all') {
+        // Toutes les validations
+        q = query(
+          collection(db, 'task_validations'),
+          orderBy('submittedAt', 'desc')
+        );
+      } else {
+        // Statut spécifique
+        q = query(
+          collection(db, 'task_validations'),
+          where('status', '==', status),
+          orderBy('submittedAt', 'desc')
+        );
+      }
+      
+      const snapshot = await getDocs(q);
+      const validations = [];
+      
+      snapshot.forEach(doc => {
+        validations.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+      
+      console.log(`✅ Validations ${status} récupérées:`, validations.length);
+      return validations;
+      
+    } catch (error) {
+      console.error(`❌ Erreur récupération validations ${status}:`, error);
       return [];
     }
   }
@@ -128,6 +210,8 @@ class TaskValidationService {
         adminComment: comment || '',
         xpAwarded: approved ? (xpAwarded || 0) : 0
       });
+
+      console.log(`✅ Validation terminée: ${validationId} - ${approved ? 'APPROUVÉE' : 'REJETÉE'}`);
 
       return {
         success: true,
@@ -161,20 +245,26 @@ class TaskValidationService {
    */
   async getValidationStats() {
     try {
-      const snapshot = await getDocs(collection(db, 'task_validations'));
+      const allValidations = await this.getAllValidations();
+      
       const stats = {
-        total: 0,
-        pending: 0,
-        approved: 0,
-        rejected: 0
+        total: allValidations.length,
+        pending: allValidations.filter(v => v.status === 'pending').length,
+        approved: allValidations.filter(v => v.status === 'approved').length,
+        rejected: allValidations.filter(v => v.status === 'rejected').length,
+        todayApproved: allValidations.filter(v => {
+          if (v.status !== 'approved' || !v.reviewedAt) return false;
+          try {
+            const reviewDate = v.reviewedAt.toDate ? v.reviewedAt.toDate() : new Date(v.reviewedAt);
+            const today = new Date();
+            return reviewDate.toDateString() === today.toDateString();
+          } catch {
+            return false;
+          }
+        }).length
       };
       
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        stats.total++;
-        stats[data.status] = (stats[data.status] || 0) + 1;
-      });
-      
+      console.log('📊 Stats validation calculées:', stats);
       return stats;
       
     } catch (error) {
@@ -183,7 +273,8 @@ class TaskValidationService {
         total: 0,
         pending: 0,
         approved: 0,
-        rejected: 0
+        rejected: 0,
+        todayApproved: 0
       };
     }
   }
@@ -200,6 +291,47 @@ class TaskValidationService {
     } catch (error) {
       console.error('❌ Erreur suppression validation:', error);
       throw error;
+    }
+  }
+
+  /**
+   * 🔍 VÉRIFIER LES PERMISSIONS ADMIN
+   */
+  async checkAdminPermissions(userId) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        return false;
+      }
+
+      const userData = userDoc.data();
+      
+      // Vérifications multiples pour admin
+      const isRoleAdmin = userData.role === 'admin';
+      const isProfileRoleAdmin = userData.profile?.role === 'admin';
+      const hasAdminFlag = userData.isAdmin === true;
+      const hasValidatePermission = userData.permissions?.includes('validate_tasks');
+      const isAdminEmail = userData.email === 'alan.boehme61@gmail.com';
+      
+      const isAdmin = isRoleAdmin || isProfileRoleAdmin || hasAdminFlag || hasValidatePermission || isAdminEmail;
+      
+      console.log('🔍 checkAdminPermissions résultat:', {
+        userId,
+        isRoleAdmin,
+        isProfileRoleAdmin,
+        hasAdminFlag,
+        hasValidatePermission,
+        isAdminEmail,
+        finalResult: isAdmin
+      });
+      
+      return isAdmin;
+      
+    } catch (error) {
+      console.error('❌ Erreur vérification permissions admin:', error);
+      return false;
     }
   }
 }
