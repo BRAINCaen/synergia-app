@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/routing/AppRouter.jsx
-// ROUTER MIS À JOUR AVEC NOUVELLE PAGE ADMIN RÉCOMPENSES
+// ROUTER MIS À JOUR AVEC PAGE ADMIN RÉCOMPENSES
 // ==========================================
 
 import React from 'react';
