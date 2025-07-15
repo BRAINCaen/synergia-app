@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// TASKS PAGE COMPLÈTE AVEC ENHANCED ASSIGNMENT MODAL
+// TASKS PAGE AVEC BOUTONS COMMENCER FONCTIONNELS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -59,15 +59,12 @@ import { db } from '../core/firebase.js';
 import PremiumLayout from '../shared/layouts/PremiumLayout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// ✅ IMPORT DU MODAL D'ASSIGNATION AVANCÉ
-import EnhancedTaskAssignmentModal from '../components/tasks/EnhancedTaskAssignmentModal.jsx';
-
 /**
  * 🔧 COMPOSANTS INTERNES SÉCURISÉS
  */
 
-// ✅ Composant TaskCard avec actions d'assignation
-const TaskCard = ({ task, onEdit, onDelete, onAssign, onSubmit, onView }) => {
+// ✅ Composant TaskCard avec BOUTON COMMENCER FONCTIONNEL
+const TaskCard = ({ task, onEdit, onDelete, onAssign, onSubmit, onView, onStart }) => {
   const [showActions, setShowActions] = useState(false);
   
   const getPriorityColor = (priority) => {
@@ -104,6 +101,75 @@ const TaskCard = ({ task, onEdit, onDelete, onAssign, onSubmit, onView }) => {
 
   const isAssigned = task.assignedTo && task.assignedTo.length > 0;
   const isMultiple = task.assignedTo && task.assignedTo.length > 1;
+
+  // ✅ FONCTION POUR OBTENIR LE BOUTON ACTION CORRECT
+  const getActionButton = () => {
+    const status = task.status || 'todo';
+    
+    if (status === 'todo' || status === 'draft' || !status) {
+      return (
+        <button
+          onClick={() => {
+            console.log('🎯 Démarrage tâche:', task.title);
+            onStart?.(task);
+          }}
+          className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
+        >
+          <Play className="w-3 h-3" />
+          Commencer
+        </button>
+      );
+    }
+
+    if (status === 'in_progress') {
+      return (
+        <button
+          onClick={() => {
+            console.log('🎯 Soumission tâche:', task.title);
+            onSubmit?.(task);
+          }}
+          className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition-colors flex items-center gap-1"
+        >
+          <Send className="w-3 h-3" />
+          Soumettre
+        </button>
+      );
+    }
+
+    if (status === 'validation_pending') {
+      return (
+        <button
+          disabled
+          className="text-sm bg-orange-500 text-white px-3 py-1 rounded opacity-75 cursor-not-allowed flex items-center gap-1"
+        >
+          <Clock className="w-3 h-3" />
+          En validation
+        </button>
+      );
+    }
+
+    if (status === 'completed') {
+      return (
+        <button
+          disabled
+          className="text-sm bg-green-600 text-white px-3 py-1 rounded opacity-75 cursor-not-allowed flex items-center gap-1"
+        >
+          <CheckCircle className="w-3 h-3" />
+          Terminée
+        </button>
+      );
+    }
+
+    return (
+      <button
+        onClick={() => onStart?.(task)}
+        className="text-sm bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700 transition-colors flex items-center gap-1"
+      >
+        <Eye className="w-3 h-3" />
+        Action
+      </button>
+    );
+  };
 
   return (
     <motion.div
@@ -190,82 +256,53 @@ const TaskCard = ({ task, onEdit, onDelete, onAssign, onSubmit, onView }) => {
         </div>
       </div>
 
-      {/* Corps avec métadonnées */}
-      <div className="p-4 space-y-3">
-        
-        {/* Badges status et priorité */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
+      {/* Contenu de la carte */}
+      <div className="p-4">
+        {/* Métadonnées */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+            <Flag className="w-3 h-3 mr-1" />
+            {task.priority || 'Normal'}
+          </span>
+          
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
             {getStatusText(task.status)}
           </span>
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-            {task.priority}
-          </span>
-          {task.difficulty && (
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-              {task.difficulty}
+
+          {task.xpReward && (
+            <span className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
+              <Trophy className="w-3 h-3 mr-1" />
+              {task.xpReward} XP
             </span>
           )}
         </div>
 
-        {/* Informations d'assignation */}
-        {isAssigned && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-medium text-blue-900">
-                {isMultiple ? `${task.assignedTo.length} membres assignés` : '1 membre assigné'}
+        {/* Dates et estimations */}
+        <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
+          {task.dueDate && (
+            <div className="flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              <span>
+                {task.dueDate.toDate ? 
+                  task.dueDate.toDate().toLocaleDateString('fr-FR') : 
+                  new Date(task.dueDate).toLocaleDateString('fr-FR')
+                }
               </span>
             </div>
-            
-            {/* XP total si disponible */}
-            {task.totalExpectedXP && (
-              <div className="flex items-center gap-1 text-xs text-blue-700">
-                <Trophy className="w-3 h-3" />
-                <span>{task.totalExpectedXP} XP total</span>
-              </div>
-            )}
-            
-            {/* Progression si assignation multiple */}
-            {isMultiple && task.assignments && (
-              <div className="mt-2 text-xs text-blue-600">
-                {task.assignments.filter(a => a.hasSubmitted).length} / {task.assignments.length} soumissions
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Métriques */}
-        <div className="flex items-center justify-between text-sm text-gray-500">
-          <div className="flex items-center gap-4">
-            {task.dueDate && (
-              <div className="flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
-                <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-              </div>
-            )}
-            {task.xpReward && (
-              <div className="flex items-center gap-1 text-green-600">
-                <Zap className="w-4 h-4" />
-                <span>{task.xpReward} XP</span>
-              </div>
-            )}
-          </div>
+          )}
           
           {task.estimatedHours && (
             <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              <span>{task.estimatedHours}h</span>
+              <Clock className="w-3 h-3" />
+              <span>{task.estimatedHours}h estimées</span>
             </div>
           )}
         </div>
-      </div>
 
-      {/* Footer avec actions rapides */}
-      <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {!isAssigned && (
+        {/* Actions du bas */}
+        <div className="flex justify-between items-center">
+          <div className="flex space-x-2">
+            {isAssigned && (
               <button
                 onClick={() => onAssign?.(task)}
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
@@ -276,15 +313,8 @@ const TaskCard = ({ task, onEdit, onDelete, onAssign, onSubmit, onView }) => {
             )}
           </div>
           
-          {task.status !== 'completed' && task.status !== 'validation_pending' && (
-            <button
-              onClick={() => onSubmit?.(task)}
-              className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
-            >
-              <Send className="w-3 h-3" />
-              Soumettre
-            </button>
-          )}
+          {/* ✅ BOUTON D'ACTION FONCTIONNEL */}
+          {getActionButton()}
         </div>
       </div>
     </motion.div>
@@ -318,7 +348,8 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
           description: task.description || '',
           priority: task.priority || 'medium',
           difficulty: task.difficulty || 'normal',
-          dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
+          dueDate: task.dueDate ? 
+            (task.dueDate.toDate ? task.dueDate.toDate().toISOString().split('T')[0] : task.dueDate) : '',
           estimatedHours: task.estimatedHours || 1,
           xpReward: task.xpReward || 25,
           isRecurring: task.isRecurring || false,
@@ -355,10 +386,20 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
     setError(null);
 
     try {
-      await onSubmit(formData);
+      const taskData = {
+        ...formData,
+        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
+        estimatedHours: Number(formData.estimatedHours),
+        xpReward: Number(formData.xpReward),
+        status: task ? task.status : 'todo',
+        createdAt: task ? task.createdAt : serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      await onSubmit(taskData);
       onClose();
     } catch (error) {
-      console.error('Erreur soumission formulaire:', error);
+      console.error('Erreur sauvegarde tâche:', error);
       setError(error.message || 'Erreur lors de la sauvegarde');
     } finally {
       setSubmitting(false);
@@ -379,69 +420,68 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+          className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto"
         >
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">
-                {task ? 'Modifier la tâche' : 'Créer une nouvelle tâche'}
-              </h2>
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
+          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">
+              {task ? 'Modifier la tâche' : 'Nouvelle tâche'}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
 
+          <div className="p-6">
             {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-800 text-sm">{error}</p>
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600" />
+                <span className="text-red-700 text-sm">{error}</span>
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Titre */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Titre *
                 </label>
                 <input
                   type="text"
                   value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nom de la tâche"
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Titre de la tâche"
                   required
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Description
                 </label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows="3"
-                  placeholder="Description de la tâche"
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  placeholder="Description détaillée de la tâche"
                 />
               </div>
 
-              {/* Grille de paramètres */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                {/* Priorité */}
+              {/* Priorité et Difficulté */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Priorité
                   </label>
                   <select
                     value={formData.priority}
-                    onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="low">Basse</option>
                     <option value="medium">Moyenne</option>
@@ -450,15 +490,14 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
                   </select>
                 </div>
 
-                {/* Difficulté */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Difficulté
                   </label>
                   <select
                     value={formData.difficulty}
-                    onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="easy">Facile</option>
                     <option value="normal">Normal</option>
@@ -466,103 +505,94 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
                     <option value="expert">Expert</option>
                   </select>
                 </div>
+              </div>
 
-                {/* Date d'échéance */}
+              {/* Date et temps */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Date d'échéance
                   </label>
                   <input
                     type="date"
                     value={formData.dueDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
 
-                {/* Heures estimées */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Heures estimées
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Temps estimé (heures)
                   </label>
                   <input
                     type="number"
                     min="0.5"
-                    max="100"
                     step="0.5"
                     value={formData.estimatedHours}
-                    onChange={(e) => setFormData(prev => ({ ...prev, estimatedHours: parseFloat(e.target.value) }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, estimatedHours: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
               </div>
 
               {/* XP Reward */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Récompense XP
                 </label>
                 <input
                   type="number"
-                  min="1"
-                  max="1000"
+                  min="5"
+                  step="5"
                   value={formData.xpReward}
-                  onChange={(e) => setFormData(prev => ({ ...prev, xpReward: parseInt(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => setFormData({ ...formData, xpReward: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
               {/* Récurrence */}
-              <div className="border-t border-gray-200 pt-4">
-                <div className="flex items-center gap-3 mb-4">
-                  <input
-                    type="checkbox"
-                    id="isRecurring"
-                    checked={formData.isRecurring}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isRecurring: e.target.checked }))}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
-                    Tâche récurrente
-                  </label>
-                  <Repeat className="w-4 h-4 text-gray-500" />
-                </div>
-
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="recurring"
+                  checked={formData.isRecurring}
+                  onChange={(e) => setFormData({ ...formData, isRecurring: e.target.checked })}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="recurring" className="text-sm text-gray-700">
+                  Tâche récurrente
+                </label>
+                
                 {formData.isRecurring && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Fréquence
-                    </label>
-                    <select
-                      value={formData.recurrenceType}
-                      onChange={(e) => setFormData(prev => ({ ...prev, recurrenceType: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="daily">Quotidienne</option>
-                      <option value="weekly">Hebdomadaire</option>
-                      <option value="monthly">Mensuelle</option>
-                      <option value="yearly">Annuelle</option>
-                    </select>
-                  </div>
+                  <select
+                    value={formData.recurrenceType}
+                    onChange={(e) => setFormData({ ...formData, recurrenceType: e.target.value })}
+                    className="border border-gray-300 rounded px-2 py-1 text-sm"
+                  >
+                    <option value="daily">Quotidienne</option>
+                    <option value="weekly">Hebdomadaire</option>
+                    <option value="monthly">Mensuelle</option>
+                  </select>
                 )}
               </div>
 
-              {/* Boutons */}
-              <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={onClose}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
                   disabled={submitting}
-                  className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting || !formData.title.trim()}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  disabled={submitting}
+                  className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                  <Save className="w-4 h-4" />
                   {submitting ? 'Sauvegarde...' : (task ? 'Modifier' : 'Créer la tâche')}
                 </button>
               </div>
@@ -622,57 +652,125 @@ const TasksPage = () => {
   // États des modals
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
-  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
 
-  // ✅ ÉTATS POUR LE MODAL D'ASSIGNATION AVANCÉ
-  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
-  const [taskToAssign, setTaskToAssign] = useState(null);
-
-  // États des actions rapides
-  const [showQuickCreate, setShowQuickCreate] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-
-  // Charger les tâches depuis Firebase
+  // ✅ CHARGEMENT DES TÂCHES DEPUIS FIREBASE
   useEffect(() => {
     if (!user?.uid) return;
 
-    const loadTasks = () => {
-      const tasksQuery = query(
-        collection(db, 'tasks'),
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
+    const tasksRef = collection(db, 'tasks');
+    const q = query(
+      tasksRef,
+      where('createdBy', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
 
-      const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
-        const tasksData = [];
-        snapshot.forEach((doc) => {
-          tasksData.push({
-            id: doc.id,
-            ...doc.data()
-          });
-        });
-        setTasks(tasksData);
-        setLoading(false);
-      });
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const tasksData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      console.log('✅ Tâches chargées:', tasksData.length);
+      setTasks(tasksData);
+      setLoading(false);
+    }, (error) => {
+      console.error('❌ Erreur chargement tâches:', error);
+      setLoading(false);
+    });
 
-      return unsubscribe;
-    };
-
-    const unsubscribe = loadTasks();
     return () => unsubscribe();
   }, [user?.uid]);
 
-  // Filtrer et trier les tâches
+  // ✅ GESTIONNAIRES D'ACTIONS DES TÂCHES
+  
+  // Démarrer une tâche
+  const handleStartTask = async (task) => {
+    try {
+      console.log('🎯 Démarrage tâche:', task.title);
+      
+      const taskRef = doc(db, 'tasks', task.id);
+      await updateDoc(taskRef, {
+        status: 'in_progress',
+        startedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      alert(`✅ Tâche "${task.title}" démarrée !`);
+      
+    } catch (error) {
+      console.error('❌ Erreur démarrage tâche:', error);
+      alert('❌ Erreur lors du démarrage de la tâche');
+    }
+  };
+
+  // Soumettre une tâche
+  const handleSubmitTask = async (task) => {
+    try {
+      console.log('🎯 Soumission tâche:', task.title);
+      
+      const taskRef = doc(db, 'tasks', task.id);
+      await updateDoc(taskRef, {
+        status: 'validation_pending',
+        submittedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      alert(`✅ Tâche "${task.title}" soumise pour validation !`);
+      
+    } catch (error) {
+      console.error('❌ Erreur soumission tâche:', error);
+      alert('❌ Erreur lors de la soumission');
+    }
+  };
+
+  // Créer/modifier une tâche
+  const handleSaveTask = async (taskData) => {
+    try {
+      if (editingTask) {
+        const taskRef = doc(db, 'tasks', editingTask.id);
+        await updateDoc(taskRef, taskData);
+        console.log('✅ Tâche modifiée');
+      } else {
+        const tasksRef = collection(db, 'tasks');
+        await addDoc(tasksRef, {
+          ...taskData,
+          createdBy: user.uid,
+          createdAt: serverTimestamp()
+        });
+        console.log('✅ Tâche créée');
+      }
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde:', error);
+      throw error;
+    }
+  };
+
+  // Supprimer une tâche
+  const handleDeleteTask = async () => {
+    if (!taskToDelete) return;
+    
+    try {
+      await deleteDoc(doc(db, 'tasks', taskToDelete.id));
+      console.log('✅ Tâche supprimée');
+      setShowDeleteModal(false);
+      setTaskToDelete(null);
+    } catch (error) {
+      console.error('❌ Erreur suppression:', error);
+      alert('❌ Erreur lors de la suppression');
+    }
+  };
+
+  // ✅ FILTRAGE ET TRI
   useEffect(() => {
     let filtered = [...tasks];
 
-    // Filtrage par terme de recherche
+    // Filtrage par recherche
     if (searchTerm) {
-      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(task =>
-        task.title.toLowerCase().includes(term) ||
-        (task.description && task.description.toLowerCase().includes(term))
+        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -690,103 +788,22 @@ const TasksPage = () => {
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'dueDate':
-          if (!a.dueDate && !b.dueDate) return 0;
-          if (!a.dueDate) return 1;
-          if (!b.dueDate) return -1;
-          return new Date(a.dueDate) - new Date(b.dueDate);
+          const dateA = a.dueDate ? (a.dueDate.toDate ? a.dueDate.toDate() : new Date(a.dueDate)) : new Date(0);
+          const dateB = b.dueDate ? (b.dueDate.toDate ? b.dueDate.toDate() : new Date(b.dueDate)) : new Date(0);
+          return dateB - dateA;
         case 'priority':
-          const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
-          return (priorityOrder[a.priority] || 2) - (priorityOrder[b.priority] || 2);
-        case 'title':
-          return a.title.localeCompare(b.title);
+          const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
+          return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
+        case 'createdAt':
         default:
-          return new Date(b.createdAt) - new Date(a.createdAt);
+          const createdA = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate() : new Date(a.createdAt)) : new Date(0);
+          const createdB = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate() : new Date(b.createdAt)) : new Date(0);
+          return createdB - createdA;
       }
     });
 
     setFilteredTasks(filtered);
   }, [tasks, searchTerm, filterStatus, filterPriority, sortBy]);
-
-  // Créer une nouvelle tâche
-  const handleCreateTask = async (taskData) => {
-    try {
-      await addDoc(collection(db, 'tasks'), {
-        ...taskData,
-        userId: user.uid,
-        status: 'draft',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      console.error('Erreur création tâche:', error);
-      throw error;
-    }
-  };
-
-  // Mettre à jour une tâche
-  const handleUpdateTask = async (taskId, updates) => {
-    try {
-      await updateDoc(doc(db, 'tasks', taskId), {
-        ...updates,
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      console.error('Erreur mise à jour tâche:', error);
-      throw error;
-    }
-  };
-
-  // Supprimer une tâche
-  const handleDeleteTask = async (task) => {
-    try {
-      await deleteDoc(doc(db, 'tasks', task.id));
-    } catch (error) {
-      console.error('Erreur suppression tâche:', error);
-      throw error;
-    }
-  };
-
-  // ✅ GESTIONNAIRE D'ASSIGNATION AVANCÉE
-  const handleAssignTask = (task) => {
-    console.log('🎯 Ouverture modal assignation pour:', task.title);
-    setTaskToAssign(task);
-    setShowAssignmentModal(true);
-  };
-
-  // ✅ GESTIONNAIRE DE SUCCÈS D'ASSIGNATION
-  const handleAssignmentSuccess = (result) => {
-    console.log('✅ Assignation réussie:', result);
-    
-    // Afficher un message de succès
-    const successMessage = `Tâche assignée à ${result.assignedMembers.length} membre(s) avec succès!`;
-    
-    // Vous pouvez ajouter ici une notification toast
-    // toast.success(successMessage);
-    
-    // Fermer le modal
-    setShowAssignmentModal(false);
-    setTaskToAssign(null);
-    
-    // Les tâches seront automatiquement mises à jour via onSnapshot
-  };
-
-  // Créer tâche rapide
-  const handleQuickCreate = async () => {
-    if (!newTaskTitle.trim()) return;
-    
-    try {
-      await handleCreateTask({
-        title: newTaskTitle,
-        priority: 'medium',
-        difficulty: 'normal',
-        xpReward: 25
-      });
-      setNewTaskTitle('');
-      setShowQuickCreate(false);
-    } catch (error) {
-      console.error('Erreur création rapide:', error);
-    }
-  };
 
   if (loading) {
     return (
@@ -801,261 +818,158 @@ const TasksPage = () => {
   return (
     <PremiumLayout>
       <div className="space-y-6">
-        
-        {/* Header avec titre et actions */}
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <CheckSquare className="w-8 h-8 text-blue-600" />
-              Mes Tâches
+              <CheckSquare className="w-7 h-7 text-blue-600" />
+              Gestion des Tâches
             </h1>
             <p className="text-gray-600 mt-1">
-              {tasks.length} tâche{tasks.length !== 1 ? 's' : ''} • {filteredTasks.length} affichée{filteredTasks.length !== 1 ? 's' : ''}
+              Organisez et suivez vos tâches - {filteredTasks.length} tâche{filteredTasks.length !== 1 ? 's' : ''}
             </p>
           </div>
           
-          <div className="flex items-center gap-3">
-            {/* Création rapide */}
-            {showQuickCreate ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  placeholder="Titre de la tâche..."
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleQuickCreate();
-                    if (e.key === 'Escape') setShowQuickCreate(false);
-                  }}
-                  autoFocus
-                />
-                <button
-                  onClick={handleQuickCreate}
-                  className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  <Save className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setShowQuickCreate(false)}
-                  className="p-2 text-gray-500 hover:text-gray-700"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <>
-                <button
-                  onClick={() => setShowQuickCreate(true)}
-                  className="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Rapide
-                </button>
-                
-                <button
-                  onClick={() => setShowTaskForm(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Nouvelle Tâche
-                </button>
-              </>
-            )}
-          </div>
+          <button
+            onClick={() => {
+              setEditingTask(null);
+              setShowTaskForm(true);
+            }}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Nouvelle tâche
+          </button>
         </div>
 
-        {/* Barre de recherche et filtres */}
-        <div className="flex flex-col lg:flex-row gap-4">
-          
-          {/* Recherche */}
-          <div className="flex-1">
+        {/* Filtres et recherche */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Recherche */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
+                placeholder="Rechercher une tâche..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Rechercher des tâches..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-          </div>
-          
-          {/* Filtres */}
-          <div className="flex items-center gap-3 flex-wrap">
-            
+
             {/* Filtre statut */}
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">Tous les statuts</option>
-              <option value="draft">Brouillon</option>
-              <option value="assigned">Assigné</option>
+              <option value="todo">À faire</option>
               <option value="in_progress">En cours</option>
               <option value="validation_pending">En validation</option>
               <option value="completed">Terminé</option>
             </select>
-            
+
             {/* Filtre priorité */}
             <select
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="all">Toutes priorités</option>
+              <option value="all">Toutes les priorités</option>
               <option value="urgent">Urgente</option>
               <option value="high">Haute</option>
               <option value="medium">Moyenne</option>
               <option value="low">Basse</option>
             </select>
-            
+
             {/* Tri */}
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="dueDate">Par échéance</option>
-              <option value="priority">Par priorité</option>
-              <option value="title">Par nom</option>
-              <option value="createdAt">Par date de création</option>
+              <option value="createdAt">Date de création</option>
+              <option value="dueDate">Date d'échéance</option>
+              <option value="priority">Priorité</option>
             </select>
           </div>
         </div>
 
-        {/* Métriques rapides */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Total</span>
-              <CheckSquare className="w-4 h-4 text-gray-400" />
-            </div>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{tasks.length}</p>
-          </div>
-          
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">En cours</span>
-              <Clock className="w-4 h-4 text-blue-400" />
-            </div>
-            <p className="text-2xl font-bold text-blue-600 mt-1">
-              {tasks.filter(t => t.status === 'in_progress' || t.status === 'assigned').length}
-            </p>
-          </div>
-          
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Terminées</span>
-              <CheckCircle className="w-4 h-4 text-green-400" />
-            </div>
-            <p className="text-2xl font-bold text-green-600 mt-1">
-              {tasks.filter(t => t.status === 'completed').length}
-            </p>
-          </div>
-          
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Assignées</span>
-              <Users className="w-4 h-4 text-purple-400" />
-            </div>
-            <p className="text-2xl font-bold text-purple-600 mt-1">
-              {tasks.filter(t => t.assignedTo && t.assignedTo.length > 0).length}
-            </p>
-          </div>
-        </div>
-
         {/* Liste des tâches */}
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="grid gap-4">
           {filteredTasks.length === 0 ? (
             <div className="text-center py-12">
-              <CheckSquare className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-400 mb-2">Aucune tâche trouvée</h3>
-              <p className="text-gray-500">
-                {searchTerm || filterStatus !== 'all' || filterPriority !== 'all'
-                  ? 'Essayez de modifier vos filtres'
-                  : 'Créez votre première tâche pour commencer'
+              <CheckSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {tasks.length === 0 ? 'Aucune tâche créée' : 'Aucune tâche trouvée'}
+              </h3>
+              <p className="text-gray-600 mb-4">
+                {tasks.length === 0 
+                  ? 'Commencez par créer votre première tâche'
+                  : 'Ajustez vos filtres pour voir plus de résultats'
                 }
               </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-              {filteredTasks.map((task) => (
-                <TaskCard 
-                  key={task.id} 
-                  task={task}
-                  onEdit={(task) => {
-                    setEditingTask(task);
+              {tasks.length === 0 && (
+                <button
+                  onClick={() => {
+                    setEditingTask(null);
                     setShowTaskForm(true);
                   }}
-                  onDelete={(task) => {
-                    setSelectedTask(task);
-                    setShowSubmissionModal(true);
-                  }}
-                  onAssign={handleAssignTask} // ✅ Connecter l'action d'assignation
-                  onSubmit={(task) => {
-                    handleUpdateTask(task.id, { 
-                      status: 'validation_pending',
-                      submittedAt: serverTimestamp()
-                    });
-                  }}
-                  onView={(task) => {
-                    // Optionnel: modal de détails
-                    console.log('Voir détails:', task);
-                  }}
-                />
-              ))}
+                  className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Créer ma première tâche
+                </button>
+              )}
             </div>
+          ) : (
+            filteredTasks.map(task => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                onEdit={(task) => {
+                  setEditingTask(task);
+                  setShowTaskForm(true);
+                }}
+                onDelete={(task) => {
+                  setTaskToDelete(task);
+                  setShowDeleteModal(true);
+                }}
+                onStart={handleStartTask}
+                onSubmit={handleSubmitTask}
+                onView={(task) => console.log('Voir tâche:', task)}
+                onAssign={(task) => console.log('Assigner tâche:', task)}
+              />
+            ))
           )}
         </div>
       </div>
 
-      {/* Modal TaskForm avec système de récurrence */}
+      {/* Modals */}
       <TaskFormModal
         isOpen={showTaskForm}
         onClose={() => {
           setShowTaskForm(false);
           setEditingTask(null);
         }}
-        onSubmit={editingTask ? 
-          (data) => handleUpdateTask(editingTask.id, data) : 
-          handleCreateTask
-        }
+        onSubmit={handleSaveTask}
         task={editingTask}
       />
 
-      {/* ✅ MODAL D'ASSIGNATION AVANCÉ */}
-      <EnhancedTaskAssignmentModal
-        isOpen={showAssignmentModal}
-        onClose={() => {
-          setShowAssignmentModal(false);
-          setTaskToAssign(null);
-        }}
-        task={taskToAssign}
-        onAssignmentSuccess={handleAssignmentSuccess}
-      />
-
-      {/* Modal de suppression */}
       <SimpleModal
-        isOpen={showSubmissionModal}
+        isOpen={showDeleteModal}
         onClose={() => {
-          setShowSubmissionModal(false);
-          setSelectedTask(null);
+          setShowDeleteModal(false);
+          setTaskToDelete(null);
         }}
+        onConfirm={handleDeleteTask}
         title="Supprimer la tâche"
-        onConfirm={() => {
-          if (selectedTask) {
-            handleDeleteTask(selectedTask);
-          }
-          setShowSubmissionModal(false);
-          setSelectedTask(null);
-        }}
         confirmText="Supprimer"
       >
         <p className="text-gray-600">
-          Êtes-vous sûr de vouloir supprimer la tâche "{selectedTask?.title}" ? Cette action est irréversible.
+          Êtes-vous sûr de vouloir supprimer la tâche "{taskToDelete?.title}" ?
+          Cette action est irréversible.
         </p>
       </SimpleModal>
     </PremiumLayout>
