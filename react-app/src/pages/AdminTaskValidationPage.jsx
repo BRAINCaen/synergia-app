@@ -70,16 +70,22 @@ const AdminTaskValidationPage = () => {
   const loadValidationRequests = async () => {
     try {
       setLoading(true);
-      console.log('📋 Chargement des demandes de validation...');
+      console.log('📋 Chargement de TOUTES les demandes de validation...');
       
-      const requests = await taskValidationService.getPendingValidations();
-      console.log('✅ Demandes chargées:', requests.length);
+      // Utiliser getAllValidations au lieu de getPendingValidations
+      const requests = await taskValidationService.getAllValidations();
+      console.log('✅ TOUTES les demandes chargées:', {
+        total: requests.length,
+        pending: requests.filter(r => r.status === 'pending').length,
+        approved: requests.filter(r => r.status === 'approved').length,
+        rejected: requests.filter(r => r.status === 'rejected').length
+      });
       
       setValidationRequests(requests);
       
       // Calculer les statistiques
       const pending = requests.filter(r => r.status === 'pending').length;
-      const validated = requests.filter(r => r.status === 'validated').length;
+      const validated = requests.filter(r => r.status === 'approved').length;
       const rejected = requests.filter(r => r.status === 'rejected').length;
       
       setStats({
@@ -87,9 +93,16 @@ const AdminTaskValidationPage = () => {
         validated,
         rejected,
         todayValidated: requests.filter(r => 
-          r.status === 'validated' && 
-          r.validatedAt && 
-          new Date(r.validatedAt.toDate()).toDateString() === new Date().toDateString()
+          r.status === 'approved' && 
+          r.reviewedAt && 
+          (() => {
+            try {
+              const reviewDate = r.reviewedAt.toDate ? r.reviewedAt.toDate() : new Date(r.reviewedAt);
+              return reviewDate.toDateString() === new Date().toDateString();
+            } catch {
+              return false;
+            }
+          })()
         ).length
       });
       
@@ -136,9 +149,20 @@ const AdminTaskValidationPage = () => {
 
   // Filtrer les demandes
   const filteredRequests = validationRequests.filter(request => {
-    const matchesTab = activeTab === 'all' || request.status === (activeTab === 'pending' ? 'pending' : activeTab);
+    // Filtrage par onglet
+    let matchesTab = false;
+    if (activeTab === 'pending') {
+      matchesTab = request.status === 'pending';
+    } else if (activeTab === 'validated') {
+      matchesTab = request.status === 'approved';
+    } else if (activeTab === 'rejected') {
+      matchesTab = request.status === 'rejected';
+    } else if (activeTab === 'all') {
+      matchesTab = true;
+    }
+    
     const matchesSearch = !searchTerm || 
-      request.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.taskTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       request.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       request.userName?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDifficulty = filterDifficulty === 'all' || request.difficulty === filterDifficulty;
@@ -406,7 +430,7 @@ const AdminTaskValidationPage = () => {
 
                     {/* Contenu de la demande */}
                     <h3 className="text-lg font-semibold text-white mb-2">
-                      {request.title || 'Titre non spécifié'}
+                      {request.taskTitle || 'Titre non spécifié'}
                     </h3>
                     
                     <p className="text-gray-300 mb-4 line-clamp-2">
@@ -435,7 +459,7 @@ const AdminTaskValidationPage = () => {
                     <div className="flex items-center space-x-2">
                       <Trophy className="w-4 h-4 text-yellow-400" />
                       <span className="text-yellow-400 font-medium">
-                        +{request.xpValue || 25} XP
+                        +{request.xpAmount || 25} XP
                       </span>
                     </div>
                   </div>
@@ -459,7 +483,7 @@ const AdminTaskValidationPage = () => {
                       </>
                     )}
 
-                    {request.status === 'validated' && (
+                    {request.status === 'approved' && (
                       <div className="flex items-center space-x-2 text-green-400">
                         <CheckCircle className="w-5 h-5" />
                         <span className="font-medium">Validée</span>
@@ -521,8 +545,8 @@ const AdminTaskValidationPage = () => {
                     <span className="text-white ml-2">{selectedRequest.userEmail || 'Non disponible'}</span>
                   </div>
                   <div>
-                    <span className="text-gray-400">Date:</span>
-                    <span className="text-white ml-2">{formatDate(selectedRequest.createdAt)}</span>
+                    <span className="text-gray-400">Date soumise:</span>
+                    <span className="text-white ml-2">{formatDate(selectedRequest.submittedAt)}</span>
                   </div>
                   <div>
                     <span className="text-gray-400">Difficulté:</span>
@@ -539,7 +563,7 @@ const AdminTaskValidationPage = () => {
                 <div className="space-y-3">
                   <div>
                     <span className="text-gray-400">Titre:</span>
-                    <p className="text-white mt-1">{selectedRequest.title}</p>
+                    <p className="text-white mt-1">{selectedRequest.taskTitle}</p>
                   </div>
                   <div>
                     <span className="text-gray-400">Description:</span>
@@ -549,7 +573,7 @@ const AdminTaskValidationPage = () => {
                     <span className="text-gray-400">Récompense:</span>
                     <div className="flex items-center space-x-2 mt-1">
                       <Trophy className="w-4 h-4 text-yellow-400" />
-                      <span className="text-yellow-400 font-medium">+{selectedRequest.xpValue || 25} XP</span>
+                      <span className="text-yellow-400 font-medium">+{selectedRequest.xpAmount || 25} XP</span>
                     </div>
                   </div>
                 </div>
