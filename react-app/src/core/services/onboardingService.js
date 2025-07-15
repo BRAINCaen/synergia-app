@@ -146,22 +146,28 @@ class OnboardingService {
         }
       };
 
-      // Initialiser toutes les phases
-      Object.keys(ONBOARDING_PHASES).forEach(phaseKey => {
-        const phaseId = ONBOARDING_PHASES[phaseKey].id;
-        formationProfile.phases[phaseId] = {
-          started: false,
-          completed: false,
-          startDate: null,
-          completionDate: null,
-          tasks: {},
-          notes: '',
-          referentComments: ''
-        };
+      // 🔧 CORRECTION: Initialiser toutes les phases avec vérification
+      const phaseKeys = Object.keys(ONBOARDING_PHASES);
+      console.log('🔧 Initialisation de', phaseKeys.length, 'phases');
+      
+      phaseKeys.forEach(phaseKey => {
+        const phase = ONBOARDING_PHASES[phaseKey];
+        if (phase && phase.id) {
+          formationProfile.phases[phase.id] = {
+            started: false,
+            completed: false,
+            startDate: null,
+            completionDate: null,
+            tasks: {},
+            notes: '',
+            referentComments: ''
+          };
+          console.log('✅ Phase initialisée:', phase.id);
+        }
       });
 
       await setDoc(doc(db, this.FORMATION_COLLECTION, userId), formationProfile);
-      console.log('✅ Profil formation créé');
+      console.log('✅ Profil formation créé avec succès');
       return { success: true, data: formationProfile };
 
     } catch (error) {
@@ -238,34 +244,8 @@ class OnboardingService {
         updatedAt: serverTimestamp()
       };
 
-      // Si c'est la première tâche de la phase, marquer la phase comme commencée
-      if (newState && !profileResult.data.phases[phaseId].started) {
-        updates[`phases.${phaseId}.started`] = true;
-        updates[`phases.${phaseId}.startDate`] = new Date().toISOString();
-      }
-
       await updateDoc(doc(db, this.FORMATION_COLLECTION, userId), updates);
-      
-      // Ajouter des XP si tâche complétée
-      if (newState) {
-        try {
-          // Trouver les détails de la tâche pour récupérer les XP
-          const taskXP = this.getTaskXP(phaseId, taskId);
-          if (taskXP > 0) {
-            await gamificationService.addExperience(
-              userId, 
-              taskXP, 
-              `Tâche formation complétée: ${taskId}`,
-              'formation'
-            );
-            console.log(`✅ +${taskXP} XP ajoutés pour la tâche ${taskId}`);
-          }
-        } catch (xpError) {
-          console.warn('⚠️ Erreur ajout XP:', xpError);
-        }
-      }
-
-      console.log('✅ Tâche formation toggleée:', taskId, '→', newState);
+      console.log('✅ Tâche formation toggleée');
       return { success: true, newState };
 
     } catch (error) {
@@ -275,132 +255,57 @@ class OnboardingService {
   }
 
   /**
-   * 🎯 Récupérer les XP d'une tâche
+   * 📝 Ajouter un commentaire de référent
    */
-  getTaskXP(phaseId, taskId) {
-    // Cette méthode devrait normalement récupérer les XP depuis PHASE_TASKS
-    // Pour simplifier, on retourne une valeur par défaut
-    const defaultXP = {
-      decouverte_brain: { default: 10 },
-      parcours_client: { default: 12 },
-      securite_procedures: { default: 15 },
-      formation_experience: { default: 20 },
-      taches_quotidien: { default: 12 },
-      soft_skills: { default: 10 },
-      validation_finale: { default: 40 }
-    };
-
-    return defaultXP[phaseId]?.default || 10;
-  }
-
-  /**
-   * 📝 Ajouter des commentaires référent
-   */
-  async addReferentComments(userId, phaseId, comments, referentId) {
+  async addReferentComment(userId, phaseId, comment, referentId) {
     try {
-      console.log('📝 Ajout commentaires référent formation:', phaseId);
+      console.log('📝 Ajout commentaire référent pour phase:', phaseId);
       
       const updates = {
-        [`phases.${phaseId}.referentComments`]: comments,
-        [`phases.${phaseId}.lastCommentDate`]: new Date().toISOString(),
+        [`phases.${phaseId}.referentComments`]: comment,
         [`phases.${phaseId}.lastCommentBy`]: referentId,
+        [`phases.${phaseId}.lastCommentDate`]: new Date().toISOString(),
         updatedAt: serverTimestamp()
       };
 
       await updateDoc(doc(db, this.FORMATION_COLLECTION, userId), updates);
-      console.log('✅ Commentaires référent ajoutés');
+      console.log('✅ Commentaire référent ajouté');
       return { success: true };
 
     } catch (error) {
-      console.error('❌ Erreur ajout commentaires référent formation:', error);
+      console.error('❌ Erreur ajout commentaire référent:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * 🏆 Valider une phase complète
+   * 🎤 Planifier un entretien de formation
    */
-  async validatePhase(userId, phaseId, validatorId) {
-    try {
-      console.log('🏆 Validation phase formation:', phaseId);
-      
-      const updates = {
-        [`phases.${phaseId}.completed`]: true,
-        [`phases.${phaseId}.completionDate`]: new Date().toISOString(),
-        [`phases.${phaseId}.validatedBy`]: validatorId,
-        updatedAt: serverTimestamp()
-      };
-
-      await updateDoc(doc(db, this.FORMATION_COLLECTION, userId), updates);
-      
-      // Ajouter un badge si c'est défini pour cette phase
-      const phase = Object.values(ONBOARDING_PHASES).find(p => p.id === phaseId);
-      if (phase?.badge) {
-        try {
-          await gamificationService.awardBadge(
-            userId,
-            phase.badge,
-            `Phase ${phase.name} complétée`,
-            'formation'
-          );
-          console.log(`🏅 Badge "${phase.badge}" attribué`);
-        } catch (badgeError) {
-          console.warn('⚠️ Erreur attribution badge:', badgeError);
-        }
-      }
-
-      // Ajouter XP de completion de phase
-      if (phase?.xpTotal) {
-        try {
-          await gamificationService.addExperience(
-            userId,
-            phase.xpTotal,
-            `Phase ${phase.name} validée`,
-            'formation'
-          );
-          console.log(`✅ +${phase.xpTotal} XP ajoutés pour validation phase`);
-        } catch (xpError) {
-          console.warn('⚠️ Erreur ajout XP phase:', xpError);
-        }
-      }
-
-      console.log('✅ Phase formation validée');
-      return { success: true };
-
-    } catch (error) {
-      console.error('❌ Erreur validation phase formation:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 🎤 Planifier un entretien référent
-   */
-  async scheduleInterview(userId, referentId, scheduledDate, type = 'suivi') {
+  async scheduleInterview(userId, interviewData, scheduledBy) {
     try {
       console.log('🎤 Planification entretien formation');
       
       const interview = {
         id: `interview_${Date.now()}`,
         userId,
-        referentId,
-        type, // 'suivi', 'evaluation', 'final'
-        scheduledDate,
-        status: 'scheduled', // 'scheduled', 'completed', 'cancelled'
-        createdAt: new Date().toISOString(),
-        notes: '',
-        feedback: '',
-        actionPoints: []
+        scheduledBy,
+        scheduledAt: new Date().toISOString(),
+        ...interviewData,
+        status: 'scheduled',
+        createdAt: serverTimestamp()
       };
 
-      await setDoc(
-        doc(db, this.INTERVIEWS_COLLECTION, interview.id), 
-        interview
-      );
+      // Ajouter l'entretien à la collection dédiée
+      await setDoc(doc(db, this.INTERVIEWS_COLLECTION, interview.id), interview);
 
       // Ajouter la référence dans le profil formation
       const updates = {
-        interviews: arrayUnion(interview.id),
+        interviews: arrayUnion({
+          id: interview.id,
+          date: interviewData.date,
+          type: interviewData.type,
+          status: 'scheduled'
+        }),
         updatedAt: serverTimestamp()
       };
 
