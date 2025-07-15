@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/onboarding/InterviewManagement.jsx
-// COMPOSANT DE GESTION DES ENTRETIENS POUR LES RÉFÉRENTS
+// GESTION ENTRETIENS AVEC VRAIE RECHERCHE D'EMPLOYÉS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -22,8 +22,17 @@ import {
   TrendingUp
 } from 'lucide-react';
 
+// Firebase
+import { 
+  collection, 
+  getDocs, 
+  query, 
+  where 
+} from 'firebase/firestore';
+import { db } from '../../core/firebase.js';
+
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import InterviewService, { INTERVIEW_TYPES, INTERVIEW_TEMPLATES } from '../../core/services/interviewService.js';
+import { InterviewService, INTERVIEW_TYPES, INTERVIEW_TEMPLATES } from '../../core/services/interviewService.js';
 
 const InterviewManagement = () => {
   const { user } = useAuthStore();
@@ -35,6 +44,7 @@ const InterviewManagement = () => {
   const [stats, setStats] = useState(null);
   const [activeTab, setActiveTab] = useState('scheduled');
   const [employees, setEmployees] = useState([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
   
   // Formulaire de programmation
   const [scheduleForm, setScheduleForm] = useState({
@@ -62,9 +72,96 @@ const InterviewManagement = () => {
   // 📊 Charger les données
   useEffect(() => {
     loadInterviews();
-    loadEmployees();
+    loadRealEmployees();
     loadStats();
   }, [user?.uid]);
+
+  /**
+   * 👥 CHARGER LES VRAIS EMPLOYÉS EN FORMATION DEPUIS FIREBASE
+   */
+  const loadRealEmployees = async () => {
+    if (!user?.uid) return;
+    
+    try {
+      setLoadingEmployees(true);
+      console.log('👥 Recherche des employés en formation...');
+      
+      const employeesList = [];
+      
+      // 1. Chercher dans la collection 'users' tous les utilisateurs
+      const usersRef = collection(db, 'users');
+      const usersSnapshot = await getDocs(usersRef);
+      
+      console.log(`📊 ${usersSnapshot.size} utilisateurs trouvés`);
+      
+      // 2. Chercher dans la collection 'skillsAcquisition' (profils onboarding)
+      const skillsRef = collection(db, 'skillsAcquisition');
+      const skillsSnapshot = await getDocs(skillsRef);
+      
+      const onboardingUserIds = new Set();
+      skillsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        // Si l'utilisateur a un profil d'acquisition de compétences, il est en formation
+        if (data.userId && data.experiences) {
+          onboardingUserIds.add(data.userId);
+        }
+      });
+      
+      console.log(`📊 ${onboardingUserIds.size} utilisateurs en formation trouvés`);
+      
+      // 3. Combiner les données utilisateurs avec leur statut de formation
+      usersSnapshot.forEach((doc) => {
+        const userData = doc.data();
+        const userId = doc.id;
+        
+        // Inclure l'utilisateur s'il a un profil onboarding OU s'il est récent (moins de 60 jours)
+        const isInOnboarding = onboardingUserIds.has(userId);
+        const isRecentUser = userData.createdAt && 
+          (Date.now() - userData.createdAt.toMillis()) < (60 * 24 * 60 * 60 * 1000); // 60 jours
+        
+        if (isInOnboarding || isRecentUser) {
+          employeesList.push({
+            id: userId,
+            name: userData.displayName || userData.profile?.firstName + ' ' + userData.profile?.lastName || 'Utilisateur',
+            email: userData.email,
+            startDate: userData.createdAt ? userData.createdAt.toDate().toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            status: isInOnboarding ? 'en_formation' : 'nouveau',
+            hasOnboardingProfile: isInOnboarding
+          });
+        }
+      });
+      
+      // 4. Ajouter l'utilisateur actuel s'il n'est pas déjà dans la liste (pour test)
+      if (!employeesList.find(emp => emp.id === user.uid)) {
+        employeesList.unshift({
+          id: user.uid,
+          name: user.displayName || user.email?.split('@')[0] || 'Moi',
+          email: user.email,
+          startDate: new Date().toISOString().split('T')[0],
+          status: 'test',
+          hasOnboardingProfile: false
+        });
+      }
+      
+      console.log('✅ Employés en formation trouvés:', employeesList);
+      setEmployees(employeesList);
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement employés:', error);
+      
+      // Fallback: utiliser l'utilisateur actuel
+      setEmployees([{
+        id: user.uid,
+        name: user.displayName || user.email?.split('@')[0] || 'Utilisateur actuel',
+        email: user.email,
+        startDate: new Date().toISOString().split('T')[0],
+        status: 'fallback',
+        hasOnboardingProfile: false
+      }]);
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
 
   const loadInterviews = async () => {
     if (!user?.uid) return;
@@ -81,15 +178,6 @@ const InterviewManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadEmployees = async () => {
-    // TODO: Charger la liste des employés en onboarding
-    // Pour l'instant, utiliser des données fictives
-    setEmployees([
-      { id: 'emp1', name: 'Puck Time', email: 'puck@brain.fr', startDate: '2025-07-01' },
-      { id: 'emp2', name: 'Alex Martin', email: 'alex@brain.fr', startDate: '2025-07-15' }
-    ]);
   };
 
   const loadStats = async () => {
@@ -194,7 +282,7 @@ const InterviewManagement = () => {
       scheduled: 'bg-blue-100 text-blue-600 border-blue-200',
       completed: 'bg-green-100 text-green-600 border-green-200',
       cancelled: 'bg-red-100 text-red-600 border-red-200',
-      rescheduled: 'bg-yellow-100 text-yellow-600 border-yellow-200'
+      postponed: 'bg-yellow-100 text-yellow-600 border-yellow-200'
     };
     return colors[status] || 'bg-gray-100 text-gray-600 border-gray-200';
   };
@@ -202,131 +290,170 @@ const InterviewManagement = () => {
   // 🎨 Obtenir l'icône du type d'entretien
   const getTypeIcon = (type) => {
     const icons = {
-      initial: <User className="w-5 h-5" />,
-      weekly: <Clock className="w-5 h-5" />,
-      milestone: <CheckCircle className="w-5 h-5" />,
-      final: <FileText className="w-5 h-5" />,
-      support: <MessageSquare className="w-5 h-5" />
+      initial: User,
+      weekly: Calendar,
+      milestone: CheckCircle,
+      final: FileText,
+      support: MessageSquare
     };
-    return icons[type] || <Calendar className="w-5 h-5" />;
+    const Icon = icons[type] || Calendar;
+    return <Icon className="w-4 h-4" />;
   };
 
-  if (loading) {
+  if (loading && !employees.length) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-        <span className="ml-3 text-gray-600">Chargement des entretiens...</span>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Clock className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-400">Chargement des entretiens...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      
-      {/* Header avec statistiques */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-            <MessageSquare className="w-8 h-8 mr-3 text-purple-600" />
+      {/* En-tête */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-2">
             Gestion des Entretiens Référent
           </h2>
-          
-          <button
-            onClick={() => setShowScheduleForm(true)}
-            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Programmer Entretien</span>
-          </button>
+          <p className="text-gray-400">
+            Programmez et suivez les entretiens avec vos employés en formation
+          </p>
         </div>
         
-        {/* Statistiques */}
-        {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-purple-600">{stats.total}</div>
-              <div className="text-sm text-gray-600">Total</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-blue-600">{stats.scheduled}</div>
-              <div className="text-sm text-gray-600">Programmés</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-              <div className="text-sm text-gray-600">Terminés</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-orange-600">{Math.round(stats.validationRate)}%</div>
-              <div className="text-sm text-gray-600">Taux Validation</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-pink-600">{stats.byType.initial}</div>
-              <div className="text-sm text-gray-600">Initiaux</div>
-            </div>
-          </div>
-        )}
+        <button
+          onClick={() => setShowScheduleForm(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Programmer un Entretien</span>
+        </button>
       </div>
 
-      {/* Navigation par onglets */}
-      <div className="bg-white rounded-xl shadow-lg">
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6">
-            {[
-              { id: 'scheduled', label: 'Programmés', count: stats?.scheduled || 0 },
-              { id: 'completed', label: 'Terminés', count: stats?.completed || 0 },
-              { id: 'cancelled', label: 'Annulés', count: stats?.cancelled || 0 },
-              { id: 'all', label: 'Tous', count: stats?.total || 0 }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-2 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                  activeTab === tab.id
-                    ? 'border-purple-500 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </nav>
+      {/* Statistiques */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <div className="flex items-center space-x-3">
+              <Calendar className="w-8 h-8 text-blue-500" />
+              <div>
+                <p className="text-gray-400 text-sm">Programmés</p>
+                <p className="text-2xl font-bold text-white">{stats.scheduled || 0}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <div className="flex items-center space-x-3">
+              <CheckCircle className="w-8 h-8 text-green-500" />
+              <div>
+                <p className="text-gray-400 text-sm">Terminés</p>
+                <p className="text-2xl font-bold text-white">{stats.completed || 0}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <div className="flex items-center space-x-3">
+              <Users className="w-8 h-8 text-purple-500" />
+              <div>
+                <p className="text-gray-400 text-sm">Employés</p>
+                <p className="text-2xl font-bold text-white">{employees.length}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <div className="flex items-center space-x-3">
+              <TrendingUp className="w-8 h-8 text-yellow-500" />
+              <div>
+                <p className="text-gray-400 text-sm">Taux réussite</p>
+                <p className="text-2xl font-bold text-white">{stats.successRate || 0}%</p>
+              </div>
+            </div>
+          </div>
         </div>
+      )}
 
-        {/* Liste des entretiens */}
+      {/* Onglets de filtrage */}
+      <div className="flex space-x-1 bg-gray-800 p-1 rounded-lg">
+        {[
+          { key: 'all', label: 'Tous', count: interviews.length },
+          { key: 'scheduled', label: 'Programmés', count: interviews.filter(i => i.status === 'scheduled').length },
+          { key: 'completed', label: 'Terminés', count: interviews.filter(i => i.status === 'completed').length }
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === tab.key
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-300 hover:text-white hover:bg-gray-700'
+            }`}
+          >
+            {tab.label} ({tab.count})
+          </button>
+        ))}
+      </div>
+
+      {/* Liste des entretiens */}
+      <div className="bg-gray-800 rounded-lg border border-gray-700">
         <div className="p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">
+            Entretiens {activeTab === 'all' ? 'récents' : INTERVIEW_TYPES[activeTab]?.name || activeTab}
+          </h3>
+          
           {filteredInterviews.length === 0 ? (
-            <div className="text-center py-12">
-              <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">Aucun entretien dans cette catégorie</p>
+            <div className="text-center py-8">
+              <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-400">Aucun entretien trouvé</p>
+              <button
+                onClick={() => setShowScheduleForm(true)}
+                className="mt-4 text-blue-400 hover:text-blue-300"
+              >
+                Programmer le premier entretien
+              </button>
             </div>
           ) : (
             <div className="space-y-4">
               {filteredInterviews.map((interview) => {
-                const employee = employees.find(emp => emp.id === interview.employeeId);
-                const interviewType = INTERVIEW_TYPES[interview.type.toUpperCase()];
+                const employee = employees.find(e => e.id === interview.employeeId);
                 
                 return (
-                  <div key={interview.id} className="border border-gray-200 rounded-lg p-6 hover:border-purple-300 transition-colors">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                  <div
+                    key={interview.id}
+                    className="border border-gray-600 rounded-lg p-4 hover:bg-gray-700 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex-shrink-0">
                           {getTypeIcon(interview.type)}
                         </div>
+                        
                         <div>
-                          <h4 className="font-semibold text-gray-800">
-                            {interviewType?.name || interview.type}
+                          <h4 className="font-medium text-white">
+                            {INTERVIEW_TYPES[interview.type]?.name || interview.type}
                           </h4>
-                          <p className="text-sm text-gray-600">
-                            avec {employee?.name || 'Employé inconnu'}
+                          <p className="text-sm text-gray-400">
+                            Avec {employee?.name || 'Employé inconnu'}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(interview.scheduledDate?.toDate?.() || interview.scheduledDate).toLocaleDateString('fr-FR', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
                           </p>
                         </div>
                       </div>
                       
-                      <div className="flex items-center space-x-2">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(interview.status)}`}>
+                      <div className="flex items-center space-x-3">
+                        <span className={`px-2 py-1 text-xs font-medium border rounded-full ${getStatusColor(interview.status)}`}>
                           {interview.status}
                         </span>
                         
@@ -335,76 +462,14 @@ const InterviewManagement = () => {
                             onClick={() => {
                               setSelectedInterview(interview);
                               setShowCompleteForm(true);
-                              // Pré-remplir le formulaire avec le template
-                              const template = INTERVIEW_TEMPLATES[interview.type];
-                              if (template) {
-                                setCompleteForm(prev => ({
-                                  ...prev,
-                                  responses: template.questions.reduce((acc, q, i) => {
-                                    acc[`question_${i}`] = '';
-                                    return acc;
-                                  }, {}),
-                                  evaluations: template.evaluationCriteria.reduce((acc, c, i) => {
-                                    acc[`criteria_${i}`] = 3; // Note sur 5
-                                    return acc;
-                                  }, {})
-                                }));
-                              }
                             }}
-                            className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 transition-colors"
+                            className="text-blue-400 hover:text-blue-300"
                           >
-                            Finaliser
+                            <Edit className="w-4 h-4" />
                           </button>
                         )}
                       </div>
                     </div>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium text-gray-700">Date :</span>
-                        <p className="text-gray-600">
-                          {interview.scheduledDate?.toDate?.()?.toLocaleDateString('fr-FR') || 'Date inconnue'}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-700">Durée :</span>
-                        <p className="text-gray-600">{interview.duration} min</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-700">Lieu :</span>
-                        <p className="text-gray-600">{interview.location}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-700">Type :</span>
-                        <p className="text-gray-600">{interviewType?.name}</p>
-                      </div>
-                    </div>
-                    
-                    {interview.objectives && interview.objectives.length > 0 && (
-                      <div className="mt-4">
-                        <span className="font-medium text-gray-700">Objectifs :</span>
-                        <ul className="text-sm text-gray-600 mt-1">
-                          {interview.objectives.map((obj, index) => (
-                            <li key={index} className="flex items-start space-x-2">
-                              <span>•</span>
-                              <span>{obj}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    
-                    {interview.status === 'completed' && interview.validated && (
-                      <div className="mt-4 bg-green-50 p-3 rounded-lg">
-                        <div className="flex items-center space-x-2 text-green-700">
-                          <CheckCircle className="w-5 h-5" />
-                          <span className="font-medium">Entretien validé</span>
-                        </div>
-                        {interview.globalAssessment && (
-                          <p className="text-sm text-green-600 mt-1">{interview.globalAssessment}</p>
-                        )}
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -415,115 +480,166 @@ const InterviewManagement = () => {
 
       {/* Modal de programmation d'entretien */}
       {showScheduleForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
-            <h3 className="text-xl font-bold text-gray-800 mb-6">Programmer un Entretien</h3>
-            
-            <form onSubmit={handleScheduleInterview} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg w-full max-w-2xl border border-gray-700">
+            <div className="flex items-center justify-between p-6 border-b border-gray-700">
+              <h3 className="text-lg font-semibold text-white">
+                Programmer un Entretien
+              </h3>
+              <button
+                onClick={() => setShowScheduleForm(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleScheduleInterview} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Employé *
+                </label>
+                <select
+                  value={scheduleForm.employeeId}
+                  onChange={(e) => setScheduleForm({...scheduleForm, employeeId: e.target.value})}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
+                  required
+                >
+                  <option value="">Sélectionner un employé</option>
+                  {loadingEmployees ? (
+                    <option disabled>Chargement des employés...</option>
+                  ) : employees.length === 0 ? (
+                    <option disabled>Aucun employé en formation trouvé</option>
+                  ) : (
+                    employees.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.name} ({employee.email})
+                        {employee.status && ` - ${employee.status}`}
+                      </option>
+                    ))
+                  )}
+                </select>
+                {loadingEmployees && (
+                  <p className="text-sm text-blue-400 mt-1">
+                    Recherche des employés en formation...
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Employé
-                  </label>
-                  <select
-                    value={scheduleForm.employeeId}
-                    onChange={(e) => setScheduleForm(prev => ({ ...prev, employeeId: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Sélectionner un employé</option>
-                    {employees.map(emp => (
-                      <option key={emp.id} value={emp.id}>{emp.name}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Type d'entretien
-                  </label>
-                  <select
-                    value={scheduleForm.type}
-                    onChange={(e) => setScheduleForm(prev => ({ 
-                      ...prev, 
-                      type: e.target.value,
-                      duration: INTERVIEW_TYPES[e.target.value.toUpperCase()]?.duration || 30
-                    }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  >
-                    {Object.entries(INTERVIEW_TYPES).map(([key, type]) => (
-                      <option key={key} value={key.toLowerCase()}>{type.name}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Date et heure
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Nom de l'employé *
                   </label>
                   <input
-                    type="datetime-local"
-                    value={scheduleForm.scheduledDate}
-                    onChange={(e) => setScheduleForm(prev => ({ ...prev, scheduledDate: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    required
+                    type="text"
+                    value={scheduleForm.employeeId ? employees.find(e => e.id === scheduleForm.employeeId)?.name || '' : ''}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    placeholder="Nom complet"
+                    readOnly
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Durée (minutes)
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Email
                   </label>
                   <input
-                    type="number"
-                    value={scheduleForm.duration}
-                    onChange={(e) => setScheduleForm(prev => ({ ...prev, duration: parseInt(e.target.value) }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    min="15"
-                    max="120"
+                    type="email"
+                    value={scheduleForm.employeeId ? employees.find(e => e.id === scheduleForm.employeeId)?.email || '' : ''}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    placeholder="email@brain.fr"
+                    readOnly
                   />
                 </div>
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Lieu
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Type d'entretien *
+                </label>
+                <select
+                  value={scheduleForm.type}
+                  onChange={(e) => setScheduleForm({...scheduleForm, type: e.target.value})}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
+                  required
+                >
+                  {Object.entries(INTERVIEW_TYPES).map(([key, type]) => (
+                    <option key={key} value={key}>
+                      {type.name} - {type.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={scheduleForm.scheduledDate}
+                    onChange={(e) => setScheduleForm({...scheduleForm, scheduledDate: e.target.value})}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Heure *
+                  </label>
+                  <input
+                    type="time"
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Durée (minutes)
                 </label>
                 <input
-                  type="text"
-                  value={scheduleForm.location}
-                  onChange={(e) => setScheduleForm(prev => ({ ...prev, location: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Bureau référent"
+                  type="number"
+                  value={scheduleForm.duration}
+                  onChange={(e) => setScheduleForm({...scheduleForm, duration: parseInt(e.target.value)})}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
+                  min="15"
+                  max="120"
                 />
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Lieu
                 </label>
-                <textarea
-                  value={scheduleForm.notes}
-                  onChange={(e) => setScheduleForm(prev => ({ ...prev, notes: e.target.value }))}
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Notes ou instructions spéciales..."
-                />
-              </div>
-              
-              <div className="flex space-x-4 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                <select
+                  value={scheduleForm.location}
+                  onChange={(e) => setScheduleForm({...scheduleForm, location: e.target.value})}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
                 >
-                  Programmer l'Entretien
-                </button>
+                  <option value="Bureau référent">Bureau référent</option>
+                  <option value="Salle de réunion">Salle de réunion</option>
+                  <option value="Visioconférence">Visioconférence</option>
+                  <option value="Autre">Autre</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowScheduleForm(false)}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition-colors"
+                  className="px-4 py-2 text-gray-300 hover:text-white border border-gray-600 rounded-lg transition-colors"
                 >
                   Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  Programmer l'Entretien
                 </button>
               </div>
             </form>
@@ -531,154 +647,17 @@ const InterviewManagement = () => {
         </div>
       )}
 
-      {/* Modal de finalisation d'entretien */}
-      {showCompleteForm && selectedInterview && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-white rounded-xl p-6 w-full max-w-4xl mx-4 my-8">
-            <h3 className="text-xl font-bold text-gray-800 mb-6">
-              Finaliser l'Entretien - {INTERVIEW_TYPES[selectedInterview.type.toUpperCase()]?.name}
-            </h3>
-            
-            <form onSubmit={handleCompleteInterview} className="space-y-6">
-              
-              {/* Questions du template */}
-              {INTERVIEW_TEMPLATES[selectedInterview.type]?.questions && (
-                <div>
-                  <h4 className="font-semibold text-gray-800 mb-4">Questions d'Entretien</h4>
-                  <div className="space-y-4">
-                    {INTERVIEW_TEMPLATES[selectedInterview.type].questions.map((question, index) => (
-                      <div key={index}>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {question}
-                        </label>
-                        <textarea
-                          value={completeForm.responses[`question_${index}`] || ''}
-                          onChange={(e) => setCompleteForm(prev => ({
-                            ...prev,
-                            responses: {
-                              ...prev.responses,
-                              [`question_${index}`]: e.target.value
-                            }
-                          }))}
-                          rows={2}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          placeholder="Réponse de l'employé..."
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Évaluations */}
-              {INTERVIEW_TEMPLATES[selectedInterview.type]?.evaluationCriteria && (
-                <div>
-                  <h4 className="font-semibold text-gray-800 mb-4">Évaluation (sur 5)</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {INTERVIEW_TEMPLATES[selectedInterview.type].evaluationCriteria.map((criteria, index) => (
-                      <div key={index}>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {criteria}
-                        </label>
-                        <select
-                          value={completeForm.evaluations[`criteria_${index}`] || 3}
-                          onChange={(e) => setCompleteForm(prev => ({
-                            ...prev,
-                            evaluations: {
-                              ...prev.evaluations,
-                              [`criteria_${index}`]: parseInt(e.target.value)
-                            }
-                          }))}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        >
-                          <option value={1}>1 - Très insuffisant</option>
-                          <option value={2}>2 - Insuffisant</option>
-                          <option value={3}>3 - Correct</option>
-                          <option value={4}>4 - Bien</option>
-                          <option value={5}>5 - Excellent</option>
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Bilan global */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bilan Global
-                </label>
-                <textarea
-                  value={completeForm.globalAssessment}
-                  onChange={(e) => setCompleteForm(prev => ({ ...prev, globalAssessment: e.target.value }))}
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Bilan général de l'entretien..."
-                />
-              </div>
-              
-              {/* Notes référent */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes Référent
-                </label>
-                <textarea
-                  value={completeForm.referentNotes}
-                  onChange={(e) => setCompleteForm(prev => ({ ...prev, referentNotes: e.target.value }))}
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Notes personnelles du référent..."
-                />
-              </div>
-              
-              {/* Validation */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center space-x-2 mb-2">
-                  <input
-                    type="checkbox"
-                    id="validated"
-                    checked={completeForm.validated}
-                    onChange={(e) => setCompleteForm(prev => ({ ...prev, validated: e.target.checked }))}
-                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                  />
-                  <label htmlFor="validated" className="font-medium text-gray-700">
-                    Valider cet entretien
-                  </label>
-                </div>
-                
-                {completeForm.validated && (
-                  <textarea
-                    value={completeForm.validationComments}
-                    onChange={(e) => setCompleteForm(prev => ({ ...prev, validationComments: e.target.value }))}
-                    rows={2}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Commentaires de validation..."
-                  />
-                )}
-              </div>
-              
-              <div className="flex space-x-4 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Finaliser l'Entretien
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCompleteForm(false);
-                    setSelectedInterview(null);
-                  }}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition-colors"
-                >
-                  Annuler
-                </button>
-              </div>
-            </form>
-          </div>
+      {/* Debug info */}
+      <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <h4 className="text-white font-medium mb-2">🔍 Debug - Employés trouvés:</h4>
+        <div className="text-sm text-gray-400">
+          <p>Total: {employees.length}</p>
+          {employees.slice(0, 3).map(emp => (
+            <p key={emp.id}>• {emp.name} ({emp.email}) - {emp.status}</p>
+          ))}
+          {employees.length > 3 && <p>... et {employees.length - 3} autres</p>}
         </div>
-      )}
+      </div>
     </div>
   );
 };
