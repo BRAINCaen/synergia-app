@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT MIS À JOUR AVEC DASHBOARD MANAGER
+// LAYOUT MIS À JOUR AVEC DASHBOARD TUTEUR
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -32,7 +32,7 @@ import {
   UsersIcon,
   SettingsIcon,
   Gamepad2,
-  Activity // ← Import ajouté pour Dashboard Manager
+  GraduationCap // ← Import ajouté pour Dashboard Tuteur
 } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { ROUTES } from '../../core/constants.js';
@@ -88,13 +88,13 @@ const Layout = () => {
     ]
   };
 
-  // 🛡️ MENU ADMIN COMPLET AVEC DASHBOARD MANAGER
+  // 🛡️ MENU ADMIN COMPLET AVEC DASHBOARD TUTEUR
   const adminItems = (user?.email === 'alan.boehme61@gmail.com' || 
                      user?.role === 'admin' || 
                      user?.isAdmin === true ||
                      user?.profile?.role === 'admin') ?
     [
-      { id: 'admin-dashboard-manager', path: ROUTES.ADMIN_DASHBOARD_MANAGER, label: 'Dashboard Manager', icon: Activity }, // ← AJOUTÉ
+      { id: 'admin-dashboard-tuteur', path: ROUTES.ADMIN_DASHBOARD_TUTEUR, label: 'Dashboard Tuteur', icon: GraduationCap }, // ← CHANGÉ
       { id: 'admin-task-validation', path: ROUTES.ADMIN_TASK_VALIDATION, label: 'Validation Tâches', icon: Shield },
       { id: 'admin-complete-test', path: ROUTES.ADMIN_COMPLETE_TEST, label: 'Test Complet', icon: TestTube },
       { id: 'admin-role-permissions', path: ROUTES.ADMIN_ROLE_PERMISSIONS, label: 'Permissions Rôles', icon: Lock },
