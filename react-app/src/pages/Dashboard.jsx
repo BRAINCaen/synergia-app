@@ -23,6 +23,10 @@ import {
   Activity
 } from 'lucide-react';
 
+// Imports Firebase
+import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
+import { db } from '../core/firebase.js';
+
 // Layouts et stores
 import PremiumLayout from '../shared/layouts/PremiumLayout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
@@ -46,13 +50,34 @@ const DashboardLeaderboard = () => {
       try {
         setLoading(true);
         
-        // 🔥 CHARGER LES VRAIS TOP PERFORMERS DEPUIS FIREBASE
-        const topPerformersData = await analyticsService.getTopPerformers(5);
-        
         console.log('🏆 Chargement VRAIS top performers depuis Firebase...');
-        console.log('✅ VRAIS top performers chargés:', topPerformersData.length);
         
-        setTopUsers(topPerformersData || []);
+        // 🔥 RÉCUPÉRER LES VRAIS UTILISATEURS AVEC LE PLUS D'XP
+        const usersQuery = query(
+          collection(db, 'users'),
+          orderBy('gamification.totalXP', 'desc'),
+          limit(5)
+        );
+        
+        const usersSnapshot = await getDocs(usersQuery);
+        const topUsers = [];
+        
+        usersSnapshot.forEach(doc => {
+          const userData = doc.data();
+          if (userData.gamification?.totalXP > 0) {
+            topUsers.push({
+              id: doc.id,
+              name: userData.displayName || userData.email?.split('@')[0] || 'Utilisateur',
+              xp: userData.gamification.totalXP || 0,
+              level: userData.gamification.level || 1,
+              email: userData.email
+            });
+          }
+        });
+        
+        console.log('✅ VRAIS top performers chargés:', topUsers.length);
+        setTopUsers(topUsers);
+        
       } catch (error) {
         console.error('❌ Erreur chargement top performers:', error);
         setTopUsers([]);
