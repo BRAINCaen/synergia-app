@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/routing/AppRouter.jsx
-// ROUTER MIS À JOUR AVEC DASHBOARD ADMIN MANAGER
+// ROUTER MIS À JOUR AVEC DASHBOARD MANAGER
 // ==========================================
 
 import React from 'react';
@@ -52,10 +52,10 @@ import AdminSettingsPage from '../../pages/AdminSettingsPage.jsx';
 // 🎁 NOUVELLE PAGE ADMIN RÉCOMPENSES
 import AdminRewardsPage from '../../pages/AdminRewardsPage.jsx';
 
-// 📊 NOUVELLE PAGE DASHBOARD ADMIN MANAGER
-import AdminDashboardManager from '../../pages/AdminDashboardManager.jsx';
+// 🎛️ NOUVELLE PAGE ADMIN DASHBOARD MANAGER
+import AdminDashboardManagerPage from '../../pages/AdminDashboardManagerPage.jsx';
 
-// Composant de protection admin
+// Composant de protection pour les routes admin
 const AdminRoute = ({ children }) => {
   const { user } = useAuthStore();
   
@@ -66,36 +66,53 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
-const AppRouter = () => {
-  const { user } = useAuthStore();
+// Composant de protection pour les routes authentifiées
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuthStore();
   
-  // Si pas connecté, rediriger vers login
-  if (!user) {
+  if (loading) {
     return (
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white">Chargement...</p>
+        </div>
+      </div>
     );
   }
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
 
+const AppRouter = () => {
   return (
     <Routes>
+      {/* Route de connexion */}
+      <Route path="/login" element={<Login />} />
+      
       {/* Routes protégées avec Layout */}
-      <Route element={<Layout />}>
+      <Route element={
+        <ProtectedRoute>
+          <Layout />
+        </ProtectedRoute>
+      }>
         {/* Pages principales */}
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         
-        {/* Gamification RECONNECTÉES */}
+        {/* Gamification */}
         <Route path="/gamification" element={<GamificationPage />} />
         <Route path="/badges" element={<BadgesPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/rewards" element={<RewardsPage />} />
         
-        {/* 🎯 ROUTES PROGRESSION AJOUTÉES */}
+        {/* 🎯 ROUTES DE PROGRESSION DE RÔLE */}
         <Route path="/role/progression" element={<RoleProgressionPage />} />
         <Route path="/role/tasks" element={<RoleTasksPage />} />
         <Route path="/role/badges" element={<RoleBadgesPage />} />
@@ -122,8 +139,8 @@ const AppRouter = () => {
           <Layout />
         </AdminRoute>
       }>
-        {/* 📊 NOUVELLE ROUTE DASHBOARD ADMIN MANAGER */}
-        <Route path="/admin/dashboard-manager" element={<AdminDashboardManager />} />
+        {/* 🎛️ NOUVELLE ROUTE ADMIN DASHBOARD MANAGER */}
+        <Route path="/admin/dashboard-manager" element={<AdminDashboardManagerPage />} />
         
         <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
         <Route path="/admin/complete-test" element={<CompleteAdminTestPage />} />
