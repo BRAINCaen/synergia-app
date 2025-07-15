@@ -77,9 +77,13 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
     recurrenceInterval: 1,
     recurrenceEndDate: '',
     maxOccurrences: '',
-    // 👤 ASSIGNATION
-    assignedTo: '',
+    // 👤 ASSIGNATION MULTIPLE AVANCÉE
+    assignedTo: [],
     assignToSelf: true,
+    isMultipleAssignment: false,
+    selectedMembers: [],
+    contributionPercentages: {},
+    xpDistribution: 'equal', // equal, custom, performance-based
     teamMembers: [],
     tags: []
   });
@@ -123,9 +127,13 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
         recurrenceInterval: task.recurrenceInterval || 1,
         recurrenceEndDate: task.recurrenceEndDate ? new Date(task.recurrenceEndDate.toDate?.() || task.recurrenceEndDate).toISOString().split('T')[0] : '',
         maxOccurrences: task.maxOccurrences || '',
-        // 👤 ASSIGNATION
-        assignedTo: task.assignedTo || '',
-        assignToSelf: !task.assignedTo || task.assignedTo === user?.uid,
+        // 👤 ASSIGNATION MULTIPLE
+        assignedTo: task.assignedTo || [],
+        assignToSelf: !task.assignedTo || task.assignedTo.includes(user?.uid),
+        isMultipleAssignment: Array.isArray(task.assignedTo) && task.assignedTo.length > 1,
+        selectedMembers: task.assignedTo || [],
+        contributionPercentages: task.contributionPercentages || {},
+        xpDistribution: task.xpDistribution || 'equal',
         teamMembers: task.teamMembers || [],
         tags: task.tags || []
       });
@@ -142,9 +150,13 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
         recurrenceInterval: 1,
         recurrenceEndDate: '',
         maxOccurrences: '',
-        // 👤 ASSIGNATION
-        assignedTo: '',
+        // 👤 ASSIGNATION MULTIPLE
+        assignedTo: [],
         assignToSelf: true,
+        isMultipleAssignment: false,
+        selectedMembers: [],
+        contributionPercentages: {},
+        xpDistribution: 'equal',
         teamMembers: [],
         tags: []
       });
@@ -176,8 +188,20 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
         isRecurring: formData.isRecurring,
         recurrenceType: formData.isRecurring ? formData.recurrenceType : null,
         recurrenceInterval: formData.isRecurring ? formData.recurrenceInterval : null,
-        // 👤 Assignation
-        assignedTo: formData.assignToSelf ? user?.uid : formData.assignedTo || user?.uid,
+        // 👤 Assignation Multiple
+        assignedTo: formData.assignToSelf ? 
+          [user?.uid] : 
+          (formData.isMultipleAssignment ? formData.selectedMembers : formData.assignedTo),
+        isMultipleAssignment: formData.isMultipleAssignment,
+        assignments: formData.isMultipleAssignment ? 
+          formData.selectedMembers.map(memberId => ({
+            userId: memberId,
+            contributionPercentage: formData.contributionPercentages[memberId] || 0,
+            assignedAt: new Date().toISOString(),
+            status: 'assigned'
+          })) : null,
+        contributionPercentages: formData.contributionPercentages,
+        xpDistribution: formData.xpDistribution,
         teamMembers: formData.teamMembers,
         tags: formData.tags
       };
@@ -315,33 +339,149 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null }) => {
               />
             </div>
 
-            {/* Assignation */}
+            {/* Assignation Multiple Avancée */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Users className="inline w-4 h-4 mr-1" />
-                Assigné à
+                Assignation des Membres
               </label>
-              <div className="space-y-2">
+              
+              <div className="space-y-3">
+                {/* Option assignation à soi-même */}
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={formData.assignToSelf}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      assignToSelf: e.target.checked,
-                      assignedTo: e.target.checked ? user?.uid || '' : ''
-                    }))}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        assignToSelf: checked,
+                        selectedMembers: checked ? [user?.uid] : [],
+                        isMultipleAssignment: false
+                      }));
+                    }}
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     disabled={submitting}
                   />
                   <span className="text-sm text-gray-700">M'assigner cette tâche</span>
                 </label>
                 
-                {!formData.assignToSelf && (
+                {/* Option assignation multiple */}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.isMultipleAssignment}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        isMultipleAssignment: checked,
+                        assignToSelf: !checked,
+                        selectedMembers: checked ? [] : (prev.assignToSelf ? [user?.uid] : [])
+                      }));
+                    }}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    disabled={submitting}
+                  />
+                  <span className="text-sm text-gray-700">Assignation multiple avec répartition XP</span>
+                </label>
+                
+                {/* Interface assignation multiple */}
+                {formData.isMultipleAssignment && (
+                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <h4 className="text-sm font-medium text-gray-900 mb-3">
+                      Sélection des membres et répartition XP
+                    </h4>
+                    
+                    {/* Sélection membres simulée */}
+                    <div className="space-y-2 mb-4">
+                      <div className="text-xs text-gray-600 mb-2">Membres disponibles :</div>
+                      {['Member 1', 'Member 2', 'Member 3'].map((memberName, index) => (
+                        <label key={index} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.selectedMembers.includes(`member_${index}`)}
+                            onChange={(e) => {
+                              const memberId = `member_${index}`;
+                              setFormData(prev => {
+                                const newSelected = e.target.checked 
+                                  ? [...prev.selectedMembers, memberId]
+                                  : prev.selectedMembers.filter(id => id !== memberId);
+                                
+                                // Répartition égale automatique
+                                const newPercentages = {};
+                                const equalShare = Math.floor(100 / newSelected.length);
+                                newSelected.forEach(id => {
+                                  newPercentages[id] = equalShare;
+                                });
+                                
+                                return {
+                                  ...prev,
+                                  selectedMembers: newSelected,
+                                  contributionPercentages: newPercentages
+                                };
+                              });
+                            }}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            disabled={submitting}
+                          />
+                          <span className="text-sm text-gray-700">{memberName}</span>
+                          {formData.selectedMembers.includes(`member_${index}`) && (
+                            <span className="text-xs text-blue-600 ml-auto">
+                              {formData.contributionPercentages[`member_${index}`] || 0}% XP
+                            </span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                    
+                    {/* Mode de répartition XP */}
+                    <div className="mb-3">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Mode de répartition XP :
+                      </label>
+                      <select
+                        value={formData.xpDistribution}
+                        onChange={(e) => setFormData(prev => ({ ...prev, xpDistribution: e.target.value }))}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                        disabled={submitting}
+                      >
+                        <option value="equal">Répartition égale</option>
+                        <option value="custom">Répartition personnalisée</option>
+                        <option value="performance">Basé sur les performances</option>
+                      </select>
+                    </div>
+                    
+                    {/* Aperçu répartition */}
+                    {formData.selectedMembers.length > 0 && (
+                      <div className="bg-blue-50 border border-blue-200 rounded p-2">
+                        <div className="text-xs font-medium text-blue-800 mb-1">
+                          Répartition finale des {calculatedXP} XP :
+                        </div>
+                        {formData.selectedMembers.map(memberId => (
+                          <div key={memberId} className="text-xs text-blue-700 flex justify-between">
+                            <span>Membre {memberId}</span>
+                            <span>
+                              {Math.round(calculatedXP * (formData.contributionPercentages[memberId] || 0) / 100)} XP
+                              ({formData.contributionPercentages[memberId] || 0}%)
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Assignation simple par email */}
+                {!formData.assignToSelf && !formData.isMultipleAssignment && (
                   <input
                     type="email"
-                    value={formData.assignedTo}
-                    onChange={(e) => setFormData(prev => ({ ...prev, assignedTo: e.target.value }))}
+                    value={formData.assignedTo[0] || ''}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      assignedTo: e.target.value ? [e.target.value] : []
+                    }))}
                     placeholder="Email du membre de l'équipe"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     disabled={submitting}
@@ -855,11 +995,27 @@ const TasksPage = () => {
               </div>
             )}
             
-            {/* Assignation */}
-            {task.assignedTo && task.assignedTo !== user?.uid && (
+            {/* Assignation Multiple */}
+            {Array.isArray(task.assignedTo) && task.assignedTo.length > 1 && (
               <div className="flex items-center gap-1 mt-2 text-xs text-purple-400">
                 <Users className="w-3 h-3" />
-                <span>Assigné à {task.assignedTo}</span>
+                <span>Équipe ({task.assignedTo.length} membres)</span>
+              </div>
+            )}
+            
+            {/* Assignation Simple */}
+            {Array.isArray(task.assignedTo) && task.assignedTo.length === 1 && task.assignedTo[0] !== user?.uid && (
+              <div className="flex items-center gap-1 mt-2 text-xs text-purple-400">
+                <Users className="w-3 h-3" />
+                <span>Assigné à 1 membre</span>
+              </div>
+            )}
+            
+            {/* Indicateur XP distribué */}
+            {task.isMultipleAssignment && task.assignments && (
+              <div className="flex items-center gap-1 mt-1 text-xs text-yellow-400">
+                <Trophy className="w-3 h-3" />
+                <span>XP distribué ({task.assignments.length} parts)</span>
               </div>
             )}
           </div>
