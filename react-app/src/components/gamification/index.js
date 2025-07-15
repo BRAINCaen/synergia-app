@@ -15,7 +15,8 @@
 // ✅ Composant Leaderboard simplifié et sécurisé
 import React, { useState, useEffect } from 'react';
 import { Trophy, Medal, Star, Users, Zap, RefreshCw } from 'lucide-react';
-import { analyticsService } from '../../core/services/analyticsService.js';
+import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
+import { db } from '../../core/firebase.js';
 
 const Leaderboard = ({ limit = 10, showHeader = true }) => {
   const [leaderboardData, setLeaderboardData] = useState([]);
@@ -30,12 +31,32 @@ const Leaderboard = ({ limit = 10, showHeader = true }) => {
         
         console.log('🏆 Chargement VRAI leaderboard depuis Firebase...');
         
-        // Utiliser le service analytics pour charger les vrais top performers
-        const topPerformersData = await analyticsService.getTopPerformers(limit);
+        // 🔥 RÉCUPÉRER LES VRAIS UTILISATEURS AVEC LE PLUS D'XP
+        const usersQuery = query(
+          collection(db, 'users'),
+          orderBy('gamification.totalXP', 'desc'),
+          limit(limit)
+        );
         
-        console.log('✅ VRAI leaderboard chargé:', topPerformersData?.length || 0);
+        const usersSnapshot = await getDocs(usersQuery);
+        const topUsers = [];
         
-        setLeaderboardData(topPerformersData || []);
+        usersSnapshot.forEach(doc => {
+          const userData = doc.data();
+          if (userData.gamification?.totalXP > 0) {
+            topUsers.push({
+              id: doc.id,
+              name: userData.displayName || userData.email?.split('@')[0] || 'Utilisateur',
+              xp: userData.gamification.totalXP || 0,
+              level: userData.gamification.level || 1,
+              position: topUsers.length + 1
+            });
+          }
+        });
+        
+        console.log('✅ VRAI leaderboard chargé:', topUsers.length);
+        setLeaderboardData(topUsers);
+        
       } catch (error) {
         console.error('❌ Erreur chargement leaderboard:', error);
         setLeaderboardData([]);
@@ -117,12 +138,31 @@ const BadgeCollection = ({ userId, limit = 6 }) => {
         
         console.log('🏆 Chargement VRAIS badges pour:', userId);
         
-        // Utiliser le service analytics pour charger les vrais badges
-        const userBadgesData = await analyticsService.getUserBadges(userId);
+        // 🔥 RÉCUPÉRER LES VRAIS BADGES DE L'UTILISATEUR
+        const badgesQuery = query(
+          collection(db, 'userBadges'),
+          where('userId', '==', userId),
+          orderBy('earnedAt', 'desc'),
+          limit(limit)
+        );
         
-        console.log('✅ VRAIS badges chargés:', userBadgesData?.length || 0);
+        const badgesSnapshot = await getDocs(badgesQuery);
+        const userBadges = [];
         
-        setBadges(userBadgesData || []);
+        badgesSnapshot.forEach(doc => {
+          const badgeData = doc.data();
+          userBadges.push({
+            id: doc.id,
+            name: badgeData.name || 'Badge',
+            icon: badgeData.icon || '🏆',
+            unlocked: true,
+            earnedAt: badgeData.earnedAt
+          });
+        });
+        
+        console.log('✅ VRAIS badges chargés:', userBadges.length);
+        setBadges(userBadges);
+        
       } catch (error) {
         console.error('❌ Erreur chargement badges:', error);
         setBadges([]);
@@ -132,7 +172,7 @@ const BadgeCollection = ({ userId, limit = 6 }) => {
     };
 
     loadRealBadges();
-  }, [userId]);
+  }, [userId, limit]);
 
   if (loading) {
     return (
