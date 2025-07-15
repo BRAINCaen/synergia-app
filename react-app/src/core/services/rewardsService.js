@@ -1,5 +1,5 @@
 // ==========================================
-// 📁 react-app/src/core/services/rewardsService.js
+// 📁 react-app/src/core/services/rewardsService.js  
 // SERVICE COMPLET DE GESTION DES RÉCOMPENSES - PERMISSIONS CORRIGÉES
 // ==========================================
 
