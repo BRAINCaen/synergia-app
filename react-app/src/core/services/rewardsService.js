@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/rewardsService.js
-// SERVICE COMPLET DE GESTION DES RÉCOMPENSES
+// SERVICE COMPLET DE GESTION DES RÉCOMPENSES - PERMISSIONS CORRIGÉES
 // ==========================================
 
 import { 
@@ -18,14 +18,59 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
-import { isAdmin } from './adminService.js';
 
 /**
- * 🎁 SERVICE DE GESTION DES RÉCOMPENSES
+ * 🎁 SERVICE DE GESTION DES RÉCOMPENSES - VERSION CORRIGÉE
  */
 class RewardsService {
   constructor() {
     this.listeners = new Map();
+    this.adminEmails = ['alan.boehme61@gmail.com']; // Liste des admins
+  }
+
+  /**
+   * 🛡️ VÉRIFICATION ADMIN CORRIGÉE - COMPATIBLE UID ET USER OBJECT
+   */
+  async checkAdminPermissions(userIdOrObject) {
+    try {
+      let user = userIdOrObject;
+      
+      // Si c'est juste un UID, récupérer les données utilisateur
+      if (typeof userIdOrObject === 'string') {
+        const userRef = doc(db, 'users', userIdOrObject);
+        const userDoc = await getDoc(userRef);
+        
+        if (!userDoc.exists()) {
+          console.warn('⚠️ Utilisateur non trouvé:', userIdOrObject);
+          return false;
+        }
+        
+        user = { uid: userIdOrObject, ...userDoc.data() };
+      }
+      
+      // Vérifications multiples robustes
+      const isAdminEmail = this.adminEmails.includes(user.email);
+      const isRoleAdmin = user.role === 'admin';
+      const hasAdminFlag = user.isAdmin === true;
+      const isProfileRoleAdmin = user.profile?.role === 'admin';
+      const hasAdminPermissions = Array.isArray(user.permissions) && 
+        (user.permissions.includes('admin_access') || user.permissions.includes('manage_rewards'));
+      
+      const isAdmin = isAdminEmail || isRoleAdmin || hasAdminFlag || isProfileRoleAdmin || hasAdminPermissions;
+      
+      console.log('🛡️ Vérification admin récompenses:', {
+        userEmail: user.email,
+        userUid: user.uid,
+        checks: { isAdminEmail, isRoleAdmin, hasAdminFlag, isProfileRoleAdmin, hasAdminPermissions },
+        finalResult: isAdmin
+      });
+      
+      return isAdmin;
+      
+    } catch (error) {
+      console.error('❌ Erreur vérification admin récompenses:', error);
+      return false;
+    }
   }
 
   /**
@@ -33,8 +78,8 @@ class RewardsService {
    */
   async createReward(adminId, rewardData) {
     try {
-      // Vérifier les permissions admin
-      const hasPermission = await isAdmin({ uid: adminId });
+      // Vérifier les permissions admin avec la nouvelle méthode
+      const hasPermission = await this.checkAdminPermissions(adminId);
       if (!hasPermission) {
         throw new Error('Permissions administrateur requises');
       }
@@ -154,8 +199,8 @@ class RewardsService {
    */
   async updateReward(adminId, rewardId, updates) {
     try {
-      // Vérifier les permissions admin
-      const hasPermission = await isAdmin({ uid: adminId });
+      // Vérifier les permissions admin avec la nouvelle méthode
+      const hasPermission = await this.checkAdminPermissions(adminId);
       if (!hasPermission) {
         throw new Error('Permissions administrateur requises');
       }
@@ -194,8 +239,8 @@ class RewardsService {
    */
   async deleteReward(adminId, rewardId) {
     try {
-      // Vérifier les permissions admin
-      const hasPermission = await isAdmin({ uid: adminId });
+      // Vérifier les permissions admin avec la nouvelle méthode
+      const hasPermission = await this.checkAdminPermissions(adminId);
       if (!hasPermission) {
         throw new Error('Permissions administrateur requises');
       }
@@ -253,25 +298,24 @@ class RewardsService {
 
       // Vérifier les points de l'utilisateur
       if (userPoints < reward.cost) {
-        throw new Error(`Points insuffisants. Requis: ${reward.cost}, Disponibles: ${userPoints}`);
+        throw new Error(`Points insuffisants. Requis: ${reward.cost}, Disponible: ${userPoints}`);
       }
 
       // Créer la demande d'échange
-      const redemption = {
+      const redemptionData = {
         userId,
         rewardId,
         rewardName: reward.name,
+        rewardType: reward.type,
         cost: reward.cost,
-        type: reward.type,
-        value: reward.value,
-        status: 'pending', // 'pending', 'approved', 'delivered', 'rejected'
+        status: 'pending',
         requestedAt: serverTimestamp(),
-        adminNotes: '',
-        deliveredAt: null,
-        processedBy: null
+        processedAt: null,
+        processedBy: null,
+        notes: ''
       };
 
-      const redemptionRef = await addDoc(collection(db, 'reward_redemptions'), redemption);
+      const redemptionRef = await addDoc(collection(db, 'reward_redemptions'), redemptionData);
 
       // Mettre à jour les statistiques de la récompense
       await updateDoc(rewardRef, {
@@ -279,12 +323,12 @@ class RewardsService {
         lastRedeemedAt: serverTimestamp()
       });
 
-      console.log('🎁 Échange demandé:', redemptionRef.id);
+      console.log('✅ Échange de récompense créé:', redemptionRef.id);
 
       return {
         success: true,
         redemptionId: redemptionRef.id,
-        status: 'pending'
+        message: 'Demande d\'échange créée. En attente de validation.'
       };
 
     } catch (error) {
@@ -294,10 +338,181 @@ class RewardsService {
   }
 
   /**
-   * 📋 RÉCUPÉRER LES DEMANDES D'ÉCHANGE (ADMIN)
+   * 📊 OBTENIR LES STATISTIQUES DES RÉCOMPENSES (ADMIN)
    */
-  async getRedemptionRequests(status = 'all') {
+  async getRewardsStatistics(adminId) {
     try {
+      // Vérifier les permissions admin
+      const hasPermission = await this.checkAdminPermissions(adminId);
+      if (!hasPermission) {
+        throw new Error('Permissions administrateur requises');
+      }
+
+      // Récupérer toutes les récompenses
+      const rewardsSnapshot = await getDocs(collection(db, 'rewards'));
+      const redemptionsSnapshot = await getDocs(collection(db, 'reward_redemptions'));
+
+      const stats = {
+        totalRewards: rewardsSnapshot.size,
+        activeRewards: 0,
+        totalRedemptions: redemptionsSnapshot.size,
+        pendingRedemptions: 0,
+        approvedRedemptions: 0,
+        rejectedRedemptions: 0,
+        mostPopularReward: null,
+        totalPointsSpent: 0
+      };
+
+      // Analyser les récompenses
+      rewardsSnapshot.forEach((doc) => {
+        const reward = doc.data();
+        if (reward.isActive) stats.activeRewards++;
+      });
+
+      // Analyser les échanges
+      const redemptionsByReward = {};
+      let totalPointsSpent = 0;
+
+      redemptionsSnapshot.forEach((doc) => {
+        const redemption = doc.data();
+        
+        // Compter par statut
+        if (redemption.status === 'pending') stats.pendingRedemptions++;
+        if (redemption.status === 'approved') {
+          stats.approvedRedemptions++;
+          totalPointsSpent += redemption.cost || 0;
+        }
+        if (redemption.status === 'rejected') stats.rejectedRedemptions++;
+
+        // Compter par récompense
+        if (!redemptionsByReward[redemption.rewardId]) {
+          redemptionsByReward[redemption.rewardId] = {
+            count: 0,
+            name: redemption.rewardName
+          };
+        }
+        redemptionsByReward[redemption.rewardId].count++;
+      });
+
+      stats.totalPointsSpent = totalPointsSpent;
+
+      // Trouver la récompense la plus populaire
+      let maxCount = 0;
+      for (const [rewardId, data] of Object.entries(redemptionsByReward)) {
+        if (data.count > maxCount) {
+          maxCount = data.count;
+          stats.mostPopularReward = {
+            id: rewardId,
+            name: data.name,
+            redemptions: data.count
+          };
+        }
+      }
+
+      console.log('📊 Statistiques récompenses calculées:', stats);
+      return stats;
+
+    } catch (error) {
+      console.error('❌ Erreur getRewardsStatistics:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ✅ APPROUVER UN ÉCHANGE DE RÉCOMPENSE (ADMIN)
+   */
+  async approveRedemption(adminId, redemptionId, adminNotes = '') {
+    try {
+      // Vérifier les permissions admin
+      const hasPermission = await this.checkAdminPermissions(adminId);
+      if (!hasPermission) {
+        throw new Error('Permissions administrateur requises');
+      }
+
+      const redemptionRef = doc(db, 'reward_redemptions', redemptionId);
+      const redemptionDoc = await getDoc(redemptionRef);
+
+      if (!redemptionDoc.exists()) {
+        throw new Error('Échange introuvable');
+      }
+
+      const redemption = redemptionDoc.data();
+
+      if (redemption.status !== 'pending') {
+        throw new Error('Cet échange a déjà été traité');
+      }
+
+      // Mettre à jour le statut
+      await updateDoc(redemptionRef, {
+        status: 'approved',
+        processedAt: serverTimestamp(),
+        processedBy: adminId,
+        notes: adminNotes
+      });
+
+      console.log('✅ Échange approuvé:', redemptionId);
+
+      return { success: true, message: 'Échange approuvé avec succès' };
+
+    } catch (error) {
+      console.error('❌ Erreur approveRedemption:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ❌ REJETER UN ÉCHANGE DE RÉCOMPENSE (ADMIN)
+   */
+  async rejectRedemption(adminId, redemptionId, adminNotes = '') {
+    try {
+      // Vérifier les permissions admin
+      const hasPermission = await this.checkAdminPermissions(adminId);
+      if (!hasPermission) {
+        throw new Error('Permissions administrateur requises');
+      }
+
+      const redemptionRef = doc(db, 'reward_redemptions', redemptionId);
+      const redemptionDoc = await getDoc(redemptionRef);
+
+      if (!redemptionDoc.exists()) {
+        throw new Error('Échange introuvable');
+      }
+
+      const redemption = redemptionDoc.data();
+
+      if (redemption.status !== 'pending') {
+        throw new Error('Cet échange a déjà été traité');
+      }
+
+      // Mettre à jour le statut
+      await updateDoc(redemptionRef, {
+        status: 'rejected',
+        processedAt: serverTimestamp(),
+        processedBy: adminId,
+        notes: adminNotes
+      });
+
+      console.log('✅ Échange rejeté:', redemptionId);
+
+      return { success: true, message: 'Échange rejeté' };
+
+    } catch (error) {
+      console.error('❌ Erreur rejectRedemption:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📋 OBTENIR TOUS LES ÉCHANGES (ADMIN)
+   */
+  async getAllRedemptions(adminId, status = 'all') {
+    try {
+      // Vérifier les permissions admin
+      const hasPermission = await this.checkAdminPermissions(adminId);
+      if (!hasPermission) {
+        throw new Error('Permissions administrateur requises');
+      }
+
       let q = query(
         collection(db, 'reward_redemptions'),
         orderBy('requestedAt', 'desc')
@@ -321,153 +536,18 @@ class RewardsService {
         });
       });
 
-      console.log('📋 Demandes d\'échange chargées:', redemptions.length);
+      console.log('📋 Échanges récupérés:', redemptions.length);
       return redemptions;
 
     } catch (error) {
-      console.error('❌ Erreur getRedemptionRequests:', error);
+      console.error('❌ Erreur getAllRedemptions:', error);
       return [];
     }
   }
-
-  /**
-   * ✅ VALIDER UNE DEMANDE D'ÉCHANGE (ADMIN)
-   */
-  async processRedemption(adminId, redemptionId, action, adminNotes = '') {
-    try {
-      // Vérifier les permissions admin
-      const hasPermission = await isAdmin({ uid: adminId });
-      if (!hasPermission) {
-        throw new Error('Permissions administrateur requises');
-      }
-
-      const redemptionRef = doc(db, 'reward_redemptions', redemptionId);
-      const redemptionDoc = await getDoc(redemptionRef);
-
-      if (!redemptionDoc.exists()) {
-        throw new Error('Demande d\'échange introuvable');
-      }
-
-      const redemption = redemptionDoc.data();
-
-      if (redemption.status !== 'pending') {
-        throw new Error('Cette demande a déjà été traitée');
-      }
-
-      // Mettre à jour la demande
-      const updates = {
-        status: action, // 'approved', 'rejected', 'delivered'
-        processedBy: adminId,
-        processedAt: serverTimestamp(),
-        adminNotes: adminNotes || ''
-      };
-
-      if (action === 'delivered') {
-        updates.deliveredAt = serverTimestamp();
-      }
-
-      await updateDoc(redemptionRef, updates);
-
-      console.log(`✅ Demande d'échange ${action}:`, redemptionId);
-
-      return { success: true };
-
-    } catch (error) {
-      console.error('❌ Erreur processRedemption:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📊 OBTENIR LES STATISTIQUES DES RÉCOMPENSES
-   */
-  async getRewardsStats() {
-    try {
-      const [rewards, redemptions] = await Promise.all([
-        this.getAllRewards(true),
-        this.getRedemptionRequests('all')
-      ]);
-
-      const stats = {
-        totalRewards: rewards.length,
-        activeRewards: rewards.filter(r => r.isActive).length,
-        totalRedemptions: redemptions.length,
-        pendingRedemptions: redemptions.filter(r => r.status === 'pending').length,
-        approvedRedemptions: redemptions.filter(r => r.status === 'approved').length,
-        deliveredRedemptions: redemptions.filter(r => r.status === 'delivered').length,
-        rejectedRedemptions: redemptions.filter(r => r.status === 'rejected').length,
-        mostPopularRewards: this.getMostPopularRewards(rewards, redemptions),
-        recentActivity: redemptions.slice(0, 5)
-      };
-
-      return stats;
-
-    } catch (error) {
-      console.error('❌ Erreur getRewardsStats:', error);
-      return {};
-    }
-  }
-
-  /**
-   * 🏆 OBTENIR LES RÉCOMPENSES LES PLUS POPULAIRES
-   */
-  getMostPopularRewards(rewards, redemptions) {
-    const rewardCounts = {};
-    
-    redemptions.forEach(redemption => {
-      if (redemption.rewardId) {
-        rewardCounts[redemption.rewardId] = (rewardCounts[redemption.rewardId] || 0) + 1;
-      }
-    });
-
-    return rewards
-      .map(reward => ({
-        ...reward,
-        redemptionCount: rewardCounts[reward.id] || 0
-      }))
-      .sort((a, b) => b.redemptionCount - a.redemptionCount)
-      .slice(0, 5);
-  }
-
-  /**
-   * 🎯 TYPES DE RÉCOMPENSES DISPONIBLES
-   */
-  getRewardTypes() {
-    return [
-      {
-        id: 'badge',
-        name: 'Badge',
-        description: 'Badge décoratif pour le profil',
-        icon: '🏆'
-      },
-      {
-        id: 'xp',
-        name: 'Bonus XP',
-        description: 'Points d\'expérience supplémentaires',
-        icon: '⚡'
-      },
-      {
-        id: 'virtual_item',
-        name: 'Objet Virtuel',
-        description: 'Objet décoratif ou fonctionnel',
-        icon: '🎁'
-      },
-      {
-        id: 'privilege',
-        name: 'Privilège',
-        description: 'Accès spécial ou fonctionnalité premium',
-        icon: '👑'
-      },
-      {
-        id: 'physical',
-        name: 'Récompense Physique',
-        description: 'Objet réel à récupérer',
-        icon: '📦'
-      }
-    ];
-  }
 }
 
-// Export singleton
+// Export de l'instance unique
 export const rewardsService = new RewardsService();
 export default rewardsService;
+
+console.log('✅ RewardsService corrigé - Permissions admin compatibles');
