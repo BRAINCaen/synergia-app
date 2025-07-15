@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/constants.js
-// CONSTANTS AVEC DASHBOARD MANAGER AJOUTÉ
+// CONSTANTS AVEC DASHBOARD TUTEUR
 // ==========================================
 
 export const ROUTES = {
@@ -49,7 +49,7 @@ export const ROUTES = {
   ADMIN_REWARDS: '/admin/rewards',
   
   // 🆕 ROUTES ADMIN COMPLÈTES
-  ADMIN_DASHBOARD_MANAGER: '/admin/dashboard-manager', // ← AJOUTÉ
+  ADMIN_DASHBOARD_TUTEUR: '/admin/dashboard-tuteur', // ← CHANGÉ
   ADMIN_ROLE_PERMISSIONS: '/admin/role-permissions',
   ADMIN_BADGES: '/admin/badges',
   ADMIN_USERS: '/admin/users',
@@ -108,7 +108,7 @@ export const NAVIGATION_STRUCTURE = {
   admin: {
     title: 'Administration',
     routes: [
-      { path: ROUTES.ADMIN_DASHBOARD_MANAGER, label: 'Dashboard Manager', icon: '🎛️', priority: 0 }, // ← AJOUTÉ EN PREMIER
+      { path: ROUTES.ADMIN_DASHBOARD_TUTEUR, label: 'Dashboard Tuteur', icon: '👨‍🏫', priority: 0 }, // ← CHANGÉ
       { path: ROUTES.ADMIN_TASK_VALIDATION, label: 'Validation Tâches', icon: '🛡️', priority: 1 },
       { path: ROUTES.ADMIN_COMPLETE_TEST, label: 'Test Complet', icon: '🧪', priority: 2 },
       { path: ROUTES.ADMIN_ROLE_PERMISSIONS, label: 'Permissions Rôles', icon: '🔐', priority: 3 },
@@ -188,7 +188,7 @@ export const ROUTES_BY_CATEGORY = {
     ROUTES.SETTINGS
   ],
   ADMIN: [
-    ROUTES.ADMIN_DASHBOARD_MANAGER, // ← AJOUTÉ
+    ROUTES.ADMIN_DASHBOARD_TUTEUR, // ← CHANGÉ
     ROUTES.ADMIN_TASK_VALIDATION,
     ROUTES.ADMIN_COMPLETE_TEST,
     ROUTES.ADMIN_ROLE_PERMISSIONS,
@@ -200,4 +200,4 @@ export const ROUTES_BY_CATEGORY = {
   ]
 };
 
-console.log('✅ Constants mis à jour avec Dashboard Manager');
+console.log('✅ Constants mis à jour avec Dashboard Tuteur');
