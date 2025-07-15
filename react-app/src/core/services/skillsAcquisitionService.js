@@ -1,178 +1,203 @@
 // ==========================================
 // 📁 react-app/src/core/services/skillsAcquisitionService.js
-// SERVICE ACQUISITION COMPÉTENCES - BUGS CORRIGÉS
+// SERVICE ACQUISITION DE COMPÉTENCES PAR EXPÉRIENCE - BRAIN
 // ==========================================
 
 import { 
   collection, 
   doc, 
   setDoc, 
-  getDoc, 
   updateDoc, 
+  getDoc, 
   getDocs, 
+  query, 
+  where, 
+  orderBy, 
   arrayUnion, 
   serverTimestamp 
 } from 'firebase/firestore';
-import { db } from '../config/firebase.js';
 
-// 🧠 MODÈLE D'EXPÉRIENCES BRAIN
+// 🔥 CORRECTION: Chemin correct vers Firebase
+import { db } from '../firebase.js';
+
+// 🎯 DÉFINITION DES EXPÉRIENCES BRAIN
 export const BRAIN_EXPERIENCES = {
-  GAMEMASTER: {
-    id: 'gamemaster',
-    name: 'Game Master',
-    icon: '🎮',
-    description: 'Maîtriser l\'animation et la gestion des sessions de jeu',
-    duration: '4-6 semaines',
-    difficulty: 'intermediate',
-    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
+  PSYCHIATRIC: {
+    id: 'psychiatric',
+    name: '🩺 Psychiatric',
+    description: 'Escape Game d\'horreur psychologique',
+    difficulty: 'Expert',
+    color: '#DC2626',
+    icon: '🩺',
+    minSessions: 2,
+    category: 'escape_game'
   },
-  MAINTENANCE: {
-    id: 'maintenance', 
-    name: 'Entretien & Maintenance',
-    icon: '🔧',
-    description: 'Gérer la maintenance et l\'entretien des salles',
-    duration: '3-4 semaines',
-    difficulty: 'beginner',
-    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
+  PRISON: {
+    id: 'prison',
+    name: '🚨 Prison',
+    description: 'Escape Game carcéral en équipes',
+    difficulty: 'Avancé',
+    color: '#F97316',
+    icon: '🚨',
+    minSessions: 2,
+    category: 'escape_game'
   },
-  REPUTATION: {
-    id: 'reputation',
-    name: 'Gestion des Avis',
-    icon: '⭐',
-    description: 'Optimiser la réputation en ligne et gérer les avis clients',
-    duration: '3-5 semaines', 
-    difficulty: 'intermediate',
-    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
+  BACK_TO_80S: {
+    id: 'back_to_80s',
+    name: '🎸 Back to the 80\'s',
+    description: 'Escape Game rétro années 80',
+    difficulty: 'Intermédiaire',
+    color: '#8B5CF6',
+    icon: '🎸',
+    minSessions: 2,
+    category: 'escape_game'
   },
-  STOCK: {
-    id: 'stock',
-    name: 'Gestion des Stocks',
-    icon: '📦',
-    description: 'Organiser et gérer les stocks et le matériel',
-    duration: '2-3 semaines',
-    difficulty: 'beginner', 
-    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
-  },
-  ORGANIZATION: {
-    id: 'organization',
-    name: 'Organisation Interne',
-    icon: '📋',
-    description: 'Gérer les plannings, RH et l\'organisation interne',
-    duration: '4-6 semaines',
-    difficulty: 'advanced',
-    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
-  },
-  CONTENT: {
-    id: 'content',
-    name: 'Création de Contenu',
-    icon: '🎨',
-    description: 'Créer du contenu créatif et engageant',
-    duration: '5-7 semaines',
-    difficulty: 'intermediate',
-    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
-  },
-  MENTORING: {
-    id: 'mentoring',
-    name: 'Mentorat & Formation',
-    icon: '🎓',
-    description: 'Former et accompagner les nouveaux membres',
-    duration: '6-8 semaines',
-    difficulty: 'advanced',
-    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
-  },
-  PARTNERSHIPS: {
-    id: 'partnerships',
-    name: 'Partenariats',
-    icon: '🤝',
-    description: 'Développer des partenariats et relations externes',
-    duration: '4-6 semaines',
-    difficulty: 'intermediate',
-    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
-  },
-  COMMUNICATION: {
-    id: 'communication',
-    name: 'Communication & Réseaux',
-    icon: '📱',
-    description: 'Gérer la communication et les réseaux sociaux',
-    duration: '3-5 semaines',
-    difficulty: 'intermediate',
-    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
-  },
-  B2B: {
-    id: 'b2b',
-    name: 'Relations B2B',
-    icon: '💼',
-    description: 'Développer les relations et devis B2B',
-    duration: '5-7 semaines',
-    difficulty: 'advanced',
-    phases: ['decouverte_immersion', 'pratique_autonome', 'maitrise_complete']
+  QUIZ_GAME: {
+    id: 'quiz_game',
+    name: '🏆 Quiz Game',
+    description: 'Animation quiz interactif',
+    difficulty: 'Débutant',
+    color: '#10B981',
+    icon: '🏆',
+    minSessions: 2,
+    category: 'animation'
   }
 };
 
 // 🎯 COMPÉTENCES PAR EXPÉRIENCE
 export const EXPERIENCE_SKILLS = {
-  gamemaster: {
-    animation: [
-      { id: 'accueil_briefing', name: 'Accueil et briefing', description: 'Maîtriser l\'accueil et le briefing des équipes' },
-      { id: 'mastering_live', name: 'Mastering en live', description: 'Animer les sessions en temps réel' },
-      { id: 'debriefing', name: 'Débriefing', description: 'Conduire un débriefing efficace' }
+  psychiatric: {
+    decouverte_immersion: [
+      { id: 'scenario_psychiatric', title: 'J\'ai lu et compris le scénario Psychiatric', category: 'knowledge' },
+      { id: 'ambiance_psychiatric', title: 'Je peux présenter l\'ambiance, les enjeux et les moments clés', category: 'knowledge' },
+      { id: 'musiques_psychiatric', title: 'Je connais les musiques et effets sonores principaux', category: 'knowledge' }
     ],
-    technique: [
-      { id: 'gestion_cameras', name: 'Gestion caméras', description: 'Utiliser le système de caméras' },
-      { id: 'gestion_sons', name: 'Gestion sons', description: 'Maîtriser le système audio' },
-      { id: 'gestion_enigmes', name: 'Gestion énigmes', description: 'Gérer les mécanismes d\'énigmes' }
+    gestion_technique: [
+      { id: 'cameras_psychiatric', title: 'Je sais utiliser les caméras et micros spécifiques à la salle', category: 'technical' },
+      { id: 'effets_psychiatric', title: 'Je maîtrise l\'utilisation des effets spéciaux Psychiatric', category: 'technical' },
+      { id: 'reset_psychiatric', title: 'Je sais faire un reset complet et rapide avec check de tous les éléments', category: 'technical' },
+      { id: 'accessoires_psychiatric', title: 'Je gère les accessoires et costumes avec soin', category: 'technical' }
     ],
-    relationnel: [
-      { id: 'gestion_stress', name: 'Gestion du stress', description: 'Gérer le stress des participants' },
-      { id: 'adaptation_public', name: 'Adaptation au public', description: 'S\'adapter à différents types de groupes' }
+    gestion_client: [
+      { id: 'briefing_psychiatric', title: 'Je sais faire un briefing complet et engageant', category: 'client' },
+      { id: 'indices_psychiatric', title: 'Je donne les indices de manière immersive', category: 'client' },
+      { id: 'debriefing_psychiatric', title: 'Je conduis un debriefing constructif et positif', category: 'client' }
+    ],
+    gestion_problemes: [
+      { id: 'urgences_psychiatric', title: 'Je gère les situations d\'urgence avec calme', category: 'emergency' },
+      { id: 'pannes_psychiatric', title: 'Je diagnostique et résous les pannes techniques courantes', category: 'emergency' },
+      { id: 'blocages_psychiatric', title: 'Je débloque les équipes en difficulté sans casser l\'immersion', category: 'emergency' }
     ]
   },
-  maintenance: {
-    technique: [
-      { id: 'verification_salles', name: 'Vérification des salles', description: 'Contrôler l\'état des salles quotidiennement' },
-      { id: 'maintenance_base', name: 'Maintenance de base', description: 'Effectuer la maintenance préventive' },
-      { id: 'reparations_simples', name: 'Réparations simples', description: 'Réaliser des petites réparations' }
+  
+  prison: {
+    decouverte_immersion: [
+      { id: 'scenario_prison', title: 'J\'ai lu et compris le scénario Prison', category: 'knowledge' },
+      { id: 'ambiance_prison', title: 'Je peux présenter l\'ambiance carcérale et les enjeux', category: 'knowledge' },
+      { id: 'regles_prison', title: 'Je connais toutes les règles spécifiques Prison', category: 'knowledge' }
     ],
-    organisation: [
-      { id: 'planning_maintenance', name: 'Planning maintenance', description: 'Organiser les tâches de maintenance' },
-      { id: 'gestion_materiel', name: 'Gestion matériel', description: 'Gérer l\'outillage et les pièces' }
+    gestion_technique: [
+      { id: 'cameras_prison', title: 'Je maîtrise le système de caméras Prison', category: 'technical' },
+      { id: 'serrures_prison', title: 'Je gère parfaitement les serrures électroniques', category: 'technical' },
+      { id: 'reset_prison', title: 'Je fais un reset complet en moins de 10 minutes', category: 'technical' }
+    ],
+    gestion_client: [
+      { id: 'briefing_prison', title: 'Je fais un briefing Prison immersif et sécurisé', category: 'client' },
+      { id: 'surveillance_prison', title: 'Je surveille efficacement les équipes en parallèle', category: 'client' },
+      { id: 'coordination_prison', title: 'Je coordonne les interactions entre équipes', category: 'client' }
+    ],
+    gestion_problemes: [
+      { id: 'conflits_prison', title: 'Je gère les conflits entre équipes', category: 'emergency' },
+      { id: 'triche_prison', title: 'Je détecte et gère les tentatives de triche', category: 'emergency' },
+      { id: 'evacuation_prison', title: 'Je maîtrise les procédures d\'évacuation Prison', category: 'emergency' }
     ]
   },
-  reputation: {
-    communication: [
-      { id: 'veille_avis', name: 'Veille des avis', description: 'Surveiller les avis en ligne' },
-      { id: 'reponses_avis', name: 'Réponses aux avis', description: 'Rédiger des réponses personnalisées' },
-      { id: 'gestion_negatifs', name: 'Gestion avis négatifs', description: 'Gérer les retours négatifs' }
+  
+  back_to_80s: {
+    decouverte_immersion: [
+      { id: 'scenario_80s', title: 'J\'ai lu et compris le scénario Back to the 80\'s', category: 'knowledge' },
+      { id: 'culture_80s', title: 'Je connais la culture et références des années 80', category: 'knowledge' },
+      { id: 'playlist_80s', title: 'Je maîtrise la playlist et ambiance musicale', category: 'knowledge' }
     ],
-    analyse: [
-      { id: 'analyse_trends', name: 'Analyse des tendances', description: 'Analyser les tendances des avis' },
-      { id: 'reporting', name: 'Reporting', description: 'Créer des rapports de réputation' }
+    gestion_technique: [
+      { id: 'retro_tech_80s', title: 'Je manipule les équipements rétro avec expertise', category: 'technical' },
+      { id: 'effets_80s', title: 'Je gère les effets spéciaux années 80', category: 'technical' },
+      { id: 'decors_80s', title: 'Je maintiens et ajuste les décors thématiques', category: 'technical' }
+    ],
+    gestion_client: [
+      { id: 'animation_80s', title: 'J\'anime avec l\'énergie et style des années 80', category: 'client' },
+      { id: 'costume_80s', title: 'Je porte et fais porter les costumes avec style', category: 'client' },
+      { id: 'experience_80s', title: 'Je crée une expérience totalement immersive', category: 'client' }
+    ]
+  },
+  
+  quiz_game: {
+    animation_base: [
+      { id: 'regles_quiz', title: 'Je connais parfaitement les règles du Quiz Game', category: 'knowledge' },
+      { id: 'questions_quiz', title: 'Je maîtrise la base de questions et réponses', category: 'knowledge' },
+      { id: 'scoring_quiz', title: 'Je gère le système de points et classement', category: 'knowledge' }
+    ],
+    gestion_technique: [
+      { id: 'materiel_quiz', title: 'Je maîtrise tout le matériel technique Quiz', category: 'technical' },
+      { id: 'son_quiz', title: 'Je gère parfaitement le système son', category: 'technical' },
+      { id: 'ecrans_quiz', title: 'J\'utilise efficacement les écrans d\'affichage', category: 'technical' }
+    ],
+    animation_avancee: [
+      { id: 'energie_quiz', title: 'Je maintiens une énergie constante pendant l\'animation', category: 'animation' },
+      { id: 'participation_quiz', title: 'Je fais participer tous les joueurs équitablement', category: 'animation' },
+      { id: 'ambiance_quiz', title: 'Je crée une ambiance festive et compétitive', category: 'animation' }
     ]
   }
-  // Ajoutez les autres expériences...
 };
 
-// 🏆 BADGES D'EXPÉRIENCE
+// 🎖️ BADGES PAR EXPÉRIENCE
 export const EXPERIENCE_BADGES = {
-  gamemaster: {
-    id: 'master_animator',
-    name: 'Maître Animateur',
-    description: 'Expert en animation de sessions',
-    icon: '🎮',
+  psychiatric_rookie: {
+    id: 'psychiatric_rookie',
+    name: 'Psychiatre Débutant',
+    description: 'Première maîtrise de l\'expérience Psychiatric',
+    icon: '🩺',
+    color: '#DC2626',
+    requirements: { experience: 'psychiatric', completion: 50 },
+    rarity: 'common'
+  },
+  psychiatric_expert: {
+    id: 'psychiatric_expert',
+    name: 'Maître de l\'Asile',
+    description: 'Expertise complète de l\'expérience Psychiatric',
+    icon: '👨‍⚕️',
+    color: '#7C2D12',
+    requirements: { experience: 'psychiatric', completion: 100 },
     rarity: 'epic'
   },
-  maintenance: {
-    id: 'tech_expert', 
-    name: 'Expert Technique',
-    description: 'Maître de la maintenance',
-    icon: '🔧',
-    rarity: 'rare'
+  
+  prison_guard: {
+    id: 'prison_guard',
+    name: 'Gardien en Chef',
+    description: 'Maîtrise de l\'expérience Prison',
+    icon: '🚨',
+    color: '#F97316',
+    requirements: { experience: 'prison', completion: 100 },
+    rarity: 'epic'
   },
-  reputation: {
-    id: 'reputation_guardian',
-    name: 'Gardien de la Réputation', 
-    description: 'Protecteur de l\'image de marque',
-    icon: '⭐',
+  
+  retro_master: {
+    id: 'retro_master',
+    name: 'Maître du Rétro',
+    description: 'Expert des années 80',
+    icon: '🎸',
+    color: '#8B5CF6',
+    requirements: { experience: 'back_to_80s', completion: 100 },
+    rarity: 'epic'
+  },
+  
+  quiz_animator: {
+    id: 'quiz_animator',
+    name: 'Animateur Quiz Pro',
+    description: 'Animation Quiz Game maîtrisée',
+    icon: '🏆',
+    color: '#10B981',
+    requirements: { experience: 'quiz_game', completion: 100 },
     rarity: 'epic'
   }
 };
@@ -264,8 +289,30 @@ export class SkillsAcquisitionService {
   }
 
   /**
+   * 🔄 Initialiser le profil si inexistant
+   */
+  static async initializeProfile(userId, experiences = []) {
+    try {
+      // Vérifier si le profil existe déjà
+      const existing = await this.getSkillsProfile(userId);
+      
+      if (existing.success) {
+        console.log('✅ Profil compétences déjà existant pour:', userId);
+        return existing;
+      }
+      
+      // Créer un nouveau profil
+      console.log('🆕 Création nouveau profil compétences pour:', userId);
+      return await this.createSkillsProfile(userId, experiences);
+      
+    } catch (error) {
+      console.error('Erreur initialisation profil:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * 📊 Récupérer le profil de compétences
-   * 🔧 CORRECTION: Retourner 'data' au lieu de 'profile'
    */
   static async getSkillsProfile(userId) {
     try {
@@ -284,19 +331,19 @@ export class SkillsAcquisitionService {
   }
 
   /**
-   * 🔄 Toggle une compétence (auto-évaluation)
+   * ✅ Marquer une compétence comme acquise/non-acquise
    */
   static async toggleSkill(userId, experienceId, skillId) {
     try {
-      // D'abord récupérer le profil actuel
-      const profileResult = await this.getSkillsProfile(userId);
-      if (!profileResult.success) {
-        return { success: false, error: 'Profil non trouvé' };
+      const profile = await this.getSkillsProfile(userId);
+      
+      if (!profile.success) {
+        throw new Error('Profil non trouvé');
       }
-
-      const currentSkill = profileResult.data.experiences[experienceId]?.skills[skillId];
-      const newState = !currentSkill?.selfAssessment;
-
+      
+      const currentState = profile.data.experiences?.[experienceId]?.skills?.[skillId]?.selfAssessment || false;
+      const newState = !currentState;
+      
       const updatePath = `experiences.${experienceId}.skills.${skillId}.selfAssessment`;
       const updates = {
         [updatePath]: newState,
@@ -305,10 +352,34 @@ export class SkillsAcquisitionService {
       };
 
       await updateDoc(doc(db, 'skillsAcquisition', userId), updates);
+      
+      console.log(`✅ Compétence ${skillId} ${newState ? 'acquise' : 'retirée'} pour ${userId}`);
+      
       return { success: true, newState };
 
     } catch (error) {
       console.error('Erreur toggle compétence:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * ✅ Auto-évaluation d'une compétence par l'utilisateur
+   */
+  static async selfAssessSkill(userId, experienceId, skillId, selfAssessment = true) {
+    try {
+      const updatePath = `experiences.${experienceId}.skills.${skillId}.selfAssessment`;
+      const updates = {
+        [updatePath]: selfAssessment,
+        [`experiences.${experienceId}.skills.${skillId}.selfAssessmentDate`]: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      await updateDoc(doc(db, 'skillsAcquisition', userId), updates);
+      return { success: true };
+
+    } catch (error) {
+      console.error('Erreur auto-évaluation compétence:', error);
       return { success: false, error: error.message };
     }
   }
@@ -352,187 +423,166 @@ export class SkillsAcquisitionService {
   }
 
   /**
-   * 📝 Ajouter un suivi hebdomadaire
-   */
-  static async addWeeklyFollowUp(userId, experienceId, followUpData) {
-    try {
-      const followUp = {
-        experienceId,
-        week: this.getCurrentWeek(),
-        date: serverTimestamp(),
-        ...followUpData
-      };
-
-      const updates = {
-        weeklyFollowUps: arrayUnion(followUp),
-        updatedAt: serverTimestamp()
-      };
-
-      await updateDoc(doc(db, 'skillsAcquisition', userId), updates);
-      return { success: true };
-
-    } catch (error) {
-      console.error('Erreur ajout suivi hebdomadaire:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 🎤 Ajouter un entretien admin avec commentaires
-   */
-  static async addAdminInterview(userId, interviewerId, interviewData) {
-    try {
-      const interview = {
-        interviewerId,
-        date: serverTimestamp(),
-        experienceId: interviewData.experienceId,
-        competencesTechniques: interviewData.competencesTechniques || '',
-        difficultesRencontrees: interviewData.difficultesRencontrees || '',
-        situationsMarquantes: interviewData.situationsMarquantes || '',
-        competencesApprofondir: interviewData.competencesApprofondir || '',
-        besoinAide: interviewData.besoinAide || '',
-        feedbackReferent: interviewData.feedbackReferent || '',
-        globalAssessment: interviewData.globalAssessment || '',
-        nextSteps: interviewData.nextSteps || '',
-        rating: interviewData.rating || null
-      };
-
-      const updates = {
-        adminInterviews: arrayUnion(interview),
-        updatedAt: serverTimestamp()
-      };
-
-      await updateDoc(doc(db, 'skillsAcquisition', userId), updates);
-      return { success: true };
-
-    } catch (error) {
-      console.error('Erreur ajout entretien admin:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 🏆 Vérifier et décerner le badge d'expérience
+   * 🎯 Vérifier si une expérience est complète
    */
   static async checkExperienceCompletion(userId, experienceId) {
     try {
-      const profileResult = await this.getSkillsProfile(userId);
-      if (!profileResult.success) return;
-
-      const experience = profileResult.data.experiences[experienceId];
-      if (!experience) return;
-
-      const expSkills = EXPERIENCE_SKILLS[experienceId];
-      if (!expSkills) return;
-
-      // Compter les compétences validées
-      let totalSkills = 0;
-      let validatedSkills = 0;
-
-      Object.keys(expSkills).forEach(category => {
-        expSkills[category].forEach(skill => {
-          totalSkills++;
-          if (experience.skills[skill.id]?.completed) {
-            validatedSkills++;
-          }
-        });
-      });
-
-      const completionRate = (validatedSkills / totalSkills) * 100;
-
-      // Si 100% des compétences sont validées
-      if (completionRate === 100 && !experience.completed) {
+      const profile = await this.getSkillsProfile(userId);
+      
+      if (!profile.success) return { success: false };
+      
+      const experience = profile.data.experiences[experienceId];
+      if (!experience) return { success: false };
+      
+      const skills = experience.skills;
+      const totalSkills = Object.keys(skills).length;
+      const completedSkills = Object.values(skills).filter(skill => skill.completed).length;
+      
+      const completionRate = totalSkills > 0 ? (completedSkills / totalSkills) * 100 : 0;
+      const isComplete = completionRate >= 90; // 90% des compétences validées
+      
+      if (isComplete && !experience.completed) {
+        // Marquer l'expérience comme complète
         const updates = {
           [`experiences.${experienceId}.completed`]: true,
           [`experiences.${experienceId}.completionDate`]: serverTimestamp(),
-          earnedBadges: arrayUnion(experienceId),
+          [`experiences.${experienceId}.completionRate`]: completionRate,
           updatedAt: serverTimestamp()
         };
-
+        
         await updateDoc(doc(db, 'skillsAcquisition', userId), updates);
-
-        // Intégration avec le système de gamification
-        if (typeof gamificationService !== 'undefined') {
-          const badge = EXPERIENCE_BADGES[experienceId];
-          await gamificationService.awardBadge(userId, badge.id);
-          await gamificationService.awardXP(userId, 500, `Expérience ${badge.name} maîtrisée`);
-        }
-
-        return { success: true, experienceCompleted: true, badge: EXPERIENCE_BADGES[experienceId] };
+        
+        // Attribuer le badge de l'expérience
+        await this.awardExperienceBadge(userId, experienceId);
+        
+        console.log(`🎉 Expérience ${experienceId} complétée pour ${userId}`);
       }
-
-      return { success: true, experienceCompleted: false, completionRate };
+      
+      return { 
+        success: true, 
+        completed: isComplete, 
+        completionRate, 
+        completedSkills, 
+        totalSkills 
+      };
 
     } catch (error) {
-      console.error('Erreur vérification completion expérience:', error);
+      console.error('Erreur vérification complétion expérience:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🎖️ Attribuer un badge d'expérience
+   */
+  static async awardExperienceBadge(userId, experienceId) {
+    try {
+      const badgeId = `${experienceId}_expert`;
+      const badge = EXPERIENCE_BADGES[badgeId];
+      
+      if (!badge) return { success: false, error: 'Badge non trouvé' };
+      
+      const badgeData = {
+        ...badge,
+        earnedAt: serverTimestamp(),
+        earnedBy: experienceId
+      };
+      
+      const updates = {
+        earnedBadges: arrayUnion(badgeData),
+        updatedAt: serverTimestamp()
+      };
+      
+      await updateDoc(doc(db, 'skillsAcquisition', userId), updates);
+      
+      console.log(`🎖️ Badge ${badge.name} attribué à ${userId}`);
+      
+      return { success: true, badge: badgeData };
+
+    } catch (error) {
+      console.error('Erreur attribution badge:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 📝 Soumettre un suivi hebdomadaire
+   */
+  static async submitWeeklyFollowUp(userId, experienceId, followUpData) {
+    try {
+      const weeklyEntry = {
+        experienceId,
+        date: serverTimestamp(),
+        data: followUpData,
+        submitted: true
+      };
+      
+      const updates = {
+        weeklyFollowUps: arrayUnion(weeklyEntry),
+        updatedAt: serverTimestamp()
+      };
+      
+      await updateDoc(doc(db, 'skillsAcquisition', userId), updates);
+      
+      return { success: true };
+
+    } catch (error) {
+      console.error('Erreur soumission suivi hebdomadaire:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
    * 📊 Calculer les statistiques d'un profil
-   * 🔧 CORRECTION: Vérifier que profile existe avant d'accéder à ses propriétés
    */
-  static calculateProfileStats(profile) {
-    // 🔧 CORRECTION: Vérification de l'existence du profil et de ses expériences
-    if (!profile || !profile.experiences) {
-      console.warn('⚠️ Profil invalide pour calcul de stats:', profile);
+  static calculateStats(profileData) {
+    if (!profileData || !profileData.experiences) {
       return {
         totalExperiences: 0,
         completedExperiences: 0,
         totalSkills: 0,
         validatedSkills: 0,
+        selfAssessedSkills: 0,
         averageCompletionRate: 0,
-        badgesEarned: 0,
-        weeklyFollowUps: 0,
-        adminInterviews: 0
+        earnedBadges: 0
       };
     }
 
-    const experiences = Object.keys(profile.experiences);
+    const experiences = Object.values(profileData.experiences);
     const totalExperiences = experiences.length;
-    const completedExperiences = experiences.filter(exp => profile.experiences[exp].completed).length;
-
+    const completedExperiences = experiences.filter(exp => exp.completed).length;
+    
     let totalSkills = 0;
     let validatedSkills = 0;
-
-    experiences.forEach(expId => {
-      const experience = profile.experiences[expId];
-      if (experience && experience.skills) {
-        Object.values(experience.skills).forEach(skill => {
-          totalSkills++;
-          if (skill.completed) validatedSkills++;
-        });
+    let selfAssessedSkills = 0;
+    
+    experiences.forEach(exp => {
+      if (exp.skills) {
+        const skills = Object.values(exp.skills);
+        totalSkills += skills.length;
+        validatedSkills += skills.filter(skill => skill.completed).length;
+        selfAssessedSkills += skills.filter(skill => skill.selfAssessment).length;
       }
     });
-
+    
+    const averageCompletionRate = totalSkills > 0 ? (validatedSkills / totalSkills) * 100 : 0;
+    const earnedBadges = profileData.earnedBadges?.length || 0;
+    
     return {
       totalExperiences,
       completedExperiences,
       totalSkills,
       validatedSkills,
-      averageCompletionRate: totalSkills > 0 ? Math.round((validatedSkills / totalSkills) * 100) : 0,
-      badgesEarned: profile.earnedBadges ? profile.earnedBadges.length : 0,
-      weeklyFollowUps: profile.weeklyFollowUps ? profile.weeklyFollowUps.length : 0,
-      adminInterviews: profile.adminInterviews ? profile.adminInterviews.length : 0
+      selfAssessedSkills,
+      averageCompletionRate: Math.round(averageCompletionRate),
+      earnedBadges
     };
   }
 
   /**
-   * 📅 Obtenir la semaine actuelle
+   * 📋 Obtenir tous les profils (pour admin)
    */
-  static getCurrentWeek() {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 1);
-    const diff = now - start;
-    const oneWeek = 1000 * 60 * 60 * 24 * 7;
-    return Math.floor(diff / oneWeek) + 1;
-  }
-
-  /**
-   * 🔍 Rechercher tous les profils (admin)
-   */
-  static async getAllSkillsProfiles() {
+  static async getAllProfiles() {
     try {
       const querySnapshot = await getDocs(collection(db, 'skillsAcquisition'));
       const profiles = [];
@@ -543,14 +593,42 @@ export class SkillsAcquisitionService {
           ...doc.data()
         });
       });
-
-      return { success: true, profiles };
+      
+      return { success: true, data: profiles };
 
     } catch (error) {
-      console.error('Erreur récupération tous les profils:', error);
+      console.error('Erreur récupération profils:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🔍 Rechercher des profils par expérience
+   */
+  static async getProfilesByExperience(experienceId) {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'skillsAcquisition'));
+      const profiles = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.experiences && data.experiences[experienceId]) {
+          profiles.push({
+            id: doc.id,
+            ...data,
+            experienceData: data.experiences[experienceId]
+          });
+        }
+      });
+      
+      return { success: true, data: profiles };
+
+    } catch (error) {
+      console.error('Erreur recherche profils par expérience:', error);
       return { success: false, error: error.message };
     }
   }
 }
 
+// Export par défaut
 export default SkillsAcquisitionService;
