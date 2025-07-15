@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/OnboardingPage.jsx
-// PAGE ONBOARDING COMPLÈTE BRAIN ESCAPE & QUIZ GAME
+// PAGE ONBOARDING COMPLÈTE BRAIN ESCAPE & QUIZ GAME - VERSION CORRIGÉE
 // ==========================================
 
 import React, { useState } from 'react';
@@ -24,44 +24,6 @@ import EntretiensReferent from '../components/onboarding/EntretiensReferent.jsx'
 const OnboardingPage = () => {
   const { user } = useAuthStore();
   const [activeSection, setActiveSection] = useState('formation'); // Commencer par Formation Générale
-
-  // 🎯 Composant Entretiens Référent (placeholder)
-  const EntretiensReferent = () => (
-    <div className="text-center py-12">
-      <div className="bg-gray-800 rounded-lg p-8">
-        <MessageSquare className="h-16 w-16 text-purple-500 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-white mb-4">
-          🎤 Entretiens Référent
-        </h3>
-        <p className="text-gray-400 mb-6">
-          Système de suivi et d'accompagnement personnalisé avec ton référent.
-        </p>
-        <div className="space-y-3 text-left max-w-md mx-auto">
-          <div className="flex items-center text-sm text-gray-300">
-            <Calendar className="h-4 w-4 mr-2 text-blue-400" />
-            Planification d'entretiens réguliers
-          </div>
-          <div className="flex items-center text-sm text-gray-300">
-            <Users className="h-4 w-4 mr-2 text-green-400" />
-            Feedback bidirectionnel
-          </div>
-          <div className="flex items-center text-sm text-gray-300">
-            <Target className="h-4 w-4 mr-2 text-purple-400" />
-            Suivi de progression personnalisé
-          </div>
-          <div className="flex items-center text-sm text-gray-300">
-            <Star className="h-4 w-4 mr-2 text-yellow-400" />
-            Points d'action et objectifs
-          </div>
-        </div>
-        <div className="mt-6">
-          <button className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-lg font-medium hover:shadow-lg transition-all">
-            🚀 Système Complet Disponible
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
@@ -199,14 +161,15 @@ const OnboardingPage = () => {
           </div>
         </div>
 
-        {/* 🔧 Note technique (temporaire) */}
+        {/* ✅ Note de confirmation */}
         <div className="mt-6 bg-green-900/20 border border-green-700/50 rounded-lg p-4">
           <p className="text-green-300 text-sm">
-            ✅ <strong>Version complète OnboardingPage</strong><br/>
+            ✅ <strong>Version complète OnboardingPage - FONCTIONNELLE</strong><br/>
             - Formation Générale : Programme complet avec 7 phases Brain ✅<br/>
             - Acquisition de Compétences : 19 compétences Game Master ✅<br/>
             - Entretiens Référent : Système de planification et suivi ✅<br/>
-            - Navigation premium avec gradients et animations ✅
+            - Navigation premium avec gradients et animations ✅<br/>
+            - Tous les composants importés correctement ✅
           </p>
         </div>
       </div>
