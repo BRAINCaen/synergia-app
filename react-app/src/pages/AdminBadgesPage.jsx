@@ -1,6 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminBadgesPage.jsx
 // PAGE ADMINISTRATION DES BADGES AVEC PANEL ADMIN COMPLET INTÉGRÉ
+// VERSION CORRIGÉE POUR REMPLACEMENT COMPLET
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
