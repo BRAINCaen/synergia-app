@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/CompleteAdminTestPage.jsx
-// PAGE DE TEST ADMIN COMPLÈTE - IMPORTS CORRIGÉS
+// PAGE DE TEST ADMIN COMPLÈTE - SANS PANEL ADMIN (ÉVITER DOUBLON)
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -21,7 +21,8 @@ import {
   Zap,
   Users,
   Activity,
-  ArrowLeft
+  ArrowLeft,
+  ExternalLink
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -35,7 +36,6 @@ import userService from '../core/services/userService.js';
 import adminSetupService from '../core/services/adminSetupService.js';
 
 // Composants admin
-import AdminBadgePanel from '../components/admin/AdminBadgePanel.jsx';
 import AdminSetupComponent from '../components/admin/AdminSetupComponent.jsx';
 
 /**
@@ -74,56 +74,66 @@ const CompleteAdminTestPage = () => {
       setUserProfile(fullProfile);
       setSetupStatus(adminStatus);
       
-      // 2. Déterminer l'étape appropriée
-      if (adminStatus.isAdmin) {
-        setCurrentStep('test');
-        // Lancer les tests complets
-        const tests = await runAllAdminPermissionTests(user, fullProfile);
-        setAdminTests(tests);
-        
-        // Charger les statistiques
-        const stats = await loadAdminStatistics();
-        setAdminStats(stats);
-      } else {
+      // 2. Déterminer l'étape selon le statut
+      if (!adminStatus.isAdmin && !isAdmin(user)) {
         setCurrentStep('setup');
+      } else {
+        setCurrentStep('test');
+        await runCompleteAdminTests();
       }
       
     } catch (error) {
-      console.error('❌ Erreur vérification initiale:', error);
-      setCurrentStep('setup');
+      console.error('❌ Erreur initialisation admin:', error);
+      setCurrentStep('test'); // Fallback vers les tests
+      await runCompleteAdminTests();
     } finally {
       setLoading(false);
     }
   };
 
-  const runAllAdminPermissionTests = async (authUser, profile) => {
-    const tests = [];
-    
+  const runCompleteAdminTests = async () => {
+    setLoading(true);
     try {
-      // Test 1: Vérification du rôle utilisateur
-      tests.push({
-        name: 'Rôle Utilisateur',
-        status: (profile?.profile?.role === 'admin' || profile?.role === 'admin') ? 'success' : 'error',
-        message: `Rôle actuel: ${profile?.profile?.role || profile?.role || 'Non défini'}`,
-        icon: User,
-        details: profile
-      });
+      console.log('🧪 Exécution tests admin complets...');
       
-      // Test 2: Fonction isAdmin() CORRIGÉE
-      const isAdminResult = isAdmin(profile || authUser);
+      const authUser = user;
+      const profile = userProfile;
+      const tests = [];
+
+      // Test 1: Vérification basique isAdmin
+      const basicAdminCheck = isAdmin(authUser);
       tests.push({
-        name: 'Fonction isAdmin() CORRIGÉE',
-        status: isAdminResult ? 'success' : 'error',
-        message: isAdminResult ? 'Accès admin confirmé' : 'Pas d\'accès admin',
+        name: 'Fonction isAdmin()',
+        status: basicAdminCheck ? 'success' : 'error',
+        message: basicAdminCheck ? 'Accès admin confirmé' : 'Accès admin refusé',
         icon: Shield,
-        details: { isAdmin: isAdminResult }
+        details: { basicAdminCheck, email: authUser.email }
       });
-      
-      // Test 3: Diagnostic détaillé
-      const diagnosis = diagnoseAdmin(profile || authUser);
+
+      // Test 2: Vérification Firebase complète
+      try {
+        const firebaseCheck = await checkAdminWithFirebase(authUser.uid);
+        tests.push({
+          name: 'Vérification Firebase',
+          status: firebaseCheck.isAdmin ? 'success' : 'error',
+          message: firebaseCheck.isAdmin ? 'Admin confirmé par Firebase' : 'Pas admin dans Firebase',
+          icon: Crown,
+          details: firebaseCheck
+        });
+      } catch (error) {
+        tests.push({
+          name: 'Vérification Firebase',
+          status: 'error',
+          message: `Erreur: ${error.message}`,
+          icon: Crown
+        });
+      }
+
+      // Test 3: Diagnostic complet
+      const diagnosis = await diagnoseAdmin(authUser, profile);
       tests.push({
-        name: 'Diagnostic Admin Détaillé',
-        status: diagnosis.finalResult ? 'success' : 'warning',
+        name: 'Diagnostic Complet',
+        status: Object.values(diagnosis.checks).filter(Boolean).length >= 4 ? 'success' : 'warning',
         message: `${Object.values(diagnosis.checks).filter(Boolean).length}/6 vérifications réussies`,
         icon: Activity,
         details: diagnosis
@@ -210,8 +220,8 @@ const CompleteAdminTestPage = () => {
         const allUsers = await adminBadgeService.getAllUsersWithBadges();
         tests.push({
           name: 'Gestion Utilisateurs',
-          status: allUsers && allUsers.length > 0 ? 'success' : 'warning',
-          message: allUsers ? `${allUsers.length} utilisateurs accessibles` : 'Aucun utilisateur trouvé',
+          status: allUsers && allUsers.length > 0 ? 'success' : 'error',
+          message: allUsers ? `${allUsers.length} utilisateurs accessibles` : 'Pas d\'accès utilisateurs',
           icon: Users,
           details: { userCount: allUsers?.length || 0 }
         });
@@ -223,421 +233,342 @@ const CompleteAdminTestPage = () => {
           icon: Users
         });
       }
-      
-    } catch (error) {
-      console.error('❌ Erreur lors des tests admin:', error);
-      tests.push({
-        name: 'Tests Admin',
-        status: 'error',
-        message: `Erreur générale: ${error.message}`,
-        icon: AlertTriangle
-      });
-    }
-    
-    return tests;
-  };
 
-  const loadAdminStatistics = async () => {
-    try {
-      const [badgeStats, users] = await Promise.all([
-        adminBadgeService.getBadgeStatistics(),
-        adminBadgeService.getAllUsersWithBadges()
-      ]);
+      // Calculer statistiques
+      const badgeStats = await adminBadgeService.getBadgeStatistics().catch(() => ({}));
+      const userStats = await adminBadgeService.getAllUsersWithBadges().catch(() => []);
       
-      return {
-        badges: badgeStats,
+      setAdminStats({
+        badges: {
+          totalBadges: badgeStats.totalBadges || 0,
+          totalAwarded: badgeStats.totalAwarded || 0
+        },
         users: {
-          total: users.length,
-          active: users.filter(u => u.lastActive && 
-            new Date(u.lastActive.toDate()) > new Date(Date.now() - 7*24*60*60*1000)).length
+          total: userStats.length || 0,
+          active: userStats.filter(u => u.lastSeen && 
+            (new Date() - new Date(u.lastSeen)) < 7 * 24 * 60 * 60 * 1000).length || 0
         }
-      };
-    } catch (error) {
-      console.error('❌ Erreur chargement stats:', error);
-      return {};
-    }
-  };
+      });
 
-  const retryTests = async () => {
-    setLoading(true);
-    try {
-      const tests = await runAllAdminPermissionTests(user, userProfile);
       setAdminTests(tests);
-      const stats = await loadAdminStatistics();
-      setAdminStats(stats);
+      
     } catch (error) {
-      console.error('❌ Erreur retry tests:', error);
+      console.error('❌ Erreur tests admin:', error);
+      setAdminTests([{
+        name: 'Erreur Tests',
+        status: 'error',
+        message: 'Impossible d\'exécuter les tests admin',
+        icon: AlertTriangle
+      }]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Calculer le statut global
+  // Calculer le statut admin global
   const successfulTests = adminTests.filter(test => test.status === 'success').length;
   const totalTests = adminTests.length;
-  const isUserAdmin = successfulTests > totalTests / 2; // Plus de la moitié des tests réussis
+  const isUserAdmin = successfulTests >= Math.ceil(totalTests * 0.7) && totalTests > 0;
 
-  if (!user) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Connexion requise</h2>
-          <p className="text-gray-600">Vous devez être connecté pour accéder à cette page.</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des tests admin...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-6xl mx-auto">
-        
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto p-6">
         {/* Header */}
-        <div className="mb-6">
-          <Link 
-            to="/dashboard"
-            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4"
-          >
-            <ArrowLeft size={16} />
-            Retour au Dashboard
-          </Link>
+        <div className="mb-8">
+          <div className="flex items-center gap-4 mb-4">
+            <Link 
+              to="/dashboard"
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Dashboard
+            </Link>
+            <div className="h-6 w-px bg-gray-300"></div>
+            <h1 className="text-3xl font-bold text-gray-900">Tests Admin Complets</h1>
+          </div>
           
-          <div className="bg-white rounded-lg border p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Shield className="w-8 h-8 text-blue-600" />
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <User className="w-5 h-5 text-blue-600 mt-0.5" />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  🛡️ Test Complet des Permissions Admin
-                </h1>
-                <p className="text-gray-600">
-                  Diagnostic et configuration des droits administrateur
-                </p>
-              </div>
-            </div>
-            
-            {/* Statut utilisateur */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <div className="flex items-center gap-3">
-                <User className="w-5 h-5 text-blue-600" />
-                <div>
-                  <p className="font-medium text-blue-900">{user.email}</p>
-                  <p className="text-sm text-blue-700">UID: {user.uid}</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Actions rapides */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={retryTests}
-                disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                Refaire les tests
-              </button>
-            </div>
-
-            {/* Status global */}
-            <div className={`p-4 rounded-lg border mt-4 ${isUserAdmin ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-              <div className="flex items-center gap-3">
-                {isUserAdmin ? (
-                  <Crown className="w-6 h-6 text-green-600" />
-                ) : (
-                  <AlertTriangle className="w-6 h-6 text-red-600" />
-                )}
-                <div>
-                  <h3 className={`font-semibold ${isUserAdmin ? 'text-green-800' : 'text-red-800'}`}>
-                    {isUserAdmin ? '✅ Profil Administrateur Confirmé' : '❌ Pas d\'Accès Administrateur'}
-                  </h3>
-                  <p className={`text-sm ${isUserAdmin ? 'text-green-600' : 'text-red-600'}`}>
-                    {isUserAdmin 
-                      ? `${successfulTests}/${totalTests} tests réussis - Accès complet aux fonctions admin`
-                      : `${successfulTests}/${totalTests} tests réussis - Accès limité`
-                    }
-                  </p>
-                </div>
+                <p className="font-medium text-blue-900">{user.email}</p>
+                <p className="text-sm text-blue-700">UID: {user.uid}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Navigation */}
-        <div className="flex gap-2 mb-6 bg-white p-1 rounded-lg border">
-          {[
-            { id: 'profile', label: 'Profil & Tests', icon: User },
-            { id: 'permissions', label: 'Permissions', icon: Key },
-            { id: 'statistics', label: 'Statistiques', icon: BarChart3 },
-            { id: 'admin-panel', label: 'Panel Admin', icon: Settings }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTest(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                activeTest === tab.id
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <tab.icon size={16} />
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {/* Étape de configuration */}
+        {currentStep === 'setup' && (
+          <div className="bg-white rounded-lg border p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Configuration Admin Requise</h2>
+            <AdminSetupComponent onSetupComplete={() => {
+              setCurrentStep('test');
+              initializeAdminCheck();
+            }} />
+          </div>
+        )}
 
-        {/* Contenu basé sur l'onglet actif */}
-        <div className="space-y-6">
-          
-          {/* Profil & Tests */}
-          {activeTest === 'profile' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-            >
-              {/* Informations utilisateur */}
-              <div className="bg-white rounded-lg border p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <User className="w-5 h-5" />
-                  Informations Utilisateur
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <span className="text-sm text-gray-500">Email:</span>
-                    <p className="font-medium">{user?.email}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-gray-500">Nom d'affichage:</span>
-                    <p className="font-medium">{user?.displayName || 'Non défini'}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-gray-500">UID Firebase:</span>
-                    <p className="font-mono text-xs bg-gray-100 p-2 rounded">{user?.uid}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-gray-500">Rôle (authStore):</span>
-                    <p className="font-medium">{user?.role || 'Non défini'}</p>
-                  </div>
-                  {userProfile && (
-                    <div>
-                      <span className="text-sm text-gray-500">Rôle (Firestore):</span>
-                      <p className="font-medium">{userProfile.profile?.role || userProfile.role || 'Non défini'}</p>
-                    </div>
-                  )}
-                </div>
+        {/* Tests et résultats */}
+        {currentStep === 'test' && (
+          <div className="space-y-6">
+            {/* Résumé */}
+            <div className="bg-white rounded-lg border p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">Résumé des Tests</h2>
+                <button
+                  onClick={() => runCompleteAdminTests()}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  disabled={loading}
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  Refaire les tests
+                </button>
               </div>
 
-              {/* Résultats des tests */}
-              <div className="bg-white rounded-lg border p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Activity className="w-5 h-5" />
-                  Résultats des Tests
-                </h3>
-                {loading ? (
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Tests en cours...
+              {/* Status global */}
+              <div className={`p-4 rounded-lg border ${isUserAdmin ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                <div className="flex items-center gap-3">
+                  {isUserAdmin ? (
+                    <Crown className="w-6 h-6 text-green-600" />
+                  ) : (
+                    <AlertTriangle className="w-6 h-6 text-red-600" />
+                  )}
+                  <div>
+                    <h3 className={`font-semibold ${isUserAdmin ? 'text-green-800' : 'text-red-800'}`}>
+                      {isUserAdmin ? '✅ Profil Administrateur Confirmé' : '❌ Pas d\'Accès Administrateur'}
+                    </h3>
+                    <p className={`text-sm ${isUserAdmin ? 'text-green-600' : 'text-red-600'}`}>
+                      {isUserAdmin 
+                        ? `${successfulTests}/${totalTests} tests réussis - Accès complet aux fonctions admin`
+                        : `${successfulTests}/${totalTests} tests réussis - Accès limité`
+                      }
+                    </p>
                   </div>
-                ) : (
-                  <div className="space-y-3">
+                </div>
+              </div>
+            </div>
+
+            {/* Navigation */}
+            <div className="flex gap-2 mb-6 bg-white p-1 rounded-lg border">
+              {[
+                { id: 'profile', label: 'Profil & Tests', icon: User },
+                { id: 'permissions', label: 'Permissions', icon: Key },
+                { id: 'statistics', label: 'Statistiques', icon: BarChart3 },
+                { id: 'admin-access', label: 'Accès Admin', icon: Settings }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTest(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+                    activeTest === tab.id
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Contenu des onglets */}
+            <div className="bg-white rounded-lg border p-6">
+              {/* Profil & Tests */}
+              {activeTest === 'profile' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Tests de Permissions</h3>
+                  <div className="space-y-4">
                     {adminTests.map((test, index) => (
-                      <div
-                        key={index}
-                        className={`flex items-center gap-3 p-3 rounded-lg border ${
-                          test.status === 'success' ? 'border-green-200 bg-green-50' :
-                          test.status === 'warning' ? 'border-yellow-200 bg-yellow-50' :
-                          'border-red-200 bg-red-50'
-                        }`}
-                      >
-                        <test.icon className={`w-5 h-5 ${
-                          test.status === 'success' ? 'text-green-600' :
-                          test.status === 'warning' ? 'text-yellow-600' :
-                          'text-red-600'
-                        }`} />
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">{test.name}</p>
-                          <p className={`text-sm ${
-                            test.status === 'success' ? 'text-green-600' :
-                            test.status === 'warning' ? 'text-yellow-600' :
-                            'text-red-600'
-                          }`}>
-                            {test.message}
-                          </p>
+                      <div key={index} className="flex items-start gap-4 p-4 border rounded-lg">
+                        <div className={`p-2 rounded-full ${
+                          test.status === 'success' ? 'bg-green-100 text-green-600' :
+                          test.status === 'warning' ? 'bg-yellow-100 text-yellow-600' :
+                          'bg-red-100 text-red-600'
+                        }`}>
+                          <test.icon className="w-5 h-5" />
                         </div>
-                        <div className={`w-3 h-3 rounded-full ${
-                          test.status === 'success' ? 'bg-green-500' :
-                          test.status === 'warning' ? 'bg-yellow-500' :
-                          'bg-red-500'
-                        }`} />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">{test.name}</h4>
+                          <p className="text-gray-600 text-sm">{test.message}</p>
+                          {test.details && (
+                            <details className="mt-2">
+                              <summary className="text-xs text-blue-600 cursor-pointer">Détails techniques</summary>
+                              <pre className="text-xs text-gray-500 mt-1 bg-gray-50 p-2 rounded overflow-auto">
+                                {JSON.stringify(test.details, null, 2)}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          test.status === 'success' ? 'bg-green-100 text-green-700' :
+                          test.status === 'warning' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {test.status === 'success' ? 'OK' : test.status === 'warning' ? 'Attention' : 'Erreur'}
+                        </div>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-
-          {/* Permissions détaillées */}
-          {activeTest === 'permissions' && userProfile && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-lg border p-6"
-            >
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Key className="w-5 h-5" />
-                Détail des Permissions
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                
-                {/* Rôle Utilisateur */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    Rôle Utilisateur
-                  </h4>
-                  <div className="text-sm space-y-1">
-                    <p>Rôle actuel: <span className="font-medium">{userProfile.role || 'Non défini'}</span></p>
-                    <p className="text-blue-600">► Détails techniques</p>
-                  </div>
-                </div>
-
-                {/* Fonction isAdmin() */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                    <Shield className="w-4 h-4" />
-                    Fonction isAdmin()
-                  </h4>
-                  <div className="text-sm space-y-1">
-                    <p>Accès admin confirmé</p>
-                    <p className="text-blue-600">► Détails techniques</p>
-                  </div>
-                </div>
-
-                {/* Service Admin Badges */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                    <Trophy className="w-4 h-4" />
-                    Service Admin Badges
-                  </h4>
-                  <div className="text-sm space-y-1">
-                    <p>Service accessible</p>
-                    <p className="text-blue-600">► Détails techniques</p>
-                  </div>
-                </div>
-
-                {/* Validation de Tâches */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4" />
-                    Validation de Tâches
-                  </h4>
-                  <div className="text-sm space-y-1">
-                    <p>Peut valider les tâches</p>
-                    <p className="text-blue-600">► Détails techniques</p>
-                  </div>
-                </div>
-
-                {/* Validation XP */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                    <Zap className="w-4 h-4" />
-                    Validation XP
-                  </h4>
-                  <div className="text-sm space-y-1">
-                    <p>Peut valider les XP</p>
-                    <p className="text-blue-600">► Détails techniques</p>
-                  </div>
-                </div>
-
-                {/* Statistiques Admin */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    Statistiques Admin
-                  </h4>
-                  <div className="text-sm space-y-1">
-                    <p>0 badges système</p>
-                    <p className="text-blue-600">► Détails techniques</p>
-                  </div>
-                </div>
-
-                {/* Gestion Utilisateurs */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                    <Users className="w-4 h-4" />
-                    Gestion Utilisateurs
-                  </h4>
-                  <div className="text-sm space-y-1">
-                    <p>3 utilisateurs accessibles</p>
-                    <p className="text-blue-600">► Détails techniques</p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Statistiques */}
-          {activeTest === 'statistics' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-lg border p-6"
-            >
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
-                Statistiques Admin
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center p-4 border rounded-lg">
-                  <Trophy className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
-                  <p className="text-2xl font-bold">{adminStats.badges?.totalBadges || 0}</p>
-                  <p className="text-sm text-gray-600">Total Badges</p>
-                </div>
-                
-                <div className="text-center p-4 border rounded-lg">
-                  <Users className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                  <p className="text-2xl font-bold">{adminStats.users?.total || 0}</p>
-                  <p className="text-sm text-gray-600">Utilisateurs</p>
-                </div>
-                
-                <div className="text-center p-4 border rounded-lg">
-                  <Activity className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                  <p className="text-2xl font-bold">{adminStats.users?.active || 0}</p>
-                  <p className="text-sm text-gray-600">Actifs (7j)</p>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Panel Admin */}
-          {activeTest === 'admin-panel' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              {isUserAdmin ? (
-                <AdminBadgePanel />
-              ) : (
-                <div className="bg-white rounded-lg border p-8 text-center">
-                  <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    Panel Admin Non Disponible
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    Vous devez réussir plus de tests pour accéder au panel admin.
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Tests réussis: {successfulTests}/{totalTests}
-                  </p>
-                </div>
+                </motion.div>
               )}
-            </motion.div>
-          )}
-        </div>
+
+              {/* Permissions */}
+              {activeTest === 'permissions' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Détail des Permissions</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {adminTests.slice(0, 4).map((test, index) => (
+                      <div key={index} className="space-y-3">
+                        <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                          <test.icon className="w-4 h-4" />
+                          {test.name}
+                        </h4>
+                        <div className="text-sm space-y-1">
+                          <p>{test.message}</p>
+                          <p className="text-blue-600">► Détails techniques</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Statistiques */}
+              {activeTest === 'statistics' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5" />
+                    Statistiques Admin
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="text-center p-4 border rounded-lg">
+                      <Trophy className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
+                      <p className="text-2xl font-bold">{adminStats.badges?.totalBadges || 0}</p>
+                      <p className="text-sm text-gray-600">Total Badges</p>
+                    </div>
+                    
+                    <div className="text-center p-4 border rounded-lg">
+                      <Users className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                      <p className="text-2xl font-bold">{adminStats.users?.total || 0}</p>
+                      <p className="text-sm text-gray-600">Utilisateurs</p>
+                    </div>
+                    
+                    <div className="text-center p-4 border rounded-lg">
+                      <Activity className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                      <p className="text-2xl font-bold">{adminStats.users?.active || 0}</p>
+                      <p className="text-sm text-gray-600">Actifs (7j)</p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Accès Admin - NOUVEAU : Lien vers page dédiée */}
+              {activeTest === 'admin-access' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  {isUserAdmin ? (
+                    <div className="text-center">
+                      <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                        🎉 Accès Admin Confirmé !
+                      </h3>
+                      <p className="text-gray-600 mb-6">
+                        Vous avez un accès complet aux fonctionnalités d'administration.
+                      </p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+                        <Link
+                          to="/admin/badges"
+                          className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg hover:bg-yellow-100 transition-colors"
+                        >
+                          <Trophy className="w-6 h-6 text-yellow-600" />
+                          <div className="text-left">
+                            <p className="font-medium text-gray-900">Gestion des Badges</p>
+                            <p className="text-sm text-gray-600">Créer et attribuer des badges</p>
+                          </div>
+                          <ExternalLink className="w-4 h-4 text-gray-400 ml-auto" />
+                        </Link>
+                        
+                        <Link
+                          to="/admin/task-validation"
+                          className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
+                        >
+                          <CheckCircle className="w-6 h-6 text-green-600" />
+                          <div className="text-left">
+                            <p className="font-medium text-gray-900">Validation Tâches</p>
+                            <p className="text-sm text-gray-600">Valider les tâches utilisateurs</p>
+                          </div>
+                          <ExternalLink className="w-4 h-4 text-gray-400 ml-auto" />
+                        </Link>
+                        
+                        <Link
+                          to="/admin/users"
+                          className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                        >
+                          <Users className="w-6 h-6 text-blue-600" />
+                          <div className="text-left">
+                            <p className="font-medium text-gray-900">Gestion Utilisateurs</p>
+                            <p className="text-sm text-gray-600">Administrer les comptes</p>
+                          </div>
+                          <ExternalLink className="w-4 h-4 text-gray-400 ml-auto" />
+                        </Link>
+                        
+                        <Link
+                          to="/admin/analytics"
+                          className="flex items-center gap-3 p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
+                        >
+                          <BarChart3 className="w-6 h-6 text-purple-600" />
+                          <div className="text-left">
+                            <p className="font-medium text-gray-900">Analytics Admin</p>
+                            <p className="text-sm text-gray-600">Voir les statistiques</p>
+                          </div>
+                          <ExternalLink className="w-4 h-4 text-gray-400 ml-auto" />
+                        </Link>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                        Accès Admin Non Disponible
+                      </h3>
+                      <p className="text-gray-600 mb-4">
+                        Vous devez réussir plus de tests pour accéder aux fonctions d'administration.
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Tests réussis: {successfulTests}/{totalTests} (minimum requis: {Math.ceil(totalTests * 0.7)})
+                      </p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Actions en bas */}
         <div className="mt-8 flex gap-4 justify-center">
@@ -650,10 +581,20 @@ const CompleteAdminTestPage = () => {
           
           {!isUserAdmin && (
             <Link
-              to="/admin-profile-test"
+              to="/admin/profile-test"
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               Configuration Admin
+            </Link>
+          )}
+          
+          {isUserAdmin && (
+            <Link
+              to="/admin/badges"
+              className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center gap-2"
+            >
+              <Trophy className="w-4 h-4" />
+              Panel Admin Badges
             </Link>
           )}
         </div>
