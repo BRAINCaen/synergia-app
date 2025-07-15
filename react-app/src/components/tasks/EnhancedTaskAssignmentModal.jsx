@@ -48,61 +48,97 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
 
-// ✅ DOMAINES DE COMPÉTENCES COMPLETS
+// ✅ DOMAINES DE COMPÉTENCES SYNERGIA
 const SKILL_DOMAINS = {
-  TECHNICAL: {
-    id: 'technical',
-    name: 'Technique & Développement',
-    icon: Code,
-    color: 'bg-blue-500',
-    description: 'Développement, programmation, systèmes',
-    skills: ['React', 'JavaScript', 'Python', 'Database', 'DevOps', 'API', 'Security'],
+  GAME_MASTERING: {
+    id: 'game_mastering',
+    name: 'Game Master & Animation',
+    icon: Users,
+    color: 'bg-purple-500',
+    description: 'Animation des sessions, accueil client, immersion',
+    skills: ['Animation', 'Relationnel', 'Improvisation', 'Gestion stress', 'Service client'],
+    xpMultiplier: 1.3
+  },
+  MAINTENANCE: {
+    id: 'maintenance',
+    name: 'Entretien & Maintenance',
+    icon: Settings,
+    color: 'bg-orange-500',
+    description: 'Maintenance technique, réparations, sécurité',
+    skills: ['Bricolage', 'Électricité', 'Mécanique', 'Sécurité', 'Diagnostic'],
     xpMultiplier: 1.2
   },
-  DESIGN: {
-    id: 'design',
-    name: 'Design & Créativité',
-    icon: Palette,
-    color: 'bg-purple-500',
-    description: 'UI/UX, graphisme, créativité',
-    skills: ['UI/UX', 'Photoshop', 'Figma', 'Branding', 'Animation', 'Illustration'],
-    xpMultiplier: 1.1
-  },
-  ANALYTICS: {
-    id: 'analytics',
-    name: 'Analyse & Data',
-    icon: BarChart3,
-    color: 'bg-green-500',
-    description: 'Analyse de données, métriques, reporting',
-    skills: ['Analytics', 'SQL', 'Excel', 'PowerBI', 'Tableau', 'Statistics'],
+  REPUTATION: {
+    id: 'reputation',
+    name: 'Gestion Réputation & Avis',
+    icon: Star,
+    color: 'bg-yellow-500',
+    description: 'Avis clients, image de marque, satisfaction',
+    skills: ['Communication', 'Diplomatie', 'Rédactionnel', 'Analyse feedback', 'Résolution conflits'],
     xpMultiplier: 1.15
   },
-  MARKETING: {
-    id: 'marketing',
-    name: 'Marketing & Communication',
-    icon: Megaphone,
-    color: 'bg-orange-500',
-    description: 'Marketing digital, communication, réseaux sociaux',
-    skills: ['SEO', 'Social Media', 'Content', 'Ads', 'Email Marketing', 'Analytics'],
+  STOCK: {
+    id: 'stock',
+    name: 'Gestion Stocks & Matériel',
+    icon: Target,
+    color: 'bg-blue-500',
+    description: 'Inventaire, approvisionnement, organisation',
+    skills: ['Organisation', 'Logistique', 'Anticipation', 'Gestion priorités', 'Suivi'],
     xpMultiplier: 1.1
   },
-  BUSINESS: {
-    id: 'business',
-    name: 'Business & Management',
-    icon: Building,
+  ORGANIZATION: {
+    id: 'organization',
+    name: 'Organisation Interne',
+    icon: BarChart3,
     color: 'bg-indigo-500',
-    description: 'Gestion, stratégie, business development',
-    skills: ['Strategy', 'Management', 'Finance', 'Sales', 'Operations', 'Leadership'],
+    description: 'Plannings, RH, coordination équipe',
+    skills: ['Planning', 'Coordination', 'Diplomatie', 'Méthodologie', 'Communication'],
     xpMultiplier: 1.25
   },
-  SUPPORT: {
-    id: 'support',
-    name: 'Support & Service Client',
+  CONTENT: {
+    id: 'content',
+    name: 'Création Contenu & Design',
+    icon: Palette,
+    color: 'bg-pink-500',
+    description: 'Visuels, affichage, supports créatifs',
+    skills: ['Graphisme', 'Créativité', 'Design', 'Communication visuelle', 'Outils créatifs'],
+    xpMultiplier: 1.2
+  },
+  MENTORING: {
+    id: 'mentoring',
+    name: 'Formation & Mentorat',
+    icon: Award,
+    color: 'bg-green-500',
+    description: 'Formation équipe, accompagnement, pédagogie',
+    skills: ['Pédagogie', 'Bienveillance', 'Transmission', 'Animation', 'Évaluation'],
+    xpMultiplier: 1.3
+  },
+  PARTNERSHIPS: {
+    id: 'partnerships',
+    name: 'Partenariats & Référencement',
     icon: HeartHandshake,
     color: 'bg-teal-500',
-    description: 'Support client, service, relations',
-    skills: ['Customer Service', 'Ticketing', 'Phone Support', 'Live Chat', 'Training'],
-    xpMultiplier: 1.0
+    description: 'Relations externes, visibilité, SEO',
+    skills: ['Négociation', 'Relationnel', 'SEO', 'Networking', 'Veille'],
+    xpMultiplier: 1.2
+  },
+  COMMUNICATION: {
+    id: 'communication',
+    name: 'Communication & Réseaux Sociaux',
+    icon: Megaphone,
+    color: 'bg-cyan-500',
+    description: 'Réseaux sociaux, community management',
+    skills: ['Social Media', 'Rédaction', 'Community management', 'Créativité digitale', 'Tendances'],
+    xpMultiplier: 1.15
+  },
+  B2B: {
+    id: 'b2b',
+    name: 'Relations B2B & Devis',
+    icon: Briefcase,
+    color: 'bg-slate-500',
+    description: 'Relations entreprises, devis, événements pros',
+    skills: ['Négociation', 'Commercial', 'Administratif', 'Événementiel', 'Suivi client'],
+    xpMultiplier: 1.25
   }
 };
 
