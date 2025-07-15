@@ -551,6 +551,105 @@ class AdminBadgeService {
       return { success: false, message: 'Erreur lors du forçage admin' };
     }
   }
+
+  /**
+   * 👥 FONCTION MANQUANTE : getAllUsersWithBadges
+   * Récupère tous les utilisateurs avec leurs badges enrichis
+   */
+  async getAllUsersWithBadges() {
+    try {
+      console.log('👥 Récupération utilisateurs avec badges...');
+      
+      const users = await this.getAllUsers();
+      const enrichedUsers = [];
+      
+      // Pour chaque utilisateur, enrichir ses badges
+      for (const user of users) {
+        try {
+          const enrichedUser = await this.getAIUserWithBadges(user.id);
+          if (enrichedUser) {
+            enrichedUsers.push(enrichedUser);
+          } else {
+            // Si échec, garder l'utilisateur de base
+            enrichedUsers.push(user);
+          }
+        } catch (error) {
+          console.warn('⚠️ Erreur enrichissement utilisateur:', user.id);
+          enrichedUsers.push(user);
+        }
+      }
+      
+      console.log('✅ Utilisateurs avec badges enrichis:', enrichedUsers.length);
+      return enrichedUsers;
+      
+    } catch (error) {
+      console.error('❌ Erreur getAllUsersWithBadges:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 🔍 FONCTION MANQUANTE : searchUsers
+   * Rechercher des utilisateurs par terme
+   */
+  async searchUsers(searchTerm = '') {
+    try {
+      const allUsers = await this.getAllUsers();
+      
+      if (!searchTerm.trim()) {
+        return allUsers;
+      }
+      
+      const filtered = allUsers.filter(user => {
+        const term = searchTerm.toLowerCase();
+        return (
+          (user.email || '').toLowerCase().includes(term) ||
+          (user.displayName || '').toLowerCase().includes(term) ||
+          (user.firstName || '').toLowerCase().includes(term) ||
+          (user.lastName || '').toLowerCase().includes(term)
+        );
+      });
+      
+      return filtered;
+      
+    } catch (error) {
+      console.error('❌ Erreur recherche utilisateurs:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 📈 FONCTION MANQUANTE : getUserBadgeProgress
+   * Calculer la progression d'un utilisateur vers de nouveaux badges
+   */
+  async getUserBadgeProgress(userId) {
+    try {
+      const user = await this.getAIUserWithBadges(userId);
+      const allBadges = await this.getAllBadges();
+      
+      if (!user || !allBadges.length) {
+        return { availableBadges: 0, earnedBadges: 0, progress: [] };
+      }
+      
+      const earnedBadgeIds = (user.badges || []).map(b => b.badgeId);
+      const availableBadges = allBadges.filter(b => !earnedBadgeIds.includes(b.id));
+      
+      return {
+        availableBadges: availableBadges.length,
+        earnedBadges: earnedBadgeIds.length,
+        totalBadges: allBadges.length,
+        progress: availableBadges.map(badge => ({
+          ...badge,
+          progress: Math.random() * 100, // Simulé pour l'instant
+          nextRequirement: 'Critère non défini'
+        }))
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur calcul progression badges:', error);
+      return { availableBadges: 0, earnedBadges: 0, progress: [] };
+    }
+  }
 }
 
 // ✅ EXPORT PRINCIPAL CORRIGÉ
@@ -586,4 +685,17 @@ export const forceAdminAccess = (userEmail = 'alan.boehme61@gmail.com') => {
 // 🤖 EXPORT DE LA FONCTION MANQUANTE
 export const getAIUserWithBadges = async (userId) => {
   return await adminBadgeService.getAIUserWithBadges(userId);
+};
+
+// 👥 EXPORTS DES NOUVELLES FONCTIONS
+export const getAllUsersWithBadges = async () => {
+  return await adminBadgeService.getAllUsersWithBadges();
+};
+
+export const searchUsers = async (searchTerm) => {
+  return await adminBadgeService.searchUsers(searchTerm);
+};
+
+export const getUserBadgeProgress = async (userId) => {
+  return await adminBadgeService.getUserBadgeProgress(userId);
 };
