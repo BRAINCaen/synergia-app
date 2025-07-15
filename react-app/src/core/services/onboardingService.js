@@ -10,6 +10,7 @@ import {
   updateDoc, 
   getDoc, 
   getDocs, 
+  deleteDoc,
   query, 
   where, 
   orderBy, 
