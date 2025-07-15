@@ -305,19 +305,24 @@ export class SkillsAcquisitionService {
    */
   static async addWeeklyFollowUp(userId, experienceId, followUpData) {
     try {
+      console.log('📝 Ajout suivi hebdomadaire Game Master...');
+      
+      // 🔧 CORRECTION: Utiliser une date normale au lieu de serverTimestamp()
       const followUp = {
         experienceId: 'gamemaster',
         week: this.getCurrentWeek(),
-        date: serverTimestamp(),
+        date: new Date().toISOString(), // 🔧 Date normale
+        timestamp: Date.now(), // Timestamp pour le tri
         ...followUpData
       };
 
       const updates = {
         weeklyFollowUps: arrayUnion(followUp),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp() // 🔧 serverTimestamp() seulement ici
       };
 
       await updateDoc(doc(db, 'skillsAcquisition', userId), updates);
+      console.log('✅ Suivi hebdomadaire Game Master ajouté');
       return { success: true };
 
     } catch (error) {
