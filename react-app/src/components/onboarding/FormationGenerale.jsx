@@ -32,7 +32,7 @@ import {
   Lightbulb,
   UserCheck,
   Building,
-  Tool,
+  Wrench,
   Sparkles
 } from 'lucide-react';
 
@@ -91,7 +91,7 @@ const ONBOARDING_PHASES = {
     description: 'Être Game Master, c\'est aussi garantir la qualité du quotidien pour tou·te·s.',
     duration: 5,
     color: 'from-cyan-500 to-blue-500',
-    icon: Tool,
+    icon: Wrench,
     xpTotal: 90,
     badge: 'Pilier du Quotidien',
     order: 5
@@ -292,7 +292,7 @@ const PHASE_TASKS = {
     {
       id: 'gestion_materiel',
       name: 'Connaître la gestion du matériel (cadenas, accessoires, maintenance de base)',
-      icon: Tool,
+      icon: Wrench,
       xp: 10,
       required: true,
       estimatedTime: 45
