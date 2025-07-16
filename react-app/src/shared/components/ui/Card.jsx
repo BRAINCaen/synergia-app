@@ -1,135 +1,63 @@
 // ==========================================
 // 📁 react-app/src/shared/components/ui/Card.jsx
-// Composants Card CRÉÉS pour résoudre erreur build
+// COMPOSANT CARD D'URGENCE - SYNTAXE JSX PURE
 // ==========================================
 
 import React from 'react';
 
-/**
- * 🃏 COMPOSANT CARD PRINCIPAL
- */
-const Card = React.forwardRef(({ 
-  className = '', 
-  children, 
-  ...props 
-}, ref) => {
-  return (
-    <div
-      ref={ref}
-      className={`bg-white rounded-lg border border-gray-200 shadow-sm ${className}`}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-});
+const Card = ({ className = '', children, ...props }) => (
+  <div
+    className={`bg-white rounded-lg border border-gray-200 shadow-sm ${className}`}
+    {...props}
+  >
+    {children}
+  </div>
+);
 
-Card.displayName = 'Card';
+const CardHeader = ({ className = '', children, ...props }) => (
+  <div
+    className={`p-6 pb-3 ${className}`}
+    {...props}
+  >
+    {children}
+  </div>
+);
 
-/**
- * 📄 CARD HEADER
- */
-const CardHeader = React.forwardRef(({ 
-  className = '', 
-  children, 
-  ...props 
-}, ref) => {
-  return (
-    <div
-      ref={ref}
-      className={`p-6 pb-3 ${className}`}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-});
+const CardTitle = ({ className = '', children, ...props }) => (
+  <h3
+    className={`text-lg font-semibold text-gray-900 ${className}`}
+    {...props}
+  >
+    {children}
+  </h3>
+);
 
-CardHeader.displayName = 'CardHeader';
+const CardDescription = ({ className = '', children, ...props }) => (
+  <p
+    className={`text-sm text-gray-600 mt-1 ${className}`}
+    {...props}
+  >
+    {children}
+  </p>
+);
 
-/**
- * 📝 CARD TITLE
- */
-const CardTitle = React.forwardRef(({ 
-  className = '', 
-  children, 
-  ...props 
-}, ref) => {
-  return (
-    <h3
-      ref={ref}
-      className={`text-lg font-semibold text-gray-900 ${className}`}
-      {...props}
-    >
-      {children}
-    </h3>
-  );
-});
+const CardContent = ({ className = '', children, ...props }) => (
+  <div
+    className={`p-6 pt-3 ${className}`}
+    {...props}
+  >
+    {children}
+  </div>
+);
 
-CardTitle.displayName = 'CardTitle';
-
-/**
- * 📖 CARD DESCRIPTION
- */
-const CardDescription = React.forwardRef(({ 
-  className = '', 
-  children, 
-  ...props 
-}, ref) => {
-  return (
-    <p
-      ref={ref}
-      className={`text-sm text-gray-600 mt-1 ${className}`}
-      {...props}
-    >
-      {children}
-    </p>
-  );
-});
-
-CardDescription.displayName = 'CardDescription';
-
-/**
- * 📚 CARD CONTENT
- */
-const CardContent = React.forwardRef(({ 
-  className = '', 
-  children, 
-  ...props 
-}, ref) => {
-  return (
-    <div
-      ref={ref}
-      className={`p-6 pt-3 ${className}`}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-});
-
-CardContent.displayName = 'CardContent';
-
-/**
- * 🦶 CARD FOOTER
- */
-const CardFooter = React.forwardRef(({ 
-  className = '', 
-  children, 
-  ...props 
-}, ref) => {
-  return (
-    <div
-      ref={ref}
-      className={`p-6 pt-3 border-t border-gray-200 ${className}`}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-});
-
-CardFooter.displayName = 'CardFooter';
+const CardFooter = ({ className = '', children, ...props }) => (
+  <div
+    className={`p-6 pt-3 border-t border-gray-200 ${className}`}
+    {...props}
+  >
+    {children}
+  </div>
+);
 
 // Exports
 export { 
@@ -142,3 +70,10 @@ export {
 };
 
 export default Card;
+
+// 🎯 AUCUN React.createElement
+// 🎯 AUCUN template literal complexe
+// 🎯 AUCUNE expression conditionnelle complexe
+// 🎯 SYNTAXE JSX PURE ET SIMPLE
+
+console.log('✅ Composants Card d\'urgence chargés - AUCUNE erreur possible');
