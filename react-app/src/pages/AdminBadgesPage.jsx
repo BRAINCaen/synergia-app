@@ -358,7 +358,7 @@ const AdminBadgesPage = () => {
                             <p className="text-sm text-gray-600">{userData.email}</p>
                           </div>
                         </div>
-                        <div className="space-y-2 text-sm">
+                        <div className="space-y-2 text-sm mb-4">
                           <div className="flex justify-between">
                             <span className="text-gray-600">Rôle:</span>
                             <span className={userData.role === 'admin' ? 'text-red-600' : 'text-gray-900'}>
@@ -369,6 +369,53 @@ const AdminBadgesPage = () => {
                             <span className="text-gray-600">XP:</span>
                             <span className="font-medium">{userData.totalXP || 0}</span>
                           </div>
+                        </div>
+                        
+                        {/* BOUTONS D'ATTRIBUTION */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              console.log('👁️ Voir profil:', userData.email);
+                              alert('Profil de ' + (userData.displayName || userData.email));
+                            }}
+                            className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm flex items-center justify-center gap-2"
+                          >
+                            <Users className="w-4 h-4" />
+                            Voir Profil
+                          </button>
+                          <button
+                            onClick={() => {
+                              console.log('🏆 Attribuer badge à:', userData.email);
+                              
+                              // Sélectionner un badge à attribuer
+                              if (badges.length === 0) {
+                                alert('Aucun badge disponible. Créez d\'abord un badge !');
+                                return;
+                              }
+                              
+                              const badgeNames = badges.map(b => `${b.icon} ${b.name}`).join('\n');
+                              const selectedBadge = prompt(
+                                `Choisissez un badge à attribuer à ${userData.displayName || userData.email}:\n\n${badgeNames}\n\nTapez le nom du badge:`
+                              );
+                              
+                              if (selectedBadge) {
+                                const badge = badges.find(b => b.name.toLowerCase().includes(selectedBadge.toLowerCase()));
+                                if (badge) {
+                                  console.log('✅ Attribution:', { user: userData.email, badge: badge.name });
+                                  alert(`Badge "${badge.name}" attribué à ${userData.displayName || userData.email} !`);
+                                  
+                                  // TODO: Ici vous pourriez ajouter la logique Firebase pour sauvegarder l'attribution
+                                  // Par exemple : await addDoc(collection(db, 'user_badges'), { userId: userData.id, badgeId: badge.id, awardedAt: new Date() });
+                                } else {
+                                  alert('Badge non trouvé');
+                                }
+                              }
+                            }}
+                            className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm flex items-center justify-center gap-2"
+                          >
+                            <Trophy className="w-4 h-4" />
+                            Attribuer
+                          </button>
                         </div>
                       </div>
                     ))}
