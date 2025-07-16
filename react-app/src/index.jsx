@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/index.jsx
-// INDEX CORRIGÉ - VERSION SIMPLE SANS ERREUR
+// INDEX ULTRA SIMPLE - RETOUR À LA VERSION ORIGINALE
 // ==========================================
 
 import React from 'react';
@@ -8,33 +8,17 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './index.css';
 
-// 🔧 SUPPRESSION DES ERREURS CONSOLE SPÉCIFIQUES
-const originalConsoleError = console.error;
-console.error = (...args) => {
-  const message = args.join(' ');
-  if (
-    message.includes('InvalidCharacterError') ||
-    message.includes('Failed to execute \'createElement\' on \'Document\'') ||
-    message.includes('The tag name provided') ||
-    message.includes('is not a valid name')
-  ) {
-    console.info('🛡️ [SUPPRIMÉ] Erreur InvalidCharacterError ignorée');
-    return;
-  }
-  originalConsoleError.apply(console, args);
-};
-
-// 🔧 VÉRIFICATION DE L'ÉLÉMENT ROOT
+// 🔧 VÉRIFICATION QUE L'ÉLÉMENT ROOT EXISTE
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   console.error('❌ Élément root non trouvé dans index.html');
   throw new Error('Element with id "root" not found');
 }
 
-// 🔧 CRÉER LE ROOT REACT 18
+// Créer le root React 18
 const root = ReactDOM.createRoot(rootElement);
 
-// 🔧 FONCTION DE RENDU SIMPLE
+// Fonction de rendu simple et robuste
 const renderApp = () => {
   try {
     root.render(
@@ -45,8 +29,7 @@ const renderApp = () => {
     console.log('✅ Synergia v3.5 démarré avec succès');
   } catch (error) {
     console.error('❌ Erreur lors du rendu:', error);
-    
-    // Rendu de fallback simple
+    // Rendu de fallback en cas d'erreur
     root.render(
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -58,50 +41,24 @@ const renderApp = () => {
           >
             Recharger la page
           </button>
-          <p className="text-gray-500 mt-4 text-sm">
-            Erreur: {error.message}
-          </p>
         </div>
       </div>
     );
   }
 };
 
-// 🔧 PROTECTION GLOBALE DES ERREURS (SIMPLE)
+// Démarrer l'application
+renderApp();
+
+// Gestion des erreurs globales
 window.addEventListener('error', (event) => {
-  const message = event.error?.message || '';
-  if (
-    message.includes('InvalidCharacterError') ||
-    message.includes('createElement') ||
-    message.includes('tag name provided')
-  ) {
-    console.info('🛡️ [INTERCEPTÉ] Erreur InvalidCharacterError supprimée');
-    event.preventDefault();
-    event.stopPropagation();
-    return;
-  }
   console.error('❌ Erreur globale:', event.error);
 });
 
-// 🔧 PROTECTION DES PROMESSES REJETÉES
 window.addEventListener('unhandledrejection', (event) => {
-  const message = event.reason?.message || '';
-  if (
-    message.includes('InvalidCharacterError') ||
-    message.includes('createElement') ||
-    message.includes('tag name provided')
-  ) {
-    console.info('🛡️ [INTERCEPTÉ] Promise rejetée InvalidCharacterError supprimée');
-    event.preventDefault();
-    return;
-  }
   console.error('❌ Promise rejetée:', event.reason);
 });
 
-// 🚀 DÉMARRER L'APPLICATION
-renderApp();
-
-// 🔧 DEBUG INFO
-console.log('🚀 Index.jsx chargé - Version simple');
+// Debug info
+console.log('🚀 Index.jsx chargé - Synergia v3.5');
 console.log('📍 Environment:', import.meta.env.MODE);
-console.log('✅ Application prête');
