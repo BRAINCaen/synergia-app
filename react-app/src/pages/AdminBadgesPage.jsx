@@ -13,6 +13,8 @@ const AdminBadgesPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingBadge, setEditingBadge] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [showBadgeSelector, setShowBadgeSelector] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
   
   const [badgeForm, setBadgeForm] = useState({
     name: '',
@@ -110,7 +112,7 @@ const AdminBadgesPage = () => {
     }
   };
 
-  const handleEdit = (badge) => {
+  const handleCreate = () => {
     console.log('✏️ Édition:', badge.name);
     setBadgeForm({
       name: badge.name || '',
@@ -124,7 +126,21 @@ const AdminBadgesPage = () => {
     setShowModal(true);
   };
 
-  const handleCreate = () => {
+  const handleAwardBadge = (userId, badgeId) => {
+    const user = users.find(u => u.id === userId);
+    const badge = badges.find(b => b.id === badgeId);
+    
+    if (user && badge) {
+      console.log('✅ Attribution:', { user: user.email, badge: badge.name });
+      alert(`Badge "${badge.name}" attribué à ${user.displayName || user.email} !`);
+      
+      // TODO: Ici vous pourriez ajouter la logique Firebase pour sauvegarder l'attribution
+      // Par exemple : await addDoc(collection(db, 'user_badges'), { userId, badgeId, awardedAt: new Date() });
+    }
+    
+    setShowBadgeSelector(false);
+    setSelectedUser(null);
+  };
     console.log('➕ Création');
     setBadgeForm({ name: '', description: '', icon: '🏆', type: 'achievement', xpReward: 10, isActive: true });
     setEditingBadge(null);
@@ -387,29 +403,13 @@ const AdminBadgesPage = () => {
                             onClick={() => {
                               console.log('🏆 Attribuer badge à:', userData.email);
                               
-                              // Sélectionner un badge à attribuer
                               if (badges.length === 0) {
                                 alert('Aucun badge disponible. Créez d\'abord un badge !');
                                 return;
                               }
                               
-                              const badgeNames = badges.map(b => `${b.icon} ${b.name}`).join('\n');
-                              const selectedBadge = prompt(
-                                `Choisissez un badge à attribuer à ${userData.displayName || userData.email}:\n\n${badgeNames}\n\nTapez le nom du badge:`
-                              );
-                              
-                              if (selectedBadge) {
-                                const badge = badges.find(b => b.name.toLowerCase().includes(selectedBadge.toLowerCase()));
-                                if (badge) {
-                                  console.log('✅ Attribution:', { user: userData.email, badge: badge.name });
-                                  alert(`Badge "${badge.name}" attribué à ${userData.displayName || userData.email} !`);
-                                  
-                                  // TODO: Ici vous pourriez ajouter la logique Firebase pour sauvegarder l'attribution
-                                  // Par exemple : await addDoc(collection(db, 'user_badges'), { userId: userData.id, badgeId: badge.id, awardedAt: new Date() });
-                                } else {
-                                  alert('Badge non trouvé');
-                                }
-                              }
+                              setSelectedUser(userData);
+                              setShowBadgeSelector(true);
                             }}
                             className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm flex items-center justify-center gap-2"
                           >
@@ -431,6 +431,50 @@ const AdminBadgesPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de sélection de badge */}
+      {showBadgeSelector && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Attribuer un badge à {selectedUser.displayName || selectedUser.email}
+            </h3>
+            
+            <div className="space-y-3 mb-6">
+              {badges.map((badge) => (
+                <button
+                  key={badge.id}
+                  onClick={() => handleAwardBadge(selectedUser.id, badge.id)}
+                  className="w-full p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors text-left flex items-center gap-3"
+                >
+                  <div className="text-3xl">{badge.icon}</div>
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900">{badge.name}</h4>
+                    <p className="text-sm text-gray-600">{badge.description}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">{badge.type}</span>
+                      <span className="text-xs text-gray-500">{badge.xpReward} XP</span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  console.log('❌ Annulation attribution');
+                  setShowBadgeSelector(false);
+                  setSelectedUser(null);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal simple */}
       {showModal && (
