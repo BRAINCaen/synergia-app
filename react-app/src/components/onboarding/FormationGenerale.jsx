@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/onboarding/FormationGenerale.jsx
-// COMPOSANT FORMATION GÉNÉRALE BRAIN ESCAPE & QUIZ GAME
+// COMPOSANT FORMATION GÉNÉRALE BRAIN ESCAPE & QUIZ GAME - CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -33,7 +33,12 @@ import {
   UserCheck,
   Building,
   Wrench,
-  Sparkles
+  Sparkles,
+  Circle,
+  ChevronRight,
+  ChevronDown,
+  Plus,
+  RefreshCw
 } from 'lucide-react';
 
 import { useAuthStore } from '../../shared/stores/authStore.js';
@@ -115,259 +120,171 @@ const PHASE_TASKS = {
       icon: Eye,
       xp: 20,
       required: true,
-      estimatedTime: 120
+      estimatedTime: 90
     },
     {
-      id: 'observer_debriefing',
-      name: 'Observer le débriefing et la remise de photos',
-      icon: FileText,
-      xp: 10,
+      id: 'analyser_debriefing',
+      name: 'Analyser le débriefing et les retours client·e·s',
+      icon: MessageSquare,
+      xp: 15,
       required: true,
       estimatedTime: 60
     },
     {
-      id: 'gerer_paiement',
-      name: 'Comprendre la gestion du paiement et des extras',
-      icon: Trophy,
+      id: 'observer_upselling',
+      name: 'Observer les techniques d\'upselling et de vente',
+      icon: Target,
       xp: 10,
       required: true,
       estimatedTime: 45
-    },
-    {
-      id: 'accompagner_sortie',
-      name: 'Accompagner les client·e·s jusqu\'à leur sortie',
-      icon: CheckCircle,
-      xp: 5,
-      required: true,
-      estimatedTime: 30
-    },
-    {
-      id: 'types_clientele',
-      name: 'Identifier les différents types de clientèle et leurs besoins',
-      icon: Users,
-      xp: 15,
-      required: true,
-      estimatedTime: 90
     }
   ],
 
   securite_procedures: [
     {
-      id: 'connaitre_evacuation',
-      name: 'Connaître les procédures d\'évacuation et de sécurité',
+      id: 'consignes_securite',
+      name: 'Connaître les consignes de sécurité incendie/évacuation',
       icon: Shield,
-      xp: 20,
+      xp: 15,
       required: true,
       estimatedTime: 60
     },
     {
-      id: 'utiliser_materiel',
-      name: 'Savoir utiliser le matériel de sécurité (extincteur, etc.)',
-      icon: AlertCircle,
+      id: 'gestion_materiel',
+      name: 'Gestion et entretien du matériel (cadenas, objets, etc.)',
+      icon: Wrench,
       xp: 15,
-      required: true,
-      estimatedTime: 45
-    },
-    {
-      id: 'gestion_incidents',
-      name: 'Procédures en cas d\'incident ou d\'urgence médicale',
-      icon: Heart,
-      xp: 25,
       required: true,
       estimatedTime: 90
     },
     {
-      id: 'entretien_materiel',
-      name: 'Entretien et vérification du matériel',
-      icon: Settings,
-      xp: 10,
-      required: true,
-      estimatedTime: 60
-    },
-    {
-      id: 'hygiene_nettoyage',
-      name: 'Procédures d\'hygiène et de nettoyage',
-      icon: Sparkles,
+      id: 'procedures_urgence',
+      name: 'Procédures d\'urgence et contacts importants',
+      icon: AlertCircle,
       xp: 10,
       required: true,
       estimatedTime: 45
     },
     {
       id: 'ouverture_fermeture',
-      name: 'Procédures d\'ouverture et de fermeture',
+      name: 'Procédures d\'ouverture/fermeture du local',
       icon: Key,
       xp: 15,
       required: true,
-      estimatedTime: 90
+      estimatedTime: 75
     },
     {
-      id: 'gestion_cles',
-      name: 'Gestion et sécurisation des clés et accès',
-      icon: Shield,
-      xp: 5,
+      id: 'hygiene_nettoyage',
+      name: 'Règles d\'hygiène et procédures de nettoyage',
+      icon: Sparkles,
+      xp: 10,
       required: true,
-      estimatedTime: 30
+      estimatedTime: 60
     }
   ],
 
   formation_experience: [
     {
-      id: 'lire_scenario',
-      name: 'Lire le scénario complet et l\'objectif du jeu',
-      icon: BookOpen,
-      xp: 10,
-      required: true,
-      estimatedTime: 60
-    },
-    {
-      id: 'observer_session',
-      name: 'Observer une session animée par un·e Game Master confirmé·e',
-      icon: Eye,
-      xp: 20,
-      required: true,
-      estimatedTime: 120
-    },
-    {
-      id: 'apprendre_enigmes',
-      name: 'Apprendre toutes les énigmes, solutions et points d\'aide',
-      icon: Target,
-      xp: 25,
-      required: true,
-      estimatedTime: 180
-    },
-    {
-      id: 'maitriser_reset',
-      name: 'Maîtriser le reset de la salle ou du plateau',
-      icon: RotateCcw,
-      xp: 15,
-      required: true,
-      estimatedTime: 90
-    },
-    {
-      id: 'gestion_technique',
-      name: 'Prendre en main la gestion technique (caméras, indices, effets)',
-      icon: Settings,
-      xp: 20,
-      required: true,
-      estimatedTime: 120
-    },
-    {
-      id: 'animation_duo',
-      name: 'Animer une session en duo, puis en autonomie sous supervision',
-      icon: Users,
-      xp: 25,
+      id: 'escape_level1',
+      name: 'Maîtriser complètement 1 escape game (niveau débutant)',
+      icon: Gamepad2,
+      xp: 30,
       required: true,
       estimatedTime: 240
     },
     {
-      id: 'briefing_debriefing',
-      name: 'Effectuer un briefing et un débriefing complet',
-      icon: MessageSquare,
-      xp: 15,
-      required: true,
-      estimatedTime: 90
-    },
-    {
-      id: 'gerer_incident',
-      name: 'Gérer un incident fictif (clé cassée, client·e bloqué·e, bug technique)',
-      icon: AlertCircle,
+      id: 'quiz_categories',
+      name: 'Connaître les différentes catégories de quiz et leurs spécificités',
+      icon: BookOpen,
       xp: 20,
       required: true,
-      estimatedTime: 60
+      estimatedTime: 120
     },
     {
-      id: 'session_complete',
-      name: 'Réaliser une session complète validée par un·e référent·e',
-      icon: Trophy,
-      xp: 30,
+      id: 'animation_basic',
+      name: 'Animer une session avec accompagnement',
+      icon: Users,
+      xp: 25,
       required: true,
       estimatedTime: 180
+    },
+    {
+      id: 'gestion_indices',
+      name: 'Gérer les indices et accompagner les équipes',
+      icon: Lightbulb,
+      xp: 20,
+      required: true,
+      estimatedTime: 150
+    },
+    {
+      id: 'troubleshooting',
+      name: 'Résoudre les problèmes techniques courants',
+      icon: Settings,
+      xp: 25,
+      required: true,
+      estimatedTime: 120
     }
   ],
 
   taches_quotidien: [
     {
-      id: 'ouverture_quotidienne',
-      name: 'Effectuer l\'ouverture quotidienne',
-      icon: Play,
-      xp: 10,
-      required: true,
-      estimatedTime: 30
-    },
-    {
-      id: 'check_materiel',
-      name: 'Vérifier l\'état du matériel et signaler les dysfonctionnements',
-      icon: CheckCircle,
-      xp: 10,
-      required: true,
-      estimatedTime: 45
-    },
-    {
-      id: 'nettoyage_reset',
-      name: 'Effectuer le nettoyage et le reset entre chaque session',
-      icon: RotateCcw,
-      xp: 5,
-      required: true,
-      estimatedTime: 30
-    },
-    {
       id: 'gestion_planning',
-      name: 'Consulter et comprendre le planning du jour',
+      name: 'Gérer les plannings et les réservations',
       icon: Calendar,
-      xp: 5,
+      xp: 15,
       required: true,
-      estimatedTime: 15
+      estimatedTime: 90
     },
     {
-      id: 'communication_equipe',
-      name: 'Communiquer efficacement avec l\'équipe (Slack, briefings)',
+      id: 'accueil_telephonique',
+      name: 'Assurer l\'accueil téléphonique et mail',
       icon: MessageSquare,
       xp: 10,
       required: true,
-      estimatedTime: 30
+      estimatedTime: 60
     },
     {
-      id: 'fermeture_quotidienne',
-      name: 'Effectuer la fermeture quotidienne',
-      icon: Pause,
-      xp: 10,
+      id: 'gestion_caisse',
+      name: 'Gérer la caisse et les modes de paiement',
+      icon: Target,
+      xp: 15,
       required: true,
-      estimatedTime: 45
+      estimatedTime: 75
     },
     {
-      id: 'gestion_stocks',
-      name: 'Vérifier et signaler les besoins en stocks',
-      icon: BadgeIcon,
-      xp: 5,
+      id: 'preparation_salles',
+      name: 'Préparer et reset les salles entre les sessions',
+      icon: RotateCcw,
+      xp: 15,
       required: true,
-      estimatedTime: 20
+      estimatedTime: 90
     },
     {
-      id: 'rapport_incidents',
-      name: 'Rédiger un rapport en cas d\'incident ou de problème',
+      id: 'reporting',
+      name: 'Effectuer le reporting quotidien d\'activité',
       icon: FileText,
       xp: 10,
       required: true,
-      estimatedTime: 30
+      estimatedTime: 45
     }
   ],
 
   soft_skills: [
     {
-      id: 'communication_bienveillante',
-      name: 'Développer une communication bienveillante et inclusive',
-      icon: Heart,
+      id: 'communication_equipe',
+      name: 'Communiquer efficacement avec l\'équipe',
+      icon: Users,
       xp: 15,
       required: true,
       estimatedTime: 90
     },
     {
       id: 'gestion_stress',
-      name: 'Techniques de gestion du stress et de la pression',
-      icon: Zap,
+      name: 'Gérer le stress et les situations tendues',
+      icon: Heart,
       xp: 15,
       required: true,
-      estimatedTime: 60
+      estimatedTime: 120
     },
     {
       id: 'adaptation_public',
@@ -375,43 +292,35 @@ const PHASE_TASKS = {
       icon: Users,
       xp: 20,
       required: true,
-      estimatedTime: 120
+      estimatedTime: 150
     },
     {
-      id: 'resolution_conflits',
-      name: 'Gérer les conflits et les situations difficiles',
-      icon: Shield,
-      xp: 20,
+      id: 'prise_initiative',
+      name: 'Prendre des initiatives et proposer des améliorations',
+      icon: Lightbulb,
+      xp: 15,
       required: true,
       estimatedTime: 90
     },
     {
-      id: 'travail_equipe',
-      name: 'Renforcer l\'esprit d\'équipe et la collaboration',
-      icon: Users,
-      xp: 10,
-      required: true,
-      estimatedTime: 60
-    },
-    {
-      id: 'prise_initiative',
-      name: 'Développer la prise d\'initiative et l\'autonomie',
-      icon: Star,
-      xp: 15,
-      required: true,
-      estimatedTime: 60
-    },
-    {
       id: 'feedback_constructif',
-      name: 'Donner et recevoir un feedback constructif',
+      name: 'Donner et recevoir des feedbacks constructifs',
       icon: MessageSquare,
       xp: 10,
       required: true,
-      estimatedTime: 45
+      estimatedTime: 60
     }
   ],
 
   validation_finale: [
+    {
+      id: 'evaluation_pratique',
+      name: 'Évaluation pratique complète sur plusieurs jeux',
+      icon: Trophy,
+      xp: 50,
+      required: true,
+      estimatedTime: 180
+    },
     {
       id: 'entretien_final',
       name: 'Entretien final avec le·la manager',
@@ -460,6 +369,7 @@ const FormationGenerale = () => {
   const [loading, setLoading] = useState(true);
   const [formationData, setFormationData] = useState(null);
   const [activePhase, setActivePhase] = useState('decouverte_brain');
+  const [expandedPhases, setExpandedPhases] = useState(['decouverte_brain']);
   const [stats, setStats] = useState({
     totalTasks: 0,
     completedTasks: 0,
@@ -562,12 +472,17 @@ const FormationGenerale = () => {
           earnedXP += task.xp;
         }
       });
+
+      // Vérifier si la phase est complétée
+      const phaseTasksCompleted = phaseTasks.filter(task => 
+        phaseData?.tasks?.[task.id]?.completed
+      ).length;
       
-      if (phaseData?.completed) {
+      if (phaseTasksCompleted === phaseTasks.length) {
         completedPhases++;
-        const phaseInfo = Object.values(ONBOARDING_PHASES).find(p => p.id === phaseId);
-        if (phaseInfo?.badge) {
-          earnedBadges.push(phaseInfo.badge);
+        const phase = Object.values(ONBOARDING_PHASES).find(p => p.id === phaseId);
+        if (phase?.badge) {
+          earnedBadges.push(phase.badge);
         }
       }
     });
@@ -582,245 +497,295 @@ const FormationGenerale = () => {
     });
   };
 
-  // 🎨 Icône de phase
-  const getPhaseIcon = (phaseId) => {
-    const phase = Object.values(ONBOARDING_PHASES).find(p => p.id === phaseId);
-    return phase?.icon || BookOpen;
+  // 🔄 Toggle expansion d'une phase
+  const togglePhaseExpansion = (phaseId) => {
+    setExpandedPhases(prev => 
+      prev.includes(phaseId)
+        ? prev.filter(id => id !== phaseId)
+        : [...prev, phaseId]
+    );
   };
 
-  // 🔄 Charger les données au montage
+  // 🎯 Charger les données au montage
   useEffect(() => {
     loadFormationData();
   }, [loadFormationData]);
 
+  // ⏳ État de chargement
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Chargement de votre formation...</p>
+          <RefreshCw className="h-8 w-8 text-blue-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-300">Chargement de votre parcours formation...</p>
         </div>
       </div>
     );
   }
 
-  // Si aucun profil de formation n'existe
+  // 📝 État sans données - Proposition de création
   if (!formationData) {
     return (
       <div className="text-center py-12">
-        <div className="text-6xl mb-6">🧠</div>
-        <h3 className="text-xl font-semibold text-white mb-4">
-          Formation Générale Brain Escape & Quiz Game
-        </h3>
-        <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
-          Bienvenue dans ton parcours d'intégration complet ! Tu vas découvrir l'univers Brain, 
-          maîtriser toutes les expériences et développer tes compétences de Game Master. <br/>
-          <strong className="text-purple-400">1 mois de parcours avec XP, badges et certification !</strong>
-        </p>
-        <button
-          onClick={initializeFormationProfile}
-          className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:shadow-lg transition-all"
-        >
-          🚀 Commencer ma Formation
-        </button>
+        <div className="mb-8">
+          <BookOpen className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+          <h3 className="text-2xl font-bold text-white mb-4">
+            Commencez votre Formation Brain !
+          </h3>
+          <p className="text-gray-400 mb-8">
+            Créez votre profil de formation personnalisé pour commencer votre parcours Game Master.
+          </p>
+          <button
+            onClick={initializeFormationProfile}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
+          >
+            🚀 Commencer la Formation
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      
-      {/* 📊 Statistiques de progression */}
-      <div className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-6">
-        <h2 className="text-2xl font-bold text-white mb-4">
-          🧠 Ta Progression Formation Brain
+      {/* 📊 Header avec statistiques */}
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-white mb-4">
+          🧠 Formation Générale Brain
         </h2>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-black/20 rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-blue-400">
-              {stats.completedTasks}/{stats.totalTasks}
-            </div>
-            <div className="text-sm text-gray-300">Tâches</div>
+        <p className="text-gray-400 mb-6">
+          Parcours d'intégration complet avec 7 phases progressives
+        </p>
+
+        {/* Statistiques globales */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-blue-900/30 rounded-lg p-4 text-center">
+            <div className="text-2xl font-bold text-blue-400">{stats.completedTasks}</div>
+            <div className="text-sm text-gray-400">/{stats.totalTasks} Tâches</div>
           </div>
-          
-          <div className="bg-black/20 rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-green-400">
-              {stats.earnedXP}/{stats.totalXP}
-            </div>
-            <div className="text-sm text-gray-300">XP</div>
+          <div className="bg-green-900/30 rounded-lg p-4 text-center">
+            <div className="text-2xl font-bold text-green-400">{stats.earnedXP}</div>
+            <div className="text-sm text-gray-400">/{stats.totalXP} XP</div>
           </div>
-          
-          <div className="bg-black/20 rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-purple-400">
-              {stats.completedPhases}/7
-            </div>
-            <div className="text-sm text-gray-300">Phases</div>
+          <div className="bg-purple-900/30 rounded-lg p-4 text-center">
+            <div className="text-2xl font-bold text-purple-400">{stats.completedPhases}</div>
+            <div className="text-sm text-gray-400">/7 Phases</div>
           </div>
-          
-          <div className="bg-black/20 rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-yellow-400">
-              {stats.earnedBadges.length}
-            </div>
-            <div className="text-sm text-gray-300">Badges</div>
+          <div className="bg-yellow-900/30 rounded-lg p-4 text-center">
+            <div className="text-2xl font-bold text-yellow-400">{stats.earnedBadges.length}</div>
+            <div className="text-sm text-gray-400">Badges</div>
           </div>
         </div>
 
         {/* Barre de progression globale */}
-        <div className="mt-4">
-          <div className="flex justify-between text-sm text-gray-300 mb-2">
-            <span>Progression globale</span>
-            <span>{stats.totalTasks > 0 ? Math.round((stats.completedTasks / stats.totalTasks) * 100) : 0}%</span>
+        <div className="max-w-2xl mx-auto">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-gray-300">Progression Globale</span>
+            <span className="text-gray-400">
+              {Math.round((stats.completedTasks / stats.totalTasks) * 100)}%
+            </span>
           </div>
           <div className="w-full bg-gray-700 rounded-full h-3">
             <div 
               className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500"
-              style={{ width: `${stats.totalTasks > 0 ? (stats.completedTasks / stats.totalTasks) * 100 : 0}%` }}
-            />
+              style={{ width: `${(stats.completedTasks / stats.totalTasks) * 100}%` }}
+            ></div>
           </div>
         </div>
       </div>
 
-      {/* 🎯 Navigation des phases */}
-      <div className="bg-gray-800 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">Phases de Formation</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          {Object.values(ONBOARDING_PHASES)
-            .sort((a, b) => a.order - b.order)
-            .map(phase => {
-              const phaseData = formationData.phases?.[phase.id];
-              const isActive = activePhase === phase.id;
-              const isCompleted = phaseData?.completed;
-              const IconComponent = getPhaseIcon(phase.id);
-
-              return (
-                <button
-                  key={phase.id}
-                  onClick={() => setActivePhase(phase.id)}
-                  className={`p-3 rounded-lg text-left transition-all ${
-                    isActive
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                      : isCompleted
-                      ? 'bg-green-600/20 text-green-400 border border-green-500/30'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <IconComponent className="h-4 w-4" />
-                    <span className="text-xs font-medium">
-                      Phase {phase.order}
-                    </span>
-                    {isCompleted && <CheckCircle className="h-4 w-4 text-green-400" />}
-                  </div>
-                  <div className="text-sm font-medium truncate">
-                    {phase.name}
-                  </div>
-                </button>
-              );
-            })}
-        </div>
-      </div>
-
-      {/* 📋 Contenu de la phase active */}
-      <div className="bg-gray-800 rounded-lg p-6">
-        {(() => {
-          const currentPhase = Object.values(ONBOARDING_PHASES).find(p => p.id === activePhase);
-          const currentPhaseTasks = PHASE_TASKS[activePhase] || [];
-          const phaseData = formationData.phases?.[activePhase];
+      {/* 📋 Phases de formation */}
+      <div className="space-y-4">
+        {Object.values(ONBOARDING_PHASES).map((phase, index) => {
+          const phaseTasks = PHASE_TASKS[phase.id] || [];
+          const phaseData = formationData.phases?.[phase.id];
+          const isExpanded = expandedPhases.includes(phase.id);
+          
+          // Calculer la progression de cette phase
+          const completedPhasesTasks = phaseTasks.filter(task => 
+            phaseData?.tasks?.[task.id]?.completed
+          ).length;
+          const phaseProgress = phaseTasks.length > 0 
+            ? (completedPhasesTasks / phaseTasks.length) * 100 
+            : 0;
+          
+          const isPhaseComplete = completedPhasesTasks === phaseTasks.length;
 
           return (
-            <div>
+            <div 
+              key={phase.id}
+              className={`bg-gray-800/50 rounded-lg border transition-all duration-200 ${
+                isPhaseComplete 
+                  ? 'border-green-500/50 bg-green-900/10' 
+                  : 'border-gray-700/50'
+              }`}
+            >
               {/* En-tête de phase */}
-              <div className="mb-6">
-                <div className="flex items-center gap-3 mb-3">
-                  {(() => {
-                    const IconComponent = getPhaseIcon(activePhase);
-                    return <IconComponent className="h-8 w-8 text-blue-400" />;
-                  })()}
-                  <h3 className="text-2xl font-bold text-white">
-                    {currentPhase?.name}
-                  </h3>
-                  {phaseData?.completed && (
-                    <div className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm">
-                      ✅ Terminé
+              <div 
+                className="p-6 cursor-pointer"
+                onClick={() => togglePhaseExpansion(phase.id)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${phase.color} flex items-center justify-center text-white font-bold text-lg`}>
+                      {phase.icon}
                     </div>
-                  )}
+                    <div>
+                      <h3 className="text-xl font-semibold text-white">{phase.name}</h3>
+                      <p className="text-gray-400 text-sm">{phase.description}</p>
+                      <div className="flex items-center space-x-4 mt-2 text-sm">
+                        <span className="text-blue-400">
+                          {completedPhasesTasks}/{phaseTasks.length} tâches
+                        </span>
+                        <span className="text-green-400">
+                          {phase.xpTotal} XP
+                        </span>
+                        <span className="text-purple-400">
+                          ~{phase.duration} jours
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    {isPhaseComplete && (
+                      <CheckCircle className="h-6 w-6 text-green-400" />
+                    )}
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-white">
+                        {Math.round(phaseProgress)}%
+                      </div>
+                      {isExpanded ? (
+                        <ChevronDown className="h-5 w-5 text-gray-400" />
+                      ) : (
+                        <ChevronRight className="h-5 w-5 text-gray-400" />
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <p className="text-gray-400 mb-4">
-                  {currentPhase?.description}
-                </p>
-                <div className="flex items-center gap-4 text-sm text-gray-500">
-                  <span>🎯 {currentPhaseTasks.length} tâches</span>
-                  <span>⚡ {currentPhaseTasks.reduce((sum, task) => sum + task.xp, 0)} XP</span>
-                  <span>🕒 {currentPhase?.duration} jours</span>
+
+                {/* Barre de progression de phase */}
+                <div className="mt-4">
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div 
+                      className={`bg-gradient-to-r ${phase.color} h-2 rounded-full transition-all duration-500`}
+                      style={{ width: `${phaseProgress}%` }}
+                    ></div>
+                  </div>
                 </div>
               </div>
 
-              {/* Liste des tâches */}
-              <div className="space-y-3">
-                {currentPhaseTasks.map(task => {
-                  const taskData = phaseData?.tasks?.[task.id];
-                  const isCompleted = taskData?.completed;
-                  const IconComponent = task.icon;
+              {/* Contenu détaillé de la phase */}
+              {isExpanded && (
+                <div className="px-6 pb-6">
+                  <div className="border-t border-gray-700/50 pt-6">
+                    <div className="grid gap-3">
+                      {phaseTasks.map((task) => {
+                        const taskData = phaseData?.tasks?.[task.id];
+                        const isCompleted = taskData?.completed || false;
+                        const TaskIcon = task.icon;
 
-                  return (
-                    <div
-                      key={task.id}
-                      className={`p-4 rounded-lg border transition-all ${
-                        isCompleted
-                          ? 'bg-green-900/20 border-green-500/30'
-                          : 'bg-gray-700/50 border-gray-600 hover:border-gray-500'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <button
-                          onClick={() => toggleTask(activePhase, task.id)}
-                          className={`mt-1 p-2 rounded-lg transition-all ${
-                            isCompleted
-                              ? 'bg-green-500 text-white'
-                              : 'bg-gray-600 hover:bg-gray-500 text-gray-300'
-                          }`}
-                        >
-                          {isCompleted ? (
-                            <CheckCircle className="h-4 w-4" />
-                          ) : (
-                            <IconComponent className="h-4 w-4" />
-                          )}
-                        </button>
+                        return (
+                          <div 
+                            key={task.id}
+                            className={`flex items-center space-x-4 p-4 rounded-lg transition-all duration-200 ${
+                              isCompleted 
+                                ? 'bg-green-900/20 border border-green-500/30' 
+                                : 'bg-gray-700/30 border border-gray-600/30 hover:bg-gray-600/30'
+                            }`}
+                          >
+                            <button
+                              onClick={() => toggleTask(phase.id, task.id)}
+                              className={`flex-shrink-0 w-6 h-6 rounded-full border-2 transition-all duration-200 ${
+                                isCompleted
+                                  ? 'bg-green-500 border-green-500'
+                                  : 'border-gray-400 hover:border-blue-400'
+                              }`}
+                            >
+                              {isCompleted && (
+                                <CheckCircle className="w-6 h-6 text-white" />
+                              )}
+                            </button>
 
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className={`font-medium ${
-                              isCompleted ? 'text-green-400' : 'text-white'
-                            }`}>
-                              {task.name}
-                            </h4>
-                            {task.required && (
-                              <span className="bg-red-500/20 text-red-400 px-2 py-1 rounded text-xs">
-                                Obligatoire
-                              </span>
+                            <div className="flex-shrink-0">
+                              <TaskIcon className={`h-5 w-5 ${
+                                isCompleted ? 'text-green-400' : 'text-gray-400'
+                              }`} />
+                            </div>
+
+                            <div className="flex-1">
+                              <div className={`font-medium ${
+                                isCompleted ? 'text-green-300 line-through' : 'text-white'
+                              }`}>
+                                {task.name}
+                              </div>
+                              <div className="flex items-center space-x-4 mt-1 text-sm">
+                                <span className="text-blue-400">
+                                  +{task.xp} XP
+                                </span>
+                                <span className="text-gray-400 flex items-center">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  ~{task.estimatedTime}min
+                                </span>
+                                {task.required && (
+                                  <span className="bg-red-500/20 text-red-400 px-2 py-1 rounded text-xs">
+                                    Obligatoire
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {isCompleted && taskData?.completionDate && (
+                              <div className="text-xs text-gray-400">
+                                Complété le {new Date(taskData.completionDate).toLocaleDateString('fr-FR')}
+                              </div>
                             )}
                           </div>
+                        );
+                      })}
+                    </div>
 
-                          <div className="flex items-center gap-4 text-sm text-gray-400">
-                            <span>⚡ +{task.xp} XP</span>
-                            <span>🕒 ~{task.estimatedTime}min</span>
-                            {isCompleted && taskData.completionDate && (
-                              <span className="text-green-400">
-                                ✅ {new Date(taskData.completionDate).toLocaleDateString('fr-FR')}
-                              </span>
-                            )}
+                    {/* Badge de phase */}
+                    {isPhaseComplete && phase.badge && (
+                      <div className="mt-6 p-4 bg-gradient-to-r from-yellow-900/30 to-orange-900/30 rounded-lg border border-yellow-500/30">
+                        <div className="flex items-center space-x-3">
+                          <Award className="h-6 w-6 text-yellow-400" />
+                          <div>
+                            <div className="font-semibold text-yellow-400">Badge débloqué !</div>
+                            <div className="text-yellow-300">{phase.badge}</div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           );
-        })()}
+        })}
+      </div>
+
+      {/* 🏆 Actions rapides */}
+      <div className="mt-8 text-center space-y-4">
+        <button
+          onClick={() => loadFormationData()}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg mr-4 transition-colors"
+        >
+          <RefreshCw className="h-4 w-4 inline mr-2" />
+          Actualiser
+        </button>
+        
+        {stats.completedPhases === 7 && (
+          <div className="bg-gradient-to-r from-green-900/50 to-emerald-900/50 rounded-lg p-6 border border-green-500/30">
+            <Trophy className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold text-white mb-2">
+              🎉 Félicitations !
+            </h3>
+            <p className="text-green-300">
+              Vous avez terminé toute la formation générale Brain !<br/>
+              Vous êtes maintenant un·e Game Master certifié·e.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
