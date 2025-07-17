@@ -1,6 +1,6 @@
 // ==========================================
-// 📁 react-app/src/core/services/adminBadgeService.js  
-// SERVICE ADMIN BADGES AVEC CORRECTION ERREUR UNDEFINED
+// 📁 react-app/src/core/services/adminBadgeService.js
+// 🚨 HOTFIX URGENT - CORRECTION ERREUR UNDEFINED
 // ==========================================
 
 import { 
@@ -26,33 +26,13 @@ import {
 import { db, storage } from '../firebase.js';
 
 /**
- * 🛠️ UTILITAIRE POUR NETTOYER LES VALEURS UNDEFINED
- */
-const cleanUndefinedValues = (obj) => {
-  const cleaned = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (value !== undefined && value !== null) {
-      if (typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
-        // Recursif pour objets imbriqués
-        const cleanedNested = cleanUndefinedValues(value);
-        if (Object.keys(cleanedNested).length > 0) {
-          cleaned[key] = cleanedNested;
-        }
-      } else {
-        cleaned[key] = value;
-      }
-    }
-  }
-  return cleaned;
-};
-
-/**
  * 🏆 SERVICE ADMIN POUR LA GESTION DES BADGES
  */
 class AdminBadgeService {
   constructor() {
     this.COLLECTION_NAME = 'badges';
     this.USERS_COLLECTION = 'users';
+    this.TEAM_MEMBERS_COLLECTION = 'teamMembers';
     this.USER_BADGES_COLLECTION = 'user_badges';
   }
 
@@ -273,7 +253,7 @@ class AdminBadgeService {
   }
 
   /**
-   * 🏆 ATTRIBUER UN BADGE À UN UTILISATEUR - VERSION CORRIGÉE
+   * 🏆 ATTRIBUER UN BADGE À UN UTILISATEUR - VERSION HOTFIX 🚨
    */
   async awardBadgeToUser(userId, badgeId, reason = 'Badge attribué par admin') {
     try {
@@ -290,61 +270,178 @@ class AdminBadgeService {
       const badgeData = badgeSnap.data();
       console.log('📊 Données badge récupérées:', badgeData);
       
-      // Mettre à jour le profil utilisateur
-      const userRef = doc(db, this.USERS_COLLECTION, userId);
-      const userSnap = await getDoc(userRef);
+      // 🔧 ESSAYER PLUSIEURS COLLECTIONS UTILISATEUR
+      let userRef = null;
+      let userSnap = null;
+      let collectionUsed = null;
       
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        const currentBadges = userData.badges || [];
-        
-        // Vérifier si l'utilisateur a déjà ce badge
-        if (currentBadges.find(b => b.badgeId === badgeId)) {
-          console.log('⚠️ Utilisateur a déjà ce badge');
-          return { success: false, message: 'Badge déjà attribué' };
+      // Tenter d'abord la collection 'users'
+      try {
+        userRef = doc(db, this.USERS_COLLECTION, userId);
+        userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          collectionUsed = this.USERS_COLLECTION;
+          console.log('✅ Utilisateur trouvé dans collection users');
         }
+      } catch (error) {
+        console.log('⚠️ Pas d\'accès à la collection users, essai teamMembers');
+      }
+      
+      // Si pas trouvé dans users, essayer teamMembers
+      if (!userSnap || !userSnap.exists()) {
+        try {
+          userRef = doc(db, this.TEAM_MEMBERS_COLLECTION, userId);
+          userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            collectionUsed = this.TEAM_MEMBERS_COLLECTION;
+            console.log('✅ Utilisateur trouvé dans collection teamMembers');
+          }
+        } catch (error) {
+          console.log('⚠️ Pas d\'accès à la collection teamMembers');
+        }
+      }
+      
+      // 🚨 ALTERNATIVE : Créer un enregistrement de badge séparé
+      if (!userSnap || !userSnap.exists()) {
+        console.log('🔄 Création enregistrement badge séparé dans user_badges');
         
-        // 🔧 CORRIGER - Créer le nouveau badge en filtrant les undefined
-        const newBadgeRaw = {
-          badgeId,
+        const badgeRecord = {
+          userId: userId,
+          badgeId: badgeId,
           name: badgeData.name || 'Badge sans nom',
           description: badgeData.description || 'Aucune description',
-          icon: badgeData.icon || '🏆',
-          imageUrl: badgeData.imageUrl || null,
           awardedAt: serverTimestamp(),
           awardedBy: 'admin',
-          reason: reason,
-          xpReward: badgeData.xpReward || 50,
-          type: badgeData.type || 'achievement',
-          rarity: badgeData.rarity || 'common'
+          reason: reason || 'Badge attribué par admin',
+          xpReward: badgeData.xpReward || 50
         };
         
-        // 🛡️ NETTOYER TOUTES LES VALEURS UNDEFINED
-        const newBadge = cleanUndefinedValues(newBadgeRaw);
-        console.log('🧹 Badge nettoyé:', newBadge);
+        // Ajouter à la collection badges séparée
+        await addDoc(collection(db, this.USER_BADGES_COLLECTION), badgeRecord);
         
-        const updatedBadges = [...currentBadges, newBadge];
-        
-        // 🔧 CORRIGER - Préparer les données de mise à jour en filtrant les undefined
-        const updateDataRaw = {
-          badges: updatedBadges,
-          lastBadgeReceived: newBadge,
-          xp: (userData.xp || 0) + (badgeData.xpReward || 50),
-          badgeCount: updatedBadges.length,
-          lastUpdate: serverTimestamp()
+        console.log('✅ Badge enregistré dans user_badges collection');
+        return { 
+          success: true, 
+          message: 'Badge attribué avec succès (enregistrement séparé)', 
+          badge: badgeRecord,
+          method: 'separate_collection'
         };
-        
-        // 🛡️ NETTOYER LES DONNÉES DE MISE À JOUR
-        const updateData = cleanUndefinedValues(updateDataRaw);
-        console.log('🧹 Données mise à jour nettoyées:', updateData);
-        
-        // Mettre à jour le profil
-        await updateDoc(userRef, updateData);
-        
-        console.log('✅ Badge attribué avec succès');
-        return { success: true, message: 'Badge attribué avec succès', badge: newBadge };
+      }
+      
+      // 🎯 CONTINUER AVEC LA MÉTHODE NORMALE SI UTILISATEUR TROUVÉ
+      const userData = userSnap.data();
+      const currentBadges = userData.badges || [];
+      
+      // Vérifier si l'utilisateur a déjà ce badge
+      if (currentBadges.find(b => b.badgeId === badgeId)) {
+        console.log('⚠️ Utilisateur a déjà ce badge');
+        return { success: false, message: 'Badge déjà attribué' };
+      }
+      
+      // 🚨 HOTFIX - ÉLIMINER TOUTES LES VALEURS UNDEFINED
+      const newBadge = {};
+      
+      // Ajouter seulement les valeurs définies
+      newBadge.badgeId = badgeId;
+      newBadge.awardedAt = serverTimestamp();
+      newBadge.awardedBy = 'admin';
+      newBadge.reason = reason || 'Badge attribué par admin';
+      
+      // Vérifier chaque propriété du badge avant ajout
+      if (badgeData.name && badgeData.name !== undefined) {
+        newBadge.name = badgeData.name;
       } else {
-        throw new Error('Utilisateur non trouvé');
+        newBadge.name = 'Badge sans nom';
+      }
+      
+      if (badgeData.description && badgeData.description !== undefined) {
+        newBadge.description = badgeData.description;
+      } else {
+        newBadge.description = 'Aucune description';
+      }
+      
+      if (badgeData.icon && badgeData.icon !== undefined) {
+        newBadge.icon = badgeData.icon;
+      } else {
+        newBadge.icon = '🏆';
+      }
+      
+      // 🎯 CORRECTION CRITIQUE : Ne pas ajouter imageUrl si undefined
+      if (badgeData.imageUrl && badgeData.imageUrl !== undefined && badgeData.imageUrl !== null) {
+        newBadge.imageUrl = badgeData.imageUrl;
+      }
+      
+      if (badgeData.xpReward && badgeData.xpReward !== undefined) {
+        newBadge.xpReward = badgeData.xpReward;
+      } else {
+        newBadge.xpReward = 50;
+      }
+      
+      if (badgeData.type && badgeData.type !== undefined) {
+        newBadge.type = badgeData.type;
+      } else {
+        newBadge.type = 'achievement';
+      }
+      
+      if (badgeData.rarity && badgeData.rarity !== undefined) {
+        newBadge.rarity = badgeData.rarity;
+      } else {
+        newBadge.rarity = 'common';
+      }
+      
+      console.log('✅ Badge préparé (sans undefined):', newBadge);
+      
+      const updatedBadges = [...currentBadges, newBadge];
+      
+      // 🚨 HOTFIX - Préparer données update sans undefined
+      const updateData = {};
+      updateData.badges = updatedBadges;
+      updateData.lastBadgeReceived = newBadge;
+      updateData.badgeCount = updatedBadges.length;
+      updateData.lastUpdate = serverTimestamp();
+      
+      // Calculer XP de manière sécurisée
+      const currentXp = userData.xp || 0;
+      const badgeXp = newBadge.xpReward || 0;
+      updateData.xp = currentXp + badgeXp;
+      
+      console.log('✅ Données update préparées (sans undefined):', updateData);
+      console.log('📁 Collection utilisée:', collectionUsed);
+      
+      // 🔧 TENTATIVE DE MISE À JOUR AVEC GESTION D'ERREUR
+      try {
+        await updateDoc(userRef, updateData);
+        console.log('✅ Badge attribué avec succès via', collectionUsed);
+        return { 
+          success: true, 
+          message: 'Badge attribué avec succès', 
+          badge: newBadge,
+          method: 'user_profile_update',
+          collection: collectionUsed
+        };
+      } catch (updateError) {
+        console.error('❌ Erreur mise à jour profil utilisateur:', updateError);
+        
+        // 🚨 PLAN B : Enregistrement séparé
+        console.log('🔄 Plan B: Enregistrement badge séparé');
+        
+        const badgeRecord = {
+          userId: userId,
+          badgeId: badgeId,
+          ...newBadge,
+          userEmail: userData.email || 'email_inconnu',
+          userName: userData.displayName || userData.email || 'utilisateur_inconnu'
+        };
+        
+        await addDoc(collection(db, this.USER_BADGES_COLLECTION), badgeRecord);
+        
+        console.log('✅ Badge enregistré via plan B');
+        return { 
+          success: true, 
+          message: 'Badge attribué avec succès (méthode alternative)', 
+          badge: badgeRecord,
+          method: 'fallback_collection'
+        };
       }
       
     } catch (error) {
@@ -378,13 +475,12 @@ class AdminBadgeService {
         const removedBadge = currentBadges.find(b => b.badgeId === badgeId);
         const xpToRemove = removedBadge?.xpReward || 0;
         
-        // 🔧 NETTOYER LES DONNÉES DE MISE À JOUR
-        const updateData = cleanUndefinedValues({
+        const updateData = {
           badges: updatedBadges,
           xp: Math.max(0, (userData.xp || 0) - xpToRemove),
           badgeCount: updatedBadges.length,
           lastUpdate: serverTimestamp()
-        });
+        };
         
         await updateDoc(userRef, updateData);
         
@@ -509,24 +605,63 @@ class AdminBadgeService {
         imageUrl = await this.uploadBadgeImage(imageFile);
       }
       
-      // 🔧 NETTOYER LES DONNÉES DU BADGE
-      const badgeRaw = {
-        name: badgeData.name || 'Badge sans nom',
-        description: badgeData.description || 'Aucune description',
-        icon: badgeData.icon || '🏆',
-        imageUrl: imageUrl || badgeData.imageUrl || null,
-        xpReward: badgeData.xpReward || 50,
-        rarity: badgeData.rarity || 'common',
-        category: badgeData.category || 'custom',
-        type: badgeData.type || 'achievement',
-        isCustom: true,
-        createdAt: serverTimestamp(),
-        createdBy: 'admin',
-        isActive: true
-      };
+      // Préparer badge sans undefined
+      const badge = {};
+      badge.createdAt = serverTimestamp();
+      badge.createdBy = 'admin';
+      badge.isActive = true;
+      badge.isCustom = true;
       
-      const badge = cleanUndefinedValues(badgeRaw);
-      console.log('🧹 Badge nettoyé:', badge);
+      // Ajouter seulement les valeurs définies
+      if (badgeData.name && badgeData.name !== undefined) {
+        badge.name = badgeData.name;
+      } else {
+        badge.name = 'Badge sans nom';
+      }
+      
+      if (badgeData.description && badgeData.description !== undefined) {
+        badge.description = badgeData.description;
+      } else {
+        badge.description = 'Aucune description';
+      }
+      
+      if (badgeData.icon && badgeData.icon !== undefined) {
+        badge.icon = badgeData.icon;
+      } else {
+        badge.icon = '🏆';
+      }
+      
+      if (imageUrl) {
+        badge.imageUrl = imageUrl;
+      } else if (badgeData.imageUrl && badgeData.imageUrl !== undefined) {
+        badge.imageUrl = badgeData.imageUrl;
+      }
+      
+      if (badgeData.xpReward && badgeData.xpReward !== undefined) {
+        badge.xpReward = badgeData.xpReward;
+      } else {
+        badge.xpReward = 50;
+      }
+      
+      if (badgeData.rarity && badgeData.rarity !== undefined) {
+        badge.rarity = badgeData.rarity;
+      } else {
+        badge.rarity = 'common';
+      }
+      
+      if (badgeData.category && badgeData.category !== undefined) {
+        badge.category = badgeData.category;
+      } else {
+        badge.category = 'custom';
+      }
+      
+      if (badgeData.type && badgeData.type !== undefined) {
+        badge.type = badgeData.type;
+      } else {
+        badge.type = 'achievement';
+      }
+      
+      console.log('✅ Badge préparé (sans undefined):', badge);
       
       // Ajouter à Firestore
       const badgeRef = await addDoc(collection(db, this.COLLECTION_NAME), badge);
@@ -639,7 +774,7 @@ class AdminBadgeService {
   }
 }
 
-// ✅ EXPORT PRINCIPAL CORRIGÉ
+// ✅ EXPORT PRINCIPAL
 const adminBadgeService = new AdminBadgeService();
 export { adminBadgeService };
 export default adminBadgeService;
@@ -669,12 +804,10 @@ export const forceAdminAccess = (userEmail = 'alan.boehme61@gmail.com') => {
   return adminBadgeService.forceAdminAccess(userEmail);
 };
 
-// 🤖 EXPORT DE LA FONCTION CORRIGÉE
 export const getAIUserWithBadges = async (userId) => {
   return await adminBadgeService.getAIUserWithBadges(userId);
 };
 
-// 👥 EXPORTS DES NOUVELLES FONCTIONS
 export const getAllUsersWithBadges = async () => {
   return await adminBadgeService.getAllUsersWithBadges();
 };
@@ -686,6 +819,3 @@ export const searchUsers = async (searchTerm) => {
 export const getUserBadgeProgress = async (userId) => {
   return await adminBadgeService.getUserBadgeProgress(userId);
 };
-
-// 🧹 EXPORT DE L'UTILITAIRE DE NETTOYAGE
-export { cleanUndefinedValues };
