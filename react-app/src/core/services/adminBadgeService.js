@@ -301,30 +301,13 @@ class AdminBadgeService {
         }
       }
       
-      // 🚨 ALTERNATIVE : Créer un enregistrement de badge séparé
+      // 🚨 ALTERNATIVE : Enregistrement super simple
       if (!userSnap || !userSnap.exists()) {
-        console.log('🔄 Création enregistrement badge séparé dans user_badges');
-        
-        const badgeRecord = {
-          userId: userId,
-          badgeId: badgeId,
-          name: badgeData.name || 'Badge sans nom',
-          description: badgeData.description || 'Aucune description',
-          awardedAt: serverTimestamp(),
-          awardedBy: 'admin',
-          reason: reason || 'Badge attribué par admin',
-          xpReward: badgeData.xpReward || 50
-        };
-        
-        // Ajouter à la collection badges séparée
-        await addDoc(collection(db, this.USER_BADGES_COLLECTION), badgeRecord);
-        
-        console.log('✅ Badge enregistré dans user_badges collection');
+        console.log('❌ Utilisateur non trouvé dans aucune collection');
         return { 
-          success: true, 
-          message: 'Badge attribué avec succès (enregistrement séparé)', 
-          badge: badgeRecord,
-          method: 'separate_collection'
+          success: false, 
+          message: 'Utilisateur non trouvé - Contactez l\'administrateur',
+          method: 'user_not_found'
         };
       }
       
@@ -341,9 +324,9 @@ class AdminBadgeService {
       // 🚨 HOTFIX - ÉLIMINER TOUTES LES VALEURS UNDEFINED
       const newBadge = {};
       
-      // Ajouter seulement les valeurs définies
+      // 🎯 CORRECTION CRITIQUE : Utiliser Date au lieu de serverTimestamp dans tableau
       newBadge.badgeId = badgeId;
-      newBadge.awardedAt = serverTimestamp();
+      newBadge.awardedAt = new Date(); // ✅ Date normale au lieu de serverTimestamp
       newBadge.awardedBy = 'admin';
       newBadge.reason = reason || 'Badge attribué par admin';
       
@@ -398,7 +381,7 @@ class AdminBadgeService {
       updateData.badges = updatedBadges;
       updateData.lastBadgeReceived = newBadge;
       updateData.badgeCount = updatedBadges.length;
-      updateData.lastUpdate = serverTimestamp();
+      updateData.lastUpdate = new Date(); // ✅ Date normale pour éviter les erreurs serverTimestamp
       
       // Calculer XP de manière sécurisée
       const currentXp = userData.xp || 0;
@@ -422,25 +405,34 @@ class AdminBadgeService {
       } catch (updateError) {
         console.error('❌ Erreur mise à jour profil utilisateur:', updateError);
         
-        // 🚨 PLAN B : Enregistrement séparé
-        console.log('🔄 Plan B: Enregistrement badge séparé');
+        // 🚨 PLAN B : Enregistrement dans le profil utilisateur existant
+        console.log('🔄 Plan B: Ajout simple au profil utilisateur');
         
-        const badgeRecord = {
-          userId: userId,
+        // Utiliser seulement les champs autorisés
+        const simpleBadgeRecord = {
           badgeId: badgeId,
-          ...newBadge,
-          userEmail: userData.email || 'email_inconnu',
-          userName: userData.displayName || userData.email || 'utilisateur_inconnu'
+          name: newBadge.name,
+          awardedAt: new Date(),
+          awardedBy: 'admin',
+          xpReward: newBadge.xpReward
         };
         
-        await addDoc(collection(db, this.USER_BADGES_COLLECTION), badgeRecord);
+        // Essayer juste d'ajouter aux badges existants
+        const currentBadges = userData.badges || [];
+        const newBadgesList = [...currentBadges, simpleBadgeRecord];
         
-        console.log('✅ Badge enregistré via plan B');
+        // Mise à jour minimale
+        await updateDoc(userRef, {
+          badges: newBadgesList,
+          xp: (userData.xp || 0) + (newBadge.xpReward || 0)
+        });
+        
+        console.log('✅ Badge enregistré via plan B simplifié');
         return { 
           success: true, 
-          message: 'Badge attribué avec succès (méthode alternative)', 
-          badge: badgeRecord,
-          method: 'fallback_collection'
+          message: 'Badge attribué avec succès (méthode simplifiée)', 
+          badge: simpleBadgeRecord,
+          method: 'simplified_update'
         };
       }
       
