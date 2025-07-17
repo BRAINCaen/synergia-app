@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/onboardingService.js
-// SERVICE ONBOARDING FORMATION GÉNÉRALE BRAIN ESCAPE & QUIZ GAME
+// SERVICE ONBOARDING CORRIGÉ AVEC DEBUG
 // ==========================================
 
 import { 
@@ -19,7 +19,6 @@ import {
 } from 'firebase/firestore';
 
 import { db } from '../firebase.js';
-import { gamificationService } from './gamificationService.js';
 
 // 🎯 PHASES D'INTÉGRATION BRAIN ESCAPE & QUIZ GAME
 export const ONBOARDING_PHASES = {
@@ -106,26 +105,30 @@ class OnboardingService {
   constructor() {
     this.FORMATION_COLLECTION = 'onboardingFormation';
     this.INTERVIEWS_COLLECTION = 'onboardingInterviews';
+    console.log('🎯 OnboardingService initialisé');
   }
 
   /**
-   * 🚀 Créer un profil de formation vide
+   * 🚀 Créer un profil de formation vide - VERSION CORRIGÉE
    */
   async createFormationProfile(userId) {
     try {
-      console.log('🚀 Création profil formation pour:', userId);
+      console.log('🚀 [DEBUG] Début création profil formation pour userId:', userId);
       
-      // Supprimer l'ancien profil s'il existe
-      try {
-        const existingProfile = await this.getFormationProfile(userId);
-        if (existingProfile.success) {
-          console.log('🗑️ Suppression ancien profil formation');
-          await this.deleteFormationProfile(userId);
-        }
-      } catch (error) {
-        console.log('ℹ️ Pas d\'ancien profil formation à supprimer');
+      if (!userId) {
+        console.error('❌ [DEBUG] userId manquant');
+        return { success: false, error: 'ID utilisateur manquant' };
       }
-      
+
+      if (!db) {
+        console.error('❌ [DEBUG] Firebase db non initialisé');
+        return { success: false, error: 'Base de données non disponible' };
+      }
+
+      console.log('✅ [DEBUG] Firebase db disponible');
+      console.log('✅ [DEBUG] ONBOARDING_PHASES disponibles:', Object.keys(ONBOARDING_PHASES).length);
+
+      // Ne pas supprimer l'ancien profil, créer directement
       const formationProfile = {
         userId,
         createdAt: serverTimestamp(),
@@ -146,9 +149,11 @@ class OnboardingService {
         }
       };
 
-      // 🔧 CORRECTION: Initialiser toutes les phases avec vérification
+      console.log('✅ [DEBUG] Profil de base créé');
+
+      // Initialiser toutes les phases
       const phaseKeys = Object.keys(ONBOARDING_PHASES);
-      console.log('🔧 Initialisation de', phaseKeys.length, 'phases');
+      console.log('🔧 [DEBUG] Initialisation de', phaseKeys.length, 'phases');
       
       phaseKeys.forEach(phaseKey => {
         const phase = ONBOARDING_PHASES[phaseKey];
@@ -162,77 +167,95 @@ class OnboardingService {
             notes: '',
             referentComments: ''
           };
-          console.log('✅ Phase initialisée:', phase.id);
+          console.log('✅ [DEBUG] Phase initialisée:', phase.id);
         }
       });
 
-      await setDoc(doc(db, this.FORMATION_COLLECTION, userId), formationProfile);
-      console.log('✅ Profil formation créé avec succès');
-      return { success: true, data: formationProfile };
+      console.log('✅ [DEBUG] Toutes les phases initialisées');
+
+      // Sauvegarder dans Firebase
+      const docRef = doc(db, this.FORMATION_COLLECTION, userId);
+      console.log('🔧 [DEBUG] Tentative de sauvegarde Firebase...');
+      
+      await setDoc(docRef, formationProfile);
+      console.log('✅ [DEBUG] Profil formation sauvegardé avec succès');
+
+      return { 
+        success: true, 
+        data: formationProfile,
+        message: 'Profil de formation créé avec succès'
+      };
 
     } catch (error) {
-      console.error('❌ Erreur création profil formation:', error);
-      return { success: false, error: error.message };
+      console.error('❌ [DEBUG] Erreur création profil formation:', error);
+      console.error('❌ [DEBUG] Stack trace:', error.stack);
+      console.error('❌ [DEBUG] Message erreur:', error.message);
+      
+      return { 
+        success: false, 
+        error: `Erreur création profil: ${error.message}`,
+        details: error.stack
+      };
     }
   }
 
   /**
-   * 📊 Récupérer le profil de formation
+   * 📊 Récupérer le profil de formation - VERSION CORRIGÉE
    */
   async getFormationProfile(userId) {
     try {
-      console.log('📊 Récupération profil formation pour:', userId);
+      console.log('📊 [DEBUG] Récupération profil formation pour:', userId);
       
+      if (!userId) {
+        console.error('❌ [DEBUG] userId manquant');
+        return { success: false, error: 'ID utilisateur manquant' };
+      }
+
       const docRef = doc(db, this.FORMATION_COLLECTION, userId);
+      console.log('🔧 [DEBUG] Référence document créée');
+      
       const docSnap = await getDoc(docRef);
+      console.log('🔧 [DEBUG] Document récupéré, existe:', docSnap.exists());
       
       if (docSnap.exists()) {
         const data = docSnap.data();
-        console.log('✅ Profil formation trouvé');
+        console.log('✅ [DEBUG] Profil formation trouvé, phases:', Object.keys(data.phases || {}).length);
         return { success: true, data };
       } else {
-        console.log('❌ Profil formation non trouvé');
+        console.log('❌ [DEBUG] Profil formation non trouvé');
         return { success: false, error: 'Profil formation non trouvé' };
       }
 
     } catch (error) {
-      console.error('❌ Erreur récupération profil formation:', error);
+      console.error('❌ [DEBUG] Erreur récupération profil formation:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * 🗑️ Supprimer le profil de formation
-   */
-  async deleteFormationProfile(userId) {
-    try {
-      console.log('🗑️ Suppression profil formation pour:', userId);
-      
-      await deleteDoc(doc(db, this.FORMATION_COLLECTION, userId));
-      console.log('✅ Profil formation supprimé');
-      return { success: true };
-
-    } catch (error) {
-      console.error('❌ Erreur suppression profil formation:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 🔄 Toggle une tâche de formation
+   * 🔄 Toggle une tâche de formation - VERSION CORRIGÉE
    */
   async toggleTask(userId, phaseId, taskId) {
     try {
-      console.log('🔄 Toggle tâche formation:', phaseId, taskId);
+      console.log('🔄 [DEBUG] Toggle tâche:', { userId, phaseId, taskId });
       
+      if (!userId || !phaseId || !taskId) {
+        console.error('❌ [DEBUG] Paramètres manquants pour toggle task');
+        return { success: false, error: 'Paramètres manquants' };
+      }
+
       // Récupérer le profil actuel
       const profileResult = await this.getFormationProfile(userId);
       if (!profileResult.success) {
+        console.error('❌ [DEBUG] Profil formation non trouvé pour toggle');
         return { success: false, error: 'Profil formation non trouvé' };
       }
 
-      const currentTask = profileResult.data.phases?.[phaseId]?.tasks?.[taskId];
+      const profile = profileResult.data;
+      const currentTask = profile.phases?.[phaseId]?.tasks?.[taskId];
       const newState = !currentTask?.completed;
+      
+      console.log('🔧 [DEBUG] État actuel tâche:', currentTask?.completed, '→ Nouvel état:', newState);
 
       // Construire le chemin de mise à jour
       const taskPath = `phases.${phaseId}.tasks.${taskId}`;
@@ -244,78 +267,14 @@ class OnboardingService {
         updatedAt: serverTimestamp()
       };
 
+      console.log('🔧 [DEBUG] Mise à jour Firebase...');
       await updateDoc(doc(db, this.FORMATION_COLLECTION, userId), updates);
-      console.log('✅ Tâche formation toggleée');
+      console.log('✅ [DEBUG] Tâche formation toggleée avec succès');
+      
       return { success: true, newState };
 
     } catch (error) {
-      console.error('❌ Erreur toggle tâche formation:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 📝 Ajouter un commentaire de référent
-   */
-  async addReferentComment(userId, phaseId, comment, referentId) {
-    try {
-      console.log('📝 Ajout commentaire référent pour phase:', phaseId);
-      
-      const updates = {
-        [`phases.${phaseId}.referentComments`]: comment,
-        [`phases.${phaseId}.lastCommentBy`]: referentId,
-        [`phases.${phaseId}.lastCommentDate`]: new Date().toISOString(),
-        updatedAt: serverTimestamp()
-      };
-
-      await updateDoc(doc(db, this.FORMATION_COLLECTION, userId), updates);
-      console.log('✅ Commentaire référent ajouté');
-      return { success: true };
-
-    } catch (error) {
-      console.error('❌ Erreur ajout commentaire référent:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 🎤 Planifier un entretien de formation
-   */
-  async scheduleInterview(userId, interviewData, scheduledBy) {
-    try {
-      console.log('🎤 Planification entretien formation');
-      
-      const interview = {
-        id: `interview_${Date.now()}`,
-        userId,
-        scheduledBy,
-        scheduledAt: new Date().toISOString(),
-        ...interviewData,
-        status: 'scheduled',
-        createdAt: serverTimestamp()
-      };
-
-      // Ajouter l'entretien à la collection dédiée
-      await setDoc(doc(db, this.INTERVIEWS_COLLECTION, interview.id), interview);
-
-      // Ajouter la référence dans le profil formation
-      const updates = {
-        interviews: arrayUnion({
-          id: interview.id,
-          date: interviewData.date,
-          type: interviewData.type,
-          status: 'scheduled'
-        }),
-        updatedAt: serverTimestamp()
-      };
-
-      await updateDoc(doc(db, this.FORMATION_COLLECTION, userId), updates);
-      
-      console.log('✅ Entretien formation planifié');
-      return { success: true, interviewId: interview.id };
-
-    } catch (error) {
-      console.error('❌ Erreur planification entretien formation:', error);
+      console.error('❌ [DEBUG] Erreur toggle tâche formation:', error);
       return { success: false, error: error.message };
     }
   }
@@ -325,7 +284,7 @@ class OnboardingService {
    */
   async calculateFormationStats(userId) {
     try {
-      console.log('📊 Calcul statistiques formation');
+      console.log('📊 [DEBUG] Calcul statistiques formation');
       
       const profileResult = await this.getFormationProfile(userId);
       if (!profileResult.success) {
@@ -386,73 +345,54 @@ class OnboardingService {
 
       await updateDoc(doc(db, this.FORMATION_COLLECTION, userId), updates);
 
-      console.log('✅ Statistiques formation calculées');
+      console.log('✅ [DEBUG] Statistiques formation calculées');
       return { success: true, stats };
 
     } catch (error) {
-      console.error('❌ Erreur calcul statistiques formation:', error);
+      console.error('❌ [DEBUG] Erreur calcul statistiques formation:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * 👥 Récupérer tous les profils de formation (admin)
+   * 🗑️ Supprimer le profil de formation
    */
-  async getAllFormationProfiles() {
+  async deleteFormationProfile(userId) {
     try {
-      console.log('👥 Récupération tous profils formation');
+      console.log('🗑️ [DEBUG] Suppression profil formation pour:', userId);
       
-      const q = query(
-        collection(db, this.FORMATION_COLLECTION),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const profiles = [];
-      
-      querySnapshot.forEach((doc) => {
-        profiles.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
-
-      console.log(`✅ ${profiles.length} profils formation récupérés`);
-      return { success: true, data: profiles };
+      await deleteDoc(doc(db, this.FORMATION_COLLECTION, userId));
+      console.log('✅ [DEBUG] Profil formation supprimé');
+      return { success: true };
 
     } catch (error) {
-      console.error('❌ Erreur récupération profils formation:', error);
+      console.error('❌ [DEBUG] Erreur suppression profil formation:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * 🔍 Rechercher profils par phase
+   * 🧪 Test de connexion Firebase
    */
-  async getProfilesByPhase(phaseId) {
+  async testFirebaseConnection() {
     try {
-      console.log('🔍 Recherche profils par phase:', phaseId);
+      console.log('🧪 [DEBUG] Test connexion Firebase...');
       
-      const q = query(
-        collection(db, this.FORMATION_COLLECTION),
-        where('currentPhase', '==', phaseId)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const profiles = [];
-      
-      querySnapshot.forEach((doc) => {
-        profiles.push({
-          id: doc.id,
-          ...doc.data()
-        });
+      const testDoc = doc(db, 'test', 'connection');
+      await setDoc(testDoc, { 
+        test: true, 
+        timestamp: serverTimestamp(),
+        userId: 'test'
       });
-
-      console.log(`✅ ${profiles.length} profils trouvés pour phase ${phaseId}`);
-      return { success: true, data: profiles };
-
+      
+      console.log('✅ [DEBUG] Firebase fonctionne correctement');
+      
+      // Nettoyer le document de test
+      await deleteDoc(testDoc);
+      
+      return { success: true };
     } catch (error) {
-      console.error('❌ Erreur recherche profils par phase:', error);
+      console.error('❌ [DEBUG] Erreur connexion Firebase:', error);
       return { success: false, error: error.message };
     }
   }
@@ -461,3 +401,11 @@ class OnboardingService {
 // Export singleton
 export const onboardingService = new OnboardingService();
 export default onboardingService;
+
+// Exposer pour debug dans la console
+if (typeof window !== 'undefined') {
+  window.onboardingService = onboardingService;
+  window.testFirebase = () => onboardingService.testFirebaseConnection();
+}
+
+console.log('✅ OnboardingService corrigé chargé avec debug complet');
