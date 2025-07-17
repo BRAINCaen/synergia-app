@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/adminBadgeService.js  
-// SERVICE ADMIN BADGES AVEC TOUTES LES FONCTIONS CORRIGÉES
+// SERVICE ADMIN BADGES AVEC CORRECTION ERREUR UNDEFINED
 // ==========================================
 
 import { 
@@ -24,6 +24,27 @@ import {
   deleteObject 
 } from 'firebase/storage';
 import { db, storage } from '../firebase.js';
+
+/**
+ * 🛠️ UTILITAIRE POUR NETTOYER LES VALEURS UNDEFINED
+ */
+const cleanUndefinedValues = (obj) => {
+  const cleaned = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined && value !== null) {
+      if (typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+        // Recursif pour objets imbriqués
+        const cleanedNested = cleanUndefinedValues(value);
+        if (Object.keys(cleanedNested).length > 0) {
+          cleaned[key] = cleanedNested;
+        }
+      } else {
+        cleaned[key] = value;
+      }
+    }
+  }
+  return cleaned;
+};
 
 /**
  * 🏆 SERVICE ADMIN POUR LA GESTION DES BADGES
@@ -73,154 +94,321 @@ class AdminBadgeService {
       return isAdmin;
 
     } catch (error) {
-      console.error('❌ Erreur vérification admin:', error);
-      
-      // Fallback par email en cas d'erreur
-      if (user.email === 'alan.boehme61@gmail.com') {
-        console.log('🚨 FALLBACK ADMIN activé pour:', user.email);
-        return true;
-      }
-      
+      console.error('❌ Erreur vérification permissions:', error);
       return false;
     }
   }
 
   /**
-   * 📋 OBTENIR TOUS LES BADGES
+   * 🎯 DIAGNOSTIC ACCÈS ADMIN
+   */
+  diagnoseAdminAccess(user) {
+    console.log('🔧 [DIAGNOSTIC] Diagnostic accès admin pour:', user?.email);
+
+    if (!user) {
+      return {
+        hasAccess: false,
+        reason: 'Utilisateur non connecté',
+        suggestions: ['Se connecter avec un compte admin']
+      };
+    }
+
+    const isMainAdmin = user.email === 'alan.boehme61@gmail.com';
+    const hasRole = user.role === 'admin';
+    const hasProfileRole = user.profile?.role === 'admin';
+
+    return {
+      hasAccess: isMainAdmin || hasRole || hasProfileRole,
+      isMainAdmin,
+      hasRole,
+      hasProfileRole,
+      userEmail: user.email,
+      userRole: user.role,
+      suggestions: isMainAdmin ? 
+        ['Accès admin confirmé'] : 
+        ['Contacter alan.boehme61@gmail.com', 'Vérifier les permissions utilisateur']
+    };
+  }
+
+  /**
+   * 🚨 FORCER L'ACCÈS ADMIN (Dev uniquement)
+   */
+  forceAdminAccess(userEmail = 'alan.boehme61@gmail.com') {
+    console.log('🚨 [DEV] Forçage accès admin pour:', userEmail);
+    
+    if (typeof window !== 'undefined') {
+      // Simuler les permissions admin dans sessionStorage
+      window.sessionStorage.setItem('forceAdminAccess', 'true');
+      window.sessionStorage.setItem('adminEmail', userEmail);
+    }
+    
+    return {
+      success: true,
+      message: 'Accès admin forcé (développement)',
+      email: userEmail
+    };
+  }
+
+  /**
+   * 📋 RÉCUPÉRER TOUS LES BADGES
    */
   async getAllBadges() {
     try {
-      const badgesRef = collection(db, this.COLLECTION_NAME);
-      const querySnapshot = await getDocs(query(badgesRef, orderBy('createdAt', 'desc')));
+      console.log('📋 Récupération de tous les badges...');
       
+      const badgesSnapshot = await getDocs(collection(db, this.COLLECTION_NAME));
       const badges = [];
-      querySnapshot.forEach((doc) => {
-        badges.push({ id: doc.id, ...doc.data() });
+      
+      badgesSnapshot.forEach((doc) => {
+        badges.push({
+          id: doc.id,
+          ...doc.data()
+        });
       });
       
-      console.log('📋 Badges récupérés:', badges.length);
+      console.log('✅ Badges récupérés:', badges.length);
       return badges;
       
     } catch (error) {
       console.error('❌ Erreur récupération badges:', error);
-      return [];
+      throw error;
     }
   }
 
   /**
-   * 👥 OBTENIR TOUS LES UTILISATEURS
+   * 👥 RÉCUPÉRER TOUS LES UTILISATEURS
    */
   async getAllUsers() {
     try {
-      const usersRef = collection(db, this.USERS_COLLECTION);
-      const querySnapshot = await getDocs(usersRef);
+      console.log('👥 Récupération de tous les utilisateurs...');
       
+      const usersSnapshot = await getDocs(collection(db, this.USERS_COLLECTION));
       const users = [];
-      querySnapshot.forEach((doc) => {
-        const userData = doc.data();
-        users.push({ 
-          id: doc.id, 
-          ...userData,
-          // Calculer le nombre de badges pour chaque utilisateur
-          badgeCount: (userData.badges || []).length,
-          lastBadge: userData.lastBadgeReceived || null
+      
+      usersSnapshot.forEach((doc) => {
+        users.push({
+          id: doc.id,
+          ...doc.data()
         });
       });
       
-      console.log('👥 Utilisateurs récupérés:', users.length);
+      console.log('✅ Utilisateurs récupérés:', users.length);
       return users;
       
     } catch (error) {
       console.error('❌ Erreur récupération utilisateurs:', error);
-      return [];
+      throw error;
     }
   }
 
   /**
-   * 🤖 FONCTION MANQUANTE : getAIUserWithBadges
-   * Cette fonction était appelée mais n'existait pas
+   * 🤖 RÉCUPÉRER UN UTILISATEUR AVEC SES BADGES (INTELLIGENCE ARTIFICIELLE)
    */
   async getAIUserWithBadges(userId) {
     try {
-      console.log('🤖 Récupération utilisateur avec badges:', userId);
+      console.log('🤖 Récupération utilisateur IA avec badges:', userId);
       
-      // Récupérer les données utilisateur
+      if (!userId) {
+        throw new Error('ID utilisateur manquant');
+      }
+      
       const userRef = doc(db, this.USERS_COLLECTION, userId);
       const userSnap = await getDoc(userRef);
       
       if (!userSnap.exists()) {
-        console.warn('⚠️ Utilisateur non trouvé:', userId);
+        console.log('⚠️ Utilisateur non trouvé:', userId);
         return null;
       }
       
       const userData = userSnap.data();
-      
-      // Enrichir avec des informations de badges détaillées
       const userBadges = userData.badges || [];
-      const enrichedBadges = [];
       
-      // Pour chaque badge de l'utilisateur, récupérer les détails complets
-      for (const badge of userBadges) {
-        try {
-          if (badge.badgeId) {
-            const badgeRef = doc(db, this.COLLECTION_NAME, badge.badgeId);
-            const badgeSnap = await getDoc(badgeRef);
-            
-            if (badgeSnap.exists()) {
-              enrichedBadges.push({
-                ...badge,
-                ...badgeSnap.data(),
-                id: badge.badgeId
-              });
-            } else {
-              // Garder le badge même si les détails ne sont pas trouvés
-              enrichedBadges.push(badge);
-            }
-          } else {
-            enrichedBadges.push(badge);
-          }
-        } catch (badgeError) {
-          console.warn('⚠️ Erreur récupération détails badge:', badgeError);
-          enrichedBadges.push(badge);
-        }
-      }
-      
-      const result = {
+      // Enrichir avec des données calculées
+      const enrichedUser = {
         id: userSnap.id,
         ...userData,
-        badges: enrichedBadges,
-        badgeCount: enrichedBadges.length,
-        totalXpFromBadges: enrichedBadges.reduce((total, badge) => {
-          return total + (badge.xpReward || 0);
-        }, 0)
+        badges: userBadges,
+        badgeCount: userBadges.length,
+        totalXpFromBadges: userBadges.reduce((total, badge) => total + (badge.xpReward || 0), 0),
+        lastBadgeReceived: userBadges.length > 0 ? userBadges[userBadges.length - 1] : null,
+        badgesByCategory: this.categorizeBadges(userBadges),
+        progressScore: this.calculateProgressScore(userData)
       };
       
-      console.log('✅ Utilisateur avec badges enrichi:', {
-        userId: result.id,
-        email: result.email,
-        badgeCount: result.badgeCount,
-        totalXp: result.totalXpFromBadges
-      });
-      
-      return result;
+      console.log('✅ Utilisateur IA récupéré:', enrichedUser.id);
+      return enrichedUser;
       
     } catch (error) {
-      console.error('❌ Erreur getAIUserWithBadges:', error);
+      console.error('❌ Erreur récupération utilisateur IA:', error);
       return null;
     }
   }
 
   /**
-   * 📊 OBTENIR LES STATISTIQUES DES BADGES
+   * 📊 CATÉGORISER LES BADGES
    */
-  async getBadgeStatistics() {
+  categorizeBadges(badges) {
+    const categories = {};
+    
+    badges.forEach(badge => {
+      const category = badge.category || badge.type || 'general';
+      if (!categories[category]) {
+        categories[category] = [];
+      }
+      categories[category].push(badge);
+    });
+    
+    return categories;
+  }
+
+  /**
+   * 📈 CALCULER LE SCORE DE PROGRESSION
+   */
+  calculateProgressScore(userData) {
+    const xp = userData.xp || 0;
+    const badgeCount = (userData.badges || []).length;
+    const completedTasks = userData.tasksCompleted || 0;
+    
+    return Math.round((xp * 0.5) + (badgeCount * 10) + (completedTasks * 2));
+  }
+
+  /**
+   * 🏆 ATTRIBUER UN BADGE À UN UTILISATEUR - VERSION CORRIGÉE
+   */
+  async awardBadgeToUser(userId, badgeId, reason = 'Badge attribué par admin') {
     try {
-      console.log('📊 Calcul statistiques badges...');
+      console.log(`🏆 Attribution badge ${badgeId} à ${userId}`);
       
-      const [badges, users] = await Promise.all([
-        this.getAllBadges(),
-        this.getAllUsers()
-      ]);
+      // Récupérer les données du badge
+      const badgeRef = doc(db, this.COLLECTION_NAME, badgeId);
+      const badgeSnap = await getDoc(badgeRef);
+      
+      if (!badgeSnap.exists()) {
+        throw new Error('Badge non trouvé');
+      }
+      
+      const badgeData = badgeSnap.data();
+      console.log('📊 Données badge récupérées:', badgeData);
+      
+      // Mettre à jour le profil utilisateur
+      const userRef = doc(db, this.USERS_COLLECTION, userId);
+      const userSnap = await getDoc(userRef);
+      
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const currentBadges = userData.badges || [];
+        
+        // Vérifier si l'utilisateur a déjà ce badge
+        if (currentBadges.find(b => b.badgeId === badgeId)) {
+          console.log('⚠️ Utilisateur a déjà ce badge');
+          return { success: false, message: 'Badge déjà attribué' };
+        }
+        
+        // 🔧 CORRIGER - Créer le nouveau badge en filtrant les undefined
+        const newBadgeRaw = {
+          badgeId,
+          name: badgeData.name || 'Badge sans nom',
+          description: badgeData.description || 'Aucune description',
+          icon: badgeData.icon || '🏆',
+          imageUrl: badgeData.imageUrl || null,
+          awardedAt: serverTimestamp(),
+          awardedBy: 'admin',
+          reason: reason,
+          xpReward: badgeData.xpReward || 50,
+          type: badgeData.type || 'achievement',
+          rarity: badgeData.rarity || 'common'
+        };
+        
+        // 🛡️ NETTOYER TOUTES LES VALEURS UNDEFINED
+        const newBadge = cleanUndefinedValues(newBadgeRaw);
+        console.log('🧹 Badge nettoyé:', newBadge);
+        
+        const updatedBadges = [...currentBadges, newBadge];
+        
+        // 🔧 CORRIGER - Préparer les données de mise à jour en filtrant les undefined
+        const updateDataRaw = {
+          badges: updatedBadges,
+          lastBadgeReceived: newBadge,
+          xp: (userData.xp || 0) + (badgeData.xpReward || 50),
+          badgeCount: updatedBadges.length,
+          lastUpdate: serverTimestamp()
+        };
+        
+        // 🛡️ NETTOYER LES DONNÉES DE MISE À JOUR
+        const updateData = cleanUndefinedValues(updateDataRaw);
+        console.log('🧹 Données mise à jour nettoyées:', updateData);
+        
+        // Mettre à jour le profil
+        await updateDoc(userRef, updateData);
+        
+        console.log('✅ Badge attribué avec succès');
+        return { success: true, message: 'Badge attribué avec succès', badge: newBadge };
+      } else {
+        throw new Error('Utilisateur non trouvé');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur attribution badge:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  /**
+   * 🗑️ RETIRER UN BADGE D'UN UTILISATEUR
+   */
+  async removeBadgeFromUser(userId, badgeId) {
+    try {
+      console.log(`🗑️ Retrait badge ${badgeId} de ${userId}`);
+      
+      const userRef = doc(db, this.USERS_COLLECTION, userId);
+      const userSnap = await getDoc(userRef);
+      
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const currentBadges = userData.badges || [];
+        
+        // Filtrer le badge à retirer
+        const updatedBadges = currentBadges.filter(b => b.badgeId !== badgeId);
+        
+        if (updatedBadges.length === currentBadges.length) {
+          return { success: false, message: 'Badge non trouvé chez cet utilisateur' };
+        }
+        
+        // Recalculer l'XP
+        const removedBadge = currentBadges.find(b => b.badgeId === badgeId);
+        const xpToRemove = removedBadge?.xpReward || 0;
+        
+        // 🔧 NETTOYER LES DONNÉES DE MISE À JOUR
+        const updateData = cleanUndefinedValues({
+          badges: updatedBadges,
+          xp: Math.max(0, (userData.xp || 0) - xpToRemove),
+          badgeCount: updatedBadges.length,
+          lastUpdate: serverTimestamp()
+        });
+        
+        await updateDoc(userRef, updateData);
+        
+        console.log('✅ Badge retiré avec succès');
+        return { success: true, message: 'Badge retiré avec succès' };
+      } else {
+        throw new Error('Utilisateur non trouvé');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur retrait badge:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  /**
+   * 📊 OBTENIR LES STATISTIQUES AVANCÉES
+   */
+  async getAdvancedStats() {
+    try {
+      console.log('📊 Calcul statistiques avancées...');
+      
+      const badges = await this.getAllBadges();
+      const users = await this.getAllUsers();
       
       // Calculer les statistiques
       const totalBadges = badges.length;
@@ -231,40 +419,26 @@ class AdminBadgeService {
       const badgeUsage = {};
       const recentAwards = [];
       
-      // Analyser chaque utilisateur
       users.forEach(user => {
         const userBadges = user.badges || [];
         totalAwarded += userBadges.length;
         
         userBadges.forEach(badge => {
-          // Compter l'usage de chaque badge
-          if (badge.badgeId) {
-            badgeUsage[badge.badgeId] = (badgeUsage[badge.badgeId] || 0) + 1;
-          }
-          
-          // XP total distribué
           totalXpDistributed += badge.xpReward || 0;
+          badgeUsage[badge.badgeId] = (badgeUsage[badge.badgeId] || 0) + 1;
           
-          // Badges récents (dernières 24h)
-          if (badge.awardedAt && badge.awardedAt.toDate) {
-            const awardDate = badge.awardedAt.toDate();
-            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-            
-            if (awardDate > oneDayAgo) {
-              recentAwards.push({
-                ...badge,
-                userName: user.displayName || user.email,
-                userId: user.id,
-                awardedAt: awardDate
-              });
-            }
+          if (badge.awardedAt) {
+            recentAwards.push({
+              ...badge,
+              userId: user.id,
+              userEmail: user.email
+            });
           }
         });
       });
       
-      // Badge le plus populaire
-      const mostPopularBadgeId = Object.keys(badgeUsage).reduce((a, b) => 
-        badgeUsage[a] > badgeUsage[b] ? a : b, Object.keys(badgeUsage)[0]
+      const mostPopularBadgeId = Object.keys(badgeUsage).reduce(
+        (a, b) => badgeUsage[a] > badgeUsage[b] ? a : b, Object.keys(badgeUsage)[0]
       );
       
       const mostPopularBadge = badges.find(b => b.id === mostPopularBadgeId);
@@ -335,19 +509,24 @@ class AdminBadgeService {
         imageUrl = await this.uploadBadgeImage(imageFile);
       }
       
-      // Données du badge
-      const badge = {
-        name: badgeData.name,
-        description: badgeData.description,
-        imageUrl: imageUrl || badgeData.imageUrl || '/default-badge.png',
+      // 🔧 NETTOYER LES DONNÉES DU BADGE
+      const badgeRaw = {
+        name: badgeData.name || 'Badge sans nom',
+        description: badgeData.description || 'Aucune description',
+        icon: badgeData.icon || '🏆',
+        imageUrl: imageUrl || badgeData.imageUrl || null,
         xpReward: badgeData.xpReward || 50,
         rarity: badgeData.rarity || 'common',
         category: badgeData.category || 'custom',
+        type: badgeData.type || 'achievement',
         isCustom: true,
         createdAt: serverTimestamp(),
         createdBy: 'admin',
         isActive: true
       };
+      
+      const badge = cleanUndefinedValues(badgeRaw);
+      console.log('🧹 Badge nettoyé:', badge);
       
       // Ajouter à Firestore
       const badgeRef = await addDoc(collection(db, this.COLLECTION_NAME), badge);
@@ -382,235 +561,44 @@ class AdminBadgeService {
   }
 
   /**
-   * 🏆 ATTRIBUER UN BADGE À UN UTILISATEUR
-   */
-  async awardBadgeToUser(userId, badgeId, reason = 'Badge attribué par admin') {
-    try {
-      console.log(`🏆 Attribution badge ${badgeId} à ${userId}`);
-      
-      // Récupérer les données du badge
-      const badgeRef = doc(db, this.COLLECTION_NAME, badgeId);
-      const badgeSnap = await getDoc(badgeRef);
-      
-      if (!badgeSnap.exists()) {
-        throw new Error('Badge non trouvé');
-      }
-      
-      const badgeData = badgeSnap.data();
-      
-      // Mettre à jour le profil utilisateur
-      const userRef = doc(db, this.USERS_COLLECTION, userId);
-      const userSnap = await getDoc(userRef);
-      
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        const currentBadges = userData.badges || [];
-        
-        // Vérifier si l'utilisateur a déjà ce badge
-        if (currentBadges.find(b => b.badgeId === badgeId)) {
-          console.log('⚠️ Utilisateur a déjà ce badge');
-          return { success: false, message: 'Badge déjà attribué' };
-        }
-        
-        // Ajouter le nouveau badge
-        const newBadge = {
-          badgeId,
-          name: badgeData.name,
-          description: badgeData.description,
-          imageUrl: badgeData.imageUrl,
-          awardedAt: serverTimestamp(),
-          awardedBy: 'admin',
-          reason: reason,
-          xpReward: badgeData.xpReward || 50
-        };
-        
-        const updatedBadges = [...currentBadges, newBadge];
-        
-        // Mettre à jour le profil
-        await updateDoc(userRef, {
-          badges: updatedBadges,
-          lastBadgeReceived: newBadge,
-          xp: (userData.xp || 0) + (badgeData.xpReward || 50)
-        });
-        
-        console.log('✅ Badge attribué avec succès');
-        return { success: true, message: 'Badge attribué avec succès' };
-      } else {
-        throw new Error('Utilisateur non trouvé');
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur attribution badge:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🗑️ SUPPRIMER UN BADGE
-   */
-  async deleteBadge(badgeId) {
-    try {
-      console.log('🗑️ Suppression badge:', badgeId);
-      
-      const badgeRef = doc(db, this.COLLECTION_NAME, badgeId);
-      await deleteDoc(badgeRef);
-      
-      console.log('✅ Badge supprimé avec succès');
-      return { success: true, message: 'Badge supprimé avec succès' };
-      
-    } catch (error) {
-      console.error('❌ Erreur suppression badge:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 👤 OBTENIR LE PROFIL DÉTAILLÉ D'UN UTILISATEUR
-   */
-  async getUserDetailedProfile(userId) {
-    try {
-      const userRef = doc(db, this.USERS_COLLECTION, userId);
-      const userSnap = await getDoc(userRef);
-      
-      if (userSnap.exists()) {
-        return { id: userSnap.id, ...userSnap.data() };
-      } else {
-        throw new Error('Utilisateur non trouvé');
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur récupération profil:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🔧 DIAGNOSTICS ADMIN
-   */
-  diagnoseAdminAccess(user) {
-    const checks = {
-      userExists: !!user,
-      hasEmail: !!user?.email,
-      isSuperAdmin: user?.email === 'alan.boehme61@gmail.com',
-      roleAdmin: user?.role === 'admin',
-      profileRoleAdmin: user?.profile?.role === 'admin',
-      hasAdminFlag: user?.isAdmin === true,
-      hasPermissions: !!user?.permissions?.length,
-      hasAdminAccess: user?.permissions?.includes('admin_access'),
-      hasBadgePermission: user?.permissions?.includes('manage_badges')
-    };
-
-    const isAdmin = checks.isSuperAdmin || checks.roleAdmin || checks.profileRoleAdmin || 
-                   checks.hasAdminFlag || checks.hasAdminAccess || checks.hasBadgePermission;
-
-    return {
-      isAdmin,
-      checks,
-      recommendation: isAdmin ? 
-        'Accès admin confirmé' : 
-        'Aucun accès admin détecté - contactez un administrateur'
-    };
-  }
-
-  /**
-   * 🚨 FORCER L'ACCÈS ADMIN (Emergency)
-   */
-  async forceAdminAccess(userEmail = 'alan.boehme61@gmail.com') {
-    try {
-      console.log('🚨 FORÇAGE ACCÈS ADMIN pour:', userEmail);
-      
-      // Rechercher l'utilisateur par email
-      const usersRef = collection(db, this.USERS_COLLECTION);
-      const q = query(usersRef, where('email', '==', userEmail));
-      const querySnapshot = await getDocs(q);
-      
-      if (querySnapshot.empty) {
-        console.error('❌ Utilisateur non trouvé:', userEmail);
-        return { success: false, message: 'Utilisateur non trouvé' };
-      }
-      
-      // Mettre à jour le premier document trouvé
-      const userDoc = querySnapshot.docs[0];
-      await updateDoc(userDoc.ref, {
-        role: 'admin',
-        isAdmin: true,
-        permissions: ['admin_access', 'manage_badges', 'validate_tasks'],
-        profile: {
-          ...userDoc.data().profile,
-          role: 'admin'
-        },
-        adminAccessForced: true,
-        adminAccessForcedAt: serverTimestamp()
-      });
-      
-      console.log('✅ ACCÈS ADMIN FORCÉ avec succès');
-      return { success: true, message: 'Accès admin forcé avec succès' };
-      
-    } catch (error) {
-      console.error('❌ Erreur forçage admin:', error);
-      return { success: false, message: 'Erreur lors du forçage admin' };
-    }
-  }
-
-  /**
-   * 👥 FONCTION MANQUANTE : getAllUsersWithBadges
-   * Récupère tous les utilisateurs avec leurs badges enrichis
+   * 👥 RÉCUPÉRER TOUS LES UTILISATEURS AVEC LEURS BADGES
    */
   async getAllUsersWithBadges() {
     try {
-      console.log('👥 Récupération utilisateurs avec badges...');
-      
       const users = await this.getAllUsers();
-      const enrichedUsers = [];
       
-      // Pour chaque utilisateur, enrichir ses badges
-      for (const user of users) {
-        try {
-          const enrichedUser = await this.getAIUserWithBadges(user.id);
-          if (enrichedUser) {
-            enrichedUsers.push(enrichedUser);
-          } else {
-            // Si échec, garder l'utilisateur de base
-            enrichedUsers.push(user);
-          }
-        } catch (error) {
-          console.warn('⚠️ Erreur enrichissement utilisateur:', user.id);
-          enrichedUsers.push(user);
-        }
-      }
-      
-      console.log('✅ Utilisateurs avec badges enrichis:', enrichedUsers.length);
-      return enrichedUsers;
+      return users.map(user => ({
+        ...user,
+        badgeCount: (user.badges || []).length,
+        totalXpFromBadges: (user.badges || []).reduce((total, badge) => total + (badge.xpReward || 0), 0),
+        lastBadgeReceived: (user.badges || []).length > 0 ? (user.badges || [])[user.badges.length - 1] : null
+      }));
       
     } catch (error) {
-      console.error('❌ Erreur getAllUsersWithBadges:', error);
+      console.error('❌ Erreur récupération utilisateurs avec badges:', error);
       return [];
     }
   }
 
   /**
-   * 🔍 FONCTION MANQUANTE : searchUsers
-   * Rechercher des utilisateurs par terme
+   * 🔍 RECHERCHER DES UTILISATEURS
    */
-  async searchUsers(searchTerm = '') {
+  async searchUsers(searchTerm) {
     try {
-      const allUsers = await this.getAllUsers();
+      const users = await this.getAllUsers();
       
-      if (!searchTerm.trim()) {
-        return allUsers;
+      if (!searchTerm || searchTerm.trim() === '') {
+        return users;
       }
       
-      const filtered = allUsers.filter(user => {
-        const term = searchTerm.toLowerCase();
-        return (
-          (user.email || '').toLowerCase().includes(term) ||
-          (user.displayName || '').toLowerCase().includes(term) ||
-          (user.firstName || '').toLowerCase().includes(term) ||
-          (user.lastName || '').toLowerCase().includes(term)
-        );
-      });
+      const term = searchTerm.toLowerCase();
       
-      return filtered;
+      return users.filter(user => 
+        (user.email || '').toLowerCase().includes(term) ||
+        (user.displayName || '').toLowerCase().includes(term) ||
+        (user.firstName || '').toLowerCase().includes(term) ||
+        (user.lastName || '').toLowerCase().includes(term)
+      );
       
     } catch (error) {
       console.error('❌ Erreur recherche utilisateurs:', error);
@@ -619,20 +607,19 @@ class AdminBadgeService {
   }
 
   /**
-   * 📈 FONCTION MANQUANTE : getUserBadgeProgress
-   * Calculer la progression d'un utilisateur vers de nouveaux badges
+   * 📊 OBTENIR LA PROGRESSION BADGES D'UN UTILISATEUR
    */
   async getUserBadgeProgress(userId) {
     try {
       const user = await this.getAIUserWithBadges(userId);
       const allBadges = await this.getAllBadges();
       
-      if (!user || !allBadges.length) {
+      if (!user) {
         return { availableBadges: 0, earnedBadges: 0, progress: [] };
       }
       
       const earnedBadgeIds = (user.badges || []).map(b => b.badgeId);
-      const availableBadges = allBadges.filter(b => !earnedBadgeIds.includes(b.id));
+      const availableBadges = allBadges.filter(badge => !earnedBadgeIds.includes(badge.id));
       
       return {
         availableBadges: availableBadges.length,
@@ -682,7 +669,7 @@ export const forceAdminAccess = (userEmail = 'alan.boehme61@gmail.com') => {
   return adminBadgeService.forceAdminAccess(userEmail);
 };
 
-// 🤖 EXPORT DE LA FONCTION MANQUANTE
+// 🤖 EXPORT DE LA FONCTION CORRIGÉE
 export const getAIUserWithBadges = async (userId) => {
   return await adminBadgeService.getAIUserWithBadges(userId);
 };
@@ -699,3 +686,6 @@ export const searchUsers = async (searchTerm) => {
 export const getUserBadgeProgress = async (userId) => {
   return await adminBadgeService.getUserBadgeProgress(userId);
 };
+
+// 🧹 EXPORT DE L'UTILITAIRE DE NETTOYAGE
+export { cleanUndefinedValues };
