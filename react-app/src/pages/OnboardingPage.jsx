@@ -1133,11 +1133,12 @@ const AcquisitionCompetences = () => {
   );
 };
 
-// 🎯 COMPOSANT ENTRETIENS RÉFÉRENT DÉVELOPPÉ
+// 🎯 COMPOSANT ENTRETIENS RÉFÉRENT DÉVELOPPÉ - FIREBASE RÉEL
 const EntretiensReferent = () => {
   const { user } = useAuthStore();
   const [activeView, setActiveView] = useState('dashboard');
   const [interviews, setInterviews] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
     thisWeek: 0,
@@ -1148,9 +1149,11 @@ const EntretiensReferent = () => {
   });
   const [loading, setLoading] = useState(true);
   const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [scheduleForm, setScheduleForm] = useState({
     employeeName: '',
     employeeEmail: '',
+    employeeId: '',
     type: 'initial',
     scheduledDate: '',
     scheduledTime: '',
@@ -1160,95 +1163,163 @@ const EntretiensReferent = () => {
     notes: ''
   });
 
-  // Charger les entretiens
+  // 🔥 FIREBASE RÉEL - Charger les entretiens
   const loadInterviews = useCallback(async () => {
     if (!user?.uid) return;
     
     try {
       setLoading(true);
-      console.log('📅 Chargement entretiens pour référent:', user.uid);
+      console.log('📅 Chargement VRAIS entretiens Firebase pour référent:', user.uid);
       
-      // Simulation de données pour la démo
-      const mockInterviews = [
-        {
-          id: '1',
-          employeeName: 'Marie Dupont',
-          employeeEmail: 'marie@brain.fr',
-          type: 'initial',
-          scheduledDate: new Date().toISOString(),
-          status: 'scheduled',
-          duration: 60,
-          location: 'Bureau référent'
-        },
-        {
-          id: '2',
-          employeeName: 'Alex Martin',
-          employeeEmail: 'alex@brain.fr',
-          type: 'weekly',
-          scheduledDate: new Date(Date.now() + 86400000).toISOString(),
-          status: 'completed',
-          duration: 30,
-          location: 'Salle de réunion',
-          rating: 4
-        }
-      ];
+      const interviewsQuery = query(
+        collection(db, 'interviews'),
+        where('referentId', '==', user.uid),
+        orderBy('scheduledDate', 'desc'),
+        limit(50)
+      );
       
-      setInterviews(mockInterviews);
+      const querySnapshot = await getDocs(interviewsQuery);
+      const interviewsList = [];
       
-      // Calculer les statistiques
-      const total = mockInterviews.length;
-      const completed = mockInterviews.filter(i => i.status === 'completed').length;
-      const pending = mockInterviews.filter(i => i.status === 'scheduled').length;
-      const thisWeek = mockInterviews.filter(i => {
-        const interviewDate = new Date(i.scheduledDate);
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        return interviewDate >= oneWeekAgo;
-      }).length;
-      
-      setStats({
-        total,
-        thisWeek,
-        completed,
-        pending,
-        avgRating: 4.2,
-        completionRate: total > 0 ? Math.round((completed / total) * 100) : 0
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        interviewsList.push({
+          id: doc.id,
+          ...data,
+          scheduledDate: data.scheduledDate?.toDate ? data.scheduledDate.toDate().toISOString() : data.scheduledDate
+        });
       });
       
+      setInterviews(interviewsList);
+      console.log(`✅ ${interviewsList.length} entretiens RÉELS chargés depuis Firebase`);
+      
+      // Calculer les VRAIES statistiques
+      calculateRealStats(interviewsList);
+      
     } catch (error) {
-      console.error('❌ Erreur chargement entretiens:', error);
+      console.error('❌ Erreur chargement entretiens Firebase:', error);
+      setInterviews([]);
     } finally {
       setLoading(false);
     }
   }, [user?.uid]);
 
-  // Programmer un entretien
+  // 🔥 FIREBASE RÉEL - Charger les employés en formation
+  const loadEmployees = useCallback(async () => {
+    try {
+      console.log('👥 Chargement VRAIS employés onboarding Firebase...');
+      
+      const onboardingQuery = query(
+        collection(db, 'onboardingFormation'),
+        orderBy('createdAt', 'desc'),
+        limit(20)
+      );
+      
+      const querySnapshot = await getDocs(onboardingQuery);
+      const employeesList = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        employeesList.push({
+          id: doc.id,
+          userId: data.userId,
+          name: data.employeeName || data.name || 'Employé',
+          email: data.employeeEmail || data.email || 'email@brain.fr',
+          startDate: data.startDate,
+          currentPhase: data.currentPhase || 'decouverte_brain',
+          progress: data.progress || 0
+        });
+      });
+      
+      setEmployees(employeesList);
+      console.log(`✅ ${employeesList.length} employés RÉELS chargés depuis Firebase`);
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement employés Firebase:', error);
+      setEmployees([]);
+    }
+  }, []);
+
+  // 📊 Calculer les VRAIES statistiques
+  const calculateRealStats = (interviewsList) => {
+    const total = interviewsList.length;
+    const completed = interviewsList.filter(i => i.status === 'completed').length;
+    const pending = interviewsList.filter(i => i.status === 'scheduled').length;
+    
+    // Calculer cette semaine
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const thisWeek = interviewsList.filter(i => {
+      const interviewDate = new Date(i.scheduledDate);
+      return interviewDate >= oneWeekAgo;
+    }).length;
+    
+    // Calculer note moyenne
+    const ratedInterviews = interviewsList.filter(i => i.rating && i.rating > 0);
+    const avgRating = ratedInterviews.length > 0 
+      ? ratedInterviews.reduce((sum, i) => sum + i.rating, 0) / ratedInterviews.length 
+      : 0;
+    
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    setStats({
+      total,
+      thisWeek,
+      completed,
+      pending,
+      avgRating: Math.round(avgRating * 10) / 10,
+      completionRate
+    });
+    
+    console.log('✅ VRAIES statistiques calculées:', { total, completed, pending, thisWeek, avgRating });
+  };
+
+  // 🔥 FIREBASE RÉEL - Programmer un entretien
   const handleScheduleInterview = async (e) => {
     e.preventDefault();
     
-    if (!scheduleForm.employeeName || !scheduleForm.scheduledDate) {
+    if (!user?.uid) {
+      alert('Vous devez être connecté pour programmer un entretien');
+      return;
+    }
+    
+    if (!scheduleForm.employeeName || !scheduleForm.scheduledDate || !scheduleForm.scheduledTime) {
       alert('Veuillez remplir tous les champs obligatoires');
       return;
     }
     
     try {
-      console.log('📅 Programmation entretien...');
+      console.log('📅 Programmation VRAIE entretien Firebase...');
       
-      const newInterview = {
-        id: Date.now().toString(),
-        ...scheduleForm,
-        scheduledDate: `${scheduleForm.scheduledDate}T${scheduleForm.scheduledTime}:00`,
-        status: 'scheduled',
+      // Construire la date complète
+      const fullDateTime = `${scheduleForm.scheduledDate}T${scheduleForm.scheduledTime}:00`;
+      const scheduledDate = new Date(fullDateTime);
+      
+      const interviewData = {
+        employeeName: scheduleForm.employeeName,
+        employeeEmail: scheduleForm.employeeEmail,
+        employeeId: scheduleForm.employeeId || '',
         referentId: user.uid,
-        createdAt: new Date().toISOString()
+        referentName: user.displayName || user.email,
+        type: scheduleForm.type,
+        scheduledDate: scheduledDate,
+        duration: parseInt(scheduleForm.duration),
+        location: scheduleForm.location,
+        objectives: scheduleForm.objectives,
+        notes: scheduleForm.notes,
+        status: 'scheduled',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
       
-      setInterviews(prev => [...prev, newInterview]);
+      const docRef = await addDoc(collection(db, 'interviews'), interviewData);
+      console.log('✅ Entretien RÉEL programmé avec ID:', docRef.id);
       
       // Réinitialiser le formulaire
       setScheduleForm({
         employeeName: '',
         employeeEmail: '',
+        employeeId: '',
         type: 'initial',
         scheduledDate: '',
         scheduledTime: '',
@@ -1259,17 +1330,111 @@ const EntretiensReferent = () => {
       });
       
       setShowScheduleForm(false);
-      alert('Entretien programmé avec succès !');
+      alert('Entretien programmé avec succès dans Firebase !');
+      
+      // Recharger les données RÉELLES
+      await loadInterviews();
       
     } catch (error) {
-      console.error('❌ Erreur programmation entretien:', error);
-      alert('Erreur lors de la programmation');
+      console.error('❌ Erreur programmation entretien Firebase:', error);
+      alert('Erreur lors de la programmation : ' + error.message);
     }
   };
 
+  // 🎯 FONCTIONS TEMPLATES FONCTIONNELLES
+  const useTemplate = (templateKey) => {
+    const template = INTERVIEW_TYPES[templateKey];
+    if (!template) return;
+
+    console.log('📝 Utilisation template:', templateKey);
+    
+    // Pré-remplir le formulaire avec le template
+    setScheduleForm(prev => ({
+      ...prev,
+      type: templateKey,
+      duration: template.duration,
+      objectives: getTemplateObjectives(templateKey),
+      notes: `Template ${template.name} utilisé`
+    }));
+    
+    setSelectedTemplate(templateKey);
+    setShowScheduleForm(true);
+    setActiveView('schedule');
+    
+    alert(`Template "${template.name}" appliqué au formulaire !`);
+  };
+
+  // 📝 Objectifs prédéfinis par template
+  const getTemplateObjectives = (templateKey) => {
+    const objectives = {
+      initial: 'Accueil et présentation\nDécouverte des attentes\nPrésentation du parcours\nPremières questions',
+      weekly: 'Point sur la semaine écoulée\nDifficultés rencontrées\nProgrès réalisés\nObjectifs semaine prochaine',
+      milestone: 'Bilan de la phase actuelle\nValidation des acquis\nPréparation phase suivante\nRetours d\'expérience',
+      final: 'Bilan complet du parcours\nValidation finale\nPerspectives d\'évolution\nCertification',
+      support: 'Identification des difficultés\nPlan d\'accompagnement\nRessources nécessaires\nSuivi renforcé'
+    };
+    return objectives[templateKey] || '';
+  };
+
+  // 🔄 Modifier un entretien
+  const editInterview = (interviewId) => {
+    const interview = interviews.find(i => i.id === interviewId);
+    if (!interview) return;
+
+    console.log('✏️ Modification entretien:', interviewId);
+    
+    // Pré-remplir le formulaire avec les données existantes
+    const scheduledDate = new Date(interview.scheduledDate);
+    setScheduleForm({
+      employeeName: interview.employeeName,
+      employeeEmail: interview.employeeEmail,
+      employeeId: interview.employeeId || '',
+      type: interview.type,
+      scheduledDate: scheduledDate.toISOString().split('T')[0],
+      scheduledTime: scheduledDate.toTimeString().slice(0, 5),
+      duration: interview.duration,
+      location: interview.location,
+      objectives: interview.objectives || '',
+      notes: interview.notes || ''
+    });
+    
+    setShowScheduleForm(true);
+    setActiveView('schedule');
+  };
+
+  // 👁️ Voir un entretien
+  const viewInterview = (interviewId) => {
+    const interview = interviews.find(i => i.id === interviewId);
+    if (!interview) return;
+
+    console.log('👁️ Affichage entretien:', interviewId);
+    
+    const scheduledDate = new Date(interview.scheduledDate);
+    const details = `
+🎤 Entretien: ${INTERVIEW_TYPES[interview.type]?.name || interview.type}
+👤 Employé: ${interview.employeeName} (${interview.employeeEmail})
+📅 Date: ${scheduledDate.toLocaleDateString()} à ${scheduledDate.toLocaleTimeString()}
+⏱️ Durée: ${interview.duration} minutes
+📍 Lieu: ${interview.location}
+📊 Statut: ${interview.status}
+${interview.rating ? `⭐ Note: ${interview.rating}/5` : ''}
+
+📝 Objectifs:
+${interview.objectives || 'Aucun objectif défini'}
+
+📋 Notes:
+${interview.notes || 'Aucune note'}
+    `;
+    
+    alert(details);
+  };
+
+  // 🔥 Charger les données au montage
   useEffect(() => {
+    console.log('🎯 Chargement section Entretiens Référent...');
     loadInterviews();
-  }, [loadInterviews]);
+    loadEmployees();
+  }, [loadInterviews, loadEmployees]);
 
   if (loading) {
     return (
@@ -1356,36 +1521,106 @@ const EntretiensReferent = () => {
       {/* Contenu selon la vue active */}
       {activeView === 'dashboard' && (
         <div className="space-y-6">
-          <h4 className="text-xl font-semibold text-white">Entretiens à venir</h4>
+          <div className="flex items-center justify-between">
+            <h4 className="text-xl font-semibold text-white">Entretiens à venir</h4>
+            <button
+              onClick={() => loadInterviews()}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Actualiser</span>
+            </button>
+          </div>
           
-          <div className="space-y-4">
-            {interviews.filter(i => i.status === 'scheduled').map(interview => (
-              <div key={interview.id} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h5 className="font-semibold text-white">{interview.employeeName}</h5>
-                    <p className="text-gray-400 text-sm">{interview.employeeEmail}</p>
-                    <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                      <span className={`px-2 py-1 rounded ${INTERVIEW_TYPES[interview.type]?.color || 'bg-gray-600'} text-white`}>
-                        {INTERVIEW_TYPES[interview.type]?.name || interview.type}
-                      </span>
-                      <span>{new Date(interview.scheduledDate).toLocaleDateString()}</span>
-                      <span>{interview.duration} min</span>
+          {interviews.length === 0 ? (
+            <div className="text-center py-8">
+              <MessageSquare className="h-16 w-16 text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-400">Aucun entretien programmé pour le moment</p>
+              <button
+                onClick={() => {
+                  setActiveView('schedule');
+                  setShowScheduleForm(true);
+                }}
+                className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors"
+              >
+                Programmer le premier entretien
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {interviews.filter(i => i.status === 'scheduled').map(interview => (
+                <div key={interview.id} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h5 className="font-semibold text-white">{interview.employeeName}</h5>
+                      <p className="text-gray-400 text-sm">{interview.employeeEmail}</p>
+                      <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                        <span className={`px-2 py-1 rounded bg-gradient-to-r ${INTERVIEW_TYPES[interview.type]?.color || 'from-gray-500 to-gray-600'} text-white`}>
+                          {INTERVIEW_TYPES[interview.type]?.name || interview.type}
+                        </span>
+                        <span>📅 {new Date(interview.scheduledDate).toLocaleDateString()}</span>
+                        <span>🕒 {new Date(interview.scheduledDate).toLocaleTimeString()}</span>
+                        <span>⏱️ {interview.duration} min</span>
+                        <span>📍 {interview.location}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => viewInterview(interview.id)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                      >
+                        <Eye className="h-4 w-4 inline mr-1" />
+                        Voir
+                      </button>
+                      <button 
+                        onClick={() => editInterview(interview.id)}
+                        className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                      >
+                        <Edit className="h-4 w-4 inline mr-1" />
+                        Modifier
+                      </button>
+                      <button className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors">
+                        ▶️ Démarrer
+                      </button>
                     </div>
                   </div>
-                  
-                  <div className="flex space-x-2">
-                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
-                      Modifier
-                    </button>
-                    <button className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">
-                      Démarrer
-                    </button>
-                  </div>
                 </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Entretiens terminés récemment */}
+          {interviews.filter(i => i.status === 'completed').length > 0 && (
+            <div className="mt-8">
+              <h4 className="text-lg font-semibold text-white mb-4">Entretiens récents terminés</h4>
+              <div className="space-y-3">
+                {interviews.filter(i => i.status === 'completed').slice(0, 3).map(interview => (
+                  <div key={interview.id} className="bg-green-900/20 border border-green-500/30 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-medium text-green-400">{interview.employeeName}</span>
+                        <span className="text-gray-400 text-sm ml-2">
+                          {INTERVIEW_TYPES[interview.type]?.name} - {new Date(interview.scheduledDate).toLocaleDateString()}
+                        </span>
+                        {interview.rating && (
+                          <span className="text-yellow-400 ml-2">
+                            {'⭐'.repeat(interview.rating)} ({interview.rating}/5)
+                          </span>
+                        )}
+                      </div>
+                      <button 
+                        onClick={() => viewInterview(interview.id)}
+                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                      >
+                        📄 Rapport
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1393,17 +1628,80 @@ const EntretiensReferent = () => {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h4 className="text-xl font-semibold text-white">Programmer un entretien</h4>
-            <button
-              onClick={() => setShowScheduleForm(!showScheduleForm)}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Nouvel entretien</span>
-            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowScheduleForm(!showScheduleForm)}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Nouvel entretien</span>
+              </button>
+              <button
+                onClick={() => loadEmployees()}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <Users className="h-4 w-4" />
+                <span>Charger employés</span>
+              </button>
+            </div>
           </div>
+
+          {/* Liste des employés disponibles */}
+          {employees.length > 0 && (
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4 mb-6">
+              <h5 className="font-semibold text-white mb-3">👥 Employés en formation</h5>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {employees.map(employee => (
+                  <div key={employee.id} className="bg-gray-700/50 border border-gray-600/50 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-white">{employee.name}</div>
+                        <div className="text-gray-400 text-sm">{employee.email}</div>
+                        <div className="text-gray-500 text-xs mt-1">
+                          Phase: {employee.currentPhase} • Début: {employee.startDate}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setScheduleForm(prev => ({
+                            ...prev,
+                            employeeName: employee.name,
+                            employeeEmail: employee.email,
+                            employeeId: employee.userId
+                          }));
+                          setShowScheduleForm(true);
+                        }}
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                      >
+                        Programmer
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {showScheduleForm && (
             <form onSubmit={handleScheduleInterview} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-6 space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <h5 className="text-lg font-semibold text-white">
+                  📝 {selectedTemplate ? `Template: ${INTERVIEW_TYPES[selectedTemplate]?.name}` : 'Nouvel entretien'}
+                </h5>
+                {selectedTemplate && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTemplate(null);
+                      setScheduleForm(prev => ({...prev, objectives: '', notes: ''}));
+                    }}
+                    className="text-gray-400 hover:text-white transition-colors"
+                  >
+                    <XCircle className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -1413,8 +1711,9 @@ const EntretiensReferent = () => {
                     type="text"
                     value={scheduleForm.employeeName}
                     onChange={(e) => setScheduleForm(prev => ({...prev, employeeName: e.target.value}))}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     required
+                    placeholder="Nom complet de l'employé"
                   />
                 </div>
                 
@@ -1426,7 +1725,8 @@ const EntretiensReferent = () => {
                     type="email"
                     value={scheduleForm.employeeEmail}
                     onChange={(e) => setScheduleForm(prev => ({...prev, employeeEmail: e.target.value}))}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="email@brain.fr"
                   />
                 </div>
                 
@@ -1434,6 +1734,122 @@ const EntretiensReferent = () => {
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Type d'entretien *
                   </label>
+                  <select
+                    value={scheduleForm.type}
+                    onChange={(e) => setScheduleForm(prev => ({...prev, type: e.target.value, duration: INTERVIEW_TYPES[e.target.value]?.duration || 30}))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    {Object.entries(INTERVIEW_TYPES).map(([key, type]) => (
+                      <option key={key} value={key}>{type.icon} {type.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={scheduleForm.scheduledDate}
+                    onChange={(e) => setScheduleForm(prev => ({...prev, scheduledDate: e.target.value}))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Heure *
+                  </label>
+                  <input
+                    type="time"
+                    value={scheduleForm.scheduledTime}
+                    onChange={(e) => setScheduleForm(prev => ({...prev, scheduledTime: e.target.value}))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Durée (minutes)
+                  </label>
+                  <select
+                    value={scheduleForm.duration}
+                    onChange={(e) => setScheduleForm(prev => ({...prev, duration: parseInt(e.target.value)}))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value={15}>15 minutes</option>
+                    <option value={30}>30 minutes</option>
+                    <option value={45}>45 minutes</option>
+                    <option value={60}>60 minutes</option>
+                    <option value={90}>90 minutes</option>
+                    <option value={120}>120 minutes</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Lieu
+                </label>
+                <input
+                  type="text"
+                  value={scheduleForm.location}
+                  onChange={(e) => setScheduleForm(prev => ({...prev, location: e.target.value}))}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Bureau référent, Salle de réunion..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Objectifs de l'entretien
+                </label>
+                <textarea
+                  value={scheduleForm.objectives}
+                  onChange={(e) => setScheduleForm(prev => ({...prev, objectives: e.target.value}))}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white h-24 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Décrivez les objectifs et points à aborder..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Notes additionnelles
+                </label>
+                <textarea
+                  value={scheduleForm.notes}
+                  onChange={(e) => setScheduleForm(prev => ({...prev, notes: e.target.value}))}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white h-20 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Notes ou informations complémentaires..."
+                />
+              </div>
+              
+              <div className="flex space-x-3">
+                <button
+                  type="submit"
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors font-medium"
+                >
+                  📅 Programmer l'entretien
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowScheduleForm(false);
+                    setSelectedTemplate(null);
+                  }}
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors"
+                >
+                  Annuler
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
                   <select
                     value={scheduleForm.type}
                     onChange={(e) => setScheduleForm(prev => ({...prev, type: e.target.value}))}
@@ -1600,26 +2016,44 @@ const EntretiensReferent = () => {
         </div>
       )}
 
-      {/* Templates d'entretien */}
+      {/* Templates d'entretien - BOUTONS FONCTIONNELS */}
       <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-xl p-6">
         <h4 className="text-xl font-bold text-white mb-4">📝 Templates d'entretien</h4>
+        <p className="text-gray-300 text-sm mb-6">
+          Cliquez sur un template pour pré-remplir automatiquement le formulaire avec les objectifs et la durée appropriés.
+        </p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Object.entries(INTERVIEW_TYPES).map(([key, type]) => (
-            <div key={key} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
-              <div className="flex items-center mb-2">
-                <span className="text-2xl mr-3">{type.icon}</span>
+            <div key={key} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4 hover:border-gray-600/50 transition-colors">
+              <div className="flex items-center mb-3">
+                <div className={`w-10 h-10 rounded-lg bg-gradient-to-r ${type.color} flex items-center justify-center text-lg mr-3`}>
+                  {type.icon}
+                </div>
                 <div>
                   <h5 className="font-semibold text-white text-sm">{type.name}</h5>
                   <p className="text-gray-400 text-xs">{type.duration} minutes</p>
                 </div>
               </div>
               <p className="text-gray-300 text-sm mb-3">{type.description}</p>
-              <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded text-sm transition-colors">
-                Utiliser ce template
+              <button 
+                onClick={() => useTemplate(key)}
+                className={`w-full bg-gradient-to-r ${type.color} hover:opacity-90 text-white py-2 rounded text-sm transition-all duration-200 font-medium`}
+              >
+                📋 Utiliser ce template
               </button>
             </div>
           ))}
+        </div>
+        
+        <div className="mt-6 bg-gray-800/30 rounded-lg p-4">
+          <h5 className="font-semibold text-white mb-2">💡 Comment utiliser les templates ?</h5>
+          <ul className="text-gray-300 text-sm space-y-1">
+            <li>• Cliquez sur "Utiliser ce template" pour pré-remplir le formulaire</li>
+            <li>• La durée et les objectifs sont automatiquement ajustés</li>
+            <li>• Vous pouvez modifier tous les champs selon vos besoins</li>
+            <li>• Les templates respectent les bonnes pratiques d'entretien</li>
+          </ul>
         </div>
       </div>
     </div>
