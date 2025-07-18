@@ -13,7 +13,8 @@ import {
   orderBy, 
   writeBatch, 
   serverTimestamp,
-  updateDoc 
+  updateDoc,
+  addDoc
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
@@ -41,6 +42,7 @@ class TaskAssignmentService {
 
       const taskData = taskDoc.data();
 
+      // Préparer les données d'assignation
       const assignments = [];
       for (const memberId of memberIds) {
         const memberDoc = await getDoc(doc(db, 'users', memberId));
@@ -50,59 +52,96 @@ class TaskAssignmentService {
           memberId,
           memberName: memberData.displayName || memberData.name || 'Utilisateur anonyme',
           memberEmail: memberData.email || '',
-          contribution: memberIds.length === 1 ? 100 : Math.round(100 / memberIds.length)
+          contribution: memberIds.length === 1 ? 100 : Math.round(100 / memberIds.length),
+          expectedXP: Math.round((taskData.xpReward || 0) / memberIds.length),
+          assignedAt: serverTimestamp(),
+          status: 'assigned'
         });
       }
 
       const batch = writeBatch(db);
 
+      // Mettre à jour la tâche
       const updatedTaskData = {
         assignedTo: memberIds,
+        assignments: assignments,
         status: taskData.status === 'pending' ? 'assigned' : taskData.status,
         assignedAt: serverTimestamp(),
-        assignedBy: assignerId,
-        totalMembers: assignments.length,
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        isMultipleAssignment: memberIds.length > 1
       };
 
       batch.update(taskRef, updatedTaskData);
 
-      assignments.forEach(assignment => {
-        const assignmentRef = doc(collection(db, 'taskAssignments'));
-        batch.set(assignmentRef, {
-          taskId,
-          taskTitle: taskData.title || 'Tâche sans titre',
-          memberId: assignment.memberId,
-          memberName: assignment.memberName,
-          memberEmail: assignment.memberEmail,
-          contribution: assignment.contribution,
-          assignedAt: serverTimestamp(),
+      // Créer une notification pour chaque membre assigné
+      for (const assignment of assignments) {
+        const notificationRef = doc(collection(db, 'notifications'));
+        const notificationData = {
+          userId: assignment.memberId,
+          type: 'task_assigned',
+          title: 'Nouvelle tâche assignée',
+          message: `Vous avez été assigné à la tâche "${taskData.title}"`,
+          taskId: taskId,
+          taskTitle: taskData.title,
           assignedBy: assignerId,
-          status: 'assigned',
-          dueDate: taskData.dueDate || null,
-          priority: taskData.priority || 'normal',
-          projectId: taskData.projectId || null
-        });
-      });
+          expectedXP: assignment.expectedXP,
+          contribution: assignment.contribution,
+          read: false,
+          createdAt: serverTimestamp()
+        };
+        
+        batch.set(notificationRef, notificationData);
+      }
 
       await batch.commit();
 
-      console.log('✅ Tâche assignée avec succès à', assignments.length, 'membres');
-
-      await this.notifyAssignedMembers(taskId, assignments, taskData);
-
-      return {
-        success: true,
-        taskId,
-        assignedMembers: assignments.length,
-        contributions: assignments.map(a => ({
-          member: a.memberName,
-          contribution: a.contribution
-        }))
+      console.log('✅ [ASSIGN] Tâche assignée avec succès');
+      return { 
+        success: true, 
+        assignments,
+        message: `Tâche assignée à ${memberIds.length} membre(s)` 
       };
 
     } catch (error) {
-      console.error('❌ Erreur assignation tâche:', error);
+      console.error('❌ [ASSIGN] Erreur assignation tâche:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 👤 RÉCUPÉRER LES TÂCHES ASSIGNÉES À UN UTILISATEUR
+   */
+  async getUserAssignedTasks(userId) {
+    try {
+      console.log('👤 [GET_ASSIGNED] Récupération tâches assignées:', userId);
+
+      const tasksQuery = query(
+        collection(db, 'tasks'),
+        where('assignedTo', 'array-contains', userId),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const tasksSnapshot = await getDocs(tasksQuery);
+      const tasks = [];
+      
+      tasksSnapshot.forEach(doc => {
+        const taskData = doc.data();
+        
+        // Trouver l'assignation spécifique à cet utilisateur
+        const userAssignment = taskData.assignments?.find(a => a.memberId === userId);
+        
+        tasks.push({
+          id: doc.id,
+          ...taskData,
+          myAssignment: userAssignment || null
+        });
+      });
+
+      console.log('✅ [GET_ASSIGNED] Tâches assignées récupérées:', tasks.length);
+      return tasks;
+
+    } catch (error) {
+      console.error('❌ [GET_ASSIGNED] Erreur récupération tâches assignées:', error);
       throw error;
     }
   }
@@ -112,7 +151,7 @@ class TaskAssignmentService {
    */
   async volunteerForTask(taskId, userId) {
     try {
-      console.log('🙋‍♂️ [VOLUNTEER] Candidature volontaire:', { taskId, userId });
+      console.log('🙋‍♂️ [VOLUNTEER] Candidature pour tâche:', { taskId, userId });
 
       const taskRef = doc(db, 'tasks', taskId);
       const taskDoc = await getDoc(taskRef);
@@ -123,230 +162,80 @@ class TaskAssignmentService {
 
       const taskData = taskDoc.data();
       
-      if (taskData.assignedTo && taskData.assignedTo.includes(userId)) {
+      // Vérifier si l'utilisateur est déjà assigné
+      if (taskData.assignedTo?.includes(userId)) {
         throw new Error('Vous êtes déjà assigné à cette tâche');
       }
 
+      // Vérifier si l'utilisateur a déjà postulé
+      const existingVolunteers = taskData.volunteers || [];
+      if (existingVolunteers.includes(userId)) {
+        throw new Error('Vous avez déjà postulé pour cette tâche');
+      }
+
+      // Récupérer les données utilisateur
       const userDoc = await getDoc(doc(db, 'users', userId));
       const userData = userDoc.exists() ? userDoc.data() : {};
 
-      const batch = writeBatch(db);
-
-      if (taskData.requiresApproval) {
-        const volunteerRequestRef = doc(collection(db, 'volunteerRequests'));
-        batch.set(volunteerRequestRef, {
-          taskId,
-          taskTitle: taskData.title || 'Tâche sans titre',
-          userId,
-          userName: userData.displayName || userData.name || 'Utilisateur anonyme',
-          userEmail: userData.email || '',
-          requestedAt: serverTimestamp(),
-          status: 'pending',
-          type: 'task_volunteer'
-        });
-
-        await batch.commit();
-
-        return {
-          success: true,
-          pending: true,
-          message: 'Demande de volontariat envoyée et en attente d\'approbation'
-        };
-
-      } else {
-        const currentAssigned = taskData.assignedTo || [];
-        batch.update(taskRef, {
-          assignedTo: [...currentAssigned, userId],
-          status: 'assigned',
-          assignedAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-
-        const assignmentRef = doc(collection(db, 'taskAssignments'));
-        batch.set(assignmentRef, {
-          taskId,
-          taskTitle: taskData.title || 'Tâche sans titre',
-          memberId: userId,
-          memberName: userData.displayName || userData.name || 'Utilisateur anonyme',
-          memberEmail: userData.email || '',
-          contribution: 100,
-          assignedAt: serverTimestamp(),
-          assignedBy: 'volunteer_system',
-          status: 'assigned',
-          isVolunteer: true
-        });
-
-        await batch.commit();
-
-        return {
-          success: true,
-          pending: false,
-          message: 'Vous avez été assigné à cette tâche avec succès'
-        };
+      // Si la tâche accepte les volontaires automatiquement
+      if (taskData.autoAcceptVolunteers) {
+        // Assigner directement
+        const result = await this.assignTaskToMembers(taskId, [userId], taskData.createdBy);
+        return { success: true, pending: false, ...result };
       }
 
-    } catch (error) {
-      console.error('❌ [VOLUNTEER] Erreur candidature tâche:', error);
-      throw error;
-    }
-  }
+      // Sinon, ajouter à la liste des volontaires
+      const updatedVolunteers = [...existingVolunteers, userId];
+      const volunteerData = {
+        userId,
+        userName: userData.displayName || userData.name || 'Utilisateur anonyme',
+        userEmail: userData.email || '',
+        appliedAt: serverTimestamp(),
+        status: 'pending'
+      };
 
-  /**
-   * 📋 RÉCUPÉRER LES TÂCHES ASSIGNÉES À UN UTILISATEUR
-   */
-  async getUserAssignedTasks(userId) {
-    try {
-      console.log('📋 [ASSIGNMENTS] Récupération tâches assignées:', userId);
-
-      const assignmentsQuery = query(
-        collection(db, 'taskAssignments'),
-        where('memberId', '==', userId),
-        where('status', '==', 'assigned')
-      );
-      
-      const assignmentsSnapshot = await getDocs(assignmentsQuery);
-      const taskIds = [];
-      const assignmentsByTask = {};
-      
-      assignmentsSnapshot.forEach(doc => {
-        const assignment = doc.data();
-        taskIds.push(assignment.taskId);
-        assignmentsByTask[assignment.taskId] = assignment;
+      await updateDoc(taskRef, {
+        volunteers: updatedVolunteers,
+        volunteerApplications: [...(taskData.volunteerApplications || []), volunteerData],
+        updatedAt: serverTimestamp()
       });
 
-      const tasks = [];
-      
-      if (taskIds.length > 0) {
-        const chunks = this.chunkArray(taskIds, 10);
-        
-        for (const chunk of chunks) {
-          const tasksQuery = query(
-            collection(db, 'tasks'),
-            where('__name__', 'in', chunk)
-          );
-          
-          const tasksSnapshot = await getDocs(tasksQuery);
-          tasksSnapshot.forEach(doc => {
-            const taskData = { id: doc.id, ...doc.data() };
-            const assignment = assignmentsByTask[doc.id];
-            
-            tasks.push({
-              ...taskData,
-              assignmentDetails: assignment,
-              myContribution: assignment.contribution,
-              isVolunteer: assignment.isVolunteer || false
-            });
-          });
-        }
-      }
-
-      const directTasksQuery = query(
-        collection(db, 'tasks'),
-        where('assignedTo', 'array-contains', userId)
-      );
-      
-      const directTasksSnapshot = await getDocs(directTasksQuery);
-      directTasksSnapshot.forEach(doc => {
-        const taskData = { id: doc.id, ...doc.data() };
-        if (!tasks.find(t => t.id === doc.id)) {
-          tasks.push({
-            ...taskData,
-            myContribution: 100,
-            isVolunteer: false
-          });
-        }
-      });
-
-      console.log('✅ [ASSIGNMENTS] Tâches assignées trouvées:', tasks.length);
-      return tasks;
-
-    } catch (error) {
-      console.error('❌ [ASSIGNMENTS] Erreur récupération tâches assignées:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📧 NOTIFIER LES MEMBRES ASSIGNÉS
-   */
-  async notifyAssignedMembers(taskId, assignments, taskData) {
-    try {
-      console.log('📧 Notification des membres assignés...');
-
-      const notifications = assignments.map(assignment => ({
-        userId: assignment.memberId,
-        type: 'task_assigned',
-        title: 'Nouvelle tâche assignée',
-        message: `Vous avez été assigné à la tâche "${taskData.title}" (${assignment.contribution}% de contribution)`,
+      // Créer une notification pour le créateur de la tâche
+      const notificationRef = doc(collection(db, 'notifications'));
+      const notificationData = {
+        userId: taskData.createdBy,
+        type: 'volunteer_application',
+        title: 'Nouveau volontaire',
+        message: `${userData.displayName || userData.name || 'Un utilisateur'} souhaite se porter volontaire pour "${taskData.title}"`,
         taskId: taskId,
-        createdAt: serverTimestamp(),
-        read: false
-      }));
+        taskTitle: taskData.title,
+        volunteerId: userId,
+        volunteerName: userData.displayName || userData.name || 'Utilisateur anonyme',
+        read: false,
+        createdAt: serverTimestamp()
+      };
+      
+      await addDoc(collection(db, 'notifications'), notificationData);
 
-      const batch = writeBatch(db);
-      notifications.forEach(notification => {
-        const notifRef = doc(collection(db, 'notifications'));
-        batch.set(notifRef, notification);
-      });
-
-      await batch.commit();
-      console.log('✅ Notifications envoyées à', assignments.length, 'membres');
-
-    } catch (error) {
-      console.warn('⚠️ Erreur envoi notifications:', error);
-    }
-  }
-
-  /**
-   * 📊 METTRE À JOUR LES POURCENTAGES DE CONTRIBUTION
-   */
-  async updateContributionPercentages(taskId, contributions) {
-    try {
-      console.log('📊 [CONTRIBUTIONS] Mise à jour pourcentages:', { taskId, contributions });
-
-      const total = Object.values(contributions).reduce((sum, value) => sum + value, 0);
-      if (Math.abs(total - 100) > 0.1) {
-        throw new Error(`Le total des contributions doit être 100% (actuellement ${total}%)`);
-      }
-
-      const assignmentsQuery = query(
-        collection(db, 'taskAssignments'),
-        where('taskId', '==', taskId),
-        where('status', '==', 'assigned')
-      );
-
-      const assignmentsSnapshot = await getDocs(assignmentsQuery);
-      const batch = writeBatch(db);
-
-      assignmentsSnapshot.forEach(doc => {
-        const assignment = doc.data();
-        const newContribution = contributions[assignment.memberId];
-        
-        if (newContribution !== undefined) {
-          batch.update(doc.ref, {
-            contribution: newContribution,
-            updatedAt: serverTimestamp()
-          });
-        }
-      });
-
-      await batch.commit();
-      console.log('✅ [CONTRIBUTIONS] Pourcentages mis à jour');
-
-      return { success: true };
+      console.log('✅ [VOLUNTEER] Candidature enregistrée');
+      return { 
+        success: true, 
+        pending: true,
+        message: 'Candidature envoyée avec succès' 
+      };
 
     } catch (error) {
-      console.error('❌ [CONTRIBUTIONS] Erreur mise à jour pourcentages:', error);
+      console.error('❌ [VOLUNTEER] Erreur candidature:', error);
       throw error;
     }
   }
 
   /**
-   * 🗑️ DÉSASSIGNER UN MEMBRE D'UNE TÂCHE
+   * ✅ APPROUVER UN VOLONTAIRE
    */
-  async unassignMemberFromTask(taskId, memberId, unassignerId) {
+  async approveVolunteer(taskId, volunteerId, approverId) {
     try {
-      console.log('🗑️ [UNASSIGN] Désassignation:', { taskId, memberId });
+      console.log('✅ [APPROVE] Approbation volontaire:', { taskId, volunteerId, approverId });
 
       const taskRef = doc(db, 'tasks', taskId);
       const taskDoc = await getDoc(taskRef);
@@ -356,199 +245,85 @@ class TaskAssignmentService {
       }
 
       const taskData = taskDoc.data();
-      const batch = writeBatch(db);
-
-      if (taskData.assignedTo && taskData.assignedTo.includes(memberId)) {
-        const newAssignedTo = taskData.assignedTo.filter(id => id !== memberId);
-        batch.update(taskRef, {
-          assignedTo: newAssignedTo,
-          updatedAt: serverTimestamp()
-        });
+      
+      // Vérifier les permissions
+      if (taskData.createdBy !== approverId) {
+        throw new Error('Seul le créateur de la tâche peut approuver les volontaires');
       }
 
-      const assignmentQuery = query(
-        collection(db, 'taskAssignments'),
-        where('taskId', '==', taskId),
-        where('memberId', '==', memberId)
-      );
+      // Assigner la tâche au volontaire approuvé
+      const result = await this.assignTaskToMembers(taskId, [volunteerId], approverId);
 
-      const assignmentSnapshot = await getDocs(assignmentQuery);
-      assignmentSnapshot.forEach(doc => {
-        batch.update(doc.ref, {
-          status: 'unassigned',
-          unassignedAt: serverTimestamp(),
-          unassignedBy: unassignerId
-        });
+      // Nettoyer les candidatures
+      const updatedVolunteers = (taskData.volunteers || []).filter(id => id !== volunteerId);
+      const updatedApplications = (taskData.volunteerApplications || []).filter(app => app.userId !== volunteerId);
+
+      await updateDoc(taskRef, {
+        volunteers: updatedVolunteers,
+        volunteerApplications: updatedApplications,
+        updatedAt: serverTimestamp()
       });
 
-      await batch.commit();
-      console.log('✅ [UNASSIGN] Membre désassigné avec succès');
-
-      return { success: true };
+      console.log('✅ [APPROVE] Volontaire approuvé et assigné');
+      return { success: true, ...result };
 
     } catch (error) {
-      console.error('❌ [UNASSIGN] Erreur désassignation:', error);
+      console.error('❌ [APPROVE] Erreur approbation volontaire:', error);
       throw error;
     }
   }
 
   /**
-   * 📈 MARQUER UNE TÂCHE COMME TERMINÉE
+   * ❌ REJETER UN VOLONTAIRE
    */
-  async markTaskAsCompleted(taskId, userId, completionNotes = '') {
+  async rejectVolunteer(taskId, volunteerId, rejectorId) {
     try {
-      console.log('📈 [COMPLETE] Marquage tâche terminée:', { taskId, userId });
-
-      const batch = writeBatch(db);
-      const now = serverTimestamp();
+      console.log('❌ [REJECT] Rejet volontaire:', { taskId, volunteerId, rejectorId });
 
       const taskRef = doc(db, 'tasks', taskId);
-      batch.update(taskRef, {
-        status: 'completed',
-        completedAt: now,
-        completedBy: userId,
-        completionNotes: completionNotes,
-        updatedAt: now
-      });
-
-      const assignmentQuery = query(
-        collection(db, 'taskAssignments'),
-        where('taskId', '==', taskId),
-        where('status', '==', 'assigned')
-      );
-
-      const assignmentSnapshot = await getDocs(assignmentQuery);
-      assignmentSnapshot.forEach(doc => {
-        batch.update(doc.ref, {
-          status: 'completed',
-          completedAt: now,
-          updatedAt: now
-        });
-      });
-
-      await batch.commit();
-      console.log('✅ [COMPLETE] Tâche marquée comme terminée');
-
-      return { success: true };
-
-    } catch (error) {
-      console.error('❌ [COMPLETE] Erreur marquage terminé:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📊 STATISTIQUES D'ASSIGNATION
-   */
-  async getAssignmentStats(userId) {
-    try {
-      console.log('📊 [STATS] Récupération statistiques:', userId);
-
-      const assignmentsQuery = query(
-        collection(db, 'taskAssignments'),
-        where('memberId', '==', userId)
-      );
-
-      const assignmentsSnapshot = await getDocs(assignmentsQuery);
+      const taskDoc = await getDoc(taskRef);
       
-      const stats = {
-        totalAssignments: 0,
-        activeAssignments: 0,
-        completedAssignments: 0,
-        volunteerAssignments: 0,
-        totalContribution: 0,
-        averageContribution: 0
+      if (!taskDoc.exists()) {
+        throw new Error('Tâche introuvable');
+      }
+
+      const taskData = taskDoc.data();
+      
+      // Vérifier les permissions
+      if (taskData.createdBy !== rejectorId) {
+        throw new Error('Seul le créateur de la tâche peut rejeter les volontaires');
+      }
+
+      // Retirer de la liste des volontaires
+      const updatedVolunteers = (taskData.volunteers || []).filter(id => id !== volunteerId);
+      const updatedApplications = (taskData.volunteerApplications || []).filter(app => app.userId !== volunteerId);
+
+      await updateDoc(taskRef, {
+        volunteers: updatedVolunteers,
+        volunteerApplications: updatedApplications,
+        updatedAt: serverTimestamp()
+      });
+
+      // Créer une notification pour le volontaire rejeté
+      const notificationRef = doc(collection(db, 'notifications'));
+      const notificationData = {
+        userId: volunteerId,
+        type: 'volunteer_rejected',
+        title: 'Candidature rejetée',
+        message: `Votre candidature pour "${taskData.title}" n'a pas été retenue`,
+        taskId: taskId,
+        taskTitle: taskData.title,
+        read: false,
+        createdAt: serverTimestamp()
       };
+      
+      await addDoc(collection(db, 'notifications'), notificationData);
 
-      let totalContributions = 0;
-      let contributionCount = 0;
-
-      assignmentsSnapshot.forEach(doc => {
-        const assignment = doc.data();
-        stats.totalAssignments++;
-        
-        if (assignment.status === 'assigned') {
-          stats.activeAssignments++;
-        } else if (assignment.status === 'completed') {
-          stats.completedAssignments++;
-        }
-        
-        if (assignment.isVolunteer) {
-          stats.volunteerAssignments++;
-        }
-        
-        if (assignment.contribution) {
-          totalContributions += assignment.contribution;
-          contributionCount++;
-        }
-      });
-
-      stats.totalContribution = totalContributions;
-      stats.averageContribution = contributionCount > 0 ? 
-        Math.round(totalContributions / contributionCount) : 0;
-
-      console.log('✅ [STATS] Statistiques calculées:', stats);
-      return stats;
+      console.log('✅ [REJECT] Volontaire rejeté');
+      return { success: true, message: 'Volontaire rejeté' };
 
     } catch (error) {
-      console.error('❌ [STATS] Erreur statistiques:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🔧 UTILITAIRE: Diviser un tableau en chunks
-   */
-  chunkArray(array, size) {
-    const chunks = [];
-    for (let i = 0; i < array.length; i += size) {
-      chunks.push(array.slice(i, i + size));
-    }
-    return chunks;
-  }
-
-  /**
-   * 🔍 RECHERCHER DES ASSIGNATIONS
-   */
-  async searchAssignments(searchParams) {
-    try {
-      console.log('🔍 [SEARCH] Recherche assignations:', searchParams);
-
-      let assignmentsQuery = collection(db, 'taskAssignments');
-
-      if (searchParams.memberId) {
-        assignmentsQuery = query(assignmentsQuery, where('memberId', '==', searchParams.memberId));
-      }
-
-      if (searchParams.taskId) {
-        assignmentsQuery = query(assignmentsQuery, where('taskId', '==', searchParams.taskId));
-      }
-
-      if (searchParams.status) {
-        assignmentsQuery = query(assignmentsQuery, where('status', '==', searchParams.status));
-      }
-
-      if (searchParams.isVolunteer !== undefined) {
-        assignmentsQuery = query(assignmentsQuery, where('isVolunteer', '==', searchParams.isVolunteer));
-      }
-
-      assignmentsQuery = query(assignmentsQuery, orderBy('assignedAt', 'desc'));
-
-      const assignmentsSnapshot = await getDocs(assignmentsQuery);
-      const assignments = [];
-
-      assignmentsSnapshot.forEach(doc => {
-        assignments.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
-
-      console.log('✅ [SEARCH] Assignations trouvées:', assignments.length);
-      return assignments;
-
-    } catch (error) {
-      console.error('❌ [SEARCH] Erreur recherche assignations:', error);
+      console.error('❌ [REJECT] Erreur rejet volontaire:', error);
       throw error;
     }
   }
@@ -556,22 +331,71 @@ class TaskAssignmentService {
   /**
    * 🔄 RÉASSIGNER UNE TÂCHE
    */
-  async reassignTask(taskId, oldMemberId, newMemberId, reassignerId) {
+  async reassignTask(taskId, newMemberIds, reassignerId) {
     try {
-      console.log('🔄 [REASSIGN] Réassignation tâche:', { taskId, oldMemberId, newMemberId });
+      console.log('🔄 [REASSIGN] Réassignation tâche:', { taskId, newMemberIds, reassignerId });
 
-      await this.unassignMemberFromTask(taskId, oldMemberId, reassignerId);
-      await this.assignTaskToMembers(taskId, [newMemberId], reassignerId);
+      const taskRef = doc(db, 'tasks', taskId);
+      const taskDoc = await getDoc(taskRef);
+      
+      if (!taskDoc.exists()) {
+        throw new Error('Tâche introuvable');
+      }
 
-      console.log('✅ [REASSIGN] Tâche réassignée avec succès');
-      return { success: true };
+      const taskData = taskDoc.data();
+      
+      // Vérifier les permissions
+      if (taskData.createdBy !== reassignerId && !taskData.assignedTo?.includes(reassignerId)) {
+        throw new Error('Permissions insuffisantes pour réassigner cette tâche');
+      }
+
+      // Assigner aux nouveaux membres
+      const result = await this.assignTaskToMembers(taskId, newMemberIds, reassignerId);
+
+      console.log('✅ [REASSIGN] Tâche réassignée');
+      return result;
 
     } catch (error) {
-      console.error('❌ [REASSIGN] Erreur réassignation:', error);
+      console.error('❌ [REASSIGN] Erreur réassignation tâche:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📊 RÉCUPÉRER STATISTIQUES D'ASSIGNATION
+   */
+  async getAssignmentStats(userId) {
+    try {
+      console.log('📊 [STATS] Récupération statistiques assignation:', userId);
+
+      const assignedTasks = await this.getUserAssignedTasks(userId);
+      
+      const stats = {
+        totalAssigned: assignedTasks.length,
+        pending: assignedTasks.filter(t => t.status === 'assigned' || t.status === 'pending').length,
+        inProgress: assignedTasks.filter(t => t.status === 'in_progress').length,
+        completed: assignedTasks.filter(t => t.status === 'completed').length,
+        totalXPEarned: assignedTasks
+          .filter(t => t.status === 'completed')
+          .reduce((sum, task) => sum + (task.myAssignment?.expectedXP || 0), 0),
+        averageContribution: assignedTasks.length > 0 
+          ? assignedTasks.reduce((sum, task) => sum + (task.myAssignment?.contribution || 0), 0) / assignedTasks.length
+          : 0
+      };
+
+      console.log('✅ [STATS] Statistiques calculées:', stats);
+      return stats;
+
+    } catch (error) {
+      console.error('❌ [STATS] Erreur calcul statistiques:', error);
       throw error;
     }
   }
 }
 
-// Export de l'instance
-export const taskAssignmentService = new TaskAssignmentService();
+// ✅ INSTANCE UNIQUE
+const taskAssignmentService = new TaskAssignmentService();
+
+// ✅ EXPORTS
+export default TaskAssignmentService;
+export { taskAssignmentService };
