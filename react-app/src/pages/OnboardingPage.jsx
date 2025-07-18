@@ -43,7 +43,9 @@ import {
   Lock,
   Unlock,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  AlertCircle,
+  RotateCcw
 } from 'lucide-react';
 
 import { useAuthStore } from '../shared/stores/authStore.js';
