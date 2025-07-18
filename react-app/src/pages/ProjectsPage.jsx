@@ -1,9 +1,9 @@
 // ==========================================
 // 📁 react-app/src/pages/ProjectsPage.jsx
-// VERSION MISE À JOUR - SUPPRESSION BUDGET/REPOSITORY + NOUVELLES CATÉGORIES SYNERGIA
+// VERSION AMÉLIORÉE AVEC ASSIGNATIONS ET BÉNÉVOLAT
 // ==========================================
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
@@ -11,726 +11,595 @@ import {
   Filter, 
   Calendar, 
   Users, 
-  Target, 
+  Target,
+  Folder,
+  BarChart3,
   Clock,
-  Edit2,
-  Trash2,
+  Trophy,
+  Star,
+  Heart,
+  HandHeart,
+  Briefcase,
+  ChevronDown,
+  ChevronUp,
+  UserCheck,
+  FolderX,
   Eye,
-  MoreVertical,
-  X,
-  Save,
+  Edit,
+  Settings,
+  PlayCircle,
+  CheckCircle,
   AlertCircle,
-  Flag,
-  FileText,
-  Tag,
-  Settings
+  XCircle
 } from 'lucide-react';
-
-// Imports
 import { useAuthStore } from '../shared/stores/authStore.js';
+import { projectService } from '../core/services/projectService.js';
 
-// 🎯 NOUVELLES CATÉGORIES SYNERGIA MÉTIER
-const SYNERGIA_CATEGORIES = [
-  { 
-    value: 'escape_game', 
-    label: 'Escape Game & Expériences Immersives',
-    icon: '🎮',
-    description: 'Création et maintenance des salles d\'escape game'
-  },
-  { 
-    value: 'maintenance_tech', 
-    label: 'Maintenance Technique & Matériel',
-    icon: '🔧',
-    description: 'Maintenance des équipements et infrastructure'
-  },
-  { 
-    value: 'experience_client', 
-    label: 'Expérience Client & Accueil',
-    icon: '⭐',
-    description: 'Gestion de l\'accueil et satisfaction client'
-  },
-  { 
-    value: 'communication_marketing', 
-    label: 'Communication & Marketing Digital',
-    icon: '📱',
-    description: 'Promotion et communication sur les réseaux'
-  },
-  { 
-    value: 'gestion_operations', 
-    label: 'Gestion des Opérations',
-    icon: '📋',
-    description: 'Organisation interne et coordination'
-  },
-  { 
-    value: 'partenariats_b2b', 
-    label: 'Partenariats & Relations B2B',
-    icon: '🤝',
-    description: 'Développement commercial et partenariats'
-  },
-  { 
-    value: 'formation_equipe', 
-    label: 'Formation & Développement Équipe',
-    icon: '🎓',
-    description: 'Formation interne et montée en compétences'
-  },
-  { 
-    value: 'innovation_produit', 
-    label: 'Innovation & Nouveaux Produits',
-    icon: '💡',
-    description: 'Développement de nouvelles expériences'
-  }
-];
-
-// 🎭 RÔLES SYNERGIA POUR ATTRIBUTION ÉQUIPE
-const SYNERGIA_TEAM_ROLES = [
-  {
-    id: 'game_master',
-    name: 'Game Master',
-    icon: '🎮',
-    color: 'bg-purple-500',
-    description: 'Animation des sessions et expérience client'
-  },
-  {
-    id: 'maintenance',
-    name: 'Maintenance & Technique',
-    icon: '🔧',
-    color: 'bg-orange-500',
-    description: 'Entretien et réparations techniques'
-  },
-  {
-    id: 'reputation',
-    name: 'Gestion Réputation',
-    icon: '⭐',
-    color: 'bg-yellow-500',
-    description: 'Avis clients et image de marque'
-  },
-  {
-    id: 'stock',
-    name: 'Gestion Stocks',
-    icon: '📦',
-    color: 'bg-blue-500',
-    description: 'Inventaire et approvisionnement'
-  },
-  {
-    id: 'organization',
-    name: 'Organisation Interne',
-    icon: '📋',
-    color: 'bg-purple-500',
-    description: 'Coordination et planification'
-  },
-  {
-    id: 'content',
-    name: 'Création Contenu',
-    icon: '🎨',
-    color: 'bg-pink-500',
-    description: 'Contenu visuel et communication'
-  },
-  {
-    id: 'mentoring',
-    name: 'Formation & Mentorat',
-    icon: '🎓',
-    color: 'bg-green-500',
-    description: 'Formation et accompagnement équipe'
-  },
-  {
-    id: 'partnerships',
-    name: 'Partenariats',
-    icon: '🤝',
-    color: 'bg-indigo-500',
-    description: 'Développement partenariats'
-  },
-  {
-    id: 'communication',
-    name: 'Communication Digitale',
-    icon: '📱',
-    color: 'bg-cyan-500',
-    description: 'Réseaux sociaux et communication'
-  },
-  {
-    id: 'b2b',
-    name: 'Relations B2B',
-    icon: '💼',
-    color: 'bg-slate-500',
-    description: 'Relations entreprises et devis'
-  }
-];
-
-// Hook personnalisé pour la gestion des projets
-const useProjects = () => {
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(false);
+/**
+ * 📁 PAGE PROJETS AMÉLIORÉE AVEC SECTIONS ASSIGNATIONS ET BÉNÉVOLAT
+ */
+const ProjectsPage = () => {
+  const { user } = useAuthStore();
+  
+  // États principaux
+  const [assignedProjects, setAssignedProjects] = useState([]);
+  const [availableProjects, setAvailableProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // États UI
+  const [activeSection, setActiveSection] = useState('assigned');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterPriority, setFilterPriority] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Simuler le service de projets - remplace par tes vrais services
-  const projectService = {
-    createProject: async (projectData) => {
-      // Logique de création Firebase
-      console.log('Création projet:', projectData);
-      return { id: Date.now().toString(), ...projectData };
-    },
-    updateProject: async (projectId, updates) => {
-      // Logique de mise à jour Firebase
-      console.log('Mise à jour projet:', projectId, updates);
-      return { id: projectId, ...updates };
-    },
-    deleteProject: async (projectId) => {
-      // Logique de suppression Firebase
-      console.log('Suppression projet:', projectId);
+  // Charger les données au montage
+  useEffect(() => {
+    if (user?.uid) {
+      loadAllProjects();
     }
-  };
+  }, [user?.uid]);
 
-  const loadUserProjects = useCallback(async () => {
+  /**
+   * 📁 CHARGER TOUS LES PROJETS (ASSIGNÉS + DISPONIBLES)
+   */
+  const loadAllProjects = async () => {
     setLoading(true);
+    setError(null);
+    
     try {
-      // Remplace par ta logique de chargement Firebase
-      setProjects([]);
-    } catch (err) {
-      setError(err.message);
+      console.log('🔄 [PROJECTS] Chargement projets pour utilisateur:', user.uid);
+      
+      // 1. Charger mes projets assignés (où je suis membre de l'équipe)
+      const allProjects = await projectService.getAllProjects();
+      
+      const myAssignedProjects = allProjects.filter(project => 
+        project.teamMembers && project.teamMembers.includes(user.uid) ||
+        project.createdBy === user.uid
+      );
+      console.log('✅ [PROJECTS] Projets assignés:', myAssignedProjects.length);
+      setAssignedProjects(myAssignedProjects);
+      
+      // 2. Charger projets disponibles (sans équipe complète ou ouverts aux bénévoles)
+      const availableProjects = allProjects.filter(project => 
+        (!project.teamMembers || project.teamMembers.length === 0 || project.openToVolunteers === true) &&
+        project.status !== 'completed' &&
+        project.status !== 'cancelled' &&
+        project.createdBy !== user.uid &&
+        (!project.teamMembers || !project.teamMembers.includes(user.uid))
+      );
+      console.log('✅ [PROJECTS] Projets disponibles:', availableProjects.length);
+      setAvailableProjects(availableProjects);
+      
+    } catch (error) {
+      console.error('❌ [PROJECTS] Erreur chargement:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  const createProject = useCallback(async (projectData) => {
-    try {
-      const newProject = await projectService.createProject(projectData);
-      setProjects(prev => [newProject, ...prev]);
-      return newProject;
-    } catch (err) {
-      console.error('❌ Erreur création projet:', err);
-      throw err;
-    }
-  }, []);
-
-  const updateProject = useCallback(async (projectId, updatedProject) => {
-    try {
-      const result = await projectService.updateProject(projectId, updatedProject);
-      setProjects(prev => prev.map(project => {
-        if (project.id === projectId) {
-          return { ...project, ...updatedProject };
-        }
-        return project;
-      }));
-      return result;
-    } catch (err) {
-      console.error('❌ Erreur mise à jour projet:', err);
-      throw err;
-    }
-  }, []);
-
-  const deleteProject = useCallback(async (projectId) => {
-    try {
-      await projectService.deleteProject(projectId);
-      setProjects(prev => prev.filter(project => project.id !== projectId));
-    } catch (err) {
-      console.error('❌ Erreur suppression projet:', err);
-      throw err;
-    }
-  }, []);
-
-  return {
-    projects,
-    loading,
-    error,
-    loadUserProjects,
-    createProject,
-    updateProject,
-    deleteProject
   };
-};
 
-// ✅ COMPOSANT FORMULAIRE PROJET MIS À JOUR
-const ProjectForm = ({ isOpen, onClose, project, onSave }) => {
-  const [formData, setFormData] = useState({
-    title: project?.title || '',
-    description: project?.description || '',
-    priority: project?.priority || 'medium',
-    category: project?.category || 'escape_game',
-    startDate: project?.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '',
-    endDate: project?.endDate ? new Date(project.endDate).toISOString().split('T')[0] : '',
-    tags: project?.tags?.join(', ') || '',
-    teamRoles: project?.teamRoles || [], // ✅ NOUVEAU: Rôles assignés au lieu de client/équipe
-    estimatedHours: project?.estimatedHours || ''
-  });
-
-  const [saving, setSaving] = useState(false);
-  const [selectedRoles, setSelectedRoles] = useState(project?.teamRoles || []);
-
-  if (!isOpen) return null;
-
-  // Gestion de l'ajout/suppression de rôles
-  const toggleRole = (roleId) => {
-    setSelectedRoles(prev => {
-      const isSelected = prev.includes(roleId);
-      if (isSelected) {
-        return prev.filter(id => id !== roleId);
-      } else {
-        return [...prev, roleId];
+  /**
+   * 🙋‍♂️ SE PORTER VOLONTAIRE POUR UN PROJET
+   */
+  const handleVolunteerForProject = async (project) => {
+    try {
+      console.log('🙋‍♂️ [VOLUNTEER] Candidature pour projet:', project.title);
+      
+      const result = await projectService.joinProjectAsVolunteer(project.id, user.uid);
+      
+      if (result.success) {
+        console.log('✅ [VOLUNTEER] Candidature réussie');
+        // Recharger les données
+        await loadAllProjects();
+        
+        // Notification succès
+        alert(`Candidature envoyée pour le projet "${project.title}" !`);
       }
+      
+    } catch (error) {
+      console.error('❌ [VOLUNTEER] Erreur candidature:', error);
+      alert('Erreur lors de la candidature. Réessayez.');
+    }
+  };
+
+  /**
+   * 🎨 COULEURS DE STATUT
+   */
+  const getStatusColor = (status) => {
+    const colors = {
+      'planning': 'bg-blue-100 text-blue-800',
+      'active': 'bg-green-100 text-green-800',
+      'on_hold': 'bg-yellow-100 text-yellow-800',
+      'completed': 'bg-purple-100 text-purple-800',
+      'cancelled': 'bg-red-100 text-red-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusIcon = (status) => {
+    const icons = {
+      'planning': PlayCircle,
+      'active': CheckCircle,
+      'on_hold': AlertCircle,
+      'completed': CheckCircle,
+      'cancelled': XCircle
+    };
+    return icons[status] || AlertCircle;
+  };
+
+  const getStatusText = (status) => {
+    const texts = {
+      'planning': 'Planification',
+      'active': 'Actif',
+      'on_hold': 'En pause',
+      'completed': 'Terminé',
+      'cancelled': 'Annulé'
+    };
+    return texts[status] || 'Inconnu';
+  };
+
+  const getPriorityColor = (priority) => {
+    const colors = {
+      'low': 'bg-green-100 text-green-800',
+      'medium': 'bg-yellow-100 text-yellow-800',
+      'high': 'bg-orange-100 text-orange-800',
+      'urgent': 'bg-red-100 text-red-800'
+    };
+    return colors[priority] || 'bg-gray-100 text-gray-800';
+  };
+
+  /**
+   * 🔍 FILTRER LES PROJETS
+   */
+  const filterProjects = (projects) => {
+    return projects.filter(project => {
+      const matchesSearch = !searchTerm || 
+        project.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.description?.toLowerCase().includes(searchTerm.toLowerCase());
+        
+      const matchesStatus = filterStatus === 'all' || project.status === filterStatus;
+      const matchesPriority = filterPriority === 'all' || project.priority === filterPriority;
+      
+      return matchesSearch && matchesStatus && matchesPriority;
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.title.trim()) return;
+  const filteredAssignedProjects = filterProjects(assignedProjects);
+  const filteredAvailableProjects = filterProjects(availableProjects);
 
-    setSaving(true);
-    try {
-      const projectData = {
-        ...formData,
-        teamRoles: selectedRoles, // ✅ NOUVEAU: Sauvegarder les rôles sélectionnés
-        tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
-        estimatedHours: formData.estimatedHours ? parseInt(formData.estimatedHours) : null,
-        startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
-        endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null,
-        createdAt: project ? project.createdAt : new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      await onSave(projectData);
-      onClose();
-    } catch (error) {
-      console.error('Erreur sauvegarde:', error);
-    } finally {
-      setSaving(false);
-    }
+  /**
+   * 📊 CALCULER LE POURCENTAGE DE PROGRESSION
+   */
+  const calculateProgress = (project) => {
+    if (!project.tasks || project.tasks.length === 0) return 0;
+    const completedTasks = project.tasks.filter(task => task.status === 'completed').length;
+    return Math.round((completedTasks / project.tasks.length) * 100);
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        
-        {/* Header */}
-        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-white">
-              {project ? 'Modifier le projet' : 'Nouveau projet'}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <X size={24} />
-            </button>
+  /**
+   * 🎨 RENDU D'UNE CARTE DE PROJET
+   */
+  const ProjectCard = ({ project, isVolunteer = false, showVolunteerButton = false }) => {
+    const StatusIcon = getStatusIcon(project.status);
+    const progress = calculateProgress(project);
+    
+    return (
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300"
+      >
+        <div className="p-6">
+          {/* En-tête avec titre et badges */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                {project.title}
+              </h3>
+              <p className="text-gray-600 mb-3 line-clamp-2">
+                {project.description}
+              </p>
+            </div>
+            
+            {isVolunteer && (
+              <div className="ml-4">
+                <span className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                  <Heart className="w-4 h-4 mr-1" />
+                  Bénévole
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Badges de statut et priorité */}
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(project.status)}`}>
+              <StatusIcon className="w-4 h-4 mr-1" />
+              {getStatusText(project.status)}
+            </span>
+            
+            {project.priority && (
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getPriorityColor(project.priority)}`}>
+                <Target className="w-4 h-4 mr-1" />
+                {project.priority === 'low' ? 'Basse' :
+                 project.priority === 'medium' ? 'Moyenne' :
+                 project.priority === 'high' ? 'Haute' : 'Urgente'}
+              </span>
+            )}
+
+            {project.teamMembers && (
+              <span className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                <Users className="w-4 h-4 mr-1" />
+                {project.teamMembers.length} membre{project.teamMembers.length > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+
+          {/* Barre de progression */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Progression</span>
+              <span className="text-sm font-medium text-gray-900">{progress}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Informations temporelles */}
+          <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
+            {project.deadline && (
+              <div className="flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                <span>
+                  Échéance: {new Date(project.deadline).toLocaleDateString('fr-FR')}
+                </span>
+              </div>
+            )}
+            
+            {project.estimatedDuration && (
+              <div className="flex items-center gap-1">
+                <Clock className="w-4 h-4" />
+                <span>{project.estimatedDuration} estimée</span>
+              </div>
+            )}
+          </div>
+
+          {/* Récompenses et compétences */}
+          {(project.xpReward || project.skillsToLearn) && (
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              {project.xpReward && (
+                <span className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
+                  <Trophy className="w-3 h-3 mr-1" />
+                  {project.xpReward} XP
+                </span>
+              )}
+              
+              {project.skillsToLearn && project.skillsToLearn.slice(0, 3).map(skill => (
+                <span key={skill} className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                  {skill}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+            <div className="flex items-center space-x-3">
+              <button className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                <Eye className="w-4 h-4" />
+                Voir détails
+              </button>
+              
+              {!isVolunteer && (
+                <button className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
+                  <Settings className="w-4 h-4" />
+                  Gérer
+                </button>
+              )}
+            </div>
+            
+            {showVolunteerButton && (
+              <button
+                onClick={() => handleVolunteerForProject(project)}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+              >
+                <HandHeart className="w-4 h-4" />
+                Rejoindre l'équipe
+              </button>
+            )}
           </div>
         </div>
-
-        {/* Formulaire */}
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            {/* Titre du projet */}
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <FileText className="w-4 h-4 inline mr-2" />
-                Titre du projet *
-              </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
-                placeholder="Ex: Nouvelle salle d'escape game futuriste"
-                required
-              />
-            </div>
-
-            {/* Description */}
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Description détaillée
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
-                rows="4"
-                placeholder="Décrivez les objectifs, fonctionnalités et contraintes du projet..."
-              />
-            </div>
-
-            {/* ✅ NOUVELLE CATÉGORIE SYNERGIA */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Target className="w-4 h-4 inline mr-2" />
-                Domaine d'application Synergia
-              </label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({...formData, category: e.target.value})}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
-              >
-                {SYNERGIA_CATEGORIES.map(cat => (
-                  <option key={cat.value} value={cat.value}>
-                    {cat.icon} {cat.label}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-400 mt-1">
-                {SYNERGIA_CATEGORIES.find(c => c.value === formData.category)?.description}
-              </p>
-            </div>
-
-            {/* Priorité */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Flag className="w-4 h-4 inline mr-2" />
-                Priorité
-              </label>
-              <select
-                value={formData.priority}
-                onChange={(e) => setFormData({...formData, priority: e.target.value})}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
-              >
-                <option value="low">🟢 Basse</option>
-                <option value="medium">🟡 Moyenne</option>
-                <option value="high">🟠 Haute</option>
-                <option value="urgent">🔴 Urgente</option>
-              </select>
-            </div>
-
-            {/* Heures estimées */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Clock className="w-4 h-4 inline mr-2" />
-                Heures estimées
-              </label>
-              <input
-                type="number"
-                value={formData.estimatedHours}
-                onChange={(e) => setFormData({...formData, estimatedHours: e.target.value})}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
-                min="1"
-                placeholder="Ex: 40"
-              />
-            </div>
-
-            {/* Date de début */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Calendar className="w-4 h-4 inline mr-2" />
-                Date de début
-              </label>
-              <input
-                type="date"
-                value={formData.startDate}
-                onChange={(e) => setFormData({...formData, startDate: e.target.value})}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
-              />
-            </div>
-
-            {/* Date de fin prévue */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Date de fin prévue
-              </label>
-              <input
-                type="date"
-                value={formData.endDate}
-                onChange={(e) => setFormData({...formData, endDate: e.target.value})}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
-              />
-            </div>
-
-            {/* Tags */}
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Tag className="w-4 h-4 inline mr-2" />
-                Tags (séparés par des virgules)
-              </label>
-              <input
-                type="text"
-                value={formData.tags}
-                onChange={(e) => setFormData({...formData, tags: e.target.value})}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-400"
-                placeholder="urgent, client-facing, innovation, maintenance..."
-              />
-            </div>
-
-            {/* ✅ NOUVEAU: ATTRIBUTION RÔLES ÉQUIPE SYNERGIA */}
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-300 mb-3">
-                <Users className="w-4 h-4 inline mr-2" />
-                Rôles Synergia impliqués dans ce projet
-              </label>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {SYNERGIA_TEAM_ROLES.map(role => (
-                  <div
-                    key={role.id}
-                    onClick={() => toggleRole(role.id)}
-                    className={`
-                      p-3 rounded-lg border-2 cursor-pointer transition-all hover:scale-105
-                      ${selectedRoles.includes(role.id) 
-                        ? 'border-blue-400 bg-blue-900/30' 
-                        : 'border-gray-600 bg-gray-700/50'
-                      }
-                    `}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <div className={`w-8 h-8 rounded-full ${role.color} flex items-center justify-center text-white text-sm`}>
-                        {role.icon}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">
-                          {role.name}
-                        </p>
-                        <p className="text-xs text-gray-400 truncate">
-                          {role.description}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-gray-400 mt-2">
-                Sélectionnez les rôles qui participeront à ce projet. 
-                Cela permettra d'assigner automatiquement les bonnes compétences.
-              </p>
-            </div>
-          </div>
-
-          {/* Boutons d'action */}
-          <div className="flex items-center justify-end space-x-4 mt-8 pt-6 border-t border-gray-700">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 text-gray-300 hover:text-white transition-colors"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={saving || !formData.title.trim()}
-              className="flex items-center space-x-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
-            >
-              {saving ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Sauvegarde...</span>
-                </>
-              ) : (
-                <>
-                  <Save size={16} />
-                  <span>{project ? 'Mettre à jour' : 'Créer le projet'}</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// Composant principal de la page projets
-const ProjectsPage = () => {
-  const { user } = useAuthStore();
-  const {
-    projects,
-    loading,
-    error,
-    loadUserProjects,
-    createProject,
-    updateProject,
-    deleteProject
-  } = useProjects();
-
-  const [showProjectForm, setShowProjectForm] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  useEffect(() => {
-    if (user) {
-      loadUserProjects();
-    }
-  }, [user, loadUserProjects]);
-
-  const handleSaveProject = async (projectData) => {
-    try {
-      if (selectedProject) {
-        await updateProject(selectedProject.id, projectData);
-      } else {
-        await createProject(projectData);
-      }
-      setShowProjectForm(false);
-      setSelectedProject(null);
-    } catch (error) {
-      console.error('Erreur sauvegarde projet:', error);
-    }
+      </motion.div>
+    );
   };
-
-  const openEditProject = (project) => {
-    setSelectedProject(project);
-    setShowProjectForm(true);
-  };
-
-  const openNewProject = () => {
-    setSelectedProject(null);
-    setShowProjectForm(true);
-  };
-
-  // Filtrage des projets
-  const filteredProjects = projects.filter(project =>
-    project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white">Chargement des projets...</div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des projets...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <div className="container mx-auto px-4 py-8">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Projets Synergia</h1>
-            <p className="text-gray-400">Gérez vos projets d'escape game et expériences</p>
-          </div>
-          <button
-            onClick={openNewProject}
-            className="flex items-center space-x-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-          >
-            <Plus size={20} />
-            <span>Nouveau projet</span>
-          </button>
-        </div>
-
-        {/* Barre de recherche */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Rechercher un projet..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-blue-400"
-            />
+    <div className="min-h-screen bg-gray-50">
+      {/* En-tête de la page */}
+      <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-4">
+              <Folder className="w-8 h-8 text-blue-600" />
+              <h1 className="text-2xl font-bold text-gray-900">Mes Projets</h1>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                <Plus className="w-4 h-4" />
+                Nouveau projet
+              </button>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Liste des projets */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map(project => (
-            <motion.div
-              key={project.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-gray-800 rounded-lg p-6 border border-gray-700"
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Navigation par onglets */}
+        <div className="mb-8">
+          <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setActiveSection('assigned')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeSection === 'assigned'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
             >
-              <div className="flex items-start justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white truncate">
-                  {project.title}
-                </h3>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => openEditProject(project)}
-                    className="text-gray-400 hover:text-blue-400 transition-colors"
-                  >
-                    <Edit2 size={16} />
-                  </button>
-                  <button
-                    onClick={() => deleteProject(project.id)}
-                    className="text-gray-400 hover:text-red-400 transition-colors"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+              <UserCheck className="w-4 h-4" />
+              Mes projets ({filteredAssignedProjects.length})
+            </button>
+            
+            <button
+              onClick={() => setActiveSection('available')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeSection === 'available'
+                  ? 'bg-white text-green-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <HandHeart className="w-4 h-4" />
+              Projets recherchant des bénévoles ({filteredAvailableProjects.length})
+            </button>
+          </div>
+        </div>
+
+        {/* Barre de recherche et filtres */}
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Rechercher des projets..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+                showFilters ? 'bg-blue-50 border-blue-300 text-blue-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+              Filtres
+              {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {/* Panneau de filtres */}
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="bg-white rounded-lg border border-gray-200 p-4"
+              >
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Statut</label>
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="all">Tous les statuts</option>
+                      <option value="planning">Planification</option>
+                      <option value="active">Actif</option>
+                      <option value="on_hold">En pause</option>
+                      <option value="completed">Terminé</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Priorité</label>
+                    <select
+                      value={filterPriority}
+                      onChange={(e) => setFilterPriority(e.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="all">Toutes les priorités</option>
+                      <option value="low">Basse</option>
+                      <option value="medium">Moyenne</option>
+                      <option value="high">Haute</option>
+                      <option value="urgent">Urgente</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
-              <p className="text-gray-300 text-sm mb-4 line-clamp-2">
-                {project.description}
-              </p>
-
-              {/* Catégorie */}
-              <div className="mb-3">
-                <span className="inline-flex items-center px-2 py-1 bg-blue-900 text-blue-200 text-xs rounded">
-                  {SYNERGIA_CATEGORIES.find(c => c.value === project.category)?.icon} {' '}
-                  {SYNERGIA_CATEGORIES.find(c => c.value === project.category)?.label}
+        {/* Contenu principal */}
+        <AnimatePresence mode="wait">
+          {activeSection === 'assigned' && (
+            <motion.div
+              key="assigned"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <Briefcase className="w-6 h-6 text-blue-600" />
+                <h2 className="text-xl font-bold text-gray-900">Mes projets</h2>
+                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                  {filteredAssignedProjects.length}
                 </span>
               </div>
 
-              {/* Rôles assignés */}
-              {project.teamRoles && project.teamRoles.length > 0 && (
-                <div className="mb-3">
-                  <div className="flex flex-wrap gap-1">
-                    {project.teamRoles.slice(0, 3).map(roleId => {
-                      const role = SYNERGIA_TEAM_ROLES.find(r => r.id === roleId);
-                      return role ? (
-                        <span
-                          key={roleId}
-                          className="inline-flex items-center px-1 py-0.5 bg-gray-700 text-gray-300 text-xs rounded"
-                        >
-                          {role.icon} {role.name}
-                        </span>
-                      ) : null;
-                    })}
-                    {project.teamRoles.length > 3 && (
-                      <span className="text-xs text-gray-400">
-                        +{project.teamRoles.length - 3} autres
-                      </span>
-                    )}
-                  </div>
+              {filteredAssignedProjects.length > 0 ? (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredAssignedProjects.map(project => (
+                    <ProjectCard key={project.id} project={project} />
+                  ))}
                 </div>
-              )}
-
-              {/* Dates */}
-              {project.startDate && (
-                <div className="text-xs text-gray-400">
-                  <Calendar className="w-3 h-3 inline mr-1" />
-                  {new Date(project.startDate).toLocaleDateString('fr-FR')}
-                  {project.endDate && (
-                    <> → {new Date(project.endDate).toLocaleDateString('fr-FR')}</>
-                  )}
+              ) : (
+                <div className="text-center py-12">
+                  <FolderX className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Aucun projet assigné</h3>
+                  <p className="text-gray-600 mb-6">
+                    {searchTerm ? 'Aucun projet assigné ne correspond à votre recherche.' : 'Vous ne participez à aucun projet pour le moment.'}
+                  </p>
+                  <button
+                    onClick={() => setActiveSection('available')}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                  >
+                    <HandHeart className="w-4 h-4" />
+                    Découvrir les projets bénévoles
+                  </button>
                 </div>
               )}
             </motion.div>
-          ))}
-        </div>
+          )}
 
-        {/* État vide */}
-        {filteredProjects.length === 0 && !loading && (
-          <div className="text-center py-12">
-            <Target className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-400 mb-2">
-              {searchTerm ? 'Aucun projet trouvé' : 'Aucun projet pour le moment'}
-            </h3>
-            <p className="text-gray-500 mb-6">
-              {searchTerm 
-                ? 'Essayez avec d\'autres mots-clés'
-                : 'Créez votre premier projet pour commencer'
-              }
-            </p>
-            {!searchTerm && (
-              <button
-                onClick={openNewProject}
-                className="inline-flex items-center space-x-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-              >
-                <Plus size={20} />
-                <span>Créer un projet</span>
-              </button>
-            )}
+          {activeSection === 'available' && (
+            <motion.div
+              key="available"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <Star className="w-6 h-6 text-green-600" />
+                <h2 className="text-xl font-bold text-gray-900">Projets recherchant des bénévoles</h2>
+                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                  {filteredAvailableProjects.length}
+                </span>
+              </div>
+
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <HandHeart className="w-5 h-5 text-green-600 mt-0.5" />
+                  <div>
+                    <h3 className="font-medium text-green-900 mb-1">Rejoignez des projets passionnants !</h3>
+                    <p className="text-green-700 text-sm">
+                      Ces projets recherchent des membres motivés pour enrichir leur équipe. 
+                      C'est l'occasion parfaite d'apprendre de nouvelles compétences et de contribuer à des initiatives importantes !
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {filteredAvailableProjects.length > 0 ? (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredAvailableProjects.map(project => (
+                    <ProjectCard 
+                      key={project.id} 
+                      project={project} 
+                      isVolunteer={true}
+                      showVolunteerButton={true}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Star className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Aucun projet bénévole disponible</h3>
+                  <p className="text-gray-600">
+                    {searchTerm ? 'Aucun projet bénévole ne correspond à votre recherche.' : 'Il n\'y a pas de projets recherchant des bénévoles pour le moment.'}
+                  </p>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Statistiques en bas */}
+        <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+            <div className="text-3xl font-bold text-blue-600 mb-2">
+              {assignedProjects.length}
+            </div>
+            <div className="text-gray-600 text-sm">Mes projets</div>
           </div>
-        )}
+          
+          <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+            <div className="text-3xl font-bold text-green-600 mb-2">
+              {availableProjects.length}
+            </div>
+            <div className="text-gray-600 text-sm">Projets ouverts</div>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+            <div className="text-3xl font-bold text-yellow-600 mb-2">
+              {assignedProjects.filter(p => p.status === 'completed').length}
+            </div>
+            <div className="text-gray-600 text-sm">Projets terminés</div>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+            <div className="text-3xl font-bold text-purple-600 mb-2">
+              {Math.round(assignedProjects.reduce((total, project) => total + calculateProgress(project), 0) / (assignedProjects.length || 1))}%
+            </div>
+            <div className="text-gray-600 text-sm">Progression moyenne</div>
+          </div>
+        </div>
       </div>
-
-      {/* Modal formulaire projet */}
-      <ProjectForm
-        isOpen={showProjectForm}
-        onClose={() => {
-          setShowProjectForm(false);
-          setSelectedProject(null);
-        }}
-        project={selectedProject}
-        onSave={handleSaveProject}
-      />
     </div>
   );
 };
