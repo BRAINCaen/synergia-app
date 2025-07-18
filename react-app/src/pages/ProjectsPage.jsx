@@ -18,7 +18,6 @@ import {
   Trophy,
   Star,
   Heart,
-  HandHeart,
   Briefcase,
   ChevronDown,
   ChevronUp,
@@ -336,7 +335,7 @@ const ProjectsPage = () => {
                 onClick={() => handleVolunteerForProject(project)}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
               >
-                <HandHeart className="w-4 h-4" />
+                <Heart className="w-4 h-4" />
                 Rejoindre l'équipe
               </button>
             )}
@@ -402,7 +401,7 @@ const ProjectsPage = () => {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              <HandHeart className="w-4 h-4" />
+              <Heart className="w-4 h-4" />
               Projets recherchant des volontaires ({filteredAvailableProjects.length})
             </button>
           </div>
@@ -514,7 +513,7 @@ const ProjectsPage = () => {
                     onClick={() => setActiveSection('available')}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                   >
-                    <HandHeart className="w-4 h-4" />
+                    <Heart className="w-4 h-4" />
                     Découvrir les projets volontaires
                   </button>
                 </div>
@@ -540,7 +539,7 @@ const ProjectsPage = () => {
 
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
                 <div className="flex items-start gap-3">
-                  <HandHeart className="w-5 h-5 text-green-600 mt-0.5" />
+                  <Heart className="w-5 h-5 text-green-600 mt-0.5" />
                   <div>
                     <h3 className="font-medium text-green-900 mb-1">Rejoignez des projets passionnants !</h3>
                     <p className="text-green-700 text-sm">
