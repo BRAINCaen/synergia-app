@@ -22,7 +22,6 @@ import {
   Trash2,
   UserPlus,
   Heart,
-  HandHeart,
   Briefcase,
   Star,
   ChevronDown,
@@ -260,7 +259,7 @@ const TasksPage = () => {
               onClick={() => handleVolunteerForTask(task)}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
             >
-              <HandHeart className="w-4 h-4" />
+              <Heart className="w-4 h-4" />
               Se porter volontaire
             </button>
           )}
@@ -325,7 +324,7 @@ const TasksPage = () => {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              <HandHeart className="w-4 h-4" />
+              <Heart className="w-4 h-4" />
               Opportunités volontaires ({filteredAvailableTasks.length})
             </button>
           </div>
@@ -421,7 +420,7 @@ const TasksPage = () => {
                     onClick={() => setActiveSection('available')}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                   >
-                    <HandHeart className="w-4 h-4" />
+                    <Heart className="w-4 h-4" />
                     Voir les opportunités volontaires
                   </button>
                 </div>
@@ -447,7 +446,7 @@ const TasksPage = () => {
 
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
                 <div className="flex items-start gap-3">
-                  <HandHeart className="w-5 h-5 text-green-600 mt-0.5" />
+                  <Heart className="w-5 h-5 text-green-600 mt-0.5" />
                   <div>
                     <h3 className="font-medium text-green-900 mb-1">Contribuez à l'équipe !</h3>
                     <p className="text-green-700 text-sm">
