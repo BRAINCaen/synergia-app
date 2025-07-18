@@ -50,6 +50,7 @@ const TasksPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Charger les données au montage
   useEffect(() => {
@@ -92,6 +93,31 @@ const TasksPage = () => {
     }
   };
 
+  /**
+   * ➕ CRÉER UNE NOUVELLE TÂCHE
+   */
+  const handleCreateTask = async (taskData) => {
+    try {
+      console.log('➕ [CREATE] Création nouvelle tâche:', taskData.title);
+      
+      const newTask = await taskService.createTask(taskData, user.uid);
+      
+      console.log('✅ [CREATE] Tâche créée avec succès:', newTask.id);
+      
+      // Recharger les données
+      await loadAllTasks();
+      
+      // Fermer la modale
+      setShowCreateModal(false);
+      
+      // Notification succès
+      alert(`Tâche "${taskData.title}" créée avec succès !`);
+      
+    } catch (error) {
+      console.error('❌ [CREATE] Erreur création tâche:', error);
+      alert('Erreur lors de la création de la tâche. Réessayez.');
+    }
+  };
   /**
    * 🎯 SE PORTER VOLONTAIRE POUR UNE TÂCHE
    */
@@ -160,6 +186,217 @@ const TasksPage = () => {
   const filteredAssignedTasks = filterTasks(assignedTasks);
   const filteredAvailableTasks = filterTasks(availableTasks);
 
+  /**
+   * 🎨 MODALE DE CRÉATION DE TÂCHE
+   */
+  const CreateTaskModal = () => {
+    const [formData, setFormData] = useState({
+      title: '',
+      description: '',
+      priority: 'medium',
+      dueDate: '',
+      estimatedHours: '',
+      xpReward: '',
+      tags: [],
+      openToVolunteers: false
+    });
+    const [saving, setSaving] = useState(false);
+
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      setSaving(true);
+
+      try {
+        const taskData = {
+          ...formData,
+          dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
+          estimatedHours: formData.estimatedHours ? parseInt(formData.estimatedHours) : 0,
+          xpReward: formData.xpReward ? parseInt(formData.xpReward) : 0,
+          tags: formData.tags.filter(tag => tag.trim() !== '')
+        };
+
+        await handleCreateTask(taskData);
+      } catch (error) {
+        console.error('Erreur création:', error);
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    const handleTagsChange = (e) => {
+      const tagsString = e.target.value;
+      const tagsArray = tagsString.split(',').map(tag => tag.trim());
+      setFormData(prev => ({ ...prev, tags: tagsArray }));
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Créer une nouvelle tâche</h2>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Titre */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Titre de la tâche *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ex: Mettre à jour la documentation"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Décrivez la tâche en détail..."
+                />
+              </div>
+
+              {/* Ligne 1: Priorité et Date d'échéance */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Priorité
+                  </label>
+                  <select
+                    value={formData.priority}
+                    onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="low">Basse</option>
+                    <option value="medium">Moyenne</option>
+                    <option value="high">Haute</option>
+                    <option value="urgent">Urgente</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date d'échéance
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.dueDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Ligne 2: Heures estimées et XP */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Heures estimées
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={formData.estimatedHours}
+                    onChange={(e) => setFormData(prev => ({ ...prev, estimatedHours: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Ex: 2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Récompense XP
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.xpReward}
+                    onChange={(e) => setFormData(prev => ({ ...prev, xpReward: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Ex: 50"
+                  />
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tags (séparés par des virgules)
+                </label>
+                <input
+                  type="text"
+                  value={formData.tags.join(', ')}
+                  onChange={handleTagsChange}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ex: documentation, urgent, frontend"
+                />
+              </div>
+
+              {/* Ouvert aux volontaires */}
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="openToVolunteers"
+                  checked={formData.openToVolunteers}
+                  onChange={(e) => setFormData(prev => ({ ...prev, openToVolunteers: e.target.checked }))}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="openToVolunteers" className="ml-2 text-sm text-gray-700">
+                  Ouverte aux volontaires
+                </label>
+              </div>
+
+              {/* Boutons */}
+              <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving || !formData.title.trim()}
+                  className="flex items-center space-x-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+                >
+                  {saving ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Création...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      <span>Créer la tâche</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  };
   /**
    * 🎨 RENDU D'UNE CARTE DE TÂCHE
    */
@@ -291,7 +528,10 @@ const TasksPage = () => {
             </div>
             
             <div className="flex items-center space-x-4">
-              <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+              <button 
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
                 <Plus className="w-4 h-4" />
                 Nouvelle tâche
               </button>
@@ -512,6 +752,9 @@ const TasksPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Modale de création */}
+      {showCreateModal && <CreateTaskModal />}
     </div>
   );
 };
