@@ -19,7 +19,7 @@ import {
 import { db } from '../firebase.js';
 
 /**
- * 🙋‍♂️ SERVICE COMPLET DE GESTION DU BÉNÉVOLAT
+ * 🙋‍♂️ SERVICE COMPLET DE GESTION DU VOLONTARIAT
  * Centralise toutes les opérations liées au volontariat
  */
 class VolunteerService {
@@ -348,7 +348,7 @@ class VolunteerService {
   }
 
   /**
-   * 🔍 RECHERCHER DES OPPORTUNITÉS DE BÉNÉVOLAT
+   * 🔍 RECHERCHER DES OPPORTUNITÉS DE VOLONTARIAT
    */
   async searchVolunteerOpportunities(searchParams) {
     try {
@@ -474,7 +474,7 @@ class VolunteerService {
         batch.set(notificationRef, {
           userId: doc.id,
           type: 'volunteer_request',
-          title: 'Nouvelle demande de bénévolat',
+          title: 'Nouvelle demande de volontariat',
           message: `${requestData.userName} souhaite participer à "${requestData.taskTitle || requestData.projectTitle}"`,
           requestId: requestId,
           createdAt: serverTimestamp(),
@@ -492,7 +492,7 @@ class VolunteerService {
   }
 
   /**
-   * 📈 GÉNÉRER RAPPORT DE BÉNÉVOLAT
+   * 📈 GÉNÉRER RAPPORT DE VOLONTARIAT
    */
   async generateVolunteerReport(startDate, endDate) {
     try {
