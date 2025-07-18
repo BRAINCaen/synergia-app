@@ -51,6 +51,8 @@ const TasksPage = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
 
   // Charger les données au montage
   useEffect(() => {
@@ -91,6 +93,15 @@ const TasksPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  /**
+   * 👁️ VOIR LES DÉTAILS D'UNE TÂCHE
+   */
+  const handleViewDetails = (task) => {
+    console.log('👁️ [DETAILS] Affichage détails tâche:', task.title);
+    setSelectedTask(task);
+    setShowDetailsModal(true);
   };
 
   /**
@@ -185,6 +196,255 @@ const TasksPage = () => {
 
   const filteredAssignedTasks = filterTasks(assignedTasks);
   const filteredAvailableTasks = filterTasks(availableTasks);
+
+  /**
+   * 🎨 MODALE DE DÉTAILS DE TÂCHE
+   */
+  const TaskDetailsModal = () => {
+    if (!selectedTask) return null;
+
+    const formatDate = (date) => {
+      if (!date) return 'Non définie';
+      const taskDate = date.toDate ? date.toDate() : new Date(date);
+      return taskDate.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    };
+
+    const getStatusText = (status) => {
+      const statusMap = {
+        'pending': 'En attente',
+        'in_progress': 'En cours',
+        'completed': 'Terminée',
+        'cancelled': 'Annulée'
+      };
+      return statusMap[status] || status;
+    };
+
+    const getPriorityText = (priority) => {
+      const priorityMap = {
+        'low': 'Basse',
+        'medium': 'Moyenne',
+        'high': 'Haute',
+        'urgent': 'Urgente'
+      };
+      return priorityMap[priority] || priority;
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            {/* En-tête */}
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  {selectedTask.title}
+                </h2>
+                <div className="flex items-center gap-3">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedTask.status)}`}>
+                    {getStatusText(selectedTask.status)}
+                  </span>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getPriorityColor(selectedTask.priority)}`}>
+                    {getPriorityText(selectedTask.priority)}
+                  </span>
+                  {selectedTask.isVolunteer && (
+                    <span className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                      <Heart className="w-3 h-3 mr-1" />
+                      Volontaire
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDetailsModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors ml-4"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Contenu principal */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Colonne principale */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Description */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-gray-700">
+                      {selectedTask.description || 'Aucune description fournie.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Tags */}
+                {selectedTask.tags && selectedTask.tags.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Tags</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedTask.tags.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Assignation */}
+                {selectedTask.assignmentDetails && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Assignation</h3>
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-blue-900">
+                            {selectedTask.assignmentDetails.memberName}
+                          </p>
+                          <p className="text-blue-700 text-sm">
+                            {selectedTask.assignmentDetails.memberEmail}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-blue-600">
+                            {selectedTask.myContribution}%
+                          </p>
+                          <p className="text-blue-700 text-sm">Contribution</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Colonne latérale */}
+              <div className="space-y-6">
+                {/* Informations clés */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Informations</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Échéance</p>
+                        <p className="text-sm text-gray-600">{formatDate(selectedTask.dueDate)}</p>
+                      </div>
+                    </div>
+
+                    {selectedTask.estimatedHours && (
+                      <div className="flex items-center gap-3">
+                        <Clock className="w-5 h-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Temps estimé</p>
+                          <p className="text-sm text-gray-600">{selectedTask.estimatedHours}h</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedTask.xpReward && (
+                      <div className="flex items-center gap-3">
+                        <Trophy className="w-5 h-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Récompense</p>
+                          <p className="text-sm text-gray-600">{selectedTask.xpReward} XP</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-3">
+                      <Users className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Créée par</p>
+                        <p className="text-sm text-gray-600">
+                          {selectedTask.createdBy === user.uid ? 'Vous' : 'Autre utilisateur'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Target className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Statut</p>
+                        <p className="text-sm text-gray-600">{getStatusText(selectedTask.status)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions rapides */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Actions</h3>
+                  <div className="space-y-2">
+                    {selectedTask.status === 'assigned' && (
+                      <button className="w-full flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                        <CheckCircle className="w-4 h-4" />
+                        Marquer terminée
+                      </button>
+                    )}
+                    
+                    {selectedTask.createdBy === user.uid && (
+                      <button className="w-full flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                        <Edit className="w-4 h-4" />
+                        Modifier
+                      </button>
+                    )}
+
+                    {selectedTask.openToVolunteers && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <Heart className="w-4 h-4" />
+                          <span className="text-sm font-medium">Ouverte aux volontaires</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Métadonnées */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Métadonnées</h3>
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">ID:</span>
+                      <span className="font-mono text-gray-900">{selectedTask.id.slice(0, 8)}...</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Créée le:</span>
+                      <span className="text-gray-900">
+                        {selectedTask.createdAt ? formatDate(selectedTask.createdAt) : 'Inconnue'}
+                      </span>
+                    </div>
+                    {selectedTask.updatedAt && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Modifiée le:</span>
+                        <span className="text-gray-900">{formatDate(selectedTask.updatedAt)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Pied de modal */}
+            <div className="flex items-center justify-end space-x-4 pt-6 mt-6 border-t border-gray-200">
+              <button
+                onClick={() => setShowDetailsModal(false)}
+                className="px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   /**
    * 🎨 MODALE DE CRÉATION DE TÂCHE
@@ -478,7 +738,10 @@ const TasksPage = () => {
         {/* Actions */}
         <div className="flex items-center justify-between pt-4 border-t border-gray-100">
           <div className="flex items-center space-x-3">
-            <button className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+            <button 
+              onClick={() => handleViewDetails(task)}
+              className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            >
               <Eye className="w-4 h-4" />
               Voir détails
             </button>
@@ -753,8 +1016,9 @@ const TasksPage = () => {
         </div>
       </div>
 
-      {/* Modale de création */}
+      {/* Modales */}
       {showCreateModal && <CreateTaskModal />}
+      {showDetailsModal && <TaskDetailsModal />}
     </div>
   );
 };
