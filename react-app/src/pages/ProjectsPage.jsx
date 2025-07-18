@@ -115,7 +115,10 @@ const ProjectsPage = () => {
         await loadAllProjects();
         
         // Notification succès
-        alert(`Candidature envoyée pour le projet "${project.title}" !`);
+        alert(result.pending ?
+          `Candidature envoyée pour le projet "${project.title}" ! En attente d'approbation.` :
+          `Vous avez rejoint l'équipe du projet "${project.title}" !`
+        );
       }
       
     } catch (error) {
@@ -228,7 +231,7 @@ const ProjectsPage = () => {
               <div className="ml-4">
                 <span className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                   <Heart className="w-4 h-4 mr-1" />
-                  Bénévole
+                  Volontaire
                 </span>
               </div>
             )}
@@ -278,7 +281,10 @@ const ProjectsPage = () => {
               <div className="flex items-center gap-1">
                 <Calendar className="w-4 h-4" />
                 <span>
-                  Échéance: {new Date(project.deadline).toLocaleDateString('fr-FR')}
+                  Échéance: {project.deadline.toDate ? 
+                    project.deadline.toDate().toLocaleDateString('fr-FR') : 
+                    new Date(project.deadline).toLocaleDateString('fr-FR')
+                  }
                 </span>
               </div>
             )}
@@ -397,7 +403,7 @@ const ProjectsPage = () => {
               }`}
             >
               <HandHeart className="w-4 h-4" />
-              Projets recherchant des bénévoles ({filteredAvailableProjects.length})
+              Projets recherchant des volontaires ({filteredAvailableProjects.length})
             </button>
           </div>
         </div>
@@ -509,7 +515,7 @@ const ProjectsPage = () => {
                     className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                   >
                     <HandHeart className="w-4 h-4" />
-                    Découvrir les projets bénévoles
+                    Découvrir les projets volontaires
                   </button>
                 </div>
               )}
@@ -526,7 +532,7 @@ const ProjectsPage = () => {
             >
               <div className="flex items-center gap-3 mb-6">
                 <Star className="w-6 h-6 text-green-600" />
-                <h2 className="text-xl font-bold text-gray-900">Projets recherchant des bénévoles</h2>
+                <h2 className="text-xl font-bold text-gray-900">Projets recherchant des volontaires</h2>
                 <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                   {filteredAvailableProjects.length}
                 </span>
@@ -559,9 +565,9 @@ const ProjectsPage = () => {
               ) : (
                 <div className="text-center py-12">
                   <Star className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Aucun projet bénévole disponible</h3>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Aucun projet volontaire disponible</h3>
                   <p className="text-gray-600">
-                    {searchTerm ? 'Aucun projet bénévole ne correspond à votre recherche.' : 'Il n\'y a pas de projets recherchant des bénévoles pour le moment.'}
+                    {searchTerm ? 'Aucun projet volontaire ne correspond à votre recherche.' : 'Il n\'y a pas de projets recherchant des volontaires pour le moment.'}
                   </p>
                 </div>
               )}
