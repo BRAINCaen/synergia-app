@@ -77,9 +77,10 @@ const TasksPage = () => {
       // 2. Charger tâches disponibles (sans assignation ou ouvertes aux bénévoles)
       const allTasks = await taskService.getAllTasks();
       const unassignedTasks = allTasks.filter(task => 
-        !task.assignedTo || 
-        task.assignedTo.length === 0 || 
-        task.openToVolunteers === true
+        (!task.assignedTo || task.assignedTo.length === 0 || task.openToVolunteers === true) &&
+        task.status !== 'completed' &&
+        task.status !== 'cancelled' &&
+        (!task.assignedTo || !task.assignedTo.includes(user.uid))
       );
       console.log('✅ [TASKS] Tâches disponibles:', unassignedTasks.length);
       setAvailableTasks(unassignedTasks);
@@ -107,7 +108,10 @@ const TasksPage = () => {
         await loadAllTasks();
         
         // Notification succès (tu peux ajouter un toast ici)
-        alert(`Candidature envoyée pour "${task.title}" !`);
+        alert(result.pending ? 
+          `Candidature envoyée pour "${task.title}" ! En attente d'approbation.` :
+          `Vous avez été assigné à "${task.title}" !`
+        );
       }
       
     } catch (error) {
@@ -183,7 +187,7 @@ const TasksPage = () => {
             <div className="ml-4">
               <span className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                 <Heart className="w-4 h-4 mr-1" />
-                Bénévole
+                Volontaire
               </span>
             </div>
           )}
@@ -219,7 +223,10 @@ const TasksPage = () => {
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
               <span>
-                Échéance: {new Date(task.dueDate).toLocaleDateString('fr-FR')}
+                Échéance: {task.dueDate.toDate ? 
+                  task.dueDate.toDate().toLocaleDateString('fr-FR') : 
+                  new Date(task.dueDate).toLocaleDateString('fr-FR')
+                }
               </span>
             </div>
           )}
@@ -319,7 +326,7 @@ const TasksPage = () => {
               }`}
             >
               <HandHeart className="w-4 h-4" />
-              Opportunités bénévoles ({filteredAvailableTasks.length})
+              Opportunités volontaires ({filteredAvailableTasks.length})
             </button>
           </div>
         </div>
@@ -415,7 +422,7 @@ const TasksPage = () => {
                     className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                   >
                     <HandHeart className="w-4 h-4" />
-                    Voir les opportunités bénévoles
+                    Voir les opportunités volontaires
                   </button>
                 </div>
               )}
@@ -432,7 +439,7 @@ const TasksPage = () => {
             >
               <div className="flex items-center gap-3 mb-6">
                 <Star className="w-6 h-6 text-green-600" />
-                <h2 className="text-xl font-bold text-gray-900">Opportunités bénévoles</h2>
+                <h2 className="text-xl font-bold text-gray-900">Opportunités volontaires</h2>
                 <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                   {filteredAvailableTasks.length}
                 </span>
@@ -467,7 +474,7 @@ const TasksPage = () => {
                   <Star className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-xl font-bold text-gray-900 mb-2">Aucune opportunité disponible</h3>
                   <p className="text-gray-600">
-                    {searchTerm ? 'Aucune tâche bénévole ne correspond à votre recherche.' : 'Il n\'y a pas d\'opportunités bénévoles pour le moment.'}
+                    {searchTerm ? 'Aucune tâche volontaire ne correspond à votre recherche.' : 'Il n\'y a pas d\'opportunités volontaires pour le moment.'}
                   </p>
                 </div>
               )}
@@ -488,7 +495,7 @@ const TasksPage = () => {
             <div className="text-3xl font-bold text-green-600 mb-2">
               {availableTasks.length}
             </div>
-            <div className="text-gray-600 text-sm">Opportunités bénévoles</div>
+            <div className="text-gray-600 text-sm">Opportunités volontaires</div>
           </div>
           
           <div className="bg-white rounded-xl shadow-lg p-6 text-center">
