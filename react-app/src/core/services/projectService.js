@@ -301,7 +301,7 @@ class ProjectService {
   }
 
   /**
-   * 🙋‍♂️ REJOINDRE UN PROJET COMME BÉNÉVOLE
+   * 🙋‍♂️ REJOINDRE UN PROJET COMME VOLONTAIRE
    */
   async joinProjectAsVolunteer(projectId, userId) {
     try {
