@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskService.js
-// AJOUT MÉTHODE getTasksByProject - CORRECTION ERREUR
+// SERVICE COMPLET DE GESTION DES TÂCHES
 // ==========================================
 
 import { 
@@ -10,376 +10,598 @@ import {
   updateDoc, 
   deleteDoc, 
   getDocs, 
-  getDoc,
+  getDoc, 
   query, 
   where, 
   orderBy, 
-  onSnapshot,
-  serverTimestamp
+  limit,
+  serverTimestamp,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
-// ✅ CONSTANTES EXPORTÉES UNE SEULE FOIS
-export const TASK_STATUS = {
-  PENDING: 'pending',
-  IN_PROGRESS: 'in_progress',
-  VALIDATION_PENDING: 'validation_pending',
-  COMPLETED: 'completed',
-  REJECTED: 'rejected'
-};
-
 /**
- * ✅ SERVICE DES TÂCHES COMPLET AVEC getTasksByProject
+ * 📋 SERVICE COMPLET DE GESTION DES TÂCHES
+ * Toutes les opérations CRUD pour les tâches
  */
 class TaskService {
   constructor() {
-    this.listeners = new Map();
-    this.COLLECTION_NAME = 'tasks';
-    console.log('✅ TaskService initialisé avec getTasksByProject');
+    console.log('📋 TaskService initialisé');
   }
 
   /**
-   * ✅ RÉCUPÉRER UNE TÂCHE PAR SON ID
-   */
-  async getTask(taskId) {
-    try {
-      console.log('📝 Récupération tâche:', taskId);
-      
-      const docRef = doc(db, this.COLLECTION_NAME, taskId);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        const taskData = { id: docSnap.id, ...docSnap.data() };
-        console.log('✅ Tâche trouvée:', taskData.title);
-        return taskData;
-      } else {
-        console.log('❌ Tâche non trouvée:', taskId);
-        return null;
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur récupération tâche:', error);
-      return null;
-    }
-  }
-
-  /**
-   * 🆕 RÉCUPÉRER LES TÂCHES D'UN PROJET SPÉCIFIQUE
-   */
-  async getTasksByProject(projectId) {
-    try {
-      console.log('📂 Récupération tâches du projet:', projectId);
-      
-      if (!projectId) {
-        console.warn('⚠️ ProjectId manquant pour getTasksByProject');
-        return [];
-      }
-      
-      const q = query(
-        collection(db, this.COLLECTION_NAME),
-        where('projectId', '==', projectId),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const tasks = [];
-      
-      querySnapshot.forEach((doc) => {
-        tasks.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
-      
-      console.log(`✅ ${tasks.length} tâches trouvées pour le projet ${projectId}`);
-      return tasks;
-      
-    } catch (error) {
-      console.error('❌ Erreur récupération tâches par projet:', error);
-      return [];
-    }
-  }
-
-  /**
-   * ✅ RÉCUPÉRER TOUTES LES TÂCHES D'UN UTILISATEUR
-   */
-  async getUserTasks(userId) {
-    try {
-      console.log('👤 Récupération tâches utilisateur:', userId);
-      
-      if (!userId) {
-        console.warn('⚠️ UserId manquant pour getUserTasks');
-        return [];
-      }
-      
-      const q = query(
-        collection(db, this.COLLECTION_NAME),
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const tasks = [];
-      
-      querySnapshot.forEach((doc) => {
-        tasks.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
-      
-      console.log(`✅ ${tasks.length} tâches trouvées pour l'utilisateur`);
-      return tasks;
-      
-    } catch (error) {
-      console.error('❌ Erreur récupération tâches utilisateur:', error);
-      return [];
-    }
-  }
-
-  /**
-   * ✅ CRÉER UNE NOUVELLE TÂCHE
+   * ➕ CRÉER UNE NOUVELLE TÂCHE
    */
   async createTask(taskData, userId) {
     try {
-      console.log('📝 Création nouvelle tâche:', taskData.title);
-      
-      const task = {
-        title: taskData.title || '',
-        description: taskData.description || '',
-        status: taskData.status || TASK_STATUS.PENDING,
-        priority: taskData.priority || 'medium',
-        complexity: taskData.complexity || 'medium',
-        xpReward: taskData.xpReward || this.calculateDefaultXP(taskData.complexity),
-        projectId: taskData.projectId || null,
-        dueDate: taskData.dueDate || null,
-        tags: taskData.tags || [],
-        userId: userId,
+      console.log('➕ [CREATE] Création tâche:', taskData.title);
+
+      const newTask = {
+        ...taskData,
         createdBy: userId,
-        assignedTo: userId,
-        userEmail: taskData.userEmail || null,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      
-      const docRef = await addDoc(collection(db, this.COLLECTION_NAME), task);
-      
-      console.log('✅ Tâche créée avec ID:', docRef.id);
-      return {
-        success: true,
-        task: { id: docRef.id, ...task }
-      };
-      
-    } catch (error) {
-      console.error('❌ Erreur création tâche:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * ✅ METTRE À JOUR UNE TÂCHE
-   */
-  async updateTask(taskId, updateData, userId) {
-    try {
-      console.log('🔄 Mise à jour tâche:', taskId);
-      
-      const taskRef = doc(db, this.COLLECTION_NAME, taskId);
-      
-      const updatePayload = {
-        ...updateData,
         updatedAt: serverTimestamp(),
-        updatedBy: userId
+        status: taskData.status || 'pending',
+        priority: taskData.priority || 'medium',
+        assignedTo: taskData.assignedTo || [],
+        tags: taskData.tags || [],
+        estimatedHours: taskData.estimatedHours || 0,
+        xpReward: taskData.xpReward || 0
       };
+
+      const docRef = await addDoc(collection(db, 'tasks'), newTask);
       
-      await updateDoc(taskRef, updatePayload);
+      console.log('✅ [CREATE] Tâche créée avec ID:', docRef.id);
       
-      console.log('✅ Tâche mise à jour avec succès');
-      return { success: true };
-      
-    } catch (error) {
-      console.error('❌ Erreur mise à jour tâche:', error);
       return {
-        success: false,
-        error: error.message
+        id: docRef.id,
+        ...newTask
       };
+
+    } catch (error) {
+      console.error('❌ [CREATE] Erreur création tâche:', error);
+      throw error;
     }
   }
 
   /**
-   * ✅ SUPPRIMER UNE TÂCHE
+   * 📋 RÉCUPÉRER TOUTES LES TÂCHES
    */
-  async deleteTask(taskId, userId) {
+  async getAllTasks() {
     try {
-      console.log('🗑️ Suppression tâche:', taskId);
-      
-      const taskRef = doc(db, this.COLLECTION_NAME, taskId);
-      await deleteDoc(taskRef);
-      
-      console.log('✅ Tâche supprimée avec succès');
-      return { success: true };
-      
-    } catch (error) {
-      console.error('❌ Erreur suppression tâche:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
+      console.log('📋 [GET_ALL] Récupération de toutes les tâches');
 
-  /**
-   * ✅ CALCULER L'XP PAR DÉFAUT SELON LA COMPLEXITÉ
-   */
-  calculateDefaultXP(complexity) {
-    const xpMap = {
-      'simple': 10,
-      'medium': 25,
-      'complex': 50,
-      'expert': 100
-    };
-    return xpMap[complexity] || 25;
-  }
-
-  /**
-   * ✅ MARQUER UNE TÂCHE COMME TERMINÉE
-   */
-  async completeTask(taskId, userId) {
-    try {
-      console.log('✅ Marquage tâche terminée:', taskId);
-      
-      const updateData = {
-        status: TASK_STATUS.COMPLETED,
-        completedAt: serverTimestamp(),
-        completedBy: userId
-      };
-      
-      return await this.updateTask(taskId, updateData, userId);
-      
-    } catch (error) {
-      console.error('❌ Erreur completion tâche:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * ✅ ÉCOUTER LES CHANGEMENTS DE TÂCHES EN TEMPS RÉEL
-   */
-  subscribeToUserTasks(userId, callback) {
-    try {
-      console.log('🔄 Abonnement aux tâches utilisateur:', userId);
-      
-      const q = query(
-        collection(db, this.COLLECTION_NAME),
-        where('userId', '==', userId),
+      const tasksQuery = query(
+        collection(db, 'tasks'),
         orderBy('createdAt', 'desc')
       );
       
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const tasks = [];
-        querySnapshot.forEach((doc) => {
-          tasks.push({
-            id: doc.id,
-            ...doc.data()
-          });
+      const tasksSnapshot = await getDocs(tasksQuery);
+      const tasks = [];
+      
+      tasksSnapshot.forEach(doc => {
+        tasks.push({
+          id: doc.id,
+          ...doc.data()
         });
-        
-        console.log('🔄 Mise à jour temps réel des tâches:', tasks.length);
-        callback(tasks);
       });
-      
-      this.listeners.set(userId, unsubscribe);
-      return unsubscribe;
-      
+
+      console.log('✅ [GET_ALL] Tâches récupérées:', tasks.length);
+      return tasks;
+
     } catch (error) {
-      console.error('❌ Erreur abonnement tâches:', error);
-      return null;
+      console.error('❌ [GET_ALL] Erreur récupération tâches:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📄 RÉCUPÉRER UNE TÂCHE PAR ID
+   */
+  async getTask(taskId) {
+    try {
+      console.log('📄 [GET] Récupération tâche:', taskId);
+
+      const taskDoc = await getDoc(doc(db, 'tasks', taskId));
+      
+      if (!taskDoc.exists()) {
+        throw new Error('Tâche introuvable');
+      }
+
+      const task = {
+        id: taskDoc.id,
+        ...taskDoc.data()
+      };
+
+      console.log('✅ [GET] Tâche récupérée:', task.title);
+      return task;
+
+    } catch (error) {
+      console.error('❌ [GET] Erreur récupération tâche:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 👤 RÉCUPÉRER LES TÂCHES D'UN UTILISATEUR
+   */
+  async getUserTasks(userId, options = {}) {
+    try {
+      console.log('👤 [GET_USER] Récupération tâches utilisateur:', userId);
+
+      let tasksQuery = query(
+        collection(db, 'tasks'),
+        where('createdBy', '==', userId)
+      );
+
+      // Ajouter des filtres optionnels
+      if (options.status) {
+        tasksQuery = query(tasksQuery, where('status', '==', options.status));
+      }
+
+      if (options.priority) {
+        tasksQuery = query(tasksQuery, where('priority', '==', options.priority));
+      }
+
+      if (options.projectId) {
+        tasksQuery = query(tasksQuery, where('projectId', '==', options.projectId));
+      }
+
+      // Ordre et limite
+      tasksQuery = query(tasksQuery, orderBy('createdAt', 'desc'));
+      
+      if (options.limit) {
+        tasksQuery = query(tasksQuery, limit(options.limit));
+      }
+
+      const tasksSnapshot = await getDocs(tasksQuery);
+      const tasks = [];
+      
+      tasksSnapshot.forEach(doc => {
+        tasks.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      console.log('✅ [GET_USER] Tâches utilisateur récupérées:', tasks.length);
+      return tasks;
+
+    } catch (error) {
+      console.error('❌ [GET_USER] Erreur récupération tâches utilisateur:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📁 RÉCUPÉRER LES TÂCHES D'UN PROJET
+   */
+  async getTasksByProject(projectId) {
+    try {
+      console.log('📁 [GET_PROJECT] Récupération tâches projet:', projectId);
+
+      const tasksQuery = query(
+        collection(db, 'tasks'),
+        where('projectId', '==', projectId),
+        orderBy('createdAt', 'desc')
+      );
+
+      const tasksSnapshot = await getDocs(tasksQuery);
+      const tasks = [];
+      
+      tasksSnapshot.forEach(doc => {
+        tasks.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      console.log('✅ [GET_PROJECT] Tâches projet récupérées:', tasks.length);
+      return tasks;
+
+    } catch (error) {
+      console.error('❌ [GET_PROJECT] Erreur récupération tâches projet:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ✏️ METTRE À JOUR UNE TÂCHE
+   */
+  async updateTask(taskId, updates, userId) {
+    try {
+      console.log('✏️ [UPDATE] Mise à jour tâche:', taskId);
+
+      const taskRef = doc(db, 'tasks', taskId);
+      
+      // Vérifier que la tâche existe
+      const taskDoc = await getDoc(taskRef);
+      if (!taskDoc.exists()) {
+        throw new Error('Tâche introuvable');
+      }
+
+      const updatedData = {
+        ...updates,
+        updatedAt: serverTimestamp(),
+        updatedBy: userId
+      };
+
+      await updateDoc(taskRef, updatedData);
+
+      console.log('✅ [UPDATE] Tâche mise à jour');
+      
+      return {
+        id: taskId,
+        ...taskDoc.data(),
+        ...updatedData
+      };
+
+    } catch (error) {
+      console.error('❌ [UPDATE] Erreur mise à jour tâche:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🗑️ SUPPRIMER UNE TÂCHE
+   */
+  async deleteTask(taskId, userId) {
+    try {
+      console.log('🗑️ [DELETE] Suppression tâche:', taskId);
+
+      const taskRef = doc(db, 'tasks', taskId);
+      
+      // Vérifier que la tâche existe
+      const taskDoc = await getDoc(taskRef);
+      if (!taskDoc.exists()) {
+        throw new Error('Tâche introuvable');
+      }
+
+      const taskData = taskDoc.data();
+
+      // Vérifier les permissions (seul le créateur peut supprimer)
+      if (taskData.createdBy !== userId) {
+        throw new Error('Vous n\'avez pas le droit de supprimer cette tâche');
+      }
+
+      // Utiliser un batch pour supprimer la tâche et ses assignations
+      const batch = writeBatch(db);
+
+      // Supprimer la tâche
+      batch.delete(taskRef);
+
+      // Supprimer les assignations liées
+      const assignmentsQuery = query(
+        collection(db, 'taskAssignments'),
+        where('taskId', '==', taskId)
+      );
+
+      const assignmentsSnapshot = await getDocs(assignmentsQuery);
+      assignmentsSnapshot.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+
+      await batch.commit();
+
+      console.log('✅ [DELETE] Tâche et assignations supprimées');
+      return { success: true };
+
+    } catch (error) {
+      console.error('❌ [DELETE] Erreur suppression tâche:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📊 CHANGER LE STATUT D'UNE TÂCHE
+   */
+  async updateTaskStatus(taskId, newStatus, userId) {
+    try {
+      console.log('📊 [STATUS] Changement statut tâche:', { taskId, newStatus });
+
+      const updates = {
+        status: newStatus,
+        updatedAt: serverTimestamp(),
+        updatedBy: userId
+      };
+
+      // Ajouter des timestamps spécifiques selon le statut
+      if (newStatus === 'in_progress') {
+        updates.startedAt = serverTimestamp();
+      } else if (newStatus === 'completed') {
+        updates.completedAt = serverTimestamp();
+      }
+
+      await this.updateTask(taskId, updates, userId);
+
+      console.log('✅ [STATUS] Statut mis à jour vers:', newStatus);
+      return { success: true };
+
+    } catch (error) {
+      console.error('❌ [STATUS] Erreur changement statut:', error);
+      throw error;
     }
   }
 
   /**
    * 🔍 RECHERCHER DES TÂCHES
    */
-  async searchTasks(userId, searchTerm) {
+  async searchTasks(searchParams, userId) {
     try {
-      const tasks = await this.getUserTasks(userId);
-      
-      if (!searchTerm || searchTerm.trim() === '') {
-        return tasks;
+      console.log('🔍 [SEARCH] Recherche tâches:', searchParams);
+
+      let tasksQuery = collection(db, 'tasks');
+
+      // Filtres de base
+      if (searchParams.createdBy) {
+        tasksQuery = query(tasksQuery, where('createdBy', '==', searchParams.createdBy));
+      } else if (userId) {
+        // Par défaut, montrer les tâches de l'utilisateur
+        tasksQuery = query(tasksQuery, where('createdBy', '==', userId));
       }
+
+      if (searchParams.status) {
+        tasksQuery = query(tasksQuery, where('status', '==', searchParams.status));
+      }
+
+      if (searchParams.priority) {
+        tasksQuery = query(tasksQuery, where('priority', '==', searchParams.priority));
+      }
+
+      if (searchParams.projectId) {
+        tasksQuery = query(tasksQuery, where('projectId', '==', searchParams.projectId));
+      }
+
+      if (searchParams.assignedTo) {
+        tasksQuery = query(tasksQuery, where('assignedTo', 'array-contains', searchParams.assignedTo));
+      }
+
+      // Ordre
+      tasksQuery = query(tasksQuery, orderBy('createdAt', 'desc'));
+
+      // Limite
+      if (searchParams.limit) {
+        tasksQuery = query(tasksQuery, limit(searchParams.limit));
+      }
+
+      const tasksSnapshot = await getDocs(tasksQuery);
+      const tasks = [];
       
-      const term = searchTerm.toLowerCase().trim();
-      
-      return tasks.filter(task => 
-        task.title.toLowerCase().includes(term) ||
-        task.description?.toLowerCase().includes(term) ||
-        task.tags?.some(tag => tag.toLowerCase().includes(term))
-      );
-      
+      tasksSnapshot.forEach(doc => {
+        const taskData = { id: doc.id, ...doc.data() };
+        
+        // Filtrage côté client pour les critères complexes
+        let matches = true;
+        
+        if (searchParams.keyword) {
+          const keyword = searchParams.keyword.toLowerCase();
+          matches = matches && (
+            taskData.title?.toLowerCase().includes(keyword) ||
+            taskData.description?.toLowerCase().includes(keyword) ||
+            taskData.tags?.some(tag => tag.toLowerCase().includes(keyword))
+          );
+        }
+
+        if (searchParams.dueDateBefore) {
+          const dueDate = taskData.dueDate?.toDate ? taskData.dueDate.toDate() : new Date(taskData.dueDate);
+          matches = matches && dueDate && dueDate <= new Date(searchParams.dueDateBefore);
+        }
+
+        if (searchParams.dueDateAfter) {
+          const dueDate = taskData.dueDate?.toDate ? taskData.dueDate.toDate() : new Date(taskData.dueDate);
+          matches = matches && dueDate && dueDate >= new Date(searchParams.dueDateAfter);
+        }
+
+        if (matches) {
+          tasks.push(taskData);
+        }
+      });
+
+      console.log('✅ [SEARCH] Tâches trouvées:', tasks.length);
+      return tasks;
+
     } catch (error) {
-      console.error('❌ Erreur recherche tâches:', error);
-      return [];
+      console.error('❌ [SEARCH] Erreur recherche tâches:', error);
+      throw error;
     }
   }
 
   /**
-   * 📊 OBTENIR LES STATISTIQUES DES TÂCHES
+   * 📊 STATISTIQUES DES TÂCHES
    */
-  async getTasksStats(userId) {
+  async getTaskStats(userId) {
     try {
-      const tasks = await this.getUserTasks(userId);
-      
+      console.log('📊 [STATS] Calcul statistiques tâches:', userId);
+
+      const userTasks = await this.getUserTasks(userId);
+
       const stats = {
-        total: tasks.length,
-        pending: tasks.filter(t => t.status === TASK_STATUS.PENDING).length,
-        inProgress: tasks.filter(t => t.status === TASK_STATUS.IN_PROGRESS).length,
-        completed: tasks.filter(t => t.status === TASK_STATUS.COMPLETED).length,
-        validationPending: tasks.filter(t => t.status === TASK_STATUS.VALIDATION_PENDING).length,
-        rejected: tasks.filter(t => t.status === TASK_STATUS.REJECTED).length,
-        highPriority: tasks.filter(t => t.priority === 'high').length,
-        urgentPriority: tasks.filter(t => t.priority === 'urgent').length,
-        totalXpPotential: tasks.reduce((sum, t) => sum + (t.xpReward || 0), 0),
-        earnedXp: tasks
-          .filter(t => t.status === TASK_STATUS.COMPLETED)
-          .reduce((sum, t) => sum + (t.xpReward || 0), 0)
+        total: userTasks.length,
+        pending: 0,
+        inProgress: 0,
+        completed: 0,
+        cancelled: 0,
+        overdue: 0,
+        totalXpReward: 0,
+        averageEstimatedHours: 0
       };
-      
-      console.log('📊 Statistiques tâches:', stats);
+
+      let totalHours = 0;
+      const now = new Date();
+
+      userTasks.forEach(task => {
+        // Comptage par statut
+        switch (task.status) {
+          case 'pending':
+            stats.pending++;
+            break;
+          case 'in_progress':
+            stats.inProgress++;
+            break;
+          case 'completed':
+            stats.completed++;
+            break;
+          case 'cancelled':
+            stats.cancelled++;
+            break;
+        }
+
+        // Tâches en retard
+        if (task.dueDate && task.status !== 'completed') {
+          const dueDate = task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate);
+          if (dueDate < now) {
+            stats.overdue++;
+          }
+        }
+
+        // XP total
+        if (task.xpReward) {
+          stats.totalXpReward += task.xpReward;
+        }
+
+        // Heures estimées
+        if (task.estimatedHours) {
+          totalHours += task.estimatedHours;
+        }
+      });
+
+      stats.averageEstimatedHours = userTasks.length > 0 ? 
+        Math.round(totalHours / userTasks.length * 10) / 10 : 0;
+
+      console.log('✅ [STATS] Statistiques calculées:', stats);
       return stats;
-      
+
     } catch (error) {
-      console.error('❌ Erreur stats tâches:', error);
-      return {
-        total: 0, pending: 0, inProgress: 0, completed: 0,
-        validationPending: 0, rejected: 0, highPriority: 0, urgentPriority: 0,
-        totalXpPotential: 0, earnedXp: 0
-      };
+      console.error('❌ [STATS] Erreur calcul statistiques:', error);
+      throw error;
     }
   }
 
   /**
-   * 🧹 NETTOYER LES LISTENERS
+   * 🏷️ GÉRER LES TAGS D'UNE TÂCHE
    */
-  unsubscribeAll() {
-    this.listeners.forEach(unsubscribe => {
-      if (typeof unsubscribe === 'function') {
-        unsubscribe();
+  async updateTaskTags(taskId, tags, userId) {
+    try {
+      console.log('🏷️ [TAGS] Mise à jour tags:', { taskId, tags });
+
+      await this.updateTask(taskId, { tags }, userId);
+
+      console.log('✅ [TAGS] Tags mis à jour');
+      return { success: true };
+
+    } catch (error) {
+      console.error('❌ [TAGS] Erreur mise à jour tags:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📎 AJOUTER DES PIÈCES JOINTES
+   */
+  async addTaskAttachments(taskId, attachments, userId) {
+    try {
+      console.log('📎 [ATTACHMENTS] Ajout pièces jointes:', taskId);
+
+      const taskRef = doc(db, 'tasks', taskId);
+      const taskDoc = await getDoc(taskRef);
+      
+      if (!taskDoc.exists()) {
+        throw new Error('Tâche introuvable');
       }
-    });
-    this.listeners.clear();
-    console.log('🧹 Listeners tâches nettoyés');
+
+      const currentAttachments = taskDoc.data().attachments || [];
+      const newAttachments = [...currentAttachments, ...attachments];
+
+      await updateDoc(taskRef, {
+        attachments: newAttachments,
+        updatedAt: serverTimestamp(),
+        updatedBy: userId
+      });
+
+      console.log('✅ [ATTACHMENTS] Pièces jointes ajoutées');
+      return { success: true };
+
+    } catch (error) {
+      console.error('❌ [ATTACHMENTS] Erreur ajout pièces jointes:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📋 DUPLIQUER UNE TÂCHE
+   */
+  async duplicateTask(taskId, userId, modifications = {}) {
+    try {
+      console.log('📋 [DUPLICATE] Duplication tâche:', taskId);
+
+      const originalTask = await this.getTask(taskId);
+      
+      // Préparer les données de la nouvelle tâche
+      const duplicatedTaskData = {
+        ...originalTask,
+        title: modifications.title || `${originalTask.title} (Copie)`,
+        status: 'pending',
+        assignedTo: [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        createdBy: userId,
+        // Retirer les champs qui ne doivent pas être dupliqués
+        id: undefined,
+        completedAt: undefined,
+        completedBy: undefined,
+        startedAt: undefined,
+        ...modifications
+      };
+
+      const newTask = await this.createTask(duplicatedTaskData, userId);
+
+      console.log('✅ [DUPLICATE] Tâche dupliquée:', newTask.id);
+      return newTask;
+
+    } catch (error) {
+      console.error('❌ [DUPLICATE] Erreur duplication tâche:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📅 RÉCUPÉRER LES TÂCHES À ÉCHÉANCE PROCHE
+   */
+  async getUpcomingTasks(userId, daysAhead = 7) {
+    try {
+      console.log('📅 [UPCOMING] Récupération tâches à échéance:', daysAhead, 'jours');
+
+      const userTasks = await this.getUserTasks(userId, { 
+        status: 'pending' 
+      });
+
+      const now = new Date();
+      const futureDate = new Date();
+      futureDate.setDate(now.getDate() + daysAhead);
+
+      const upcomingTasks = userTasks.filter(task => {
+        if (!task.dueDate) return false;
+        
+        const dueDate = task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate);
+        return dueDate >= now && dueDate <= futureDate;
+      });
+
+      // Trier par date d'échéance
+      upcomingTasks.sort((a, b) => {
+        const dateA = a.dueDate.toDate ? a.dueDate.toDate() : new Date(a.dueDate);
+        const dateB = b.dueDate.toDate ? b.dueDate.toDate() : new Date(b.dueDate);
+        return dateA - dateB;
+      });
+
+      console.log('✅ [UPCOMING] Tâches à échéance trouvées:', upcomingTasks.length);
+      return upcomingTasks;
+
+    } catch (error) {
+      console.error('❌ [UPCOMING] Erreur récupération tâches à échéance:', error);
+      throw error;
+    }
   }
 }
 
-// ✅ EXPORT DE LA CLASSE ET DE L'INSTANCE
-export default TaskService;
-
-// ✅ EXPORT DE L'INSTANCE SINGLETON
+// Export de l'instance
 export const taskService = new TaskService();
-
-console.log('✅ TaskService - Classe et instance exportées avec getTasksByProject');
