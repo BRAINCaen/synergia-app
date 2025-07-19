@@ -37,6 +37,192 @@ import { taskService } from '../core/services/taskService.js';
 import { taskAssignmentService } from '../core/services/taskAssignmentService.js';
 
 /**
+ * 🎨 COMPOSANT CARTE DE TÂCHE
+ */
+const TaskCard = ({ task, isVolunteer = false, showVolunteerButton = false, onVolunteer, onViewDetails, onEdit, onDelete, onAssign, onSubmit }) => {
+  
+  // Obtenir la couleur selon le statut
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'in_progress':
+        return 'bg-blue-100 text-blue-800';
+      case 'assigned':
+        return 'bg-purple-100 text-purple-800';
+      case 'submitted':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'pending':
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Obtenir la couleur selon la priorité
+  const getPriorityColor = (priority) => {
+    switch(priority) {
+      case 'urgent':
+        return 'bg-red-100 text-red-800';
+      case 'high':
+        return 'bg-orange-100 text-orange-800';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'low':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300"
+    >
+      <div className="p-6">
+        {/* En-tête avec titre et badges */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              {task.title}
+            </h3>
+            <p className="text-gray-600 mb-3">
+              {task.description}
+            </p>
+          </div>
+          
+          {isVolunteer && (
+            <div className="ml-4">
+              <span className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                <Heart className="w-4 h-4 mr-1" />
+                Volontaire
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Badges de statut et priorité */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(task.status)}`}>
+            <CheckCircle className="w-4 h-4 mr-1" />
+            {task.status === 'pending' ? 'En attente' :
+             task.status === 'in_progress' ? 'En cours' :
+             task.status === 'assigned' ? 'Assignée' :
+             task.status === 'submitted' ? 'Soumise' :
+             task.status === 'completed' ? 'Terminée' : task.status}
+          </span>
+          
+          {task.priority && (
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getPriorityColor(task.priority)}`}>
+              <Flag className="w-4 h-4 mr-1" />
+              {task.priority === 'urgent' ? 'Urgent' :
+               task.priority === 'high' ? 'Haute' :
+               task.priority === 'medium' ? 'Moyenne' :
+               task.priority === 'low' ? 'Basse' : task.priority}
+            </span>
+          )}
+          
+          {task.xpReward && (
+            <span className="inline-flex items-center px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+              <Trophy className="w-4 h-4 mr-1" />
+              {task.xpReward} XP
+            </span>
+          )}
+        </div>
+
+        {/* Métadonnées */}
+        <div className="grid grid-cols-2 gap-4 mb-4 text-sm text-gray-600">
+          {task.estimatedHours && (
+            <div className="flex items-center">
+              <Clock className="w-4 h-4 mr-2" />
+              {task.estimatedHours}h estimées
+            </div>
+          )}
+          
+          {task.dueDate && (
+            <div className="flex items-center">
+              <Calendar className="w-4 h-4 mr-2" />
+              {new Date(task.dueDate.seconds * 1000).toLocaleDateString('fr-FR')}
+            </div>
+          )}
+          
+          {task.assignedTo && task.assignedTo.length > 0 && (
+            <div className="flex items-center">
+              <Users className="w-4 h-4 mr-2" />
+              {task.assignedTo.length} assigné(s)
+            </div>
+          )}
+          
+          {task.category && (
+            <div className="flex items-center">
+              <Target className="w-4 h-4 mr-2" />
+              {task.category}
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => onViewDetails?.(task)}
+              className="flex items-center space-x-1 px-3 py-1 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              <Eye className="w-4 h-4" />
+              <span>Détails</span>
+            </button>
+            
+            {onEdit && (
+              <button
+                onClick={() => onEdit(task)}
+                className="flex items-center space-x-1 px-3 py-1 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+              >
+                <Edit className="w-4 h-4" />
+                <span>Modifier</span>
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {showVolunteerButton && onVolunteer && (
+              <button
+                onClick={() => onVolunteer(task)}
+                className="flex items-center space-x-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+              >
+                <Heart className="w-4 h-4" />
+                <span>Se porter volontaire</span>
+              </button>
+            )}
+            
+            {onAssign && (
+              <button
+                onClick={() => onAssign(task)}
+                className="flex items-center space-x-1 px-3 py-1 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Assigner</span>
+              </button>
+            )}
+            
+            {onSubmit && task.status === 'in_progress' && (
+              <button
+                onClick={() => onSubmit(task)}
+                className="flex items-center space-x-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                <Send className="w-4 h-4" />
+                <span>Soumettre</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+/**
  * 🎯 PAGE TÂCHES COMPLÈTE AVEC TOUTES LES FONCTIONNALITÉS
  */
 const TasksPage = () => {
@@ -98,6 +284,57 @@ const TasksPage = () => {
     } catch (error) {
       console.error('❌ [TASKS] Erreur chargement:', error);
       setError(error.message);
+      
+      // En cas d'erreur, créer quelques tâches de démo pour tester l'affichage
+      console.log('🔧 [TASKS] Création tâches de démo pour tests');
+      setAssignedTasks([
+        {
+          id: 'demo1',
+          title: 'Terminer le rapport mensuel',
+          description: 'Finaliser et soumettre le rapport d\'activité du mois',
+          status: 'in_progress',
+          priority: 'high',
+          xpReward: 50,
+          estimatedHours: 3,
+          dueDate: { seconds: Date.now() / 1000 + 86400 },
+          category: 'Administration'
+        },
+        {
+          id: 'demo2',
+          title: 'Réviser les procédures',
+          description: 'Mettre à jour les procédures internes',
+          status: 'assigned',
+          priority: 'medium',
+          xpReward: 30,
+          estimatedHours: 2,
+          category: 'Documentation'
+        }
+      ]);
+      
+      setAvailableTasks([
+        {
+          id: 'demo3',
+          title: 'Organiser l\'événement équipe',
+          description: 'Planifier et coordonner le prochain événement d\'équipe',
+          status: 'pending',
+          priority: 'medium',
+          xpReward: 40,
+          estimatedHours: 4,
+          category: 'Événementiel',
+          openToVolunteers: true
+        },
+        {
+          id: 'demo4',
+          title: 'Améliorer la documentation utilisateur',
+          description: 'Rédiger et améliorer les guides utilisateur',
+          status: 'pending',
+          priority: 'low',
+          xpReward: 25,
+          estimatedHours: 2,
+          category: 'Documentation',
+          openToVolunteers: true
+        }
+      ]);
     } finally {
       setLoading(false);
     }
@@ -109,7 +346,6 @@ const TasksPage = () => {
   const loadAllUsers = async () => {
     try {
       // Simuler le chargement des utilisateurs depuis Firebase
-      // Tu devras implémenter userService.getAllUsers()
       const users = [
         { id: user.uid, name: user.displayName || 'Vous', email: user.email },
         { id: 'user2', name: 'Jean Dupont', email: 'jean@example.com' },
@@ -182,513 +418,49 @@ const TasksPage = () => {
     setShowSubmitModal(true);
   };
 
-  /**
-   * ➕ CRÉER UNE NOUVELLE TÂCHE
-   */
-  const handleCreateTask = async (taskData) => {
-    try {
-      console.log('➕ [CREATE] Création nouvelle tâche:', taskData.title);
-      
-      // Calcul automatique des XP basé sur la difficulté et les heures
-      const calculatedXP = calculateAutoXP(taskData.priority, taskData.estimatedHours);
-      
-      const newTask = await taskService.createTask({
-        ...taskData,
-        xpReward: calculatedXP
-      }, user.uid);
-      
-      console.log('✅ [CREATE] Tâche créée avec succès:', newTask.id);
-      await loadAllTasks();
-      setShowCreateModal(false);
-      alert(`Tâche "${taskData.title}" créée avec ${calculatedXP} XP !`);
-      
-    } catch (error) {
-      console.error('❌ [CREATE] Erreur création tâche:', error);
-      alert('Erreur lors de la création de la tâche. Réessayez.');
-    }
-  };
-
-  /**
-   * 🧮 CALCUL AUTOMATIQUE DES XP
-   */
-  const calculateAutoXP = (priority, estimatedHours) => {
-    const baseXP = {
-      'low': 10,
-      'medium': 20,
-      'high': 35,
-      'urgent': 50
-    };
+  // Filtrer les tâches selon la recherche et le statut
+  const filteredAssignedTasks = assignedTasks.filter(task => {
+    const matchesSearch = !searchTerm || 
+      task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.description?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const priorityXP = baseXP[priority] || 20;
-    const hoursXP = (estimatedHours || 1) * 15;
+    const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
     
-    return Math.round(priorityXP + hoursXP);
-  };
+    return matchesSearch && matchesStatus;
+  });
 
-  /**
-   * 🎨 COULEURS DE STATUT
-   */
-  const getStatusColor = (status) => {
-    const colors = {
-      'pending': 'bg-yellow-100 text-yellow-800',
-      'in_progress': 'bg-blue-100 text-blue-800',
-      'assigned': 'bg-purple-100 text-purple-800',
-      'submitted': 'bg-orange-100 text-orange-800',
-      'completed': 'bg-green-100 text-green-800',
-      'cancelled': 'bg-red-100 text-red-800'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
+  const filteredAvailableTasks = availableTasks.filter(task => {
+    const matchesSearch = !searchTerm || 
+      task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return matchesSearch;
+  });
 
-  const getPriorityColor = (priority) => {
-    const colors = {
-      'low': 'bg-green-100 text-green-800',
-      'medium': 'bg-yellow-100 text-yellow-800',
-      'high': 'bg-orange-100 text-orange-800',
-      'urgent': 'bg-red-100 text-red-800'
-    };
-    return colors[priority] || 'bg-gray-100 text-gray-800';
-  };
-
-  /**
-   * 🔍 FILTRER LES TÂCHES
-   */
-  const filterTasks = (tasks) => {
-    return tasks.filter(task => {
-      const matchesSearch = !searchTerm || 
-        task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.description?.toLowerCase().includes(searchTerm.toLowerCase());
-        
-      const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
-      
-      return matchesSearch && matchesStatus;
-    });
-  };
-
-  const filteredAssignedTasks = filterTasks(assignedTasks);
-  const filteredAvailableTasks = filterTasks(availableTasks);
-
-  /**
-   * 🎨 MODALE DE SOUMISSION DE TÂCHE
-   */
-  const TaskSubmissionModal = () => {
-    const [submissionData, setSubmissionData] = useState({
-      notes: '',
-      proofFiles: [],
-      completionDate: new Date().toISOString().split('T')[0]
-    });
-    const [submitting, setSubmitting] = useState(false);
-
-    const handleSubmit = async (e) => {
-      e.preventDefault();
-      setSubmitting(true);
-
-      try {
-        await taskService.submitTaskForValidation(selectedTask.id, {
-          ...submissionData,
-          submittedBy: user.uid,
-          submittedAt: new Date()
-        });
-
-        await loadAllTasks();
-        setShowSubmitModal(false);
-        alert('Tâche soumise pour validation !');
-      } catch (error) {
-        console.error('Erreur soumission:', error);
-        alert('Erreur lors de la soumission.');
-      } finally {
-        setSubmitting(false);
-      }
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Soumettre la tâche terminée</h2>
-              <button onClick={() => setShowSubmitModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-              <h3 className="font-medium text-blue-900">{selectedTask?.title}</h3>
-              <p className="text-blue-700 text-sm">Cette tâche sera envoyée à un administrateur pour validation.</p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Date d'achèvement
-                </label>
-                <input
-                  type="date"
-                  value={submissionData.completionDate}
-                  onChange={(e) => setSubmissionData(prev => ({ ...prev, completionDate: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Notes de completion *
-                </label>
-                <textarea
-                  value={submissionData.notes}
-                  onChange={(e) => setSubmissionData(prev => ({ ...prev, notes: e.target.value }))}
-                  rows={4}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Décrivez ce qui a été accompli, les difficultés rencontrées, les résultats obtenus..."
-                  required
-                />
-              </div>
-
-              <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => setShowSubmitModal(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || !submissionData.notes.trim()}
-                  className="flex items-center space-x-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg"
-                >
-                  {submitting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Envoi...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4" />
-                      <span>Soumettre pour validation</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  /**
-   * 🎨 MODALE D'ASSIGNATION D'UTILISATEURS
-   */
-  const UserAssignmentModal = () => {
-    const [selectedUsers, setSelectedUsers] = useState([]);
-    const [contributions, setContributions] = useState({});
-    const [assigning, setAssigning] = useState(false);
-
-    const handleUserToggle = (userId) => {
-      setSelectedUsers(prev => {
-        const newSelected = prev.includes(userId) 
-          ? prev.filter(id => id !== userId)
-          : [...prev, userId];
-        
-        // Redistribuer automatiquement les pourcentages
-        if (newSelected.length > 0) {
-          const equalShare = Math.floor(100 / newSelected.length);
-          const newContributions = {};
-          newSelected.forEach(id => {
-            newContributions[id] = equalShare;
-          });
-          setContributions(newContributions);
-        }
-        
-        return newSelected;
-      });
-    };
-
-    const handleContributionChange = (userId, value) => {
-      setContributions(prev => ({
-        ...prev,
-        [userId]: Math.max(0, Math.min(100, parseInt(value) || 0))
-      }));
-    };
-
-    const getTotalPercentage = () => {
-      return Object.values(contributions).reduce((sum, val) => sum + val, 0);
-    };
-
-    const handleAssign = async () => {
-      if (selectedUsers.length === 0) {
-        alert('Veuillez sélectionner au moins un utilisateur');
-        return;
-      }
-
-      if (getTotalPercentage() !== 100) {
-        alert('Le total des contributions doit être égal à 100%');
-        return;
-      }
-
-      setAssigning(true);
-      try {
-        await taskAssignmentService.assignTaskToMembers(
-          selectedTask.id,
-          selectedUsers,
-          user.uid
-        );
-
-        if (selectedUsers.length > 1) {
-          await taskAssignmentService.updateContributionPercentages(
-            selectedTask.id,
-            contributions
-          );
-        }
-
-        await loadAllTasks();
-        setShowAssignModal(false);
-        alert('Utilisateurs assignés avec succès !');
-      } catch (error) {
-        console.error('Erreur assignation:', error);
-        alert('Erreur lors de l\'assignation.');
-      } finally {
-        setAssigning(false);
-      }
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Assigner des utilisateurs</h2>
-              <button onClick={() => setShowAssignModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-              <h3 className="font-medium text-blue-900">{selectedTask?.title}</h3>
-              <p className="text-blue-700 text-sm">Sélectionnez les utilisateurs et définissez leur contribution.</p>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">Utilisateurs disponibles</h3>
-              
-              {allUsers.map(user => (
-                <div key={user.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedUsers.includes(user.id)}
-                      onChange={() => handleUserToggle(user.id)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <div>
-                      <p className="font-medium text-gray-900">{user.name}</p>
-                      <p className="text-sm text-gray-600">{user.email}</p>
-                    </div>
-                  </div>
-                  
-                  {selectedUsers.includes(user.id) && (
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={contributions[user.id] || 0}
-                        onChange={(e) => handleContributionChange(user.id, e.target.value)}
-                        className="w-20 border border-gray-300 rounded px-2 py-1 text-center"
-                      />
-                      <span className="text-gray-600">%</span>
-                    </div>
-                  )}
-                </div>
-              ))}
-              
-              {selectedUsers.length > 1 && (
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-700">
-                    Total des contributions: <span className={`font-medium ${getTotalPercentage() === 100 ? 'text-green-600' : 'text-red-600'}`}>
-                      {getTotalPercentage()}%
-                    </span>
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
-              <button
-                onClick={() => setShowAssignModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleAssign}
-                disabled={assigning || selectedUsers.length === 0 || getTotalPercentage() !== 100}
-                className="flex items-center space-x-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg"
-              >
-                {assigning ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Assignation...</span>
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="w-4 h-4" />
-                    <span>Assigner ({selectedUsers.length})</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  /**
-   * 🎨 RENDU D'UNE CARTE DE TÂCHE
-   */
-  const TaskCard = ({ task, isVolunteer = false, showVolunteerButton = false }) => (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300"
-    >
-      <div className="p-6">
-        {/* En-tête avec titre et badges */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
-              {task.title}
-            </h3>
-            <p className="text-gray-600 mb-3">
-              {task.description}
-            </p>
-          </div>
-          
-          {isVolunteer && (
-            <div className="ml-4">
-              <span className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                <Heart className="w-4 h-4 mr-1" />
-                Volontaire
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Badges de statut et priorité */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(task.status)}`}>
-            <CheckCircle className="w-4 h-4 mr-1" />
-            {task.status === 'pending' ? 'En attente' :
-             task.status === 'in_progress' ? 'En cours' :
-             task.status === 'assigned' ? 'Assignée' :
-             task.status === 'submitted' ? 'Soumise' :
-             task.status === 'completed' ? 'Terminée' : 'Annulée'}
-          </span>
-          
-          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getPriorityColor(task.priority)}`}>
-            <Flag className="w-4 h-4 mr-1" />
-            {task.priority === 'low' ? 'Basse' :
-             task.priority === 'medium' ? 'Moyenne' :
-             task.priority === 'high' ? 'Haute' : 'Urgente'}
-          </span>
-
-          {task.xpReward && (
-            <span className="inline-flex items-center px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
-              <Trophy className="w-4 h-4 mr-1" />
-              {task.xpReward} XP
-            </span>
-          )}
-        </div>
-
-        {/* Informations temporelles */}
-        <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
-          {task.dueDate && (
-            <div className="flex items-center gap-1">
-              <Calendar className="w-4 h-4" />
-              <span>
-                Échéance: {task.dueDate.toDate ? 
-                  task.dueDate.toDate().toLocaleDateString('fr-FR') : 
-                  new Date(task.dueDate).toLocaleDateString('fr-FR')
-                }
-              </span>
-            </div>
-          )}
-          
-          {task.estimatedHours && (
-            <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              <span>{task.estimatedHours}h estimées</span>
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-          <div className="flex items-center space-x-2">
-            <button 
-              onClick={() => handleViewDetails(task)}
-              className="flex items-center gap-1 px-3 py-1 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm"
-            >
-              <Eye className="w-4 h-4" />
-              Détails
-            </button>
-            
-            {(task.createdBy === user.uid || task.assignedTo?.includes(user.uid)) && (
-              <>
-                <button 
-                  onClick={() => handleEditTask(task)}
-                  className="flex items-center gap-1 px-3 py-1 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors text-sm"
-                >
-                  <Edit className="w-4 h-4" />
-                  Modifier
-                </button>
-                
-                <button 
-                  onClick={() => handleAssignUsers(task)}
-                  className="flex items-center gap-1 px-3 py-1 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors text-sm"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Assigner
-                </button>
-                
-                {(task.status === 'assigned' || task.status === 'in_progress') && (
-                  <button 
-                    onClick={() => handleSubmitTask(task)}
-                    className="flex items-center gap-1 px-3 py-1 text-green-600 hover:bg-green-50 rounded-lg transition-colors text-sm"
-                  >
-                    <Send className="w-4 h-4" />
-                    Terminer
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-          
-          {showVolunteerButton && (
-            <button
-              onClick={() => handleVolunteerForTask(task)}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
-            >
-              <Heart className="w-4 h-4" />
-              Se porter volontaire
-            </button>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-
-  // Continuer avec le reste du composant...
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des tâches...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement de vos tâches...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Erreur de chargement</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Recharger la page
+          </button>
         </div>
       </div>
     );
@@ -696,113 +468,103 @@ const TasksPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* En-tête de la page */}
-      <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <Target className="w-8 h-8 text-blue-600" />
-              <h1 className="text-2xl font-bold text-gray-900">Mes Tâches</h1>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <button 
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Nouvelle tâche
-              </button>
-            </div>
+      <div className="container mx-auto px-6 py-8">
+        {/* En-tête avec titre et navigation */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              Mes Tâches
+            </h1>
+            <p className="text-gray-600">
+              Gérez vos tâches assignées et découvrez de nouvelles opportunités
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center space-x-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Nouvelle tâche</span>
+            </button>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Navigation par onglets */}
-        <div className="mb-8">
-          <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setActiveSection('assigned')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeSection === 'assigned'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <UserCheck className="w-4 h-4" />
-              Mes assignations ({filteredAssignedTasks.length})
-            </button>
-            
-            <button
-              onClick={() => setActiveSection('available')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeSection === 'available'
-                  ? 'bg-white text-green-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <Heart className="w-4 h-4" />
-              Opportunités volontaires ({filteredAvailableTasks.length})
-            </button>
-          </div>
+        {/* Navigation des sections */}
+        <div className="flex items-center space-x-1 mb-8 bg-white rounded-lg p-1 shadow-sm">
+          <button
+            onClick={() => setActiveSection('assigned')}
+            className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-all ${
+              activeSection === 'assigned'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Briefcase className="w-5 h-5" />
+            <span>Mes tâches</span>
+            <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+              {assignedTasks.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveSection('available')}
+            className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-all ${
+              activeSection === 'available'
+                ? 'bg-green-600 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Heart className="w-5 h-5" />
+            <span>Opportunités volontaires</span>
+            <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+              {availableTasks.length}
+            </span>
+          </button>
         </div>
 
         {/* Barre de recherche et filtres */}
-        <div className="mb-6 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Rechercher des tâches..."
+                placeholder="Rechercher une tâche..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-80"
               />
             </div>
-            
+
+            {activeSection === 'assigned' && (
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">Tous les statuts</option>
+                <option value="pending">En attente</option>
+                <option value="assigned">Assignées</option>
+                <option value="in_progress">En cours</option>
+                <option value="submitted">Soumises</option>
+                <option value="completed">Terminées</option>
+              </select>
+            )}
+
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
-                showFilters ? 'bg-blue-50 border-blue-300 text-blue-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+              className={`flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors ${
+                showFilters
+                  ? 'bg-blue-50 border-blue-300 text-blue-700'
+                  : 'border-gray-300 text-gray-600 hover:bg-gray-50'
               }`}
             >
               <Filter className="w-4 h-4" />
-              Filtres
-              {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              <span>Filtres</span>
             </button>
           </div>
-
-          {/* Panneau de filtres */}
-          <AnimatePresence>
-            {showFilters && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="bg-white rounded-lg border border-gray-200 p-4"
-              >
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Statut</label>
-                    <select
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="all">Tous les statuts</option>
-                      <option value="pending">En attente</option>
-                      <option value="assigned">Assignées</option>
-                      <option value="in_progress">En cours</option>
-                      <option value="submitted">Soumises</option>
-                      <option value="completed">Terminées</option>
-                    </select>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
         {/* Contenu principal */}
@@ -812,37 +574,41 @@ const TasksPage = () => {
               key="assigned"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              exit={{ opacity: 0, x: 20 }}
               className="space-y-6"
             >
-              <div className="flex items-center gap-3 mb-6">
-                <Briefcase className="w-6 h-6 text-blue-600" />
-                <h2 className="text-xl font-bold text-gray-900">Mes tâches assignées</h2>
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                  {filteredAssignedTasks.length}
-                </span>
+              {/* En-tête section */}
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold mb-2">Mes Tâches Assignées</h2>
+                    <p className="text-blue-100">
+                      Vous avez {filteredAssignedTasks.length} tâche(s) à accomplir
+                    </p>
+                  </div>
+                  <Target className="w-12 h-12 text-blue-100" />
+                </div>
               </div>
 
               {filteredAssignedTasks.length > 0 ? (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {filteredAssignedTasks.map(task => (
-                    <TaskCard key={task.id} task={task} />
+                    <TaskCard 
+                      key={task.id} 
+                      task={task}
+                      onViewDetails={handleViewDetails}
+                      onEdit={handleEditTask}
+                      onSubmit={handleSubmitTask}
+                    />
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <UserX className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <Briefcase className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-xl font-bold text-gray-900 mb-2">Aucune tâche assignée</h3>
-                  <p className="text-gray-600 mb-6">
-                    {searchTerm ? 'Aucune tâche assignée ne correspond à votre recherche.' : 'Vous n\'avez pas encore de tâches assignées.'}
+                  <p className="text-gray-600">
+                    {searchTerm ? 'Aucune tâche ne correspond à votre recherche.' : 'Vous n\'avez pas de tâches assignées pour le moment.'}
                   </p>
-                  <button
-                    onClick={() => setActiveSection('available')}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                  >
-                    <Heart className="w-4 h-4" />
-                    Voir les opportunités volontaires
-                  </button>
                 </div>
               )}
             </motion.div>
@@ -853,27 +619,19 @@ const TasksPage = () => {
               key="available"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
+              exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <div className="flex items-center gap-3 mb-6">
-                <Star className="w-6 h-6 text-green-600" />
-                <h2 className="text-xl font-bold text-gray-900">Opportunités volontaires</h2>
-                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                  {filteredAvailableTasks.length}
-                </span>
-              </div>
-
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                <div className="flex items-start gap-3">
-                  <Heart className="w-5 h-5 text-green-600 mt-0.5" />
+              {/* En-tête section */}
+              <div className="bg-gradient-to-r from-green-600 to-teal-600 rounded-xl shadow-lg p-6 text-white">
+                <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-medium text-green-900 mb-1">Contribuez à l'équipe !</h3>
-                    <p className="text-green-700 text-sm">
-                      Ces tâches sont ouvertes aux volontaires et ne demandent pas de compétences particulières. 
+                    <h2 className="text-2xl font-bold mb-2">Opportunités Volontaires</h2>
+                    <p className="text-green-100">
                       C'est l'occasion idéale de contribuer et d'apprendre !
                     </p>
                   </div>
+                  <Heart className="w-12 h-12 text-green-100" />
                 </div>
               </div>
 
@@ -885,6 +643,8 @@ const TasksPage = () => {
                       task={task} 
                       isVolunteer={true}
                       showVolunteerButton={true}
+                      onVolunteer={handleVolunteerForTask}
+                      onViewDetails={handleViewDetails}
                     />
                   ))}
                 </div>
@@ -933,9 +693,32 @@ const TasksPage = () => {
         </div>
       </div>
 
-      {/* Modales */}
-      {showSubmitModal && <TaskSubmissionModal />}
-      {showAssignModal && <UserAssignmentModal />}
+      {/* Modales (placeholders) */}
+      {showDetailsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold">Détails de la tâche</h3>
+              <button
+                onClick={() => setShowDetailsModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <h4 className="font-semibold">{selectedTask?.title}</h4>
+              <p className="text-gray-600">{selectedTask?.description}</p>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>Statut: {selectedTask?.status}</div>
+                <div>Priorité: {selectedTask?.priority}</div>
+                <div>XP: {selectedTask?.xpReward}</div>
+                <div>Temps estimé: {selectedTask?.estimatedHours}h</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
