@@ -1,9 +1,10 @@
 // ==========================================
 // 📁 react-app/src/components/onboarding/EntretiensReferent.jsx
-// CORRECTION - BOUTONS PLANIFIER FONCTIONNELS
+// SYSTÈME ENTRETIENS COMPLET AVEC FIREBASE
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, 
   Clock, 
@@ -37,7 +38,9 @@ import {
   Lightbulb,
   RefreshCw,
   Rocket,
-  Coffee
+  Coffee,
+  X,
+  Trash2
 } from 'lucide-react';
 
 import { useAuthStore } from '../../shared/stores/authStore.js';
@@ -50,6 +53,7 @@ import {
   updateDoc, 
   getDocs, 
   getDoc, 
+  deleteDoc,
   query, 
   where, 
   orderBy, 
@@ -177,898 +181,647 @@ const INTERVIEW_TEMPLATES = {
       'Pouvez-vous me décrire précisément les difficultés que vous rencontrez ?',
       'Depuis quand ressentez-vous ces difficultés ?',
       'Qu\'avez-vous déjà essayé pour les surmonter ?',
-      'Quel type d\'accompagnement vous aiderait le plus ?',
-      'Comment vous sentez-vous par rapport à vos collègues et à l\'équipe ?'
+      'De quel type d\'aide auriez-vous besoin ?',
+      'Comment pouvons-nous adapter votre formation pour mieux vous accompagner ?'
     ]
   }
 };
 
 const EntretiensReferent = () => {
   const { user } = useAuthStore();
+  
+  // États
   const [activeView, setActiveView] = useState('dashboard');
   const [interviews, setInterviews] = useState([]);
-  const [employees, setEmployees] = useState([]);
-  const [stats, setStats] = useState({
-    total: 0,
-    thisWeek: 0,
-    completed: 0,
-    pending: 0,
-    avgRating: 0,
-    completionRate: 0
-  });
   const [loading, setLoading] = useState(true);
   const [showScheduleForm, setShowScheduleForm] = useState(false);
-  const [showCompleteForm, setShowCompleteForm] = useState(false);
-  const [selectedInterview, setSelectedInterview] = useState(null);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
-  
-  // Formulaire de programmation
-  const [scheduleForm, setScheduleForm] = useState({
-    employeeName: 'Allan',
-    employeeEmail: 'alan.boehme61@gmail.com',
-    employeeId: 'alan_boehme',
-    type: 'initial',
-    scheduledDate: new Date().toISOString().split('T')[0],
-    scheduledTime: '14:00',
-    duration: 60,
-    location: 'Bureau référent',
-    objectives: '',
-    notes: ''
+  const [newInterview, setNewInterview] = useState({
+    title: '',
+    templateId: '',
+    date: '',
+    time: '',
+    location: 'Bureau Brain',
+    type: 'presentiel',
+    referent: '',
+    notes: '',
+    status: 'planned'
   });
+  const [submitting, setSubmitting] = useState(false);
 
-  // 📊 CHARGEMENT INITIAL
-  useEffect(() => {
-    if (user?.uid) {
-      loadAllData();
-    }
-  }, [user?.uid]);
-
-  // 📊 CHARGER TOUTES LES DONNÉES
-  const loadAllData = async () => {
-    setLoading(true);
-    try {
-      await Promise.all([
-        loadInterviews(),
-        loadEmployees()
-      ]);
-    } catch (error) {
-      console.error('❌ Erreur chargement données:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 📅 CHARGER LES ENTRETIENS
+  // 📊 Charger les entretiens
   const loadInterviews = useCallback(async () => {
     if (!user?.uid) return;
     
     try {
-      console.log('📅 Chargement entretiens Firebase...');
+      setLoading(true);
+      console.log('📊 Chargement entretiens...');
       
-      const interviewsQuery = query(
-        collection(db, 'interviews'),
-        where('referentId', '==', user.uid),
-        orderBy('scheduledDate', 'desc'),
-        limit(50)
+      const interviewsRef = collection(db, 'onboardingInterviews');
+      const q = query(
+        interviewsRef, 
+        where('userId', '==', user.uid),
+        orderBy('date', 'asc')
       );
       
-      const querySnapshot = await getDocs(interviewsQuery);
+      const querySnapshot = await getDocs(q);
       const interviewsList = [];
       
       querySnapshot.forEach((doc) => {
-        const data = doc.data();
         interviewsList.push({
           id: doc.id,
-          ...data,
-          scheduledDate: data.scheduledDate?.toDate ? 
-            data.scheduledDate.toDate().toISOString() : data.scheduledDate
+          ...doc.data()
         });
       });
       
       setInterviews(interviewsList);
-      calculateStats(interviewsList);
-      
-      console.log(`✅ ${interviewsList.length} entretiens chargés`);
+      console.log('✅ Entretiens chargés:', interviewsList.length);
       
     } catch (error) {
       console.error('❌ Erreur chargement entretiens:', error);
+      // En cas d'erreur, créer des données par défaut pour demo
       setInterviews([]);
+    } finally {
+      setLoading(false);
     }
   }, [user?.uid]);
 
-  // 👥 CHARGER LES EMPLOYÉS
-  const loadEmployees = useCallback(async () => {
-    try {
-      const employeesList = [
-        {
-          id: 'alan_boehme',
-          name: 'Allan',
-          email: 'alan.boehme61@gmail.com',
-          startDate: new Date().toISOString(),
-          currentPhase: 'decouverte_brain',
-          progress: 15
-        }
-      ];
-      
-      try {
-        const onboardingQuery = query(
-          collection(db, 'onboardingFormation'),
-          orderBy('createdAt', 'desc'),
-          limit(20)
-        );
-        
-        const querySnapshot = await getDocs(onboardingQuery);
-        
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data.employeeName && !employeesList.find(e => e.email === data.employeeEmail)) {
-            employeesList.push({
-              id: doc.id,
-              userId: data.userId,
-              name: data.employeeName || data.name || 'Employé',
-              email: data.employeeEmail || data.email || 'email@brain.fr',
-              startDate: data.startDate,
-              currentPhase: data.currentPhase || 'decouverte_brain',
-              progress: data.progress || 0
-            });
-          }
-        });
-      } catch (fbError) {
-        console.warn('⚠️ Impossible de charger depuis Firebase:', fbError.message);
-      }
-      
-      setEmployees(employeesList);
-      
-    } catch (error) {
-      console.error('❌ Erreur chargement employés:', error);
-      setEmployees([{
-        id: 'alan_boehme',
-        name: 'Allan',
-        email: 'alan.boehme61@gmail.com',
-        startDate: new Date().toISOString(),
-        currentPhase: 'decouverte_brain',
-        progress: 15
-      }]);
-    }
-  }, []);
-
-  // 📊 CALCULER LES STATISTIQUES
-  const calculateStats = (interviewsList) => {
-    const total = interviewsList.length;
-    const completed = interviewsList.filter(i => i.status === 'completed').length;
-    const pending = interviewsList.filter(i => i.status === 'scheduled').length;
-    
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    const thisWeek = interviewsList.filter(i => {
-      const interviewDate = new Date(i.scheduledDate);
-      return interviewDate >= oneWeekAgo;
-    }).length;
-    
-    const ratedInterviews = interviewsList.filter(i => i.rating && i.rating > 0);
-    const avgRating = ratedInterviews.length > 0 
-      ? ratedInterviews.reduce((sum, i) => sum + i.rating, 0) / ratedInterviews.length 
-      : 0;
-    
-    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-    
-    setStats({
-      total,
-      thisWeek,
-      completed,
-      pending,
-      avgRating: Math.round(avgRating * 10) / 10,
-      completionRate
-    });
-  };
-
-  // 🎯 FONCTION POUR OUVRIR LE FORMULAIRE AVEC UN TEMPLATE SPÉCIFIQUE
-  const handlePlanifierTemplate = (templateId) => {
-    console.log('🎯 Planifier template:', templateId);
-    
-    const template = INTERVIEW_TEMPLATES[templateId];
-    if (!template) {
-      console.error('❌ Template non trouvé:', templateId);
+  // 🚀 Planifier un nouvel entretien
+  const scheduleInterview = async () => {
+    if (!selectedTemplate || !newInterview.date || !newInterview.time) {
+      alert('Veuillez remplir tous les champs obligatoires');
       return;
     }
-    
-    // Configurer le formulaire avec le template
-    setSelectedTemplate(template);
-    setScheduleForm(prev => ({
-      ...prev,
-      type: templateId,
-      duration: template.duration,
-      objectives: template.objectives.join('\n• ')
-    }));
-    
-    // Ouvrir le modal
-    setShowScheduleForm(true);
-    
-    console.log('✅ Modal ouvert avec template:', template.name);
-  };
 
-  // ✅ PROGRAMMER UN ENTRETIEN AVEC TEMPLATE
-  const handleScheduleWithTemplate = async (templateId) => {
     try {
-      const template = INTERVIEW_TEMPLATES[templateId];
-      if (!template) {
-        console.error('❌ Template non trouvé pour programmation:', templateId);
-        return;
-      }
-
-      console.log('📅 Programmation entretien avec template:', template.name);
-
+      setSubmitting(true);
+      console.log('🚀 Planification entretien...');
+      
+      const template = INTERVIEW_TEMPLATES[selectedTemplate];
       const interviewData = {
-        employeeName: scheduleForm.employeeName,
-        employeeEmail: scheduleForm.employeeEmail,
-        employeeId: scheduleForm.employeeId,
-        referentId: user.uid,
-        referentName: user.displayName || user.email,
-        type: templateId,
-        scheduledDate: new Date(`${scheduleForm.scheduledDate}T${scheduleForm.scheduledTime}:00`),
+        ...newInterview,
+        userId: user.uid,
+        templateId: selectedTemplate,
+        templateName: template.name,
         duration: template.duration,
-        location: scheduleForm.location,
-        objectives: template.objectives.join('\n• '),
-        notes: scheduleForm.notes,
-        status: 'scheduled',
-        
-        // Données du template
-        template: {
-          name: template.name,
-          description: template.description,
-          questions: template.questions,
-          objectives: template.objectives
-        },
-        
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        objectives: template.objectives,
+        questions: template.questions,
+        createdAt: new Date().toISOString(),
+        createdBy: user.uid
       };
-
-      const docRef = await addDoc(collection(db, 'interviews'), interviewData);
-      console.log('✅ Entretien programmé avec template:', templateId, docRef.id);
       
-      // Notification de succès
-      showNotification(`✅ Entretien ${template.name} programmé avec succès !`, 'success');
+      const docRef = await addDoc(collection(db, 'onboardingInterviews'), interviewData);
+      console.log('✅ Entretien planifié avec ID:', docRef.id);
       
-      // Fermer le modal et recharger
-      setShowScheduleForm(false);
-      setSelectedTemplate(null);
-      resetScheduleForm();
+      // Recharger la liste
       await loadInterviews();
       
+      // Réinitialiser le formulaire
+      setShowScheduleForm(false);
+      setSelectedTemplate(null);
+      setNewInterview({
+        title: '',
+        templateId: '',
+        date: '',
+        time: '',
+        location: 'Bureau Brain',
+        type: 'presentiel',
+        referent: '',
+        notes: '',
+        status: 'planned'
+      });
+      
     } catch (error) {
-      console.error('❌ Erreur programmation entretien:', error);
-      showNotification('❌ Erreur lors de la programmation', 'error');
+      console.error('❌ Erreur planification:', error);
+      alert('Erreur lors de la planification de l\'entretien');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  // 🔄 RÉINITIALISER LE FORMULAIRE
-  const resetScheduleForm = () => {
-    setScheduleForm({
-      employeeName: 'Allan',
-      employeeEmail: 'alan.boehme61@gmail.com',
-      employeeId: 'alan_boehme',
-      type: 'initial',
-      scheduledDate: new Date().toISOString().split('T')[0],
-      scheduledTime: '14:00',
-      duration: 60,
-      location: 'Bureau référent',
-      objectives: '',
-      notes: ''
-    });
+  // 🗑️ Supprimer un entretien
+  const deleteInterview = async (interviewId) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cet entretien ?')) return;
+    
+    try {
+      await deleteDoc(doc(db, 'onboardingInterviews', interviewId));
+      console.log('✅ Entretien supprimé');
+      await loadInterviews();
+    } catch (error) {
+      console.error('❌ Erreur suppression:', error);
+    }
   };
 
-  // 📺 AFFICHER UNE NOTIFICATION
-  const showNotification = (message, type = 'info') => {
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 10000;
-      padding: 16px 20px;
-      border-radius: 12px;
-      color: white;
-      font-weight: 500;
-      max-width: 400px;
-      background: ${type === 'success' ? 'linear-gradient(135deg, #10b981, #059669)' : 
-                   type === 'error' ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 
-                   'linear-gradient(135deg, #3b82f6, #2563eb)'};
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      transform: translateX(100%);
-      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    `;
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-      notification.style.transform = 'translateX(0)';
-    }, 100);
-    
-    setTimeout(() => {
-      notification.style.transform = 'translateX(100%)';
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.parentNode.removeChild(notification);
-        }
-      }, 300);
-    }, 4000);
+  // ✅ Marquer comme terminé
+  const markAsCompleted = async (interviewId) => {
+    try {
+      await updateDoc(doc(db, 'onboardingInterviews', interviewId), {
+        status: 'completed',
+        completedAt: new Date().toISOString()
+      });
+      console.log('✅ Entretien marqué comme terminé');
+      await loadInterviews();
+    } catch (error) {
+      console.error('❌ Erreur mise à jour:', error);
+    }
   };
 
-  // 📅 FORMATER LA DATE
-  const formatDate = (date) => {
-    if (!date) return 'Date inconnue';
-    const d = new Date(date);
-    return d.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  // 🔄 Charger au montage
+  useEffect(() => {
+    loadInterviews();
+  }, [loadInterviews]);
 
-  // 🎨 OBTENIR LA COULEUR DU STATUT
-  const getStatusColor = (status) => {
-    const colors = {
-      scheduled: 'bg-blue-100 text-blue-600 border-blue-200',
-      completed: 'bg-green-100 text-green-600 border-green-200',
-      cancelled: 'bg-red-100 text-red-600 border-red-200',
-      postponed: 'bg-yellow-100 text-yellow-600 border-yellow-200'
-    };
-    return colors[status] || colors.scheduled;
+  // 📅 Sélectionner un template pour planifier
+  const selectTemplate = (templateId) => {
+    setSelectedTemplate(templateId);
+    const template = INTERVIEW_TEMPLATES[templateId];
+    setNewInterview(prev => ({
+      ...prev,
+      templateId,
+      title: template.name,
+      duration: template.duration
+    }));
+    setShowScheduleForm(true);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
+      <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <h2 className="text-white text-xl font-semibold mb-2">Chargement des entretiens</h2>
-          <p className="text-gray-400">Initialisation en cours...</p>
+          <RefreshCw className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-400">Chargement des entretiens...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* 🎯 En-tête */}
-        <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mb-4">
-            <MessageSquare className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-4xl font-bold text-white mb-2">
-            Entretiens avec Référent
-          </h1>
-          <p className="text-gray-400 text-lg">
-            Suivi personnalisé de votre intégration
-          </p>
-        </div>
+    <div className="space-y-6">
+      {/* 📊 En-tête */}
+      <div className="text-center mb-8">
+        <MessageSquare className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+        <h3 className="text-3xl font-bold text-white mb-4">
+          💬 Entretiens avec Référent
+        </h3>
+        <p className="text-gray-300 text-lg">
+          Suivi personnalisé de votre intégration
+        </p>
+      </div>
 
-        {/* 📊 Navigation par onglets */}
-        <div className="flex justify-center mb-8">
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-2">
-            <div className="flex space-x-2">
-              {[
-                { id: 'dashboard', name: 'Dashboard', icon: BarChart3 },
-                { id: 'planifier', name: 'Planifier', icon: Calendar },
-                { id: 'historique', name: 'Historique', icon: FileText }
-              ].map((tab) => {
-                const IconComponent = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveView(tab.id)}
-                    className={`px-6 py-3 rounded-xl font-medium transition-all duration-200 flex items-center gap-2 ${
-                      activeView === tab.id
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
-                        : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                    }`}
-                  >
-                    <IconComponent className="w-5 h-5" />
-                    {tab.name}
-                  </button>
-                );
-              })}
-            </div>
+      {/* 📊 Navigation */}
+      <div className="flex justify-center mb-8">
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-2">
+          <div className="flex space-x-2">
+            {[
+              { id: 'dashboard', name: 'Dashboard', icon: TrendingUp },
+              { id: 'planifier', name: 'Planifier', icon: Plus },
+              { id: 'historique', name: 'Historique', icon: Calendar }
+            ].map((tab) => {
+              const IconComponent = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveView(tab.id)}
+                  className={`px-6 py-3 rounded-xl font-medium transition-all duration-200 flex items-center gap-2 ${
+                    activeView === tab.id
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  <IconComponent className="w-5 h-5" />
+                  {tab.name}
+                </button>
+              );
+            })}
           </div>
         </div>
+      </div>
 
-        {/* 🎯 AFFICHAGE DU DASHBOARD */}
-        {activeView === 'dashboard' && (
-          <div className="space-y-8">
-            {/* 📊 Statistiques */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="bg-blue-500/20 rounded-full p-3">
-                    <Calendar className="w-6 h-6 text-blue-400" />
-                  </div>
-                  <span className="text-blue-400 text-sm font-medium">Total</span>
-                </div>
-                <div className="text-3xl font-bold text-white mb-1">{stats.total}</div>
-                <div className="text-gray-400 text-sm">Entretiens programmés</div>
-              </div>
+      {/* 📋 Contenu selon la vue */}
+      {activeView === 'dashboard' && (
+        <DashboardView 
+          interviews={interviews} 
+          onMarkCompleted={markAsCompleted}
+          onDelete={deleteInterview}
+        />
+      )}
+      
+      {activeView === 'planifier' && (
+        <PlanifierView 
+          templates={INTERVIEW_TEMPLATES}
+          onSelectTemplate={selectTemplate}
+        />
+      )}
+      
+      {activeView === 'historique' && (
+        <HistoriqueView 
+          interviews={interviews}
+          onDelete={deleteInterview}
+        />
+      )}
 
-              <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="bg-green-500/20 rounded-full p-3">
-                    <CheckCircle className="w-6 h-6 text-green-400" />
-                  </div>
-                  <span className="text-green-400 text-sm font-medium">Terminés</span>
-                </div>
-                <div className="text-3xl font-bold text-white mb-1">{stats.completed}</div>
-                <div className="text-gray-400 text-sm">Entretiens finalisés</div>
-              </div>
-
-              <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="bg-yellow-500/20 rounded-full p-3">
-                    <Star className="w-6 h-6 text-yellow-400" />
-                  </div>
-                  <span className="text-yellow-400 text-sm font-medium">Satisfaction</span>
-                </div>
-                <div className="text-3xl font-bold text-white mb-1">{stats.avgRating}/5</div>
-                <div className="text-gray-400 text-sm">Note moyenne</div>
-              </div>
-
-              <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="bg-purple-500/20 rounded-full p-3">
-                    <Target className="w-6 h-6 text-purple-400" />
-                  </div>
-                  <span className="text-purple-400 text-sm font-medium">Réussite</span>
-                </div>
-                <div className="text-3xl font-bold text-white mb-1">{stats.completionRate}%</div>
-                <div className="text-gray-400 text-sm">Taux de complétion</div>
-              </div>
-            </div>
-
-            {/* 🎯 Templates d'entretiens AVEC BOUTONS FONCTIONNELS */}
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700">
+      {/* 📝 Modal de planification */}
+      <AnimatePresence>
+        {showScheduleForm && selectedTemplate && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-gray-800 rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            >
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-white">Templates d'Entretiens</h2>
+                <h3 className="text-xl font-bold text-white">
+                  📅 Planifier: {INTERVIEW_TEMPLATES[selectedTemplate].name}
+                </h3>
                 <button
-                  onClick={() => setShowScheduleForm(true)}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+                  onClick={() => setShowScheduleForm(false)}
+                  className="text-gray-400 hover:text-white"
                 >
-                  <Plus className="w-5 h-5" />
-                  Programmer un entretien
+                  <X className="h-6 w-6" />
                 </button>
               </div>
 
-              {/* 🎯 TEMPLATES AVEC BOUTONS PLANIFIER FONCTIONNELS */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Template Entretien Initial */}
-                <div className="group bg-gray-700/50 rounded-2xl p-6 border border-gray-600 hover:border-blue-500/50 transition-all duration-200">
-                  <div className="bg-gradient-to-br from-blue-500 to-cyan-500 w-16 h-16 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200">
-                    <User className="w-8 h-8 text-white" />
-                  </div>
-                  
-                  <h3 className="text-xl font-bold text-white mb-2">Entretien Initial</h3>
-                  <p className="text-gray-400 mb-4 text-sm">Premier entretien d'accueil et présentation</p>
-                  
-                  <div className="flex items-center justify-between text-sm mb-4">
-                    <span className="text-gray-500 flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      60 min
-                    </span>
-                    <button 
-                      onClick={() => handlePlanifierTemplate('initial')}
-                      className="text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 group-hover:translate-x-1 transition-all duration-200 bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1 rounded-lg"
-                    >
-                      Planifier →
-                    </button>
-                  </div>
-                </div>
-
-                {/* Template Suivi Hebdomadaire */}
-                <div className="group bg-gray-700/50 rounded-2xl p-6 border border-gray-600 hover:border-green-500/50 transition-all duration-200">
-                  <div className="bg-gradient-to-br from-green-500 to-emerald-500 w-16 h-16 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200">
-                    <CalendarDays className="w-8 h-8 text-white" />
-                  </div>
-                  
-                  <h3 className="text-xl font-bold text-white mb-2">Suivi Hebdomadaire</h3>
-                  <p className="text-gray-400 mb-4 text-sm">Point régulier sur les progrès</p>
-                  
-                  <div className="flex items-center justify-between text-sm mb-4">
-                    <span className="text-gray-500 flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      30 min
-                    </span>
-                    <button 
-                      onClick={() => handlePlanifierTemplate('weekly')}
-                      className="text-green-400 hover:text-green-300 font-medium flex items-center gap-1 group-hover:translate-x-1 transition-all duration-200 bg-green-500/10 hover:bg-green-500/20 px-3 py-1 rounded-lg"
-                    >
-                      Planifier →
-                    </button>
-                  </div>
-                </div>
-
-                {/* Template Bilan d'Étape */}
-                <div className="group bg-gray-700/50 rounded-2xl p-6 border border-gray-600 hover:border-purple-500/50 transition-all duration-200">
-                  <div className="bg-gradient-to-br from-purple-500 to-pink-500 w-16 h-16 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200">
-                    <Target className="w-8 h-8 text-white" />
-                  </div>
-                  
-                  <h3 className="text-xl font-bold text-white mb-2">Bilan d'Étape</h3>
-                  <p className="text-gray-400 mb-4 text-sm">Validation des compétences acquises</p>
-                  
-                  <div className="flex items-center justify-between text-sm mb-4">
-                    <span className="text-gray-500 flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      45 min
-                    </span>
-                    <button 
-                      onClick={() => handlePlanifierTemplate('milestone')}
-                      className="text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 group-hover:translate-x-1 transition-all duration-200 bg-purple-500/10 hover:bg-purple-500/20 px-3 py-1 rounded-lg"
-                    >
-                      Planifier →
-                    </button>
-                  </div>
-                </div>
-
-                {/* Template Entretien Final */}
-                <div className="group bg-gray-700/50 rounded-2xl p-6 border border-gray-600 hover:border-orange-500/50 transition-all duration-200">
-                  <div className="bg-gradient-to-br from-orange-500 to-red-500 w-16 h-16 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200">
-                    <Award className="w-8 h-8 text-white" />
-                  </div>
-                  
-                  <h3 className="text-xl font-bold text-white mb-2">Entretien Final</h3>
-                  <p className="text-gray-400 mb-4 text-sm">Bilan complet et certification</p>
-                  
-                  <div className="flex items-center justify-between text-sm mb-4">
-                    <span className="text-gray-500 flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      60 min
-                    </span>
-                    <button 
-                      onClick={() => handlePlanifierTemplate('final')}
-                      className="text-orange-400 hover:text-orange-300 font-medium flex items-center gap-1 group-hover:translate-x-1 transition-all duration-200 bg-orange-500/10 hover:bg-orange-500/20 px-3 py-1 rounded-lg"
-                    >
-                      Planifier →
-                    </button>
-                  </div>
-                </div>
-
-                {/* Template Entretien de Soutien */}
-                <div className="group bg-gray-700/50 rounded-2xl p-6 border border-gray-600 hover:border-pink-500/50 transition-all duration-200">
-                  <div className="bg-gradient-to-br from-pink-500 to-rose-500 w-16 h-16 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200">
-                    <Heart className="w-8 h-8 text-white" />
-                  </div>
-                  
-                  <h3 className="text-xl font-bold text-white mb-2">Entretien de Soutien</h3>
-                  <p className="text-gray-400 mb-4 text-sm">Accompagnement en cas de difficulté</p>
-                  
-                  <div className="flex items-center justify-between text-sm mb-4">
-                    <span className="text-gray-500 flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      30 min
-                    </span>
-                    <button 
-                      onClick={() => handlePlanifierTemplate('support')}
-                      className="text-pink-400 hover:text-pink-300 font-medium flex items-center gap-1 group-hover:translate-x-1 transition-all duration-200 bg-pink-500/10 hover:bg-pink-500/20 px-3 py-1 rounded-lg"
-                    >
-                      Planifier →
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 📋 Prochains entretiens */}
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-white">Prochains Entretiens</h2>
-                <button
-                  onClick={loadAllData}
-                  className="text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-gray-700"
-                >
-                  <RefreshCw className="w-5 h-5" />
-                </button>
-              </div>
-
-              {interviews.length === 0 ? (
-                <div className="text-center py-12">
-                  <Calendar className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-400 mb-2">
-                    Aucun entretien programmé
-                  </h3>
-                  <p className="text-gray-500 mb-6">
-                    Utilisez les boutons "Planifier →" ci-dessus pour programmer votre premier entretien.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {interviews.slice(0, 3).map((interview) => {
-                    const template = INTERVIEW_TEMPLATES[interview.type];
-                    const employee = employees.find(e => e.id === interview.employeeId);
-                    
-                    return (
-                      <div
-                        key={interview.id}
-                        className="bg-gray-700/50 rounded-xl p-6 border border-gray-600 hover:border-purple-500/30 transition-all duration-200"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-3">
-                              {template && (
-                                <div className={`${template.bgColor} w-10 h-10 rounded-lg flex items-center justify-center`}>
-                                  <template.icon className="w-5 h-5 text-white" />
-                                </div>
-                              )}
-                              <div>
-                                <h3 className="text-lg font-semibold text-white">
-                                  {template?.name || interview.type}
-                                </h3>
-                                <p className="text-gray-400 text-sm">
-                                  avec {interview.employeeName || employee?.name || 'Employé'}
-                                </p>
-                              </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                              <div className="flex items-center gap-2 text-gray-300">
-                                <Calendar className="w-4 h-4" />
-                                <span>{formatDate(interview.scheduledDate)}</span>
-                              </div>
-                              
-                              <div className="flex items-center gap-2 text-gray-300">
-                                <Clock className="w-4 h-4" />
-                                <span>{interview.duration} minutes</span>
-                              </div>
-                              
-                              <div className="flex items-center gap-2 text-gray-300">
-                                <MapPin className="w-4 h-4" />
-                                <span>{interview.location}</span>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <span className={`px-3 py-1 text-xs font-medium rounded-full border ${getStatusColor(interview.status)}`}>
-                              {interview.status === 'scheduled' ? 'Programmé' : interview.status}
-                            </span>
-                            
-                            {interview.status === 'scheduled' && (
-                              <button
-                                onClick={() => {
-                                  setSelectedInterview(interview);
-                                  setShowCompleteForm(true);
-                                }}
-                                className="bg-green-500/20 text-green-400 px-3 py-1 rounded-lg hover:bg-green-500/30 transition-colors text-sm font-medium"
-                              >
-                                Finaliser
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* 📅 MODAL DE PROGRAMMATION */}
-        {showScheduleForm && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h3 className="text-2xl font-bold text-white mb-2">
-                    Programmer un Entretien
-                  </h3>
-                  {selectedTemplate && (
-                    <div className="flex items-center gap-3">
-                      <div className={`${selectedTemplate.bgColor} w-8 h-8 rounded-lg flex items-center justify-center`}>
-                        <selectedTemplate.icon className="w-4 h-4 text-white" />
-                      </div>
-                      <span className="text-gray-300">{selectedTemplate.name}</span>
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={() => {
-                    setShowScheduleForm(false);
-                    setSelectedTemplate(null);
-                  }}
-                  className="text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-gray-700"
-                >
-                  <XCircle className="w-6 h-6" />
-                </button>
-              </div>
-
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                if (selectedTemplate) {
-                  handleScheduleWithTemplate(selectedTemplate.id);
-                } else {
-                  console.error('❌ Aucun template sélectionné');
-                  showNotification('❌ Erreur: aucun template sélectionné', 'error');
-                }
-              }} className="space-y-6">
-                {/* Sélection employé */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-3">
-                    Employé
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      value={scheduleForm.employeeName}
-                      onChange={(e) => setScheduleForm(prev => ({ ...prev, employeeName: e.target.value }))}
-                      placeholder="Nom de l'employé"
-                      className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none"
-                      required
-                    />
-                    <input
-                      type="email"
-                      value={scheduleForm.employeeEmail}
-                      onChange={(e) => setScheduleForm(prev => ({ ...prev, employeeEmail: e.target.value }))}
-                      placeholder="Email de l'employé"
-                      className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none"
-                      required
-                    />
-                  </div>
-                  
-                  {/* Suggestions d'employés */}
-                  {employees.length > 0 && (
-                    <div className="mt-3">
-                      <div className="text-xs text-gray-500 mb-2">Employés en formation :</div>
-                      <div className="flex flex-wrap gap-2">
-                        {employees.map(employee => (
-                          <button
-                            key={employee.id}
-                            type="button"
-                            onClick={() => setScheduleForm(prev => ({
-                              ...prev,
-                              employeeName: employee.name,
-                              employeeEmail: employee.email,
-                              employeeId: employee.id
-                            }))}
-                            className="px-3 py-1 text-xs bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors"
-                          >
-                            {employee.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Date et heure */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-3">
-                      Date
+                    <label className="block text-white font-medium mb-2">
+                      Date *
                     </label>
                     <input
                       type="date"
-                      value={scheduleForm.scheduledDate}
-                      onChange={(e) => setScheduleForm(prev => ({ ...prev, scheduledDate: e.target.value }))}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
-                      required
+                      value={newInterview.date}
+                      onChange={(e) => setNewInterview(prev => ({ ...prev, date: e.target.value }))}
+                      className="w-full bg-gray-700 text-white rounded-lg p-3"
+                      min={new Date().toISOString().split('T')[0]}
                     />
                   </div>
-                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-3">
-                      Heure
+                    <label className="block text-white font-medium mb-2">
+                      Heure *
                     </label>
                     <input
                       type="time"
-                      value={scheduleForm.scheduledTime}
-                      onChange={(e) => setScheduleForm(prev => ({ ...prev, scheduledTime: e.target.value }))}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
-                      required
+                      value={newInterview.time}
+                      onChange={(e) => setNewInterview(prev => ({ ...prev, time: e.target.value }))}
+                      className="w-full bg-gray-700 text-white rounded-lg p-3"
                     />
                   </div>
                 </div>
 
-                {/* Lieu */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-3">
-                    Lieu de l'entretien
+                  <label className="block text-white font-medium mb-2">
+                    Référent
                   </label>
-                  <select
-                    value={scheduleForm.location}
-                    onChange={(e) => setScheduleForm(prev => ({ ...prev, location: e.target.value }))}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
-                  >
-                    <option value="Bureau référent">Bureau référent</option>
-                    <option value="Salle de réunion A">Salle de réunion A</option>
-                    <option value="Salle de réunion B">Salle de réunion B</option>
-                    <option value="Visioconférence">Visioconférence</option>
-                    <option value="Espace détente">Espace détente</option>
-                  </select>
-                </div>
-
-                {/* Notes additionnelles */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-3">
-                    Notes additionnelles
-                  </label>
-                  <textarea
-                    value={scheduleForm.notes}
-                    onChange={(e) => setScheduleForm(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Notes, préparation particulière..."
-                    rows={3}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none resize-none"
+                  <input
+                    type="text"
+                    value={newInterview.referent}
+                    onChange={(e) => setNewInterview(prev => ({ ...prev, referent: e.target.value }))}
+                    placeholder="Nom du référent..."
+                    className="w-full bg-gray-700 text-white rounded-lg p-3"
                   />
                 </div>
 
-                {/* Aperçu du template sélectionné */}
-                {selectedTemplate && (
-                  <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600">
-                    <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                      <selectedTemplate.icon className="w-5 h-5" />
-                      Aperçu: {selectedTemplate.name}
-                    </h4>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <h5 className="text-sm font-medium text-gray-300 mb-2">Durée:</h5>
-                        <p className="text-sm text-gray-400">{selectedTemplate.duration} minutes</p>
-                      </div>
-                      
-                      <div>
-                        <h5 className="text-sm font-medium text-gray-300 mb-2">Objectifs principaux:</h5>
-                        <ul className="text-sm text-gray-400 space-y-1">
-                          {selectedTemplate.objectives.slice(0, 3).map((objective, index) => (
-                            <li key={index} className="flex items-start gap-2">
-                              <div className="w-1 h-1 bg-purple-400 rounded-full mt-2 flex-shrink-0"></div>
-                              {objective}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      
-                      <div>
-                        <h5 className="text-sm font-medium text-gray-300 mb-2">Questions types:</h5>
-                        <ul className="text-sm text-gray-400 space-y-1">
-                          {selectedTemplate.questions.slice(0, 3).map((question, index) => (
-                            <li key={index} className="flex items-start gap-2">
-                              <div className="w-1 h-1 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
-                              {question}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className="flex justify-end gap-4 pt-6 border-t border-gray-700">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowScheduleForm(false);
-                      setSelectedTemplate(null);
-                    }}
-                    className="px-6 py-3 text-gray-400 hover:text-white transition-colors font-medium"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-3 rounded-xl font-medium hover:shadow-lg transition-all duration-200 flex items-center gap-2"
-                  >
-                    <Calendar className="w-5 h-5" />
-                    {selectedTemplate ? `Programmer ${selectedTemplate.name}` : 'Programmer l\'entretien'}
-                  </button>
+                <div>
+                  <label className="block text-white font-medium mb-2">
+                    Lieu
+                  </label>
+                  <input
+                    type="text"
+                    value={newInterview.location}
+                    onChange={(e) => setNewInterview(prev => ({ ...prev, location: e.target.value }))}
+                    className="w-full bg-gray-700 text-white rounded-lg p-3"
+                  />
                 </div>
-              </form>
+
+                <div>
+                  <label className="block text-white font-medium mb-2">
+                    Type d'entretien
+                  </label>
+                  <select
+                    value={newInterview.type}
+                    onChange={(e) => setNewInterview(prev => ({ ...prev, type: e.target.value }))}
+                    className="w-full bg-gray-700 text-white rounded-lg p-3"
+                  >
+                    <option value="presentiel">Présentiel</option>
+                    <option value="visio">Visioconférence</option>
+                    <option value="telephone">Téléphone</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-white font-medium mb-2">
+                    Notes (optionnel)
+                  </label>
+                  <textarea
+                    value={newInterview.notes}
+                    onChange={(e) => setNewInterview(prev => ({ ...prev, notes: e.target.value }))}
+                    className="w-full bg-gray-700 text-white rounded-lg p-3 h-20 resize-none"
+                    placeholder="Notes ou commentaires..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setShowScheduleForm(false)}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={scheduleInterview}
+                  disabled={submitting}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium inline-flex items-center"
+                >
+                  {submitting ? (
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Calendar className="h-4 w-4 mr-2" />
+                  )}
+                  Planifier
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// 📊 COMPOSANT DASHBOARD
+const DashboardView = ({ interviews, onMarkCompleted, onDelete }) => {
+  const upcomingInterviews = interviews.filter(interview => {
+    const interviewDate = new Date(`${interview.date}T${interview.time}`);
+    return interviewDate >= new Date() && interview.status === 'planned';
+  });
+
+  const completedInterviews = interviews.filter(interview => interview.status === 'completed');
+
+  return (
+    <div className="space-y-6">
+      {/* Statistiques */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-6">
+          <div className="flex items-center gap-3">
+            <Calendar className="h-8 w-8 text-blue-400" />
+            <div>
+              <div className="text-2xl font-bold text-white">{upcomingInterviews.length}</div>
+              <div className="text-blue-400 text-sm">Entretiens à venir</div>
             </div>
+          </div>
+        </div>
+        
+        <div className="bg-green-600/20 border border-green-500/30 rounded-lg p-6">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="h-8 w-8 text-green-400" />
+            <div>
+              <div className="text-2xl font-bold text-white">{completedInterviews.length}</div>
+              <div className="text-green-400 text-sm">Entretiens terminés</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-purple-600/20 border border-purple-500/30 rounded-lg p-6">
+          <div className="flex items-center gap-3">
+            <MessageSquare className="h-8 w-8 text-purple-400" />
+            <div>
+              <div className="text-2xl font-bold text-white">{interviews.length}</div>
+              <div className="text-purple-400 text-sm">Total entretiens</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Prochains entretiens */}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
+        <h4 className="text-xl font-bold text-white mb-4">📅 Prochains Entretiens</h4>
+        
+        {upcomingInterviews.length === 0 ? (
+          <div className="text-center py-8">
+            <Calendar className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+            <p className="text-gray-400">Aucun entretien planifié</p>
+            <p className="text-gray-500 text-sm mt-2">
+              Utilisez l'onglet "Planifier" pour créer un nouvel entretien
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {upcomingInterviews.slice(0, 3).map((interview) => (
+              <InterviewCard
+                key={interview.id}
+                interview={interview}
+                onMarkCompleted={onMarkCompleted}
+                onDelete={onDelete}
+                showActions={true}
+              />
+            ))}
           </div>
         )}
       </div>
+
+      {/* Derniers entretiens terminés */}
+      {completedInterviews.length > 0 && (
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
+          <h4 className="text-xl font-bold text-white mb-4">✅ Derniers Entretiens Terminés</h4>
+          <div className="space-y-3">
+            {completedInterviews.slice(-2).map((interview) => (
+              <InterviewCard
+                key={interview.id}
+                interview={interview}
+                onDelete={onDelete}
+                showActions={false}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// 📅 COMPOSANT PLANIFIER
+const PlanifierView = ({ templates, onSelectTemplate }) => {
+  return (
+    <div className="space-y-6">
+      <div className="text-center mb-6">
+        <h4 className="text-xl font-bold text-white mb-2">📝 Choisir un type d'entretien</h4>
+        <p className="text-gray-400">Sélectionnez le template qui correspond à vos besoins</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {Object.entries(templates).map(([templateId, template]) => {
+          const IconComponent = template.icon;
+          return (
+            <div key={templateId} className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700 hover:border-purple-500/50 transition-all duration-200">
+              <div className="flex items-center mb-4">
+                <div className={`w-12 h-12 rounded-2xl bg-gradient-to-r ${template.color} flex items-center justify-center mr-4`}>
+                  <IconComponent className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-white">{template.name}</h4>
+                  <p className="text-gray-400 text-sm">{template.duration} minutes</p>
+                </div>
+              </div>
+              
+              <p className="text-gray-300 mb-4 text-sm">{template.description}</p>
+              
+              <div className="mb-4">
+                <p className="text-white font-medium text-sm mb-2">Objectifs :</p>
+                <ul className="text-gray-400 text-xs space-y-1">
+                  {template.objectives.slice(0, 3).map((objective, idx) => (
+                    <li key={idx}>• {objective}</li>
+                  ))}
+                  {template.objectives.length > 3 && (
+                    <li className="text-gray-500">... et {template.objectives.length - 3} autres</li>
+                  )}
+                </ul>
+              </div>
+              
+              <button 
+                onClick={() => onSelectTemplate(templateId)}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-2 px-4 rounded-lg font-medium transition-all duration-200"
+              >
+                Planifier cet entretien
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// 📚 COMPOSANT HISTORIQUE
+const HistoriqueView = ({ interviews, onDelete }) => {
+  return (
+    <div className="space-y-6">
+      <div className="text-center mb-6">
+        <h4 className="text-xl font-bold text-white mb-2">📚 Historique des Entretiens</h4>
+        <p className="text-gray-400">Tous vos entretiens passés et à venir</p>
+      </div>
+
+      {interviews.length === 0 ? (
+        <div className="text-center py-12">
+          <Calendar className="h-16 w-16 text-gray-500 mx-auto mb-4" />
+          <p className="text-gray-400">Aucun entretien enregistré</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {interviews.map((interview) => (
+            <InterviewCard
+              key={interview.id}
+              interview={interview}
+              onDelete={onDelete}
+              showActions={true}
+              detailed={true}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// 🎯 COMPOSANT CARTE ENTRETIEN
+const InterviewCard = ({ interview, onMarkCompleted, onDelete, showActions = true, detailed = false }) => {
+  const template = INTERVIEW_TEMPLATES[interview.templateId];
+  const IconComponent = template?.icon || MessageSquare;
+  
+  const interviewDate = new Date(`${interview.date}T${interview.time}`);
+  const isUpcoming = interviewDate >= new Date() && interview.status === 'planned';
+  const isPast = interviewDate < new Date() && interview.status === 'planned';
+  const isCompleted = interview.status === 'completed';
+
+  return (
+    <div className={`p-4 rounded-lg border transition-all duration-200 ${
+      isCompleted ? 'bg-green-900/20 border-green-500/30' :
+      isUpcoming ? 'bg-blue-900/20 border-blue-500/30' :
+      'bg-gray-700/30 border-gray-600'
+    }`}>
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+            template ? `bg-gradient-to-r ${template.color}` : 'bg-gray-600'
+          }`}>
+            <IconComponent className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1">
+            <h5 className="font-semibold text-white">{interview.title || interview.templateName}</h5>
+            <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                {new Date(interview.date).toLocaleDateString('fr-FR')}
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {interview.time}
+              </span>
+              {interview.duration && (
+                <span>{interview.duration} min</span>
+              )}
+            </div>
+            {interview.referent && (
+              <p className="text-sm text-gray-400 mt-1">
+                <User className="w-3 h-3 inline mr-1" />
+                Avec: {interview.referent}
+              </p>
+            )}
+            {interview.location && (
+              <p className="text-sm text-gray-400">
+                <MapPin className="w-3 h-3 inline mr-1" />
+                {interview.location}
+              </p>
+            )}
+          </div>
+        </div>
+        
+        {showActions && (
+          <div className="flex items-center gap-2">
+            {isUpcoming && onMarkCompleted && (
+              <button
+                onClick={() => onMarkCompleted(interview.id)}
+                className="text-green-400 hover:text-green-300 p-1"
+                title="Marquer comme terminé"
+              >
+                <CheckCircle className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={() => onDelete(interview.id)}
+              className="text-red-400 hover:text-red-300 p-1"
+              title="Supprimer"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
+      
+      <div className="mt-2">
+        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+          isCompleted ? 'bg-green-500/20 text-green-300' :
+          isUpcoming ? 'bg-blue-500/20 text-blue-300' :
+          'bg-orange-500/20 text-orange-300'
+        }`}>
+          {isCompleted ? '✅ Terminé' :
+           isUpcoming ? '📅 À venir' :
+           '⏰ En retard'}
+        </span>
+      </div>
+
+      {detailed && interview.notes && (
+        <div className="mt-3 p-2 bg-gray-600/30 rounded text-sm text-gray-300">
+          <FileText className="w-3 h-3 inline mr-1" />
+          {interview.notes}
+        </div>
+      )}
     </div>
   );
 };
