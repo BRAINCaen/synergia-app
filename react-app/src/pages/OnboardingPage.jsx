@@ -1,757 +1,582 @@
 // ==========================================
 // 📁 react-app/src/pages/OnboardingPage.jsx
-// PAGE ONBOARDING COMPLÈTE - IMPORT AUTHSTORE CORRIGÉ
+// PAGE D'ONBOARDING CORRIGÉE ET FONCTIONNELLE
 // ==========================================
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuthStore } from '../shared/stores/authStore.js';
 import { 
-  BookOpen,
-  Target,
-  MessageSquare,
-  Users,
-  Trophy,
+  BookOpen, 
+  Target, 
+  Users, 
   Calendar,
-  Star,
   CheckCircle,
-  Clock,
-  Award,
-  RefreshCw,
   Play,
-  Loader,
-  Bug,
-  XCircle,
-  CheckCircle2,
-  Building,
-  Heart,
-  Key,
-  Coffee,
-  Lightbulb,
-  UserCheck,
-  Eye,
-  FileText,
-  Shield,
-  Gamepad2,
-  Settings,
-  Wrench,
-  Sparkles,
-  Circle,
-  ChevronRight,
-  ChevronDown,
-  Plus,
-  Pause,
-  RotateCcw,
-  Badge as BadgeIcon,
-  Zap,
-  AlertCircle,
-  Edit,
-  Trash2,
-  BarChart3,
-  TrendingUp,
-  Search,
-  Filter,
-  ChevronUp
+  ArrowRight,
+  Trophy,
+  Star,
+  Clock,
+  MapPin,
+  Gift,
+  Zap
 } from 'lucide-react';
 
-// 🔧 CORRECTION: Import authStore avec chemin correct
-import { useAuthStore } from '../shared/stores/authStore.js';
-import { onboardingService, ONBOARDING_PHASES } from '../core/services/onboardingService.js';
-
-// Imports Firebase pour les entretiens
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
-  getDocs, 
-  addDoc, 
-  serverTimestamp 
-} from 'firebase/firestore';
-import { db } from '../core/firebase.js';
-
-// 🎯 RÔLES SYNERGIA POUR LES COMPÉTENCES
-const SYNERGIA_ROLES = {
-  GAME_MASTER: {
-    id: 'game_master',
-    name: 'Game Master',
-    icon: '🎮',
-    color: 'from-purple-500 to-purple-600',
-    description: 'Animation des sessions et expérience client',
-    competences: [
-      'Animation de sessions',
-      'Gestion des groupes',
-      'Techniques de game mastering',
-      'Improvisation et créativité',
-      'Communication client'
-    ]
+/**
+ * 🎯 ÉTAPES D'ONBOARDING
+ */
+const ONBOARDING_STEPS = [
+  {
+    id: 'bienvenue',
+    number: 1,
+    title: 'Bienvenue chez Synergia !',
+    description: 'Découvrez votre nouvelle plateforme collaborative',
+    icon: Gift,
+    color: 'from-blue-500 to-purple-600',
+    completed: true
   },
-  MAINTENANCE: {
-    id: 'maintenance',
-    name: 'Entretien & Maintenance',
-    icon: '🔧',
-    color: 'from-orange-500 to-orange-600',
-    description: 'Responsable de la maintenance et des réparations',
-    competences: [
-      'Maintenance préventive',
-      'Réparations techniques',
-      'Gestion des équipements',
-      'Sécurité et normes',
-      'Diagnostics techniques'
-    ]
+  {
+    id: 'profil',
+    number: 2,
+    title: 'Complétez votre profil',
+    description: 'Ajoutez vos informations personnelles et professionnelles',
+    icon: Users,
+    color: 'from-green-500 to-blue-500',
+    completed: false
   },
-  ACCUEIL: {
-    id: 'accueil',
-    name: 'Accueil & Relations Client',
-    icon: '👋',
-    color: 'from-blue-500 to-blue-600',
-    description: 'Premier contact et satisfaction client',
-    competences: [
-      'Accueil chaleureux',
-      'Service client',
-      'Gestion des réservations',
-      'Communication interpersonnelle',
-      'Résolution de problèmes'
-    ]
+  {
+    id: 'equipe',
+    number: 3,
+    title: 'Découvrez votre équipe',
+    description: 'Rencontrez vos collègues et collaborateurs',
+    icon: Users,
+    color: 'from-purple-500 to-pink-500',
+    completed: false
   },
-  CUISINE: {
-    id: 'cuisine',
-    name: 'Cuisine & Restauration',
-    icon: '👨‍🍳',
-    color: 'from-red-500 to-red-600',
-    description: 'Préparation culinaire et service',
-    competences: [
-      'Préparation alimentaire',
-      'Hygiène et sécurité alimentaire',
-      'Service en salle',
-      'Gestion des stocks alimentaires',
-      'Créativité culinaire'
-    ]
+  {
+    id: 'projets',
+    number: 4,
+    title: 'Explorez vos projets',
+    description: 'Consultez vos missions et objectifs',
+    icon: Target,
+    color: 'from-orange-500 to-red-500',
+    completed: false
   },
-  BOUTIQUE: {
-    id: 'boutique',
-    name: 'Boutique & Merchandising',
-    icon: '🛍️',
-    color: 'from-green-500 to-green-600',
-    description: 'Vente et gestion de la boutique',
-    competences: [
-      'Techniques de vente',
-      'Merchandising',
-      'Gestion d\'inventaire',
-      'Encaissement',
-      'Conseil client'
-    ]
+  {
+    id: 'taches',
+    number: 5,
+    title: 'Gérez vos tâches',
+    description: 'Organisez votre travail au quotidien',
+    icon: CheckCircle,
+    color: 'from-teal-500 to-green-500',
+    completed: false
   },
-  EVENEMENTIEL: {
-    id: 'evenementiel',
-    name: 'Événementiel & Organisation',
-    icon: '🎉',
-    color: 'from-pink-500 to-pink-600',
-    description: 'Coordination d\'événements spéciaux',
-    competences: [
-      'Planification d\'événements',
-      'Coordination d\'équipes',
-      'Logistique événementielle',
-      'Gestion de projet',
-      'Animation de groupes'
-    ]
+  {
+    id: 'gamification',
+    number: 6,
+    title: 'Système de points',
+    description: 'Gagnez des points et débloquez des badges',
+    icon: Trophy,
+    color: 'from-yellow-500 to-orange-500',
+    completed: false
   },
-  SOCIAL_MEDIA: {
-    id: 'social_media',
-    name: 'Communication & Réseaux',
-    icon: '📱',
-    color: 'from-indigo-500 to-indigo-600',
-    description: 'Gestion de la présence numérique',
-    competences: [
-      'Création de contenu',
-      'Gestion des réseaux sociaux',
-      'Photographie/vidéo',
-      'Community management',
-      'Stratégie digitale'
-    ]
-  },
-  ADMINISTRATION: {
-    id: 'administration',
-    name: 'Administration & Gestion',
-    icon: '📊',
-    color: 'from-gray-500 to-gray-600',
-    description: 'Support administratif et organisationnel',
-    competences: [
-      'Gestion administrative',
-      'Suivi financier',
-      'Planification',
-      'Documentation',
-      'Support opérationnel'
-    ]
+  {
+    id: 'termine',
+    number: 7,
+    title: 'C\'est parti !',
+    description: 'Vous êtes prêt à utiliser Synergia',
+    icon: Star,
+    color: 'from-pink-500 to-purple-500',
+    completed: false
   }
-};
+];
 
 /**
- * 🚀 PAGE D'ONBOARDING COMPLÈTE SYNERGIA
- * Guide interactif pour nouveaux employés
+ * 🎯 COMPOSANT ÉTAPE INDIVIDUELLE
  */
-const OnboardingPage = () => {
-  const { user } = useAuthStore();
-
-  // États principaux
-  const [currentPhase, setCurrentPhase] = useState('welcome');
-  const [completedPhases, setCompletedPhases] = useState([]);
-  const [userProgress, setUserProgress] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [selectedRoles, setSelectedRoles] = useState([]);
-  const [userInfo, setUserInfo] = useState({
-    name: user?.displayName || '',
-    email: user?.email || '',
-    phone: '',
-    startDate: '',
-    previousExperience: '',
-    interests: [],
-    availability: {
-      fullTime: true,
-      partTime: false,
-      weekends: false,
-      evenings: false
-    }
-  });
-
-  // États UI
-  const [showRoleDetails, setShowRoleDetails] = useState(null);
-  const [animationStep, setAnimationStep] = useState(0);
-  const [interviewScheduled, setInterviewScheduled] = useState(false);
-
-  /**
-   * 📋 CHARGER LE PROGRÈS UTILISATEUR
-   */
-  useEffect(() => {
-    if (user?.uid) {
-      loadUserProgress();
-    }
-  }, [user]);
-
-  const loadUserProgress = async () => {
-    setLoading(true);
-    try {
-      const progress = await onboardingService.getUserProgress(user.uid);
-      setUserProgress(progress);
-      setCurrentPhase(progress.currentPhase || 'welcome');
-      setCompletedPhases(progress.completedPhases || []);
-      
-      if (progress.selectedRoles) {
-        setSelectedRoles(progress.selectedRoles);
-      }
-      
-      if (progress.userInfo) {
-        setUserInfo({ ...userInfo, ...progress.userInfo });
-      }
-    } catch (error) {
-      console.error('❌ Erreur chargement progrès:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /**
-   * ✅ COMPLÉTER UNE PHASE
-   */
-  const completePhase = useCallback(async (phase) => {
-    try {
-      setLoading(true);
-      
-      const newCompletedPhases = [...completedPhases, phase];
-      setCompletedPhases(newCompletedPhases);
-      
-      // Déterminer la phase suivante
-      const phases = Object.keys(ONBOARDING_PHASES);
-      const currentIndex = phases.indexOf(phase);
-      const nextPhase = currentIndex < phases.length - 1 ? phases[currentIndex + 1] : 'completed';
-      
-      setCurrentPhase(nextPhase);
-      
-      // Sauvegarder en Firebase
-      await onboardingService.updateUserProgress(user.uid, {
-        currentPhase: nextPhase,
-        completedPhases: newCompletedPhases,
-        selectedRoles,
-        userInfo,
-        lastUpdated: new Date().toISOString()
-      });
-      
-      console.log('✅ Phase complétée:', phase);
-    } catch (error) {
-      console.error('❌ Erreur complétion phase:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [completedPhases, selectedRoles, userInfo, user?.uid]);
-
-  /**
-   * 🎯 SÉLECTIONNER/DÉSÉLECTIONNER UN RÔLE
-   */
-  const toggleRole = (roleId) => {
-    setSelectedRoles(prev => 
-      prev.includes(roleId) 
-        ? prev.filter(id => id !== roleId)
-        : [...prev, roleId]
-    );
-  };
-
-  /**
-   * 📅 PLANIFIER UN ENTRETIEN
-   */
-  const scheduleInterview = async (selectedDate, selectedTime) => {
-    try {
-      setLoading(true);
-      
-      await addDoc(collection(db, 'interviews'), {
-        userId: user.uid,
-        userName: user.displayName || user.email,
-        userEmail: user.email,
-        scheduledDate: selectedDate,
-        scheduledTime: selectedTime,
-        selectedRoles: selectedRoles,
-        status: 'scheduled',
-        createdAt: serverTimestamp(),
-        notes: `Entretien onboarding - Rôles sélectionnés: ${selectedRoles.map(id => SYNERGIA_ROLES[id]?.name).join(', ')}`
-      });
-      
-      setInterviewScheduled(true);
-      console.log('✅ Entretien planifié');
-      
-    } catch (error) {
-      console.error('❌ Erreur planification entretien:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /**
-   * 🎨 RENDU DE LA PHASE WELCOME
-   */
-  const renderWelcomePhase = () => (
-    <div className="text-center">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="mb-8"
-      >
-        <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Sparkles className="w-12 h-12 text-white" />
-        </div>
-        
-        <h1 className="text-4xl font-bold text-white mb-4">
-          Bienvenue chez Synergia ! 🎉
-        </h1>
-        
-        <p className="text-xl text-purple-300 mb-8 max-w-2xl mx-auto">
-          Nous sommes ravis de t'accueillir dans notre équipe ! 
-          Ce guide va t'accompagner pour découvrir ton futur rôle et t'intégrer parfaitement.
-        </p>
-      </motion.div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-6">
-          <Target className="w-8 h-8 text-blue-400 mb-4 mx-auto" />
-          <h3 className="font-semibold text-white mb-2">Découverte</h3>
-          <p className="text-gray-400 text-sm">
-            Explore nos différents rôles et trouve celui qui te correspond
-          </p>
-        </div>
-        
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-6">
-          <Users className="w-8 h-8 text-green-400 mb-4 mx-auto" />
-          <h3 className="font-semibold text-white mb-2">Rencontre</h3>
-          <p className="text-gray-400 text-sm">
-            Fais connaissance avec ton équipe et ton manager
-          </p>
-        </div>
-        
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-6">
-          <Trophy className="w-8 h-8 text-yellow-400 mb-4 mx-auto" />
-          <h3 className="font-semibold text-white mb-2">Évolution</h3>
-          <p className="text-gray-400 text-sm">
-            Développe tes compétences et progresse dans ta carrière
-          </p>
-        </div>
+const StepCard = ({ step, isActive, onClick }) => {
+  return (
+    <div
+      onClick={onClick}
+      className={`relative p-6 rounded-xl border-2 transition-all duration-300 cursor-pointer ${
+        isActive
+          ? `bg-gradient-to-r ${step.color} text-white shadow-lg scale-105 border-transparent`
+          : step.completed
+          ? 'bg-green-500/20 border-green-400/50 text-green-300 hover:bg-green-500/30'
+          : 'bg-gray-800/50 border-gray-600/50 text-gray-300 hover:bg-gray-700/50'
+      }`}
+    >
+      {/* Badge numéro */}
+      <div className={`absolute -top-3 -right-3 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+        step.completed
+          ? 'bg-green-500 text-white'
+          : isActive
+          ? 'bg-white text-gray-900'
+          : 'bg-gray-600 text-gray-300'
+      }`}>
+        {step.completed ? '✓' : step.number}
       </div>
 
-      <button
-        onClick={() => completePhase('welcome')}
-        disabled={loading}
-        className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transition-all duration-300 disabled:opacity-50"
-      >
-        {loading ? (
-          <div className="flex items-center space-x-2">
-            <Loader className="w-4 h-4 animate-spin" />
-            <span>Chargement...</span>
-          </div>
-        ) : (
-          <>
-            Commencer mon parcours <ChevronRight className="w-4 h-4 ml-2 inline" />
-          </>
-        )}
-      </button>
-    </div>
-  );
-
-  /**
-   * 🎯 RENDU DE LA PHASE ROLE SELECTION
-   */
-  const renderRoleSelectionPhase = () => (
-    <div className="space-y-8">
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-white mb-4">
-          Choisis tes rôles préférés 🎯
-        </h2>
-        <p className="text-purple-300 text-lg max-w-3xl mx-auto">
-          Sélectionne les rôles qui t'intéressent le plus. Tu pourras en choisir plusieurs et nous discuterons ensemble de tes préférences lors de ton entretien.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Object.entries(SYNERGIA_ROLES).map(([roleId, role]) => (
-          <motion.div
-            key={roleId}
-            whileHover={{ scale: 1.02 }}
-            className={`relative bg-gray-800/50 backdrop-blur-sm border rounded-xl p-6 cursor-pointer transition-all duration-300 ${
-              selectedRoles.includes(roleId)
-                ? 'border-blue-500 bg-blue-900/20'
-                : 'border-gray-700 hover:border-gray-600'
-            }`}
-            onClick={() => toggleRole(roleId)}
-          >
-            {/* Badge de sélection */}
-            {selectedRoles.includes(roleId) && (
-              <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-4 h-4 text-white" />
-              </div>
-            )}
-
-            <div className="text-center">
-              <div className={`w-16 h-16 bg-gradient-to-br ${role.color} rounded-full flex items-center justify-center mx-auto mb-4`}>
-                <span className="text-2xl">{role.icon}</span>
-              </div>
-              
-              <h3 className="text-xl font-bold text-white mb-2">{role.name}</h3>
-              <p className="text-gray-400 text-sm mb-4">{role.description}</p>
-              
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowRoleDetails(showRoleDetails === roleId ? null : roleId);
-                }}
-                className="text-blue-400 hover:text-blue-300 text-sm"
-              >
-                {showRoleDetails === roleId ? 'Moins de détails' : 'Voir les compétences'}
-              </button>
+      {/* Icône */}
+      <div className="flex items-center mb-4">
+        <div className={`p-3 rounded-lg ${
+          isActive 
+            ? 'bg-white/20' 
+            : step.completed 
+            ? 'bg-green-500/30' 
+            : 'bg-gray-700'
+        }`}>
+          <step.icon className="h-6 w-6" />
+        </div>
+        <div className="ml-4">
+          <h3 className="font-bold text-lg">{step.title}</h3>
+          {step.completed && (
+            <div className="flex items-center text-sm text-green-400">
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Terminé
             </div>
-
-            {/* Détails expandus */}
-            <AnimatePresence>
-              {showRoleDetails === roleId && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mt-4 pt-4 border-t border-gray-700"
-                >
-                  <h4 className="text-sm font-semibold text-white mb-2">Compétences développées :</h4>
-                  <ul className="space-y-1">
-                    {role.competences.map((competence, index) => (
-                      <li key={index} className="text-xs text-gray-400 flex items-center">
-                        <Star className="w-3 h-3 mr-2 text-yellow-400" />
-                        {competence}
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        ))}
-      </div>
-
-      <div className="text-center">
-        <p className="text-gray-400 mb-4">
-          {selectedRoles.length > 0 
-            ? `${selectedRoles.length} rôle(s) sélectionné(s)`
-            : 'Sélectionne au moins un rôle pour continuer'
-          }
-        </p>
-        
-        <button
-          onClick={() => completePhase('role_selection')}
-          disabled={loading || selectedRoles.length === 0}
-          className="px-8 py-3 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-xl font-semibold hover:from-green-600 hover:to-teal-700 transition-all duration-300 disabled:opacity-50"
-        >
-          {loading ? (
-            <div className="flex items-center space-x-2">
-              <Loader className="w-4 h-4 animate-spin" />
-              <span>Sauvegarde...</span>
-            </div>
-          ) : (
-            <>
-              Continuer avec mes choix <ChevronRight className="w-4 h-4 ml-2 inline" />
-            </>
           )}
-        </button>
-      </div>
-    </div>
-  );
-
-  /**
-   * 📅 RENDU DE LA PHASE INTERVIEW SCHEDULING
-   */
-  const renderInterviewPhase = () => (
-    <div className="max-w-3xl mx-auto space-y-8">
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-white mb-4">
-          Planifions ton entretien ! 📅
-        </h2>
-        <p className="text-purple-300 text-lg">
-          Super ! Maintenant, planifions un entretien pour discuter de tes rôles préférés et de ton intégration.
-        </p>
-      </div>
-
-      {!interviewScheduled ? (
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-8">
-          <h3 className="text-xl font-semibold text-white mb-6">Informations de contact</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Nom complet
-              </label>
-              <input
-                type="text"
-                value={userInfo.name}
-                onChange={(e) => setUserInfo(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Ton nom complet"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Téléphone
-              </label>
-              <input
-                type="tel"
-                value={userInfo.phone}
-                onChange={(e) => setUserInfo(prev => ({ ...prev, phone: e.target.value }))}
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Ton numéro de téléphone"
-              />
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <h4 className="text-lg font-semibold text-white mb-4">Tes rôles sélectionnés :</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {selectedRoles.map(roleId => {
-                const role = SYNERGIA_ROLES[roleId];
-                return (
-                  <div key={roleId} className="flex items-center space-x-3 bg-gray-700/50 rounded-lg p-3">
-                    <span className="text-xl">{role.icon}</span>
-                    <div>
-                      <div className="font-medium text-white">{role.name}</div>
-                      <div className="text-xs text-gray-400">{role.description}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="text-center">
-            <button
-              onClick={() => scheduleInterview(new Date(), '14:00')}
-              disabled={loading || !userInfo.name || !userInfo.phone}
-              className="px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl font-semibold hover:from-purple-600 hover:to-pink-700 transition-all duration-300 disabled:opacity-50"
-            >
-              {loading ? (
-                <div className="flex items-center space-x-2">
-                  <Loader className="w-4 h-4 animate-spin" />
-                  <span>Planification...</span>
-                </div>
-              ) : (
-                <>
-                  <Calendar className="w-4 h-4 mr-2 inline" />
-                  Demander un entretien
-                </>
-              )}
-            </button>
-            
-            <p className="text-gray-400 text-sm mt-3">
-              Notre équipe RH te recontactera sous 24h pour fixer le créneau
-            </p>
-          </div>
         </div>
-      ) : (
-        <div className="bg-green-900/20 border border-green-500/50 rounded-xl p-8 text-center">
-          <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-          <h3 className="text-2xl font-bold text-white mb-4">Demande envoyée ! ✅</h3>
-          <p className="text-green-300 mb-6">
-            Parfait ! Notre équipe RH a reçu ta demande d'entretien et te recontactera rapidement pour planifier un créneau.
-          </p>
-          
-          <button
-            onClick={() => completePhase('interview_scheduling')}
-            className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transition-all duration-300"
-          >
-            Continuer <ChevronRight className="w-4 h-4 ml-2 inline" />
-          </button>
+      </div>
+
+      {/* Description */}
+      <p className={`text-sm ${
+        isActive ? 'text-white/90' : step.completed ? 'text-green-300' : 'text-gray-400'
+      }`}>
+        {step.description}
+      </p>
+
+      {/* Indicateur progression */}
+      {isActive && (
+        <div className="mt-4 flex items-center text-sm font-medium">
+          <Play className="h-4 w-4 mr-2" />
+          Étape en cours
         </div>
       )}
     </div>
   );
+};
 
-  /**
-   * 🏁 RENDU DE LA PHASE COMPLETION
-   */
-  const renderCompletionPhase = () => (
-    <div className="text-center space-y-8">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="mb-8"
-      >
-        <div className="w-32 h-32 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Trophy className="w-16 h-16 text-white" />
-        </div>
-        
-        <h1 className="text-4xl font-bold text-white mb-4">
-          Onboarding terminé ! 🎉
-        </h1>
-        
-        <p className="text-xl text-green-300 mb-8 max-w-2xl mx-auto">
-          Félicitations ! Tu as terminé ton parcours d'onboarding. 
-          Tu es maintenant prêt(e) à rejoindre officiellement l'équipe Synergia !
-        </p>
-      </motion.div>
-
-      <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-8 max-w-2xl mx-auto">
-        <h3 className="text-2xl font-bold text-white mb-6">Récapitulatif de ton parcours</h3>
-        
-        <div className="space-y-4 mb-8">
-          <div className="flex items-center justify-between p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <CheckCircle className="w-6 h-6 text-green-400" />
-              <span className="text-white font-medium">Accueil et présentation</span>
-            </div>
-            <span className="text-green-400">✓ Terminé</span>
-          </div>
-          
-          <div className="flex items-center justify-between p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <CheckCircle className="w-6 h-6 text-green-400" />
-              <span className="text-white font-medium">Sélection des rôles</span>
-            </div>
-            <span className="text-green-400">✓ {selectedRoles.length} rôle(s)</span>
-          </div>
-          
-          <div className="flex items-center justify-between p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <CheckCircle className="w-6 h-6 text-green-400" />
-              <span className="text-white font-medium">Entretien planifié</span>
-            </div>
-            <span className="text-green-400">✓ Demande envoyée</span>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-500/30 rounded-lg p-6">
-          <h4 className="text-lg font-semibold text-white mb-3">Prochaines étapes :</h4>
-          
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-              <span className="text-blue-300">Entretien avec ton manager</span>
-            </div>
+/**
+ * 🎯 CONTENU DES ÉTAPES
+ */
+const StepContent = ({ activeStep }) => {
+  const renderStepContent = () => {
+    switch (activeStep.id) {
+      case 'bienvenue':
+        return (
+          <div className="text-center space-y-6">
+            <div className="text-6xl mb-6">🎉</div>
+            <h2 className="text-3xl font-bold text-white mb-4">
+              Bienvenue dans Synergia v3.5 !
+            </h2>
+            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+              Nous sommes ravis de vous accueillir dans votre nouvelle plateforme collaborative. 
+              Ce guide va vous accompagner pour découvrir toutes les fonctionnalités et devenir 
+              rapidement autonome.
+            </p>
             
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-              <span className="text-purple-300">Formation spécialisée pour tes rôles</span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+              <div className="bg-blue-500/20 border border-blue-400/50 rounded-lg p-6">
+                <Zap className="h-8 w-8 text-blue-400 mx-auto mb-3" />
+                <h4 className="font-semibold text-white mb-2">Productivité</h4>
+                <p className="text-blue-300 text-sm">
+                  Optimisez votre organisation avec nos outils avancés
+                </p>
+              </div>
+              
+              <div className="bg-purple-500/20 border border-purple-400/50 rounded-lg p-6">
+                <Users className="h-8 w-8 text-purple-400 mx-auto mb-3" />
+                <h4 className="font-semibold text-white mb-2">Collaboration</h4>
+                <p className="text-purple-300 text-sm">
+                  Travaillez en équipe de manière fluide et efficace
+                </p>
+              </div>
+              
+              <div className="bg-green-500/20 border border-green-400/50 rounded-lg p-6">
+                <Trophy className="h-8 w-8 text-green-400 mx-auto mb-3" />
+                <h4 className="font-semibold text-white mb-2">Gamification</h4>
+                <p className="text-green-300 text-sm">
+                  Gagnez des points et débloquez des récompenses
+                </p>
+              </div>
             </div>
-            
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-              <span className="text-green-300">Intégration dans l'équipe</span>
+
+            <div className="mt-8 p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg border border-blue-400/30">
+              <p className="text-blue-300 font-medium">
+                💡 Astuce : Prenez votre temps pour explorer chaque section. 
+                Vous pourrez revenir à ce guide à tout moment !
+              </p>
             </div>
           </div>
-        </div>
-        
-        <div className="mt-6">
-          <p className="text-purple-300 font-medium">
-            💪 Tu fais partie de l'équipe dès maintenant !
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+        );
 
-  // Interface de chargement
-  if (loading && !currentPhase) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <Loader className="w-8 h-8 text-purple-400 animate-spin mx-auto mb-4" />
-          <p className="text-purple-300">Chargement de ton parcours...</p>
-        </div>
-      </div>
-    );
-  }
+      case 'profil':
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <Users className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+              <h2 className="text-3xl font-bold text-white mb-4">
+                Complétez votre profil
+              </h2>
+              <p className="text-gray-300 text-lg">
+                Ajoutez vos informations pour personnaliser votre expérience
+              </p>
+            </div>
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="container mx-auto px-6 py-12">
-        {/* Indicateur de progression */}
-        <div className="mb-12">
-          <div className="flex items-center justify-center space-x-4 mb-6">
-            {Object.keys(ONBOARDING_PHASES).map((phase, index) => (
-              <div key={phase} className="flex items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  completedPhases.includes(phase)
-                    ? 'bg-green-500 text-white'
-                    : currentPhase === phase
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-700 text-gray-400'
-                }`}>
-                  {completedPhases.includes(phase) ? (
-                    <CheckCircle className="w-4 h-4" />
-                  ) : (
-                    index + 1
-                  )}
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-6">
+              <h3 className="text-xl font-semibold text-white mb-4">À compléter :</h3>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
+                    <span className="text-gray-300">Photo de profil</span>
+                  </div>
+                  <button className="text-blue-400 hover:text-blue-300 text-sm font-medium">
+                    Ajouter →
+                  </button>
                 </div>
                 
-                {index < Object.keys(ONBOARDING_PHASES).length - 1 && (
-                  <div className={`w-12 h-0.5 mx-2 ${
-                    completedPhases.includes(phase) ? 'bg-green-500' : 'bg-gray-700'
-                  }`} />
-                )}
+                <div className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
+                    <span className="text-gray-300">Poste et département</span>
+                  </div>
+                  <button className="text-blue-400 hover:text-blue-300 text-sm font-medium">
+                    Modifier →
+                  </button>
+                </div>
+                
+                <div className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-green-400 rounded-full mr-3"></div>
+                    <span className="text-gray-300">Informations de contact</span>
+                  </div>
+                  <span className="text-green-400 text-sm font-medium">✓ Terminé</span>
+                </div>
               </div>
-            ))}
+
+              <div className="mt-6 text-center">
+                <button className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-3 rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium">
+                  Aller au profil
+                </button>
+              </div>
+            </div>
           </div>
-          
-          <p className="text-center text-gray-400">
-            Étape {Math.max(1, Object.keys(ONBOARDING_PHASES).indexOf(currentPhase) + 1)} sur {Object.keys(ONBOARDING_PHASES).length}
+        );
+
+      case 'equipe':
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <Users className="h-16 w-16 text-green-400 mx-auto mb-4" />
+              <h2 className="text-3xl font-bold text-white mb-4">
+                Découvrez votre équipe
+              </h2>
+              <p className="text-gray-300 text-lg">
+                Connectez-vous avec vos collègues et collaborateurs
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                  <Users className="h-5 w-5 mr-2 text-blue-400" />
+                  Mon équipe directe
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center p-3 bg-gray-700/30 rounded-lg">
+                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                      JD
+                    </div>
+                    <div className="ml-3">
+                      <div className="text-white font-medium">John Doe</div>
+                      <div className="text-gray-400 text-sm">Chef d'équipe</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center p-3 bg-gray-700/30 rounded-lg">
+                    <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+                      MS
+                    </div>
+                    <div className="ml-3">
+                      <div className="text-white font-medium">Marie Smith</div>
+                      <div className="text-gray-400 text-sm">Développeuse</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <button className="w-full mt-4 text-blue-400 hover:text-blue-300 text-sm font-medium">
+                  Voir toute l'équipe →
+                </button>
+              </div>
+
+              <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                  <MapPin className="h-5 w-5 mr-2 text-green-400" />
+                  Autres départements
+                </h3>
+                <div className="space-y-3">
+                  <div className="p-3 bg-gray-700/30 rounded-lg">
+                    <div className="text-white font-medium">Marketing</div>
+                    <div className="text-gray-400 text-sm">8 personnes</div>
+                  </div>
+                  <div className="p-3 bg-gray-700/30 rounded-lg">
+                    <div className="text-white font-medium">Ventes</div>
+                    <div className="text-gray-400 text-sm">12 personnes</div>
+                  </div>
+                  <div className="p-3 bg-gray-700/30 rounded-lg">
+                    <div className="text-white font-medium">Support</div>
+                    <div className="text-gray-400 text-sm">6 personnes</div>
+                  </div>
+                </div>
+                
+                <button className="w-full mt-4 text-blue-400 hover:text-blue-300 text-sm font-medium">
+                  Explorer l'annuaire →
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'termine':
+        return (
+          <div className="text-center space-y-6">
+            <div className="text-6xl mb-6">🚀</div>
+            <h2 className="text-3xl font-bold text-white mb-4">
+              Félicitations ! Vous êtes prêt·e !
+            </h2>
+            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+              Vous avez terminé votre parcours d'onboarding. 
+              Vous pouvez maintenant utiliser Synergia en toute autonomie !
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+              <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-400/50 rounded-lg p-6">
+                <h4 className="font-semibold text-white mb-3 flex items-center">
+                  <BookOpen className="h-5 w-5 mr-2 text-blue-400" />
+                  Ressources utiles
+                </h4>
+                <ul className="text-left space-y-2 text-blue-300 text-sm">
+                  <li>• Guide utilisateur complet</li>
+                  <li>• FAQ et questions courantes</li>
+                  <li>• Tutoriels vidéo</li>
+                  <li>• Support technique</li>
+                </ul>
+              </div>
+              
+              <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 border border-green-400/50 rounded-lg p-6">
+                <h4 className="font-semibold text-white mb-3 flex items-center">
+                  <Target className="h-5 w-5 mr-2 text-green-400" />
+                  Prochaines étapes
+                </h4>
+                <ul className="text-left space-y-2 text-green-300 text-sm">
+                  <li>• Consulter vos premières tâches</li>
+                  <li>• Rejoindre vos projets</li>
+                  <li>• Configurer vos notifications</li>
+                  <li>• Explorer la gamification</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <button 
+                onClick={() => window.location.href = '/dashboard'}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-12 py-4 rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-bold text-lg shadow-lg hover:shadow-xl"
+              >
+                Commencer à utiliser Synergia →
+              </button>
+            </div>
+          </div>
+        );
+
+      default:
+        return (
+          <div className="text-center space-y-6">
+            <div className="text-6xl mb-6">{activeStep.icon && <activeStep.icon />}</div>
+            <h2 className="text-3xl font-bold text-white mb-4">
+              {activeStep.title}
+            </h2>
+            <p className="text-gray-300 text-lg">
+              {activeStep.description}
+            </p>
+            <div className="mt-8 p-6 bg-gray-800/50 border border-gray-700/50 rounded-lg">
+              <p className="text-gray-400">
+                Contenu de cette étape en cours de développement...
+              </p>
+              <button className="mt-4 text-blue-400 hover:text-blue-300 text-sm font-medium">
+                Passer à l'étape suivante →
+              </button>
+            </div>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8">
+      {renderStepContent()}
+    </div>
+  );
+};
+
+/**
+ * 🎯 COMPOSANT PRINCIPAL
+ */
+const OnboardingPage = () => {
+  const { user } = useAuthStore();
+  const [activeStepIndex, setActiveStepIndex] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState([0]); // Première étape complétée par défaut
+
+  const activeStep = ONBOARDING_STEPS[activeStepIndex];
+
+  const handleStepClick = (stepIndex) => {
+    setActiveStepIndex(stepIndex);
+  };
+
+  const handleNextStep = () => {
+    if (activeStepIndex < ONBOARDING_STEPS.length - 1) {
+      const nextIndex = activeStepIndex + 1;
+      setActiveStepIndex(nextIndex);
+      if (!completedSteps.includes(nextIndex)) {
+        setCompletedSteps([...completedSteps, nextIndex]);
+      }
+    }
+  };
+
+  const handlePreviousStep = () => {
+    if (activeStepIndex > 0) {
+      setActiveStepIndex(activeStepIndex - 1);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
+            🎯 Parcours d'Intégration
+          </h1>
+          <p className="text-gray-400 text-lg">
+            Étape {activeStep.number} sur {ONBOARDING_STEPS.length} : {activeStep.title}
           </p>
+          
+          {/* Barre de progression */}
+          <div className="mt-6 max-w-md mx-auto">
+            <div className="w-full bg-gray-700 rounded-full h-2">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${((activeStepIndex + 1) / ONBOARDING_STEPS.length) * 100}%` }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-xs text-gray-400 mt-2">
+              <span>Début</span>
+              <span>{Math.round(((activeStepIndex + 1) / ONBOARDING_STEPS.length) * 100)}%</span>
+              <span>Terminé</span>
+            </div>
+          </div>
         </div>
 
-        {/* Contenu principal selon la phase */}
-        <motion.div
-          key={currentPhase}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          {currentPhase === 'welcome' && renderWelcomePhase()}
-          {currentPhase === 'role_selection' && renderRoleSelectionPhase()}
-          {currentPhase === 'interview_scheduling' && renderInterviewPhase()}
-          {currentPhase === 'completed' && renderCompletionPhase()}
-        </motion.div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Liste des étapes (sidebar) */}
+          <div className="lg:col-span-1">
+            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-6">Étapes du parcours</h3>
+              <div className="space-y-3">
+                {ONBOARDING_STEPS.map((step, index) => (
+                  <div
+                    key={step.id}
+                    onClick={() => handleStepClick(index)}
+                    className={`flex items-center p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                      index === activeStepIndex
+                        ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-400/50'
+                        : completedSteps.includes(index)
+                        ? 'bg-green-500/20 border border-green-400/30 hover:bg-green-500/30'
+                        : 'bg-gray-700/30 hover:bg-gray-600/40'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mr-3 ${
+                      completedSteps.includes(index)
+                        ? 'bg-green-500 text-white'
+                        : index === activeStepIndex
+                        ? 'bg-white text-gray-900'
+                        : 'bg-gray-600 text-gray-300'
+                    }`}>
+                      {completedSteps.includes(index) ? '✓' : step.number}
+                    </div>
+                    
+                    <div className="flex-1">
+                      <div className={`text-sm font-medium ${
+                        index === activeStepIndex
+                          ? 'text-white'
+                          : completedSteps.includes(index)
+                          ? 'text-green-300'
+                          : 'text-gray-300'
+                      }`}>
+                        {step.title}
+                      </div>
+                      {index === activeStepIndex && (
+                        <div className="text-xs text-blue-300 mt-1">En cours...</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Contenu de l'étape active */}
+          <div className="lg:col-span-2">
+            <StepContent activeStep={activeStep} />
+            
+            {/* Boutons de navigation */}
+            <div className="flex justify-between items-center mt-8">
+              <button
+                onClick={handlePreviousStep}
+                disabled={activeStepIndex === 0}
+                className={`flex items-center px-6 py-3 rounded-lg transition-all duration-200 ${
+                  activeStepIndex === 0
+                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                    : 'bg-gray-700 hover:bg-gray-600 text-white'
+                }`}
+              >
+                ← Étape précédente
+              </button>
+
+              <div className="text-gray-400 text-sm">
+                Étape {activeStep.number} / {ONBOARDING_STEPS.length}
+              </div>
+
+              <button
+                onClick={handleNextStep}
+                disabled={activeStepIndex === ONBOARDING_STEPS.length - 1}
+                className={`flex items-center px-6 py-3 rounded-lg transition-all duration-200 ${
+                  activeStepIndex === ONBOARDING_STEPS.length - 1
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white'
+                }`}
+              >
+                {activeStepIndex === ONBOARDING_STEPS.length - 1 
+                  ? 'Commencer →' 
+                  : 'Étape suivante →'
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer info */}
+        <div className="text-center mt-12 p-4 bg-gray-800/30 rounded-lg border border-gray-700/50">
+          <p className="text-gray-400 text-sm">
+            💡 <strong>Astuce :</strong> Vous pouvez revenir à ce guide d'intégration à tout moment 
+            depuis le menu principal. N'hésitez pas à prendre votre temps !
+          </p>
+        </div>
       </div>
     </div>
   );
 };
 
-// 🚀 EXPORT DEFAULT POUR NETLIFY BUILD
 export default OnboardingPage;
