@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/OnboardingPage.jsx
-// CORRECTION COMPLÈTE - FORMATION AFFICHÉE + COMPÉTENCES CALCULÉES
+// VERSION COMPLÈTE AVEC TOUS LES ONGLETS FONCTIONNELS
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -16,13 +16,33 @@ import {
   Users,
   Gamepad2,
   Settings,
-  Calendar
+  Calendar,
+  User,
+  Plus,
+  CheckCircle,
+  Circle,
+  RefreshCw,
+  Camera,
+  Play,
+  Pause,
+  RotateCcw,
+  Eye,
+  Building,
+  Heart,
+  ChevronRight,
+  Shield,
+  Zap,
+  Send,
+  X,
+  CalendarDays,
+  Phone,
+  Video,
+  MapPin,
+  FileText
 } from 'lucide-react';
 
 import { useAuthStore } from '../shared/stores/authStore.js';
-import FormationGenerale from '../components/onboarding/FormationGenerale.jsx';
-import SkillsAcquisition from '../components/onboarding/SkillsAcquisition.jsx';
-import EntretiensReferent from '../components/onboarding/EntretiensReferent.jsx';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // 🎯 RÔLES SYNERGIA COMPLETS AVEC PROGRESSION
 const SYNERGIA_ROLES = {
@@ -31,43 +51,161 @@ const SYNERGIA_ROLES = {
     name: 'Game Master', 
     icon: '🕹️', 
     color: 'from-purple-500 to-blue-500',
-    description: 'Animation de gestion des sessions d\'escape game',
-    progress: 25 // Exemple de progression sauvegardée
+    description: 'Animation et gestion des sessions d\'escape game',
+    progress: 25 // Progression actuelle
   },
   maintenance: { 
     id: 'maintenance', 
     name: 'Maintenance', 
     icon: '🛠️', 
     color: 'from-orange-500 to-red-500',
-    description: 'Entretien technique et réparations'
+    description: 'Entretien technique et réparations',
+    progress: 0
   },
   reputation: { 
     id: 'reputation', 
     name: 'Réputation', 
     icon: '⭐', 
     color: 'from-yellow-500 to-amber-500',
-    description: 'Gestion de l\'image de marque et avis clients'
+    description: 'Gestion de l\'image de marque et avis clients',
+    progress: 0
   },
   stock: { 
     id: 'stock', 
     name: 'Stock', 
     icon: '📦', 
     color: 'from-blue-500 to-indigo-500',
-    description: 'Gestion des stocks et approvisionnements'
+    description: 'Gestion des stocks et approvisionnements',
+    progress: 0
   },
   organisation: { 
     id: 'organisation', 
     name: 'Organisation', 
     icon: '🗓️', 
     color: 'from-green-500 to-teal-500',
-    description: 'Planification et coordination interne'
+    description: 'Planification et coordination interne',
+    progress: 0
   },
   partnerships: { 
     id: 'partnerships', 
     name: 'Partenariats', 
     icon: '🤝', 
     color: 'from-indigo-500 to-purple-500',
-    description: 'Relations externes et collaborations'
+    description: 'Relations externes et collaborations',
+    progress: 0
+  }
+};
+
+// 🎯 DONNÉES DE FORMATION RÉALISTES
+const FORMATION_PHASES = {
+  decouverte_brain: {
+    id: 'decouverte_brain',
+    name: '🎯 Découverte de Brain',
+    status: 'completed',
+    progress: 100,
+    completedTasks: 4,
+    totalTasks: 4,
+    tasks: [
+      { name: 'Accueil et présentation', completed: true, icon: '👋' },
+      { name: 'Visite des locaux', completed: true, icon: '🏢' },
+      { name: 'Rencontre équipe', completed: true, icon: '👥' },
+      { name: 'Découverte outils', completed: true, icon: '🔧' }
+    ]
+  },
+  parcours_client: {
+    id: 'parcours_client',
+    name: '👥 Parcours Client & Expérience Joueur',
+    status: 'active',
+    progress: 60,
+    completedTasks: 3,
+    totalTasks: 5,
+    tasks: [
+      { name: 'Maîtriser l\'accueil client de A à Z', completed: true, icon: '✅' },
+      { name: 'Conduire un briefing joueurs efficace', completed: true, icon: '✅' },
+      { name: 'Gestion des différents types de groupes', completed: true, icon: '✅' },
+      { name: 'Animations spéciales et événements', completed: false, icon: '⏳', current: true },
+      { name: 'Gestion des imprévus et situations difficiles', completed: false, icon: '📋' }
+    ]
+  },
+  gestion_technique: {
+    id: 'gestion_technique',
+    name: '🔧 Gestion Technique',
+    status: 'locked',
+    progress: 0,
+    completedTasks: 0,
+    totalTasks: 6,
+    tasks: []
+  }
+};
+
+// 🎮 COMPÉTENCES GAME MASTER PAR CATÉGORIE
+const GAMEMASTER_SKILLS = {
+  decouverte_immersion: {
+    name: 'Découverte & Immersion',
+    color: 'from-blue-500 to-cyan-500',
+    icon: BookOpen,
+    skills: [
+      { id: 'connaissance_salles', name: 'Connaissance parfaite des 3 salles', completed: true },
+      { id: 'scenarios_enigmes', name: 'Scénarios et énigmes par cœur', completed: true },
+      { id: 'immersion_univers', name: 'Immersion dans l\'univers de chaque salle', completed: false }
+    ]
+  },
+  gestion_technique: {
+    name: 'Gestion Technique',
+    color: 'from-purple-500 to-pink-500',
+    icon: Camera,
+    skills: [
+      { id: 'systeme_cameras', name: 'Maîtrise du système de caméras', completed: false },
+      { id: 'effets_sonores', name: 'Gestion des effets sonores et ambiances', completed: false },
+      { id: 'indices_distants', name: 'Délivrer des indices à distance', completed: false }
+    ]
+  },
+  animation_clients: {
+    name: 'Animation Clients',
+    color: 'from-green-500 to-emerald-500',
+    icon: Users,
+    skills: [
+      { id: 'accueil_briefing', name: 'Accueil et briefing joueurs', completed: false },
+      { id: 'gestion_stress', name: 'Gestion du stress et des peurs', completed: false },
+      { id: 'debriefing_photo', name: 'Debriefing et session photo', completed: false }
+    ]
+  },
+  quiz_game: {
+    name: 'Quiz Game',
+    color: 'from-orange-500 to-red-500',
+    icon: Gamepad2,
+    skills: [
+      { id: 'animation_quiz', name: 'Animation du Quiz Game', completed: false },
+      { id: 'gestion_classements', name: 'Gestion des scores et classements', completed: false }
+    ]
+  }
+};
+
+// 📋 TEMPLATES D'ENTRETIENS
+const INTERVIEW_TEMPLATES = {
+  initial: {
+    id: 'initial',
+    name: 'Entretien Initial',
+    icon: User,
+    color: 'from-blue-500 to-cyan-500',
+    duration: 60,
+    description: 'Premier entretien d\'accueil et présentation'
+  },
+  weekly: {
+    id: 'weekly',
+    name: 'Suivi Hebdomadaire',
+    icon: CalendarDays,
+    color: 'from-green-500 to-emerald-500',
+    duration: 30,
+    description: 'Point régulier sur les progrès'
+  },
+  milestone: {
+    id: 'milestone',
+    name: 'Bilan d\'Étape',
+    icon: Target,
+    color: 'from-purple-500 to-pink-500',
+    duration: 45,
+    description: 'Validation des compétences acquises'
   }
 };
 
@@ -85,50 +223,17 @@ const OnboardingPage = () => {
       setLoading(true);
       console.log('📚 Chargement données de formation...');
       
-      // Créer des données réalistes de formation avec votre progression actuelle
+      // Créer des données réalistes de formation
       const defaultFormation = {
         userId: user.uid,
         status: 'in_progress',
         currentPhase: 'parcours_client',
-        progress: 35, // 35% de progression comme visible sur l'image
-        completedModules: [
-          'accueil',
-          'visite_locaux', 
-          'comprendre_valeurs',
-          'rencontrer_equipe',
-          'decouverte_outils'
-        ],
-        nextModule: 'formation_roles',
-        startDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), // Il y a 2 semaines
+        progress: 35,
+        completedModules: ['accueil', 'visite_locaux', 'comprendre_valeurs', 'rencontrer_equipe'],
+        nextModule: 'animations_speciales',
+        startDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
         lastUpdate: new Date().toISOString(),
-        phases: {
-          decouverte_brain: {
-            id: 'decouverte_brain',
-            name: '🎯 Découverte de Brain',
-            status: 'completed',
-            progress: 100,
-            completedTasks: 4,
-            totalTasks: 4,
-            completionDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-          },
-          parcours_client: {
-            id: 'parcours_client',
-            name: '👥 Parcours client & expérience joueur',
-            status: 'active',
-            progress: 60,
-            completedTasks: 3,
-            totalTasks: 5,
-            startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-          },
-          gestion_technique: {
-            id: 'gestion_technique',
-            name: '🔧 Gestion technique',
-            status: 'locked',
-            progress: 0,
-            completedTasks: 0,
-            totalTasks: 6
-          }
-        },
+        phases: FORMATION_PHASES,
         metrics: {
           totalTasks: 15,
           completedTasks: 7,
@@ -246,7 +351,7 @@ const MaFormation = ({ formationData }) => {
             <p className="opacity-90">Progression générale de votre parcours</p>
           </div>
           <div className="text-right">
-            <div className="text-3xl font-bold">{formationData.metrics?.completionRate || 25}%</div>
+            <div className="text-3xl font-bold">{formationData.metrics?.completionRate || 35}%</div>
             <div className="text-sm opacity-80">complété</div>
           </div>
         </div>
@@ -255,7 +360,7 @@ const MaFormation = ({ formationData }) => {
         <div className="bg-white/20 rounded-full h-3 mb-4">
           <div 
             className="bg-gradient-to-r from-yellow-400 to-orange-400 h-3 rounded-full transition-all duration-500" 
-            style={{ width: `${formationData.metrics?.completionRate || 25}%` }}
+            style={{ width: `${formationData.metrics?.completionRate || 35}%` }}
           ></div>
         </div>
 
@@ -279,111 +384,108 @@ const MaFormation = ({ formationData }) => {
       <div className="space-y-6">
         <h4 className="text-2xl font-bold text-white mb-6">Parcours de Formation</h4>
         
-        {/* Phase 1: Découverte de Brain - TERMINÉE */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-green-500/30">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center">
-                  <CheckCircle2 className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h5 className="text-xl font-bold text-white">🎯 Découverte de Brain</h5>
-                  <p className="text-green-400">Immersion et accueil — Terminé</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-green-400 font-bold text-lg">100%</div>
-                <div className="text-gray-400 text-sm">4/4 tâches</div>
-              </div>
-            </div>
-
-            {/* Progression complète */}
-            <div className="bg-gray-700/50 rounded-full h-2 mb-4">
-              <div className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full" style={{ width: '100%' }}></div>
-            </div>
-
-            {/* Tâches accomplies */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {[
-                { name: 'Accueil', icon: '👋' },
-                { name: 'Visite des locaux', icon: '🏢' },
-                { name: 'Présentation équipe', icon: '👥' },
-                { name: 'Découverte outils', icon: '🔧' }
-              ].map((task, idx) => (
-                <div key={idx} className="flex items-center gap-3 bg-green-900/20 rounded-lg p-3">
-                  <CheckCircle2 className="w-5 h-5 text-green-400" />
-                  <span className="text-green-300">{task.icon} {task.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Phase 2: Parcours Client - EN COURS */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-blue-500/30">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h5 className="text-xl font-bold text-white">👥 Parcours Client & Expérience Joueur</h5>
-                  <p className="text-blue-400">Formation en cours — Phase active</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-blue-400 font-bold text-lg">60%</div>
-                <div className="text-gray-400 text-sm">3/5 tâches</div>
-              </div>
-            </div>
-
-            {/* Progression actuelle */}
-            <div className="bg-gray-700/50 rounded-full h-2 mb-4">
-              <div className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full" style={{ width: '60%' }}></div>
-            </div>
-
-            {/* Tâches en cours et à venir */}
-            <div className="space-y-3">
-              {[
-                { name: 'Maîtriser l\'accueil client de A à Z', completed: true, icon: '✅' },
-                { name: 'Conduire un briefing joueurs efficace', completed: true, icon: '✅' },
-                { name: 'Gestion des différents types de groupes', completed: true, icon: '✅' },
-                { name: 'Animations spéciales et événements', completed: false, icon: '⏳', current: true },
-                { name: 'Gestion des imprévus et situations difficiles', completed: false, icon: '📋' }
-              ].map((task, idx) => (
-                <div key={idx} className={`flex items-center gap-3 rounded-lg p-3 ${
-                  task.completed ? 'bg-blue-900/20' : 
-                  task.current ? 'bg-yellow-900/20 border border-yellow-500/30' : 
-                  'bg-gray-700/30'
-                }`}>
-                  <div className="w-6 h-6 flex items-center justify-center">
-                    {task.completed ? (
-                      <CheckCircle2 className="w-5 h-5 text-blue-400" />
-                    ) : task.current ? (
-                      <Clock className="w-5 h-5 text-yellow-400" />
+        {Object.values(FORMATION_PHASES).map((phase) => (
+          <div key={phase.id} className={`bg-gray-800/50 backdrop-blur-sm rounded-2xl border ${
+            phase.status === 'completed' ? 'border-green-500/30' :
+            phase.status === 'active' ? 'border-blue-500/30' :
+            'border-gray-700'
+          }`}>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                    phase.status === 'completed' ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
+                    phase.status === 'active' ? 'bg-gradient-to-r from-blue-500 to-cyan-500' :
+                    'bg-gray-600'
+                  }`}>
+                    {phase.status === 'completed' ? (
+                      <CheckCircle2 className="w-6 h-6 text-white" />
+                    ) : phase.status === 'active' ? (
+                      <Clock className="w-6 h-6 text-white" />
                     ) : (
-                      <div className="w-5 h-5 border border-gray-500 rounded-full"></div>
+                      <Circle className="w-6 h-6 text-gray-400" />
                     )}
                   </div>
-                  <span className={`${
-                    task.completed ? 'text-blue-300' :
-                    task.current ? 'text-yellow-300' :
+                  <div>
+                    <h5 className="text-xl font-bold text-white">{phase.name}</h5>
+                    <p className={
+                      phase.status === 'completed' ? 'text-green-400' :
+                      phase.status === 'active' ? 'text-blue-400' :
+                      'text-gray-400'
+                    }>
+                      {phase.status === 'completed' ? 'Terminé' :
+                       phase.status === 'active' ? 'En cours' :
+                       'Verrouillé'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`font-bold text-lg ${
+                    phase.status === 'completed' ? 'text-green-400' :
+                    phase.status === 'active' ? 'text-blue-400' :
                     'text-gray-400'
                   }`}>
-                    {task.icon} {task.name}
-                  </span>
-                  {task.current && (
-                    <span className="ml-auto text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-full">
-                      En cours
-                    </span>
-                  )}
+                    {phase.progress}%
+                  </div>
+                  <div className="text-gray-400 text-sm">
+                    {phase.completedTasks}/{phase.totalTasks} tâches
+                  </div>
                 </div>
-              ))}
+              </div>
+
+              {/* Progression */}
+              <div className="bg-gray-700/50 rounded-full h-2 mb-4">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-500 ${
+                    phase.status === 'completed' ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
+                    phase.status === 'active' ? 'bg-gradient-to-r from-blue-500 to-cyan-500' :
+                    'bg-gray-600'
+                  }`}
+                  style={{ width: `${phase.progress}%` }}
+                ></div>
+              </div>
+
+              {/* Tâches */}
+              {phase.tasks.length > 0 && (
+                <div className="space-y-3">
+                  {phase.tasks.map((task, idx) => (
+                    <div key={idx} className={`flex items-center gap-3 rounded-lg p-3 ${
+                      task.completed ? 
+                        (phase.status === 'completed' ? 'bg-green-900/20' : 'bg-blue-900/20') :
+                      task.current ? 'bg-yellow-900/20 border border-yellow-500/30' :
+                      'bg-gray-700/30'
+                    }`}>
+                      <div className="w-6 h-6 flex items-center justify-center">
+                        {task.completed ? (
+                          <CheckCircle2 className={`w-5 h-5 ${
+                            phase.status === 'completed' ? 'text-green-400' : 'text-blue-400'
+                          }`} />
+                        ) : task.current ? (
+                          <Clock className="w-5 h-5 text-yellow-400" />
+                        ) : (
+                          <Circle className="w-5 h-5 text-gray-500" />
+                        )}
+                      </div>
+                      <span className={`${
+                        task.completed ? 
+                          (phase.status === 'completed' ? 'text-green-300' : 'text-blue-300') :
+                        task.current ? 'text-yellow-300' :
+                        'text-gray-400'
+                      }`}>
+                        {task.icon} {task.name}
+                      </span>
+                      {task.current && (
+                        <span className="ml-auto text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-full">
+                          En cours
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        </div>
+        ))}
 
         {/* Prochaine étape */}
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-blue-500/20">
@@ -402,8 +504,10 @@ const MaFormation = ({ formationData }) => {
   );
 };
 
-// 🎯 COMPOSANT ACQUISITION DE COMPÉTENCES AVEC PROGRESSION RÉALISTE
+// 🎯 COMPOSANT ACQUISITION DE COMPÉTENCES
 const AcquisitionCompetences = () => {
+  const [selectedCategory, setSelectedCategory] = useState(null);
+
   return (
     <div className="space-y-6">
       <div className="text-center mb-8">
@@ -416,7 +520,8 @@ const AcquisitionCompetences = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Rôles Synergia */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {Object.values(SYNERGIA_ROLES).map(role => (
           <div key={role.id} className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700 hover:border-purple-500/50 transition-all duration-200">
             <div className="flex items-center mb-4">
@@ -425,17 +530,16 @@ const AcquisitionCompetences = () => {
               </div>
               <div>
                 <h4 className="font-semibold text-white">{role.name}</h4>
-                <p className="text-gray-400 text-sm">{role.progress || 0}% complété</p>
+                <p className="text-gray-400 text-sm">{role.progress}% complété</p>
               </div>
             </div>
             
             <p className="text-gray-300 mb-4 text-sm">{role.description}</p>
             
-            {/* Progression */}
             <div className="bg-gray-700/50 rounded-full h-2 mb-4">
               <div 
                 className={`bg-gradient-to-r ${role.color} h-2 rounded-full transition-all duration-500`}
-                style={{ width: `${role.progress || 0}%` }}
+                style={{ width: `${role.progress}%` }}
               ></div>
             </div>
             
@@ -448,26 +552,190 @@ const AcquisitionCompetences = () => {
         ))}
       </div>
 
-      {/* Skills Progress Summary */}
-      <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-2xl p-6 text-white mt-8">
-        <h4 className="text-xl font-bold mb-4">📊 Progression Globale des Compétences</h4>
+      {/* Compétences Game Master détaillées */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 text-white mb-6">
+        <h4 className="text-xl font-bold mb-4">📊 Formation Game Master en Détail</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold">25%</div>
-            <div className="text-sm opacity-80">Game Master</div>
+          {Object.entries(GAMEMASTER_SKILLS).map(([categoryKey, category]) => {
+            const completed = category.skills.filter(skill => skill.completed).length;
+            const total = category.skills.length;
+            const percentage = Math.round((completed / total) * 100);
+            
+            return (
+              <div key={categoryKey} className="text-center">
+                <div className="text-2xl font-bold">{percentage}%</div>
+                <div className="text-sm opacity-80">{category.name}</div>
+                <div className="text-xs opacity-60">{completed}/{total}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Détail des compétences Game Master */}
+      <div className="space-y-6">
+        {Object.entries(GAMEMASTER_SKILLS).map(([categoryKey, category]) => {
+          const IconComponent = category.icon;
+          const completed = category.skills.filter(skill => skill.completed).length;
+          const total = category.skills.length;
+          const percentage = Math.round((completed / total) * 100);
+          
+          return (
+            <div key={categoryKey} className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-r ${category.color} flex items-center justify-center`}>
+                      <IconComponent className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold text-white">{category.name}</h4>
+                      <p className="text-gray-400">{completed}/{total} compétences validées</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-white">{percentage}%</div>
+                    <div className="text-gray-400 text-sm">Maîtrisé</div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-700/50 rounded-full h-2 mb-6">
+                  <div 
+                    className={`bg-gradient-to-r ${category.color} h-2 rounded-full transition-all duration-500`}
+                    style={{ width: `${percentage}%` }}
+                  ></div>
+                </div>
+
+                <div className="space-y-3">
+                  {category.skills.map((skill) => (
+                    <div key={skill.id} className={`p-4 rounded-xl border transition-all duration-200 ${
+                      skill.completed 
+                        ? 'bg-green-900/20 border-green-500/30' 
+                        : 'bg-gray-700/30 border-gray-600'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <div className="mt-1">
+                          {skill.completed ? (
+                            <CheckCircle className="h-5 w-5 text-green-400" />
+                          ) : (
+                            <Circle className="h-5 w-5 text-gray-500" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h5 className={`font-semibold ${skill.completed ? 'text-green-300' : 'text-white'}`}>
+                            {skill.name}
+                          </h5>
+                          {skill.completed && (
+                            <div className="flex items-center gap-2 mt-1 text-xs text-green-400">
+                              <CheckCircle className="h-3 w-3" />
+                              <span>Compétence validée</span>
+                            </div>
+                          )}
+                        </div>
+                        {skill.completed && (
+                          <div className="flex items-center gap-1 bg-green-500/20 text-green-300 px-2 py-1 rounded-full text-xs">
+                            <Star className="h-3 w-3" />
+                            Validé
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// 🎯 COMPOSANT ENTRETIENS RÉFÉRENT
+const EntretiensReferent = () => {
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center mb-8">
+        <MessageSquare className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+        <h3 className="text-3xl font-bold text-white mb-4">
+          💬 Entretiens avec Référent
+        </h3>
+        <p className="text-gray-300 text-lg">
+          Suivi personnalisé de votre intégration
+        </p>
+      </div>
+
+      {/* Navigation entretiens */}
+      <div className="flex justify-center mb-8">
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-2">
+          <div className="flex space-x-2">
+            {[
+              { id: 'dashboard', name: 'Dashboard', icon: TrendingUp },
+              { id: 'planifier', name: 'Planifier', icon: Plus },
+              { id: 'historique', name: 'Historique', icon: Calendar }
+            ].map((tab) => {
+              const IconComponent = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  className="px-6 py-3 rounded-xl font-medium text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all duration-200 flex items-center gap-2"
+                >
+                  <IconComponent className="w-5 h-5" />
+                  {tab.name}
+                </button>
+              );
+            })}
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold">0%</div>
-            <div className="text-sm opacity-80">Maintenance</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold">0%</div>
-            <div className="text-sm opacity-80">Réputation</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold">0%</div>
-            <div className="text-sm opacity-80">Autres rôles</div>
-          </div>
+        </div>
+      </div>
+
+      {/* Templates d'entretiens */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {Object.values(INTERVIEW_TEMPLATES).map(template => {
+          const IconComponent = template.icon;
+          return (
+            <div key={template.id} className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700 hover:border-purple-500/50 transition-all duration-200">
+              <div className="flex items-center mb-4">
+                <div className={`w-12 h-12 rounded-2xl bg-gradient-to-r ${template.color} flex items-center justify-center mr-4`}>
+                  <IconComponent className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-white">{template.name}</h4>
+                  <p className="text-gray-400 text-sm">{template.duration} minutes</p>
+                </div>
+              </div>
+              
+              <p className="text-gray-300 mb-4 text-sm">{template.description}</p>
+              
+              <button 
+                onClick={() => {
+                  setSelectedTemplate(template);
+                  setShowScheduleForm(true);
+                }}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-2 px-4 rounded-lg font-medium transition-all duration-200"
+              >
+                Planifier cet entretien
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Prochains entretiens */}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
+        <h4 className="text-xl font-bold text-white mb-4">📅 Prochains Entretiens</h4>
+        <div className="text-center py-8">
+          <Calendar className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+          <p className="text-gray-400">Aucun entretien planifié</p>
+          <button 
+            onClick={() => setShowScheduleForm(true)}
+            className="mt-4 text-purple-400 hover:text-purple-300 font-medium"
+          >
+            Planifier votre premier entretien
+          </button>
         </div>
       </div>
     </div>
