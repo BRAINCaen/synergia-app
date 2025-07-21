@@ -5,7 +5,8 @@
 
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
-
+// En haut de App.jsx, après les autres imports
+import './core/firebasePermissionsFix.js';
 // ==========================================
 // 🚨 CORRECTIONS CRITIQUES EN PREMIER
 // ==========================================
