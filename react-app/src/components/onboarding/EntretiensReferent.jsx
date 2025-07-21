@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/onboarding/EntretiensReferent.jsx
-// ENTRETIENS RÉFÉRENT - VERSION CORRIGÉE SANS ERREUR PERMISSIONS
+// CORRECTION DÉFINITIVE - REMPLACE TOUT LE FICHIER
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -41,9 +41,8 @@ import {
 } from 'lucide-react';
 
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import InterviewServiceFixed from '../../core/services/interviewServiceFixed.js';
 
-// 🔥 IMPORTS FIREBASE POUR CHARGER LES EMPLOYÉS
+// 🔥 IMPORTS POUR CHARGEMENT EMPLOYÉS UNIQUEMENT
 import { 
   collection, 
   getDocs, 
@@ -53,6 +52,188 @@ import {
   limit
 } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
+
+// ⚠️ ATTENTION: UTILISÉ SEULEMENT POUR LA SOLUTION TEMPORAIRE
+// EN ATTENDANT QUE LES PERMISSIONS FIREBASE SOIENT CONFIGURÉES
+const createInterviewServiceFixed = () => {
+  return {
+    // 📅 MÉTHODE DE SAUVEGARDE TEMPORAIRE AVEC FALLBACK
+    async scheduleInterview(interviewData) {
+      try {
+        console.log('📅 [TEMPORAIRE] Sauvegarde entretien...');
+        
+        // ÉTAPE 1: Créer les données d'entretien complètes
+        const interview = {
+          id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          employeeName: interviewData.employeeName,
+          employeeEmail: interviewData.employeeEmail,
+          employeeId: interviewData.employeeId || `temp_${Date.now()}`,
+          referentId: interviewData.referentId,
+          type: interviewData.type || 'initial',
+          scheduledDate: new Date(interviewData.scheduledDate + 'T' + interviewData.scheduledTime),
+          duration: parseInt(interviewData.duration) || 30,
+          location: interviewData.location || 'Bureau référent',
+          objectives: interviewData.objectives || '',
+          notes: interviewData.notes || '',
+          status: 'scheduled',
+          createdAt: new Date().toISOString(),
+          createdBy: interviewData.referentId,
+          updatedAt: new Date().toISOString(),
+          isTemporary: true,
+          needsSync: true,
+          questions: this.getQuestionsByType(interviewData.type)
+        };
+
+        console.log('✅ [TEMPORAIRE] Données préparées:', interview);
+
+        // ÉTAPE 2: Sauvegarder en localStorage
+        const storageKey = `synergia_interviews`;
+        const existingInterviews = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        existingInterviews.push(interview);
+        localStorage.setItem(storageKey, JSON.stringify(existingInterviews));
+        
+        console.log('✅ [TEMPORAIRE] Entretien sauvé en localStorage');
+
+        // ÉTAPE 3: Programmer une tentative de sync Firebase plus tard
+        this.scheduleSyncAttempt(interview);
+
+        return { 
+          success: true, 
+          interviewId: interview.id, 
+          data: interview,
+          isTemporary: true,
+          message: 'Entretien programmé (sauvegarde temporaire)'
+        };
+        
+      } catch (error) {
+        console.error('❌ [TEMPORAIRE] Erreur sauvegarde:', error);
+        return { 
+          success: false, 
+          error: 'Impossible de programmer l\'entretien',
+          details: error.message 
+        };
+      }
+    },
+
+    // 🔄 TENTATIVE DE SYNCHRONISATION EN ARRIÈRE-PLAN
+    scheduleSyncAttempt(interview) {
+      console.log('🔄 [SYNC] Programmation tentative sync dans 30 secondes...');
+      
+      setTimeout(async () => {
+        try {
+          // Essayer d'importer Firebase et créer l'entretien
+          const { addDoc, collection } = await import('firebase/firestore');
+          const { db } = await import('../../core/firebase.js');
+          
+          const result = await addDoc(collection(db, 'interviews'), interview);
+          
+          if (result) {
+            console.log('✅ [SYNC] Synchronisation réussie !');
+            
+            // Supprimer du localStorage
+            const storageKey = `synergia_interviews`;
+            const interviews = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            const filtered = interviews.filter(i => i.id !== interview.id);
+            localStorage.setItem(storageKey, JSON.stringify(filtered));
+          }
+        } catch (syncError) {
+          console.warn('⚠️ [SYNC] Sync échouée, nouvel essai dans 5 minutes');
+          
+          // Réessayer dans 5 minutes
+          setTimeout(() => this.scheduleSyncAttempt(interview), 5 * 60 * 1000);
+        }
+      }, 30000);
+    },
+
+    // 📋 CHARGER TOUS LES ENTRETIENS (LOCALSTORAGE + FIREBASE)
+    async loadAllInterviews(referentId) {
+      try {
+        console.log('📋 [LOAD] Chargement entretiens...');
+        
+        const allInterviews = [];
+        
+        // 1. Charger depuis localStorage
+        try {
+          const storageKey = `synergia_interviews`;
+          const tempInterviews = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          const userTempInterviews = tempInterviews.filter(i => i.referentId === referentId);
+          userTempInterviews.forEach(interview => {
+            allInterviews.push({ ...interview, source: 'temporary' });
+          });
+          console.log(`✅ [LOAD] ${userTempInterviews.length} entretiens temporaires`);
+        } catch (tempError) {
+          console.warn('⚠️ [LOAD] Erreur entretiens temporaires:', tempError.message);
+        }
+        
+        // 2. Essayer de charger depuis Firebase (optionnel)
+        try {
+          const { query, where, orderBy, getDocs, collection } = await import('firebase/firestore');
+          const { db } = await import('../../core/firebase.js');
+          
+          const mainQuery = query(
+            collection(db, 'interviews'),
+            where('referentId', '==', referentId),
+            orderBy('scheduledDate', 'desc')
+          );
+          const mainSnapshot = await getDocs(mainQuery);
+          mainSnapshot.forEach(doc => {
+            allInterviews.push({ id: doc.id, ...doc.data(), source: 'main' });
+          });
+          console.log(`✅ [LOAD] ${mainSnapshot.size} entretiens Firebase`);
+        } catch (fbError) {
+          console.warn('⚠️ [LOAD] Firebase indisponible:', fbError.message);
+        }
+        
+        // Trier par date
+        allInterviews.sort((a, b) => {
+          const dateA = new Date(a.scheduledDate);
+          const dateB = new Date(b.scheduledDate);
+          return dateB - dateA;
+        });
+        
+        console.log(`✅ [LOAD] Total: ${allInterviews.length} entretiens`);
+        return allInterviews;
+        
+      } catch (error) {
+        console.error('❌ [LOAD] Erreur chargement:', error);
+        return [];
+      }
+    },
+
+    // 📝 QUESTIONS PAR TYPE
+    getQuestionsByType(type) {
+      const questions = {
+        initial: [
+          'Comment vous sentez-vous pour ce premier jour ?',
+          'Avez-vous des questions sur l\'organisation ?',
+          'Quels sont vos objectifs pour cette formation ?'
+        ],
+        weekly: [
+          'Quelles compétences avez-vous développées cette semaine ?',
+          'Quelles difficultés avez-vous rencontrées ?',
+          'Comment vous sentez-vous dans l\'équipe ?'
+        ],
+        milestone: [
+          'Comment évaluez-vous votre progression sur cette phase ?',
+          'Quelles sont vos réussites principales ?',
+          'Sur quels points devez-vous encore progresser ?'
+        ],
+        final: [
+          'Comment jugez-vous votre intégration globale ?',
+          'Quelles compétences vous semblent les plus développées ?',
+          'Quels aspects aimeriez-vous encore améliorer ?'
+        ],
+        support: [
+          'Quelles sont les principales difficultés rencontrées ?',
+          'Quel type d\'accompagnement vous aiderait le plus ?',
+          'Comment pourrait-on adapter votre parcours ?'
+        ]
+      };
+      
+      return questions[type] || questions.initial;
+    }
+  };
+};
 
 // 🎯 TYPES D'ENTRETIENS
 const INTERVIEW_TYPES = {
@@ -122,13 +303,16 @@ const EntretiensReferent = () => {
   const [selectedInterview, setSelectedInterview] = useState(null);
   const [syncStatus, setSyncStatus] = useState({ syncing: false, hasTemp: false });
   
+  // Service temporaire
+  const [interviewService] = useState(() => createInterviewServiceFixed());
+  
   // Formulaire de programmation avec valeurs par défaut
   const [scheduleForm, setScheduleForm] = useState({
     employeeName: 'Allan',
     employeeEmail: 'alan.boehme61@gmail.com',
     employeeId: 'alan_boehme',
     type: 'initial',
-    scheduledDate: new Date().toISOString().split('T')[0], // Date d'aujourd'hui
+    scheduledDate: new Date().toISOString().split('T')[0],
     scheduledTime: '19:15',
     duration: 30,
     location: 'Bureau référent',
@@ -162,7 +346,7 @@ const EntretiensReferent = () => {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      console.log('📊 [ENTRETIENS] Chargement de toutes les données...');
+      console.log('📊 [MAIN] Chargement de toutes les données...');
       
       await Promise.all([
         loadInterviews(),
@@ -170,26 +354,26 @@ const EntretiensReferent = () => {
       ]);
       
     } catch (error) {
-      console.error('❌ [ENTRETIENS] Erreur chargement données:', error);
+      console.error('❌ [MAIN] Erreur chargement données:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // 📅 CHARGER LES ENTRETIENS (TOUTES SOURCES)
+  // 📅 CHARGER LES ENTRETIENS
   const loadInterviews = async () => {
     try {
-      console.log('📅 [ENTRETIENS] Chargement entretiens avec service corrigé...');
+      console.log('📅 [MAIN] Chargement entretiens...');
       
-      const interviewsList = await InterviewServiceFixed.loadAllInterviews(user.uid);
+      const interviewsList = await interviewService.loadAllInterviews(user.uid);
       
       setInterviews(interviewsList);
       calculateStats(interviewsList);
       
-      console.log(`✅ [ENTRETIENS] ${interviewsList.length} entretiens chargés`);
+      console.log(`✅ [MAIN] ${interviewsList.length} entretiens chargés`);
       
     } catch (error) {
-      console.error('❌ [ENTRETIENS] Erreur chargement entretiens:', error);
+      console.error('❌ [MAIN] Erreur chargement entretiens:', error);
       setInterviews([]);
     }
   };
@@ -197,7 +381,7 @@ const EntretiensReferent = () => {
   // 👥 CHARGER LES EMPLOYÉS EN FORMATION
   const loadEmployees = async () => {
     try {
-      console.log('👥 [ENTRETIENS] Chargement employés...');
+      console.log('👥 [MAIN] Chargement employés...');
       
       const employeesList = [
         {
@@ -235,18 +419,17 @@ const EntretiensReferent = () => {
           }
         });
         
-        console.log(`✅ [ENTRETIENS] ${querySnapshot.size} employés additionnels depuis Firebase`);
+        console.log(`✅ [MAIN] ${querySnapshot.size} employés additionnels depuis Firebase`);
         
       } catch (fbError) {
-        console.warn('⚠️ [ENTRETIENS] Impossible de charger depuis Firebase:', fbError.message);
+        console.warn('⚠️ [MAIN] Impossible de charger depuis Firebase:', fbError.message);
       }
       
       setEmployees(employeesList);
-      console.log(`✅ [ENTRETIENS] ${employeesList.length} employés chargés au total`);
+      console.log(`✅ [MAIN] ${employeesList.length} employés chargés au total`);
       
     } catch (error) {
-      console.error('❌ [ENTRETIENS] Erreur chargement employés:', error);
-      // Fallback avec employé par défaut
+      console.error('❌ [MAIN] Erreur chargement employés:', error);
       setEmployees([{
         id: 'alan_boehme',
         name: 'Allan',
@@ -299,57 +482,46 @@ const EntretiensReferent = () => {
       
       setSyncStatus(prev => ({ ...prev, hasTemp }));
       
-      // Tenter une synchronisation si nécessaire
-      if (hasTemp && !syncStatus.syncing) {
-        setSyncStatus(prev => ({ ...prev, syncing: true }));
-        
-        const syncResult = await InterviewServiceFixed.syncTemporaryInterviews();
-        
-        if (syncResult.success && syncResult.synced > 0) {
-          console.log(`✅ [SYNC] ${syncResult.synced} entretiens synchronisés`);
-          await loadInterviews(); // Recharger après sync
-        }
-        
-        setSyncStatus(prev => ({ 
-          ...prev, 
-          syncing: false, 
-          hasTemp: syncResult.remaining > 0 
-        }));
-      }
-      
     } catch (error) {
       console.error('❌ [SYNC] Erreur vérification sync:', error);
       setSyncStatus(prev => ({ ...prev, syncing: false }));
     }
   };
 
-  // ✅ PROGRAMMER UN ENTRETIEN (VERSION CORRIGÉE)
+  // ✅ PROGRAMMER UN ENTRETIEN (VERSION CORRIGÉE DÉFINITIVE)
   const handleScheduleInterview = async (e) => {
     e.preventDefault();
     
     try {
-      console.log('📅 [ENTRETIENS] Programmation entretien...');
-      console.log('📋 Données formulaire:', scheduleForm);
+      console.log('📅 [FORM] Début programmation entretien...');
+      console.log('📋 [FORM] Données formulaire:', scheduleForm);
+      
+      // Validation des données
+      if (!scheduleForm.employeeName || !scheduleForm.scheduledDate || !scheduleForm.scheduledTime) {
+        showNotification('Veuillez remplir tous les champs obligatoires', 'error');
+        return;
+      }
       
       const interviewData = {
         ...scheduleForm,
         referentId: user.uid
       };
       
-      const result = await InterviewServiceFixed.scheduleInterview(interviewData);
+      console.log('📋 [FORM] Données préparées pour service:', interviewData);
+      
+      // UTILISER LE SERVICE CORRIGÉ
+      const result = await interviewService.scheduleInterview(interviewData);
+      
+      console.log('📋 [FORM] Résultat service:', result);
       
       if (result.success) {
-        console.log('✅ [ENTRETIENS] Entretien programmé avec succès!');
+        console.log('✅ [FORM] Entretien programmé avec succès!');
         
-        // Message de succès selon le mode de stockage
-        let successMessage = 'Entretien programmé avec succès !';
-        if (result.isTemporary) {
-          successMessage = 'Entretien programmé temporairement. Synchronisation en cours...';
-        } else if (result.fallbackCollection) {
-          successMessage = 'Entretien programmé (mode de sauvegarde).';
-        }
+        // Message de succès
+        const successMessage = result.isTemporary 
+          ? 'Entretien programmé (sauvegarde temporaire)' 
+          : 'Entretien programmé avec succès !';
         
-        // Afficher notification de succès
         showNotification(successMessage, 'success');
         
         // Fermer le formulaire et le réinitialiser
@@ -359,18 +531,18 @@ const EntretiensReferent = () => {
         // Recharger les données
         await loadInterviews();
         
-        // Vérifier sync si temporaire
+        // Mettre à jour sync status si temporaire
         if (result.isTemporary) {
           setSyncStatus(prev => ({ ...prev, hasTemp: true }));
         }
         
       } else {
-        console.error('❌ [ENTRETIENS] Échec programmation:', result.error);
+        console.error('❌ [FORM] Échec programmation:', result.error);
         showNotification(result.error || 'Erreur lors de la programmation', 'error');
       }
       
     } catch (error) {
-      console.error('❌ [ENTRETIENS] Erreur programmation entretien:', error);
+      console.error('❌ [FORM] Erreur programmation entretien:', error);
       showNotification('Erreur inattendue. Veuillez réessayer.', 'error');
     }
   };
@@ -393,7 +565,6 @@ const EntretiensReferent = () => {
 
   // 📺 AFFICHER UNE NOTIFICATION
   const showNotification = (message, type = 'info') => {
-    // Créer une notification simple
     const notification = document.createElement('div');
     notification.style.cssText = `
       position: fixed;
@@ -414,12 +585,10 @@ const EntretiensReferent = () => {
     
     document.body.appendChild(notification);
     
-    // Animation d'entrée
     setTimeout(() => {
       notification.style.transform = 'translateX(0)';
     }, 100);
     
-    // Suppression automatique
     setTimeout(() => {
       notification.style.transform = 'translateX(100%)';
       setTimeout(() => {
@@ -502,17 +671,8 @@ const EntretiensReferent = () => {
             {/* Indicateur de sync */}
             {syncStatus.hasTemp && (
               <div className="flex items-center gap-2 mt-2 text-sm">
-                {syncStatus.syncing ? (
-                  <>
-                    <WifiOff className="w-4 h-4 text-orange-500 animate-pulse" />
-                    <span className="text-orange-600">Synchronisation en cours...</span>
-                  </>
-                ) : (
-                  <>
-                    <Wifi className="w-4 h-4 text-blue-500" />
-                    <span className="text-blue-600">Données en attente de synchronisation</span>
-                  </>
-                )}
+                <Wifi className="w-4 h-4 text-blue-500" />
+                <span className="text-blue-600">Données en attente de synchronisation</span>
               </div>
             )}
           </div>
@@ -703,7 +863,6 @@ const EntretiensReferent = () => {
                         <button
                           onClick={() => {
                             setSelectedInterview(interview);
-                            // Logique pour voir les détails
                           }}
                           className="flex items-center gap-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         >
