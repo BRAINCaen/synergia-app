@@ -6,46 +6,15 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Filter, AlertCircle, Calendar, Clock, Star, Users, CheckCircle, XCircle } from 'lucide-react';
 
-// ✅ IMPORTS SÉCURISÉS AVEC FALLBACKS
-let useAuthStore = null;
-let taskAssignmentService = null;
-let TaskAssignmentModal = null;
-let TaskSubmissionModal = null;
-
-try {
-  useAuthStore = require('../shared/stores/authStore.js').useAuthStore;
-} catch (error) {
-  console.warn('❌ AuthStore non disponible, mode dégradé activé');
-  useAuthStore = () => ({ user: null });
-}
-
-try {
-  taskAssignmentService = require('../core/services/taskAssignmentService.js').taskAssignmentService;
-} catch (error) {
-  console.warn('❌ TaskAssignmentService non disponible');
-  taskAssignmentService = {
-    volunteerForTask: async () => ({ success: false, error: 'Service non disponible' }),
-    getUserAssignedTasks: async () => []
-  };
-}
-
-try {
-  TaskAssignmentModal = require('../components/tasks/TaskAssignmentModal.jsx').default;
-} catch (error) {
-  console.warn('❌ TaskAssignmentModal non disponible');
-  TaskAssignmentModal = () => null;
-}
-
-try {
-  TaskSubmissionModal = require('../components/tasks/TaskSubmissionModal.jsx').default;
-} catch (error) {
-  console.warn('❌ TaskSubmissionModal non disponible'); 
-  TaskSubmissionModal = () => null;
-}
+// ✅ IMPORTS ES6 CORRECTS
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { taskAssignmentService } from '../core/services/taskAssignmentService.js';
+import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal.jsx';
+import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
 
 export default function TasksPage() {
-  // ✅ STATES AVEC VALEURS SÉCURISÉES
-  const { user } = useAuthStore?.() || { user: null };
+  // ✅ STATES AVEC VALEURS NORMALES
+  const { user } = useAuthStore();
   const [assignedTasks, setAssignedTasks] = useState([]);
   const [availableTasks, setAvailableTasks] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
@@ -73,25 +42,11 @@ export default function TasksPage() {
   };
 
   useEffect(() => {
-    // ✅ CHARGEMENT SÉCURISÉ AVEC VÉRIFICATIONS
-    const loadSafely = async () => {
-      try {
-        if (user?.uid) {
-          await loadAllTasks();
-          await loadAllUsers();
-        } else {
-          console.log('⚠️ Utilisateur non connecté, affichage mode démo');
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('❌ Erreur chargement initial:', error);
-        setError('Erreur de chargement. Veuillez recharger la page.');
-        setLoading(false);
-      }
-    };
-
-    loadSafely();
-  }, [user?.uid]);
+    if (user) {
+      loadAllTasks();
+      loadAllUsers();
+    }
+  }, [user]);
 
   /**
    * 📥 CHARGER TOUTES LES TÂCHES - VERSION SÉCURISÉE
@@ -192,31 +147,15 @@ export default function TasksPage() {
   };
 
   /**
-   * 🎯 SE PORTER VOLONTAIRE - VERSION ULTRA-SÉCURISÉE
+   * 🎯 SE PORTER VOLONTAIRE - VERSION CORRIGÉE
    */
   const handleVolunteerForTask = async (task) => {
     try {
-      if (!user?.uid) {
-        showNotification('Vous devez être connecté pour postuler', 'error');
-        return;
-      }
-
-      if (!task?.id) {
-        showNotification('Tâche invalide', 'error');
-        return;
-      }
-
-      console.log('🙋‍♂️ [VOLUNTEER] Candidature sécurisée pour:', task.title);
+      console.log('🙋‍♂️ [VOLUNTEER] Candidature pour tâche:', task.title);
       
-      // ✅ VÉRIFICATION SERVICE DISPONIBLE
-      if (!taskAssignmentService?.volunteerForTask) {
-        showNotification('Service de candidature temporairement indisponible', 'error');
-        return;
-      }
-
       const result = await taskAssignmentService.volunteerForTask(task.id, user.uid);
       
-      if (result?.success) {
+      if (result.success) {
         console.log('✅ [VOLUNTEER] Candidature réussie');
         await loadAllTasks();
         
@@ -225,24 +164,22 @@ export default function TasksPage() {
           `Vous avez été assigné à "${task.title}" !`;
         
         showNotification(successMessage, 'success');
-      } else {
-        throw new Error(result?.error || 'Erreur de candidature');
       }
       
     } catch (error) {
       console.error('❌ [VOLUNTEER] Erreur candidature:', error);
       
-      // ✅ GESTION D'ERREUR INTELLIGENTE
+      // ✅ GESTION D'ERREUR PROPRE
       let errorMessage = 'Erreur lors de la candidature';
       
-      if (error?.message?.includes('déjà assigné')) {
+      if (error.message.includes('déjà assigné')) {
         errorMessage = 'Vous êtes déjà assigné à cette tâche';
-      } else if (error?.message?.includes('déjà postulé')) {
+      } else if (error.message.includes('déjà postulé')) {
         errorMessage = 'Vous avez déjà postulé pour cette tâche';
-      } else if (error?.message?.includes('introuvable')) {
+      } else if (error.message.includes('introuvable')) {
         errorMessage = 'Cette tâche n\'existe plus';
-      } else if (error?.message) {
-        errorMessage = error.message;
+      } else {
+        errorMessage = `Erreur: ${error.message}`;
       }
       
       showNotification(errorMessage, 'error');
@@ -250,98 +187,48 @@ export default function TasksPage() {
   };
 
   /**
-   * 👁️ VOIR LES DÉTAILS - VERSION SÉCURISÉE
+   * 👁️ VOIR LES DÉTAILS
    */
   const handleViewDetails = (task) => {
-    try {
-      if (!task) {
-        showNotification('Tâche invalide', 'error');
-        return;
-      }
-      
-      console.log('👁️ [DETAILS] Affichage détails:', task.title);
-      showNotification(`Détails de "${task.title}" - Fonctionnalité à implémenter`, 'info');
-    } catch (error) {
-      console.error('❌ Erreur affichage détails:', error);
-      showNotification('Erreur d\'affichage', 'error');
-    }
+    console.log('👁️ [DETAILS] Affichage détails tâche:', task.title);
+    showNotification(`Détails de "${task.title}" - Fonctionnalité à implémenter`, 'info');
   };
 
   /**
-   * 👥 ASSIGNER DES UTILISATEURS - VERSION SÉCURISÉE
+   * 👥 ASSIGNER DES UTILISATEURS
    */
   const handleAssignUsers = (task) => {
-    try {
-      if (!task) {
-        showNotification('Tâche invalide', 'error');
-        return;
-      }
-
-      if (!TaskAssignmentModal) {
-        showNotification('Modal d\'assignation non disponible', 'error');
-        return;
-      }
-      
-      console.log('👥 [ASSIGN] Assignation sécurisée:', task.title);
-      setSelectedTask(task);
-      setShowAssignModal(true);
-    } catch (error) {
-      console.error('❌ Erreur assignation:', error);
-      showNotification('Erreur d\'assignation', 'error');
-    }
+    console.log('👥 [ASSIGN] Assignation utilisateurs:', task.title);
+    setSelectedTask(task);
+    setShowAssignModal(true);
   };
 
   /**
-   * 📤 SOUMETTRE UNE TÂCHE - VERSION SÉCURISÉE
+   * 📤 SOUMETTRE UNE TÂCHE TERMINÉE
    */
   const handleSubmitTask = (task) => {
-    try {
-      if (!task) {
-        showNotification('Tâche invalide', 'error');
-        return;
-      }
-
-      if (!TaskSubmissionModal) {
-        showNotification('Modal de soumission non disponible', 'error');
-        return;
-      }
-      
-      console.log('📤 [SUBMIT] Soumission sécurisée:', task.title);
-      setSelectedTask(task);
-      setShowSubmitModal(true);
-    } catch (error) {
-      console.error('❌ Erreur soumission:', error);
-      showNotification('Erreur de soumission', 'error');
-    }
+    console.log('📤 [SUBMIT] Soumission tâche:', task.title);
+    setSelectedTask(task);
+    setShowSubmitModal(true);
   };
 
-  // ✅ FILTRAGE SÉCURISÉ
+  // Filtrer les tâches selon la recherche et le statut
   const filteredAssignedTasks = assignedTasks.filter(task => {
-    try {
-      const matchesSearch = !searchTerm || 
-        task?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task?.description?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesStatus = filterStatus === 'all' || task?.status === filterStatus;
-      
-      return matchesSearch && matchesStatus;
-    } catch (error) {
-      console.error('❌ Erreur filtrage assignées:', error);
-      return true;
-    }
+    const matchesSearch = !searchTerm || 
+      task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
+    
+    return matchesSearch && matchesStatus;
   });
 
   const filteredAvailableTasks = availableTasks.filter(task => {
-    try {
-      const matchesSearch = !searchTerm || 
-        task?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task?.description?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      return matchesSearch;
-    } catch (error) {
-      console.error('❌ Erreur filtrage disponibles:', error);
-      return true;
-    }
+    const matchesSearch = !searchTerm || 
+      task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return matchesSearch;
   });
 
   // ✅ AFFICHAGE LOADING SÉCURISÉ
@@ -513,113 +400,90 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Modals sécurisés */}
-      {TaskAssignmentModal && (
-        <TaskAssignmentModal
-          isOpen={showAssignModal}
-          onClose={() => setShowAssignModal(false)}
-          task={selectedTask}
-          onAssignmentSuccess={() => {
-            loadAllTasks();
-            showNotification('Assignation réussie !', 'success');
-          }}
-        />
-      )}
+      {/* Modals */}
+      <TaskAssignmentModal
+        isOpen={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+        task={selectedTask}
+        onAssignmentSuccess={() => {
+          loadAllTasks();
+          showNotification('Assignation réussie !', 'success');
+        }}
+      />
 
-      {TaskSubmissionModal && (
-        <TaskSubmissionModal
-          isOpen={showSubmitModal}
-          onClose={() => setShowSubmitModal(false)}
-          task={selectedTask}
-          onSubmissionComplete={() => {
-            loadAllTasks();
-            showNotification('Tâche soumise pour validation !', 'success');
-          }}
-        />
-      )}
+      <TaskSubmissionModal
+        isOpen={showSubmitModal}
+        onClose={() => setShowSubmitModal(false)}
+        task={selectedTask}
+        onSubmissionComplete={() => {
+          loadAllTasks();
+          showNotification('Tâche soumise pour validation !', 'success');
+        }}
+      />
     </div>
   );
 }
 
 /**
- * 📋 COMPOSANT CARD ULTRA-SÉCURISÉ
+ * 📋 COMPOSANT CARD DE TÂCHE
  */
 function TaskCard({ task, isAssigned, onViewDetails, onAssignUsers, onSubmit, onVolunteer, currentUser }) {
-  
-  // ✅ FONCTION SÉCURISÉE POUR COULEURS
   const getPriorityColor = (priority) => {
-    try {
-      const colors = {
-        low: 'bg-green-100 text-green-800',
-        medium: 'bg-yellow-100 text-yellow-800',
-        high: 'bg-orange-100 text-orange-800',
-        urgent: 'bg-red-100 text-red-800'
-      };
-      return colors[priority] || 'bg-gray-100 text-gray-800';
-    } catch (error) {
-      return 'bg-gray-100 text-gray-800';
-    }
+    const colors = {
+      low: 'bg-green-100 text-green-800',
+      medium: 'bg-yellow-100 text-yellow-800',
+      high: 'bg-orange-100 text-orange-800',
+      urgent: 'bg-red-100 text-red-800'
+    };
+    return colors[priority] || 'bg-gray-100 text-gray-800';
   };
 
   const getStatusColor = (status) => {
-    try {
-      const colors = {
-        pending: 'bg-blue-100 text-blue-800',
-        assigned: 'bg-purple-100 text-purple-800',
-        in_progress: 'bg-yellow-100 text-yellow-800',
-        completed: 'bg-green-100 text-green-800',
-        cancelled: 'bg-red-100 text-red-800'
-      };
-      return colors[status] || 'bg-gray-100 text-gray-800';
-    } catch (error) {
-      return 'bg-gray-100 text-gray-800';
-    }
+    const colors = {
+      pending: 'bg-blue-100 text-blue-800',
+      assigned: 'bg-purple-100 text-purple-800',
+      in_progress: 'bg-yellow-100 text-yellow-800',
+      completed: 'bg-green-100 text-green-800',
+      cancelled: 'bg-red-100 text-red-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
   const getStatusText = (status) => {
-    try {
-      const texts = {
-        pending: 'En attente',
-        assigned: 'Assignée',
-        in_progress: 'En cours',
-        completed: 'Terminée',
-        cancelled: 'Annulée'
-      };
-      return texts[status] || 'Inconnu';
-    } catch (error) {
-      return 'Inconnu';
-    }
+    const texts = {
+      pending: 'En attente',
+      assigned: 'Assignée',
+      in_progress: 'En cours',
+      completed: 'Terminée',
+      cancelled: 'Annulée'
+    };
+    return texts[status] || 'Inconnu';
   };
-
-  // ✅ VÉRIFICATIONS SÉCURISÉES
-  if (!task) {
-    return null;
-  }
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <h3 className="text-lg font-semibold text-gray-900">{task.title || 'Titre manquant'}</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-              {task.priority || 'normal'}
+              {task.priority}
             </span>
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
               {getStatusText(task.status)}
             </span>
           </div>
           
-          <p className="text-gray-600 mb-4">{task.description || 'Aucune description'}</p>
+          <p className="text-gray-600 mb-4">{task.description}</p>
           
           <div className="flex items-center gap-4 text-sm text-gray-500">
             <div className="flex items-center gap-1">
               <Star className="w-4 h-4" />
-              <span>{task.xpReward || 0} XP</span>
+              <span>{task.xpReward} XP</span>
             </div>
             <div className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
-              <span>{task.estimatedHours || 0}h estimées</span>
+              <span>{task.estimatedHours}h estimées</span>
             </div>
             {task.category && (
               <span className="px-2 py-1 bg-gray-100 rounded text-xs">{task.category}</span>
@@ -630,7 +494,7 @@ function TaskCard({ task, isAssigned, onViewDetails, onAssignUsers, onSubmit, on
 
       <div className="flex gap-2 mt-4">
         <button
-          onClick={() => onViewDetails?.(task)}
+          onClick={() => onViewDetails(task)}
           className="px-3 py-1 text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition-colors text-sm"
         >
           Détails
@@ -640,14 +504,14 @@ function TaskCard({ task, isAssigned, onViewDetails, onAssignUsers, onSubmit, on
           <>
             {task.status === 'assigned' && (
               <button
-                onClick={() => onSubmit?.(task)}
+                onClick={() => onSubmit(task)}
                 className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
               >
                 Soumettre
               </button>
             )}
             <button
-              onClick={() => onAssignUsers?.(task)}
+              onClick={() => onAssignUsers(task)}
               className="px-3 py-1 text-purple-600 border border-purple-600 rounded hover:bg-purple-50 transition-colors text-sm"
             >
               Assigner
@@ -655,7 +519,7 @@ function TaskCard({ task, isAssigned, onViewDetails, onAssignUsers, onSubmit, on
           </>
         ) : (
           <button
-            onClick={() => onVolunteer?.(task)}
+            onClick={() => onVolunteer(task)}
             className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm flex items-center gap-1"
           >
             <Star className="w-4 h-4" />
