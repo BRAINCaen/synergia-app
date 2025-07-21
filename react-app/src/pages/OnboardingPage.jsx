@@ -1,578 +1,1192 @@
 // ==========================================
 // 📁 react-app/src/pages/OnboardingPage.jsx
-// PAGE D'ONBOARDING CORRIGÉE ET FONCTIONNELLE
+// PAGE ONBOARDING COMPLÈTE - FORMATION GAME MASTER BRAIN
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
-import { useAuthStore } from '../shared/stores/authStore.js';
+import React, { useState, useCallback, useEffect } from 'react';
 import { 
-  BookOpen, 
-  Target, 
-  Users, 
-  Calendar,
-  CheckCircle,
-  Play,
-  ArrowRight,
+  BookOpen,
+  Target,
+  MessageSquare,
+  Users,
   Trophy,
+  Calendar,
   Star,
+  CheckCircle,
   Clock,
+  Award,
+  RefreshCw,
+  Play,
+  Loader,
+  Bug,
+  XCircle,
+  CheckCircle2,
+  Building,
+  Heart,
+  Key,
+  Coffee,
+  Lightbulb,
+  UserCheck,
+  Eye,
+  FileText,
+  Shield,
+  Gamepad2,
+  Settings,
+  Wrench,
+  Sparkles,
+  Circle,
+  ChevronRight,
+  ChevronDown,
+  Plus,
+  Pause,
+  RotateCcw,
+  Zap,
+  AlertCircle,
+  Edit,
+  Trash2,
+  BarChart3,
+  TrendingUp,
+  Search,
+  Filter,
+  ChevronUp,
+  Camera,
+  Mail,
+  Phone,
   MapPin,
-  Gift,
-  Zap
+  Send
 } from 'lucide-react';
 
-/**
- * 🎯 ÉTAPES D'ONBOARDING
- */
-const ONBOARDING_STEPS = [
-  {
-    id: 'bienvenue',
-    number: 1,
-    title: 'Bienvenue chez Synergia !',
-    description: 'Découvrez votre nouvelle plateforme collaborative',
-    icon: Gift,
-    color: 'from-blue-500 to-purple-600',
-    completed: true
-  },
-  {
-    id: 'profil',
-    number: 2,
-    title: 'Complétez votre profil',
-    description: 'Ajoutez vos informations personnelles et professionnelles',
-    icon: Users,
-    color: 'from-green-500 to-blue-500',
-    completed: false
-  },
-  {
-    id: 'equipe',
-    number: 3,
-    title: 'Découvrez votre équipe',
-    description: 'Rencontrez vos collègues et collaborateurs',
-    icon: Users,
-    color: 'from-purple-500 to-pink-500',
-    completed: false
-  },
-  {
-    id: 'projets',
-    number: 4,
-    title: 'Explorez vos projets',
-    description: 'Consultez vos missions et objectifs',
-    icon: Target,
-    color: 'from-orange-500 to-red-500',
-    completed: false
-  },
-  {
-    id: 'taches',
-    number: 5,
-    title: 'Gérez vos tâches',
-    description: 'Organisez votre travail au quotidien',
-    icon: CheckCircle,
-    color: 'from-teal-500 to-green-500',
-    completed: false
-  },
-  {
-    id: 'gamification',
-    number: 6,
-    title: 'Système de points',
-    description: 'Gagnez des points et débloquez des badges',
-    icon: Trophy,
-    color: 'from-yellow-500 to-orange-500',
-    completed: false
-  },
-  {
-    id: 'termine',
-    number: 7,
-    title: 'C\'est parti !',
-    description: 'Vous êtes prêt à utiliser Synergia',
-    icon: Star,
-    color: 'from-pink-500 to-purple-500',
-    completed: false
-  }
-];
+import { useAuthStore } from '../shared/stores/authStore.js';
 
-/**
- * 🎯 COMPOSANT ÉTAPE INDIVIDUELLE
- */
-const StepCard = ({ step, isActive, onClick }) => {
+// Imports Firebase pour les entretiens
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  getDocs, 
+  addDoc, 
+  serverTimestamp,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc
+} from 'firebase/firestore';
+import { db } from '../core/firebase.js';
+
+// 🎯 PHASES D'INTÉGRATION BRAIN ESCAPE & QUIZ GAME
+const ONBOARDING_PHASES = {
+  DECOUVERTE_BRAIN: {
+    id: 'decouverte_brain',
+    name: '💡 Découverte de Brain & de l\'équipe',
+    description: 'Première immersion dans l\'univers Brain',
+    duration: 2,
+    color: 'from-purple-500 to-pink-500',
+    icon: '💡',
+    order: 1,
+    xpTotal: 50,
+    badge: 'Bienvenue chez Brain !'
+  },
+  PARCOURS_CLIENT: {
+    id: 'parcours_client',
+    name: '👥 Parcours client·e & expérience joueur·euse',
+    description: 'Maîtrise du parcours client de A à Z',
+    duration: 5,
+    color: 'from-blue-500 to-cyan-500',
+    icon: '👥',
+    order: 2,
+    xpTotal: 80,
+    badge: 'Ambassadeur·rice Brain'
+  },
+  SECURITE_PROCEDURES: {
+    id: 'securite_procedures',
+    name: '🔐 Sécurité, matériel & procédures',
+    description: 'Sécurité et gestion du matériel',
+    duration: 3,
+    color: 'from-orange-500 to-red-500',
+    icon: '🔐',
+    order: 3,
+    xpTotal: 100,
+    badge: 'Gardien·ne du Temple'
+  },
+  FORMATION_EXPERIENCE: {
+    id: 'formation_experience',
+    name: '🔎 Formation par expérience',
+    description: 'Maîtrise des Escape Games et Quiz Games',
+    duration: 12,
+    color: 'from-green-500 to-emerald-500',
+    icon: '🔎',
+    order: 4,
+    xpTotal: 120,
+    badge: 'Expert·e [Salle/Jeu]'
+  },
+  TACHES_QUOTIDIEN: {
+    id: 'taches_quotidien',
+    name: '🛠️ Tâches du quotidien & gestion',
+    description: 'Autonomie dans les tâches quotidiennes',
+    duration: 5,
+    color: 'from-cyan-500 to-blue-500',
+    icon: '🛠️',
+    order: 5,
+    xpTotal: 90,
+    badge: 'Pilier du Quotidien'
+  },
+  SOFT_SKILLS: {
+    id: 'soft_skills',
+    name: '🌱 Soft Skills & communication',
+    description: 'Développement des compétences humaines',
+    duration: 7,
+    color: 'from-pink-500 to-rose-500',
+    icon: '🌱',
+    order: 6,
+    xpTotal: 70,
+    badge: 'Esprit Brain'
+  },
+  VALIDATION_FINALE: {
+    id: 'validation_finale',
+    name: '🚩 Validation finale & intégration',
+    description: 'Certification Game Master Brain',
+    duration: 2,
+    color: 'from-violet-500 to-purple-500',
+    icon: '🚩',
+    order: 7,
+    xpTotal: 200,
+    badge: 'Game Master certifié·e Brain'
+  }
+};
+
+// 🎯 TÂCHES PAR PHASE
+const PHASE_TASKS = {
+  decouverte_brain: [
+    {
+      id: 'visite_locaux',
+      name: 'Visite guidée des locaux et présentation de l\'équipe',
+      description: 'Tour complet des espaces Brain avec présentation personnalisée de chaque membre de l\'équipe',
+      icon: Building,
+      xp: 10,
+      required: true,
+      estimatedTime: 90
+    },
+    {
+      id: 'comprendre_valeurs',
+      name: 'Comprendre les valeurs et la culture d\'entreprise',
+      description: 'Découverte de l\'ADN Brain, notre vision, nos valeurs et notre façon de travailler ensemble',
+      icon: Heart,
+      xp: 10,
+      required: true,
+      estimatedTime: 60
+    }
+  ],
+  parcours_client: [
+    {
+      id: 'accueil_client',
+      name: 'Maîtriser l\'accueil client de A à Z',
+      description: 'Techniques d\'accueil, première impression et gestion de l\'arrivée des groupes',
+      icon: Users,
+      xp: 15,
+      required: true,
+      estimatedTime: 120
+    }
+  ]
+};
+
+// 🎯 RÔLES SYNERGIA POUR LES COMPÉTENCES
+const SYNERGIA_ROLES = {
+  GAME_MASTER: {
+    id: 'game_master',
+    name: 'Game Master',
+    icon: '🎮',
+    color: 'from-purple-500 to-purple-600',
+    description: 'Animation des sessions et expérience client',
+    competences: [
+      'Animation de sessions',
+      'Gestion des groupes',
+      'Techniques de game mastering',
+      'Improvisation et créativité',
+      'Communication client'
+    ]
+  },
+  MAINTENANCE: {
+    id: 'maintenance',
+    name: 'Entretien & Maintenance',
+    icon: '🔧',
+    color: 'from-orange-500 to-orange-600',
+    description: 'Responsable de la maintenance et des réparations',
+    competences: [
+      'Maintenance préventive',
+      'Réparations techniques',
+      'Gestion des équipements',
+      'Sécurité et normes',
+      'Diagnostic de pannes'
+    ]
+  },
+  REPUTATION: {
+    id: 'reputation',
+    name: 'Gestion Réputation',
+    icon: '⭐',
+    color: 'from-yellow-500 to-yellow-600',
+    description: 'Gestion de l\'image et des retours clients',
+    competences: [
+      'Gestion des avis clients',
+      'Communication digitale',
+      'Résolution de conflits',
+      'Stratégie de réputation',
+      'Analyse des feedbacks'
+    ]
+  },
+  STOCK: {
+    id: 'stock',
+    name: 'Gestion Stocks',
+    icon: '📦',
+    color: 'from-blue-500 to-blue-600',
+    description: 'Gestion des inventaires et approvisionnements',
+    competences: [
+      'Gestion des inventaires',
+      'Approvisionnement',
+      'Organisation des stocks',
+      'Suivi des commandes',
+      'Optimisation logistique'
+    ]
+  },
+  ORGANIZATION: {
+    id: 'organization',
+    name: 'Organisation Interne',
+    icon: '📋',
+    color: 'from-purple-500 to-purple-600',
+    description: 'Coordination et organisation des équipes',
+    competences: [
+      'Planification des équipes',
+      'Coordination des tâches',
+      'Gestion des horaires',
+      'Optimisation des processus',
+      'Communication interne'
+    ]
+  },
+  CONTENT: {
+    id: 'content',
+    name: 'Création Contenu',
+    icon: '🎨',
+    color: 'from-pink-500 to-pink-600',
+    description: 'Création de contenu visuel et communication',
+    competences: [
+      'Création graphique',
+      'Rédaction de contenu',
+      'Photographie',
+      'Réseaux sociaux',
+      'Marketing digital'
+    ]
+  }
+};
+
+// 🎯 TYPES D'ENTRETIENS
+const INTERVIEW_TYPES = {
+  initial: { 
+    name: 'Entretien Initial', 
+    icon: '🚀', 
+    color: 'from-blue-500 to-blue-600',
+    duration: 60,
+    description: 'Premier entretien d\'accueil et présentation'
+  },
+  weekly: { 
+    name: 'Suivi Hebdomadaire', 
+    icon: '📅', 
+    color: 'from-green-500 to-green-600',
+    duration: 30,
+    description: 'Point régulier sur l\'avancement'
+  },
+  milestone: { 
+    name: 'Bilan d\'Étape', 
+    icon: '🎯', 
+    color: 'from-purple-500 to-purple-600',
+    duration: 45,
+    description: 'Validation des compétences acquises'
+  },
+  final: { 
+    name: 'Entretien Final', 
+    icon: '🏆', 
+    color: 'from-yellow-500 to-yellow-600',
+    duration: 60,
+    description: 'Bilan complet et certification'
+  },
+  support: { 
+    name: 'Entretien de Soutien', 
+    icon: '🤝', 
+    color: 'from-red-500 to-red-600',
+    duration: 30,
+    description: 'Accompagnement en cas de difficulté'
+  }
+};
+
+// 🎯 SERVICE D'ONBOARDING SIMPLE
+class OnboardingService {
+  constructor() {
+    this.FORMATION_COLLECTION = 'onboardingFormation';
+    this.INTERVIEWS_COLLECTION = 'onboardingInterviews';
+  }
+
+  async createFormationProfile(userId) {
+    try {
+      console.log('🚀 Création profil formation pour userId:', userId);
+      
+      if (!userId || !db) {
+        return { success: false, error: 'Paramètres manquants' };
+      }
+
+      const formationProfile = {
+        userId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        startDate: new Date().toISOString(),
+        completionDate: null,
+        currentPhase: 'decouverte_brain',
+        phases: {},
+        interviews: [],
+        earnedBadges: [],
+        metrics: {
+          totalTasks: 0,
+          completedTasks: 0,
+          totalXP: 0,
+          earnedXP: 0,
+          completionRate: 0,
+          averageTaskTime: 0
+        }
+      };
+
+      // Initialiser toutes les phases
+      Object.keys(ONBOARDING_PHASES).forEach(phaseKey => {
+        const phase = ONBOARDING_PHASES[phaseKey];
+        formationProfile.phases[phase.id] = {
+          id: phase.id,
+          name: phase.name,
+          status: phase.order === 1 ? 'active' : 'locked',
+          startDate: phase.order === 1 ? new Date().toISOString() : null,
+          completionDate: null,
+          progress: 0,
+          tasks: [],
+          earnedXP: 0,
+          badge: null
+        };
+      });
+
+      const docRef = doc(db, this.FORMATION_COLLECTION, userId);
+      await setDoc(docRef, formationProfile);
+
+      console.log('✅ Profil de formation créé avec succès');
+      return { success: true, data: formationProfile };
+
+    } catch (error) {
+      console.error('❌ Erreur création profil formation:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async getFormationProfile(userId) {
+    try {
+      if (!userId || !db) {
+        return { success: false, error: 'Paramètres manquants' };
+      }
+
+      const docRef = doc(db, this.FORMATION_COLLECTION, userId);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        return { success: true, data: docSnap.data() };
+      } else {
+        return { success: false, error: 'Profil non trouvé' };
+      }
+    } catch (error) {
+      console.error('❌ Erreur récupération profil:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async testFirebaseConnection() {
+    try {
+      if (!db) {
+        return { success: false, error: 'Firebase non initialisé' };
+      }
+
+      const testRef = collection(db, 'test');
+      return { success: true, message: 'Firebase OK' };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+}
+
+const onboardingService = new OnboardingService();
+
+// 🎯 COMPOSANT FORMATION GÉNÉRALE
+const FormationGeneraleInterface = () => {
+  const { user } = useAuthStore();
+  const [formationData, setFormationData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [initializing, setInitializing] = useState(false);
+  const [debugLogs, setDebugLogs] = useState([]);
+  const [showDebug, setShowDebug] = useState(false);
+
+  const addDebugLog = (message, type = 'info') => {
+    const logEntry = {
+      timestamp: new Date(),
+      message,
+      type
+    };
+    setDebugLogs(prev => [...prev.slice(-9), logEntry]);
+    console.log(`[DEBUG] ${message}`);
+  };
+
+  const loadFormationData = useCallback(async () => {
+    if (!user?.uid) {
+      addDebugLog('❌ Utilisateur non connecté');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      addDebugLog(`🔍 Chargement profil pour: ${user.uid}`);
+
+      const result = await onboardingService.getFormationProfile(user.uid);
+      addDebugLog(`📊 Résultat: ${result.success ? 'Succès' : result.error}`);
+
+      if (result.success) {
+        setFormationData(result.data);
+        addDebugLog('✅ Données de formation chargées', 'success');
+      } else {
+        setFormationData(null);
+        addDebugLog(`⚠️ Profil non trouvé: ${result.error}`);
+      }
+    } catch (error) {
+      addDebugLog(`❌ Erreur chargement: ${error.message}`, 'error');
+      setFormationData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.uid]);
+
+  const handleCreateProfile = async () => {
+    if (!user?.uid) {
+      alert('Utilisateur non connecté');
+      return;
+    }
+
+    try {
+      setInitializing(true);
+      addDebugLog('🧪 Test connexion Firebase...');
+
+      const testResult = await onboardingService.testFirebaseConnection();
+      addDebugLog(`🧪 Test Firebase: ${testResult.success ? 'OK' : 'FAILED - ' + testResult.error}`);
+
+      if (!testResult.success) {
+        alert(`Erreur Firebase: ${testResult.error}`);
+        return;
+      }
+
+      addDebugLog('🔧 Création profil formation...');
+      const result = await onboardingService.createFormationProfile(user.uid);
+      addDebugLog(`🔧 Création result: ${result.success ? 'SUCCESS' : result.error}`);
+
+      if (result.success) {
+        addDebugLog('🎉 SUCCÈS ! Profil créé', 'success');
+        alert('Profil de formation créé avec succès !');
+
+        setTimeout(() => {
+          addDebugLog('🔄 Rechargement des données...');
+          loadFormationData();
+        }, 1000);
+      } else {
+        addDebugLog(`❌ ÉCHEC création: ${result.error}`, 'error');
+        alert(`Échec: ${result.error}`);
+      }
+    } catch (error) {
+      addDebugLog(`💥 ERREUR CRITIQUE: ${error.message}`, 'error');
+      alert(`Erreur critique: ${error.message}`);
+    } finally {
+      setInitializing(false);
+    }
+  };
+
+  useEffect(() => {
+    addDebugLog('🏗️ Composant monté, chargement initial...');
+    loadFormationData();
+  }, [loadFormationData]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 text-blue-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-300">Chargement de votre parcours formation...</p>
+          <p className="text-xs text-gray-500 mt-2">User: {user?.uid || 'Non connecté'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!formationData) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <BookOpen className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+          <h3 className="text-2xl font-bold text-white mb-4">
+            Commencez votre Formation Brain !
+          </h3>
+          <p className="text-gray-400 mb-8">
+            Créez votre profil de formation personnalisé pour commencer votre parcours Game Master.
+          </p>
+
+          <div className="space-y-4">
+            <button
+              onClick={handleCreateProfile}
+              disabled={initializing}
+              className={`px-8 py-4 rounded-lg font-bold text-lg transition-all duration-200 border-2 ${
+                initializing
+                  ? 'bg-gray-600 border-gray-500 text-gray-300 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-500 to-purple-600 border-blue-400 text-white hover:from-blue-600 hover:to-purple-700 hover:scale-105'
+              }`}
+            >
+              {initializing ? (
+                <>
+                  <RefreshCw className="h-5 w-5 animate-spin inline mr-2" />
+                  Création en cours...
+                </>
+              ) : (
+                <>
+                  <Zap className="h-5 w-5 inline mr-2" />
+                  🚀 Créer mon Profil Formation
+                </>
+              )}
+            </button>
+
+            <div className="text-center">
+              <button
+                onClick={() => setShowDebug(!showDebug)}
+                className="text-gray-500 text-xs hover:text-gray-400"
+              >
+                {showDebug ? 'Masquer' : 'Afficher'} Debug Panel
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {showDebug && (
+          <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-4">
+            <h4 className="font-semibold text-white mb-3 flex items-center">
+              <Bug className="h-4 w-4 mr-2" />
+              Debug Panel
+            </h4>
+
+            <div className="grid grid-cols-3 gap-4 mb-4 text-xs">
+              <div className="bg-gray-800/50 rounded p-3">
+                <div className="text-xs text-gray-400">Auth Status</div>
+                <div className={`text-sm font-medium ${user?.uid ? 'text-green-400' : 'text-red-400'}`}>
+                  {user?.uid ? '✅ Connected' : '❌ Not Connected'}
+                </div>
+                <div className="text-xs text-gray-500">{user?.uid || 'No UID'}</div>
+              </div>
+
+              <div className="bg-gray-800/50 rounded p-3">
+                <div className="text-xs text-gray-400">Service Status</div>
+                <div className={`text-sm font-medium ${onboardingService ? 'text-green-400' : 'text-red-400'}`}>
+                  {onboardingService ? '✅ Available' : '❌ Missing'}
+                </div>
+                <div className="text-xs text-gray-500">OnboardingService</div>
+              </div>
+
+              <div className="bg-gray-800/50 rounded p-3">
+                <div className="text-xs text-gray-400">Formation Data</div>
+                <div className={`text-sm font-medium ${formationData ? 'text-green-400' : 'text-yellow-400'}`}>
+                  {formationData ? '✅ Loaded' : '⚠️ None'}
+                </div>
+                <div className="text-xs text-gray-500">Profile Status</div>
+              </div>
+            </div>
+
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {debugLogs.length === 0 ? (
+                <p className="text-gray-500 text-sm">Aucun log pour le moment...</p>
+              ) : (
+                debugLogs.map((log, index) => (
+                  <div 
+                    key={index}
+                    className={`text-xs p-2 rounded font-mono ${
+                      log.type === 'error' ? 'bg-red-900/30 text-red-300' :
+                      log.type === 'success' ? 'bg-green-900/30 text-green-300' :
+                      'bg-gray-800/30 text-gray-300'
+                    }`}
+                  >
+                    {log.message}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="text-center text-xs text-gray-500 space-y-1">
+          <p>Environment: {import.meta.env.MODE || 'unknown'}</p>
+          <p>React: {React.version}</p>
+          <p>Timestamp: {new Date().toISOString()}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si on a des données de formation
   return (
-    <div
-      onClick={onClick}
-      className={`relative p-6 rounded-xl border-2 transition-all duration-300 cursor-pointer ${
-        isActive
-          ? `bg-gradient-to-r ${step.color} text-white shadow-lg scale-105 border-transparent`
-          : step.completed
-          ? 'bg-green-500/20 border-green-400/50 text-green-300 hover:bg-green-500/30'
-          : 'bg-gray-800/50 border-gray-600/50 text-gray-300 hover:bg-gray-700/50'
-      }`}
-    >
-      {/* Badge numéro */}
-      <div className={`absolute -top-3 -right-3 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-        step.completed
-          ? 'bg-green-500 text-white'
-          : isActive
-          ? 'bg-white text-gray-900'
-          : 'bg-gray-600 text-gray-300'
-      }`}>
-        {step.completed ? '✓' : step.number}
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white mb-4">
+          🧠 Formation Générale Brain
+        </h2>
+        <p className="text-gray-400 mb-6">
+          Votre formation a été créée avec succès !
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="bg-black/20 rounded-lg p-3">
+            <div className="text-blue-400 font-semibold">🎯 Objectif</div>
+            <div className="text-gray-300">Devenir rapidement autonome</div>
+          </div>
+          
+          <div className="bg-black/20 rounded-lg p-3">
+            <div className="text-green-400 font-semibold">🚀 Résultat</div>
+            <div className="text-gray-300">Épanoui·e et reconnu·e</div>
+          </div>
+          
+          <div className="bg-black/20 rounded-lg p-3">
+            <div className="text-purple-400 font-semibold">🤝 Support</div>
+            <div className="text-gray-300">Aide disponible à chaque étape</div>
+          </div>
+        </div>
+        
+        <div className="mt-4 text-purple-300 font-medium">
+          💪 Tu fais partie de l'équipe dès maintenant !
+        </div>
       </div>
 
-      {/* Icône */}
-      <div className="flex items-center mb-4">
-        <div className={`p-3 rounded-lg ${
-          isActive 
-            ? 'bg-white/20' 
-            : step.completed 
-            ? 'bg-green-500/30' 
-            : 'bg-gray-700'
-        }`}>
-          <step.icon className="h-6 w-6" />
+      <div className="mt-6">
+        <button
+          onClick={loadFormationData}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+        >
+          <RefreshCw className="h-4 w-4 inline mr-2" />
+          Actualiser
+        </button>
+      </div>
+
+      {/* Affichage des phases */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {Object.values(ONBOARDING_PHASES).map(phase => (
+          <div key={phase.id} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-6">
+            <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${phase.color} flex items-center justify-center text-2xl mb-4`}>
+              {phase.icon}
+            </div>
+            <h4 className="font-semibold text-white mb-2">{phase.name}</h4>
+            <p className="text-gray-400 text-sm mb-4">{phase.description}</p>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">{phase.duration} jours</span>
+              <span className="text-blue-400">{phase.xpTotal} XP</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// 🎯 COMPOSANT ACQUISITION DE COMPÉTENCES
+const AcquisitionCompetences = () => {
+  const [selectedRole, setSelectedRole] = useState(null);
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center mb-8">
+        <Target className="h-16 w-16 text-green-400 mx-auto mb-4" />
+        <h3 className="text-3xl font-bold text-white mb-4">
+          🎮 Acquisition de Compétences
+        </h3>
+        <p className="text-gray-300 text-lg">
+          Développez votre expertise dans les 6 rôles clés de Brain
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {Object.values(SYNERGIA_ROLES).map(role => (
+          <div key={role.id} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
+            <div className="flex items-center mb-3">
+              <div className={`w-10 h-10 rounded-lg bg-gradient-to-r ${role.color} flex items-center justify-center text-lg mr-3`}>
+                {role.icon}
+              </div>
+              <div>
+                <h4 className="font-semibold text-white text-sm">{role.name}</h4>
+              </div>
+            </div>
+            <p className="text-gray-400 text-sm">{role.description}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// 🎯 COMPOSANT ENTRETIENS RÉFÉRENT
+const EntretiensReferent = () => {
+  const { user } = useAuthStore();
+  const [activeView, setActiveView] = useState('dashboard');
+  const [interviews, setInterviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({
+    employeeName: '',
+    employeeEmail: '',
+    type: 'initial',
+    scheduledDate: '',
+    scheduledTime: '',
+    duration: 30,
+    location: 'Bureau référent',
+    objectives: '',
+    notes: ''
+  });
+
+  const loadInterviews = useCallback(async () => {
+    if (!user?.uid) return;
+    
+    try {
+      setLoading(true);
+      const interviewsQuery = query(
+        collection(db, 'interviews'),
+        where('referentId', '==', user.uid),
+        orderBy('scheduledDate', 'desc'),
+        limit(50)
+      );
+      
+      const querySnapshot = await getDocs(interviewsQuery);
+      const interviewsList = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        interviewsList.push({
+          id: doc.id,
+          ...data,
+          scheduledDate: data.scheduledDate?.toDate ? data.scheduledDate.toDate() : new Date(data.scheduledDate)
+        });
+      });
+      
+      setInterviews(interviewsList);
+      console.log('✅ Entretiens chargés:', interviewsList.length);
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement entretiens:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.uid]);
+
+  const handleScheduleSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      const interviewData = {
+        ...scheduleForm,
+        referentId: user.uid,
+        referentName: user.displayName || user.email,
+        scheduledDate: serverTimestamp(),
+        status: 'scheduled',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      await addDoc(collection(db, 'interviews'), interviewData);
+      
+      alert('Entretien programmé avec succès !');
+      setShowScheduleForm(false);
+      setScheduleForm({
+        employeeName: '',
+        employeeEmail: '',
+        type: 'initial',
+        scheduledDate: '',
+        scheduledTime: '',
+        duration: 30,
+        location: 'Bureau référent',
+        objectives: '',
+        notes: ''
+      });
+      
+      loadInterviews();
+      
+    } catch (error) {
+      console.error('❌ Erreur programmation entretien:', error);
+      alert('Erreur lors de la programmation de l\'entretien');
+    }
+  };
+
+  useEffect(() => {
+    loadInterviews();
+  }, [loadInterviews]);
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center mb-8">
+        <MessageSquare className="h-16 w-16 text-purple-400 mx-auto mb-4" />
+        <h3 className="text-3xl font-bold text-white mb-4">
+          🎯 Entretiens avec Référent
+        </h3>
+        <p className="text-gray-300 text-lg">
+          Suivi personnalisé de votre intégration
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-4 mb-6">
+        <button
+          onClick={() => setActiveView('dashboard')}
+          className={`px-4 py-2 rounded-lg transition-colors ${
+            activeView === 'dashboard'
+              ? 'bg-purple-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          📊 Dashboard
+        </button>
+        
+        <button
+          onClick={() => setActiveView('schedule')}
+          className={`px-4 py-2 rounded-lg transition-colors ${
+            activeView === 'schedule'
+              ? 'bg-purple-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          📅 Planifier
+        </button>
+        
+        <button
+          onClick={() => setActiveView('history')}
+          className={`px-4 py-2 rounded-lg transition-colors ${
+            activeView === 'history'
+              ? 'bg-purple-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          📋 Historique
+        </button>
+      </div>
+
+      {activeView === 'dashboard' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Object.entries(INTERVIEW_TYPES).map(([key, type]) => (
+            <div key={key} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-6">
+              <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${type.color} flex items-center justify-center text-2xl mb-4`}>
+                {type.icon}
+              </div>
+              <h4 className="font-semibold text-white mb-2">{type.name}</h4>
+              <p className="text-gray-400 text-sm mb-4">{type.description}</p>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">{type.duration} min</span>
+                <button 
+                  onClick={() => {
+                    setScheduleForm({...scheduleForm, type: key});
+                    setShowScheduleForm(true);
+                  }}
+                  className="text-blue-400 hover:text-blue-300"
+                >
+                  Planifier →
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="ml-4">
-          <h3 className="font-bold text-lg">{step.title}</h3>
-          {step.completed && (
-            <div className="flex items-center text-sm text-green-400">
-              <CheckCircle className="h-4 w-4 mr-1" />
-              Terminé
+      )}
+
+      {activeView === 'schedule' && (
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-6">
+            <h4 className="text-xl font-semibold text-white mb-6">Planifier un entretien</h4>
+            
+            <form onSubmit={handleScheduleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Nom de l'employé·e
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={scheduleForm.employeeName}
+                    onChange={(e) => setScheduleForm({...scheduleForm, employeeName: e.target.value})}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    placeholder="Prénom Nom"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={scheduleForm.employeeEmail}
+                    onChange={(e) => setScheduleForm({...scheduleForm, employeeEmail: e.target.value})}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    placeholder="email@example.com"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Type d'entretien
+                </label>
+                <select
+                  value={scheduleForm.type}
+                  onChange={(e) => setScheduleForm({...scheduleForm, type: e.target.value})}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                >
+                  {Object.entries(INTERVIEW_TYPES).map(([key, type]) => (
+                    <option key={key} value={key}>
+                      {type.icon} {type.name} ({type.duration} min)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={scheduleForm.scheduledDate}
+                    onChange={(e) => setScheduleForm({...scheduleForm, scheduledDate: e.target.value})}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Heure
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={scheduleForm.scheduledTime}
+                    onChange={(e) => setScheduleForm({...scheduleForm, scheduledTime: e.target.value})}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Durée (min)
+                  </label>
+                  <input
+                    type="number"
+                    value={scheduleForm.duration}
+                    onChange={(e) => setScheduleForm({...scheduleForm, duration: parseInt(e.target.value)})}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    min="15"
+                    max="120"
+                    step="15"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Lieu
+                </label>
+                <input
+                  type="text"
+                  value={scheduleForm.location}
+                  onChange={(e) => setScheduleForm({...scheduleForm, location: e.target.value})}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  placeholder="Bureau référent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Objectifs de l'entretien
+                </label>
+                <textarea
+                  value={scheduleForm.objectives}
+                  onChange={(e) => setScheduleForm({...scheduleForm, objectives: e.target.value})}
+                  rows={3}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  placeholder="Points à aborder, compétences à évaluer..."
+                />
+              </div>
+
+              <div className="flex space-x-4">
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all"
+                >
+                  <Calendar className="h-4 w-4 inline mr-2" />
+                  Planifier l'entretien
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setScheduleForm({
+                    employeeName: '',
+                    employeeEmail: '',
+                    type: 'initial',
+                    scheduledDate: '',
+                    scheduledTime: '',
+                    duration: 30,
+                    location: 'Bureau référent',
+                    objectives: '',
+                    notes: ''
+                  })}
+                  className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Réinitialiser
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {activeView === 'history' && (
+        <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-6">
+          <h4 className="text-xl font-semibold text-white mb-6">Historique des entretiens</h4>
+          
+          {loading ? (
+            <div className="text-center py-8">
+              <RefreshCw className="h-8 w-8 animate-spin text-blue-400 mx-auto mb-4" />
+              <p className="text-gray-400">Chargement des entretiens...</p>
+            </div>
+          ) : interviews.length === 0 ? (
+            <div className="text-center py-8">
+              <Calendar className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-400">Aucun entretien programmé pour le moment</p>
+              <button
+                onClick={() => setActiveView('schedule')}
+                className="mt-4 text-blue-400 hover:text-blue-300"
+              >
+                Planifier votre premier entretien →
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {interviews.map(interview => (
+                <div key={interview.id} className="bg-gray-700/50 border border-gray-600/50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-r ${INTERVIEW_TYPES[interview.type]?.color || 'from-gray-500 to-gray-600'} flex items-center justify-center text-sm mr-3`}>
+                        {INTERVIEW_TYPES[interview.type]?.icon || '📅'}
+                      </div>
+                      <div>
+                        <h5 className="font-semibold text-white">{interview.employeeName}</h5>
+                        <p className="text-gray-400 text-sm">{INTERVIEW_TYPES[interview.type]?.name || interview.type}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-white text-sm">{interview.scheduledDate.toLocaleDateString()}</p>
+                      <p className="text-gray-400 text-xs">{interview.status || 'Programmé'}</p>
+                    </div>
+                  </div>
+                  
+                  {interview.objectives && (
+                    <div className="bg-gray-800/50 rounded p-3 text-sm">
+                      <p className="text-gray-300">{interview.objectives}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Description */}
-      <p className={`text-sm ${
-        isActive ? 'text-white/90' : step.completed ? 'text-green-300' : 'text-gray-400'
-      }`}>
-        {step.description}
-      </p>
-
-      {/* Indicateur progression */}
-      {isActive && (
-        <div className="mt-4 flex items-center text-sm font-medium">
-          <Play className="h-4 w-4 mr-2" />
-          Étape en cours
         </div>
       )}
     </div>
   );
 };
 
-/**
- * 🎯 CONTENU DES ÉTAPES
- */
-const StepContent = ({ activeStep }) => {
-  const renderStepContent = () => {
-    switch (activeStep.id) {
-      case 'bienvenue':
-        return (
-          <div className="text-center space-y-6">
-            <div className="text-6xl mb-6">🎉</div>
-            <h2 className="text-3xl font-bold text-white mb-4">
-              Bienvenue dans Synergia v3.5 !
-            </h2>
-            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-              Nous sommes ravis de vous accueillir dans votre nouvelle plateforme collaborative. 
-              Ce guide va vous accompagner pour découvrir toutes les fonctionnalités et devenir 
-              rapidement autonome.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-              <div className="bg-blue-500/20 border border-blue-400/50 rounded-lg p-6">
-                <Zap className="h-8 w-8 text-blue-400 mx-auto mb-3" />
-                <h4 className="font-semibold text-white mb-2">Productivité</h4>
-                <p className="text-blue-300 text-sm">
-                  Optimisez votre organisation avec nos outils avancés
-                </p>
-              </div>
-              
-              <div className="bg-purple-500/20 border border-purple-400/50 rounded-lg p-6">
-                <Users className="h-8 w-8 text-purple-400 mx-auto mb-3" />
-                <h4 className="font-semibold text-white mb-2">Collaboration</h4>
-                <p className="text-purple-300 text-sm">
-                  Travaillez en équipe de manière fluide et efficace
-                </p>
-              </div>
-              
-              <div className="bg-green-500/20 border border-green-400/50 rounded-lg p-6">
-                <Trophy className="h-8 w-8 text-green-400 mx-auto mb-3" />
-                <h4 className="font-semibold text-white mb-2">Gamification</h4>
-                <p className="text-green-300 text-sm">
-                  Gagnez des points et débloquez des récompenses
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg border border-blue-400/30">
-              <p className="text-blue-300 font-medium">
-                💡 Astuce : Prenez votre temps pour explorer chaque section. 
-                Vous pourrez revenir à ce guide à tout moment !
-              </p>
-            </div>
-          </div>
-        );
-
-      case 'profil':
-        return (
-          <div className="space-y-6">
-            <div className="text-center">
-              <Users className="h-16 w-16 text-blue-400 mx-auto mb-4" />
-              <h2 className="text-3xl font-bold text-white mb-4">
-                Complétez votre profil
-              </h2>
-              <p className="text-gray-300 text-lg">
-                Ajoutez vos informations pour personnaliser votre expérience
-              </p>
-            </div>
-
-            <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-6">
-              <h3 className="text-xl font-semibold text-white mb-4">À compléter :</h3>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
-                    <span className="text-gray-300">Photo de profil</span>
-                  </div>
-                  <button className="text-blue-400 hover:text-blue-300 text-sm font-medium">
-                    Ajouter →
-                  </button>
-                </div>
-                
-                <div className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
-                    <span className="text-gray-300">Poste et département</span>
-                  </div>
-                  <button className="text-blue-400 hover:text-blue-300 text-sm font-medium">
-                    Modifier →
-                  </button>
-                </div>
-                
-                <div className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 bg-green-400 rounded-full mr-3"></div>
-                    <span className="text-gray-300">Informations de contact</span>
-                  </div>
-                  <span className="text-green-400 text-sm font-medium">✓ Terminé</span>
-                </div>
-              </div>
-
-              <div className="mt-6 text-center">
-                <button className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-3 rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium">
-                  Aller au profil
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'equipe':
-        return (
-          <div className="space-y-6">
-            <div className="text-center">
-              <Users className="h-16 w-16 text-green-400 mx-auto mb-4" />
-              <h2 className="text-3xl font-bold text-white mb-4">
-                Découvrez votre équipe
-              </h2>
-              <p className="text-gray-300 text-lg">
-                Connectez-vous avec vos collègues et collaborateurs
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <Users className="h-5 w-5 mr-2 text-blue-400" />
-                  Mon équipe directe
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex items-center p-3 bg-gray-700/30 rounded-lg">
-                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                      JD
-                    </div>
-                    <div className="ml-3">
-                      <div className="text-white font-medium">John Doe</div>
-                      <div className="text-gray-400 text-sm">Chef d'équipe</div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center p-3 bg-gray-700/30 rounded-lg">
-                    <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold">
-                      MS
-                    </div>
-                    <div className="ml-3">
-                      <div className="text-white font-medium">Marie Smith</div>
-                      <div className="text-gray-400 text-sm">Développeuse</div>
-                    </div>
-                  </div>
-                </div>
-                
-                <button className="w-full mt-4 text-blue-400 hover:text-blue-300 text-sm font-medium">
-                  Voir toute l'équipe →
-                </button>
-              </div>
-
-              <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <MapPin className="h-5 w-5 mr-2 text-green-400" />
-                  Autres départements
-                </h3>
-                <div className="space-y-3">
-                  <div className="p-3 bg-gray-700/30 rounded-lg">
-                    <div className="text-white font-medium">Marketing</div>
-                    <div className="text-gray-400 text-sm">8 personnes</div>
-                  </div>
-                  <div className="p-3 bg-gray-700/30 rounded-lg">
-                    <div className="text-white font-medium">Ventes</div>
-                    <div className="text-gray-400 text-sm">12 personnes</div>
-                  </div>
-                  <div className="p-3 bg-gray-700/30 rounded-lg">
-                    <div className="text-white font-medium">Support</div>
-                    <div className="text-gray-400 text-sm">6 personnes</div>
-                  </div>
-                </div>
-                
-                <button className="w-full mt-4 text-blue-400 hover:text-blue-300 text-sm font-medium">
-                  Explorer l'annuaire →
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'termine':
-        return (
-          <div className="text-center space-y-6">
-            <div className="text-6xl mb-6">🚀</div>
-            <h2 className="text-3xl font-bold text-white mb-4">
-              Félicitations ! Vous êtes prêt·e !
-            </h2>
-            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-              Vous avez terminé votre parcours d'onboarding. 
-              Vous pouvez maintenant utiliser Synergia en toute autonomie !
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-              <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-400/50 rounded-lg p-6">
-                <h4 className="font-semibold text-white mb-3 flex items-center">
-                  <BookOpen className="h-5 w-5 mr-2 text-blue-400" />
-                  Ressources utiles
-                </h4>
-                <ul className="text-left space-y-2 text-blue-300 text-sm">
-                  <li>• Guide utilisateur complet</li>
-                  <li>• FAQ et questions courantes</li>
-                  <li>• Tutoriels vidéo</li>
-                  <li>• Support technique</li>
-                </ul>
-              </div>
-              
-              <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 border border-green-400/50 rounded-lg p-6">
-                <h4 className="font-semibold text-white mb-3 flex items-center">
-                  <Target className="h-5 w-5 mr-2 text-green-400" />
-                  Prochaines étapes
-                </h4>
-                <ul className="text-left space-y-2 text-green-300 text-sm">
-                  <li>• Consulter vos premières tâches</li>
-                  <li>• Rejoindre vos projets</li>
-                  <li>• Configurer vos notifications</li>
-                  <li>• Explorer la gamification</li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="mt-8">
-              <button 
-                onClick={() => window.location.href = '/dashboard'}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-12 py-4 rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-bold text-lg shadow-lg hover:shadow-xl"
-              >
-                Commencer à utiliser Synergia →
-              </button>
-            </div>
-          </div>
-        );
-
-      default:
-        return (
-          <div className="text-center space-y-6">
-            <div className="text-6xl mb-6">{activeStep.icon && <activeStep.icon />}</div>
-            <h2 className="text-3xl font-bold text-white mb-4">
-              {activeStep.title}
-            </h2>
-            <p className="text-gray-300 text-lg">
-              {activeStep.description}
-            </p>
-            <div className="mt-8 p-6 bg-gray-800/50 border border-gray-700/50 rounded-lg">
-              <p className="text-gray-400">
-                Contenu de cette étape en cours de développement...
-              </p>
-              <button className="mt-4 text-blue-400 hover:text-blue-300 text-sm font-medium">
-                Passer à l'étape suivante →
-              </button>
-            </div>
-          </div>
-        );
-    }
-  };
-
-  return (
-    <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8">
-      {renderStepContent()}
-    </div>
-  );
-};
-
-/**
- * 🎯 COMPOSANT PRINCIPAL
- */
+// 🎯 COMPOSANT PRINCIPAL ONBOARDING
 const OnboardingPage = () => {
   const { user } = useAuthStore();
-  const [activeStepIndex, setActiveStepIndex] = useState(0);
-  const [completedSteps, setCompletedSteps] = useState([0]); // Première étape complétée par défaut
-
-  const activeStep = ONBOARDING_STEPS[activeStepIndex];
-
-  const handleStepClick = (stepIndex) => {
-    setActiveStepIndex(stepIndex);
-  };
-
-  const handleNextStep = () => {
-    if (activeStepIndex < ONBOARDING_STEPS.length - 1) {
-      const nextIndex = activeStepIndex + 1;
-      setActiveStepIndex(nextIndex);
-      if (!completedSteps.includes(nextIndex)) {
-        setCompletedSteps([...completedSteps, nextIndex]);
-      }
-    }
-  };
-
-  const handlePreviousStep = () => {
-    if (activeStepIndex > 0) {
-      setActiveStepIndex(activeStepIndex - 1);
-    }
-  };
+  const [activeSection, setActiveSection] = useState('formation');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         
-        {/* Header */}
-        <div className="text-center mb-8">
+        <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
-            🎯 Parcours d'Intégration
+            🎯 Intégration Game Master
           </h1>
-          <p className="text-gray-400 text-lg">
-            Étape {activeStep.number} sur {ONBOARDING_STEPS.length} : {activeStep.title}
+          <p className="text-gray-300 text-lg">
+            Votre parcours personnalisé pour devenir autonome et épanoui·e chez Brain
           </p>
-          
-          {/* Barre de progression */}
-          <div className="mt-6 max-w-md mx-auto">
-            <div className="w-full bg-gray-700 rounded-full h-2">
-              <div 
-                className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${((activeStepIndex + 1) / ONBOARDING_STEPS.length) * 100}%` }}
-              ></div>
-            </div>
-            <div className="flex justify-between text-xs text-gray-400 mt-2">
-              <span>Début</span>
-              <span>{Math.round(((activeStepIndex + 1) / ONBOARDING_STEPS.length) * 100)}%</span>
-              <span>Terminé</span>
-            </div>
-          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Liste des étapes (sidebar) */}
-          <div className="lg:col-span-1">
-            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-6">Étapes du parcours</h3>
-              <div className="space-y-3">
-                {ONBOARDING_STEPS.map((step, index) => (
-                  <div
-                    key={step.id}
-                    onClick={() => handleStepClick(index)}
-                    className={`flex items-center p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                      index === activeStepIndex
-                        ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-400/50'
-                        : completedSteps.includes(index)
-                        ? 'bg-green-500/20 border border-green-400/30 hover:bg-green-500/30'
-                        : 'bg-gray-700/30 hover:bg-gray-600/40'
-                    }`}
-                  >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mr-3 ${
-                      completedSteps.includes(index)
-                        ? 'bg-green-500 text-white'
-                        : index === activeStepIndex
-                        ? 'bg-white text-gray-900'
-                        : 'bg-gray-600 text-gray-300'
-                    }`}>
-                      {completedSteps.includes(index) ? '✓' : step.number}
-                    </div>
-                    
-                    <div className="flex-1">
-                      <div className={`text-sm font-medium ${
-                        index === activeStepIndex
-                          ? 'text-white'
-                          : completedSteps.includes(index)
-                          ? 'text-green-300'
-                          : 'text-gray-300'
-                      }`}>
-                        {step.title}
-                      </div>
-                      {index === activeStepIndex && (
-                        <div className="text-xs text-blue-300 mt-1">En cours...</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Contenu de l'étape active */}
-          <div className="lg:col-span-2">
-            <StepContent activeStep={activeStep} />
+        <div className="mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            {/* Boutons de navigation */}
-            <div className="flex justify-between items-center mt-8">
-              <button
-                onClick={handlePreviousStep}
-                disabled={activeStepIndex === 0}
-                className={`flex items-center px-6 py-3 rounded-lg transition-all duration-200 ${
-                  activeStepIndex === 0
-                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'bg-gray-700 hover:bg-gray-600 text-white'
-                }`}
-              >
-                ← Étape précédente
-              </button>
-
-              <div className="text-gray-400 text-sm">
-                Étape {activeStep.number} / {ONBOARDING_STEPS.length}
+            <button
+              onClick={() => setActiveSection('formation')}
+              className={`p-6 rounded-xl border-2 transition-all duration-300 text-left ${
+                activeSection === 'formation'
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg scale-105 border-blue-400'
+                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:scale-102 border-gray-600'
+              }`}
+            >
+              <div className="flex items-center mb-3">
+                <BookOpen className="h-6 w-6 mr-3" />
+                <span className="font-semibold">Formation Générale</span>
               </div>
+              <p className="text-sm opacity-80">
+                7 phases complètes avec 38 tâches détaillées
+              </p>
+            </button>
 
-              <button
-                onClick={handleNextStep}
-                disabled={activeStepIndex === ONBOARDING_STEPS.length - 1}
-                className={`flex items-center px-6 py-3 rounded-lg transition-all duration-200 ${
-                  activeStepIndex === ONBOARDING_STEPS.length - 1
-                    ? 'bg-green-600 hover:bg-green-700 text-white'
-                    : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white'
-                }`}
-              >
-                {activeStepIndex === ONBOARDING_STEPS.length - 1 
-                  ? 'Commencer →' 
-                  : 'Étape suivante →'
-                }
-              </button>
-            </div>
+            <button
+              onClick={() => setActiveSection('competences')}
+              className={`p-6 rounded-xl border-2 transition-all duration-300 text-left ${
+                activeSection === 'competences'
+                  ? 'bg-gradient-to-r from-green-500 to-blue-500 text-white shadow-lg scale-105 border-green-400'
+                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:scale-102 border-gray-600'
+              }`}
+            >
+              <div className="flex items-center mb-3">
+                <Target className="h-6 w-6 mr-3" />
+                <span className="font-semibold">Acquisition Compétences</span>
+              </div>
+              <p className="text-sm opacity-80">
+                6 rôles Game Master avec compétences spécifiques
+              </p>
+            </button>
+
+            <button
+              onClick={() => setActiveSection('entretiens')}
+              className={`p-6 rounded-xl border-2 transition-all duration-300 text-left ${
+                activeSection === 'entretiens'
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg scale-105 border-purple-400'
+                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:scale-102 border-gray-600'
+              }`}
+            >
+              <div className="flex items-center mb-3">
+                <MessageSquare className="h-6 w-6 mr-3" />
+                <span className="font-semibold">Entretiens Référent</span>
+              </div>
+              <p className="text-sm opacity-80">
+                5 types d'entretiens personnalisés avec suivi
+              </p>
+            </button>
           </div>
         </div>
 
-        {/* Footer info */}
-        <div className="text-center mt-12 p-4 bg-gray-800/30 rounded-lg border border-gray-700/50">
-          <p className="text-gray-400 text-sm">
-            💡 <strong>Astuce :</strong> Vous pouvez revenir à ce guide d'intégration à tout moment 
-            depuis le menu principal. N'hésitez pas à prendre votre temps !
-          </p>
+        {/* Contenu des sections */}
+        <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8">
+          {activeSection === 'formation' && <FormationGeneraleInterface />}
+          {activeSection === 'competences' && <AcquisitionCompetences />}
+          {activeSection === 'entretiens' && <EntretiensReferent />}
         </div>
       </div>
     </div>
