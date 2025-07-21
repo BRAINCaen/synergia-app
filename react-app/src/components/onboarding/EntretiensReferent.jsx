@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/onboarding/EntretiensReferent.jsx
-// SYSTÈME TEMPLATES ENTRETIENS - COMPLET FONCTIONNEL
+// CORRECTION - BOUTONS PLANIFIER FONCTIONNELS
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -83,19 +83,6 @@ const INTERVIEW_TEMPLATES = {
       'Y a-t-il des domaines spécifiques que vous aimeriez approfondir ?',
       'Comment préférez-vous apprendre (pratique, théorie, observation) ?',
       'Avez-vous des expériences précédentes dans ce secteur ?'
-    ],
-    evaluationCriteria: [
-      'Motivation et enthousiasme',
-      'Compréhension des enjeux',
-      'Qualité des questions posées',
-      'Attitude générale et ouverture',
-      'Clarté des objectifs personnels'
-    ],
-    preparationChecklist: [
-      'Préparer le dossier d\'accueil complet',
-      'Organiser la visite des locaux',
-      'Prévoir les accès et équipements nécessaires',
-      'Planifier les présentations aux équipes clés'
     ]
   },
   
@@ -119,21 +106,7 @@ const INTERVIEW_TEMPLATES = {
       'Quelles difficultés avez-vous rencontrées et comment les avez-vous surmontées ?',
       'Comment vous sentez-vous dans votre intégration avec l\'équipe ?',
       'Y a-t-il des aspects du travail qui vous semblent encore flous ?',
-      'Avez-vous besoin d\'aide ou de formation sur des points spécifiques ?',
-      'Comment évaluez-vous votre progression par rapport à vos objectifs ?',
-      'Quels sont vos projets d\'apprentissage pour la semaine prochaine ?'
-    ],
-    evaluationCriteria: [
-      'Progression technique observée',
-      'Qualité de l\'intégration équipe',
-      'Niveau d\'autonomie atteint',
-      'Capacité d\'identification des difficultés',
-      'Attitude proactive dans l\'apprentissage'
-    ],
-    preparationChecklist: [
-      'Consulter les retours des collègues',
-      'Préparer les ressources de formation nécessaires',
-      'Noter les observations de la semaine écoulée'
+      'Avez-vous besoin d\'aide ou de formation sur des points spécifiques ?'
     ]
   },
   
@@ -157,21 +130,7 @@ const INTERVIEW_TEMPLATES = {
       'Quelles sont vos plus grandes réussites durant cette période ?',
       'Sur quels aspects vous sentez-vous maintenant à l\'aise ?',
       'Quels domaines nécessitent encore du travail selon vous ?',
-      'Vous sentez-vous prêt(e) pour passer à la phase suivante ?',
-      'Quels défis anticipez-vous pour la suite ?',
-      'Comment pourrait-on améliorer votre parcours de formation ?'
-    ],
-    evaluationCriteria: [
-      'Maîtrise des compétences clés de la phase',
-      'Qualité de l\'auto-évaluation',
-      'Capacité d\'analyse et de recul',
-      'Préparation mentale pour la phase suivante',
-      'Vision claire des prochaines étapes'
-    ],
-    preparationChecklist: [
-      'Préparer l\'évaluation des compétences',
-      'Rassembler les feedbacks des formateurs',
-      'Définir les critères de passage à la phase suivante'
+      'Vous sentez-vous prêt(e) pour passer à la phase suivante ?'
     ]
   },
   
@@ -195,23 +154,7 @@ const INTERVIEW_TEMPLATES = {
       'Quelles compétences vous semblent les mieux maîtrisées maintenant ?',
       'Quels aspects de votre travail vous passionnent le plus ?',
       'Y a-t-il encore des domaines que vous aimeriez développer ?',
-      'Comment évaluez-vous la qualité de votre accompagnement ?',
-      'Quelles améliorations suggéreriez-vous pour le parcours d\'onboarding ?',
-      'Quelles sont vos ambitions et projets au sein de l\'entreprise ?',
-      'Vous sentez-vous prêt(e) à travailler de manière totalement autonome ?'
-    ],
-    evaluationCriteria: [
-      'Intégration réussie et complète',
-      'Autonomie opérationnelle confirmée',
-      'Satisfaction du parcours de formation',
-      'Vision claire des perspectives d\'évolution',
-      'Esprit critique constructif'
-    ],
-    preparationChecklist: [
-      'Compiler tous les résultats d\'évaluation',
-      'Préparer le certificat de fin de formation',
-      'Organiser la présentation aux équipes',
-      'Planifier la suite du parcours professionnel'
+      'Comment évaluez-vous la qualité de votre accompagnement ?'
     ]
   },
   
@@ -235,23 +178,7 @@ const INTERVIEW_TEMPLATES = {
       'Depuis quand ressentez-vous ces difficultés ?',
       'Qu\'avez-vous déjà essayé pour les surmonter ?',
       'Quel type d\'accompagnement vous aiderait le plus ?',
-      'Comment vous sentez-vous par rapport à vos collègues et à l\'équipe ?',
-      'Avez-vous l\'impression que le rythme de formation vous convient ?',
-      'Qu\'est-ce qui pourrait vous remotiver et vous aider à progresser ?',
-      'Préférez-vous un accompagnement plus fréquent ou différent ?'
-    ],
-    evaluationCriteria: [
-      'Identification claire des obstacles',
-      'Ouverture à recevoir de l\'aide',
-      'Motivation à surmonter les difficultés',
-      'Capacité à exprimer ses besoins',
-      'Réceptivité aux solutions proposées'
-    ],
-    preparationChecklist: [
-      'Analyser les retours des formateurs',
-      'Identifier les ressources de soutien disponibles',
-      'Préparer des solutions d\'accompagnement adaptées',
-      'Envisager des ajustements du plan de formation'
+      'Comment vous sentez-vous par rapport à vos collègues et à l\'équipe ?'
     ]
   }
 };
@@ -287,16 +214,6 @@ const EntretiensReferent = () => {
     location: 'Bureau référent',
     objectives: '',
     notes: ''
-  });
-
-  // Formulaire de finalisation
-  const [completeForm, setCompleteForm] = useState({
-    rating: 5,
-    summary: '',
-    strengths: '',
-    improvements: '',
-    nextSteps: '',
-    validated: false
   });
 
   // 📊 CHARGEMENT INITIAL
@@ -373,7 +290,6 @@ const EntretiensReferent = () => {
         }
       ];
       
-      // Essayer de charger depuis Firebase
       try {
         const onboardingQuery = query(
           collection(db, 'onboardingFormation'),
@@ -446,11 +362,41 @@ const EntretiensReferent = () => {
     });
   };
 
+  // 🎯 FONCTION POUR OUVRIR LE FORMULAIRE AVEC UN TEMPLATE SPÉCIFIQUE
+  const handlePlanifierTemplate = (templateId) => {
+    console.log('🎯 Planifier template:', templateId);
+    
+    const template = INTERVIEW_TEMPLATES[templateId];
+    if (!template) {
+      console.error('❌ Template non trouvé:', templateId);
+      return;
+    }
+    
+    // Configurer le formulaire avec le template
+    setSelectedTemplate(template);
+    setScheduleForm(prev => ({
+      ...prev,
+      type: templateId,
+      duration: template.duration,
+      objectives: template.objectives.join('\n• ')
+    }));
+    
+    // Ouvrir le modal
+    setShowScheduleForm(true);
+    
+    console.log('✅ Modal ouvert avec template:', template.name);
+  };
+
   // ✅ PROGRAMMER UN ENTRETIEN AVEC TEMPLATE
   const handleScheduleWithTemplate = async (templateId) => {
     try {
       const template = INTERVIEW_TEMPLATES[templateId];
-      if (!template) return;
+      if (!template) {
+        console.error('❌ Template non trouvé pour programmation:', templateId);
+        return;
+      }
+
+      console.log('📅 Programmation entretien avec template:', template.name);
 
       const interviewData = {
         employeeName: scheduleForm.employeeName,
@@ -471,8 +417,7 @@ const EntretiensReferent = () => {
           name: template.name,
           description: template.description,
           questions: template.questions,
-          evaluationCriteria: template.evaluationCriteria,
-          preparationChecklist: template.preparationChecklist
+          objectives: template.objectives
         },
         
         createdAt: serverTimestamp(),
@@ -682,7 +627,7 @@ const EntretiensReferent = () => {
               </div>
             </div>
 
-            {/* 🎯 Templates d'entretiens */}
+            {/* 🎯 Templates d'entretiens AVEC BOUTONS FONCTIONNELS */}
             <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-white">Templates d'Entretiens</h2>
@@ -695,43 +640,122 @@ const EntretiensReferent = () => {
                 </button>
               </div>
 
+              {/* 🎯 TEMPLATES AVEC BOUTONS PLANIFIER FONCTIONNELS */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Object.values(INTERVIEW_TEMPLATES).map((template) => {
-                  const IconComponent = template.icon;
-                  return (
-                    <div
-                      key={template.id}
-                      className="group bg-gray-700/50 rounded-2xl p-6 border border-gray-600 hover:border-purple-500/50 transition-all duration-200 cursor-pointer"
-                      onClick={() => {
-                        setSelectedTemplate(template);
-                        setScheduleForm(prev => ({
-                          ...prev,
-                          type: template.id,
-                          duration: template.duration
-                        }));
-                        setShowScheduleForm(true);
-                      }}
+                {/* Template Entretien Initial */}
+                <div className="group bg-gray-700/50 rounded-2xl p-6 border border-gray-600 hover:border-blue-500/50 transition-all duration-200">
+                  <div className="bg-gradient-to-br from-blue-500 to-cyan-500 w-16 h-16 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200">
+                    <User className="w-8 h-8 text-white" />
+                  </div>
+                  
+                  <h3 className="text-xl font-bold text-white mb-2">Entretien Initial</h3>
+                  <p className="text-gray-400 mb-4 text-sm">Premier entretien d'accueil et présentation</p>
+                  
+                  <div className="flex items-center justify-between text-sm mb-4">
+                    <span className="text-gray-500 flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      60 min
+                    </span>
+                    <button 
+                      onClick={() => handlePlanifierTemplate('initial')}
+                      className="text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 group-hover:translate-x-1 transition-all duration-200 bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1 rounded-lg"
                     >
-                      <div className={`${template.bgColor} w-16 h-16 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200`}>
-                        <IconComponent className="w-8 h-8 text-white" />
-                      </div>
-                      
-                      <h3 className="text-xl font-bold text-white mb-2">{template.name}</h3>
-                      <p className="text-gray-400 mb-4 text-sm">{template.description}</p>
-                      
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500 flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          {template.duration} min
-                        </span>
-                        <button className="text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 group-hover:translate-x-1 transition-transform duration-200">
-                          Planifier
-                          <Rocket className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                      Planifier →
+                    </button>
+                  </div>
+                </div>
+
+                {/* Template Suivi Hebdomadaire */}
+                <div className="group bg-gray-700/50 rounded-2xl p-6 border border-gray-600 hover:border-green-500/50 transition-all duration-200">
+                  <div className="bg-gradient-to-br from-green-500 to-emerald-500 w-16 h-16 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200">
+                    <CalendarDays className="w-8 h-8 text-white" />
+                  </div>
+                  
+                  <h3 className="text-xl font-bold text-white mb-2">Suivi Hebdomadaire</h3>
+                  <p className="text-gray-400 mb-4 text-sm">Point régulier sur les progrès</p>
+                  
+                  <div className="flex items-center justify-between text-sm mb-4">
+                    <span className="text-gray-500 flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      30 min
+                    </span>
+                    <button 
+                      onClick={() => handlePlanifierTemplate('weekly')}
+                      className="text-green-400 hover:text-green-300 font-medium flex items-center gap-1 group-hover:translate-x-1 transition-all duration-200 bg-green-500/10 hover:bg-green-500/20 px-3 py-1 rounded-lg"
+                    >
+                      Planifier →
+                    </button>
+                  </div>
+                </div>
+
+                {/* Template Bilan d'Étape */}
+                <div className="group bg-gray-700/50 rounded-2xl p-6 border border-gray-600 hover:border-purple-500/50 transition-all duration-200">
+                  <div className="bg-gradient-to-br from-purple-500 to-pink-500 w-16 h-16 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200">
+                    <Target className="w-8 h-8 text-white" />
+                  </div>
+                  
+                  <h3 className="text-xl font-bold text-white mb-2">Bilan d'Étape</h3>
+                  <p className="text-gray-400 mb-4 text-sm">Validation des compétences acquises</p>
+                  
+                  <div className="flex items-center justify-between text-sm mb-4">
+                    <span className="text-gray-500 flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      45 min
+                    </span>
+                    <button 
+                      onClick={() => handlePlanifierTemplate('milestone')}
+                      className="text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 group-hover:translate-x-1 transition-all duration-200 bg-purple-500/10 hover:bg-purple-500/20 px-3 py-1 rounded-lg"
+                    >
+                      Planifier →
+                    </button>
+                  </div>
+                </div>
+
+                {/* Template Entretien Final */}
+                <div className="group bg-gray-700/50 rounded-2xl p-6 border border-gray-600 hover:border-orange-500/50 transition-all duration-200">
+                  <div className="bg-gradient-to-br from-orange-500 to-red-500 w-16 h-16 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200">
+                    <Award className="w-8 h-8 text-white" />
+                  </div>
+                  
+                  <h3 className="text-xl font-bold text-white mb-2">Entretien Final</h3>
+                  <p className="text-gray-400 mb-4 text-sm">Bilan complet et certification</p>
+                  
+                  <div className="flex items-center justify-between text-sm mb-4">
+                    <span className="text-gray-500 flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      60 min
+                    </span>
+                    <button 
+                      onClick={() => handlePlanifierTemplate('final')}
+                      className="text-orange-400 hover:text-orange-300 font-medium flex items-center gap-1 group-hover:translate-x-1 transition-all duration-200 bg-orange-500/10 hover:bg-orange-500/20 px-3 py-1 rounded-lg"
+                    >
+                      Planifier →
+                    </button>
+                  </div>
+                </div>
+
+                {/* Template Entretien de Soutien */}
+                <div className="group bg-gray-700/50 rounded-2xl p-6 border border-gray-600 hover:border-pink-500/50 transition-all duration-200">
+                  <div className="bg-gradient-to-br from-pink-500 to-rose-500 w-16 h-16 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200">
+                    <Heart className="w-8 h-8 text-white" />
+                  </div>
+                  
+                  <h3 className="text-xl font-bold text-white mb-2">Entretien de Soutien</h3>
+                  <p className="text-gray-400 mb-4 text-sm">Accompagnement en cas de difficulté</p>
+                  
+                  <div className="flex items-center justify-between text-sm mb-4">
+                    <span className="text-gray-500 flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      30 min
+                    </span>
+                    <button 
+                      onClick={() => handlePlanifierTemplate('support')}
+                      className="text-pink-400 hover:text-pink-300 font-medium flex items-center gap-1 group-hover:translate-x-1 transition-all duration-200 bg-pink-500/10 hover:bg-pink-500/20 px-3 py-1 rounded-lg"
+                    >
+                      Planifier →
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -754,7 +778,7 @@ const EntretiensReferent = () => {
                     Aucun entretien programmé
                   </h3>
                   <p className="text-gray-500 mb-6">
-                    Utilisez les templates ci-dessus pour planifier votre premier entretien.
+                    Utilisez les boutons "Planifier →" ci-dessus pour programmer votre premier entretien.
                   </p>
                 </div>
               ) : (
@@ -864,6 +888,9 @@ const EntretiensReferent = () => {
                 e.preventDefault();
                 if (selectedTemplate) {
                   handleScheduleWithTemplate(selectedTemplate.id);
+                } else {
+                  console.error('❌ Aucun template sélectionné');
+                  showNotification('❌ Erreur: aucun template sélectionné', 'error');
                 }
               }} className="space-y-6">
                 {/* Sélection employé */}
@@ -979,9 +1006,17 @@ const EntretiensReferent = () => {
                 {/* Aperçu du template sélectionné */}
                 {selectedTemplate && (
                   <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600">
-                    <h4 className="text-lg font-semibold text-white mb-4">Aperçu de l'entretien</h4>
+                    <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                      <selectedTemplate.icon className="w-5 h-5" />
+                      Aperçu: {selectedTemplate.name}
+                    </h4>
                     
                     <div className="space-y-4">
+                      <div>
+                        <h5 className="text-sm font-medium text-gray-300 mb-2">Durée:</h5>
+                        <p className="text-sm text-gray-400">{selectedTemplate.duration} minutes</p>
+                      </div>
+                      
                       <div>
                         <h5 className="text-sm font-medium text-gray-300 mb-2">Objectifs principaux:</h5>
                         <ul className="text-sm text-gray-400 space-y-1">
@@ -1026,7 +1061,7 @@ const EntretiensReferent = () => {
                     className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-3 rounded-xl font-medium hover:shadow-lg transition-all duration-200 flex items-center gap-2"
                   >
                     <Calendar className="w-5 h-5" />
-                    Programmer l'entretien
+                    {selectedTemplate ? `Programmer ${selectedTemplate.name}` : 'Programmer l\'entretien'}
                   </button>
                 </div>
               </form>
