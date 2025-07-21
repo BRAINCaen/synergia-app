@@ -818,7 +818,10 @@ const TaskItem = ({ task, onToggle, small = false }) => {
   );
 };
 
-// 🎯 COMPOSANTS COMPÉTENCES ET ENTRETIENS SIMPLIFIÉS
+// 🎯 IMPORT DU COMPOSANT ENTRETIENS FONCTIONNEL
+import EntretiensReferent from '../components/onboarding/EntretiensReferent.jsx';
+
+// 🎯 COMPOSANT COMPÉTENCES SIMPLIFIÉ
 const AcquisitionCompetences = ({ stats }) => {
   return (
     <div className="text-center py-12">
@@ -833,22 +836,6 @@ const AcquisitionCompetences = ({ stats }) => {
         <div className="mt-4 text-sm text-gray-300">
           {stats.completedTasks} / {stats.totalTasks} tâches complétées
         </div>
-      </div>
-    </div>
-  );
-};
-
-const EntretiensReferent = () => {
-  return (
-    <div className="text-center py-12">
-      <MessageSquare className="h-16 w-16 text-blue-400 mx-auto mb-4" />
-      <h3 className="text-2xl font-bold text-white mb-4">💬 Entretiens avec Référent</h3>
-      <p className="text-gray-300 mb-6">
-        Les entretiens de suivi seront planifiés avec ton référent pendant ta formation.
-      </p>
-      <div className="bg-gray-800/50 rounded-lg p-6 max-w-md mx-auto">
-        <Calendar className="h-8 w-8 text-gray-500 mx-auto mb-2" />
-        <p className="text-gray-400">Aucun entretien planifié pour le moment</p>
       </div>
     </div>
   );
