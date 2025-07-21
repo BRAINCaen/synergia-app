@@ -3,6 +3,7 @@
 // APPLICATION PRINCIPALE - VERSION COMPLÈTE CORRIGÉE
 // ==========================================
 
+import './core/consolePatch.js';
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 // En haut de App.jsx, après les autres imports
