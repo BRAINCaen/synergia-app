@@ -1,15 +1,12 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES AVEC GESTION D'ERREURS CORRIGÉE
+// PAGE TÂCHES AVEC IMPORTS CORRIGÉS - VERSION SANS ERREUR BUILD
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Filter, AlertCircle, Calendar, Clock, Star, Users, CheckCircle, XCircle } from 'lucide-react';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { taskAssignmentService } from '../core/services/taskAssignmentService.js';
-import TaskCreationModal from '../components/tasks/TaskCreationModal.jsx';
-import TaskDetailsModal from '../components/tasks/TaskDetailsModal.jsx';
-import TaskEditModal from '../components/tasks/TaskEditModal.jsx';
 import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal.jsx';
 import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
 
@@ -27,10 +24,7 @@ export default function TasksPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   
-  // Modals
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  // Modals (seulement ceux qui existent)
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -182,17 +176,7 @@ export default function TasksPage() {
    */
   const handleViewDetails = (task) => {
     console.log('👁️ [DETAILS] Affichage détails tâche:', task.title);
-    setSelectedTask(task);
-    setShowDetailsModal(true);
-  };
-
-  /**
-   * ✏️ MODIFIER UNE TÂCHE
-   */
-  const handleEditTask = (task) => {
-    console.log('✏️ [EDIT] Modification tâche:', task.title);
-    setSelectedTask(task);
-    setShowEditModal(true);
+    showNotification(`Détails de "${task.title}" - Fonctionnalité à implémenter`, 'info');
   };
 
   /**
@@ -269,13 +253,17 @@ export default function TasksPage() {
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
           notification.type === 'success' 
             ? 'bg-green-100 border border-green-200 text-green-800' 
-            : 'bg-red-100 border border-red-200 text-red-800'
+            : notification.type === 'error'
+            ? 'bg-red-100 border border-red-200 text-red-800'
+            : 'bg-blue-100 border border-blue-200 text-blue-800'
         }`}>
           <div className="flex items-center gap-2">
             {notification.type === 'success' ? (
               <CheckCircle className="w-5 h-5" />
-            ) : (
+            ) : notification.type === 'error' ? (
               <XCircle className="w-5 h-5" />
+            ) : (
+              <AlertCircle className="w-5 h-5" />
             )}
             <span className="font-medium">{notification.message}</span>
           </div>
@@ -290,7 +278,7 @@ export default function TasksPage() {
         </div>
         
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => showNotification('Création de tâche - Fonctionnalité à implémenter', 'info')}
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Plus className="w-5 h-5" />
@@ -352,9 +340,9 @@ export default function TasksPage() {
               task={task}
               isAssigned={true}
               onViewDetails={handleViewDetails}
-              onEdit={handleEditTask}
               onAssignUsers={handleAssignUsers}
               onSubmit={handleSubmitTask}
+              onVolunteer={handleVolunteerForTask}
               currentUser={user}
             />
           ))
@@ -395,39 +383,25 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Modals */}
-      <TaskCreationModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onTaskCreated={loadAllTasks}
-      />
-
-      <TaskDetailsModal
-        isOpen={showDetailsModal}
-        onClose={() => setShowDetailsModal(false)}
-        task={selectedTask}
-      />
-
-      <TaskEditModal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        task={selectedTask}
-        onTaskUpdated={loadAllTasks}
-      />
-
+      {/* Modals (seulement ceux qui existent) */}
       <TaskAssignmentModal
         isOpen={showAssignModal}
         onClose={() => setShowAssignModal(false)}
         task={selectedTask}
-        allUsers={allUsers}
-        onAssignmentComplete={loadAllTasks}
+        onAssignmentSuccess={() => {
+          loadAllTasks();
+          showNotification('Assignation réussie !', 'success');
+        }}
       />
 
       <TaskSubmissionModal
         isOpen={showSubmitModal}
         onClose={() => setShowSubmitModal(false)}
         task={selectedTask}
-        onSubmissionComplete={loadAllTasks}
+        onSubmissionComplete={() => {
+          loadAllTasks();
+          showNotification('Tâche soumise pour validation !', 'success');
+        }}
       />
     </div>
   );
@@ -436,7 +410,7 @@ export default function TasksPage() {
 /**
  * 📋 COMPOSANT CARD DE TÂCHE
  */
-function TaskCard({ task, isAssigned, onViewDetails, onEdit, onAssignUsers, onSubmit, onVolunteer, currentUser }) {
+function TaskCard({ task, isAssigned, onViewDetails, onAssignUsers, onSubmit, onVolunteer, currentUser }) {
   const getPriorityColor = (priority) => {
     const colors = {
       low: 'bg-green-100 text-green-800',
@@ -519,12 +493,6 @@ function TaskCard({ task, isAssigned, onViewDetails, onEdit, onAssignUsers, onSu
                 Soumettre
               </button>
             )}
-            <button
-              onClick={() => onEdit(task)}
-              className="px-3 py-1 text-gray-600 border border-gray-300 rounded hover:bg-gray-50 transition-colors text-sm"
-            >
-              Modifier
-            </button>
             <button
               onClick={() => onAssignUsers(task)}
               className="px-3 py-1 text-purple-600 border border-purple-600 rounded hover:bg-purple-50 transition-colors text-sm"
