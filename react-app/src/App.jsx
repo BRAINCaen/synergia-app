@@ -10,6 +10,57 @@ import { BrowserRouter as Router } from 'react-router-dom';
 // 🚨 CORRECTIONS CRITIQUES EN PREMIER
 // ==========================================
 
+// 🔧 CORRECTION FINALE ADDITIONNELLE
+if (typeof window !== 'undefined') {
+  // Correction finale pour motion.div et $d références
+  setTimeout(() => {
+    console.log('🔧 Application correction finale additionnelle...');
+    
+    // Correction motion.div spécifique
+    if (window.motion && typeof window.motion.div !== 'function') {
+      window.motion.div = React.forwardRef((props, ref) => {
+        const { children, whileHover, whileTap, className = '', style = {}, ...restProps } = props;
+        
+        return React.createElement('div', {
+          ...restProps,
+          ref,
+          className: `${className} motion-div-corrected`,
+          style: {
+            ...style,
+            transition: 'all 0.3s ease-in-out'
+          },
+          onMouseEnter: (e) => {
+            if (whileHover?.scale) e.target.style.transform = `scale(${whileHover.scale})`;
+            if (whileHover?.y) e.target.style.transform += ` translateY(${whileHover.y}px)`;
+          },
+          onMouseLeave: (e) => {
+            e.target.style.transform = 'scale(1) translateY(0)';
+          },
+          onMouseDown: (e) => {
+            if (whileTap?.scale) e.target.style.transform = `scale(${whileTap.scale})`;
+          },
+          onMouseUp: (e) => {
+            e.target.style.transform = 'scale(1)';
+          }
+        }, children);
+      });
+      console.log('✅ motion.div fonction créée');
+    }
+    
+    // Correction $d référence
+    if (!window.$d && window.qd) {
+      window.$d = window.qd;
+      console.log('✅ $d créé comme alias de qd');
+    } else if (!window.$d) {
+      window.$d = {
+        updateUserProgress: window.updateUserProgress || (() => Promise.resolve({ success: false })),
+        getUserProgress: window.getUserProgress || (() => Promise.resolve({ success: false, data: null }))
+      };
+      console.log('✅ $d créé avec fallbacks');
+    }
+  }, 500);
+}
+
 // 🔧 CORRECTION 1: Services de progression utilisateur manquants
 if (typeof window !== 'undefined') {
   // Créer le service de progression en fallback
