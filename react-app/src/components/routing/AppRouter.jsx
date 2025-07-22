@@ -246,24 +246,38 @@ const Dashboard = () => {
 
 // Composant de protection pour les routes authentifiées
 const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuthStore();
+  const { user, loading, isAuthenticated, initialized } = useAuthStore();
   
-  if (loading) {
+  console.log('🛡️ [PROTECTED-ROUTE] État:', {
+    user: !!user,
+    loading,
+    isAuthenticated,
+    initialized,
+    userEmail: user?.email
+  });
+  
+  // Attendre l'initialisation complète
+  if (!initialized || loading) {
+    console.log('⏳ [PROTECTED-ROUTE] En attente d\'initialisation...');
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white">Chargement de l'application...</p>
-          <p className="text-gray-400 text-sm mt-2">Vérification des corrections...</p>
+          <p className="text-gray-400 text-sm mt-2">
+            {!initialized ? 'Initialisation...' : 'Vérification authentification...'}
+          </p>
         </div>
       </div>
     );
   }
   
-  if (!user) {
+  if (!user || !isAuthenticated) {
+    console.log('🚫 [PROTECTED-ROUTE] Redirection vers login - Utilisateur non connecté');
     return <Navigate to="/login" replace />;
   }
   
+  console.log('✅ [PROTECTED-ROUTE] Utilisateur autorisé, rendu des enfants');
   return children;
 };
 
@@ -272,25 +286,70 @@ const ProtectedRoute = ({ children }) => {
 // ==========================================
 
 const AppRouter = () => {
-  console.log('🚀 [ROUTER] AppRouter simplifié initialisé');
+  const { user, loading, isAuthenticated, initialized } = useAuthStore();
+  
+  console.log('🚀 [ROUTER] État actuel:', {
+    user: !!user,
+    userEmail: user?.email,
+    loading,
+    isAuthenticated,
+    initialized,
+    currentPath: window.location.pathname
+  });
+  
+  // Diagnostic complet
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const state = useAuthStore.getState();
+      console.log('📊 [ROUTER-DEBUG] État périodique:', {
+        user: !!state.user,
+        email: state.user?.email,
+        loading: state.loading,
+        isAuthenticated: state.isAuthenticated,
+        initialized: state.initialized,
+        path: window.location.pathname
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
   
   return (
     <Routes>
       {/* Route de connexion */}
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={
+        <div className="debug-wrapper">
+          <div style={{position: 'fixed', top: 10, left: 10, background: 'black', color: 'white', padding: '10px', fontSize: '12px', zIndex: 9999}}>
+            DEBUG LOGIN: user={!!user}, auth={isAuthenticated}, init={initialized}
+          </div>
+          <Login />
+        </div>
+      } />
       
       {/* Route protégée du dashboard */}
       <Route 
         path="/dashboard" 
         element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
+          <div className="debug-wrapper">
+            <div style={{position: 'fixed', top: 10, left: 10, background: 'black', color: 'white', padding: '10px', fontSize: '12px', zIndex: 9999}}>
+              DEBUG DASHBOARD: user={!!user}, auth={isAuthenticated}, init={initialized}
+            </div>
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          </div>
         } 
       />
       
       {/* Redirection par défaut */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={
+        <div className="debug-wrapper">
+          <div style={{position: 'fixed', top: 10, left: 10, background: 'black', color: 'white', padding: '10px', fontSize: '12px', zIndex: 9999}}>
+            DEBUG ROOT: Redirecting... user={!!user}, auth={isAuthenticated}
+          </div>
+          <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
+        </div>
+      } />
       
       {/* Page 404 simple */}
       <Route path="*" element={
@@ -298,8 +357,14 @@ const AppRouter = () => {
           <div className="text-center">
             <h1 className="text-6xl font-bold text-white mb-4">404</h1>
             <p className="text-gray-400 mb-8">Page non trouvée</p>
+            <p className="text-gray-500 text-sm mb-4">
+              Path: {window.location.pathname}
+            </p>
             <button
-              onClick={() => window.location.href = '/dashboard'}
+              onClick={() => {
+                console.log('🏠 Retour dashboard cliqué');
+                window.location.href = '/dashboard';
+              }}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
             >
               🏠 Retour au Dashboard
