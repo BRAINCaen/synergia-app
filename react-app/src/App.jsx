@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
-import AppRouter from './AppRouter.jsx';
+import AppRouter from './components/routing/AppRouter.jsx';
 import ErrorBoundary from './components/common/ErrorBoundary.jsx';
 import { useAuthStore } from './shared/stores/authStore.js';
 import progressService from './core/services/progressService.js';
