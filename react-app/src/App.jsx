@@ -1,16 +1,17 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// ROUTER PROGRESSIF AVEC IMPORTS FIXES
+// ROUTER PROGRESSIF AVEC SIMPLE AUTH CONTEXT
 // ==========================================
 
 import React, { useEffect, useState, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { SimpleAuthProvider, useSimpleAuth } from './contexts/SimpleAuthContext.jsx';
 
 // Import des corrections
 import './utils/xpRewardSafety.js';
 import './utils/productionErrorSuppression.js';
 
-console.log('🔄 [PROGRESSIVE] App.jsx progressif chargé');
+console.log('🔄 [PROGRESSIVE] App.jsx progressif chargé avec Simple Auth');
 
 // ==========================================
 // 🛠️ INTERFACE DEBUG (FALLBACK PERMANENT)
@@ -248,40 +249,30 @@ const DebugInterface = () => {
 // Page de connexion simple
 const LoginPage = () => {
   const [loading, setLoading] = useState(false);
-  const [authStore, setAuthStore] = useState(null);
+  const { signInWithGoogle, user, isAuthenticated } = useSimpleAuth();
   
   console.log('🔐 [PROGRESSIVE] LoginPage rendue');
 
-  // Import dynamique de l'AuthStore
+  // Rediriger si déjà connecté
   useEffect(() => {
-    const loadAuthStore = async () => {
-      try {
-        const module = await import('./shared/stores/authStore.js');
-        setAuthStore(module.useAuthStore);
-        console.log('✅ [LOGIN] AuthStore chargé dynamiquement');
-      } catch (error) {
-        console.warn('⚠️ [LOGIN] Impossible de charger AuthStore:', error.message);
-      }
-    };
-    
-    loadAuthStore();
-  }, []);
+    if (isAuthenticated && user) {
+      console.log('🔄 [LOGIN] Utilisateur déjà connecté, redirection...');
+      window.location.href = '/dashboard';
+    }
+  }, [isAuthenticated, user]);
 
   const handleLogin = async () => {
-    if (!authStore) {
-      alert('❌ Store d\'authentification en cours de chargement...');
-      return;
-    }
-
     try {
       setLoading(true);
-      const { signInWithGoogle } = authStore.getState();
+      console.log('🚀 [LOGIN] Tentative de connexion...');
+      
       const result = await signInWithGoogle();
       
       if (result.success) {
         console.log('✅ [LOGIN] Connexion réussie');
         window.location.href = '/dashboard';
       } else {
+        console.error('❌ [LOGIN] Erreur connexion:', result.error);
         alert('❌ Erreur de connexion: ' + result.error);
       }
     } catch (error) {
@@ -317,22 +308,20 @@ const LoginPage = () => {
         
         <button
           onClick={handleLogin}
-          disabled={loading || !authStore}
+          disabled={loading}
           style={{
             width: '100%',
             padding: '12px',
-            backgroundColor: loading || !authStore ? '#666' : '#4285f4',
+            backgroundColor: loading ? '#666' : '#4285f4',
             color: 'white',
             border: 'none',
             borderRadius: '5px',
             fontSize: '16px',
-            cursor: loading || !authStore ? 'not-allowed' : 'pointer',
+            cursor: loading ? 'not-allowed' : 'pointer',
             marginBottom: '1rem'
           }}
         >
-          {loading ? '🔄 Connexion...' : 
-           !authStore ? '⏳ Chargement...' : 
-           '🚀 Se connecter avec Google'}
+          {loading ? '🔄 Connexion...' : '🚀 Se connecter avec Google'}
         </button>
 
         <button
@@ -357,56 +346,29 @@ const LoginPage = () => {
 
 // Dashboard simple
 const DashboardPage = () => {
-  const [userState, setUserState] = useState({ user: null, loading: true });
-  const [authStore, setAuthStore] = useState(null);
+  const { user, loading, isAuthenticated, signOut } = useSimpleAuth();
 
   console.log('🏠 [PROGRESSIVE] DashboardPage rendue');
 
-  // Import dynamique de l'AuthStore
-  useEffect(() => {
-    const loadAuthStore = async () => {
-      try {
-        const module = await import('./shared/stores/authStore.js');
-        const store = module.useAuthStore;
-        setAuthStore(store);
-        
-        // Récupérer l'état initial
-        const state = store.getState();
-        setUserState({ user: state.user, loading: state.loading });
-        
-        // S'abonner aux changements
-        const unsubscribe = store.subscribe((newState) => {
-          setUserState({ user: newState.user, loading: newState.loading });
-        });
-        
-        console.log('✅ [DASHBOARD] AuthStore chargé dynamiquement');
-        return unsubscribe;
-      } catch (error) {
-        console.error('❌ [DASHBOARD] Erreur chargement AuthStore:', error);
-        setUserState({ user: null, loading: false });
-      }
-    };
-    
-    loadAuthStore();
-  }, []);
-
   const handleLogout = async () => {
-    if (!authStore) {
-      window.location.href = '/login';
-      return;
-    }
-
     try {
-      const { signOut } = authStore.getState();
-      await signOut();
-      window.location.href = '/login';
+      console.log('🚪 [DASHBOARD] Déconnexion...');
+      const result = await signOut();
+      
+      if (result.success) {
+        console.log('✅ [DASHBOARD] Déconnexion réussie');
+        window.location.href = '/login';
+      } else {
+        console.error('❌ [DASHBOARD] Erreur déconnexion:', result.error);
+        window.location.href = '/login';
+      }
     } catch (error) {
       console.error('❌ [DASHBOARD] Erreur déconnexion:', error);
       window.location.href = '/login';
     }
   };
 
-  if (userState.loading) {
+  if (loading) {
     return (
       <div style={{
         minHeight: '100vh',
@@ -416,12 +378,12 @@ const DashboardPage = () => {
         justifyContent: 'center',
         color: 'white'
       }}>
-        <div>🔄 Chargement...</div>
+        <div>🔄 Chargement du dashboard...</div>
       </div>
     );
   }
 
-  if (!userState.user) {
+  if (!user || !isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
@@ -442,7 +404,7 @@ const DashboardPage = () => {
       }}>
         <h1>🏠 Dashboard Synergia</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <span>👋 {userState.user.displayName || userState.user.email}</span>
+          <span>👋 {user.displayName || user.email}</span>
           <button
             onClick={handleLogout}
             style={{
@@ -543,31 +505,13 @@ const ProgressiveRouter = () => {
 // ==========================================
 
 function App() {
-  console.log('🚀 [PROGRESSIVE] App principale exécutée');
+  console.log('🚀 [PROGRESSIVE] App principale exécutée avec Simple Auth');
   
   const [mounted, setMounted] = useState(false);
   
   useEffect(() => {
     console.log('🚀 [PROGRESSIVE] App useEffect');
     setMounted(true);
-    
-    // Initialiser l'auth store dynamiquement
-    const initializeAuth = async () => {
-      try {
-        const module = await import('./shared/stores/authStore.js');
-        const { useAuthStore } = module;
-        const { initializeAuth } = useAuthStore.getState();
-        
-        if (typeof initializeAuth === 'function') {
-          initializeAuth();
-          console.log('✅ [PROGRESSIVE] AuthStore initialisé dynamiquement');
-        }
-      } catch (error) {
-        console.warn('⚠️ [PROGRESSIVE] Erreur initialisation AuthStore:', error.message);
-      }
-    };
-    
-    initializeAuth();
   }, []);
 
   if (!mounted) {
@@ -580,36 +524,39 @@ function App() {
         justifyContent: 'center',
         color: 'white'
       }}>
-        🔄 Initialisation...
+        🔄 Initialisation Simple Auth...
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: '100vh' }}>
-      <Router>
-        <Suspense fallback={
-          <div style={{
-            minHeight: '100vh',
-            backgroundColor: '#0f0f23',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white'
-          }}>
-            🔄 Chargement...
-          </div>
-        }>
-          <ProgressiveRouter />
-        </Suspense>
-      </Router>
-    </div>
+    <SimpleAuthProvider>
+      <div style={{ minHeight: '100vh' }}>
+        <Router>
+          <Suspense fallback={
+            <div style={{
+              minHeight: '100vh',
+              backgroundColor: '#0f0f23',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white'
+            }}>
+              🔄 Chargement des routes...
+            </div>
+          }>
+            <ProgressiveRouter />
+          </Suspense>
+        </Router>
+      </div>
+    </SimpleAuthProvider>
   );
 }
 
 export default App;
 
 // Logs de confirmation
-console.log('🎉 [PROGRESSIVE] App progressif complètement chargé !');
+console.log('🎉 [PROGRESSIVE] App progressif avec Simple Auth complètement chargé !');
 console.log('🎯 [PROGRESSIVE] Routes: /debug, /login, /dashboard, /');
-console.log('🛡️ [PROGRESSIVE] Fallback debug toujours disponible sur /debug');
+console.log('🛡️ [PROGRESSIVE] Simple Auth Context - Sans Zustand');
+console.log('✅ [PROGRESSIVE] Compatible React 18 et production');
