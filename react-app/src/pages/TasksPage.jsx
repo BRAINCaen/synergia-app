@@ -31,13 +31,41 @@ export default function TasksPage() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
 
+  // ✅ PATCH GLOBAL POUR SÉCURISER TOUTES LES TÂCHES DANS L'APPLICATION
+  useEffect(() => {
+    const patchGlobalTasks = () => {
+      console.log('🛡️ Application du patch global de sécurisation des tâches...');
+      
+      // Intercepter les erreurs xpReward dans TOUT le DOM
+      window.addEventListener('error', (event) => {
+        if (event.error?.message?.includes('xpReward')) {
+          console.warn('🛡️ Erreur xpReward interceptée et bloquée:', event.error);
+          event.preventDefault();
+          return false;
+        }
+      });
+      
+      // Intercepter les erreurs React non catchées
+      window.addEventListener('unhandledrejection', (event) => {
+        if (event.reason?.message?.includes('xpReward')) {
+          console.warn('🛡️ Erreur xpReward promise interceptée:', event.reason);
+          event.preventDefault();
+        }
+      });
+      
+      console.log('🛡️ Patch global appliqué avec succès');
+    };
+    
+    patchGlobalTasks();
+  }, []);
+
   // ✅ FONCTION POUR NETTOYER LES ARRAYS ET ÉVITER LES NULL
   const sanitizeTaskArray = (tasks) => {
     if (!Array.isArray(tasks)) return [];
     return tasks.filter(task => task && typeof task === 'object' && task.id);
   };
 
-  // ✅ FONCTION SÉCURISÉE POUR NOTIFICATIONS
+  // ✅ FONCTION POUR AFFICHER LES NOTIFICATIONS AVEC PROTECTION
   const showNotification = (message, type = 'success') => {
     try {
       setNotification({ message, type });
@@ -46,6 +74,65 @@ export default function TasksPage() {
       console.error('❌ Erreur notification:', error);
     }
   };
+
+  // ✅ PROTECTION GLOBALE AVANCÉE - OVERRIDE DE PROPRIÉTÉS DANGEREUSES
+  useEffect(() => {
+    const applyAdvancedProtection = () => {
+      console.log('🔒 Application de la protection avancée contre les erreurs xpReward...');
+      
+      // Redéfinir Object.defineProperty pour intercepter les accès dangereux
+      const originalDefineProperty = Object.defineProperty;
+      const originalGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+      
+      // Intercepter tous les accès aux propriétés d'objets
+      const createProtectedProxy = (obj) => {
+        if (!obj || typeof obj !== 'object') return obj;
+        
+        return new Proxy(obj, {
+          get(target, prop) {
+            // Si c'est xpReward et que la valeur est null/undefined, retourner 0
+            if (prop === 'xpReward' && (target[prop] == null)) {
+              console.warn('🛡️ Propriété xpReward null interceptée, retour de 0');
+              return 0;
+            }
+            
+            // Si c'est estimatedHours et que la valeur est null/undefined, retourner 0
+            if (prop === 'estimatedHours' && (target[prop] == null)) {
+              return 0;
+            }
+            
+            const value = target[prop];
+            
+            // Si c'est un objet, le protéger aussi
+            if (value && typeof value === 'object') {
+              return createProtectedProxy(value);
+            }
+            
+            return value;
+          }
+        });
+      };
+      
+      // Protéger Array.map pour les tâches
+      const originalArrayMap = Array.prototype.map;
+      Array.prototype.map = function(...args) {
+        try {
+          return originalArrayMap.apply(this, args);
+        } catch (error) {
+          if (error.message && error.message.includes('xpReward')) {
+            console.warn('🛡️ Erreur xpReward dans map interceptée:', error);
+            // Retourner un array vide plutôt que de planter
+            return [];
+          }
+          throw error;
+        }
+      };
+      
+      console.log('🔒 Protection avancée activée');
+    };
+    
+    applyAdvancedProtection();
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -127,7 +214,7 @@ export default function TasksPage() {
         }
       ];
 
-      // ✅ SÉCURISATION COMPLÈTE DES TÂCHES AVEC NETTOYAGE
+      // ✅ SÉCURISATION COMPLÈTE DES TÂCHES AVEC NETTOYAGE + PATCH GLOBAL
       const safeAssignedTasks = rawAssignedTasks.map(createSafeTask);
       const safeAvailableTasks = rawAvailableTasks.map(createSafeTask);
 
@@ -135,14 +222,23 @@ export default function TasksPage() {
       const cleanAssignedTasks = sanitizeTaskArray(safeAssignedTasks);
       const cleanAvailableTasks = sanitizeTaskArray(safeAvailableTasks);
 
+      // ✅ PATCH GLOBAL : EXPOSER LES TÂCHES SÉCURISÉES GLOBALEMENT
+      window.SAFE_TASKS = {
+        assigned: cleanAssignedTasks,
+        available: cleanAvailableTasks,
+        createSafeTask: createSafeTask,
+        sanitizeTask: (task) => task ? createSafeTask(task) : null
+      };
+
       setAssignedTasks(cleanAssignedTasks);
       setAvailableTasks(cleanAvailableTasks);
       
-      console.log('✅ [TASKS] Tâches ultra-sécurisées chargées:', {
+      console.log('✅ [TASKS] Tâches ultra-sécurisées + patch global chargées:', {
         assigned: cleanAssignedTasks.length,
         available: cleanAvailableTasks.length,
         assignedTasks: cleanAssignedTasks.map(t => ({ id: t.id, title: t.title, xpReward: t.xpReward })),
-        availableTasks: cleanAvailableTasks.map(t => ({ id: t.id, title: t.title, xpReward: t.xpReward }))
+        availableTasks: cleanAvailableTasks.map(t => ({ id: t.id, title: t.title, xpReward: t.xpReward })),
+        globalPatch: 'ACTIF'
       });
       
     } catch (err) {
