@@ -13,6 +13,9 @@ import progressService from './core/services/progressService.js';
 // 🛡️ IMPORT DU CORRECTIF xpReward SAFETY
 import './utils/xpRewardSafety.js';
 
+// 🤫 IMPORT SUPPRESSION ERREURS PRODUCTION  
+import './utils/productionErrorSuppression.js';
+
 // ==========================================
 // 🎬 CORRECTIONS FRAMER MOTION IMMÉDIATES
 // ==========================================
