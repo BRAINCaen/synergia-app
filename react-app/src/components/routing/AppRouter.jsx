@@ -1,14 +1,17 @@
 // ==========================================
 // 📁 react-app/src/components/routing/AppRouter.jsx
-// ROUTER SIMPLIFIÉ STABLE - VERSION RESTAURÉE
+// AJOUT UNIQUEMENT DE LA ROUTE GAMIFICATION
 // ==========================================
 
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 
+// Import de la page gamification
+import GamificationPage from '../../pages/GamificationPage.jsx';
+
 // ==========================================
-// 🚀 COMPOSANTS DE BASE SIMPLIFIÉS
+// 🚀 COMPOSANTS DE BASE SIMPLIFIÉS (INCHANGÉS)
 // ==========================================
 
 // Page de connexion simple
@@ -96,7 +99,7 @@ const Dashboard = () => {
               <h2 className="text-lg font-semibold text-gray-900 ml-4">Bienvenue !</h2>
             </div>
             <p className="text-gray-600">
-              L'application fonctionne correctement. Toutes les corrections ont été appliquées avec succès.
+              L'application fonctionne correctement. Route gamification ajoutée avec succès.
             </p>
           </div>
 
@@ -119,7 +122,7 @@ const Dashboard = () => {
               </div>
               <div className="flex justify-between">
                 <span>Router:</span>
-                <span className="text-green-600">Simplifié</span>
+                <span className="text-green-600">+ Gamification</span>
               </div>
             </div>
           </div>
@@ -154,7 +157,7 @@ const Dashboard = () => {
   );
 };
 
-// Page de debug simple
+// Page de debug simple (INCHANGÉE)
 const DebugPage = () => {
   const { user } = useAuthStore();
   
@@ -208,7 +211,7 @@ const DebugPage = () => {
 };
 
 // ==========================================
-// 🛡️ COMPOSANTS DE PROTECTION
+// 🛡️ COMPOSANTS DE PROTECTION (INCHANGÉS)
 // ==========================================
 
 // Composant de protection pour les routes authentifiées
@@ -235,11 +238,11 @@ const ProtectedRoute = ({ children }) => {
 };
 
 // ==========================================
-// 🚀 ROUTER PRINCIPAL SIMPLIFIÉ
+// 🚀 ROUTER PRINCIPAL AVEC GAMIFICATION AJOUTÉE
 // ==========================================
 
 const AppRouter = () => {
-  console.log('🚀 [ROUTER] AppRouter simplifié initialisé');
+  console.log('🚀 [ROUTER] AppRouter avec gamification activé');
   
   return (
     <Routes>
@@ -252,6 +255,16 @@ const AppRouter = () => {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* ✨ NOUVELLE ROUTE GAMIFICATION */}
+      <Route 
+        path="/gamification" 
+        element={
+          <ProtectedRoute>
+            <GamificationPage />
           </ProtectedRoute>
         } 
       />
@@ -291,7 +304,7 @@ const AppRouter = () => {
 export default AppRouter;
 
 // Log de confirmation
-console.log('✅ AppRouter simplifié restauré - Version stable');
-console.log('🎯 Routes disponibles: /login, /dashboard, /debug');
-console.log('📊 Composants: Login, Dashboard, Debug, ProtectedRoute');
-console.log('🛡️ Toutes les corrections XP Safety et Framer Motion incluses');
+console.log('✅ AppRouter mis à jour - Route gamification ajoutée');
+console.log('🎯 Routes disponibles: /login, /dashboard, /gamification, /debug');
+console.log('🎮 Gamification maintenant accessible !');
+console.log('🛡️ Toutes les corrections maintenues');
