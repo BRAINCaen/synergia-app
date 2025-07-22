@@ -214,9 +214,11 @@ export default function TasksPage() {
 
   // Filtrer les tâches selon la recherche et le statut
   const filteredAssignedTasks = assignedTasks.filter(task => {
+    if (!task) return false; // ✅ SÉCURITÉ
+    
     const matchesSearch = !searchTerm || 
-      task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      (task.title && task.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
     
@@ -224,9 +226,11 @@ export default function TasksPage() {
   });
 
   const filteredAvailableTasks = availableTasks.filter(task => {
+    if (!task) return false; // ✅ SÉCURITÉ
+    
     const matchesSearch = !searchTerm || 
-      task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      (task.title && task.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()));
     
     return matchesSearch;
   });
@@ -425,9 +429,15 @@ export default function TasksPage() {
 }
 
 /**
- * 📋 COMPOSANT CARD DE TÂCHE
+ * 📋 COMPOSANT CARD DE TÂCHE SÉCURISÉ
  */
 function TaskCard({ task, isAssigned, onViewDetails, onAssignUsers, onSubmit, onVolunteer, currentUser }) {
+  
+  // ✅ SÉCURITÉ : Vérifier que task existe
+  if (!task) {
+    return null;
+  }
+
   const getPriorityColor = (priority) => {
     const colors = {
       low: 'bg-green-100 text-green-800',
@@ -465,25 +475,25 @@ function TaskCard({ task, isAssigned, onViewDetails, onAssignUsers, onSubmit, on
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{task.title || 'Sans titre'}</h3>
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-              {task.priority}
+              {task.priority || 'normal'}
             </span>
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
               {getStatusText(task.status)}
             </span>
           </div>
           
-          <p className="text-gray-600 mb-4">{task.description}</p>
+          <p className="text-gray-600 mb-4">{task.description || 'Aucune description'}</p>
           
           <div className="flex items-center gap-4 text-sm text-gray-500">
             <div className="flex items-center gap-1">
               <Star className="w-4 h-4" />
-              <span>{task.xpReward} XP</span>
+              <span>{task.xpReward || 0} XP</span>
             </div>
             <div className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
-              <span>{task.estimatedHours}h estimées</span>
+              <span>{task.estimatedHours || 0}h estimées</span>
             </div>
             {task.category && (
               <span className="px-2 py-1 bg-gray-100 rounded text-xs">{task.category}</span>
@@ -502,7 +512,7 @@ function TaskCard({ task, isAssigned, onViewDetails, onAssignUsers, onSubmit, on
 
         {isAssigned ? (
           <>
-            {task.status === 'assigned' && (
+            {(task.status === 'assigned' || task.status === 'in_progress') && (
               <button
                 onClick={() => onSubmit(task)}
                 className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
