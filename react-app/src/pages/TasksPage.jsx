@@ -13,7 +13,7 @@ import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal.jsx';
 import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
 
 export default function TasksPage() {
-  // ✅ STATES AVEC VALEURS NORMALES
+  // ✅ STATES AVEC VALEURS PAR DÉFAUT GARANTIES
   const { user } = useAuthStore();
   const [assignedTasks, setAssignedTasks] = useState([]);
   const [availableTasks, setAvailableTasks] = useState([]);
@@ -30,6 +30,12 @@ export default function TasksPage() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+
+  // ✅ FONCTION POUR NETTOYER LES ARRAYS ET ÉVITER LES NULL
+  const sanitizeTaskArray = (tasks) => {
+    if (!Array.isArray(tasks)) return [];
+    return tasks.filter(task => task && typeof task === 'object' && task.id);
+  };
 
   // ✅ FONCTION SÉCURISÉE POUR NOTIFICATIONS
   const showNotification = (message, type = 'success') => {
@@ -121,16 +127,22 @@ export default function TasksPage() {
         }
       ];
 
-      // ✅ SÉCURISATION COMPLÈTE DES TÂCHES
+      // ✅ SÉCURISATION COMPLÈTE DES TÂCHES AVEC NETTOYAGE
       const safeAssignedTasks = rawAssignedTasks.map(createSafeTask);
       const safeAvailableTasks = rawAvailableTasks.map(createSafeTask);
 
-      setAssignedTasks(safeAssignedTasks);
-      setAvailableTasks(safeAvailableTasks);
+      // ✅ DOUBLE VÉRIFICATION AVANT SETTING
+      const cleanAssignedTasks = sanitizeTaskArray(safeAssignedTasks);
+      const cleanAvailableTasks = sanitizeTaskArray(safeAvailableTasks);
+
+      setAssignedTasks(cleanAssignedTasks);
+      setAvailableTasks(cleanAvailableTasks);
       
-      console.log('✅ [TASKS] Tâches sécurisées chargées:', {
-        assigned: safeAssignedTasks.length,
-        available: safeAvailableTasks.length
+      console.log('✅ [TASKS] Tâches ultra-sécurisées chargées:', {
+        assigned: cleanAssignedTasks.length,
+        available: cleanAvailableTasks.length,
+        assignedTasks: cleanAssignedTasks.map(t => ({ id: t.id, title: t.title, xpReward: t.xpReward })),
+        availableTasks: cleanAvailableTasks.map(t => ({ id: t.id, title: t.title, xpReward: t.xpReward }))
       });
       
     } catch (err) {
@@ -236,12 +248,8 @@ export default function TasksPage() {
     setShowSubmitModal(true);
   };
 
-  // Filtrer les tâches avec protection maximale
-  const filteredAssignedTasks = assignedTasks.filter(task => {
-    // ✅ PROTECTION TOTALE
-    if (!task || typeof task !== 'object') return false;
-    if (!task.id) return false;
-    
+  // Filtrer les tâches avec protection maximale et logs de debug
+  const filteredAssignedTasks = sanitizeTaskArray(assignedTasks).filter(task => {
     try {
       const title = task.title || '';
       const description = task.description || '';
@@ -255,16 +263,12 @@ export default function TasksPage() {
       
       return matchesSearch && matchesStatus;
     } catch (error) {
-      console.error('❌ Erreur filtrage tâche:', error, task);
+      console.error('❌ Erreur filtrage tâche assignée:', error, task);
       return false;
     }
   });
 
-  const filteredAvailableTasks = availableTasks.filter(task => {
-    // ✅ PROTECTION TOTALE
-    if (!task || typeof task !== 'object') return false;
-    if (!task.id) return false;
-    
+  const filteredAvailableTasks = sanitizeTaskArray(availableTasks).filter(task => {
     try {
       const title = task.title || '';
       const description = task.description || '';
@@ -400,18 +404,26 @@ export default function TasksPage() {
             <p className="text-gray-600">Vous n'avez aucune tâche assignée pour le moment.</p>
           </div>
         ) : (
-          filteredAssignedTasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              isAssigned={true}
-              onViewDetails={handleViewDetails}
-              onAssignUsers={handleAssignUsers}
-              onSubmit={handleSubmitTask}
-              onVolunteer={handleVolunteerForTask}
-              currentUser={user}
-            />
-          ))
+          filteredAssignedTasks.map((task) => {
+            // ✅ PROTECTION SUPPLÉMENTAIRE DANS LE MAP
+            if (!task || !task.id) {
+              console.warn('⚠️ Tâche invalide ignorée dans map:', task);
+              return null;
+            }
+            
+            return (
+              <TaskCard
+                key={task.id}
+                task={task}
+                isAssigned={true}
+                onViewDetails={handleViewDetails}
+                onAssignUsers={handleAssignUsers}
+                onSubmit={handleSubmitTask}
+                onVolunteer={handleVolunteerForTask}
+                currentUser={user}
+              />
+            );
+          }).filter(Boolean) // ✅ FILTRER LES NULL
         )}
       </div>
 
@@ -435,16 +447,24 @@ export default function TasksPage() {
               <p className="text-green-700">Aucune tâche volontaire n'est disponible actuellement.</p>
             </div>
           ) : (
-            filteredAvailableTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                isAssigned={false}
-                onViewDetails={handleViewDetails}
-                onVolunteer={handleVolunteerForTask}
-                currentUser={user}
-              />
-            ))
+            filteredAvailableTasks.map((task) => {
+              // ✅ PROTECTION SUPPLÉMENTAIRE DANS LE MAP
+              if (!task || !task.id) {
+                console.warn('⚠️ Tâche disponible invalide ignorée:', task);
+                return null;
+              }
+              
+              return (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  isAssigned={false}
+                  onViewDetails={handleViewDetails}
+                  onVolunteer={handleVolunteerForTask}
+                  currentUser={user}
+                />
+              );
+            }).filter(Boolean) // ✅ FILTRER LES NULL
           )}
         </div>
       </div>
