@@ -469,11 +469,18 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Modals */}
+      {/* Modals avec protection des propriétés */}
       <TaskAssignmentModal
         isOpen={showAssignModal}
         onClose={() => setShowAssignModal(false)}
-        task={selectedTask}
+        task={selectedTask ? {
+          ...selectedTask,
+          id: selectedTask.id || 'unknown',
+          title: selectedTask.title || 'Sans titre',
+          xpReward: selectedTask.xpReward || 0,
+          difficulty: selectedTask.difficulty || 'normal',
+          priority: selectedTask.priority || 'medium'
+        } : null}
         onAssignmentSuccess={() => {
           loadAllTasks();
           showNotification('Assignation réussie !', 'success');
@@ -483,7 +490,14 @@ export default function TasksPage() {
       <TaskSubmissionModal
         isOpen={showSubmitModal}
         onClose={() => setShowSubmitModal(false)}
-        task={selectedTask}
+        task={selectedTask ? {
+          ...selectedTask,
+          id: selectedTask.id || 'unknown',
+          title: selectedTask.title || 'Sans titre',
+          xpReward: selectedTask.xpReward || 0,
+          difficulty: selectedTask.difficulty || 'normal',
+          priority: selectedTask.priority || 'medium'
+        } : null}
         onSubmissionComplete={() => {
           loadAllTasks();
           showNotification('Tâche soumise pour validation !', 'success');
