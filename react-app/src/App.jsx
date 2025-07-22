@@ -1,32 +1,72 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APP DEBUG D'URGENCE - DIAGNOSTIC COMPLET
+// ROUTER PROGRESSIF AVEC FALLBACK DEBUG
 // ==========================================
 
-import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router } from 'react-router-dom';
+import React, { useEffect, useState, Suspense } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
-// Logs immédiats pour vérifier l'exécution
-console.log('🚨 [EMERGENCY] App.jsx chargé !');
-console.log('🔍 [EMERGENCY] React version:', React.version);
-console.log('🔍 [EMERGENCY] Window location:', window.location.href);
+// Import des corrections
+import './utils/xpRewardSafety.js';
+import './utils/productionErrorSuppression.js';
 
-// Test simple d'abord
-const EmergencyTest = () => {
-  const [mounted, setMounted] = useState(false);
-  
+// Import sécurisé du store d'auth
+let useAuthStore = null;
+try {
+  useAuthStore = require('./shared/stores/authStore.js').useAuthStore;
+  console.log('✅ [PROGRESSIVE] AuthStore importé avec succès');
+} catch (error) {
+  console.warn('⚠️ [PROGRESSIVE] AuthStore non disponible:', error);
+}
+
+// Import sécurisé de l'ErrorBoundary
+let ErrorBoundary = null;
+try {
+  ErrorBoundary = require('./components/common/ErrorBoundary.jsx').default;
+  console.log('✅ [PROGRESSIVE] ErrorBoundary importé avec succès');
+} catch (error) {
+  console.warn('⚠️ [PROGRESSIVE] ErrorBoundary non disponible, utilisation du fallback');
+  ErrorBoundary = ({ children }) => children;
+}
+
+console.log('🔄 [PROGRESSIVE] App.jsx progressif chargé');
+
+// ==========================================
+// 🛠️ INTERFACE DEBUG (FALLBACK PERMANENT)
+// ==========================================
+
+const DebugInterface = () => {
+  const [debugInfo, setDebugInfo] = useState({
+    corrections: {
+      xpSafety: typeof window.getXPRewardSafely === 'function',
+      motion: typeof window.motion === 'object',
+      progressService: typeof window.updateUserProgress === 'function',
+      animatePresence: typeof window.AnimatePresence === 'function'
+    },
+    stores: {
+      auth: false,
+      authUser: null
+    }
+  });
+
   useEffect(() => {
-    console.log('🚨 [EMERGENCY] EmergencyTest monté !');
-    setMounted(true);
-    
-    // Test toutes les 2 secondes
-    const interval = setInterval(() => {
-      console.log('💗 [EMERGENCY] App est vivant !', new Date().toISOString());
-    }, 2000);
-    
-    return () => clearInterval(interval);
+    // Test des stores
+    if (useAuthStore) {
+      try {
+        const state = useAuthStore.getState();
+        setDebugInfo(prev => ({
+          ...prev,
+          stores: {
+            auth: true,
+            authUser: state.user
+          }
+        }));
+      } catch (error) {
+        console.log('❌ [DEBUG] Erreur test AuthStore:', error);
+      }
+    }
   }, []);
-  
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -35,85 +75,109 @@ const EmergencyTest = () => {
       padding: '20px',
       fontFamily: 'Arial, sans-serif'
     }}>
-      <div style={{
-        maxWidth: '800px',
-        margin: '0 auto',
-        textAlign: 'center'
-      }}>
-        <h1 style={{ fontSize: '3rem', marginBottom: '2rem' }}>
-          🚨 EMERGENCY DEBUG MODE
-        </h1>
+      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
         
-        <div style={{
-          backgroundColor: '#16213e',
-          padding: '2rem',
-          borderRadius: '10px',
-          marginBottom: '2rem',
-          border: '2px solid #0f4c75'
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <h1 style={{ fontSize: '2.5rem', margin: '0 0 1rem 0' }}>
+            🚀 Synergia v3.5.3 - Mode Progressif
+          </h1>
+          <p style={{ color: '#8892b0' }}>
+            Interface de debug avec router progressif
+          </p>
+        </div>
+
+        {/* Status Cards Grid */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+          gap: '1.5rem',
+          marginBottom: '2rem'
         }}>
-          <h2>État de l'Application</h2>
-          <div style={{ textAlign: 'left', marginTop: '1rem' }}>
-            <div>✅ React chargé: {React.version}</div>
-            <div>✅ App.jsx exécuté: {mounted ? 'OUI' : 'NON'}</div>
-            <div>✅ URL actuelle: {window.location.href}</div>
-            <div>✅ Environnement: {import.meta.env.MODE}</div>
-            <div>✅ Timestamp: {new Date().toLocaleString()}</div>
+          
+          {/* État Application */}
+          <div style={{
+            backgroundColor: '#16213e',
+            padding: '1.5rem',
+            borderRadius: '10px',
+            border: '1px solid #0f4c75'
+          }}>
+            <h3 style={{ marginTop: 0, color: '#64ffda' }}>📊 État Application</h3>
+            <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
+              <div>✅ React: 18.3.1</div>
+              <div>✅ Mode: {import.meta.env.MODE}</div>
+              <div>✅ Router: Progressif</div>
+              <div>✅ URL: {window.location.pathname}</div>
+            </div>
+          </div>
+
+          {/* Corrections */}
+          <div style={{
+            backgroundColor: '#16213e',
+            padding: '1.5rem',
+            borderRadius: '10px',
+            border: '1px solid #0f4c75'
+          }}>
+            <h3 style={{ marginTop: 0, color: '#64ffda' }}>🛡️ Corrections</h3>
+            <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
+              <div>{debugInfo.corrections.xpSafety ? '✅' : '❌'} XP Safety</div>
+              <div>{debugInfo.corrections.motion ? '✅' : '❌'} Framer Motion</div>
+              <div>{debugInfo.corrections.progressService ? '✅' : '❌'} Progress Service</div>
+              <div>{debugInfo.corrections.animatePresence ? '✅' : '❌'} AnimatePresence</div>
+            </div>
+          </div>
+
+          {/* Authentification */}
+          <div style={{
+            backgroundColor: '#16213e',
+            padding: '1.5rem',
+            borderRadius: '10px',
+            border: '1px solid #0f4c75'
+          }}>
+            <h3 style={{ marginTop: 0, color: '#64ffda' }}>🔐 Authentification</h3>
+            <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
+              <div>Store: {debugInfo.stores.auth ? '✅ Actif' : '❌ Indisponible'}</div>
+              <div>User: {debugInfo.stores.authUser ? '✅ Connecté' : '❌ Non connecté'}</div>
+              {debugInfo.stores.authUser && (
+                <div style={{ color: '#8892b0', fontSize: '12px', marginTop: '5px' }}>
+                  Email: {debugInfo.stores.authUser.email}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
+        {/* Actions */}
         <div style={{
           backgroundColor: '#16213e',
-          padding: '2rem',
+          padding: '1.5rem',
           borderRadius: '10px',
-          marginBottom: '2rem',
-          border: '2px solid #0f4c75'
+          border: '1px solid #0f4c75',
+          marginBottom: '2rem'
         }}>
-          <h2>Tests des Corrections</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-            <div>
-              <strong>XP Safety:</strong><br />
-              {typeof window.getXPRewardSafely === 'function' ? '✅ ACTIF' : '❌ MANQUANT'}
-            </div>
-            <div>
-              <strong>Motion:</strong><br />
-              {typeof window.motion === 'object' ? '✅ ACTIF' : '❌ MANQUANT'}
-            </div>
-            <div>
-              <strong>Progress Service:</strong><br />
-              {typeof window.updateUserProgress === 'function' ? '✅ ACTIF' : '❌ MANQUANT'}
-            </div>
-            <div>
-              <strong>Error Boundary:</strong><br />
-              ✅ ACTIF (vous voyez cette page)
-            </div>
-          </div>
-        </div>
-
-        <div style={{
-          backgroundColor: '#16213e',
-          padding: '2rem',
-          borderRadius: '10px',
-          marginBottom: '2rem',
-          border: '2px solid #0f4c75'
-        }}>
-          <h2>Actions de Debug</h2>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center', marginTop: '1rem' }}>
+          <h3 style={{ marginTop: 0, color: '#64ffda' }}>⚡ Actions Debug</h3>
+          <div style={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            gap: '1rem', 
+            marginTop: '1rem' 
+          }}>
             <button
               onClick={() => {
-                console.log('🧪 Test corrections démarré');
-                if (window.testCorrections) {
-                  window.testCorrections();
-                } else {
-                  console.log('❌ testCorrections non trouvée');
+                console.log('🧪 [DEBUG] Test complet des corrections');
+                if (window.testCorrections) window.testCorrections();
+                if (window.getXPRewardSafely) {
+                  const test = window.getXPRewardSafely(null, 99);
+                  console.log('🛡️ [DEBUG] XP Safety test:', test);
                 }
               }}
-              style={{
-                backgroundColor: '#0f4c75',
-                color: 'white',
-                padding: '10px 20px',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer'
+              style={{ 
+                padding: '10px 20px', 
+                backgroundColor: '#0f4c75', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '5px', 
+                cursor: 'pointer' 
               }}
             >
               🧪 Test Corrections
@@ -121,174 +185,419 @@ const EmergencyTest = () => {
             
             <button
               onClick={() => {
-                console.log('🧹 Nettoyage localStorage');
+                console.log('🔄 [DEBUG] Tentative de redirection vers login');
+                window.location.href = '/login';
+              }}
+              style={{ 
+                padding: '10px 20px', 
+                backgroundColor: '#2d8a2f', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '5px', 
+                cursor: 'pointer' 
+              }}
+            >
+              🔐 Aller au Login
+            </button>
+            
+            <button
+              onClick={() => {
+                console.log('📊 [DEBUG] Tentative de redirection vers dashboard');
+                window.location.href = '/dashboard';
+              }}
+              style={{ 
+                padding: '10px 20px', 
+                backgroundColor: '#6b46c1', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '5px', 
+                cursor: 'pointer' 
+              }}
+            >
+              🏠 Aller au Dashboard
+            </button>
+            
+            <button
+              onClick={() => {
                 localStorage.clear();
                 sessionStorage.clear();
                 window.location.reload();
               }}
-              style={{
-                backgroundColor: '#b33939',
-                color: 'white',
-                padding: '10px 20px',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer'
+              style={{ 
+                padding: '10px 20px', 
+                backgroundColor: '#b33939', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '5px', 
+                cursor: 'pointer' 
               }}
             >
               🧹 Reset Complet
             </button>
-            
-            <button
-              onClick={() => {
-                console.log('📊 État des stores');
-                if (window.useAuthStore) {
-                  const state = window.useAuthStore.getState();
-                  console.log('AuthStore:', state);
-                } else {
-                  console.log('❌ AuthStore non disponible');
-                }
-              }}
-              style={{
-                backgroundColor: '#2d8a2f',
-                color: 'white',
-                padding: '10px 20px',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer'
-              }}
-            >
-              📊 Debug Stores
-            </button>
-            
-            <button
-              onClick={() => {
-                console.log('🔄 Force reload');
-                window.location.reload();
-              }}
-              style={{
-                backgroundColor: '#6b46c1',
-                color: 'white',
-                padding: '10px 20px',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer'
-              }}
-            >
-              🔄 Recharger
-            </button>
           </div>
         </div>
 
+        {/* Navigation Manuelle */}
         <div style={{
           backgroundColor: '#16213e',
-          padding: '2rem',
+          padding: '1.5rem',
           borderRadius: '10px',
-          border: '2px solid #0f4c75'
+          border: '1px solid #0f4c75'
         }}>
-          <h2>Diagnostic Complet</h2>
-          <div style={{ textAlign: 'left', fontSize: '14px', marginTop: '1rem' }}>
-            <div><strong>URL:</strong> {window.location.pathname}</div>
-            <div><strong>User Agent:</strong> {navigator.userAgent}</div>
-            <div><strong>Cookies:</strong> {document.cookie ? 'Présents' : 'Aucun'}</div>
-            <div><strong>Local Storage:</strong> {Object.keys(localStorage).length} entrées</div>
-            <div><strong>Session Storage:</strong> {Object.keys(sessionStorage).length} entrées</div>
-            <div><strong>Console logs:</strong> Vérifiez la console pour plus de détails</div>
+          <h3 style={{ marginTop: 0, color: '#64ffda' }}>🧭 Navigation Test</h3>
+          <p style={{ fontSize: '14px', color: '#8892b0', margin: '0 0 1rem 0' }}>
+            Testez les différentes routes manuellement :
+          </p>
+          <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
+            <div><strong>/</strong> - Page d'accueil (redirection)</div>
+            <div><strong>/login</strong> - Page de connexion</div>
+            <div><strong>/dashboard</strong> - Tableau de bord</div>
+            <div><strong>/debug</strong> - Cette page (fallback)</div>
           </div>
-        </div>
-
-        <div style={{ marginTop: '2rem', fontSize: '14px', opacity: 0.7 }}>
-          Synergia v3.5.3 - Mode Debug d'Urgence<br />
-          Si vous voyez cette page, React fonctionne correctement
         </div>
       </div>
     </div>
   );
 };
 
-// Import des corrections en mode debug
-try {
-  console.log('🔍 [EMERGENCY] Import des corrections...');
-  
-  // XP Safety
-  import('./utils/xpRewardSafety.js')
-    .then(() => console.log('✅ [EMERGENCY] XP Safety importé'))
-    .catch(err => console.log('❌ [EMERGENCY] XP Safety échoué:', err));
-  
-  // Production Error Suppression
-  import('./utils/productionErrorSuppression.js')
-    .then(() => console.log('✅ [EMERGENCY] Error Suppression importé'))
-    .catch(err => console.log('❌ [EMERGENCY] Error Suppression échoué:', err));
-  
-} catch (error) {
-  console.log('❌ [EMERGENCY] Erreur import corrections:', error);
-}
+// ==========================================
+// 🔐 PAGES ESSENTIELLES PROGRESSIVES
+// ==========================================
 
-// Fonction App principale
-function App() {
-  console.log('🚨 [EMERGENCY] Fonction App() exécutée !');
+// Page de connexion simple
+const LoginPage = () => {
+  const [loading, setLoading] = useState(false);
   
-  const [debugInfo, setDebugInfo] = useState({
-    mounted: false,
-    errors: [],
-    stores: {}
-  });
+  console.log('🔐 [PROGRESSIVE] LoginPage rendue');
 
-  useEffect(() => {
-    console.log('🚨 [EMERGENCY] App useEffect exécuté !');
-    
-    setDebugInfo(prev => ({ ...prev, mounted: true }));
-    
-    // Test des stores
-    setTimeout(() => {
-      try {
-        if (window.useAuthStore) {
-          const authState = window.useAuthStore.getState();
-          console.log('📊 [EMERGENCY] AuthStore état:', authState);
-          setDebugInfo(prev => ({ 
-            ...prev, 
-            stores: { ...prev.stores, auth: authState } 
-          }));
-        }
-      } catch (error) {
-        console.log('❌ [EMERGENCY] Erreur test stores:', error);
-        setDebugInfo(prev => ({ 
-          ...prev, 
-          errors: [...prev.errors, error.message] 
-        }));
-      }
-    }, 1000);
-    
-  }, []);
+  const handleLogin = async () => {
+    if (!useAuthStore) {
+      alert('❌ Store d\'authentification non disponible');
+      return;
+    }
 
-  // Rendu conditionnel pour debug
-  return (
-    <div id="synergia-app-root">
-      <EmergencyTest />
+    try {
+      setLoading(true);
+      const { signInWithGoogle } = useAuthStore.getState();
+      const result = await signInWithGoogle();
       
-      {/* Informations de debug en overlay */}
+      if (result.success) {
+        console.log('✅ [LOGIN] Connexion réussie');
+        window.location.href = '/dashboard';
+      } else {
+        alert('❌ Erreur de connexion: ' + result.error);
+      }
+    } catch (error) {
+      console.error('❌ [LOGIN] Erreur:', error);
+      alert('❌ Erreur de connexion');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#0f0f23',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px'
+    }}>
       <div style={{
-        position: 'fixed',
-        top: '10px',
-        right: '10px',
-        backgroundColor: 'rgba(0,0,0,0.8)',
-        color: 'white',
-        padding: '10px',
-        borderRadius: '5px',
-        fontSize: '12px',
-        maxWidth: '300px',
-        zIndex: 9999
+        backgroundColor: '#1a1a2e',
+        padding: '2rem',
+        borderRadius: '10px',
+        border: '1px solid #0f4c75',
+        textAlign: 'center',
+        maxWidth: '400px',
+        width: '100%'
       }}>
-        <div><strong>DEBUG INFO:</strong></div>
-        <div>Mounted: {debugInfo.mounted ? '✅' : '❌'}</div>
-        <div>Errors: {debugInfo.errors.length}</div>
-        <div>Stores: {Object.keys(debugInfo.stores).length}</div>
-        <div>Mode: {import.meta.env.MODE}</div>
+        <h1 style={{ color: 'white', marginBottom: '1rem' }}>🔐 Connexion Synergia</h1>
+        <p style={{ color: '#8892b0', marginBottom: '2rem' }}>
+          Connectez-vous pour accéder à l'application
+        </p>
+        
+        <button
+          onClick={handleLogin}
+          disabled={loading}
+          style={{
+            width: '100%',
+            padding: '12px',
+            backgroundColor: loading ? '#666' : '#4285f4',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            fontSize: '16px',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            marginBottom: '1rem'
+          }}
+        >
+          {loading ? '🔄 Connexion...' : '🚀 Se connecter avec Google'}
+        </button>
+
+        <button
+          onClick={() => window.location.href = '/debug'}
+          style={{
+            width: '100%',
+            padding: '10px',
+            backgroundColor: 'transparent',
+            color: '#64ffda',
+            border: '1px solid #64ffda',
+            borderRadius: '5px',
+            fontSize: '14px',
+            cursor: 'pointer'
+          }}
+        >
+          🛠️ Mode Debug
+        </button>
       </div>
     </div>
+  );
+};
+
+// Dashboard simple
+const DashboardPage = () => {
+  const [userState, setUserState] = useState({ user: null, loading: true });
+
+  console.log('🏠 [PROGRESSIVE] DashboardPage rendue');
+
+  useEffect(() => {
+    if (useAuthStore) {
+      try {
+        const state = useAuthStore.getState();
+        setUserState({ user: state.user, loading: state.loading });
+        
+        // S'abonner aux changements
+        const unsubscribe = useAuthStore.subscribe((state) => {
+          setUserState({ user: state.user, loading: state.loading });
+        });
+        
+        return unsubscribe;
+      } catch (error) {
+        console.error('❌ [DASHBOARD] Erreur AuthStore:', error);
+        setUserState({ user: null, loading: false });
+      }
+    } else {
+      setUserState({ user: null, loading: false });
+    }
+  }, []);
+
+  const handleLogout = async () => {
+    if (!useAuthStore) {
+      window.location.href = '/login';
+      return;
+    }
+
+    try {
+      const { signOut } = useAuthStore.getState();
+      await signOut();
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('❌ [DASHBOARD] Erreur déconnexion:', error);
+      window.location.href = '/login';
+    }
+  };
+
+  if (userState.loading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#0f0f23',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'white'
+      }}>
+        <div>🔄 Chargement...</div>
+      </div>
+    );
+  }
+
+  if (!userState.user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#0f0f23',
+      color: 'white'
+    }}>
+      {/* Header */}
+      <header style={{
+        backgroundColor: '#1a1a2e',
+        padding: '1rem 2rem',
+        borderBottom: '1px solid #0f4c75',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <h1>🏠 Dashboard Synergia</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <span>👋 {userState.user.displayName || userState.user.email}</span>
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#b33939',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            🚪 Déconnexion
+          </button>
+        </div>
+      </header>
+
+      {/* Contenu */}
+      <main style={{ padding: '2rem' }}>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+          gap: '1.5rem' 
+        }}>
+          
+          {/* Bienvenue */}
+          <div style={{
+            backgroundColor: '#16213e',
+            padding: '1.5rem',
+            borderRadius: '10px',
+            border: '1px solid #0f4c75'
+          }}>
+            <h2 style={{ margin: '0 0 1rem 0', color: '#64ffda' }}>👋 Bienvenue !</h2>
+            <p style={{ color: '#8892b0', margin: 0 }}>
+              Dashboard progressif fonctionnel. Toutes les corrections sont actives.
+            </p>
+          </div>
+
+          {/* Navigation */}
+          <div style={{
+            backgroundColor: '#16213e',
+            padding: '1.5rem',
+            borderRadius: '10px',
+            border: '1px solid #0f4c75'
+          }}>
+            <h2 style={{ margin: '0 0 1rem 0', color: '#64ffda' }}>🧭 Navigation</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <button
+                onClick={() => window.location.href = '/debug'}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: '#0f4c75',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  textAlign: 'left'
+                }}
+              >
+                🛠️ Mode Debug
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+// ==========================================
+// 🚀 ROUTER PROGRESSIF PRINCIPAL
+// ==========================================
+
+const ProgressiveRouter = () => {
+  console.log('🔄 [PROGRESSIVE] ProgressiveRouter initialisé');
+  
+  return (
+    <Routes>
+      {/* Route Debug (fallback permanent) */}
+      <Route path="/debug" element={<DebugInterface />} />
+      
+      {/* Route Login */}
+      <Route path="/login" element={<LoginPage />} />
+      
+      {/* Route Dashboard */}
+      <Route path="/dashboard" element={<DashboardPage />} />
+      
+      {/* Redirection par défaut */}
+      <Route path="/" element={<Navigate to="/debug" replace />} />
+      
+      {/* 404 - Redirection vers debug */}
+      <Route path="*" element={<Navigate to="/debug" replace />} />
+    </Routes>
+  );
+};
+
+// ==========================================
+// 🚀 APP PRINCIPAL
+// ==========================================
+
+function App() {
+  console.log('🚀 [PROGRESSIVE] App principale exécutée');
+  
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    console.log('🚀 [PROGRESSIVE] App useEffect');
+    setMounted(true);
+    
+    // Initialiser l'auth store si disponible
+    if (useAuthStore) {
+      try {
+        const { initializeAuth } = useAuthStore.getState();
+        if (typeof initializeAuth === 'function') {
+          initializeAuth();
+          console.log('✅ [PROGRESSIVE] AuthStore initialisé');
+        }
+      } catch (error) {
+        console.warn('⚠️ [PROGRESSIVE] Erreur initialisation AuthStore:', error);
+      }
+    }
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#0f0f23',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'white'
+      }}>
+        🔄 Initialisation...
+      </div>
+    );
+  }
+
+  return (
+    <ErrorBoundary>
+      <Router>
+        <Suspense fallback={
+          <div style={{
+            minHeight: '100vh',
+            backgroundColor: '#0f0f23',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white'
+          }}>
+            🔄 Chargement...
+          </div>
+        }>
+          <ProgressiveRouter />
+        </Suspense>
+      </Router>
+    </ErrorBoundary>
   );
 }
 
 export default App;
 
 // Logs de confirmation
-console.log('🚨 [EMERGENCY] App.jsx complètement chargé et exporté !');
+console.log('🎉 [PROGRESSIVE] App progressif complètement chargé !');
+console.log('🎯 [PROGRESSIVE] Routes: /debug, /login, /dashboard, /');
+console.log('🛡️ [PROGRESSIVE] Fallback debug toujours disponible sur /debug');
