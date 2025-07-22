@@ -49,7 +49,7 @@ export default function TasksPage() {
   }, [user]);
 
   /**
-   * 📥 CHARGER TOUTES LES TÂCHES - VERSION SÉCURISÉE
+   * 📥 CHARGER TOUTES LES TÂCHES - VERSION ULTRA-SÉCURISÉE
    */
   const loadAllTasks = async () => {
     try {
@@ -58,8 +58,21 @@ export default function TasksPage() {
 
       console.log('📥 [TASKS] Chargement sécurisé des tâches');
       
-      // ✅ DONNÉES DÉMO SÉCURISÉES
-      const demoAssignedTasks = [
+      // ✅ DONNÉES DÉMO AVEC TOUTES LES PROPRIÉTÉS GARANTIES
+      const createSafeTask = (taskData) => ({
+        id: taskData.id || 'unknown',
+        title: taskData.title || 'Sans titre',
+        description: taskData.description || 'Aucune description',
+        status: taskData.status || 'pending',
+        priority: taskData.priority || 'medium',
+        xpReward: taskData.xpReward || 0,
+        estimatedHours: taskData.estimatedHours || 0,
+        dueDate: taskData.dueDate || { seconds: Date.now() / 1000 + 86400 },
+        category: taskData.category || 'Général',
+        openToVolunteers: taskData.openToVolunteers || false
+      });
+
+      const rawAssignedTasks = [
         {
           id: 'demo1',
           title: 'Finaliser le rapport mensuel',
@@ -83,7 +96,7 @@ export default function TasksPage() {
         }
       ];
 
-      const demoAvailableTasks = [
+      const rawAvailableTasks = [
         {
           id: 'demo3',
           title: 'Organiser l\'événement équipe',
@@ -108,14 +121,25 @@ export default function TasksPage() {
         }
       ];
 
-      setAssignedTasks(demoAssignedTasks);
-      setAvailableTasks(demoAvailableTasks);
+      // ✅ SÉCURISATION COMPLÈTE DES TÂCHES
+      const safeAssignedTasks = rawAssignedTasks.map(createSafeTask);
+      const safeAvailableTasks = rawAvailableTasks.map(createSafeTask);
+
+      setAssignedTasks(safeAssignedTasks);
+      setAvailableTasks(safeAvailableTasks);
       
-      console.log('✅ [TASKS] Tâches démo chargées avec succès');
+      console.log('✅ [TASKS] Tâches sécurisées chargées:', {
+        assigned: safeAssignedTasks.length,
+        available: safeAvailableTasks.length
+      });
       
     } catch (err) {
       console.error('❌ Erreur chargement tâches:', err);
       setError(`Erreur lors du chargement des tâches: ${err?.message || 'Erreur inconnue'}`);
+      
+      // ✅ FALLBACK ULTRA-SÉCURISÉ
+      setAssignedTasks([]);
+      setAvailableTasks([]);
     } finally {
       setLoading(false);
     }
@@ -212,27 +236,48 @@ export default function TasksPage() {
     setShowSubmitModal(true);
   };
 
-  // Filtrer les tâches selon la recherche et le statut
+  // Filtrer les tâches avec protection maximale
   const filteredAssignedTasks = assignedTasks.filter(task => {
-    if (!task) return false; // ✅ SÉCURITÉ
+    // ✅ PROTECTION TOTALE
+    if (!task || typeof task !== 'object') return false;
+    if (!task.id) return false;
     
-    const matchesSearch = !searchTerm || 
-      (task.title && task.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
-    
-    return matchesSearch && matchesStatus;
+    try {
+      const title = task.title || '';
+      const description = task.description || '';
+      const status = task.status || '';
+      
+      const matchesSearch = !searchTerm || 
+        title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        description.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = filterStatus === 'all' || status === filterStatus;
+      
+      return matchesSearch && matchesStatus;
+    } catch (error) {
+      console.error('❌ Erreur filtrage tâche:', error, task);
+      return false;
+    }
   });
 
   const filteredAvailableTasks = availableTasks.filter(task => {
-    if (!task) return false; // ✅ SÉCURITÉ
+    // ✅ PROTECTION TOTALE
+    if (!task || typeof task !== 'object') return false;
+    if (!task.id) return false;
     
-    const matchesSearch = !searchTerm || 
-      (task.title && task.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    return matchesSearch;
+    try {
+      const title = task.title || '';
+      const description = task.description || '';
+      
+      const matchesSearch = !searchTerm || 
+        title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        description.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      return matchesSearch;
+    } catch (error) {
+      console.error('❌ Erreur filtrage tâche disponible:', error, task);
+      return false;
+    }
   });
 
   // ✅ AFFICHAGE LOADING SÉCURISÉ
@@ -429,15 +474,29 @@ export default function TasksPage() {
 }
 
 /**
- * 📋 COMPOSANT CARD DE TÂCHE SÉCURISÉ
+ * 📋 COMPOSANT CARD ULTRA-BULLETPROOF
  */
 function TaskCard({ task, isAssigned, onViewDetails, onAssignUsers, onSubmit, onVolunteer, currentUser }) {
   
-  // ✅ SÉCURITÉ : Vérifier que task existe
-  if (!task) {
+  // ✅ SÉCURITÉ MAXIMALE : Triple vérification
+  if (!task || typeof task !== 'object') {
+    console.warn('⚠️ TaskCard: tâche invalide reçue:', task);
     return null;
   }
 
+  // ✅ EXTRACTION SÉCURISÉE DE TOUTES LES PROPRIÉTÉS
+  const safeTask = {
+    id: task.id || 'unknown',
+    title: task.title || 'Sans titre',
+    description: task.description || 'Aucune description',
+    status: task.status || 'pending',
+    priority: task.priority || 'medium',
+    xpReward: typeof task.xpReward === 'number' ? task.xpReward : 0,
+    estimatedHours: typeof task.estimatedHours === 'number' ? task.estimatedHours : 0,
+    category: task.category || null
+  };
+
+  // ✅ FONCTIONS SÉCURISÉES
   const getPriorityColor = (priority) => {
     const colors = {
       low: 'bg-green-100 text-green-800',
@@ -470,33 +529,66 @@ function TaskCard({ task, isAssigned, onViewDetails, onAssignUsers, onSubmit, on
     return texts[status] || 'Inconnu';
   };
 
+  // ✅ GESTIONNAIRES D'ÉVÉNEMENTS SÉCURISÉS
+  const handleViewDetails = () => {
+    try {
+      onViewDetails && onViewDetails(safeTask);
+    } catch (error) {
+      console.error('❌ Erreur view details:', error);
+    }
+  };
+
+  const handleAssignUsers = () => {
+    try {
+      onAssignUsers && onAssignUsers(safeTask);
+    } catch (error) {
+      console.error('❌ Erreur assign users:', error);
+    }
+  };
+
+  const handleSubmit = () => {
+    try {
+      onSubmit && onSubmit(safeTask);
+    } catch (error) {
+      console.error('❌ Erreur submit:', error);
+    }
+  };
+
+  const handleVolunteer = () => {
+    try {
+      onVolunteer && onVolunteer(safeTask);
+    } catch (error) {
+      console.error('❌ Erreur volunteer:', error);
+    }
+  };
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <h3 className="text-lg font-semibold text-gray-900">{task.title || 'Sans titre'}</h3>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-              {task.priority || 'normal'}
+            <h3 className="text-lg font-semibold text-gray-900">{safeTask.title}</h3>
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(safeTask.priority)}`}>
+              {safeTask.priority}
             </span>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
-              {getStatusText(task.status)}
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(safeTask.status)}`}>
+              {getStatusText(safeTask.status)}
             </span>
           </div>
           
-          <p className="text-gray-600 mb-4">{task.description || 'Aucune description'}</p>
+          <p className="text-gray-600 mb-4">{safeTask.description}</p>
           
           <div className="flex items-center gap-4 text-sm text-gray-500">
             <div className="flex items-center gap-1">
               <Star className="w-4 h-4" />
-              <span>{task.xpReward || 0} XP</span>
+              <span>{safeTask.xpReward} XP</span>
             </div>
             <div className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
-              <span>{task.estimatedHours || 0}h estimées</span>
+              <span>{safeTask.estimatedHours}h estimées</span>
             </div>
-            {task.category && (
-              <span className="px-2 py-1 bg-gray-100 rounded text-xs">{task.category}</span>
+            {safeTask.category && (
+              <span className="px-2 py-1 bg-gray-100 rounded text-xs">{safeTask.category}</span>
             )}
           </div>
         </div>
@@ -504,7 +596,7 @@ function TaskCard({ task, isAssigned, onViewDetails, onAssignUsers, onSubmit, on
 
       <div className="flex gap-2 mt-4">
         <button
-          onClick={() => onViewDetails(task)}
+          onClick={handleViewDetails}
           className="px-3 py-1 text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition-colors text-sm"
         >
           Détails
@@ -512,16 +604,16 @@ function TaskCard({ task, isAssigned, onViewDetails, onAssignUsers, onSubmit, on
 
         {isAssigned ? (
           <>
-            {(task.status === 'assigned' || task.status === 'in_progress') && (
+            {(safeTask.status === 'assigned' || safeTask.status === 'in_progress') && (
               <button
-                onClick={() => onSubmit(task)}
+                onClick={handleSubmit}
                 className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
               >
                 Soumettre
               </button>
             )}
             <button
-              onClick={() => onAssignUsers(task)}
+              onClick={handleAssignUsers}
               className="px-3 py-1 text-purple-600 border border-purple-600 rounded hover:bg-purple-50 transition-colors text-sm"
             >
               Assigner
@@ -529,7 +621,7 @@ function TaskCard({ task, isAssigned, onViewDetails, onAssignUsers, onSubmit, on
           </>
         ) : (
           <button
-            onClick={() => onVolunteer(task)}
+            onClick={handleVolunteer}
             className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm flex items-center gap-1"
           >
             <Star className="w-4 h-4" />
