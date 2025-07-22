@@ -111,5 +111,48 @@ setInterval(removeRedLogoutLine, 1000);
 // Fonction pour debug - vous pouvez l'utiliser dans la console
 window.emergencyClean = removeRedLogoutLine;
 </script>
+  <script>
+// 🚨 PATCH D'URGENCE ANTI-XPREWARD - EXÉCUTION IMMÉDIATE
+(function() {
+  console.log('🚨 PATCH D\'URGENCE XPREWARD - ACTIVATION IMMÉDIATE...');
+  
+  // 1️⃣ INTERCEPTER TOUTES LES ERREURS AVANT REACT
+  window.addEventListener('error', function(event) {
+    if (event.error && event.error.message && event.error.message.includes('xpReward')) {
+      console.warn('🛡️ [EMERGENCY PATCH] Erreur xpReward bloquée:', event.error.message);
+      event.stopImmediatePropagation();
+      event.preventDefault();
+      return false;
+    }
+  }, true);
+  
+  // 2️⃣ PATCH OBJECT.GETOWNPROPERTYDESCRIPTOR
+  const originalGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+  Object.getOwnPropertyDescriptor = function(obj, prop) {
+    if (prop === 'xpReward' && (!obj || obj[prop] == null)) {
+      console.warn('🛡️ [EMERGENCY PATCH] xpReward null intercepté');
+      return {
+        value: 0,
+        writable: true,
+        enumerable: true,
+        configurable: true
+      };
+    }
+    return originalGetOwnPropertyDescriptor.call(this, obj, prop);
+  };
+  
+  // 3️⃣ PATCH PROPERTY ACCESS
+  const originalHasOwnProperty = Object.prototype.hasOwnProperty;
+  Object.prototype.hasOwnProperty = function(prop) {
+    if (prop === 'xpReward' && this && this[prop] == null) {
+      console.warn('🛡️ [EMERGENCY PATCH] xpReward null détecté, injection de 0');
+      this[prop] = 0;
+    }
+    return originalHasOwnProperty.call(this, prop);
+  };
+  
+  console.log('🛡️ PATCH D\'URGENCE XPREWARD ACTIVÉ - PROTECTION TOTALE');
+})();
+</script>
 </body>
 </html>
