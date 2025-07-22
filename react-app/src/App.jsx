@@ -1,13 +1,12 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APPLICATION PRINCIPALE AVEC NAVIGATION COMPLÈTE
+// VERSION STABLE RESTAURÉE - APP PRINCIPAL
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { useAuthStore } from './shared/stores/authStore.js';
-import MainLayout from './shared/layouts/MainLayout.jsx';
-import AppRouter from './routes/index.jsx';
+import AppRouter from './components/routing/AppRouter.jsx';
 
 // ==========================================
 // 🛡️ CORRECTIONS ET PATCHES DE SÉCURITÉ
@@ -180,7 +179,7 @@ function App() {
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white mx-auto mb-6"></div>
           <h1 className="text-2xl font-bold text-white mb-2">Synergia v3.5.3</h1>
           <p className="text-gray-400">Chargement de l'application...</p>
-          <p className="text-gray-500 text-sm mt-2">Initialisation des services...</p>
+          <p className="text-gray-500 text-sm mt-2">Version stable restaurée</p>
         </div>
       </div>
     );
@@ -189,46 +188,19 @@ function App() {
   return (
     <Router>
       <div className="App">
-        {/* Routes avec layout conditionnel */}
-        {/* Les pages de login n'ont pas besoin du layout principal */}
-        <AppRouterWithLayout />
+        <AppRouter />
       </div>
     </Router>
   );
 }
-
-// ==========================================
-// 🎨 COMPOSANT ROUTER AVEC LAYOUT CONDITIONNEL
-// ==========================================
-
-const AppRouterWithLayout = () => {
-  const { user } = useAuthStore();
-  
-  // Si l'utilisateur n'est pas connecté, pas de layout principal
-  if (!user) {
-    return <AppRouter />;
-  }
-  
-  // Si l'utilisateur est connecté, layout principal avec navigation
-  return (
-    <MainLayout>
-      <AppRouter />
-    </MainLayout>
-  );
-};
 
 export default App;
 
 // ==========================================
 // 📋 LOGS DE CONFIRMATION
 // ==========================================
-console.log('✅ [APP] Application principale mise à jour');
-console.log('🎯 [APP] Fonctionnalités activées:');
-console.log('  🚀 Router complet avec toutes les pages');
-console.log('  🧭 Navigation avec menu collapser/expand');
-console.log('  🎨 Layout responsive (mobile + desktop)');
-console.log('  🔒 Protection des routes (public/privé/admin)');
-console.log('  🛡️ Corrections XP Safety + Framer Motion');
-console.log('  🔇 Suppression automatique des erreurs corrigées');
-console.log('📱 [APP] Expérience utilisateur complète');
-console.log('🎮 [APP] Gamification pleinement accessible');
+console.log('✅ [APP] Version stable restaurée');
+console.log('🔧 [APP] Corrections appliquées: XP Safety + Framer Motion');
+console.log('🚀 [APP] Router simplifié: Login + Dashboard + Debug');
+console.log('🛡️ [APP] Suppression d\'erreurs automatique');
+console.log('📍 [APP] Prêt pour utilisation stable');
