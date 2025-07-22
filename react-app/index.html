@@ -111,54 +111,5 @@ setInterval(removeRedLogoutLine, 1000);
 // Fonction pour debug - vous pouvez l'utiliser dans la console
 window.emergencyClean = removeRedLogoutLine;
 </script>
-<script>
-// 🚨 PATCH FINAL ANTI-XPREWARD - NEUTRALISATION COMPLÈTE
-(function() {
-  console.log('🔥 PATCH FINAL XPREWARD - SOLUTION DÉFINITIVE...');
-  
-  // 1️⃣ BYPASS REACT ERROR BOUNDARY POUR XPREWARD
-  if (typeof React !== 'undefined' && React.Component) {
-    const originalGDSFE = React.Component.getDerivedStateFromError;
-    React.Component.getDerivedStateFromError = function(error) {
-      if (error && error.message && error.message.includes('xpReward')) {
-        console.warn('🛡️ [PATCH FINAL] Error Boundary xpReward bypassé');
-        return { hasError: false }; // NE PAS DÉCLENCHER L'ERROR BOUNDARY
-      }
-      return originalGDSFE ? originalGDSFE.call(this, error) : { hasError: true };
-    };
-  }
-  
-  // 2️⃣ NEUTRALISER console.error COMPLÈTEMENT
-  const originalConsoleError = console.error;
-  console.error = function(...args) {
-    const message = args.join(' ');
-    if (message.includes('xpReward') || message.includes('Cannot read properties of null')) {
-      console.warn('🛡️ [PATCH FINAL] Erreur masquée');
-      return;
-    }
-    return originalConsoleError.apply(console, args);
-  };
-  
-  // 3️⃣ REDÉFINIR xpReward GLOBALEMENT
-  try {
-    Object.defineProperty(Object.prototype, 'xpReward', {
-      get: function() { return this._xpReward == null ? 0 : this._xpReward; },
-      set: function(newValue) { this._xpReward = newValue == null ? 0 : newValue; },
-      enumerable: true,
-      configurable: true
-    });
-  } catch (e) { /* Ignoré si bloqué */ }
-  
-  // 4️⃣ FORCER RELOAD SI PAGE D'ERREUR DÉTECTÉE
-  setTimeout(() => {
-    if (document.body.textContent.includes('Erreur Application')) {
-      console.log('🔄 [PATCH FINAL] Page d\'erreur détectée, reload...');
-      window.location.reload();
-    }
-  }, 1000);
-  
-  console.log('🔥 PATCH FINAL ACTIVÉ');
-})();
-</script>
 </body>
 </html>
