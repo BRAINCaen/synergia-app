@@ -1,64 +1,483 @@
 // ==========================================
-// 📁 react-app/src/index.jsx
-// INDEX ULTRA SIMPLE - RETOUR À LA VERSION ORIGINALE
+// 📁 react-app/src/routes/index.jsx
+// ROUTER COMPLET AVEC TOUTES LES PAGES ACTIVÉES
 // ==========================================
 
 import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App.jsx';
-import './index.css';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { ROUTES } from '../core/constants.js';
 
-// 🔧 VÉRIFICATION QUE L'ÉLÉMENT ROOT EXISTE
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  console.error('❌ Élément root non trouvé dans index.html');
-  throw new Error('Element with id "root" not found');
-}
+// ==========================================
+// 🔐 PAGES PUBLIQUES
+// ==========================================
+import Login from '../pages/Login.jsx';
+import NotFound from '../pages/NotFound.jsx';
 
-// Créer le root React 18
-const root = ReactDOM.createRoot(rootElement);
+// ==========================================
+// 🏠 PAGES PRINCIPALES
+// ==========================================
+import Dashboard from '../pages/Dashboard.jsx';
+import TasksPage from '../pages/TasksPage.jsx';
+import ProjectsPage from '../pages/ProjectsPage.jsx';
+import Analytics from '../pages/Analytics.jsx';
 
-// Fonction de rendu simple et robuste
-const renderApp = () => {
-  try {
-    root.render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
-    );
-    console.log('✅ Synergia v3.5 démarré avec succès');
-  } catch (error) {
-    console.error('❌ Erreur lors du rendu:', error);
-    // Rendu de fallback en cas d'erreur
-    root.render(
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+// ==========================================
+// 🎮 PAGES GAMIFICATION
+// ==========================================
+import GamificationPage from '../pages/GamificationPage.jsx';
+import BadgesPage from '../pages/BadgesPage.jsx';
+import RewardsPage from '../pages/RewardsPage.jsx';
+
+// ==========================================
+// 🏆 PAGES PROGRESSION (si disponibles)
+// ==========================================
+// import RoleProgressionPage from '../pages/RoleProgressionPage.jsx';
+// import RoleTasksPage from '../pages/RoleTasksPage.jsx';
+// import RoleBadgesPage from '../pages/RoleBadgesPage.jsx';
+// import EscapeProgressionPage from '../pages/EscapeProgressionPage.jsx';
+
+// ==========================================
+// 👥 PAGES ÉQUIPE
+// ==========================================
+import TeamPage from '../pages/TeamPage.jsx';
+import UsersPage from '../pages/UsersPage.jsx';
+
+// ==========================================
+// 🛠️ PAGES OUTILS
+// ==========================================
+import OnboardingPage from '../pages/OnboardingPage.jsx';
+import TimeTrackPage from '../pages/TimeTrackPage.jsx';
+import ProfilePage from '../pages/ProfilePage.jsx';
+import SettingsPage from '../pages/SettingsPage.jsx';
+
+// ==========================================
+// 🛡️ PAGES ADMIN
+// ==========================================
+import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx';
+import CompleteAdminTestPage from '../pages/CompleteAdminTestPage.jsx';
+// import AdminDashboardTuteurPage from '../pages/AdminDashboardTuteurPage.jsx';
+// import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx';
+// import AdminRewardsPage from '../pages/AdminRewardsPage.jsx';
+// import AdminBadgesPage from '../pages/AdminBadgesPage.jsx';
+// import AdminUsersPage from '../pages/AdminUsersPage.jsx';
+// import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx';
+// import AdminSettingsPage from '../pages/AdminSettingsPage.jsx';
+
+// ==========================================
+// 🔒 COMPOSANT DE PROTECTION DES ROUTES
+// ==========================================
+const ProtectedRoute = ({ children, adminOnly = false }) => {
+  const { user, isAuthenticated, loading } = useAuthStore();
+
+  console.log('🔒 [PROTECTED-ROUTE] État:', { 
+    isAuthenticated, 
+    loading, 
+    userUID: user?.uid,
+    adminOnly 
+  });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-white text-2xl mb-4">Erreur de démarrage</h1>
-          <p className="text-red-400 mb-4">Une erreur est survenue lors du chargement de l'application.</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Recharger la page
-          </button>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white">Chargement...</p>
         </div>
       </div>
     );
   }
+
+  if (!isAuthenticated || !user) {
+    console.log('🚫 [PROTECTED-ROUTE] Redirection vers login');
+    return <Navigate to="/login" replace />;
+  }
+
+  // Vérification admin pour les routes admin
+  if (adminOnly) {
+    const isAdmin = user?.role === 'admin' || 
+                   user?.profile?.role === 'admin' || 
+                   user?.isAdmin === true ||
+                   user?.email === 'alan.boehme61@gmail.com'; // Admin par défaut
+
+    if (!isAdmin) {
+      console.log('🚫 [PROTECTED-ROUTE] Accès admin refusé');
+      return <Navigate to="/dashboard" replace />;
+    }
+  }
+
+  return children;
 };
 
-// Démarrer l'application
-renderApp();
+// ==========================================
+// 📄 COMPOSANT PAGE TEMPORAIRE
+// ==========================================
+const TemporaryPage = ({ title, description, icon }) => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700 text-center">
+        <div className="text-6xl mb-4">{icon}</div>
+        <h1 className="text-3xl font-bold text-white mb-4">{title}</h1>
+        <p className="text-gray-400 mb-8">{description}</p>
+        <p className="text-sm text-gray-500">Cette page sera développée prochainement</p>
+        <button
+          onClick={() => window.history.back()}
+          className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+        >
+          ← Retour
+        </button>
+      </div>
+    </div>
+  </div>
+);
 
-// Gestion des erreurs globales
-window.addEventListener('error', (event) => {
-  console.error('❌ Erreur globale:', event.error);
-});
+// ==========================================
+// 🚀 ROUTER PRINCIPAL COMPLET
+// ==========================================
+const AppRouter = () => {
+  console.log('🚀 [ROUTER] Router complet initialisé avec toutes les pages');
 
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('❌ Promise rejetée:', event.reason);
-});
+  return (
+    <Routes>
+      {/* ==========================================
+          🔐 ROUTES PUBLIQUES
+          ========================================== */}
+      <Route path="/login" element={<Login />} />
 
-// Debug info
-console.log('🚀 Index.jsx chargé - Synergia v3.5');
-console.log('📍 Environment:', import.meta.env.MODE);
+      {/* ==========================================
+          🏠 ROUTES PRINCIPALES
+          ========================================== */}
+      <Route 
+        path="/dashboard" 
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/tasks" 
+        element={
+          <ProtectedRoute>
+            <TasksPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/projects" 
+        element={
+          <ProtectedRoute>
+            <ProjectsPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/analytics" 
+        element={
+          <ProtectedRoute>
+            <Analytics />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* ==========================================
+          🎮 ROUTES GAMIFICATION
+          ========================================== */}
+      <Route 
+        path="/gamification" 
+        element={
+          <ProtectedRoute>
+            <GamificationPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/badges" 
+        element={
+          <ProtectedRoute>
+            <BadgesPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/leaderboard" 
+        element={
+          <ProtectedRoute>
+            <TemporaryPage 
+              title="Classement"
+              description="Découvrez le classement de votre équipe"
+              icon="🥇"
+            />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/rewards" 
+        element={
+          <ProtectedRoute>
+            <RewardsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* ==========================================
+          🏆 ROUTES PROGRESSION (temporaires)
+          ========================================== */}
+      <Route 
+        path="/role-progression" 
+        element={
+          <ProtectedRoute>
+            <TemporaryPage 
+              title="Progression des Rôles"
+              description="Suivez votre progression dans vos différents rôles"
+              icon="🏆"
+            />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/role-tasks" 
+        element={
+          <ProtectedRoute>
+            <TemporaryPage 
+              title="Tâches par Rôle"
+              description="Gérez vos tâches selon vos rôles"
+              icon="📋"
+            />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/role-badges" 
+        element={
+          <ProtectedRoute>
+            <TemporaryPage 
+              title="Badges par Rôle"
+              description="Débloquez des badges spécialisés"
+              icon="🎖️"
+            />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/escape-progression" 
+        element={
+          <ProtectedRoute>
+            <TemporaryPage 
+              title="Escape Game Progression"
+              description="Votre aventure gamifiée commence ici"
+              icon="🗝️"
+            />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* ==========================================
+          👥 ROUTES ÉQUIPE
+          ========================================== */}
+      <Route 
+        path="/team" 
+        element={
+          <ProtectedRoute>
+            <TeamPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/users" 
+        element={
+          <ProtectedRoute>
+            <UsersPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* ==========================================
+          🛠️ ROUTES OUTILS
+          ========================================== */}
+      <Route 
+        path="/onboarding" 
+        element={
+          <ProtectedRoute>
+            <OnboardingPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/timetrack" 
+        element={
+          <ProtectedRoute>
+            <TimeTrackPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/profile" 
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/settings" 
+        element={
+          <ProtectedRoute>
+            <SettingsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* ==========================================
+          🛡️ ROUTES ADMIN
+          ========================================== */}
+      <Route 
+        path="/admin/dashboard-tuteur" 
+        element={
+          <ProtectedRoute adminOnly>
+            <TemporaryPage 
+              title="Dashboard Tuteur"
+              description="Interface dédiée aux tuteurs pour le suivi des équipes"
+              icon="👨‍🏫"
+            />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/admin/task-validation" 
+        element={
+          <ProtectedRoute adminOnly>
+            <AdminTaskValidationPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/admin/complete-test" 
+        element={
+          <ProtectedRoute adminOnly>
+            <CompleteAdminTestPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/admin/role-permissions" 
+        element={
+          <ProtectedRoute adminOnly>
+            <TemporaryPage 
+              title="Permissions des Rôles"
+              description="Gérez les permissions et accès de chaque rôle"
+              icon="🔐"
+            />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/admin/rewards" 
+        element={
+          <ProtectedRoute adminOnly>
+            <TemporaryPage 
+              title="Gestion des Récompenses"
+              description="Configurez et gérez le système de récompenses"
+              icon="🎁"
+            />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/admin/badges" 
+        element={
+          <ProtectedRoute adminOnly>
+            <TemporaryPage 
+              title="Gestion des Badges"
+              description="Créez et gérez les badges de l'application"
+              icon="🏆"
+            />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/admin/users" 
+        element={
+          <ProtectedRoute adminOnly>
+            <TemporaryPage 
+              title="Gestion des Utilisateurs"
+              description="Administrez les comptes utilisateurs"
+              icon="👥"
+            />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/admin/analytics" 
+        element={
+          <ProtectedRoute adminOnly>
+            <TemporaryPage 
+              title="Analytics Admin"
+              description="Statistiques détaillées pour les administrateurs"
+              icon="📈"
+            />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/admin/settings" 
+        element={
+          <ProtectedRoute adminOnly>
+            <TemporaryPage 
+              title="Paramètres Admin"
+              description="Configuration avancée de l'application"
+              icon="⚙️"
+            />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* ==========================================
+          🔄 REDIRECTIONS ET 404
+          ========================================== */}
+      
+      {/* Redirection racine vers dashboard */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      
+      {/* Page 404 */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
+
+export default AppRouter;
+
+// ==========================================
+// 📋 LOGS DE CONFIRMATION
+// ==========================================
+console.log('✅ [ROUTER] Router complet initialisé');
+console.log('🎯 [ROUTER] Pages activées:');
+console.log('  🏠 Principales: Dashboard, Tasks, Projects, Analytics');
+console.log('  🎮 Gamification: Gamification, Badges, Rewards, Leaderboard');
+console.log('  🏆 Progression: Role-progression, Role-tasks, Role-badges, Escape');
+console.log('  👥 Équipe: Team, Users');
+console.log('  🛠️ Outils: Onboarding, Timetrack, Profile, Settings');
+console.log('  🛡️ Admin: 9 pages admin avec protection');
+console.log('🔒 [ROUTER] Protection: Routes publiques/privées/admin');
+console.log('📄 [ROUTER] Fallback: Pages temporaires pour développement futur');
