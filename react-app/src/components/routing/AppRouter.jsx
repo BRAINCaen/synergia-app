@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/routing/AppRouter.jsx
-// ROUTER SIMPLIFIÉ POUR DEBUG DE LA PAGE BLANCHE
+// ROUTER SIMPLIFIÉ STABLE - VERSION RESTAURÉE
 // ==========================================
 
 import React from 'react';
@@ -55,6 +55,11 @@ const Dashboard = () => {
     }
   };
 
+  const handleNavigateToGamification = () => {
+    // Simple redirection JavaScript pour éviter les problèmes de router
+    window.location.href = '/gamification';
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header simple */}
@@ -72,7 +77,7 @@ const Dashboard = () => {
               onClick={handleLogout}
               className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
             >
-              Se déconnecter
+              Puck Time
             </button>
           </div>
         </div>
@@ -95,102 +100,11 @@ const Dashboard = () => {
             </p>
           </div>
 
-          {/* Statut des corrections */}
+          {/* État de l'application */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center mb-4">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <span className="text-2xl">✅</span>
-              </div>
-              <h2 className="text-lg font-semibold text-gray-900 ml-4">Corrections</h2>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>XP Safety:</span>
-                <span className="text-green-600">✅ Actif</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Framer Motion:</span>
-                <span className="text-green-600">✅ Corrigé</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Progress Service:</span>
-                <span className="text-green-600">✅ Créé</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Error Boundary:</span>
-                <span className="text-green-600">✅ Actif</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Informations utilisateur */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">👤</span>
-              </div>
-              <h2 className="text-lg font-semibold text-gray-900 ml-4">Profil</h2>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>Email:</span>
-                <span className="text-gray-600 truncate">{user?.email}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Nom:</span>
-                <span className="text-gray-600">{user?.displayName || 'Non défini'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Connecté:</span>
-                <span className="text-green-600">✅ Oui</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Test des fonctions globales */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">🧪</span>
-              </div>
-              <h2 className="text-lg font-semibold text-gray-900 ml-4">Tests</h2>
-            </div>
-            <div className="space-y-3">
-              <button
-                onClick={() => {
-                  if (window.testCorrections) {
-                    window.testCorrections();
-                    alert('✅ Test exécuté - voir la console');
-                  } else {
-                    alert('❌ Fonction testCorrections non trouvée');
-                  }
-                }}
-                className="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-              >
-                🧪 Test Corrections
-              </button>
-              
-              <button
-                onClick={() => {
-                  if (window.getXPRewardSafely) {
-                    const result = window.getXPRewardSafely(null, 25);
-                    alert(`✅ XP Safety Test: ${result} (doit être 25)`);
-                  } else {
-                    alert('❌ Fonction XP Safety non trouvée');
-                  }
-                }}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-              >
-                🛡️ Test XP Safety
-              </button>
-            </div>
-          </div>
-
-          {/* Logs en temps réel */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">📋</span>
               </div>
               <h2 className="text-lg font-semibold text-gray-900 ml-4">État</h2>
             </div>
@@ -201,7 +115,7 @@ const Dashboard = () => {
               </div>
               <div className="flex justify-between">
                 <span>Build:</span>
-                <span className="text-green-600">Production</span>
+                <span className="text-green-600">Stable</span>
               </div>
               <div className="flex justify-between">
                 <span>Router:</span>
@@ -210,32 +124,85 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Actions rapides */}
+          {/* Navigation rapide */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">⚡</span>
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <span className="text-2xl">🧭</span>
               </div>
-              <h2 className="text-lg font-semibold text-gray-900 ml-4">Actions</h2>
+              <h2 className="text-lg font-semibold text-gray-900 ml-4">Navigation</h2>
             </div>
             <div className="space-y-3">
               <button
-                onClick={() => window.location.reload()}
-                className="w-full bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                onClick={handleNavigateToGamification}
+                className="w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
               >
-                🔄 Recharger
+                🎮 Aller à la Gamification
               </button>
               
               <button
-                onClick={() => console.clear()}
+                onClick={() => window.location.href = '/debug'}
                 className="w-full bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
               >
-                🧹 Nettoyer Console
+                🔧 Mode Debug
               </button>
             </div>
           </div>
         </div>
       </main>
+    </div>
+  );
+};
+
+// Page de debug simple
+const DebugPage = () => {
+  const { user } = useAuthStore();
+  
+  return (
+    <div className="min-h-screen bg-gray-900 p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-gray-800 rounded-xl p-8 border border-gray-700">
+          <h1 className="text-white text-2xl font-bold mb-6">🔧 Mode Debug</h1>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Informations utilisateur */}
+            <div className="bg-gray-700 rounded-lg p-4">
+              <h3 className="text-white font-semibold mb-3">👤 Utilisateur</h3>
+              <div className="space-y-2 text-sm">
+                <div className="text-gray-300">UID: {user?.uid || 'Non connecté'}</div>
+                <div className="text-gray-300">Email: {user?.email || 'N/A'}</div>
+                <div className="text-gray-300">Nom: {user?.displayName || 'N/A'}</div>
+              </div>
+            </div>
+            
+            {/* État des corrections */}
+            <div className="bg-gray-700 rounded-lg p-4">
+              <h3 className="text-white font-semibold mb-3">🛡️ Corrections</h3>
+              <div className="space-y-2 text-sm">
+                <div className="text-gray-300">Motion: {typeof window !== 'undefined' && window.motion ? '✅' : '❌'}</div>
+                <div className="text-gray-300">Services: {typeof window !== 'undefined' && window.updateUserProgress ? '✅' : '❌'}</div>
+                <div className="text-gray-300">XP Safety: {typeof window !== 'undefined' && window.getXPRewardSafely ? '✅' : '❌'}</div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-6 flex space-x-4">
+            <button
+              onClick={() => window.location.href = '/dashboard'}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              ← Retour Dashboard
+            </button>
+            
+            <button
+              onClick={() => console.clear()}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              🧹 Clear Console
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -246,38 +213,24 @@ const Dashboard = () => {
 
 // Composant de protection pour les routes authentifiées
 const ProtectedRoute = ({ children }) => {
-  const { user, loading, isAuthenticated, initialized } = useAuthStore();
+  const { user, loading } = useAuthStore();
   
-  console.log('🛡️ [PROTECTED-ROUTE] État:', {
-    user: !!user,
-    loading,
-    isAuthenticated,
-    initialized,
-    userEmail: user?.email
-  });
-  
-  // Attendre l'initialisation complète
-  if (!initialized || loading) {
-    console.log('⏳ [PROTECTED-ROUTE] En attente d\'initialisation...');
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white">Chargement de l'application...</p>
-          <p className="text-gray-400 text-sm mt-2">
-            {!initialized ? 'Initialisation...' : 'Vérification authentification...'}
-          </p>
+          <p className="text-gray-400 text-sm mt-2">Vérification des corrections...</p>
         </div>
       </div>
     );
   }
   
-  if (!user || !isAuthenticated) {
-    console.log('🚫 [PROTECTED-ROUTE] Redirection vers login - Utilisateur non connecté');
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
   
-  console.log('✅ [PROTECTED-ROUTE] Utilisateur autorisé, rendu des enfants');
   return children;
 };
 
@@ -286,70 +239,35 @@ const ProtectedRoute = ({ children }) => {
 // ==========================================
 
 const AppRouter = () => {
-  const { user, loading, isAuthenticated, initialized } = useAuthStore();
-  
-  console.log('🚀 [ROUTER] État actuel:', {
-    user: !!user,
-    userEmail: user?.email,
-    loading,
-    isAuthenticated,
-    initialized,
-    currentPath: window.location.pathname
-  });
-  
-  // Diagnostic complet
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const state = useAuthStore.getState();
-      console.log('📊 [ROUTER-DEBUG] État périodique:', {
-        user: !!state.user,
-        email: state.user?.email,
-        loading: state.loading,
-        isAuthenticated: state.isAuthenticated,
-        initialized: state.initialized,
-        path: window.location.pathname
-      });
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
+  console.log('🚀 [ROUTER] AppRouter simplifié initialisé');
   
   return (
     <Routes>
       {/* Route de connexion */}
-      <Route path="/login" element={
-        <div className="debug-wrapper">
-          <div style={{position: 'fixed', top: 10, left: 10, background: 'black', color: 'white', padding: '10px', fontSize: '12px', zIndex: 9999}}>
-            DEBUG LOGIN: user={!!user}, auth={isAuthenticated}, init={initialized}
-          </div>
-          <Login />
-        </div>
-      } />
+      <Route path="/login" element={<Login />} />
       
       {/* Route protégée du dashboard */}
       <Route 
         path="/dashboard" 
         element={
-          <div className="debug-wrapper">
-            <div style={{position: 'fixed', top: 10, left: 10, background: 'black', color: 'white', padding: '10px', fontSize: '12px', zIndex: 9999}}>
-              DEBUG DASHBOARD: user={!!user}, auth={isAuthenticated}, init={initialized}
-            </div>
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          </div>
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* Route de debug */}
+      <Route 
+        path="/debug" 
+        element={
+          <ProtectedRoute>
+            <DebugPage />
+          </ProtectedRoute>
         } 
       />
       
       {/* Redirection par défaut */}
-      <Route path="/" element={
-        <div className="debug-wrapper">
-          <div style={{position: 'fixed', top: 10, left: 10, background: 'black', color: 'white', padding: '10px', fontSize: '12px', zIndex: 9999}}>
-            DEBUG ROOT: Redirecting... user={!!user}, auth={isAuthenticated}
-          </div>
-          <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
-        </div>
-      } />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
       
       {/* Page 404 simple */}
       <Route path="*" element={
@@ -357,14 +275,8 @@ const AppRouter = () => {
           <div className="text-center">
             <h1 className="text-6xl font-bold text-white mb-4">404</h1>
             <p className="text-gray-400 mb-8">Page non trouvée</p>
-            <p className="text-gray-500 text-sm mb-4">
-              Path: {window.location.pathname}
-            </p>
             <button
-              onClick={() => {
-                console.log('🏠 Retour dashboard cliqué');
-                window.location.href = '/dashboard';
-              }}
+              onClick={() => window.location.href = '/dashboard'}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
             >
               🏠 Retour au Dashboard
@@ -379,7 +291,7 @@ const AppRouter = () => {
 export default AppRouter;
 
 // Log de confirmation
-console.log('✅ AppRouter simplifié créé pour debug page blanche');
-console.log('🎯 Routes disponibles: /login, /dashboard, /');
-console.log('📊 Composants: Login, Dashboard, ProtectedRoute');
+console.log('✅ AppRouter simplifié restauré - Version stable');
+console.log('🎯 Routes disponibles: /login, /dashboard, /debug');
+console.log('📊 Composants: Login, Dashboard, Debug, ProtectedRoute');
 console.log('🛡️ Toutes les corrections XP Safety et Framer Motion incluses');
