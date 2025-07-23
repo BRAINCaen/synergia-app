@@ -45,7 +45,7 @@ import {
 // Services et stores
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { taskService } from '../core/services/taskService.js';
-import { projectService } from '../core/services/projectService.js';
+import { taskInitializationService } from '../core/services/taskInitializationService.js';
 import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
 
 const TasksPage = () => {
@@ -114,32 +114,39 @@ const TasksPage = () => {
       setLoading(true);
       console.log('🔄 [TASKS] Chargement complet des données...');
 
+      // 🚀 AUTO-INITIALISATION pour les nouveaux utilisateurs
+      try {
+        const initResult = await taskInitializationService.initializeForNewUser(user.uid);
+        if (initResult.initialized) {
+          console.log('🎉 Tâches d\'exemple créées pour nouvel utilisateur');
+          showNotification('Bienvenue ! Des tâches d\'exemple ont été créées pour vous.', 'success');
+        }
+      } catch (initError) {
+        console.warn('⚠️ Erreur initialisation (non bloquante):', initError);
+      }
+
       // Charger en parallèle pour optimiser les performances
       const [
         userAssignedTasks,
         allAvailableTasks,
         userCreatedTasks,
-        userProjects,
         stats
       ] = await Promise.all([
         taskService.getUserTasks(user.uid),
         taskService.getAvailableTasks(),
         taskService.getTasksByCreator(user.uid),
-        projectService.getUserProjects(user.uid),
         taskService.getTaskStats(user.uid)
       ]);
 
       setAssignedTasks(userAssignedTasks || []);
       setAvailableTasks(allAvailableTasks || []);
       setMyTasks(userCreatedTasks || []);
-      setProjects(userProjects || []);
       setTaskStats(stats || {});
 
       console.log('✅ [TASKS] Données chargées:', {
         assigned: userAssignedTasks?.length || 0,
         available: allAvailableTasks?.length || 0,
-        created: userCreatedTasks?.length || 0,
-        projects: userProjects?.length || 0
+        created: userCreatedTasks?.length || 0
       });
 
     } catch (error) {
