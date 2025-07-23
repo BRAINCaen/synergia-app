@@ -1,13 +1,13 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APP PRINCIPAL CORRIGÉ - IMPORT MAINLAYOUT FIXÉ
+// APP CORRIGÉ AVEC SIDEBAR LAYOUT SOPHISTIQUÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// 🔧 CORRECTION: Import depuis le bon dossier layouts/
-import MainLayout from './layouts/MainLayout.jsx';
+// 🔧 CORRECTION: Import du Layout sophistiqué avec sidebar
+import Layout from './components/layout/Layout.jsx';
 
 // Stores
 import { useAuthStore } from './shared/stores/authStore.js';
@@ -16,11 +16,28 @@ import { useAuthStore } from './shared/stores/authStore.js';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 
+// Pages complètes
+import TasksPage from './pages/TasksPage.jsx';
+import ProjectsPage from './pages/ProjectsPage.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import GamificationPage from './pages/GamificationPage.jsx';
+import TeamPage from './pages/TeamPage.jsx';
+import UsersPage from './pages/UsersPage.jsx';
+import OnboardingPage from './pages/OnboardingPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
+import RewardsPage from './pages/RewardsPage.jsx';
+import BadgesPage from './pages/BadgesPage.jsx';
+import TimeTrackPage from './pages/TimeTrackPage.jsx';
+
+// Pages admin
+import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
+import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
+
 // ==========================================
 // 🔇 SUPPRESSION D'ERREURS CORRIGÉES
 // ==========================================
 
-// Supprimer les erreurs console déjà corrigées pour éviter la pollution
 setTimeout(() => {
   if (typeof window !== 'undefined') {
     const originalError = console.error;
@@ -33,7 +50,6 @@ setTimeout(() => {
         'Cannot access \'motion\' before initialization',
         'framer-motion',
         'r is not a function',
-        // 🛡️ NOUVELLES ERREURS xpReward SUPPRIMÉES
         'Cannot read properties of null (reading \'xpReward\')',
         'Cannot read properties of undefined (reading \'xpReward\')',
         'xpReward is not defined',
@@ -47,7 +63,6 @@ setTimeout(() => {
         return;
       }
       
-      // Laisser passer toutes les autres erreurs
       originalError.apply(console, args);
     };
     
@@ -56,12 +71,12 @@ setTimeout(() => {
       if (message.includes('framer-motion') || 
           message.includes('motion is not defined') ||
           message.includes('xpReward')) {
-        return; // Supprimer les warnings corrigés
+        return;
       }
       originalWarn.apply(console, args);
     };
     
-    console.log('🔇 Suppression d\'erreurs activée (erreurs corrigées + xpReward)');
+    console.log('🔇 Suppression d\'erreurs activée');
   }
 }, 100);
 
@@ -74,7 +89,7 @@ function App() {
   const initializeAuth = useAuthStore(state => state.initializeAuth);
 
   useEffect(() => {
-    console.log('🚀 Initialisation App.jsx...');
+    console.log('🚀 Initialisation App.jsx avec Layout Sidebar...');
     
     // Initialiser l'authentification
     const unsubscribe = initializeAuth();
@@ -82,18 +97,8 @@ function App() {
     // Marquer comme chargé après l'initialisation
     setTimeout(() => {
       setLoading(false);
-      console.log('✅ App.jsx initialisé');
+      console.log('✅ App.jsx initialisé avec Layout sophistiqué');
     }, 1000);
-    
-    // Diagnostic des corrections après 2 secondes
-    setTimeout(() => {
-      console.log('🔍 DIAGNOSTIC FINAL:');
-      console.log('- Auth Store:', typeof useAuthStore !== 'undefined' ? '✅' : '❌');
-      console.log('- MainLayout:', typeof MainLayout !== 'undefined' ? '✅' : '❌');
-      console.log('- Login Page:', typeof Login !== 'undefined' ? '✅' : '❌');
-      console.log('- Dashboard Page:', typeof Dashboard !== 'undefined' ? '✅' : '❌');
-      console.log('🎯 Import MainLayout corrigé: layouts/MainLayout.jsx');
-    }, 2000);
 
     // Cleanup function
     return () => {
@@ -103,14 +108,14 @@ function App() {
     };
   }, [initializeAuth]);
 
-  // Loading state pendant l'initialisation
+  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white text-xl">Synergia v3.5</p>
-          <p className="text-gray-400 text-sm mt-2">Initialisation en cours...</p>
+          <p className="text-gray-400 text-sm mt-2">Chargement du layout sidebar...</p>
         </div>
       </div>
     );
@@ -118,7 +123,7 @@ function App() {
 
   return (
     <Router>
-      <div className="app min-h-screen bg-gray-900">
+      <div className="app min-h-screen">
         <Routes>
           {/* Route publique de connexion */}
           <Route 
@@ -126,15 +131,35 @@ function App() {
             element={<Login />} 
           />
           
-          {/* Routes protégées avec MainLayout */}
+          {/* Routes protégées avec Layout Sidebar */}
           <Route 
-            path="/*" 
+            path="/" 
             element={
               <ProtectedRoute>
-                <MainLayout />
+                <Layout />
               </ProtectedRoute>
-            } 
-          />
+            }
+          >
+            {/* Routes imbriquées dans le Layout */}
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="tasks" element={<TasksPage />} />
+            <Route path="projects" element={<ProjectsPage />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
+            <Route path="gamification" element={<GamificationPage />} />
+            <Route path="badges" element={<BadgesPage />} />
+            <Route path="rewards" element={<RewardsPage />} />
+            <Route path="team" element={<TeamPage />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="onboarding" element={<OnboardingPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="timetrack" element={<TimeTrackPage />} />
+            
+            {/* Routes admin */}
+            <Route path="admin/task-validation" element={<AdminTaskValidationPage />} />
+            <Route path="admin/complete-test" element={<CompleteAdminTestPage />} />
+          </Route>
         </Routes>
       </div>
     </Router>
@@ -169,7 +194,7 @@ function ProtectedRoute({ children }) {
 export default App;
 
 // Log de confirmation
-console.log('✅ App.jsx corrigé - Import MainLayout depuis layouts/');
-console.log('🎯 Chemin corrigé: ./layouts/MainLayout.jsx');
-console.log('🛡️ Route protégée fonctionnelle');
-console.log('🔇 Suppression d\'erreurs activée');
+console.log('✅ App.jsx corrigé avec Layout Sidebar sophistiqué');
+console.log('🎯 Layout: ./components/layout/Layout.jsx (avec sidebar)');
+console.log('📊 Routes imbriquées dans Layout');
+console.log('🎨 Design premium avec sidebar latérale restauré');
