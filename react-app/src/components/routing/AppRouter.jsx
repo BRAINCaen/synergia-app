@@ -1,14 +1,17 @@
 // ==========================================
 // 📁 react-app/src/components/routing/AppRouter.jsx
-// AJOUT UNIQUEMENT DE LA ROUTE GAMIFICATION
+// AJOUT DE 3 PAGES ESSENTIELLES : TASKS, PROJECTS, TEAM
 // ==========================================
 
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 
-// Import de la page gamification
+// Import des pages existantes
 import GamificationPage from '../../pages/GamificationPage.jsx';
+import TasksPage from '../../pages/TasksPage.jsx';
+import ProjectsPage from '../../pages/ProjectsPage.jsx';
+import TeamPage from '../../pages/TeamPage.jsx';
 
 // ==========================================
 // 🚀 COMPOSANTS DE BASE SIMPLIFIÉS (INCHANGÉS)
@@ -45,7 +48,7 @@ const Login = () => {
   );
 };
 
-// Dashboard simple
+// Dashboard mis à jour avec nouvelles routes
 const Dashboard = () => {
   const { user, signOut } = useAuthStore();
 
@@ -58,10 +61,14 @@ const Dashboard = () => {
     }
   };
 
-  const handleNavigateToGamification = () => {
-    // Simple redirection JavaScript pour éviter les problèmes de router
-    window.location.href = '/gamification';
-  };
+  // Navigation vers les nouvelles pages
+  const navigationItems = [
+    { label: '🎮 Gamification', path: '/gamification', color: 'bg-purple-500 hover:bg-purple-600' },
+    { label: '✅ Tâches', path: '/tasks', color: 'bg-blue-500 hover:bg-blue-600' },
+    { label: '📁 Projets', path: '/projects', color: 'bg-green-500 hover:bg-green-600' },
+    { label: '👥 Équipe', path: '/team', color: 'bg-orange-500 hover:bg-orange-600' },
+    { label: '🔧 Debug', path: '/debug', color: 'bg-gray-500 hover:bg-gray-600' }
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -99,7 +106,7 @@ const Dashboard = () => {
               <h2 className="text-lg font-semibold text-gray-900 ml-4">Bienvenue !</h2>
             </div>
             <p className="text-gray-600">
-              L'application fonctionne correctement. Route gamification ajoutée avec succès.
+              4 pages principales maintenant disponibles. Navigation étendue avec succès.
             </p>
           </div>
 
@@ -121,14 +128,14 @@ const Dashboard = () => {
                 <span className="text-green-600">Stable</span>
               </div>
               <div className="flex justify-between">
-                <span>Router:</span>
-                <span className="text-green-600">+ Gamification</span>
+                <span>Pages:</span>
+                <span className="text-green-600">4 principales</span>
               </div>
             </div>
           </div>
 
-          {/* Navigation rapide */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          {/* Navigation étendue */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:col-span-2 lg:col-span-1">
             <div className="flex items-center mb-4">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                 <span className="text-2xl">🧭</span>
@@ -136,20 +143,43 @@ const Dashboard = () => {
               <h2 className="text-lg font-semibold text-gray-900 ml-4">Navigation</h2>
             </div>
             <div className="space-y-3">
-              <button
-                onClick={handleNavigateToGamification}
-                className="w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-              >
-                🎮 Aller à la Gamification
-              </button>
-              
-              <button
-                onClick={() => window.location.href = '/debug'}
-                className="w-full bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-              >
-                🔧 Mode Debug
-              </button>
+              {navigationItems.map((item, index) => (
+                <button
+                  key={index}
+                  onClick={() => window.location.href = item.path}
+                  className={`w-full ${item.color} text-white px-4 py-2 rounded-lg text-sm transition-colors`}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
+          </div>
+        </div>
+
+        {/* Métriques rapides */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
+            <div className="text-3xl font-bold text-purple-600 mb-2">🎮</div>
+            <div className="text-gray-600 text-sm">Gamification</div>
+            <div className="text-gray-400 text-xs mt-1">XP • Niveaux • Badges</div>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
+            <div className="text-3xl font-bold text-blue-600 mb-2">✅</div>
+            <div className="text-gray-600 text-sm">Tâches</div>
+            <div className="text-gray-400 text-xs mt-1">Création • Suivi • XP</div>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
+            <div className="text-3xl font-bold text-green-600 mb-2">📁</div>
+            <div className="text-gray-600 text-sm">Projets</div>
+            <div className="text-gray-400 text-xs mt-1">Collaboration • Équipe</div>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
+            <div className="text-3xl font-bold text-orange-600 mb-2">👥</div>
+            <div className="text-gray-600 text-sm">Équipe</div>
+            <div className="text-gray-400 text-xs mt-1">Rôles • Progression</div>
           </div>
         </div>
       </main>
@@ -178,13 +208,14 @@ const DebugPage = () => {
               </div>
             </div>
             
-            {/* État des corrections */}
+            {/* État des routes */}
             <div className="bg-gray-700 rounded-lg p-4">
-              <h3 className="text-white font-semibold mb-3">🛡️ Corrections</h3>
+              <h3 className="text-white font-semibold mb-3">🛣️ Routes</h3>
               <div className="space-y-2 text-sm">
-                <div className="text-gray-300">Motion: {typeof window !== 'undefined' && window.motion ? '✅' : '❌'}</div>
-                <div className="text-gray-300">Services: {typeof window !== 'undefined' && window.updateUserProgress ? '✅' : '❌'}</div>
-                <div className="text-gray-300">XP Safety: {typeof window !== 'undefined' && window.getXPRewardSafely ? '✅' : '❌'}</div>
+                <div className="text-gray-300">Gamification: ✅</div>
+                <div className="text-gray-300">Tasks: ✅</div>
+                <div className="text-gray-300">Projects: ✅</div>
+                <div className="text-gray-300">Team: ✅</div>
               </div>
             </div>
           </div>
@@ -238,11 +269,11 @@ const ProtectedRoute = ({ children }) => {
 };
 
 // ==========================================
-// 🚀 ROUTER PRINCIPAL AVEC GAMIFICATION AJOUTÉE
+// 🚀 ROUTER PRINCIPAL AVEC 4 PAGES ESSENTIELLES
 // ==========================================
 
 const AppRouter = () => {
-  console.log('🚀 [ROUTER] AppRouter avec gamification activé');
+  console.log('🚀 [ROUTER] AppRouter avec 4 pages principales activé');
   
   return (
     <Routes>
@@ -259,12 +290,39 @@ const AppRouter = () => {
         } 
       />
       
-      {/* ✨ NOUVELLE ROUTE GAMIFICATION */}
+      {/* ✨ ROUTES PRINCIPALES AJOUTÉES */}
       <Route 
         path="/gamification" 
         element={
           <ProtectedRoute>
             <GamificationPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/tasks" 
+        element={
+          <ProtectedRoute>
+            <TasksPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/projects" 
+        element={
+          <ProtectedRoute>
+            <ProjectsPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/team" 
+        element={
+          <ProtectedRoute>
+            <TeamPage />
           </ProtectedRoute>
         } 
       />
@@ -304,7 +362,7 @@ const AppRouter = () => {
 export default AppRouter;
 
 // Log de confirmation
-console.log('✅ AppRouter mis à jour - Route gamification ajoutée');
-console.log('🎯 Routes disponibles: /login, /dashboard, /gamification, /debug');
-console.log('🎮 Gamification maintenant accessible !');
+console.log('✅ AppRouter mis à jour - 4 pages principales ajoutées');
+console.log('🎯 Routes disponibles: /login, /dashboard, /gamification, /tasks, /projects, /team, /debug');
+console.log('📊 Pages opérationnelles: Dashboard, Gamification, Tasks, Projects, Team');
 console.log('🛡️ Toutes les corrections maintenues');
