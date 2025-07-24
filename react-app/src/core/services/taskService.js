@@ -1,14 +1,133 @@
 // ==========================================
-// 📁 react-app/src/core/services/taskService.js - PATCH MÉTHODES PUBLIQUES
-// AJOUTER CES MÉTHODES À LA FIN DE LA CLASSE TaskService (avant le closing bracket)
+// 📁 react-app/src/core/services/taskService.js
+// SERVICE COMPLET DE GESTION DES TÂCHES - VERSION PROPRE
 // ==========================================
 
+import { 
+  collection, 
+  doc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  getDocs, 
+  getDoc, 
+  query, 
+  where, 
+  orderBy, 
+  limit,
+  serverTimestamp,
+  writeBatch,
+  arrayUnion,
+  arrayRemove
+} from 'firebase/firestore';
+import { db } from '../firebase.js';
+
+/**
+ * 📋 SERVICE COMPLET DE GESTION DES TÂCHES
+ */
+class TaskService {
+  constructor() {
+    console.log('📋 TaskService initialisé avec toutes les fonctions');
+    this.validateFirebaseConnection();
+  }
+
   /**
-   * 🌍 RÉCUPÉRER TOUTES LES TÂCHES PUBLIQUES (VISIBLE PAR TOUS)
+   * 🔥 VALIDATION DE LA CONNEXION FIREBASE
    */
-  async getAllPublicTasks() {
+  validateFirebaseConnection() {
     try {
-      console.log('🌍 [GET_ALL_PUBLIC] Récupération de TOUTES les tâches publiques...');
+      if (!db) {
+        console.error('❌ [VALIDATION] Base de données Firestore non initialisée');
+        throw new Error('Firebase non configuré');
+      }
+      
+      console.log('✅ [VALIDATION] Connexion Firebase validée');
+      return true;
+    } catch (error) {
+      console.error('❌ [VALIDATION] Erreur validation Firebase:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 🛡️ VALIDATION STRICTE DES PARAMÈTRES
+   */
+  validateParameters(params, requiredFields) {
+    const errors = [];
+    
+    for (const field of requiredFields) {
+      if (!params[field]) {
+        errors.push(`${field} est requis`);
+      } else if (typeof params[field] === 'string' && params[field].trim() === '') {
+        errors.push(`${field} ne peut pas être vide`);
+      }
+    }
+    
+    if (errors.length > 0) {
+      throw new Error(`Paramètres invalides: ${errors.join(', ')}`);
+    }
+    
+    return true;
+  }
+
+  /**
+   * ➕ CRÉER UNE NOUVELLE TÂCHE
+   */
+  async createTask(taskData, userId) {
+    try {
+      // ✅ VALIDATION STRICTE DES PARAMÈTRES
+      this.validateParameters({ taskData, userId }, ['taskData', 'userId']);
+      
+      if (!taskData.title || typeof taskData.title !== 'string' || taskData.title.trim() === '') {
+        throw new Error('Le titre de la tâche est requis');
+      }
+
+      const cleanUserId = userId.trim();
+      console.log('➕ [CREATE] Création tâche:', taskData.title);
+
+      const newTask = {
+        title: taskData.title.trim(),
+        description: taskData.description?.trim() || '',
+        createdBy: cleanUserId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        status: taskData.status || 'pending',
+        priority: taskData.priority || 'medium',
+        assignedTo: Array.isArray(taskData.assignedTo) ? taskData.assignedTo : [],
+        tags: Array.isArray(taskData.tags) ? taskData.tags : [],
+        estimatedHours: typeof taskData.estimatedHours === 'number' ? taskData.estimatedHours : 0,
+        xpReward: typeof taskData.xpReward === 'number' ? taskData.xpReward : 25,
+        openToVolunteers: taskData.openToVolunteers === true,
+        volunteers: [],
+        volunteerApplications: [],
+        // ✅ Champs additionnels sécurisés
+        category: taskData.category || 'general',
+        complexity: taskData.complexity || 'medium',
+        dueDate: taskData.dueDate || null,
+        projectId: taskData.projectId || null
+      };
+
+      const docRef = await addDoc(collection(db, 'tasks'), newTask);
+      
+      console.log('✅ [CREATE] Tâche créée avec ID:', docRef.id);
+      
+      return {
+        id: docRef.id,
+        ...newTask
+      };
+
+    } catch (error) {
+      console.error('❌ [CREATE] Erreur création tâche:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📋 RÉCUPÉRER TOUTES LES TÂCHES
+   */
+  async getAllTasks() {
+    try {
+      console.log('📋 [GET_ALL] Récupération toutes les tâches...');
 
       const tasksQuery = query(
         collection(db, 'tasks'),
@@ -16,84 +135,259 @@
       );
       
       const tasksSnapshot = await getDocs(tasksQuery);
-      const allTasks = [];
+      const tasks = [];
       
       tasksSnapshot.forEach(doc => {
-        const taskData = doc.data();
-        if (taskData && typeof taskData === 'object') {
-          allTasks.push({
-            id: doc.id,
-            ...taskData,
-            // ✅ Valeurs par défaut sécurisées
-            title: taskData.title || 'Tâche sans titre',
-            description: taskData.description || '',
-            status: taskData.status || 'pending',
-            priority: taskData.priority || 'medium',
-            assignedTo: Array.isArray(taskData.assignedTo) ? taskData.assignedTo : [],
-            tags: Array.isArray(taskData.tags) ? taskData.tags : [],
-            xpReward: typeof taskData.xpReward === 'number' ? taskData.xpReward : 25,
-            estimatedHours: typeof taskData.estimatedHours === 'number' ? taskData.estimatedHours : 1,
-            category: taskData.category || 'general',
-            createdBy: taskData.createdBy || 'unknown'
-          });
-        }
+        tasks.push({
+          id: doc.id,
+          ...doc.data()
+        });
       });
 
-      console.log(`✅ [GET_ALL_PUBLIC] ${allTasks.length} tâches publiques récupérées`);
-      return allTasks;
+      console.log('✅ [GET_ALL] Tâches récupérées:', tasks.length);
+      return tasks;
 
     } catch (error) {
-      console.error('❌ [GET_ALL_PUBLIC] Erreur récupération tâches publiques:', error);
+      console.error('❌ [GET_ALL] Erreur récupération tâches:', error);
       throw error;
     }
   }
 
   /**
-   * 📋 RÉCUPÉRER LES TÂCHES AVEC CLASSIFICATION UTILISATEUR
-   * Retourne toutes les tâches avec info sur la relation à l'utilisateur
+   * 👤 RÉCUPÉRER LES TÂCHES D'UN UTILISATEUR SPÉCIFIQUE
    */
-  async getTasksWithUserContext(userId) {
+  async getTasksByUser(userId) {
     try {
-      console.log('📋 [GET_WITH_CONTEXT] Récupération tâches avec contexte utilisateur:', userId);
+      // ✅ VALIDATION STRICTE DE L'USER ID
+      if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+        console.warn('⚠️ [GET_BY_USER] UserID invalide:', userId);
+        return [];
+      }
 
-      // Récupérer toutes les tâches
-      const allTasks = await this.getAllPublicTasks();
+      const cleanUserId = userId.trim();
+      console.log('👤 [GET_BY_USER] Récupération tâches utilisateur:', cleanUserId);
+
+      // ✅ REQUÊTE SÉCURISÉE AVEC FALLBACK
+      let tasks = [];
       
-      // Ajouter le contexte utilisateur à chaque tâche
-      const tasksWithContext = allTasks.map(task => {
-        const isCreatedByMe = task.createdBy === userId;
-        const isAssignedToMe = task.assignedTo.includes(userId);
-        const canVolunteer = !isAssignedToMe && task.status !== 'completed';
+      try {
+        const tasksQuery = query(
+          collection(db, 'tasks'),
+          where('assignedTo', 'array-contains', cleanUserId),
+          orderBy('createdAt', 'desc')
+        );
         
-        return {
-          ...task,
-          // ✅ Contexte utilisateur
-          userContext: {
-            isCreatedByMe,
-            isAssignedToMe,
-            isMyTask: isCreatedByMe || isAssignedToMe,
-            canVolunteer,
-            canEdit: isCreatedByMe || isAssignedToMe,
-            canComplete: isAssignedToMe
+        const tasksSnapshot = await getDocs(tasksQuery);
+        
+        tasksSnapshot.forEach(doc => {
+          const taskData = doc.data();
+          // ✅ Validation des données de tâche
+          if (taskData && typeof taskData === 'object') {
+            tasks.push({
+              id: doc.id,
+              ...taskData,
+              // ✅ Valeurs par défaut pour éviter undefined
+              title: taskData.title || 'Tâche sans titre',
+              status: taskData.status || 'pending',
+              priority: taskData.priority || 'medium',
+              assignedTo: Array.isArray(taskData.assignedTo) ? taskData.assignedTo : [],
+              xpReward: typeof taskData.xpReward === 'number' ? taskData.xpReward : 0
+            });
           }
-        };
-      });
+        });
 
-      console.log(`✅ [GET_WITH_CONTEXT] ${tasksWithContext.length} tâches avec contexte`);
-      return tasksWithContext;
+        console.log('✅ [GET_BY_USER] Tâches utilisateur récupérées:', tasks.length);
+        return tasks;
+
+      } catch (queryError) {
+        console.error('❌ [GET_BY_USER] Erreur requête Firestore:', queryError);
+        
+        // ✅ FALLBACK : Récupérer toutes les tâches et filtrer côté client
+        console.log('🔄 [GET_BY_USER] Tentative de fallback...');
+        
+        const allTasksSnapshot = await getDocs(collection(db, 'tasks'));
+        const fallbackTasks = [];
+        
+        allTasksSnapshot.forEach(doc => {
+          const taskData = doc.data();
+          if (taskData && Array.isArray(taskData.assignedTo) && taskData.assignedTo.includes(cleanUserId)) {
+            fallbackTasks.push({
+              id: doc.id,
+              ...taskData,
+              title: taskData.title || 'Tâche sans titre',
+              status: taskData.status || 'pending',
+              priority: taskData.priority || 'medium',
+              xpReward: typeof taskData.xpReward === 'number' ? taskData.xpReward : 0
+            });
+          }
+        });
+
+        console.log('✅ [GET_BY_USER] Fallback réussi:', fallbackTasks.length, 'tâches');
+        return fallbackTasks;
+      }
 
     } catch (error) {
-      console.error('❌ [GET_WITH_CONTEXT] Erreur récupération tâches avec contexte:', error);
+      console.error('❌ [GET_BY_USER] Erreur critique récupération tâches utilisateur:', error);
+      // ✅ Retourner array vide plutôt que de planter
+      return [];
+    }
+  }
+
+  /**
+   * 👤 ALIAS POUR getTasksByUser (pour compatibilité)
+   */
+  async getUserTasks(userId) {
+    return this.getTasksByUser(userId);
+  }
+
+  /**
+   * 🌟 RÉCUPÉRER LES TÂCHES DISPONIBLES (OUVERTES AUX VOLONTAIRES)
+   */
+  async getAvailableTasks() {
+    try {
+      console.log('🌟 [GET_AVAILABLE] Récupération tâches disponibles...');
+
+      let tasks = [];
+
+      try {
+        // ✅ REQUÊTE SÉCURISÉE AVEC VALIDATION
+        const tasksQuery = query(
+          collection(db, 'tasks'),
+          where('openToVolunteers', '==', true),
+          where('status', 'in', ['pending', 'open']),
+          orderBy('createdAt', 'desc')
+        );
+        
+        const tasksSnapshot = await getDocs(tasksQuery);
+        
+        tasksSnapshot.forEach(doc => {
+          const taskData = doc.data();
+          // ✅ Validation stricte des données
+          if (taskData && typeof taskData === 'object') {
+            tasks.push({
+              id: doc.id,
+              ...taskData,
+              // ✅ Valeurs par défaut sécurisées
+              title: taskData.title || 'Tâche disponible',
+              description: taskData.description || '',
+              status: taskData.status || 'pending',
+              priority: taskData.priority || 'medium',
+              xpReward: typeof taskData.xpReward === 'number' ? taskData.xpReward : 25,
+              assignedTo: Array.isArray(taskData.assignedTo) ? taskData.assignedTo : []
+            });
+          }
+        });
+
+        console.log('✅ [GET_AVAILABLE] Tâches disponibles récupérées:', tasks.length);
+        return tasks;
+
+      } catch (queryError) {
+        console.error('❌ [GET_AVAILABLE] Erreur requête, tentative fallback:', queryError);
+        
+        // ✅ FALLBACK : Filtrer toutes les tâches côté client
+        const allTasksSnapshot = await getDocs(collection(db, 'tasks'));
+        const fallbackTasks = [];
+        
+        allTasksSnapshot.forEach(doc => {
+          const taskData = doc.data();
+          if (taskData && 
+              taskData.openToVolunteers === true && 
+              ['pending', 'open'].includes(taskData.status)) {
+            fallbackTasks.push({
+              id: doc.id,
+              ...taskData,
+              title: taskData.title || 'Tâche disponible',
+              description: taskData.description || '',
+              status: taskData.status || 'pending',
+              priority: taskData.priority || 'medium',
+              xpReward: typeof taskData.xpReward === 'number' ? taskData.xpReward : 25,
+              assignedTo: Array.isArray(taskData.assignedTo) ? taskData.assignedTo : []
+            });
+          }
+        });
+
+        console.log('✅ [GET_AVAILABLE] Fallback réussi:', fallbackTasks.length, 'tâches');
+        return fallbackTasks;
+      }
+
+    } catch (error) {
+      console.error('❌ [GET_AVAILABLE] Erreur critique récupération tâches disponibles:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 🎯 METTRE À JOUR UNE TÂCHE
+   */
+  async updateTask(taskId, updateData) {
+    try {
+      console.log('🎯 [UPDATE] Mise à jour tâche:', taskId);
+
+      const taskRef = doc(db, 'tasks', taskId);
+      const updates = {
+        ...updateData,
+        updatedAt: serverTimestamp()
+      };
+
+      await updateDoc(taskRef, updates);
+
+      console.log('✅ [UPDATE] Tâche mise à jour');
+      return { success: true };
+
+    } catch (error) {
+      console.error('❌ [UPDATE] Erreur mise à jour tâche:', error);
       throw error;
     }
   }
 
   /**
-   * 🙋 SE PORTER VOLONTAIRE POUR UNE TÂCHE
+   * 🗑️ SUPPRIMER UNE TÂCHE
    */
-  async volunteerForTask(taskId, userId) {
+  async deleteTask(taskId) {
     try {
-      console.log('🙋 [VOLUNTEER] Volontariat pour tâche:', { taskId, userId });
+      console.log('🗑️ [DELETE] Suppression tâche:', taskId);
+
+      await deleteDoc(doc(db, 'tasks', taskId));
+
+      console.log('✅ [DELETE] Tâche supprimée');
+      return { success: true };
+
+    } catch (error) {
+      console.error('❌ [DELETE] Erreur suppression tâche:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ✅ MARQUER UNE TÂCHE COMME TERMINÉE
+   */
+  async completeTask(taskId, userId) {
+    try {
+      console.log('✅ [COMPLETE] Completion tâche:', { taskId, userId });
+
+      const updates = {
+        status: 'completed',
+        completedAt: serverTimestamp(),
+        completedBy: userId
+      };
+
+      const updatedTask = await this.updateTask(taskId, updates);
+
+      console.log('✅ [COMPLETE] Tâche marquée comme terminée');
+      return { success: true, task: updatedTask };
+
+    } catch (error) {
+      console.error('❌ [COMPLETE] Erreur completion tâche:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🎯 ASSIGNER UNE TÂCHE À UN UTILISATEUR
+   */
+  async assignTask(taskId, userId, assignerId) {
+    try {
+      console.log('🎯 [ASSIGN] Assignation tâche:', { taskId, userId, assignerId });
 
       const taskRef = doc(db, 'tasks', taskId);
       const taskDoc = await getDoc(taskRef);
@@ -107,7 +401,7 @@
 
       // Vérifier si l'utilisateur est déjà assigné
       if (currentAssigned.includes(userId)) {
-        throw new Error('Vous êtes déjà assigné à cette tâche');
+        throw new Error('Utilisateur déjà assigné à cette tâche');
       }
 
       // Ajouter l'utilisateur aux assignés
@@ -115,29 +409,25 @@
         assignedTo: arrayUnion(userId),
         status: taskData.status === 'pending' ? 'assigned' : taskData.status,
         updatedAt: serverTimestamp(),
-        // Historique des volontaires
-        volunteerHistory: arrayUnion({
-          userId: userId,
-          volunteeredAt: serverTimestamp(),
-          action: 'volunteer'
-        })
+        lastAssignedBy: assignerId,
+        lastAssignedAt: serverTimestamp()
       });
 
-      console.log('✅ [VOLUNTEER] Volontariat enregistré avec succès');
-      return { success: true, message: 'Vous êtes maintenant assigné à cette tâche' };
+      console.log('✅ [ASSIGN] Tâche assignée avec succès');
+      return { success: true };
 
     } catch (error) {
-      console.error('❌ [VOLUNTEER] Erreur volontariat:', error);
+      console.error('❌ [ASSIGN] Erreur assignation tâche:', error);
       throw error;
     }
   }
 
   /**
-   * 🚪 SE RETIRER D'UNE TÂCHE
+   * ❌ DÉSASSIGNER UNE TÂCHE D'UN UTILISATEUR
    */
-  async withdrawFromTask(taskId, userId) {
+  async unassignTask(taskId, userId) {
     try {
-      console.log('🚪 [WITHDRAW] Retrait de la tâche:', { taskId, userId });
+      console.log('❌ [UNASSIGN] Désassignation tâche:', { taskId, userId });
 
       const taskRef = doc(db, 'tasks', taskId);
       const taskDoc = await getDoc(taskRef);
@@ -149,253 +439,206 @@
       const taskData = taskDoc.data();
       const currentAssigned = taskData.assignedTo || [];
 
-      // Vérifier si l'utilisateur est assigné
-      if (!currentAssigned.includes(userId)) {
-        throw new Error('Vous n\'êtes pas assigné à cette tâche');
-      }
-
       // Retirer l'utilisateur des assignés
-      const updates = {
+      await updateDoc(taskRef, {
         assignedTo: arrayRemove(userId),
-        updatedAt: serverTimestamp(),
-        // Historique des retraits
-        volunteerHistory: arrayUnion({
-          userId: userId,
-          withdrawnAt: serverTimestamp(),
-          action: 'withdraw'
-        })
-      };
+        updatedAt: serverTimestamp()
+      });
 
-      // Si c'était le seul assigné, remettre en pending
-      if (currentAssigned.length === 1) {
-        updates.status = 'pending';
+      // Si plus personne n'est assigné, remettre en pending
+      if (currentAssigned.length === 1 && currentAssigned[0] === userId) {
+        await updateDoc(taskRef, {
+          status: 'pending'
+        });
       }
 
-      await updateDoc(taskRef, updates);
-
-      console.log('✅ [WITHDRAW] Retrait enregistré avec succès');
-      return { success: true, message: 'Vous vous êtes retiré de cette tâche' };
+      console.log('✅ [UNASSIGN] Tâche désassignée avec succès');
+      return { success: true };
 
     } catch (error) {
-      console.error('❌ [WITHDRAW] Erreur retrait:', error);
+      console.error('❌ [UNASSIGN] Erreur désassignation tâche:', error);
       throw error;
     }
   }
 
   /**
-   * 🎯 FILTRER LES TÂCHES PAR STATUT UTILISATEUR
+   * 📊 RÉCUPÉRER LES TÂCHES PAR STATUT
    */
-  filterTasksByUserStatus(tasks, userId, status) {
-    return tasks.filter(task => {
-      const userContext = task.userContext || {};
+  async getTasksByStatus(status) {
+    try {
+      console.log('📊 [GET_BY_STATUS] Récupération tâches par statut:', status);
+
+      const tasksQuery = query(
+        collection(db, 'tasks'),
+        where('status', '==', status),
+        orderBy('createdAt', 'desc')
+      );
       
-      switch (status) {
-        case 'my_tasks':
-          return userContext.isMyTask;
-        case 'available':
-          return userContext.canVolunteer;
-        case 'created_by_me':
-          return userContext.isCreatedByMe;
-        case 'assigned_to_me':
-          return userContext.isAssignedToMe;
-        case 'completed':
-          return task.status === 'completed';
-        case 'in_progress':
-          return task.status === 'in_progress';
-        case 'pending':
-          return task.status === 'pending';
-        default:
-          return true; // Toutes les tâches
-      }
-    });
+      const tasksSnapshot = await getDocs(tasksQuery);
+      const tasks = [];
+      
+      tasksSnapshot.forEach(doc => {
+        tasks.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      console.log('✅ [GET_BY_STATUS] Tâches par statut récupérées:', tasks.length);
+      return tasks;
+
+    } catch (error) {
+      console.error('❌ [GET_BY_STATUS] Erreur récupération tâches par statut:', error);
+      throw error;
+    }
   }
 
   /**
-   * 📊 STATISTIQUES GLOBALES DES TÂCHES
+   * 📂 RÉCUPÉRER LES TÂCHES D'UN PROJET
    */
-  async getGlobalTaskStats() {
+  async getTasksByProject(projectId) {
     try {
-      console.log('📊 [GLOBAL_STATS] Calcul statistiques globales...');
+      console.log('📂 [GET_BY_PROJECT] Récupération tâches du projet:', projectId);
 
-      const allTasks = await this.getAllPublicTasks();
+      const tasksQuery = query(
+        collection(db, 'tasks'),
+        where('projectId', '==', projectId),
+        orderBy('createdAt', 'desc')
+      );
       
-      const stats = {
-        total: allTasks.length,
-        byStatus: {
-          pending: allTasks.filter(t => t.status === 'pending').length,
-          assigned: allTasks.filter(t => t.status === 'assigned').length,
-          in_progress: allTasks.filter(t => t.status === 'in_progress').length,
-          completed: allTasks.filter(t => t.status === 'completed').length
-        },
-        byPriority: {
-          low: allTasks.filter(t => t.priority === 'low').length,
-          medium: allTasks.filter(t => t.priority === 'medium').length,
-          high: allTasks.filter(t => t.priority === 'high').length,
-          urgent: allTasks.filter(t => t.priority === 'urgent').length
-        },
-        byCategory: {},
-        totalXP: allTasks.reduce((sum, task) => sum + (task.xpReward || 0), 0),
-        averageXP: allTasks.length > 0 ? Math.round(allTasks.reduce((sum, task) => sum + (task.xpReward || 0), 0) / allTasks.length) : 0
-      };
-
-      // Statistiques par catégorie
-      allTasks.forEach(task => {
-        const category = task.category || 'non_classé';
-        stats.byCategory[category] = (stats.byCategory[category] || 0) + 1;
+      const tasksSnapshot = await getDocs(tasksQuery);
+      const tasks = [];
+      
+      tasksSnapshot.forEach(doc => {
+        tasks.push({
+          id: doc.id,
+          ...doc.data()
+        });
       });
 
-      console.log('✅ [GLOBAL_STATS] Statistiques calculées:', stats);
+      console.log('✅ [GET_BY_PROJECT] Tâches du projet récupérées:', tasks.length);
+      return tasks;
+
+    } catch (error) {
+      console.error('❌ [GET_BY_PROJECT] Erreur récupération tâches du projet:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🔍 RECHERCHER DES TÂCHES
+   */
+  async searchTasks(searchTerm) {
+    try {
+      console.log('🔍 [SEARCH] Recherche tâches:', searchTerm);
+
+      // Firebase ne supporte pas la recherche full-text nativement
+      // On récupère toutes les tâches et on filtre côté client
+      const allTasks = await this.getAllTasks();
+      
+      const filteredTasks = allTasks.filter(task => 
+        task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+
+      console.log('✅ [SEARCH] Tâches trouvées:', filteredTasks.length);
+      return filteredTasks;
+
+    } catch (error) {
+      console.error('❌ [SEARCH] Erreur recherche tâches:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📈 RÉCUPÉRER STATISTIQUES DES TÂCHES
+   */
+  async getTaskStats(userId = null) {
+    try {
+      console.log('📈 [STATS] Récupération statistiques tâches');
+
+      const tasks = userId ? await this.getUserTasks(userId) : await this.getAllTasks();
+      
+      const stats = {
+        total: tasks.length,
+        pending: tasks.filter(t => t.status === 'pending').length,
+        assigned: tasks.filter(t => t.status === 'assigned').length,
+        inProgress: tasks.filter(t => t.status === 'in_progress').length,
+        completed: tasks.filter(t => t.status === 'completed').length,
+        cancelled: tasks.filter(t => t.status === 'cancelled').length,
+        highPriority: tasks.filter(t => t.priority === 'high').length,
+        mediumPriority: tasks.filter(t => t.priority === 'medium').length,
+        lowPriority: tasks.filter(t => t.priority === 'low').length,
+        totalXP: tasks.reduce((sum, task) => sum + (task.xpReward || 0), 0)
+      };
+
+      console.log('✅ [STATS] Statistiques calculées:', stats);
       return stats;
 
     } catch (error) {
-      console.error('❌ [GLOBAL_STATS] Erreur calcul statistiques:', error);
+      console.error('❌ [STATS] Erreur calcul statistiques:', error);
       throw error;
     }
   }
 
   /**
-   * 👤 RÉCUPÉRER TOUTES LES TÂCHES D'UN UTILISATEUR (CRÉÉES + ASSIGNÉES) - VERSION CORRIGÉE
+   * ⏰ RÉCUPÉRER LES TÂCHES EN RETARD
    */
-  async getUserTasks(userId) {
+  async getOverdueTasks(userId = null) {
     try {
-      // ✅ VALIDATION STRICTE DE L'USER ID
-      if (!userId || typeof userId !== 'string' || userId.trim() === '') {
-        console.warn('⚠️ [GET_USER_TASKS] UserID invalide:', userId);
-        return [];
-      }
+      console.log('⏰ [OVERDUE] Récupération tâches en retard');
 
-      const cleanUserId = userId.trim();
-      console.log('👤 [GET_USER_TASKS] Récupération TOUTES les tâches utilisateur:', cleanUserId);
-
-      // ✅ STRATÉGIE 1 : Récupérer les tâches CRÉÉES par l'utilisateur
-      let createdTasks = [];
-      try {
-        const createdQuery = query(
-          collection(db, 'tasks'),
-          where('createdBy', '==', cleanUserId),
-          orderBy('createdAt', 'desc')
-        );
-        
-        const createdSnapshot = await getDocs(createdQuery);
-        createdSnapshot.forEach(doc => {
-          const taskData = doc.data();
-          if (taskData && typeof taskData === 'object') {
-            createdTasks.push({
-              id: doc.id,
-              ...taskData,
-              title: taskData.title || 'Tâche sans titre',
-              status: taskData.status || 'pending',
-              priority: taskData.priority || 'medium',
-              assignedTo: Array.isArray(taskData.assignedTo) ? taskData.assignedTo : [],
-              xpReward: typeof taskData.xpReward === 'number' ? taskData.xpReward : 0
-            });
-          }
-        });
-        
-        console.log(`✅ [GET_USER_TASKS] Tâches créées: ${createdTasks.length}`);
-      } catch (error) {
-        console.error('❌ [GET_USER_TASKS] Erreur récupération tâches créées:', error);
-      }
-
-      // ✅ STRATÉGIE 2 : Récupérer les tâches ASSIGNÉES à l'utilisateur
-      let assignedTasks = [];
-      try {
-        const assignedQuery = query(
-          collection(db, 'tasks'),
-          where('assignedTo', 'array-contains', cleanUserId),
-          orderBy('createdAt', 'desc')
-        );
-        
-        const assignedSnapshot = await getDocs(assignedQuery);
-        assignedSnapshot.forEach(doc => {
-          const taskData = doc.data();
-          if (taskData && typeof taskData === 'object') {
-            assignedTasks.push({
-              id: doc.id,
-              ...taskData,
-              title: taskData.title || 'Tâche sans titre',
-              status: taskData.status || 'pending',
-              priority: taskData.priority || 'medium',
-              assignedTo: Array.isArray(taskData.assignedTo) ? taskData.assignedTo : [],
-              xpReward: typeof taskData.xpReward === 'number' ? taskData.xpReward : 0
-            });
-          }
-        });
-        
-        console.log(`✅ [GET_USER_TASKS] Tâches assignées: ${assignedTasks.length}`);
-      } catch (error) {
-        console.error('❌ [GET_USER_TASKS] Erreur récupération tâches assignées:', error);
-      }
-
-      // ✅ STRATÉGIE 3 : FUSIONNER et DÉDUPLIQUER les résultats
-      const allTasksMap = new Map();
+      const tasks = userId ? await this.getUserTasks(userId) : await this.getAllTasks();
+      const now = new Date();
       
-      // Ajouter les tâches créées
-      createdTasks.forEach(task => {
-        allTasksMap.set(task.id, { ...task, source: 'created' });
-      });
-      
-      // Ajouter les tâches assignées (en évitant les doublons)
-      assignedTasks.forEach(task => {
-        if (allTasksMap.has(task.id)) {
-          // Marquer comme créée ET assignée
-          const existing = allTasksMap.get(task.id);
-          allTasksMap.set(task.id, { ...existing, source: 'created_and_assigned' });
-        } else {
-          // Nouvelle tâche assignée seulement
-          allTasksMap.set(task.id, { ...task, source: 'assigned' });
-        }
+      const overdueTasks = tasks.filter(task => {
+        if (task.status === 'completed' || !task.dueDate) return false;
+        
+        const dueDate = task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate);
+        return dueDate < now;
       });
 
-      // ✅ CONVERTIR EN TABLEAU ET TRIER PAR DATE
-      const allTasks = Array.from(allTasksMap.values());
-      allTasks.sort((a, b) => {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-        return dateB.getTime() - dateA.getTime(); // Plus récent en premier
-      });
-
-      console.log(`✅ [GET_USER_TASKS] TOTAL après fusion: ${allTasks.length} tâches`);
-      return allTasks;
+      console.log('✅ [OVERDUE] Tâches en retard trouvées:', overdueTasks.length);
+      return overdueTasks;
 
     } catch (error) {
-      console.error('❌ [GET_USER_TASKS] Erreur critique récupération tâches utilisateur:', error);
-      
-      // ✅ FALLBACK ULTIME : Récupérer toutes les tâches et filtrer côté client
-      try {
-        console.log('🔄 [GET_USER_TASKS] Tentative de fallback...');
-        
-        const allTasksSnapshot = await getDocs(collection(db, 'tasks'));
-        const fallbackTasks = [];
-        
-        allTasksSnapshot.forEach(doc => {
-          const taskData = doc.data();
-          
-          // Vérifier si la tâche appartient à l'utilisateur
-          const isCreatedByUser = taskData.createdBy === userId;
-          const isAssignedToUser = Array.isArray(taskData.assignedTo) && taskData.assignedTo.includes(userId);
-          
-          if (isCreatedByUser || isAssignedToUser) {
-            fallbackTasks.push({
-              id: doc.id,
-              ...taskData,
-              title: taskData.title || 'Tâche sans titre',
-              status: taskData.status || 'pending',
-              priority: taskData.priority || 'medium',
-              assignedTo: Array.isArray(taskData.assignedTo) ? taskData.assignedTo : [],
-              xpReward: typeof taskData.xpReward === 'number' ? taskData.xpReward : 0,
-              source: isCreatedByUser && isAssignedToUser ? 'created_and_assigned' : 
-                      isCreatedByUser ? 'created' : 'assigned'
-            });
-          }
-        });
-
-        console.log('✅ [GET_USER_TASKS] Fallback réussi:', fallbackTasks.length, 'tâches');
-        return fallbackTasks;
-        
-      } catch (fallbackError) {
-        console.error('❌ [GET_USER_TASKS] Fallback échoué:', fallbackError);
-        return []; // Retourner array vide plutôt que de planter
-      }
+      console.error('❌ [OVERDUE] Erreur récupération tâches en retard:', error);
+      throw error;
     }
   }
+
+  /**
+   * 📅 RÉCUPÉRER LES TÂCHES DUE CETTE SEMAINE
+   */
+  async getTasksDueThisWeek(userId = null) {
+    try {
+      console.log('📅 [DUE_WEEK] Récupération tâches due cette semaine');
+
+      const tasks = userId ? await this.getUserTasks(userId) : await this.getAllTasks();
+      const now = new Date();
+      const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      
+      const dueThisWeekTasks = tasks.filter(task => {
+        if (task.status === 'completed' || !task.dueDate) return false;
+        
+        const dueDate = task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate);
+        return dueDate >= now && dueDate <= nextWeek;
+      });
+
+      console.log('✅ [DUE_WEEK] Tâches due cette semaine:', dueThisWeekTasks.length);
+      return dueThisWeekTasks;
+
+    } catch (error) {
+      console.error('❌ [DUE_WEEK] Erreur récupération tâches due cette semaine:', error);
+      throw error;
+    }
+  }
+}
+
+// ✅ INSTANCE UNIQUE
+const taskService = new TaskService();
+
+// ✅ EXPORTS
+export default TaskService;
+export { taskService };
