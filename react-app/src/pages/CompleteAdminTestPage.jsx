@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/CompleteAdminTestPage.jsx
-// PAGE DE TEST ADMIN COMPLÈTE - SANS PANEL ADMIN (ÉVITER DOUBLON)
+// PAGE DE TEST ADMIN COMPLÈTE - TOUTES LES MÉTHODES CORRIGÉES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -49,7 +49,10 @@ const CompleteAdminTestPage = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [setupStatus, setSetupStatus] = useState(null);
   const [adminTests, setAdminTests] = useState([]);
-  const [adminStats, setAdminStats] = useState({});
+  const [adminStats, setAdminStats] = useState({
+    badges: { totalBadges: 0, totalAwarded: 0 },
+    users: { total: 0, active: 0 }
+  });
   const [loading, setLoading] = useState(true);
   const [activeTest, setActiveTest] = useState('profile');
 
@@ -63,61 +66,57 @@ const CompleteAdminTestPage = () => {
   const initializeAdminCheck = async () => {
     setLoading(true);
     try {
-      console.log('🔍 Vérification initiale admin pour:', user.uid);
+      console.log('🧪 Exécution tests admin complets...');
       
       // 1. Vérifier le statut admin actuel
       const [fullProfile, adminStatus] = await Promise.all([
         userService.getUserProfile(user.uid).catch(() => null),
-        adminSetupService.checkIfUserIsAdmin(user.uid)
+        adminSetupService.checkIfUserIsAdmin(user.uid).catch(() => ({ isAdmin: false }))
       ]);
       
       setUserProfile(fullProfile);
       setSetupStatus(adminStatus);
       
-      // 2. Déterminer l'étape selon le statut
-      if (!adminStatus.isAdmin && !isAdmin(user)) {
-        setCurrentStep('setup');
-      } else {
+      // 2. Déterminer l'étape suivante
+      if (adminStatus.isAdmin) {
         setCurrentStep('test');
         await runCompleteAdminTests();
+      } else {
+        setCurrentStep('setup');
       }
       
     } catch (error) {
       console.error('❌ Erreur initialisation admin:', error);
-      setCurrentStep('test'); // Fallback vers les tests
-      await runCompleteAdminTests();
+      setCurrentStep('setup');
     } finally {
       setLoading(false);
     }
   };
 
   const runCompleteAdminTests = async () => {
-    setLoading(true);
     try {
-      console.log('🧪 Exécution tests admin complets...');
-      
-      const authUser = user;
-      const profile = userProfile;
       const tests = [];
-
-      // Test 1: Vérification basique isAdmin
-      const basicAdminCheck = isAdmin(authUser);
+      const profile = userProfile;
+      const authUser = user;
+      
+      // Test 1: Vérification admin principale
+      const adminResult = isAdmin(authUser);
       tests.push({
-        name: 'Fonction isAdmin()',
-        status: basicAdminCheck ? 'success' : 'error',
-        message: basicAdminCheck ? 'Accès admin confirmé' : 'Accès admin refusé',
+        name: 'Vérification Admin Principale',
+        status: adminResult ? 'success' : 'error',
+        message: adminResult ? 'Accès admin confirmé' : 'Pas d\'accès admin',
         icon: Shield,
-        details: { basicAdminCheck, email: authUser.email }
+        details: { isAdmin: adminResult }
       });
-
-      // Test 2: Vérification Firebase complète
+      
+      // Test 2: Vérification Firebase
       try {
         const firebaseCheck = await checkAdminWithFirebase(authUser.uid);
         tests.push({
           name: 'Vérification Firebase',
-          status: firebaseCheck.isAdmin ? 'success' : 'error',
-          message: firebaseCheck.isAdmin ? 'Admin confirmé par Firebase' : 'Pas admin dans Firebase',
-          icon: Crown,
+          status: firebaseCheck ? 'success' : 'warning',
+          message: firebaseCheck ? 'Admin Firebase confirmé' : 'Admin Firebase non confirmé',
+          icon: Key,
           details: firebaseCheck
         });
       } catch (error) {
@@ -125,19 +124,28 @@ const CompleteAdminTestPage = () => {
           name: 'Vérification Firebase',
           status: 'error',
           message: `Erreur: ${error.message}`,
-          icon: Crown
+          icon: Key
         });
       }
-
+      
       // Test 3: Diagnostic complet
-      const diagnosis = await diagnoseAdmin(authUser, profile);
-      tests.push({
-        name: 'Diagnostic Complet',
-        status: Object.values(diagnosis.checks).filter(Boolean).length >= 4 ? 'success' : 'warning',
-        message: `${Object.values(diagnosis.checks).filter(Boolean).length}/6 vérifications réussies`,
-        icon: Activity,
-        details: diagnosis
-      });
+      try {
+        const diagnosis = diagnoseAdmin(authUser, profile);
+        tests.push({
+          name: 'Diagnostic Complet',
+          status: diagnosis.isAdmin ? 'success' : 'warning',
+          message: `${Object.values(diagnosis.checks).filter(Boolean).length}/6 vérifications réussies`,
+          icon: Activity,
+          details: diagnosis
+        });
+      } catch (error) {
+        tests.push({
+          name: 'Diagnostic Complet',
+          status: 'error',
+          message: `Erreur: ${error.message}`,
+          icon: Activity
+        });
+      }
       
       // Test 4: Service adminBadgeService
       try {
@@ -196,9 +204,9 @@ const CompleteAdminTestPage = () => {
         });
       }
       
-      // Test 7: Accès aux statistiques admin
+      // ✅ Test 7: Accès aux statistiques admin - MÉTHODE CORRIGÉE
       try {
-        const badgeStats = await adminBadgeService.getBadgeStatistics();
+        const badgeStats = await adminBadgeService.getAdvancedStats();
         tests.push({
           name: 'Statistiques Admin',
           status: badgeStats ? 'success' : 'error',
@@ -215,7 +223,7 @@ const CompleteAdminTestPage = () => {
         });
       }
       
-      // Test 8: Accès à la gestion des utilisateurs
+      // ✅ Test 8: Accès à la gestion des utilisateurs - MÉTHODE CORRIGÉE
       try {
         const allUsers = await adminBadgeService.getAllUsersWithBadges();
         tests.push({
@@ -234,9 +242,23 @@ const CompleteAdminTestPage = () => {
         });
       }
 
-      // Calculer statistiques
-      const badgeStats = await adminBadgeService.getBadgeStatistics().catch(() => ({}));
-      const userStats = await adminBadgeService.getAllUsersWithBadges().catch(() => []);
+      // ✅ Calculer statistiques - MÉTHODES CORRIGÉES
+      let badgeStats = {};
+      let userStats = [];
+      
+      try {
+        badgeStats = await adminBadgeService.getAdvancedStats();
+      } catch (error) {
+        console.warn('⚠️ getAdvancedStats non disponible:', error.message);
+        badgeStats = { totalBadges: 0, totalAwarded: 0 };
+      }
+      
+      try {
+        userStats = await adminBadgeService.getAllUsersWithBadges();
+      } catch (error) {
+        console.warn('⚠️ getAllUsersWithBadges non disponible:', error.message);
+        userStats = [];
+      }
       
       setAdminStats({
         badges: {
@@ -260,8 +282,6 @@ const CompleteAdminTestPage = () => {
         message: 'Impossible d\'exécuter les tests admin',
         icon: AlertTriangle
       }]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -338,235 +358,106 @@ const CompleteAdminTestPage = () => {
               </div>
 
               {/* Status global */}
-              <div className={`p-4 rounded-lg border ${isUserAdmin ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+              <div className={`p-4 rounded-lg border ${isUserAdmin ? 
+                'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+              } mb-6`}>
                 <div className="flex items-center gap-3">
                   {isUserAdmin ? (
-                    <Crown className="w-6 h-6 text-green-600" />
+                    <CheckCircle className="w-6 h-6 text-green-600" />
                   ) : (
-                    <AlertTriangle className="w-6 h-6 text-red-600" />
+                    <XCircle className="w-6 h-6 text-red-600" />
                   )}
                   <div>
                     <h3 className={`font-semibold ${isUserAdmin ? 'text-green-800' : 'text-red-800'}`}>
-                      {isUserAdmin ? '✅ Profil Administrateur Confirmé' : '❌ Pas d\'Accès Administrateur'}
+                      {isUserAdmin ? '✅ Accès Administrateur Confirmé' : '❌ Pas d\'Accès Administrateur'}
                     </h3>
                     <p className={`text-sm ${isUserAdmin ? 'text-green-600' : 'text-red-600'}`}>
-                      {isUserAdmin 
-                        ? `${successfulTests}/${totalTests} tests réussis - Accès complet aux fonctions admin`
-                        : `${successfulTests}/${totalTests} tests réussis - Accès limité`
-                      }
+                      Tests réussis: {successfulTests}/{totalTests} (minimum requis: {Math.ceil(totalTests * 0.7)})
                     </p>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Navigation */}
-            <div className="flex gap-2 mb-6 bg-white p-1 rounded-lg border">
-              {[
-                { id: 'profile', label: 'Profil & Tests', icon: User },
-                { id: 'permissions', label: 'Permissions', icon: Key },
-                { id: 'statistics', label: 'Statistiques', icon: BarChart3 },
-                { id: 'admin-access', label: 'Accès Admin', icon: Settings }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTest(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                    activeTest === tab.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <tab.icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Contenu des onglets */}
-            <div className="bg-white rounded-lg border p-6">
-              {/* Profil & Tests */}
-              {activeTest === 'profile' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Tests de Permissions</h3>
-                  <div className="space-y-4">
-                    {adminTests.map((test, index) => (
-                      <div key={index} className="flex items-start gap-4 p-4 border rounded-lg">
-                        <div className={`p-2 rounded-full ${
-                          test.status === 'success' ? 'bg-green-100 text-green-600' :
-                          test.status === 'warning' ? 'bg-yellow-100 text-yellow-600' :
-                          'bg-red-100 text-red-600'
+              {/* Liste des tests */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {adminTests.map((test, index) => {
+                  const Icon = test.icon;
+                  return (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className={`flex items-center gap-3 p-4 rounded-lg border ${
+                        test.status === 'success' ? 'bg-green-50 border-green-200' :
+                        test.status === 'warning' ? 'bg-yellow-50 border-yellow-200' :
+                        'bg-red-50 border-red-200'
+                      }`}
+                    >
+                      <Icon className={`w-5 h-5 ${
+                        test.status === 'success' ? 'text-green-600' :
+                        test.status === 'warning' ? 'text-yellow-600' :
+                        'text-red-600'
+                      }`} />
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">{test.name}</div>
+                        <div className={`text-sm ${
+                          test.status === 'success' ? 'text-green-600' :
+                          test.status === 'warning' ? 'text-yellow-600' :
+                          'text-red-600'
                         }`}>
-                          <test.icon className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">{test.name}</h4>
-                          <p className="text-gray-600 text-sm">{test.message}</p>
-                          {test.details && (
-                            <details className="mt-2">
-                              <summary className="text-xs text-blue-600 cursor-pointer">Détails techniques</summary>
-                              <pre className="text-xs text-gray-500 mt-1 bg-gray-50 p-2 rounded overflow-auto">
-                                {JSON.stringify(test.details, null, 2)}
-                              </pre>
-                            </details>
-                          )}
-                        </div>
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          test.status === 'success' ? 'bg-green-100 text-green-700' :
-                          test.status === 'warning' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {test.status === 'success' ? 'OK' : test.status === 'warning' ? 'Attention' : 'Erreur'}
+                          {test.message}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Permissions */}
-              {activeTest === 'permissions' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Détail des Permissions</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {adminTests.slice(0, 4).map((test, index) => (
-                      <div key={index} className="space-y-3">
-                        <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                          <test.icon className="w-4 h-4" />
-                          {test.name}
-                        </h4>
-                        <div className="text-sm space-y-1">
-                          <p>{test.message}</p>
-                          <p className="text-blue-600">► Détails techniques</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Statistiques */}
-              {activeTest === 'statistics' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5" />
-                    Statistiques Admin
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="text-center p-4 border rounded-lg">
-                      <Trophy className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
-                      <p className="text-2xl font-bold">{adminStats.badges?.totalBadges || 0}</p>
-                      <p className="text-sm text-gray-600">Total Badges</p>
-                    </div>
-                    
-                    <div className="text-center p-4 border rounded-lg">
-                      <Users className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                      <p className="text-2xl font-bold">{adminStats.users?.total || 0}</p>
-                      <p className="text-sm text-gray-600">Utilisateurs</p>
-                    </div>
-                    
-                    <div className="text-center p-4 border rounded-lg">
-                      <Activity className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                      <p className="text-2xl font-bold">{adminStats.users?.active || 0}</p>
-                      <p className="text-sm text-gray-600">Actifs (7j)</p>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Accès Admin - NOUVEAU : Lien vers page dédiée */}
-              {activeTest === 'admin-access' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  {isUserAdmin ? (
-                    <div className="text-center">
-                      <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                        🎉 Accès Admin Confirmé !
-                      </h3>
-                      <p className="text-gray-600 mb-6">
-                        Vous avez un accès complet aux fonctionnalités d'administration.
-                      </p>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-                        <Link
-                          to="/admin/badges"
-                          className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg hover:bg-yellow-100 transition-colors"
-                        >
-                          <Trophy className="w-6 h-6 text-yellow-600" />
-                          <div className="text-left">
-                            <p className="font-medium text-gray-900">Gestion des Badges</p>
-                            <p className="text-sm text-gray-600">Créer et attribuer des badges</p>
-                          </div>
-                          <ExternalLink className="w-4 h-4 text-gray-400 ml-auto" />
-                        </Link>
-                        
-                        <Link
-                          to="/admin/task-validation"
-                          className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
-                        >
-                          <CheckCircle className="w-6 h-6 text-green-600" />
-                          <div className="text-left">
-                            <p className="font-medium text-gray-900">Validation Tâches</p>
-                            <p className="text-sm text-gray-600">Valider les tâches utilisateurs</p>
-                          </div>
-                          <ExternalLink className="w-4 h-4 text-gray-400 ml-auto" />
-                        </Link>
-                        
-                        <Link
-                          to="/admin/users"
-                          className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-                        >
-                          <Users className="w-6 h-6 text-blue-600" />
-                          <div className="text-left">
-                            <p className="font-medium text-gray-900">Gestion Utilisateurs</p>
-                            <p className="text-sm text-gray-600">Administrer les comptes</p>
-                          </div>
-                          <ExternalLink className="w-4 h-4 text-gray-400 ml-auto" />
-                        </Link>
-                        
-                        <Link
-                          to="/admin/analytics"
-                          className="flex items-center gap-3 p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
-                        >
-                          <BarChart3 className="w-6 h-6 text-purple-600" />
-                          <div className="text-left">
-                            <p className="font-medium text-gray-900">Analytics Admin</p>
-                            <p className="text-sm text-gray-600">Voir les statistiques</p>
-                          </div>
-                          <ExternalLink className="w-4 h-4 text-gray-400 ml-auto" />
-                        </Link>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                        Accès Admin Non Disponible
-                      </h3>
-                      <p className="text-gray-600 mb-4">
-                        Vous devez réussir plus de tests pour accéder aux fonctions d'administration.
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Tests réussis: {successfulTests}/{totalTests} (minimum requis: {Math.ceil(totalTests * 0.7)})
-                      </p>
-                    </div>
-                  )}
-                </motion.div>
-              )}
+                      <div className={`w-3 h-3 rounded-full ${
+                        test.status === 'success' ? 'bg-green-500' :
+                        test.status === 'warning' ? 'bg-yellow-500' :
+                        'bg-red-500'
+                      }`} />
+                    </motion.div>
+                  );
+                })}
+              </div>
             </div>
+
+            {/* Statistiques Admin */}
+            {isUserAdmin && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-lg border p-6"
+              >
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-green-600" />
+                  Statistiques Administrateur
+                </h3>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{adminStats.badges.totalBadges}</div>
+                    <div className="text-sm text-blue-700">Badges Système</div>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{adminStats.badges.totalAwarded}</div>
+                    <div className="text-sm text-green-700">Badges Attribués</div>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">{adminStats.users.total}</div>
+                    <div className="text-sm text-purple-700">Utilisateurs</div>
+                  </div>
+                  <div className="text-center p-4 bg-orange-50 rounded-lg">
+                    <div className="text-2xl font-bold text-orange-600">{adminStats.users.active}</div>
+                    <div className="text-sm text-orange-700">Utilisateurs Actifs</div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600">
+                    Tests réussis: {successfulTests}/{totalTests} (minimum requis: {Math.ceil(totalTests * 0.7)})
+                  </p>
+                </div>
+              </motion.div>
+            )}
           </div>
         )}
 
