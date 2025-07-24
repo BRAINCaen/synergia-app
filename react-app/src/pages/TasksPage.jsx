@@ -24,8 +24,8 @@ import {
 // ✅ IMPORTS CORRIGÉS POUR LES MODALS ET SERVICES
 import { useAuthStore } from '../shared/stores/authStore';
 import { useTaskStore } from '../shared/stores/taskStore';
-import TaskForm from '../components/tasks/TaskForm'; // Modal de création/édition
-import TaskDetailModal from '../components/tasks/TaskDetailModal'; // Modal détails
+import TaskForm from '../modules/tasks/TaskForm'; // Formulaire depuis modules
+import { TaskDetailModal } from '../shared/components/ui/ModalWrapper'; // Modal détails depuis ModalWrapper
 import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal'; // Modal assignation
 import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal'; // Modal soumission
 import { taskService } from '../core/services/taskService';
@@ -124,11 +124,10 @@ const TasksPage = () => {
 
       console.log('🔄 [TASKS] Chargement tâches utilisateur:', user.id);
 
-      // Tâches assignées à l'utilisateur
+      // ✅ Utilisation du service complet
       const userAssignedTasks = await taskService.getTasksByUser(user.id);
       console.log('✅ [TASKS] Tâches assignées chargées:', userAssignedTasks.length);
 
-      // Tâches disponibles (ouvertes aux volontaires)
       const openTasks = await taskService.getAvailableTasks();
       console.log('✅ [TASKS] Tâches disponibles chargées:', openTasks.length);
 
@@ -217,9 +216,7 @@ const TasksPage = () => {
           : `Vous avez été assigné à "${task.title}" !`;
         
         showNotification(successMessage, 'success');
-        
-        // Recharger les listes de tâches
-        loadTasks();
+        loadTasks(); // Recharger les listes
       }
       
     } catch (error) {
@@ -618,7 +615,7 @@ const TasksPage = () => {
           isOpen={showTaskForm}
           initialData={editingTask}
           onClose={handleCloseTaskForm}
-          onSuccess={handleTaskFormSuccess}
+          onSubmit={handleTaskFormSuccess}
         />
       )}
 
@@ -650,6 +647,7 @@ const TasksPage = () => {
           onSuccess={() => {
             setShowAssignModal(false);
             setSelectedTask(null);
+            showNotification('Assignation réussie!', 'success');
             loadTasks(); // Recharger après assignation
           }}
         />
@@ -664,7 +662,7 @@ const TasksPage = () => {
             setShowSubmitModal(false);
             setSelectedTask(null);
           }}
-          onSuccess={() => {
+          onSubmit={() => {
             setShowSubmitModal(false);
             setSelectedTask(null);
             showNotification('Tâche soumise avec succès!', 'success');
