@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES TEMPORAIRE SANS CATEGORYSERVICE
+// PAGE TÂCHES AVEC SYSTÈME PUBLIC - TOUTES VISIBLES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -18,7 +18,11 @@ import {
   Target,
   UserPlus,
   Send,
-  Loader
+  Loader,
+  Users,
+  Globe,
+  Star,
+  UserMinus
 } from 'lucide-react';
 
 // ✅ IMPORTS CORRIGÉS POUR LES MODALS ET SERVICES
@@ -31,7 +35,7 @@ import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal';
 import { taskService } from '../core/services/taskService';
 
 /**
- * 🎭 RÔLES SYNERGIA OFFICIELS (même que TaskForm)
+ * 🎭 RÔLES SYNERGIA OFFICIELS
  */
 const SYNERGIA_ROLES = [
   {
@@ -132,7 +136,8 @@ const createSafeTask = (task) => {
       estimatedHours: 0,
       category: 'Système',
       createdAt: new Date(),
-      assignedTo: []
+      assignedTo: [],
+      userContext: { isMyTask: false, canVolunteer: false }
     };
   }
 
@@ -149,21 +154,22 @@ const createSafeTask = (task) => {
     assignedTo: Array.isArray(task.assignedTo) ? task.assignedTo : [],
     dueDate: task.dueDate || null,
     tags: Array.isArray(task.tags) ? task.tags : [],
-    submissions: Array.isArray(task.submissions) ? task.submissions : []
+    submissions: Array.isArray(task.submissions) ? task.submissions : [],
+    createdBy: task.createdBy || 'unknown',
+    userContext: task.userContext || { isMyTask: false, canVolunteer: true }
   };
 };
 
 /**
- * 📋 PAGE PRINCIPALE DES TÂCHES
+ * 📋 PAGE PRINCIPALE DES TÂCHES PUBLIQUES
  */
 const TasksPage = () => {
   // 🔐 AUTHENTIFICATION
   const { user } = useAuthStore();
   
   // 📊 ÉTATS PRINCIPAUX
-  const [myTasks, setMyTasks] = useState([]);
-  const [availableTasks, setAvailableTasks] = useState([]);
-  const [categories, setCategories] = useState(SYNERGIA_ROLES); // ✅ RÔLES SYNERGIA
+  const [allTasks, setAllTasks] = useState([]);
+  const [categories, setCategories] = useState(SYNERGIA_ROLES);
   const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -173,6 +179,7 @@ const TasksPage = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [filterScope, setFilterScope] = useState('all'); // ✅ NOUVEAU : all, my_tasks, available
   
   // ✅ ÉTATS POUR LES MODALS
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -187,47 +194,75 @@ const TasksPage = () => {
    */
   useEffect(() => {
     if (user) {
-      loadTasks();
+      loadAllTasks();
     }
   }, [user]);
 
   /**
-   * 📋 CHARGER LES TÂCHES
+   * 🌍 CHARGER TOUTES LES TÂCHES PUBLIQUES
    */
-  const loadTasks = async () => {
+  const loadAllTasks = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      console.log('📋 Chargement des tâches...');
+      console.log('🌍 Chargement de TOUTES les tâches publiques...');
       
-      const userTasks = await taskService.getUserTasks(user.uid);
-      console.log(`📊 ${userTasks.length} tâches utilisateur trouvées`);
+      // ✅ NOUVEAU : Récupérer toutes les tâches avec contexte utilisateur
+      const tasksWithContext = await taskService.getTasksWithUserContext(user.uid);
+      console.log(`📊 ${tasksWithContext.length} tâches publiques trouvées`);
       
-      // Séparer les tâches assignées vs disponibles
-      const assigned = [];
-      const available = [];
+      // Convertir en tâches sécurisées
+      const safeTasks = tasksWithContext.map(createSafeTask);
+      setAllTasks(safeTasks);
       
-      userTasks.forEach(task => {
-        const safeTask = createSafeTask(task);
-        
-        if (task.assignedTo?.includes(user.uid) || task.createdBy === user.uid) {
-          assigned.push(safeTask);
-        } else {
-          available.push(safeTask);
-        }
-      });
-      
-      setMyTasks(assigned);
-      setAvailableTasks(available);
-      
-      console.log(`✅ Tâches séparées: ${assigned.length} assignées, ${available.length} disponibles`);
+      console.log(`✅ Tâches chargées avec contexte utilisateur`);
       
     } catch (error) {
       console.error('❌ Erreur chargement tâches:', error);
       setError('Erreur lors du chargement des tâches');
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * 🙋 SE PORTER VOLONTAIRE POUR UNE TÂCHE
+   */
+  const handleVolunteerForTask = async (task) => {
+    try {
+      console.log('🙋 Volontariat pour:', task.title);
+      
+      await taskService.volunteerForTask(task.id, user.uid);
+      
+      // Recharger les tâches
+      await loadAllTasks();
+      
+      console.log('✅ Volontariat enregistré');
+      
+    } catch (error) {
+      console.error('❌ Erreur volontariat:', error);
+      alert('Erreur lors du volontariat: ' + error.message);
+    }
+  };
+
+  /**
+   * 🚪 SE RETIRER D'UNE TÂCHE
+   */
+  const handleWithdrawFromTask = async (task) => {
+    try {
+      console.log('🚪 Retrait de:', task.title);
+      
+      await taskService.withdrawFromTask(task.id, user.uid);
+      
+      // Recharger les tâches
+      await loadAllTasks();
+      
+      console.log('✅ Retrait enregistré');
+      
+    } catch (error) {
+      console.error('❌ Erreur retrait:', error);
+      alert('Erreur lors du retrait: ' + error.message);
     }
   };
 
@@ -268,15 +303,6 @@ const TasksPage = () => {
   };
 
   /**
-   * 👥 GESTION ASSIGNATION DE TÂCHE
-   */
-  const handleAssignTask = (task) => {
-    console.log('👥 Ouverture modal assignation:', task.title);
-    setSelectedTask(task);
-    setShowAssignModal(true);
-  };
-
-  /**
    * ✅ GESTION SUCCÈS FORMULAIRE TÂCHE
    */
   const handleTaskFormSuccess = async (taskData) => {
@@ -287,11 +313,12 @@ const TasksPage = () => {
         await taskService.updateTask(editingTask.id, taskData);
         console.log('✅ Tâche mise à jour');
       } else {
-        await taskService.createTask(taskData, user.uid);
-        console.log('✅ Nouvelle tâche créée');
+        const createdTask = await taskService.createTask(taskData, user.uid);
+        console.log('✅ Nouvelle tâche créée:', createdTask);
       }
       
-      await loadTasks();
+      // ✅ RECHARGER TOUTES LES TÂCHES
+      await loadAllTasks();
       handleCloseTaskForm();
       
     } catch (error) {
@@ -328,19 +355,36 @@ const TasksPage = () => {
    */
   const filterTasks = (tasks) => {
     return tasks.filter(task => {
+      // Filtre recherche
       const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            task.description.toLowerCase().includes(searchTerm.toLowerCase());
       
+      // Filtre statut
       const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
+      
+      // Filtre priorité
       const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
+      
+      // Filtre catégorie/rôle
       const matchesCategory = filterCategory === 'all' || task.category === filterCategory;
       
-      return matchesSearch && matchesStatus && matchesPriority && matchesCategory;
+      // ✅ NOUVEAU : Filtre portée (mes tâches vs toutes vs disponibles)
+      const matchesScope = filterScope === 'all' || 
+                          (filterScope === 'my_tasks' && task.userContext?.isMyTask) ||
+                          (filterScope === 'available' && task.userContext?.canVolunteer) ||
+                          (filterScope === 'assigned_to_me' && task.userContext?.isAssignedToMe) ||
+                          (filterScope === 'created_by_me' && task.userContext?.isCreatedByMe);
+      
+      return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesScope;
     });
   };
 
-  const filteredMyTasks = filterTasks(myTasks);
-  const filteredAvailableTasks = filterTasks(availableTasks);
+  const filteredTasks = filterTasks(allTasks);
+
+  // Séparer pour l'affichage
+  const myTasks = filteredTasks.filter(task => task.userContext?.isMyTask);
+  const availableTasks = filteredTasks.filter(task => task.userContext?.canVolunteer);
+  const allFilteredTasks = filteredTasks;
 
   // 🔄 AFFICHAGE LOADING
   if (loading) {
@@ -348,7 +392,7 @@ const TasksPage = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <Loader className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-4" />
-          <p className="text-white">Chargement des tâches...</p>
+          <p className="text-white">Chargement de toutes les tâches...</p>
         </div>
       </div>
     );
@@ -363,7 +407,7 @@ const TasksPage = () => {
           <h2 className="text-xl font-bold text-white mb-2">Erreur de chargement</h2>
           <p className="text-gray-400 mb-4">{error}</p>
           <button
-            onClick={() => loadTasks()}
+            onClick={() => loadAllTasks()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Réessayer
@@ -382,10 +426,11 @@ const TasksPage = () => {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Gestion des Tâches
+                Toutes les Tâches
               </h1>
-              <p className="text-gray-400 text-lg mt-2">
-                Organisez et suivez vos missions
+              <p className="text-gray-400 text-lg mt-2 flex items-center gap-2">
+                <Globe className="w-5 h-5" />
+                {allTasks.length} tâches publiques • {myTasks.length} mes tâches • {availableTasks.length} disponibles
               </p>
             </div>
             
@@ -398,9 +443,9 @@ const TasksPage = () => {
             </button>
           </div>
 
-          {/* Filtres */}
+          {/* Filtres étendus */}
           <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
               
               {/* Recherche */}
               <div className="lg:col-span-2">
@@ -416,18 +461,33 @@ const TasksPage = () => {
                 </div>
               </div>
 
-              {/* Filtres */}
+              {/* ✅ NOUVEAU : Filtre portée */}
+              <select
+                value={filterScope}
+                onChange={(e) => setFilterScope(e.target.value)}
+                className="px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">🌍 Toutes</option>
+                <option value="my_tasks">👤 Mes tâches</option>
+                <option value="available">🎯 Disponibles</option>
+                <option value="created_by_me">✨ Créées par moi</option>
+                <option value="assigned_to_me">📋 Assignées à moi</option>
+              </select>
+
+              {/* Filtre statut */}
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
                 className="px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
               >
-                <option value="all">Tous les statuts</option>
+                <option value="all">Tous statuts</option>
                 <option value="pending">En attente</option>
+                <option value="assigned">Assignées</option>
                 <option value="in_progress">En cours</option>
                 <option value="completed">Terminées</option>
               </select>
 
+              {/* Filtre priorité */}
               <select
                 value={filterPriority}
                 onChange={(e) => setFilterPriority(e.target.value)}
@@ -440,6 +500,7 @@ const TasksPage = () => {
                 <option value="urgent">Urgente</option>
               </select>
 
+              {/* Filtre rôle */}
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
@@ -456,31 +517,46 @@ const TasksPage = () => {
           </div>
         </div>
 
-        {/* Mes tâches */}
-        <div className="mb-8">
+        {/* Liste des tâches filtrées */}
+        <div>
           <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
             <Target className="w-6 h-6 text-blue-400" />
-            Mes tâches ({filteredMyTasks.length})
+            {filterScope === 'my_tasks' ? `Mes tâches (${allFilteredTasks.length})` :
+             filterScope === 'available' ? `Tâches disponibles (${allFilteredTasks.length})` :
+             `Toutes les tâches (${allFilteredTasks.length})`}
           </h2>
           
           <div className="grid gap-4">
-            {filteredMyTasks.length === 0 ? (
+            {allFilteredTasks.length === 0 ? (
               <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8 text-center">
                 <Target className="w-12 h-12 text-gray-600 mx-auto mb-4" />
                 <p className="text-gray-400">
                   {searchTerm || filterStatus !== 'all' || filterPriority !== 'all' || filterCategory !== 'all' 
                     ? 'Aucune tâche ne correspond aux filtres'
-                    : 'Aucune tâche assignée pour le moment'
+                    : 'Aucune tâche disponible'
                   }
                 </p>
               </div>
             ) : (
-              filteredMyTasks.map(task => (
+              allFilteredTasks.map(task => (
                 <div key={task.id} className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:bg-gray-800/70 transition-all duration-300">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h3 className="text-lg font-semibold text-white">{task.title}</h3>
+                        
+                        {/* Badges de statut */}
+                        {task.userContext?.isCreatedByMe && (
+                          <span className="px-2 py-1 text-xs rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                            ✨ Créée par moi
+                          </span>
+                        )}
+                        {task.userContext?.isAssignedToMe && (
+                          <span className="px-2 py-1 text-xs rounded-full bg-green-500/20 text-green-300 border border-green-500/30">
+                            📋 Assignée à moi
+                          </span>
+                        )}
+                        
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           task.priority === 'urgent' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
                           task.priority === 'high' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' :
@@ -491,103 +567,16 @@ const TasksPage = () => {
                            task.priority === 'high' ? '🟠 Haute' :
                            task.priority === 'medium' ? '🟡 Moyenne' : '🟢 Basse'}
                         </span>
+                        
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           task.status === 'completed' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
                           task.status === 'in_progress' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
+                          task.status === 'assigned' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
                           'bg-gray-500/20 text-gray-300 border border-gray-500/30'
                         }`}>
                           {task.status === 'completed' ? '✅ Terminée' :
-                           task.status === 'in_progress' ? '🔄 En cours' : '⏳ En attente'}
-                        </span>
-                      </div>
-                      
-                      {task.description && (
-                        <p className="text-gray-400 mb-3 line-clamp-2">{task.description}</p>
-                      )}
-                      
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        {task.category && (
-                          <span className="flex items-center gap-1">
-                            {categories.find(role => role.id === task.category)?.icon || '📂'} {categories.find(role => role.id === task.category)?.name || task.category}
-                          </span>
-                        )}
-                        {task.xpReward > 0 && (
-                          <span className="flex items-center gap-1">
-                            <Trophy className="w-4 h-4" />
-                            {task.xpReward} XP
-                          </span>
-                        )}
-                        {task.estimatedHours > 0 && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            {task.estimatedHours}h
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 ml-4">
-                      <button
-                        onClick={() => handleViewDetails(task)}
-                        className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors"
-                        title="Voir les détails"
-                      >
-                        <Eye className="w-5 h-5" />
-                      </button>
-                      
-                      <button
-                        onClick={() => handleEditTask(task)}
-                        className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-500/20 rounded-lg transition-colors"
-                        title="Modifier"
-                      >
-                        <Edit className="w-5 h-5" />
-                      </button>
-                      
-                      {task.status !== 'completed' && (
-                        <button
-                          onClick={() => handleSubmitTask(task)}
-                          className="p-2 text-gray-400 hover:text-purple-400 hover:bg-purple-500/20 rounded-lg transition-colors"
-                          title="Soumettre le travail"
-                        >
-                          <Send className="w-5 h-5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Tâches disponibles */}
-        <div>
-          <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-            <UserPlus className="w-6 h-6 text-purple-400" />
-            Opportunités de volontariat ({filteredAvailableTasks.length})
-          </h2>
-          
-          <div className="grid gap-4">
-            {filteredAvailableTasks.length === 0 ? (
-              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8 text-center">
-                <UserPlus className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400">
-                  {searchTerm || filterStatus !== 'all' || filterPriority !== 'all' || filterCategory !== 'all' 
-                    ? 'Aucune opportunité ne correspond aux filtres'
-                    : 'Aucune opportunité de volontariat disponible'
-                  }
-                </p>
-              </div>
-            ) : (
-              filteredAvailableTasks.map(task => (
-                <div key={task.id} className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:bg-gray-800/70 transition-all duration-300">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-white">{task.title}</h3>
-                        <span className="px-2 py-1 text-xs rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                          🎯 Opportunité
+                           task.status === 'in_progress' ? '🔄 En cours' :
+                           task.status === 'assigned' ? '👤 Assignée' : '⏳ En attente'}
                         </span>
                       </div>
                       
@@ -609,6 +598,12 @@ const TasksPage = () => {
                           <Clock className="w-4 h-4" />
                           {task.estimatedHours}h
                         </span>
+                        {task.assignedTo.length > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Users className="w-4 h-4" />
+                            {task.assignedTo.length} assigné{task.assignedTo.length > 1 ? 's' : ''}
+                          </span>
+                        )}
                       </div>
                     </div>
                     
@@ -622,13 +617,51 @@ const TasksPage = () => {
                         <Eye className="w-5 h-5" />
                       </button>
                       
-                      <button
-                        onClick={() => handleAssignTask(task)}
-                        className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 text-sm"
-                        title="Se porter volontaire"
-                      >
-                        Me porter volontaire
-                      </button>
+                      {/* Édition (si créée par moi ou assignée à moi) */}
+                      {task.userContext?.canEdit && (
+                        <button
+                          onClick={() => handleEditTask(task)}
+                          className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-500/20 rounded-lg transition-colors"
+                          title="Modifier"
+                        >
+                          <Edit className="w-5 h-5" />
+                        </button>
+                      )}
+                      
+                      {/* Soumission (si assignée à moi et pas terminée) */}
+                      {task.userContext?.canComplete && task.status !== 'completed' && (
+                        <button
+                          onClick={() => handleSubmitTask(task)}
+                          className="p-2 text-gray-400 hover:text-purple-400 hover:bg-purple-500/20 rounded-lg transition-colors"
+                          title="Soumettre le travail"
+                        >
+                          <Send className="w-5 h-5" />
+                        </button>
+                      )}
+                      
+                      {/* Volontariat (si je peux me porter volontaire) */}
+                      {task.userContext?.canVolunteer && (
+                        <button
+                          onClick={() => handleVolunteerForTask(task)}
+                          className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 text-sm"
+                          title="Se porter volontaire"
+                        >
+                          <UserPlus className="w-4 h-4 mr-1 inline" />
+                          Volontaire
+                        </button>
+                      )}
+                      
+                      {/* Retrait (si assignée à moi) */}
+                      {task.userContext?.isAssignedToMe && task.status !== 'completed' && (
+                        <button
+                          onClick={() => handleWithdrawFromTask(task)}
+                          className="px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-lg hover:from-gray-600 hover:to-gray-700 transition-all duration-300 text-sm"
+                          title="Se retirer de la tâche"
+                        >
+                          <UserMinus className="w-4 h-4 mr-1 inline" />
+                          Retrait
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -677,7 +710,7 @@ const TasksPage = () => {
           onClose={handleCloseAssignModal}
           onSuccess={() => {
             handleCloseAssignModal();
-            loadTasks();
+            loadAllTasks();
           }}
         />
       )}
@@ -690,7 +723,7 @@ const TasksPage = () => {
           onClose={handleCloseSubmitModal}
           onSuccess={() => {
             handleCloseSubmitModal();
-            loadTasks();
+            loadAllTasks();
           }}
         />
       )}
