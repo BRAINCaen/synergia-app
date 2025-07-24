@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES CORRIGÉE - REMPLACE TON FICHIER ENTIER
+// PAGE TÂCHES CORRIGÉE AVEC CATÉGORIES FONCTIONNELLES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -29,6 +29,7 @@ import { TaskDetailModal } from '../shared/components/ui/ModalWrapper'; // Modal
 import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal'; // Modal assignation
 import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal'; // Modal soumission
 import { taskService } from '../core/services/taskService';
+import { categoryService } from '../core/services/categoryService'; // ✅ AJOUT : Service catégories
 
 /**
  * 🛡️ FONCTION DE SÉCURITÉ POUR TÂCHES
@@ -63,288 +64,288 @@ const createSafeTask = (task) => {
     assignedTo: Array.isArray(task.assignedTo) ? task.assignedTo : [],
     dueDate: task.dueDate || null,
     tags: Array.isArray(task.tags) ? task.tags : [],
-    projectId: task.projectId || null
+    submissions: Array.isArray(task.submissions) ? task.submissions : []
   };
 };
 
-const sanitizeTaskArray = (tasks) => {
-  if (!Array.isArray(tasks)) {
-    console.warn('❌ Tasks n\'est pas un array:', tasks);
-    return [];
-  }
-  return tasks.map(createSafeTask);
-};
-
 /**
- * 📋 PAGE PRINCIPALE DES TÂCHES
+ * 📋 PAGE PRINCIPALE DES TÂCHES CORRIGÉE
  */
 const TasksPage = () => {
+  // 🔐 AUTHENTIFICATION
   const { user } = useAuthStore();
-  const { tasks, loading: storeLoading } = useTaskStore();
-
-  // États locaux
+  
+  // 📊 ÉTATS PRINCIPAUX
+  const [myTasks, setMyTasks] = useState([]);
+  const [availableTasks, setAvailableTasks] = useState([]);
+  const [categories, setCategories] = useState([]); // ✅ AJOUT : État pour les catégories
+  const [teamMembers, setTeamMembers] = useState([]); // ✅ AJOUT : État pour les membres équipe
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [assignedTasks, setAssignedTasks] = useState([]);
-  const [availableTasks, setAvailableTasks] = useState([]);
+  
+  // 🔍 FILTRES ET RECHERCHE
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [notification, setNotification] = useState(null);
-
+  const [filterPriority, setFilterPriority] = useState('all');
+  const [filterCategory, setFilterCategory] = useState('all'); // ✅ AJOUT : Filtre par catégorie
+  
   // ✅ ÉTATS POUR LES MODALS CORRIGÉS
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showTaskDetail, setShowTaskDetail] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
-
-  // Notification temporaire
-  const showNotification = (message, type = 'info') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 5000);
-  };
+  const [selectedTask, setSelectedTask] = useState(null);
 
   /**
-   * 📊 CHARGEMENT DES DONNÉES SÉCURISÉ
+   * 🚀 CHARGEMENT INITIAL DES DONNÉES
    */
   useEffect(() => {
-    loadTasks();
+    if (user) {
+      loadAllData();
+    }
   }, [user]);
 
-  const loadTasks = async () => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
+  /**
+   * 📊 CHARGER TOUTES LES DONNÉES NÉCESSAIRES
+   */
+  const loadAllData = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      setError(null);
-
-      // ✅ EXTRACTION ROBUSTE DE L'ID UTILISATEUR RÉEL
-      let userId = null;
+      console.log('📊 Chargement complet des données TasksPage...');
       
-      if (user.uid && typeof user.uid === 'string' && user.uid.trim() !== '') {
-        userId = user.uid;
-      } else if (user.id && typeof user.id === 'string' && user.id.trim() !== '') {
-        userId = user.id;
-      } else {
-        throw new Error('Impossible d\'identifier l\'utilisateur. Veuillez vous reconnecter.');
+      // ✅ CHARGER EN PARALLÈLE : tâches + catégories + membres
+      const [tasksResult, categoriesResult] = await Promise.allSettled([
+        loadTasks(),
+        loadCategories()
+      ]);
+
+      // Vérifier les résultats
+      if (tasksResult.status === 'rejected') {
+        console.error('❌ Erreur chargement tâches:', tasksResult.reason);
+      }
+      
+      if (categoriesResult.status === 'rejected') {
+        console.error('❌ Erreur chargement catégories:', categoriesResult.reason);
       }
 
-      console.log('🔄 [TASKS] Chargement tâches utilisateur:', userId);
-
-      // ✅ CHARGEMENT DES VRAIES DONNÉES FIREBASE UNIQUEMENT
-      const userAssignedTasks = await taskService.getTasksByUser(userId);
-      console.log('✅ [TASKS] Tâches assignées chargées:', userAssignedTasks.length);
-      console.log('📋 [DEBUG] Détail tâches assignées:', userAssignedTasks);
-
-      const openTasks = await taskService.getAvailableTasks();
-      console.log('✅ [TASKS] Tâches disponibles chargées:', openTasks.length);
-      console.log('📋 [DEBUG] Détail tâches disponibles:', openTasks);
-
-      // ✅ UTILISATION DES VRAIES DONNÉES FIREBASE SEULEMENT
-      const safeAssignedTasks = sanitizeTaskArray(userAssignedTasks);
-      const safeAvailableTasks = sanitizeTaskArray(openTasks);
-
-      setAssignedTasks(safeAssignedTasks);
-      setAvailableTasks(safeAvailableTasks);
-
-    } catch (error) {
-      console.error('❌ [TASKS] Erreur chargement:', error);
-      setError(error.message);
+      console.log('✅ Données TasksPage chargées');
       
-      // Arrays vides si erreur - pas de données fictives
-      setAssignedTasks([]);
-      setAvailableTasks([]);
+    } catch (error) {
+      console.error('❌ Erreur chargement général:', error);
+      setError('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
   };
 
   /**
-   * ➕ CRÉER UNE NOUVELLE TÂCHE - FONCTION CORRIGÉE
+   * 📋 CHARGER LES TÂCHES
    */
-  const handleCreateNewTask = () => {
-    console.log('➕ [CREATE] Ouverture formulaire création tâche');
-    
-    // ✅ DONNÉES INITIALES POUR NOUVELLE TÂCHE
-    const userId = user.uid || user.id;
-    setEditingTask({
-      // Pré-remplir avec l'utilisateur actuel comme créateur et assigné
-      createdBy: userId,
-      assignedTo: [userId], // S'assigner automatiquement la tâche
-      status: 'assigned',
-      priority: 'medium',
-      title: '',
-      description: '',
-      category: 'general',
-      xpReward: 25,
-      estimatedHours: 1,
-      openToVolunteers: false
-    });
+  const loadTasks = async () => {
+    try {
+      console.log('📋 Chargement des tâches...');
+      
+      // Récupérer toutes les tâches de l'utilisateur
+      const userTasks = await taskService.getUserTasks(user.uid);
+      console.log(`📊 ${userTasks.length} tâches utilisateur trouvées`);
+      
+      // Séparer les tâches assignées vs disponibles
+      const assigned = [];
+      const available = [];
+      
+      userTasks.forEach(task => {
+        const safeTask = createSafeTask(task);
+        
+        if (task.assignedTo?.includes(user.uid) || task.createdBy === user.uid) {
+          assigned.push(safeTask);
+        } else {
+          available.push(safeTask);
+        }
+      });
+      
+      setMyTasks(assigned);
+      setAvailableTasks(available);
+      
+      console.log(`✅ Tâches séparées: ${assigned.length} assignées, ${available.length} disponibles`);
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement tâches:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * 🏷️ CHARGER LES CATÉGORIES
+   */
+  const loadCategories = async () => {
+    try {
+      console.log('🏷️ Chargement des catégories...');
+      
+      const categoriesData = await categoryService.getAllCategories();
+      setCategories(categoriesData);
+      
+      console.log(`✅ ${categoriesData.length} catégories chargées:`, categoriesData.map(c => c.name));
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement catégories:', error);
+      
+      // En cas d'échec, utiliser les catégories par défaut
+      const defaultCategories = categoryService.getDefaultCategories();
+      setCategories(defaultCategories);
+      console.log('🔧 Catégories par défaut utilisées');
+    }
+  };
+
+  /**
+   * ➕ GESTION CRÉATION DE TÂCHE
+   */
+  const handleCreateTask = () => {
+    console.log('➕ Ouverture formulaire création tâche');
+    setEditingTask(null);
     setShowTaskForm(true);
   };
 
   /**
-   * ✏️ ÉDITER UNE TÂCHE - FONCTION CORRIGÉE
+   * ✏️ GESTION ÉDITION DE TÂCHE
    */
   const handleEditTask = (task) => {
-    console.log('✏️ [EDIT] Édition tâche:', task.title);
-    setEditingTask(task); // Passer la tâche à éditer
-    setShowTaskForm(true); // Ouvrir le modal de formulaire en mode édition
+    console.log('✏️ Ouverture formulaire édition:', task.title);
+    setEditingTask(task);
+    setShowTaskForm(true);
   };
 
   /**
-   * 👁️ VOIR LES DÉTAILS - FONCTION CORRIGÉE
+   * 👁️ GESTION DÉTAILS DE TÂCHE
    */
   const handleViewDetails = (task) => {
-    console.log('👁️ [DETAILS] Affichage détails tâche:', task.title);
-    setSelectedTask(task); // Passer la tâche sélectionnée
-    setShowTaskDetail(true); // Ouvrir le modal de détails
+    console.log('👁️ Ouverture détails tâche:', task.title);
+    setSelectedTask(task);
+    setShowTaskDetail(true);
   };
 
   /**
-   * 📝 FERMETURE DU FORMULAIRE DE TÂCHE
+   * 📤 GESTION SOUMISSION DE TÂCHE
    */
-  const handleCloseTaskForm = () => {
-    setShowTaskForm(false);
-    setEditingTask(null);
-    // Recharger les tâches après création/modification
-    loadTasks();
+  const handleSubmitTask = (task) => {
+    console.log('📤 Ouverture modal soumission:', task.title);
+    setSelectedTask(task);
+    setShowSubmitModal(true);
   };
 
   /**
-   * 🔄 SOUMISSION RÉUSSIE DU FORMULAIRE
+   * 👥 GESTION ASSIGNATION DE TÂCHE
    */
-  const handleTaskFormSuccess = (taskData, isEdit) => {
-    const action = isEdit ? 'modifiée' : 'créée';
-    showNotification(`Tâche "${taskData.title}" ${action} avec succès!`, 'success');
-    handleCloseTaskForm();
-  };
-
-  /**
-   * 🎯 POSTULER POUR UNE TÂCHE VOLONTAIRE
-   */
-  const handleVolunteerForTask = async (task) => {
-    if (!user) {
-      showNotification('Vous devez être connecté pour postuler', 'error');
-      return;
-    }
-
-    try {
-      console.log('🎯 [VOLUNTEER] Candidature pour:', task.title);
-      
-      const result = await taskService.volunteerForTask(task.id, user.id);
-      
-      if (result.success) {
-        const successMessage = result.requiresApproval 
-          ? `Candidature envoyée pour "${task.title}" ! En attente d'approbation.`
-          : `Vous avez été assigné à "${task.title}" !`;
-        
-        showNotification(successMessage, 'success');
-        loadTasks(); // Recharger les listes
-      }
-      
-    } catch (error) {
-      console.error('❌ [VOLUNTEER] Erreur candidature:', error);
-      
-      let errorMessage = 'Erreur lors de la candidature';
-      
-      if (error.message.includes('déjà assigné')) {
-        errorMessage = 'Vous êtes déjà assigné à cette tâche';
-      } else if (error.message.includes('déjà postulé')) {
-        errorMessage = 'Vous avez déjà postulé pour cette tâche';
-      } else if (error.message.includes('introuvable')) {
-        errorMessage = 'Cette tâche n\'existe plus';
-      } else {
-        errorMessage = `Erreur: ${error.message}`;
-      }
-      
-      showNotification(errorMessage, 'error');
-    }
-  };
-
-  /**
-   * 👥 ASSIGNER DES UTILISATEURS
-   */
-  const handleAssignUsers = (task) => {
-    console.log('👥 [ASSIGN] Assignation utilisateurs:', task.title);
+  const handleAssignTask = (task) => {
+    console.log('👥 Ouverture modal assignation:', task.title);
     setSelectedTask(task);
     setShowAssignModal(true);
   };
 
   /**
-   * 📤 SOUMETTRE UNE TÂCHE TERMINÉE
+   * ✅ GESTION SUCCÈS FORMULAIRE TÂCHE
    */
-  const handleSubmitTask = (task) => {
-    console.log('📤 [SUBMIT] Soumission tâche:', task.title);
-    setSelectedTask(task);
-    setShowSubmitModal(true);
+  const handleTaskFormSuccess = async (taskData) => {
+    try {
+      console.log('✅ Soumission réussie TaskForm:', taskData);
+      
+      if (editingTask) {
+        // Mise à jour
+        await taskService.updateTask(editingTask.id, taskData);
+        console.log('✅ Tâche mise à jour');
+      } else {
+        // Création
+        await taskService.createTask(taskData, user.uid);
+        console.log('✅ Nouvelle tâche créée');
+      }
+      
+      // Recharger les tâches
+      await loadTasks();
+      
+      // Fermer le modal
+      handleCloseTaskForm();
+      
+    } catch (error) {
+      console.error('❌ Erreur soumission tâche:', error);
+      throw error; // Laisser TaskForm gérer l'erreur
+    }
   };
 
-  // Filtrer les tâches avec protection maximale
-  const filteredAssignedTasks = sanitizeTaskArray(assignedTasks).filter(task => {
-    try {
-      const title = task.title || '';
-      const description = task.description || '';
-      const status = task.status || '';
-      
-      const matchesSearch = !searchTerm || 
-        title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        description.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesStatus = filterStatus === 'all' || status === filterStatus;
-      
-      return matchesSearch && matchesStatus;
-    } catch (error) {
-      console.error('❌ Erreur filtrage tâche assignée:', error, task);
-      return false;
-    }
-  });
+  /**
+   * ❌ FERMETURE MODALS
+   */
+  const handleCloseTaskForm = () => {
+    setShowTaskForm(false);
+    setEditingTask(null);
+  };
 
-  const filteredAvailableTasks = sanitizeTaskArray(availableTasks).filter(task => {
-    try {
-      const title = task.title || '';
-      const description = task.description || '';
-      
-      const matchesSearch = !searchTerm || 
-        title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        description.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      return matchesSearch;
-    } catch (error) {
-      console.error('❌ Erreur filtrage tâche disponible:', error, task);
-      return false;
-    }
-  });
+  const handleCloseTaskDetail = () => {
+    setShowTaskDetail(false);
+    setSelectedTask(null);
+  };
 
-  // Affichage loading
+  const handleCloseAssignModal = () => {
+    setShowAssignModal(false);
+    setSelectedTask(null);
+  };
+
+  const handleCloseSubmitModal = () => {
+    setShowSubmitModal(false);
+    setSelectedTask(null);
+  };
+
+  /**
+   * 🔍 FILTRAGE DES TÂCHES
+   */
+  const filterTasks = (tasks) => {
+    return tasks.filter(task => {
+      // Filtre recherche
+      const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           task.description.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Filtre statut
+      const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
+      
+      // Filtre priorité
+      const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
+      
+      // ✅ AJOUT : Filtre catégorie
+      const matchesCategory = filterCategory === 'all' || task.category === filterCategory;
+      
+      return matchesSearch && matchesStatus && matchesPriority && matchesCategory;
+    });
+  };
+
+  const filteredMyTasks = filterTasks(myTasks);
+  const filteredAvailableTasks = filterTasks(availableTasks);
+
+  // 🔄 AFFICHAGE LOADING
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement de vos tâches...</p>
+          <Loader className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-4" />
+          <p className="text-white">Chargement des tâches...</p>
         </div>
       </div>
     );
   }
 
-  // Affichage erreur
+  // ❌ AFFICHAGE ERREUR
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Erreur de chargement</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">Erreur de chargement</h2>
+          <p className="text-gray-400 mb-4">{error}</p>
           <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            onClick={() => loadAllData()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Recharger la page
+            Réessayer
           </button>
         </div>
       </div>
@@ -352,330 +353,274 @@ const TasksPage = () => {
   }
 
   return (
-    <div className="space-y-6">
-      
-      {/* Notification */}
-      {notification && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
-          notification.type === 'success' 
-            ? 'bg-green-100 border border-green-200 text-green-800' 
-            : notification.type === 'error'
-            ? 'bg-red-100 border border-red-200 text-red-800'
-            : 'bg-blue-100 border border-blue-200 text-blue-800'
-        }`}>
-          <div className="flex items-center gap-2">
-            {notification.type === 'success' ? (
-              <CheckCircle className="w-5 h-5" />
-            ) : notification.type === 'error' ? (
-              <XCircle className="w-5 h-5" />
-            ) : (
-              <AlertCircle className="w-5 h-5" />
-            )}
-            <span className="font-medium">{notification.message}</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        
+        {/* En-tête */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                Gestion des Tâches
+              </h1>
+              <p className="text-gray-400 text-lg mt-2">
+                Organisez et suivez vos missions
+              </p>
+            </div>
+            
+            <button
+              onClick={handleCreateTask}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+            >
+              <Plus className="w-5 h-5" />
+              Nouvelle tâche
+            </button>
+          </div>
+
+          {/* Filtres */}
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              
+              {/* Recherche */}
+              <div className="lg:col-span-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher une tâche..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Filtre statut */}
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Tous les statuts</option>
+                <option value="pending">En attente</option>
+                <option value="in_progress">En cours</option>
+                <option value="completed">Terminées</option>
+              </select>
+
+              {/* Filtre priorité */}
+              <select
+                value={filterPriority}
+                onChange={(e) => setFilterPriority(e.target.value)}
+                className="px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Toutes priorités</option>
+                <option value="low">Basse</option>
+                <option value="medium">Moyenne</option>
+                <option value="high">Haute</option>
+                <option value="urgent">Urgente</option>
+              </select>
+
+              {/* ✅ AJOUT : Filtre catégorie */}
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Toutes catégories</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.id}>
+                    {category.icon ? `${category.icon} ` : ''}{category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mes Tâches</h1>
-          <p className="text-gray-600">Gérez vos tâches assignées et découvrez de nouvelles opportunités</p>
-        </div>
-        
-        {/* ✅ BOUTON CORRIGÉ - Appelle la vraie fonction */}
-        <div className="flex gap-2">
-          <button
-            onClick={handleCreateNewTask}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Nouvelle tâche
-          </button>
+        {/* Mes tâches */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+            <Target className="w-6 h-6 text-blue-400" />
+            Mes tâches ({filteredMyTasks.length})
+          </h2>
           
-          {/* Bouton de rechargement pour diagnostiquer */}
-          <button
-            onClick={() => {
-              console.log('🔄 [MANUAL_RELOAD] Rechargement manuel des tâches...');
-              loadTasks();
-            }}
-            className="inline-flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-            title="Recharger les tâches"
-          >
-            <Loader className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Search & Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Rechercher une tâche..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Filter className="w-5 h-5 text-gray-400" />
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">Tous les statuts</option>
-            <option value="assigned">Assignées</option>
-            <option value="in_progress">En cours</option>
-            <option value="completed">Terminées</option>
-            <option value="pending">En attente</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Statistiques rapides */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Target className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{filteredAssignedTasks.length}</p>
-              <p className="text-sm text-gray-600">Total</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <Clock className="w-5 h-5 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {filteredAssignedTasks.filter(t => t.status === 'in_progress').length}
-              </p>
-              <p className="text-sm text-gray-600">En cours</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {filteredAssignedTasks.filter(t => t.status === 'completed').length}
-              </p>
-              <p className="text-sm text-gray-600">Terminées</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Trophy className="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {filteredAssignedTasks.reduce((sum, task) => sum + (task.xpReward || 0), 0)}
-              </p>
-              <p className="text-sm text-gray-600">XP Total</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
-        <div className="flex-1 text-center py-2 bg-white text-blue-600 rounded-md font-medium">
-          Mes tâches ({filteredAssignedTasks.length})
-        </div>
-        <div className="flex-1 text-center py-2 text-gray-600 font-medium">
-          Opportunités volontaires ({filteredAvailableTasks.length})
-        </div>
-      </div>
-
-      {/* Tâches assignées */}
-      <div className="space-y-4">
-        {filteredAssignedTasks.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-            <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Aucune tâche assignée
-            </h3>
-            <p className="text-gray-600 mb-4">
-              Vous n'avez actuellement aucune tâche assignée. Créez une nouvelle tâche ou explorez les opportunités disponibles.
-            </p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={handleCreateNewTask}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-                Créer une tâche
-              </button>
-              <button
-                onClick={() => {
-                  // Scroll vers les opportunités volontaires
-                  const element = document.querySelector('[data-section="opportunities"]');
-                  if (element) element.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                <UserPlus className="w-5 h-5" />
-                Voir les opportunités
-              </button>
-            </div>
-          </div>
-        ) : (
-          filteredAssignedTasks.map((task) => (
-            <div key={task.id} className="bg-white p-6 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      task.priority === 'high' ? 'bg-red-100 text-red-800' :
-                      task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-green-100 text-green-800'
-                    }`}>
-                      {task.priority === 'high' ? 'Haute' : 
-                       task.priority === 'medium' ? 'Moyenne' : 'Basse'}
-                    </span>
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      task.status === 'completed' ? 'bg-green-100 text-green-800' :
-                      task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {task.status === 'completed' ? 'Terminée' :
-                       task.status === 'in_progress' ? 'En cours' : 'En attente'}
-                    </span>
-                  </div>
-                  
-                  {task.description && (
-                    <p className="text-gray-600 mb-3 line-clamp-2">{task.description}</p>
-                  )}
-                  
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    {task.category && (
-                      <span className="flex items-center gap-1">
-                        📂 {task.category}
-                      </span>
-                    )}
-                    {task.xpReward > 0 && (
-                      <span className="flex items-center gap-1">
-                        <Trophy className="w-4 h-4" />
-                        {task.xpReward} XP
-                      </span>
-                    )}
-                    {task.estimatedHours > 0 && (
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        {task.estimatedHours}h
-                      </span>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Actions corrigées */}
-                <div className="flex items-center gap-2 ml-4">
-                  <button
-                    onClick={() => handleViewDetails(task)}
-                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="Voir les détails"
-                  >
-                    <Eye className="w-5 h-5" />
-                  </button>
-                  
-                  <button
-                    onClick={() => handleEditTask(task)}
-                    className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                    title="Modifier"
-                  >
-                    <Edit className="w-5 h-5" />
-                  </button>
-                  
-                  {task.status !== 'completed' && (
-                    <button
-                      onClick={() => handleSubmitTask(task)}
-                      className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                      title="Soumettre le travail"
-                    >
-                      <Send className="w-5 h-5" />
-                    </button>
-                  )}
-                </div>
+          <div className="grid gap-4">
+            {filteredMyTasks.length === 0 ? (
+              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8 text-center">
+                <Target className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400">
+                  {searchTerm || filterStatus !== 'all' || filterPriority !== 'all' || filterCategory !== 'all' 
+                    ? 'Aucune tâche ne correspond aux filtres'
+                    : 'Aucune tâche assignée pour le moment'
+                  }
+                </p>
               </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Tâches disponibles pour volontaires */}
-      <div data-section="opportunities" className="space-y-4">
-        <h2 className="text-xl font-bold text-gray-900">Opportunités de volontariat</h2>
-        
-        {filteredAvailableTasks.length === 0 ? (
-          <div className="text-center py-12 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
-            <UserPlus className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Aucune opportunité disponible
-            </h3>
-            <p className="text-gray-600 mb-4">
-              Il n'y a actuellement aucune tâche ouverte aux volontaires. Les nouvelles opportunités apparaîtront ici.
-            </p>
-            <p className="text-sm text-purple-600">
-              💡 Astuce : Créez des tâches et marquez-les comme "ouvertes aux volontaires" pour que d'autres puissent postuler.
-            </p>
-          </div>
-        ) : (
-          filteredAvailableTasks.map((task) => (
-            <div key={task.id} className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-lg border border-purple-200">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
-                    <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
-                      Volontariat
-                    </span>
-                  </div>
-                  
-                  {task.description && (
-                    <p className="text-gray-600 mb-3">{task.description}</p>
-                  )}
-                  
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    {task.xpReward > 0 && (
-                      <span className="flex items-center gap-1 text-purple-600 font-medium">
-                        <Trophy className="w-4 h-4" />
-                        {task.xpReward} XP de récompense
-                      </span>
-                    )}
+            ) : (
+              filteredMyTasks.map(task => (
+                <div key={task.id} className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:bg-gray-800/70 transition-all duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-semibold text-white">{task.title}</h3>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          task.priority === 'urgent' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                          task.priority === 'high' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' :
+                          task.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+                          'bg-green-500/20 text-green-300 border border-green-500/30'
+                        }`}>
+                          {task.priority === 'urgent' ? '🔴 Urgente' :
+                           task.priority === 'high' ? '🟠 Haute' :
+                           task.priority === 'medium' ? '🟡 Moyenne' : '🟢 Basse'}
+                        </span>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          task.status === 'completed' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+                          task.status === 'in_progress' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
+                          'bg-gray-500/20 text-gray-300 border border-gray-500/30'
+                        }`}>
+                          {task.status === 'completed' ? '✅ Terminée' :
+                           task.status === 'in_progress' ? '🔄 En cours' : '⏳ En attente'}
+                        </span>
+                      </div>
+                      
+                      {task.description && (
+                        <p className="text-gray-400 mb-3 line-clamp-2">{task.description}</p>
+                      )}
+                      
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        {task.category && (
+                          <span className="flex items-center gap-1">
+                            {/* Trouver l'icône de la catégorie */}
+                            {categories.find(cat => cat.id === task.category)?.icon || '📂'} {categories.find(cat => cat.id === task.category)?.name || task.category}
+                          </span>
+                        )}
+                        {task.xpReward > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Trophy className="w-4 h-4" />
+                            {task.xpReward} XP
+                          </span>
+                        )}
+                        {task.estimatedHours > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            {task.estimatedHours}h
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 ml-4">
+                      <button
+                        onClick={() => handleViewDetails(task)}
+                        className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors"
+                        title="Voir les détails"
+                      >
+                        <Eye className="w-5 h-5" />
+                      </button>
+                      
+                      <button
+                        onClick={() => handleEditTask(task)}
+                        className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-500/20 rounded-lg transition-colors"
+                        title="Modifier"
+                      >
+                        <Edit className="w-5 h-5" />
+                      </button>
+                      
+                      {task.status !== 'completed' && (
+                        <button
+                          onClick={() => handleSubmitTask(task)}
+                          className="p-2 text-gray-400 hover:text-purple-400 hover:bg-purple-500/20 rounded-lg transition-colors"
+                          title="Soumettre le travail"
+                        >
+                          <Send className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-                
-                <button
-                  onClick={() => handleVolunteerForTask(task)}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Postuler
-                </button>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Tâches disponibles */}
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+            <UserPlus className="w-6 h-6 text-purple-400" />
+            Opportunités de volontariat ({filteredAvailableTasks.length})
+          </h2>
+          
+          <div className="grid gap-4">
+            {filteredAvailableTasks.length === 0 ? (
+              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8 text-center">
+                <UserPlus className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400">
+                  {searchTerm || filterStatus !== 'all' || filterPriority !== 'all' || filterCategory !== 'all' 
+                    ? 'Aucune opportunité ne correspond aux filtres'
+                    : 'Aucune opportunité de volontariat disponible'
+                  }
+                </p>
               </div>
-            </div>
-          ))
-        )}
+            ) : (
+              filteredAvailableTasks.map(task => (
+                <div key={task.id} className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:bg-gray-800/70 transition-all duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-semibold text-white">{task.title}</h3>
+                        <span className="px-2 py-1 text-xs rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          🎯 Opportunité
+                        </span>
+                      </div>
+                      
+                      {task.description && (
+                        <p className="text-gray-400 mb-3 line-clamp-2">{task.description}</p>
+                      )}
+                      
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        {task.category && (
+                          <span className="flex items-center gap-1">
+                            {categories.find(cat => cat.id === task.category)?.icon || '📂'} {categories.find(cat => cat.id === task.category)?.name || task.category}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <Trophy className="w-4 h-4" />
+                          {task.xpReward} XP
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          {task.estimatedHours}h
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 ml-4">
+                      <button
+                        onClick={() => handleViewDetails(task)}
+                        className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors"
+                        title="Voir les détails"
+                      >
+                        <Eye className="w-5 h-5" />
+                      </button>
+                      
+                      <button
+                        onClick={() => handleAssignTask(task)}
+                        className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 text-sm"
+                        title="Se porter volontaire"
+                      >
+                        Me porter volontaire
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* ✅ MODALS AJOUTÉS - Utilisation des composants existants */}
+      {/* ✅ MODALS CORRIGÉS AVEC CATÉGORIES */}
       
       {/* Modal création/édition de tâche */}
       {showTaskForm && (
@@ -684,7 +629,8 @@ const TasksPage = () => {
           initialData={editingTask}
           onClose={handleCloseTaskForm}
           onSubmit={handleTaskFormSuccess}
-          onSuccess={handleTaskFormSuccess}
+          categories={categories} // ✅ CORRECTION : Passer les catégories au formulaire
+          teamMembers={teamMembers} // ✅ AJOUT : Passer les membres équipe
         />
       )}
 
@@ -693,13 +639,14 @@ const TasksPage = () => {
         <TaskDetailModal
           isOpen={showTaskDetail}
           task={selectedTask}
-          onClose={() => {
-            setShowTaskDetail(false);
-            setSelectedTask(null);
-          }}
+          onClose={handleCloseTaskDetail}
           onEdit={() => {
-            setShowTaskDetail(false);
+            handleCloseTaskDetail();
             handleEditTask(selectedTask);
+          }}
+          onSubmit={() => {
+            handleCloseTaskDetail();
+            handleSubmitTask(selectedTask);
           }}
         />
       )}
@@ -709,15 +656,10 @@ const TasksPage = () => {
         <TaskAssignmentModal
           isOpen={showAssignModal}
           task={selectedTask}
-          onClose={() => {
-            setShowAssignModal(false);
-            setSelectedTask(null);
-          }}
+          onClose={handleCloseAssignModal}
           onSuccess={() => {
-            setShowAssignModal(false);
-            setSelectedTask(null);
-            showNotification('Assignation réussie!', 'success');
-            loadTasks(); // Recharger après assignation
+            handleCloseAssignModal();
+            loadTasks(); // Recharger les tâches
           }}
         />
       )}
@@ -727,15 +669,10 @@ const TasksPage = () => {
         <TaskSubmissionModal
           isOpen={showSubmitModal}
           task={selectedTask}
-          onClose={() => {
-            setShowSubmitModal(false);
-            setSelectedTask(null);
-          }}
-          onSubmit={() => {
-            setShowSubmitModal(false);
-            setSelectedTask(null);
-            showNotification('Tâche soumise avec succès!', 'success');
-            loadTasks(); // Recharger après soumission
+          onClose={handleCloseSubmitModal}
+          onSuccess={() => {
+            handleCloseSubmitModal();
+            loadTasks(); // Recharger les tâches
           }}
         />
       )}
