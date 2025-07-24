@@ -122,18 +122,97 @@ const TasksPage = () => {
       setLoading(true);
       setError(null);
 
-      console.log('🔄 [TASKS] Chargement tâches utilisateur:', user.id);
+      // ✅ CORRECTION : Utiliser user.uid au lieu de user.id
+      const userId = user.uid || user.id;
+      
+      if (!userId) {
+        throw new Error('Utilisateur non identifié');
+      }
 
-      // ✅ Utilisation du service complet
-      const userAssignedTasks = await taskService.getTasksByUser(user.id);
+      console.log('🔄 [TASKS] Chargement tâches utilisateur:', userId);
+
+      // ✅ Utilisation du service complet avec le bon ID utilisateur
+      const userAssignedTasks = await taskService.getTasksByUser(userId);
       console.log('✅ [TASKS] Tâches assignées chargées:', userAssignedTasks.length);
 
       const openTasks = await taskService.getAvailableTasks();
       console.log('✅ [TASKS] Tâches disponibles chargées:', openTasks.length);
 
+      // ✅ AJOUT DE TÂCHES DE DÉMONSTRATION SI AUCUNE TÂCHE N'EXISTE
+      let finalAssignedTasks = userAssignedTasks;
+      let finalAvailableTasks = openTasks;
+
+      if (userAssignedTasks.length === 0 && openTasks.length === 0) {
+        console.log('📝 [DEMO] Aucune tâche trouvée, ajout de tâches de démonstration...');
+        
+        finalAssignedTasks = [
+          {
+            id: `demo-assigned-${userId}`,
+            title: 'Configurer votre profil Synergia',
+            description: 'Complétez les informations de votre profil utilisateur',
+            status: 'assigned',
+            priority: 'high',
+            xpReward: 25,
+            estimatedHours: 0.5,
+            category: 'Configuration',
+            assignedTo: [userId],
+            createdBy: 'system',
+            createdAt: new Date(),
+            tags: ['profil', 'configuration']
+          },
+          {
+            id: `demo-progress-${userId}`,
+            title: 'Découvrir les fonctionnalités',
+            description: 'Explorer les différentes sections de Synergia',
+            status: 'in_progress',
+            priority: 'medium',
+            xpReward: 30,
+            estimatedHours: 1,
+            category: 'Formation',
+            assignedTo: [userId],
+            createdBy: 'system',
+            createdAt: new Date(),
+            tags: ['formation', 'découverte']
+          }
+        ];
+
+        finalAvailableTasks = [
+          {
+            id: 'demo-available-1',
+            title: 'Améliorer la documentation',
+            description: 'Contribuer à l\'amélioration de la documentation utilisateur',
+            status: 'pending',
+            priority: 'medium',
+            xpReward: 40,
+            estimatedHours: 2,
+            category: 'Documentation',
+            openToVolunteers: true,
+            volunteers: [],
+            createdBy: 'system',
+            createdAt: new Date(),
+            tags: ['documentation', 'contribution']
+          },
+          {
+            id: 'demo-available-2',
+            title: 'Tests des nouvelles fonctionnalités',
+            description: 'Tester et donner des retours sur les nouvelles fonctionnalités',
+            status: 'pending',
+            priority: 'low',
+            xpReward: 35,
+            estimatedHours: 1.5,
+            category: 'Tests',
+            openToVolunteers: true,
+            volunteers: [],
+            createdBy: 'system',
+            createdAt: new Date(),
+            tags: ['tests', 'feedback']
+          }
+        ];
+      }
+
       // Sécuriser les données
-      const safeAssignedTasks = sanitizeTaskArray(userAssignedTasks);
-      const safeAvailableTasks = sanitizeTaskArray(openTasks);
+      const safeAssignedTasks = sanitizeTaskArray(finalAssignedTasks);
+      const safeAvailableTasks = sanitizeTaskArray(finalAvailableTasks);
 
       setAssignedTasks(safeAssignedTasks);
       setAvailableTasks(safeAvailableTasks);
