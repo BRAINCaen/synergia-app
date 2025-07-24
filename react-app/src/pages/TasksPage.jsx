@@ -122,97 +122,29 @@ const TasksPage = () => {
       setLoading(true);
       setError(null);
 
-      // ✅ CORRECTION : Utiliser user.uid au lieu de user.id
-      const userId = user.uid || user.id;
+      // ✅ EXTRACTION ROBUSTE DE L'ID UTILISATEUR RÉEL
+      let userId = null;
       
-      if (!userId) {
-        throw new Error('Utilisateur non identifié');
+      if (user.uid && typeof user.uid === 'string' && user.uid.trim() !== '') {
+        userId = user.uid;
+      } else if (user.id && typeof user.id === 'string' && user.id.trim() !== '') {
+        userId = user.id;
+      } else {
+        throw new Error('Impossible d\'identifier l\'utilisateur. Veuillez vous reconnecter.');
       }
 
       console.log('🔄 [TASKS] Chargement tâches utilisateur:', userId);
 
-      // ✅ Utilisation du service complet avec le bon ID utilisateur
+      // ✅ CHARGEMENT DES VRAIES DONNÉES FIREBASE UNIQUEMENT
       const userAssignedTasks = await taskService.getTasksByUser(userId);
       console.log('✅ [TASKS] Tâches assignées chargées:', userAssignedTasks.length);
 
       const openTasks = await taskService.getAvailableTasks();
       console.log('✅ [TASKS] Tâches disponibles chargées:', openTasks.length);
 
-      // ✅ AJOUT DE TÂCHES DE DÉMONSTRATION SI AUCUNE TÂCHE N'EXISTE
-      let finalAssignedTasks = userAssignedTasks;
-      let finalAvailableTasks = openTasks;
-
-      if (userAssignedTasks.length === 0 && openTasks.length === 0) {
-        console.log('📝 [DEMO] Aucune tâche trouvée, ajout de tâches de démonstration...');
-        
-        finalAssignedTasks = [
-          {
-            id: `demo-assigned-${userId}`,
-            title: 'Configurer votre profil Synergia',
-            description: 'Complétez les informations de votre profil utilisateur',
-            status: 'assigned',
-            priority: 'high',
-            xpReward: 25,
-            estimatedHours: 0.5,
-            category: 'Configuration',
-            assignedTo: [userId],
-            createdBy: 'system',
-            createdAt: new Date(),
-            tags: ['profil', 'configuration']
-          },
-          {
-            id: `demo-progress-${userId}`,
-            title: 'Découvrir les fonctionnalités',
-            description: 'Explorer les différentes sections de Synergia',
-            status: 'in_progress',
-            priority: 'medium',
-            xpReward: 30,
-            estimatedHours: 1,
-            category: 'Formation',
-            assignedTo: [userId],
-            createdBy: 'system',
-            createdAt: new Date(),
-            tags: ['formation', 'découverte']
-          }
-        ];
-
-        finalAvailableTasks = [
-          {
-            id: 'demo-available-1',
-            title: 'Améliorer la documentation',
-            description: 'Contribuer à l\'amélioration de la documentation utilisateur',
-            status: 'pending',
-            priority: 'medium',
-            xpReward: 40,
-            estimatedHours: 2,
-            category: 'Documentation',
-            openToVolunteers: true,
-            volunteers: [],
-            createdBy: 'system',
-            createdAt: new Date(),
-            tags: ['documentation', 'contribution']
-          },
-          {
-            id: 'demo-available-2',
-            title: 'Tests des nouvelles fonctionnalités',
-            description: 'Tester et donner des retours sur les nouvelles fonctionnalités',
-            status: 'pending',
-            priority: 'low',
-            xpReward: 35,
-            estimatedHours: 1.5,
-            category: 'Tests',
-            openToVolunteers: true,
-            volunteers: [],
-            createdBy: 'system',
-            createdAt: new Date(),
-            tags: ['tests', 'feedback']
-          }
-        ];
-      }
-
-      // Sécuriser les données
-      const safeAssignedTasks = sanitizeTaskArray(finalAssignedTasks);
-      const safeAvailableTasks = sanitizeTaskArray(finalAvailableTasks);
+      // ✅ UTILISATION DES VRAIES DONNÉES FIREBASE SEULEMENT
+      const safeAssignedTasks = sanitizeTaskArray(userAssignedTasks);
+      const safeAvailableTasks = sanitizeTaskArray(openTasks);
 
       setAssignedTasks(safeAssignedTasks);
       setAvailableTasks(safeAvailableTasks);
@@ -221,7 +153,7 @@ const TasksPage = () => {
       console.error('❌ [TASKS] Erreur chargement:', error);
       setError(error.message);
       
-      // Données de fallback pour éviter les plantages
+      // Arrays vides si erreur - pas de données fictives
       setAssignedTasks([]);
       setAvailableTasks([]);
     } finally {
@@ -549,15 +481,28 @@ const TasksPage = () => {
               Aucune tâche assignée
             </h3>
             <p className="text-gray-600 mb-4">
-              Commencez par créer une nouvelle tâche ou explorez les opportunités disponibles.
+              Vous n'avez actuellement aucune tâche assignée. Créez une nouvelle tâche ou explorez les opportunités disponibles.
             </p>
-            <button
-              onClick={handleCreateNewTask}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              Créer ma première tâche
-            </button>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={handleCreateNewTask}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                Créer une tâche
+              </button>
+              <button
+                onClick={() => {
+                  // Scroll vers les opportunités volontaires
+                  const element = document.querySelector('[data-section="opportunities"]');
+                  if (element) element.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <UserPlus className="w-5 h-5" />
+                Voir les opportunités
+              </button>
+            </div>
           </div>
         ) : (
           filteredAssignedTasks.map((task) => (
@@ -644,11 +589,24 @@ const TasksPage = () => {
       </div>
 
       {/* Tâches disponibles pour volontaires */}
-      {filteredAvailableTasks.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900">Opportunités de volontariat</h2>
-          
-          {filteredAvailableTasks.map((task) => (
+      <div data-section="opportunities" className="space-y-4">
+        <h2 className="text-xl font-bold text-gray-900">Opportunités de volontariat</h2>
+        
+        {filteredAvailableTasks.length === 0 ? (
+          <div className="text-center py-12 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+            <UserPlus className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Aucune opportunité disponible
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Il n'y a actuellement aucune tâche ouverte aux volontaires. Les nouvelles opportunités apparaîtront ici.
+            </p>
+            <p className="text-sm text-purple-600">
+              💡 Astuce : Créez des tâches et marquez-les comme "ouvertes aux volontaires" pour que d'autres puissent postuler.
+            </p>
+          </div>
+        ) : (
+          filteredAvailableTasks.map((task) => (
             <div key={task.id} className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-lg border border-purple-200">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -682,9 +640,9 @@ const TasksPage = () => {
                 </button>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
 
       {/* ✅ MODALS AJOUTÉS - Utilisation des composants existants */}
       
