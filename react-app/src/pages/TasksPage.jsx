@@ -208,9 +208,28 @@ const TasksPage = () => {
     try {
       console.log('🌍 Chargement de TOUTES les tâches publiques...');
       
-      // ✅ NOUVEAU : Récupérer toutes les tâches avec contexte utilisateur
-      const tasksWithContext = await taskService.getTasksWithUserContext(user.uid);
-      console.log(`📊 ${tasksWithContext.length} tâches publiques trouvées`);
+      // ✅ CORRECTION TEMPORAIRE : Utiliser getAllTasks existant
+      const allTasksData = await taskService.getAllTasks();
+      console.log(`📊 ${allTasksData.length} tâches publiques trouvées`);
+      
+      // Ajouter le contexte utilisateur à chaque tâche
+      const tasksWithContext = allTasksData.map(task => {
+        const isCreatedByMe = task.createdBy === user.uid;
+        const isAssignedToMe = task.assignedTo?.includes(user.uid) || false;
+        const canVolunteer = !isAssignedToMe && task.status !== 'completed';
+        
+        return {
+          ...task,
+          userContext: {
+            isCreatedByMe,
+            isAssignedToMe,
+            isMyTask: isCreatedByMe || isAssignedToMe,
+            canVolunteer,
+            canEdit: isCreatedByMe || isAssignedToMe,
+            canComplete: isAssignedToMe
+          }
+        };
+      });
       
       // Convertir en tâches sécurisées
       const safeTasks = tasksWithContext.map(createSafeTask);
@@ -233,7 +252,8 @@ const TasksPage = () => {
     try {
       console.log('🙋 Volontariat pour:', task.title);
       
-      await taskService.volunteerForTask(task.id, user.uid);
+      // ✅ CORRECTION TEMPORAIRE : Utiliser assignTask existant
+      await taskService.assignTask(task.id, user.uid, user.uid);
       
       // Recharger les tâches
       await loadAllTasks();
@@ -253,7 +273,8 @@ const TasksPage = () => {
     try {
       console.log('🚪 Retrait de:', task.title);
       
-      await taskService.withdrawFromTask(task.id, user.uid);
+      // ✅ CORRECTION TEMPORAIRE : Utiliser unassignTask existant
+      await taskService.unassignTask(task.id, user.uid);
       
       // Recharger les tâches
       await loadAllTasks();
