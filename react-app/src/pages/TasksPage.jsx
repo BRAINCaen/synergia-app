@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES CORRIGÉE AVEC CATÉGORIES FONCTIONNELLES
+// PAGE TÂCHES TEMPORAIRE SANS CATEGORYSERVICE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -24,12 +24,97 @@ import {
 // ✅ IMPORTS CORRIGÉS POUR LES MODALS ET SERVICES
 import { useAuthStore } from '../shared/stores/authStore';
 import { useTaskStore } from '../shared/stores/taskStore';
-import TaskForm from '../modules/tasks/TaskForm'; // Formulaire depuis modules
-import { TaskDetailModal } from '../shared/components/ui/ModalWrapper'; // Modal détails depuis ModalWrapper
-import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal'; // Modal assignation
-import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal'; // Modal soumission
+import TaskForm from '../modules/tasks/TaskForm';
+import { TaskDetailModal } from '../shared/components/ui/ModalWrapper';
+import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal';
+import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal';
 import { taskService } from '../core/services/taskService';
-import { categoryService } from '../core/services/categoryService'; // ✅ AJOUT : Service catégories
+
+/**
+ * 🎭 RÔLES SYNERGIA OFFICIELS (même que TaskForm)
+ */
+const SYNERGIA_ROLES = [
+  {
+    id: 'maintenance',
+    name: 'Entretien, Réparations & Maintenance',
+    icon: '🔧',
+    color: '#EA580C',
+    description: 'Maintenance technique et réparations',
+    baseXP: 30
+  },
+  {
+    id: 'reputation',
+    name: 'Gestion des Avis & de la Réputation',
+    icon: '⭐',
+    color: '#EAB308',
+    description: 'Gestion de l\'image et des retours clients',
+    baseXP: 35
+  },
+  {
+    id: 'stock',
+    name: 'Gestion des Stocks & Matériel',
+    icon: '📦',
+    color: '#3B82F6',
+    description: 'Gestion des inventaires',
+    baseXP: 25
+  },
+  {
+    id: 'organization',
+    name: 'Organisation Interne du Travail',
+    icon: '📋',
+    color: '#8B5CF6',
+    description: 'Coordination et organisation',
+    baseXP: 35
+  },
+  {
+    id: 'content',
+    name: 'Création de Contenu & Affichages',
+    icon: '🎨',
+    color: '#EC4899',
+    description: 'Création visuelle et communication',
+    baseXP: 30
+  },
+  {
+    id: 'mentoring',
+    name: 'Mentorat & Formation Interne',
+    icon: '🎓',
+    color: '#10B981',
+    description: 'Formation des équipes',
+    baseXP: 40
+  },
+  {
+    id: 'partnerships',
+    name: 'Partenariats & Référencement',
+    icon: '🤝',
+    color: '#6366F1',
+    description: 'Développement partenariats',
+    baseXP: 45
+  },
+  {
+    id: 'communication',
+    name: 'Communication & Réseaux Sociaux',
+    icon: '📢',
+    color: '#06B6D4',
+    description: 'Communication digitale',
+    baseXP: 30
+  },
+  {
+    id: 'b2b',
+    name: 'Relations B2B & Devis',
+    icon: '💼',
+    color: '#64748B',
+    description: 'Relations entreprises et devis',
+    baseXP: 50
+  },
+  {
+    id: 'gamification',
+    name: 'Gamification & Système XP',
+    icon: '🎮',
+    color: '#7C3AED',
+    description: 'Gestion du système de gamification',
+    baseXP: 40
+  }
+];
 
 /**
  * 🛡️ FONCTION DE SÉCURITÉ POUR TÂCHES
@@ -69,7 +154,7 @@ const createSafeTask = (task) => {
 };
 
 /**
- * 📋 PAGE PRINCIPALE DES TÂCHES CORRIGÉE
+ * 📋 PAGE PRINCIPALE DES TÂCHES
  */
 const TasksPage = () => {
   // 🔐 AUTHENTIFICATION
@@ -78,8 +163,8 @@ const TasksPage = () => {
   // 📊 ÉTATS PRINCIPAUX
   const [myTasks, setMyTasks] = useState([]);
   const [availableTasks, setAvailableTasks] = useState([]);
-  const [categories, setCategories] = useState([]); // ✅ AJOUT : État pour les catégories
-  const [teamMembers, setTeamMembers] = useState([]); // ✅ AJOUT : État pour les membres équipe
+  const [categories, setCategories] = useState(SYNERGIA_ROLES); // ✅ RÔLES SYNERGIA
+  const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -87,9 +172,9 @@ const TasksPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
-  const [filterCategory, setFilterCategory] = useState('all'); // ✅ AJOUT : Filtre par catégorie
+  const [filterCategory, setFilterCategory] = useState('all');
   
-  // ✅ ÉTATS POUR LES MODALS CORRIGÉS
+  // ✅ ÉTATS POUR LES MODALS
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showTaskDetail, setShowTaskDetail] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -98,57 +183,24 @@ const TasksPage = () => {
   const [selectedTask, setSelectedTask] = useState(null);
 
   /**
-   * 🚀 CHARGEMENT INITIAL DES DONNÉES
+   * 🚀 CHARGEMENT INITIAL
    */
   useEffect(() => {
     if (user) {
-      loadAllData();
+      loadTasks();
     }
   }, [user]);
-
-  /**
-   * 📊 CHARGER TOUTES LES DONNÉES NÉCESSAIRES
-   */
-  const loadAllData = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      console.log('📊 Chargement complet des données TasksPage...');
-      
-      // ✅ CHARGER EN PARALLÈLE : tâches + catégories + membres
-      const [tasksResult, categoriesResult] = await Promise.allSettled([
-        loadTasks(),
-        loadCategories()
-      ]);
-
-      // Vérifier les résultats
-      if (tasksResult.status === 'rejected') {
-        console.error('❌ Erreur chargement tâches:', tasksResult.reason);
-      }
-      
-      if (categoriesResult.status === 'rejected') {
-        console.error('❌ Erreur chargement catégories:', categoriesResult.reason);
-      }
-
-      console.log('✅ Données TasksPage chargées');
-      
-    } catch (error) {
-      console.error('❌ Erreur chargement général:', error);
-      setError('Erreur lors du chargement des données');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   /**
    * 📋 CHARGER LES TÂCHES
    */
   const loadTasks = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
       console.log('📋 Chargement des tâches...');
       
-      // Récupérer toutes les tâches de l'utilisateur
       const userTasks = await taskService.getUserTasks(user.uid);
       console.log(`📊 ${userTasks.length} tâches utilisateur trouvées`);
       
@@ -173,29 +225,9 @@ const TasksPage = () => {
       
     } catch (error) {
       console.error('❌ Erreur chargement tâches:', error);
-      throw error;
-    }
-  };
-
-  /**
-   * 🏷️ CHARGER LES CATÉGORIES
-   */
-  const loadCategories = async () => {
-    try {
-      console.log('🏷️ Chargement des catégories...');
-      
-      const categoriesData = await categoryService.getAllCategories();
-      setCategories(categoriesData);
-      
-      console.log(`✅ ${categoriesData.length} catégories chargées:`, categoriesData.map(c => c.name));
-      
-    } catch (error) {
-      console.error('❌ Erreur chargement catégories:', error);
-      
-      // En cas d'échec, utiliser les catégories par défaut
-      const defaultCategories = categoryService.getDefaultCategories();
-      setCategories(defaultCategories);
-      console.log('🔧 Catégories par défaut utilisées');
+      setError('Erreur lors du chargement des tâches');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -252,24 +284,19 @@ const TasksPage = () => {
       console.log('✅ Soumission réussie TaskForm:', taskData);
       
       if (editingTask) {
-        // Mise à jour
         await taskService.updateTask(editingTask.id, taskData);
         console.log('✅ Tâche mise à jour');
       } else {
-        // Création
         await taskService.createTask(taskData, user.uid);
         console.log('✅ Nouvelle tâche créée');
       }
       
-      // Recharger les tâches
       await loadTasks();
-      
-      // Fermer le modal
       handleCloseTaskForm();
       
     } catch (error) {
       console.error('❌ Erreur soumission tâche:', error);
-      throw error; // Laisser TaskForm gérer l'erreur
+      throw error;
     }
   };
 
@@ -301,17 +328,11 @@ const TasksPage = () => {
    */
   const filterTasks = (tasks) => {
     return tasks.filter(task => {
-      // Filtre recherche
       const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            task.description.toLowerCase().includes(searchTerm.toLowerCase());
       
-      // Filtre statut
       const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
-      
-      // Filtre priorité
       const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
-      
-      // ✅ AJOUT : Filtre catégorie
       const matchesCategory = filterCategory === 'all' || task.category === filterCategory;
       
       return matchesSearch && matchesStatus && matchesPriority && matchesCategory;
@@ -342,7 +363,7 @@ const TasksPage = () => {
           <h2 className="text-xl font-bold text-white mb-2">Erreur de chargement</h2>
           <p className="text-gray-400 mb-4">{error}</p>
           <button
-            onClick={() => loadAllData()}
+            onClick={() => loadTasks()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Réessayer
@@ -395,7 +416,7 @@ const TasksPage = () => {
                 </div>
               </div>
 
-              {/* Filtre statut */}
+              {/* Filtres */}
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
@@ -407,7 +428,6 @@ const TasksPage = () => {
                 <option value="completed">Terminées</option>
               </select>
 
-              {/* Filtre priorité */}
               <select
                 value={filterPriority}
                 onChange={(e) => setFilterPriority(e.target.value)}
@@ -420,16 +440,15 @@ const TasksPage = () => {
                 <option value="urgent">Urgente</option>
               </select>
 
-              {/* ✅ AJOUT : Filtre catégorie */}
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
                 className="px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
               >
-                <option value="all">Toutes catégories</option>
-                {categories.map(category => (
-                  <option key={category.id} value={category.id}>
-                    {category.icon ? `${category.icon} ` : ''}{category.name}
+                <option value="all">Tous les rôles</option>
+                {categories.map(role => (
+                  <option key={role.id} value={role.id}>
+                    {role.icon ? `${role.icon} ` : ''}{role.name}
                   </option>
                 ))}
               </select>
@@ -489,8 +508,7 @@ const TasksPage = () => {
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         {task.category && (
                           <span className="flex items-center gap-1">
-                            {/* Trouver l'icône de la catégorie */}
-                            {categories.find(cat => cat.id === task.category)?.icon || '📂'} {categories.find(cat => cat.id === task.category)?.name || task.category}
+                            {categories.find(role => role.id === task.category)?.icon || '📂'} {categories.find(role => role.id === task.category)?.name || task.category}
                           </span>
                         )}
                         {task.xpReward > 0 && (
@@ -580,7 +598,7 @@ const TasksPage = () => {
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         {task.category && (
                           <span className="flex items-center gap-1">
-                            {categories.find(cat => cat.id === task.category)?.icon || '📂'} {categories.find(cat => cat.id === task.category)?.name || task.category}
+                            {categories.find(role => role.id === task.category)?.icon || '📂'} {categories.find(role => role.id === task.category)?.name || task.category}
                           </span>
                         )}
                         <span className="flex items-center gap-1">
@@ -620,7 +638,7 @@ const TasksPage = () => {
         </div>
       </div>
 
-      {/* ✅ MODALS CORRIGÉS AVEC CATÉGORIES */}
+      {/* MODALS */}
       
       {/* Modal création/édition de tâche */}
       {showTaskForm && (
@@ -629,8 +647,8 @@ const TasksPage = () => {
           initialData={editingTask}
           onClose={handleCloseTaskForm}
           onSubmit={handleTaskFormSuccess}
-          categories={categories} // ✅ CORRECTION : Passer les catégories au formulaire
-          teamMembers={teamMembers} // ✅ AJOUT : Passer les membres équipe
+          categories={categories}
+          teamMembers={teamMembers}
         />
       )}
 
@@ -659,7 +677,7 @@ const TasksPage = () => {
           onClose={handleCloseAssignModal}
           onSuccess={() => {
             handleCloseAssignModal();
-            loadTasks(); // Recharger les tâches
+            loadTasks();
           }}
         />
       )}
@@ -672,7 +690,7 @@ const TasksPage = () => {
           onClose={handleCloseSubmitModal}
           onSuccess={() => {
             handleCloseSubmitModal();
-            loadTasks(); // Recharger les tâches
+            loadTasks();
           }}
         />
       )}
