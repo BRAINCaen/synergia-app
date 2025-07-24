@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES AVEC FONCTION SUPPRESSION CORRIGÉE
+// PAGE TÂCHES AVEC SYSTÈME PUBLIC - CORRECTION FINALE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -25,10 +25,11 @@ import {
   UserMinus
 } from 'lucide-react';
 
-// ✅ IMPORTS CORRIGÉS POUR LES MODALS ET SERVICES
+// ✅ IMPORTS CORRIGÉS 
 import { useAuthStore } from '../shared/stores/authStore';
 import { useTaskStore } from '../shared/stores/taskStore';
 import TaskForm from '../modules/tasks/TaskForm';
+import TaskCard from '../modules/tasks/TaskCard'; // ✅ Import du TaskCard existant
 import { TaskDetailModal } from '../shared/components/ui/ModalWrapper';
 import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal';
 import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal';
@@ -255,10 +256,7 @@ const TasksPage = () => {
     try {
       console.log('🙋 Volontariat pour:', task.title);
       
-      // ✅ CORRECTION TEMPORAIRE : Utiliser assignTask existant
       await taskService.assignTask(task.id, user.uid, user.uid);
-      
-      // Recharger les tâches
       await loadAllTasks();
       
       console.log('✅ Volontariat enregistré');
@@ -276,10 +274,7 @@ const TasksPage = () => {
     try {
       console.log('🚪 Retrait de:', task.title);
       
-      // ✅ CORRECTION TEMPORAIRE : Utiliser unassignTask existant
       await taskService.unassignTask(task.id, user.uid);
-      
-      // Recharger les tâches
       await loadAllTasks();
       
       console.log('✅ Retrait enregistré');
@@ -327,13 +322,12 @@ const TasksPage = () => {
   };
 
   /**
-   * 🗑️ GESTION SUPPRESSION DE TÂCHE - CORRIGÉE
+   * 🗑️ GESTION SUPPRESSION DE TÂCHE
    */
   const handleDeleteTask = async (taskId) => {
     try {
       console.log('🗑️ Suppression tâche:', taskId);
       
-      // Confirmer la suppression
       const taskToDelete = allTasks.find(t => t.id === taskId);
       if (!taskToDelete) {
         throw new Error('Tâche introuvable');
@@ -348,13 +342,9 @@ const TasksPage = () => {
         return;
       }
       
-      // Supprimer la tâche
       await taskService.deleteTask(taskId);
-      
-      // Recharger toutes les tâches
       await loadAllTasks();
       
-      // Fermer la modal de détails si elle est ouverte
       if (showTaskDetail) {
         handleCloseTaskDetail();
       }
@@ -382,7 +372,6 @@ const TasksPage = () => {
         console.log('✅ Nouvelle tâche créée:', createdTask);
       }
       
-      // ✅ RECHARGER TOUTES LES TÂCHES
       await loadAllTasks();
       handleCloseTaskForm();
       
@@ -420,20 +409,13 @@ const TasksPage = () => {
    */
   const filterTasks = (tasks) => {
     return tasks.filter(task => {
-      // Filtre recherche
       const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            task.description.toLowerCase().includes(searchTerm.toLowerCase());
       
-      // Filtre statut
       const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
-      
-      // Filtre priorité
       const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
-      
-      // Filtre catégorie/rôle
       const matchesCategory = filterCategory === 'all' || task.category === filterCategory;
       
-      // ✅ NOUVEAU : Filtre portée (mes tâches vs toutes vs disponibles)
       const matchesScope = filterScope === 'all' || 
                           (filterScope === 'my_tasks' && task.userContext?.isMyTask) ||
                           (filterScope === 'available' && task.userContext?.canVolunteer) ||
@@ -445,11 +427,8 @@ const TasksPage = () => {
   };
 
   const filteredTasks = filterTasks(allTasks);
-
-  // Séparer pour l'affichage
   const myTasks = filteredTasks.filter(task => task.userContext?.isMyTask);
   const availableTasks = filteredTasks.filter(task => task.userContext?.canVolunteer);
-  const allFilteredTasks = filteredTasks;
 
   // 🔄 AFFICHAGE LOADING
   if (loading) {
@@ -671,9 +650,9 @@ const TasksPage = () => {
                   <TaskCard
                     key={task.id}
                     task={task}
-                    onView={() => handleViewDetails(task)}
                     onEdit={() => handleEditTask(task)}
                     onDelete={() => handleDeleteTask(task.id)}
+                    onView={() => handleViewDetails(task)}
                     onVolunteer={() => handleVolunteerForTask(task)}
                     onWithdraw={() => handleWithdrawFromTask(task)}
                     onSubmit={() => handleSubmitTask(task)}
@@ -743,180 +722,6 @@ const TasksPage = () => {
           }}
         />
       )}
-    </div>
-  );
-};
-
-/**
- * 🎴 COMPOSANT CARTE DE TÂCHE
- */
-const TaskCard = ({ 
-  task, 
-  onView, 
-  onEdit, 
-  onDelete, 
-  onVolunteer, 
-  onWithdraw, 
-  onSubmit,
-  currentUserId 
-}) => {
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-500';
-      case 'high': return 'bg-orange-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-green-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'text-green-400';
-      case 'in_progress': return 'text-blue-400';
-      case 'todo': return 'text-yellow-400';
-      case 'pending': return 'text-orange-400';
-      default: return 'text-gray-400';
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'completed': return 'Terminée';
-      case 'in_progress': return 'En cours';
-      case 'todo': return 'À faire';
-      case 'pending': return 'En attente';
-      default: return status;
-    }
-  };
-
-  const getRoleInfo = (categoryId) => {
-    return SYNERGIA_ROLES.find(role => role.id === categoryId) || {
-      name: 'Catégorie inconnue',
-      icon: '📝',
-      color: '#6B7280'
-    };
-  };
-
-  const roleInfo = getRoleInfo(task.category);
-
-  return (
-    <div className="bg-gray-700/50 border border-gray-600 rounded-xl p-4 hover:bg-gray-700/70 transition-colors">
-      <div className="flex items-start justify-between">
-        
-        {/* Contenu principal */}
-        <div className="flex-1">
-          <div className="flex items-center mb-2">
-            <div 
-              className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)} mr-3`}
-              title={`Priorité: ${task.priority}`}
-            />
-            <h3 className="text-lg font-semibold text-white">{task.title}</h3>
-            <span className="ml-2 text-sm text-gray-400">
-              {roleInfo.icon}
-            </span>
-          </div>
-
-          <p className="text-gray-400 text-sm mb-3 line-clamp-2">
-            {task.description}
-          </p>
-
-          <div className="flex flex-wrap items-center gap-4 text-sm">
-            <span className={`font-medium ${getStatusColor(task.status)}`}>
-              {getStatusLabel(task.status)}
-            </span>
-            
-            <span className="text-gray-400">
-              <Trophy className="w-4 h-4 inline mr-1" />
-              {task.xpReward} XP
-            </span>
-
-            <span className="text-gray-400" style={{ color: roleInfo.color }}>
-              {roleInfo.name}
-            </span>
-
-            {task.userContext?.isMyTask && (
-              <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs">
-                Ma tâche
-              </span>
-            )}
-
-            {task.userContext?.canVolunteer && (
-              <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
-                Disponible
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center space-x-2 ml-4">
-          
-          {/* Voir détails */}
-          <button
-            onClick={onView}
-            className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-600 rounded-lg transition-colors"
-            title="Voir les détails"
-          >
-            <Eye className="w-4 h-4" />
-          </button>
-
-          {/* Éditer (si créateur ou assigné) */}
-          {task.userContext?.canEdit && (
-            <button
-              onClick={onEdit}
-              className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-gray-600 rounded-lg transition-colors"
-              title="Modifier la tâche"
-            >
-              <Edit className="w-4 h-4" />
-            </button>
-          )}
-
-          {/* Supprimer (si créateur) */}
-          {task.userContext?.isCreatedByMe && (
-            <button
-              onClick={onDelete}
-              className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-600 rounded-lg transition-colors"
-              title="Supprimer la tâche"
-            >
-              <XCircle className="w-4 h-4" />
-            </button>
-          )}
-
-          {/* Se porter volontaire */}
-          {task.userContext?.canVolunteer && (
-            <button
-              onClick={onVolunteer}
-              className="p-2 text-gray-400 hover:text-green-400 hover:bg-gray-600 rounded-lg transition-colors"
-              title="Se porter volontaire"
-            >
-              <UserPlus className="w-4 h-4" />
-            </button>
-          )}
-
-          {/* Se retirer */}
-          {task.userContext?.isAssignedToMe && !task.userContext?.isCreatedByMe && (
-            <button
-              onClick={onWithdraw}
-              className="p-2 text-gray-400 hover:text-orange-400 hover:bg-gray-600 rounded-lg transition-colors"
-              title="Se retirer de la tâche"
-            >
-              <UserMinus className="w-4 h-4" />
-            </button>
-          )}
-
-          {/* Soumettre pour validation */}
-          {task.userContext?.isAssignedToMe && task.status !== 'completed' && (
-            <button
-              onClick={onSubmit}
-              className="p-2 text-gray-400 hover:text-purple-400 hover:bg-gray-600 rounded-lg transition-colors"
-              title="Soumettre pour validation"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-      </div>
     </div>
   );
 };
