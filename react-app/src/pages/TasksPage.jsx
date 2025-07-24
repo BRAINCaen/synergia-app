@@ -138,9 +138,11 @@ const TasksPage = () => {
       // ✅ CHARGEMENT DES VRAIES DONNÉES FIREBASE UNIQUEMENT
       const userAssignedTasks = await taskService.getTasksByUser(userId);
       console.log('✅ [TASKS] Tâches assignées chargées:', userAssignedTasks.length);
+      console.log('📋 [DEBUG] Détail tâches assignées:', userAssignedTasks);
 
       const openTasks = await taskService.getAvailableTasks();
       console.log('✅ [TASKS] Tâches disponibles chargées:', openTasks.length);
+      console.log('📋 [DEBUG] Détail tâches disponibles:', openTasks);
 
       // ✅ UTILISATION DES VRAIES DONNÉES FIREBASE SEULEMENT
       const safeAssignedTasks = sanitizeTaskArray(userAssignedTasks);
@@ -166,8 +168,23 @@ const TasksPage = () => {
    */
   const handleCreateNewTask = () => {
     console.log('➕ [CREATE] Ouverture formulaire création tâche');
-    setEditingTask(null); // Pas d'édition, c'est une création
-    setShowTaskForm(true); // Ouvrir le modal de formulaire
+    
+    // ✅ DONNÉES INITIALES POUR NOUVELLE TÂCHE
+    const userId = user.uid || user.id;
+    setEditingTask({
+      // Pré-remplir avec l'utilisateur actuel comme créateur et assigné
+      createdBy: userId,
+      assignedTo: [userId], // S'assigner automatiquement la tâche
+      status: 'assigned',
+      priority: 'medium',
+      title: '',
+      description: '',
+      category: 'general',
+      xpReward: 25,
+      estimatedHours: 1,
+      openToVolunteers: false
+    });
+    setShowTaskForm(true);
   };
 
   /**
@@ -367,13 +384,27 @@ const TasksPage = () => {
         </div>
         
         {/* ✅ BOUTON CORRIGÉ - Appelle la vraie fonction */}
-        <button
-          onClick={handleCreateNewTask}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Nouvelle tâche
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleCreateNewTask}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Nouvelle tâche
+          </button>
+          
+          {/* Bouton de rechargement pour diagnostiquer */}
+          <button
+            onClick={() => {
+              console.log('🔄 [MANUAL_RELOAD] Rechargement manuel des tâches...');
+              loadTasks();
+            }}
+            className="inline-flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            title="Recharger les tâches"
+          >
+            <Loader className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Search & Filters */}
@@ -653,6 +684,7 @@ const TasksPage = () => {
           initialData={editingTask}
           onClose={handleCloseTaskForm}
           onSubmit={handleTaskFormSuccess}
+          onSuccess={handleTaskFormSuccess}
         />
       )}
 
