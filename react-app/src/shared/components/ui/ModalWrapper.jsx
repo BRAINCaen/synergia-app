@@ -1,107 +1,58 @@
-/* ==========================================
-   🎯 MODAL WRAPPER - SYNERGIA v3.5
-   ==========================================
-   Fichier: react-app/src/shared/components/ui/ModalWrapper.jsx
-   
-   Composant wrapper pour toutes les modales afin de garantir
-   une visibilité parfaite du texte et des éléments
-   ========================================== */
+// ==========================================
+// 📁 react-app/src/shared/components/ui/ModalWrapper.jsx
+// WRAPPER MODAL + TaskDetailModal CORRIGÉE SANS BOUTON "MARQUER TERMINÉE"
+// ==========================================
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
+/**
+ * 🎯 WRAPPER MODAL RÉUTILISABLE
+ */
 const ModalWrapper = ({
   isOpen,
   onClose,
   title,
   children,
   size = 'md',
-  className = '',
-  showCloseButton = true,
-  closeOnOverlayClick = true,
-  preventBodyScroll = true
+  showCloseButton = true
 }) => {
-  const sizes = {
-    xs: 'max-w-xs',
-    sm: 'max-w-md', 
+  if (!isOpen) return null;
+
+  const sizeClasses = {
+    sm: 'max-w-md',
     md: 'max-w-lg',
     lg: 'max-w-2xl',
     xl: 'max-w-4xl',
-    full: 'max-w-full mx-4'
-  };
-
-  useEffect(() => {
-    if (isOpen && preventBodyScroll) {
-      // Empêcher le scroll du body
-      document.body.style.overflow = 'hidden';
-      
-      // Gérer la touche Escape
-      const handleEscape = (e) => {
-        if (e.key === 'Escape' && onClose) {
-          onClose();
-        }
-      };
-      
-      document.addEventListener('keydown', handleEscape);
-      
-      return () => {
-        document.body.style.overflow = 'auto';
-        document.removeEventListener('keydown', handleEscape);
-      };
-    } else {
-      document.body.style.overflow = 'auto';
-    }
-  }, [isOpen, onClose, preventBodyScroll]);
-
-  if (!isOpen) return null;
-
-  const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget && closeOnOverlayClick && onClose) {
-      onClose();
-    }
+    full: 'max-w-7xl'
   };
 
   return createPortal(
     <div 
       className="fixed inset-0 z-50 overflow-y-auto"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(6px)' }}
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
     >
-      <div 
-        className="flex min-h-screen items-center justify-center p-4"
-        onClick={handleOverlayClick}
-      >
-        {/* Modal Container */}
+      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20">
         <div 
-          className={`
-            relative w-full rounded-lg shadow-xl animate-fade-in
-            ${sizes[size]} ${className}
-          `}
-          style={{
-            backgroundColor: '#1f2937',
-            border: '1px solid #374151',
-            color: '#f9fafb'
-          }}
-          onClick={(e) => e.stopPropagation()}
+          className={`relative w-full ${sizeClasses[size]} bg-gray-800 rounded-lg shadow-xl`}
+          style={{ backgroundColor: '#1f2937', border: '1px solid #374151' }}
         >
           {/* Header */}
           {(title || showCloseButton) && (
             <div 
-              className="flex items-center justify-between p-6 border-b"
+              className="flex items-center justify-between px-6 py-4 border-b"
               style={{ borderColor: '#374151' }}
             >
               {title && (
-                <h3 
-                  className="text-lg font-semibold"
-                  style={{ color: '#ffffff' }}
-                >
+                <h3 className="text-lg font-semibold" style={{ color: '#ffffff' }}>
                   {title}
                 </h3>
               )}
               {showCloseButton && (
                 <button
                   onClick={onClose}
-                  className="p-2 rounded-md transition-colors hover:bg-gray-700"
+                  className="p-1 hover:bg-gray-700 rounded-lg transition-colors"
                   style={{ color: '#9ca3af' }}
                   aria-label="Fermer"
                 >
@@ -127,9 +78,9 @@ const ModalWrapper = ({
    ========================================== */
 
 /**
- * Modal pour les détails de tâche
+ * Modal pour les détails de tâche - ✅ SANS BOUTON "MARQUER TERMINÉE"
  */
-export const TaskDetailModal = ({ task, isOpen, onClose, onEdit, onDelete, onToggleStatus }) => {
+export const TaskDetailModal = ({ task, isOpen, onClose, onEdit, onDelete, onSubmit }) => {
   if (!task) return null;
 
   return (
@@ -217,18 +168,18 @@ export const TaskDetailModal = ({ task, isOpen, onClose, onEdit, onDelete, onTog
           </div>
         </div>
 
-        {/* Actions */}
+        {/* Actions - ✅ SANS BOUTON "MARQUER TERMINÉE" */}
         <div className="flex justify-end gap-3 pt-4 border-t" style={{ borderColor: '#374151' }}>
-          <button
-            onClick={() => onToggleStatus(task.id)}
-            className={`px-4 py-2 rounded-lg font-medium ${
-              task.status === 'completed' 
-                ? 'bg-gray-600 text-white hover:bg-gray-700' 
-                : 'bg-green-600 text-white hover:bg-green-700'
-            }`}
-          >
-            {task.status === 'completed' ? 'Rouvrir' : 'Marquer terminée'}
-          </button>
+          {/* ✅ SEULEMENT bouton de soumission pour validation */}
+          {onSubmit && task.status !== 'completed' && task.status !== 'validation_pending' && (
+            <button
+              onClick={() => onSubmit(task)}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              Soumettre pour validation
+            </button>
+          )}
+          
           <button
             onClick={() => onEdit(task)}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -293,48 +244,8 @@ export const ProjectDetailModal = ({ project, isOpen, onClose, onEdit, onDelete 
                 'bg-blue-100 text-blue-800'
               }`}
             >
-              {project.status === 'completed' ? 'Terminé' : 'Actif'}
+              {project.status === 'completed' ? 'Terminé' : 'En cours'}
             </span>
-          </div>
-        </div>
-
-        {/* Zone de collaboration */}
-        <div>
-          <h4 className="font-medium mb-3" style={{ color: '#ffffff' }}>
-            Collaboration
-          </h4>
-          <div 
-            className="border rounded-lg p-4 min-h-24"
-            style={{ 
-              backgroundColor: '#111827', 
-              borderColor: '#374151',
-              color: '#9ca3af'
-            }}
-          >
-            <p className="text-center italic">Aucun commentaire pour le moment</p>
-          </div>
-          
-          {/* Zone de saisie */}
-          <div className="mt-3 flex gap-2">
-            <input
-              type="text"
-              placeholder="Ajouter un commentaire..."
-              className="flex-1 px-3 py-2 rounded-lg border"
-              style={{
-                backgroundColor: '#374151',
-                borderColor: '#4b5563',
-                color: '#ffffff'
-              }}
-            />
-            <button
-              className="px-4 py-2 rounded-lg font-medium"
-              style={{
-                backgroundColor: '#3b82f6',
-                color: '#ffffff'
-              }}
-            >
-              Envoyer
-            </button>
           </div>
         </div>
 
