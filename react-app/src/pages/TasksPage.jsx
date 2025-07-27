@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// VERSION AVEC DEBUG INTÉGRÉ
+// VERSION FINALE - SYSTÈME VOLONTAIRES + CORRECTIONS SOUMISSIONS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -24,21 +24,21 @@ import {
   Star,
   UserMinus,
   RefreshCw,
-  Bug
+  Bug,
+  Heart
 } from 'lucide-react';
 
 // ✅ IMPORTS STANDARDS
 import { useAuthStore } from '../shared/stores/authStore';
 import { useTaskStore } from '../shared/stores/taskStore';
 import TaskForm from '../modules/tasks/TaskForm';
-import TaskCard from '../modules/tasks/TaskCard';
 import { TaskDetailModal } from '../shared/components/ui/ModalWrapper';
 import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal';
 import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal';
 import { taskService } from '../core/services/taskService';
 
-// ✅ IMPORT SERVICE DEBUG
-import { taskDebugService } from '../core/services/taskDebugService';
+// ✅ IMPORT DU NOUVEAU COMPOSANT VOLONTAIRE
+import VolunteerTaskCard from '../components/tasks/VolunteerTaskSystem';
 
 /**
  * 🎭 RÔLES SYNERGIA OFFICIELS
@@ -119,14 +119,15 @@ const SYNERGIA_ROLES = [
 ];
 
 /**
- * 🏷️ FILTRES DE PORTÉE
+ * 🏷️ FILTRES DE PORTÉE ÉTENDUS
  */
 const SCOPE_FILTERS = [
-  { value: 'all', label: 'Toutes les tâches', icon: Globe },
-  { value: 'my_tasks', label: 'Mes tâches', icon: Users },
-  { value: 'available', label: 'Disponibles', icon: Star },
-  { value: 'assigned_to_me', label: 'Assignées à moi', icon: Target },
-  { value: 'created_by_me', label: 'Créées par moi', icon: Edit }
+  { value: 'all', label: 'Toutes les tâches', icon: Globe, description: 'Toutes les tâches disponibles' },
+  { value: 'my_tasks', label: 'Mes tâches', icon: Users, description: 'Tâches que j\'ai créées ou auxquelles je participe' },
+  { value: 'available', label: 'Disponibles', icon: Star, description: 'Tâches ouvertes aux volontaires' },
+  { value: 'assigned_to_me', label: 'Assignées à moi', icon: Target, description: 'Tâches où je suis volontaire' },
+  { value: 'created_by_me', label: 'Créées par moi', icon: Edit, description: 'Tâches que j\'ai créées' },
+  { value: 'in_validation', label: 'En validation', icon: Clock, description: 'Tâches en attente de validation' }
 ];
 
 /**
@@ -177,15 +178,13 @@ const TasksPage = () => {
   const [allTasks, setAllTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [debugMode, setDebugMode] = useState(false);
-  const [debugInfo, setDebugInfo] = useState(null);
   
   // 🎨 ÉTATS UI
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
-  const [filterScope, setFilterScope] = useState('all');
+  const [filterScope, setFilterScope] = useState('available'); // ✅ Par défaut sur "disponibles"
   
   // 🔄 ÉTATS MODALS
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -200,85 +199,61 @@ const TasksPage = () => {
   const [teamMembers, setTeamMembers] = useState([]);
 
   /**
-   * 🔄 CHARGEMENT INITIAL AVEC DEBUG
+   * 🔄 CHARGEMENT INITIAL
    */
   useEffect(() => {
     if (user?.uid) {
-      // Exposer les fonctions de debug
-      window.debugTasksPage = {
-        loadAllTasks,
-        runDiagnosis: handleRunDiagnosis,
-        createTestTasks: handleCreateTestTasks,
-        currentState: { allTasks, loading, error, user }
-      };
-      
       loadAllTasks();
     }
   }, [user?.uid]);
 
   /**
-   * 📥 CHARGER TOUTES LES TÂCHES - VERSION DEBUG
+   * 📥 CHARGER TOUTES LES TÂCHES - VERSION FINALE
    */
   const loadAllTasks = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log('📥 [DEBUG] Chargement de toutes les tâches...');
-      console.log('👤 [DEBUG] Utilisateur actuel:', user.uid);
-      
-      // 🔍 DIAGNOSTIC PRÉALABLE
-      const taskCount = await taskDebugService.quickCheck();
-      console.log(`🔍 [DEBUG] Diagnostic rapide: ${taskCount} tâches en base`);
-      
-      if (taskCount === 0) {
-        console.warn('⚠️ [DEBUG] Aucune tâche en base - création de tâches de test');
-        await taskDebugService.createTestTasks();
-      }
+      console.log('📥 [FINAL] Chargement tâches volontaires...');
       
       let tasks = [];
       
       try {
-        // Méthode 1 : Service standard
-        console.log('🔄 [DEBUG] Méthode 1: taskService.getAllTasks()');
+        // Récupérer TOUTES les tâches
         tasks = await taskService.getAllTasks();
-        console.log('✅ [DEBUG] Méthode 1 réussie:', tasks.length, 'tâches');
+        console.log(`📊 [FINAL] ${tasks.length} tâches récupérées`);
       } catch (error1) {
-        console.warn('⚠️ [DEBUG] Méthode 1 échouée:', error1.message);
+        console.warn('⚠️ [FINAL] Méthode standard échouée, fallback...');
         
-        try {
-          // Méthode 2 : Import direct Firebase
-          console.log('🔄 [DEBUG] Méthode 2: Import direct Firebase');
-          const { collection, getDocs } = await import('firebase/firestore');
-          const { db } = await import('../core/firebase.js');
-          
-          const tasksSnapshot = await getDocs(collection(db, 'tasks'));
-          tasks = [];
-          tasksSnapshot.forEach(doc => {
-            tasks.push({
-              id: doc.id,
-              ...doc.data()
-            });
+        // Fallback : récupération directe
+        const { collection, getDocs } = await import('firebase/firestore');
+        const { db } = await import('../core/firebase.js');
+        
+        const tasksSnapshot = await getDocs(collection(db, 'tasks'));
+        tasks = [];
+        tasksSnapshot.forEach(doc => {
+          tasks.push({
+            id: doc.id,
+            ...doc.data()
           });
-          console.log('✅ [DEBUG] Méthode 2 réussie:', tasks.length, 'tâches');
-        } catch (error2) {
-          console.error('❌ [DEBUG] Méthode 2 échouée:', error2.message);
-          throw new Error(`Impossible de charger les tâches: ${error2.message}`);
-        }
+        });
+        console.log(`📊 [FINAL] ${tasks.length} tâches récupérées via fallback`);
       }
-      
-      console.log('📊 [DEBUG] Total tâches récupérées:', tasks.length);
       
       if (tasks.length === 0) {
-        setError('Aucune tâche trouvée. Cliquez sur "Diagnostic" pour créer des tâches de test.');
-        return;
+        console.log('🎯 [FINAL] Aucune tâche - création de tâches de démo...');
+        await createDemoTasks();
+        tasks = await taskService.getAllTasks();
       }
       
-      // Ajouter contexte utilisateur
+      // Ajouter contexte utilisateur pour chaque tâche
       const tasksWithContext = tasks.map(task => {
         const isCreatedByMe = task.createdBy === user.uid;
         const isAssignedToMe = Array.isArray(task.assignedTo) && task.assignedTo.includes(user.uid);
-        const canVolunteer = !isAssignedToMe && !isCreatedByMe && task.status !== 'completed';
+        const canVolunteer = !isAssignedToMe && !isCreatedByMe && 
+                            task.status !== 'completed' && 
+                            task.status !== 'validation_pending';
         
         return {
           ...task,
@@ -297,55 +272,84 @@ const TasksPage = () => {
       const safeTasks = tasksWithContext.map(createSafeTask);
       setAllTasks(safeTasks);
       
-      console.log(`✅ [DEBUG] ${safeTasks.length} tâches chargées avec succès`);
+      console.log(`✅ [FINAL] ${safeTasks.length} tâches chargées avec contexte`);
       
     } catch (error) {
-      console.error('❌ [DEBUG] Erreur chargement tâches:', error);
-      setError(`Erreur: ${error.message}`);
+      console.error('❌ [FINAL] Erreur chargement tâches:', error);
+      setError('Erreur lors du chargement des tâches: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
   /**
-   * 🔍 LANCER LE DIAGNOSTIC COMPLET
+   * 🎯 CRÉER DES TÂCHES DE DÉMONSTRATION
    */
-  const handleRunDiagnosis = async () => {
-    setDebugMode(true);
-    console.log('🔍 Lancement diagnostic complet...');
-    
+  const createDemoTasks = async () => {
     try {
-      const result = await taskDebugService.fullDiagnosis();
-      setDebugInfo({
-        success: result,
-        timestamp: new Date().toLocaleString()
-      });
+      console.log('🎯 [DEMO] Création tâches de démonstration...');
       
-      if (result) {
-        // Recharger après diagnostic
-        await loadAllTasks();
-      }
-    } catch (error) {
-      console.error('❌ Erreur diagnostic:', error);
-      setDebugInfo({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toLocaleString()
-      });
-    }
-  };
+      const demoTasks = [
+        {
+          title: '🔧 Maintenance Matériel Escape Game',
+          description: 'Vérifier et maintenir tout le matériel électronique des salles',
+          category: 'maintenance',
+          priority: 'high',
+          xpReward: 40,
+          status: 'pending',
+          assignedTo: [],
+          tags: ['maintenance', 'électronique', 'urgent']
+        },
+        {
+          title: '⭐ Gérer les Avis Google',
+          description: 'Répondre aux avis clients sur Google et TripAdvisor',
+          category: 'reputation',
+          priority: 'medium',
+          xpReward: 30,
+          status: 'pending',
+          assignedTo: [],
+          tags: ['avis', 'communication', 'clients']
+        },
+        {
+          title: '📦 Inventaire Stock Produits Dérivés',
+          description: 'Faire l\'inventaire complet des produits dérivés en magasin',
+          category: 'stock',
+          priority: 'low',
+          xpReward: 25,
+          status: 'pending',
+          assignedTo: [],
+          tags: ['inventaire', 'produits', 'magasin']
+        },
+        {
+          title: '🎨 Créer Affichage Nouvelle Salle',
+          description: 'Concevoir les affiches et supports visuels pour la nouvelle salle',
+          category: 'content',
+          priority: 'medium',
+          xpReward: 35,
+          status: 'pending',
+          assignedTo: [],
+          tags: ['design', 'affichage', 'nouvelle-salle']
+        },
+        {
+          title: '📢 Campagne Réseaux Sociaux',
+          description: 'Planifier et lancer une campagne sur les réseaux sociaux',
+          category: 'communication',
+          priority: 'high',
+          xpReward: 45,
+          status: 'pending',
+          assignedTo: [],
+          tags: ['réseaux-sociaux', 'marketing', 'campagne']
+        }
+      ];
 
-  /**
-   * 🎯 CRÉER DES TÂCHES DE TEST
-   */
-  const handleCreateTestTasks = async () => {
-    try {
-      console.log('🎯 Création tâches de test...');
-      await taskDebugService.createTestTasks();
-      await loadAllTasks();
-      console.log('✅ Tâches de test créées');
+      for (const taskData of demoTasks) {
+        await taskService.createTask(taskData, 'system-demo');
+      }
+
+      console.log('✅ [DEMO] Tâches de démonstration créées');
+
     } catch (error) {
-      console.error('❌ Erreur création tâches test:', error);
+      console.error('❌ [DEMO] Erreur création tâches démo:', error);
     }
   };
 
@@ -354,8 +358,6 @@ const TasksPage = () => {
    */
   const handleDeleteTask = async (taskId) => {
     try {
-      console.log('🗑️ Suppression tâche:', taskId);
-      
       const taskToDelete = allTasks.find(t => t.id === taskId);
       if (!taskToDelete) {
         throw new Error('Tâche introuvable');
@@ -365,10 +367,7 @@ const TasksPage = () => {
         `Êtes-vous sûr de vouloir supprimer la tâche "${taskToDelete.title}" ?\n\nCette action est irréversible.`
       );
       
-      if (!confirmed) {
-        console.log('🚫 Suppression annulée par l\'utilisateur');
-        return;
-      }
+      if (!confirmed) return;
       
       await taskService.deleteTask(taskId);
       await loadAllTasks();
@@ -385,13 +384,10 @@ const TasksPage = () => {
     }
   };
 
-  // [... TOUTES LES AUTRES FONCTIONS RESTENT IDENTIQUES ...]
-
   /**
    * ➕ GESTION CRÉATION DE TÂCHE
    */
   const handleCreateTask = () => {
-    console.log('➕ Ouverture formulaire création tâche');
     setEditingTask(null);
     setShowTaskForm(true);
   };
@@ -400,7 +396,6 @@ const TasksPage = () => {
    * ✏️ GESTION ÉDITION DE TÂCHE
    */
   const handleEditTask = (task) => {
-    console.log('✏️ Ouverture formulaire édition:', task.title);
     setEditingTask(task);
     setShowTaskForm(true);
   };
@@ -409,7 +404,6 @@ const TasksPage = () => {
    * 👁️ GESTION DÉTAILS DE TÂCHE
    */
   const handleViewDetails = (task) => {
-    console.log('👁️ Ouverture détails tâche:', task.title);
     setSelectedTask(task);
     setShowTaskDetail(true);
   };
@@ -418,7 +412,6 @@ const TasksPage = () => {
    * 📤 GESTION SOUMISSION DE TÂCHE
    */
   const handleSubmitTask = (task) => {
-    console.log('📤 Ouverture modal soumission:', task.title);
     setSelectedTask(task);
     setShowSubmitModal(true);
   };
@@ -428,14 +421,10 @@ const TasksPage = () => {
    */
   const handleTaskFormSuccess = async (taskData) => {
     try {
-      console.log('✅ Soumission réussie TaskForm:', taskData);
-      
       if (editingTask) {
         await taskService.updateTask(editingTask.id, taskData);
-        console.log('✅ Tâche mise à jour');
       } else {
-        const createdTask = await taskService.createTask(taskData, user.uid);
-        console.log('✅ Nouvelle tâche créée:', createdTask);
+        await taskService.createTask(taskData, user.uid);
       }
       
       await loadAllTasks();
@@ -482,19 +471,35 @@ const TasksPage = () => {
       const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
       const matchesCategory = filterCategory === 'all' || task.category === filterCategory;
       
-      const matchesScope = filterScope === 'all' || 
-                          (filterScope === 'my_tasks' && task.userContext?.isMyTask) ||
-                          (filterScope === 'available' && task.userContext?.canVolunteer) ||
-                          (filterScope === 'assigned_to_me' && task.userContext?.isAssignedToMe) ||
-                          (filterScope === 'created_by_me' && task.userContext?.isCreatedByMe);
+      let matchesScope = true;
+      switch (filterScope) {
+        case 'my_tasks':
+          matchesScope = task.userContext?.isMyTask;
+          break;
+        case 'available':
+          matchesScope = task.userContext?.canVolunteer;
+          break;
+        case 'assigned_to_me':
+          matchesScope = task.userContext?.isAssignedToMe;
+          break;
+        case 'created_by_me':
+          matchesScope = task.userContext?.isCreatedByMe;
+          break;
+        case 'in_validation':
+          matchesScope = task.status === 'validation_pending';
+          break;
+        default:
+          matchesScope = true;
+      }
       
       return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesScope;
     });
   };
 
   const filteredTasks = filterTasks(allTasks);
-  const myTasks = filteredTasks.filter(task => task.userContext?.isMyTask);
-  const availableTasks = filteredTasks.filter(task => task.userContext?.canVolunteer);
+  const availableTasks = allTasks.filter(task => task.userContext?.canVolunteer);
+  const myTasks = allTasks.filter(task => task.userContext?.isMyTask);
+  const inValidationTasks = allTasks.filter(task => task.status === 'validation_pending');
 
   // 🔄 AFFICHAGE LOADING
   if (loading) {
@@ -502,56 +507,28 @@ const TasksPage = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <Loader className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-4" />
-          <p className="text-white">Chargement des tâches...</p>
-          <p className="text-gray-400 text-sm mt-2">Diagnostic en cours...</p>
+          <p className="text-white">Chargement du système de volontaires...</p>
         </div>
       </div>
     );
   }
 
-  // ❌ AFFICHAGE ERREUR AVEC DEBUG
+  // ❌ AFFICHAGE ERREUR
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center max-w-lg">
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-white mb-2">Problème de chargement</h2>
+          <h2 className="text-xl font-bold text-white mb-2">Erreur de chargement</h2>
           <p className="text-gray-400 mb-6">{error}</p>
           
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={() => loadAllTasks()}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Réessayer
-            </button>
-            
-            <button
-              onClick={handleRunDiagnosis}
-              className="flex items-center px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
-            >
-              <Bug className="w-4 h-4 mr-2" />
-              Diagnostic
-            </button>
-            
-            <button
-              onClick={handleCreateTestTasks}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Créer Test
-            </button>
-          </div>
-
-          {debugInfo && (
-            <div className="mt-6 p-4 bg-gray-800 rounded-lg text-left">
-              <h3 className="text-white font-semibold mb-2">Résultat du diagnostic :</h3>
-              <pre className="text-xs text-gray-300 overflow-auto">
-                {JSON.stringify(debugInfo, null, 2)}
-              </pre>
-            </div>
-          )}
+          <button
+            onClick={() => loadAllTasks()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4 mr-2 inline" />
+            Réessayer
+          </button>
         </div>
       </div>
     );
@@ -561,41 +538,32 @@ const TasksPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <div className="container mx-auto px-4 py-8">
         
-        {/* Header avec Debug */}
+        {/* Header avec titre engageant */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">
-              🎯 Gestion des Tâches
-              {debugMode && <span className="text-xs text-yellow-400 ml-2">[DEBUG]</span>}
+              🚀 Système de Volontaires Synergia
             </h1>
             <p className="text-gray-400">
-              Gérez et participez aux tâches collaboratives
-              <span className="text-xs text-gray-500 ml-2">
-                ({allTasks.length} tâches chargées)
+              Participez aux tâches collaboratives et gagnez de l'XP ! 
+              <span className="text-yellow-400 ml-2">
+                {availableTasks.length} tâches disponibles
               </span>
             </p>
           </div>
           
           <div className="mt-4 lg:mt-0 flex space-x-3">
             <button
-              onClick={handleRunDiagnosis}
-              className="flex items-center px-3 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm"
-            >
-              <Bug className="w-4 h-4 mr-1" />
-              Debug
-            </button>
-            
-            <button
               onClick={handleCreateTask}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Plus className="w-5 h-5 mr-2" />
-              Nouvelle Tâche
+              Créer une Tâche
             </button>
           </div>
         </div>
 
-        {/* Filtres - IDENTIQUES AU CODE PRÉCÉDENT */}
+        {/* Filtres enrichis */}
         <div className="mb-6 bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             
@@ -611,7 +579,7 @@ const TasksPage = () => {
               />
             </div>
 
-            {/* Filtre portée */}
+            {/* Filtre portée avec descriptions */}
             <select
               value={filterScope}
               onChange={(e) => setFilterScope(e.target.value)}
@@ -631,10 +599,10 @@ const TasksPage = () => {
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">Tous les statuts</option>
-              <option value="todo">À faire</option>
-              <option value="in_progress">En cours</option>
-              <option value="completed">Terminées</option>
               <option value="pending">En attente</option>
+              <option value="in_progress">En cours</option>
+              <option value="validation_pending">En validation</option>
+              <option value="completed">Terminées</option>
             </select>
 
             {/* Filtre priorité */}
@@ -644,10 +612,10 @@ const TasksPage = () => {
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">Toutes priorités</option>
-              <option value="low">Basse</option>
-              <option value="medium">Moyenne</option>
-              <option value="high">Haute</option>
               <option value="urgent">Urgente</option>
+              <option value="high">Haute</option>
+              <option value="medium">Moyenne</option>
+              <option value="low">Basse</option>
             </select>
 
             {/* Filtre catégorie */}
@@ -666,66 +634,65 @@ const TasksPage = () => {
           </div>
         </div>
 
-        {/* Statistiques */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700">
+        {/* Statistiques dynamiques */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-blue-600/20 backdrop-blur-sm rounded-xl p-4 border border-blue-500/30">
             <div className="flex items-center">
               <div className="p-2 bg-blue-500/20 rounded-lg">
-                <Target className="w-6 h-6 text-blue-400" />
+                <Globe className="w-6 h-6 text-blue-400" />
               </div>
               <div className="ml-3">
-                <p className="text-sm text-gray-400">Total</p>
+                <p className="text-sm text-blue-300">Total</p>
                 <p className="text-lg font-semibold text-white">{allTasks.length}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700">
+          <div className="bg-green-600/20 backdrop-blur-sm rounded-xl p-4 border border-green-500/30">
             <div className="flex items-center">
               <div className="p-2 bg-green-500/20 rounded-lg">
-                <Users className="w-6 h-6 text-green-400" />
+                <Star className="w-6 h-6 text-green-400" />
               </div>
               <div className="ml-3">
-                <p className="text-sm text-gray-400">Mes tâches</p>
-                <p className="text-lg font-semibold text-white">{myTasks.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700">
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-500/20 rounded-lg">
-                <Star className="w-6 h-6 text-yellow-400" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-gray-400">Disponibles</p>
+                <p className="text-sm text-green-300">Disponibles</p>
                 <p className="text-lg font-semibold text-white">{availableTasks.length}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700">
+          <div className="bg-purple-600/20 backdrop-blur-sm rounded-xl p-4 border border-purple-500/30">
             <div className="flex items-center">
               <div className="p-2 bg-purple-500/20 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-purple-400" />
+                <Heart className="w-6 h-6 text-purple-400" />
               </div>
               <div className="ml-3">
-                <p className="text-sm text-gray-400">Terminées</p>
-                <p className="text-lg font-semibold text-white">
-                  {allTasks.filter(t => t.status === 'completed').length}
-                </p>
+                <p className="text-sm text-purple-300">Mes tâches</p>
+                <p className="text-lg font-semibold text-white">{myTasks.length}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-orange-600/20 backdrop-blur-sm rounded-xl p-4 border border-orange-500/30">
+            <div className="flex items-center">
+              <div className="p-2 bg-orange-500/20 rounded-lg">
+                <Clock className="w-6 h-6 text-orange-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-orange-300">En validation</p>
+                <p className="text-lg font-semibold text-white">{inValidationTasks.length}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Liste des tâches */}
+        {/* Liste des tâches avec nouveau composant */}
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700">
           <div className="p-6">
-            <h2 className="text-xl font-semibold text-white mb-4">
-              {filterScope === 'my_tasks' ? 'Mes Tâches' :
-               filterScope === 'available' ? 'Tâches Disponibles' :
-               'Toutes les Tâches'}
+            <h2 className="text-xl font-semibold text-white mb-6">
+              {filterScope === 'my_tasks' ? '💼 Mes Tâches' :
+               filterScope === 'available' ? '🌟 Tâches Disponibles' :
+               filterScope === 'in_validation' ? '⏳ En Validation' :
+               '🌍 Toutes les Tâches'}
               <span className="ml-2 text-sm text-gray-400">
                 ({filteredTasks.length})
               </span>
@@ -733,39 +700,41 @@ const TasksPage = () => {
 
             {filteredTasks.length === 0 ? (
               <div className="text-center py-12">
-                <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <div className="text-6xl mb-4">
+                  {filterScope === 'available' ? '🌟' : filterScope === 'my_tasks' ? '💼' : '🔍'}
+                </div>
                 <h3 className="text-lg font-medium text-white mb-2">
-                  Aucune tâche trouvée
+                  {filterScope === 'available' ? 'Aucune tâche disponible pour le moment' :
+                   filterScope === 'my_tasks' ? 'Vous ne participez à aucune tâche' :
+                   'Aucune tâche trouvée'}
                 </h3>
-                <p className="text-gray-400 mb-4">
-                  {searchTerm || filterStatus !== 'all' || filterPriority !== 'all' || filterCategory !== 'all'
-                    ? 'Essayez de modifier vos critères de recherche'
-                    : 'Commencez par créer votre première tâche ou utiliser le diagnostic'
-                  }
+                <p className="text-gray-400 mb-6">
+                  {filterScope === 'available' ? 'Revenez plus tard ou créez une nouvelle tâche !' :
+                   filterScope === 'my_tasks' ? 'Rejoignez des tâches disponibles pour commencer !' :
+                   'Essayez de modifier vos critères de recherche'}
                 </p>
                 <div className="flex justify-center space-x-3">
+                  <button
+                    onClick={() => setFilterScope('available')}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Voir les tâches disponibles
+                  </button>
                   <button
                     onClick={handleCreateTask}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     Créer une tâche
                   </button>
-                  <button
-                    onClick={handleCreateTestTasks}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    Créer tâches de test
-                  </button>
                 </div>
               </div>
             ) : (
               <div className="space-y-4">
                 {filteredTasks.map(task => (
-                  <TaskCard
+                  <VolunteerTaskCard
                     key={task.id}
                     task={task}
-                    onEdit={() => handleEditTask(task)}
-                    onDelete={() => handleDeleteTask(task.id)}
+                    onTaskUpdate={loadAllTasks}
                   />
                 ))}
               </div>
@@ -774,7 +743,7 @@ const TasksPage = () => {
         </div>
       </div>
 
-      {/* MODALS - IDENTIQUES AU CODE PRÉCÉDENT */}
+      {/* MODALS - Identiques au code précédent */}
       
       {/* Modal création/édition de tâche */}
       {showTaskForm && (
