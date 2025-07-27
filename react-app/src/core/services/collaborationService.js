@@ -112,7 +112,7 @@ class CollaborationService {
   }
 
   /**
-   * 📖 RÉCUPÉRER LES COMMENTAIRES - VERSION SIMPLIFIÉE
+   * 📖 RÉCUPÉRER LES COMMENTAIRES - VERSION SIMPLIFIÉE SANS INDEX
    */
   async getComments(entityType, entityId, limitCount = 50) {
     try {
@@ -124,14 +124,14 @@ class CollaborationService {
         return [];
       }
 
-      // ✅ REQUÊTE SIMPLE sans contraintes d'index
+      // ✅ REQUÊTE SIMPLE sans orderBy pour éviter l'erreur d'index
       const commentsRef = collection(db, 'comments');
       const q = query(
         commentsRef,
         where('entityType', '==', String(entityType)),
         where('entityId', '==', String(entityId)),
-        orderBy('createdAt', 'asc'),
         limit(limitCount)
+        // ✅ SUPPRESSION DU orderBy pour éviter l'erreur d'index
       );
 
       const snapshot = await getDocs(q);
@@ -151,23 +151,25 @@ class CollaborationService {
         }
       });
 
-      console.log(`✅ [GET_COMMENTS] ${comments.length} commentaires récupérés`);
+      // ✅ TRI CÔTÉ CLIENT par date de création
+      comments.sort((a, b) => a.createdAt - b.createdAt);
+
+      console.log(`✅ [GET_COMMENTS] ${comments.length} commentaires récupérés et triés`);
       return comments;
 
     } catch (error) {
       console.error('❌ [GET_COMMENTS] Erreur:', error);
       
-      // En cas d'erreur, retourner un tableau vide plutôt que de planter
+      // ✅ FALLBACK : Si erreur d'index, requête encore plus simple
       if (error.code === 'failed-precondition' && error.message.includes('index')) {
-        console.warn('⚠️ [GET_COMMENTS] Index manquant, requête alternative...');
+        console.warn('⚠️ [GET_COMMENTS] Index manquant, fallback simple...');
         
-        // Requête de fallback sans orderBy
         try {
+          // Requête ultra-simple sans aucune contrainte
           const fallbackQ = query(
             collection(db, 'comments'),
             where('entityType', '==', String(entityType)),
-            where('entityId', '==', String(entityId)),
-            limit(limitCount)
+            where('entityId', '==', String(entityId))
           );
           
           const fallbackSnapshot = await getDocs(fallbackQ);
@@ -185,11 +187,12 @@ class CollaborationService {
             }
           });
           
-          // Trier côté client
+          // Trier côté client et limiter
           fallbackComments.sort((a, b) => a.createdAt - b.createdAt);
+          const limitedComments = fallbackComments.slice(0, limitCount);
           
-          console.log(`✅ [GET_COMMENTS] Fallback: ${fallbackComments.length} commentaires récupérés`);
-          return fallbackComments;
+          console.log(`✅ [GET_COMMENTS] Fallback: ${limitedComments.length} commentaires récupérés`);
+          return limitedComments;
           
         } catch (fallbackError) {
           console.error('❌ [GET_COMMENTS] Fallback échoué:', fallbackError);
@@ -197,6 +200,7 @@ class CollaborationService {
         }
       }
       
+      // Pour toute autre erreur, retourner tableau vide
       return [];
     }
   }
