@@ -1,11 +1,12 @@
 // ==========================================
 // 📁 react-app/src/shared/components/ui/ModalWrapper.jsx
-// WRAPPER MODAL + TaskDetailModal CORRIGÉE SANS BOUTON "MARQUER TERMINÉE"
+// WRAPPER MODAL + TaskDetailModal CORRIGÉE AVEC COMMENTAIRES FONCTIONNELS
 // ==========================================
 
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import CommentSection from '../../components/collaboration/CommentSection.jsx';
 
 /**
  * 🎯 WRAPPER MODAL RÉUTILISABLE
@@ -128,43 +129,17 @@ export const TaskDetailModal = ({ task, isOpen, onClose, onEdit, onDelete, onSub
           </div>
         </div>
 
-        {/* Zone de commentaires */}
+        {/* Commentaires avec CommentSection */}
         <div>
           <h4 className="font-medium mb-3" style={{ color: '#ffffff' }}>
             Commentaires
           </h4>
-          <div 
-            className="border rounded-lg p-4 min-h-24"
-            style={{ 
-              backgroundColor: '#111827', 
-              borderColor: '#374151',
-              color: '#9ca3af'
-            }}
-          >
-            <p className="text-center italic">Aucun commentaire pour le moment</p>
-          </div>
-          
-          {/* Zone de saisie */}
-          <div className="mt-3 flex gap-2">
-            <input
-              type="text"
-              placeholder="Ajouter un commentaire..."
-              className="flex-1 px-3 py-2 rounded-lg border"
-              style={{
-                backgroundColor: '#374151',
-                borderColor: '#4b5563',
-                color: '#ffffff'
-              }}
+          <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+            <CommentSection 
+              entityType="task" 
+              entityId={task.id} 
+              className="bg-transparent border-0 p-0"
             />
-            <button
-              className="px-4 py-2 rounded-lg font-medium"
-              style={{
-                backgroundColor: '#3b82f6',
-                color: '#ffffff'
-              }}
-            >
-              Envoyer
-            </button>
           </div>
         </div>
 
