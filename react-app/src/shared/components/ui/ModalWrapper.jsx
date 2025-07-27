@@ -6,7 +6,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import CommentSection from '../../components/collaboration/CommentSection.jsx';
+import CommentSection from '../../../components/collaboration/CommentSection.jsx';
 
 /**
  * 🎯 WRAPPER MODAL RÉUTILISABLE
