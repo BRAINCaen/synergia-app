@@ -1,10 +1,10 @@
 // ==========================================
 // 📁 react-app/src/components/collaboration/CommentSection.jsx
-// SECTION COMMENTAIRES - TOUS LES BUGS CORRIGÉS
+// SECTION COMMENTAIRES - VERSION FINALE CORRIGÉE
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, MessageCircle, User, Edit, Trash2, Reply, MoreVertical, Heart } from 'lucide-react';
+import { Send, MessageCircle, User, Edit, Trash2, Reply, X } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { collaborationService } from '../../core/services/collaborationService.js';
 
@@ -27,7 +27,7 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
 
   useEffect(() => {
     if (!entityType || !entityId) {
-      console.warn('⚠️ entityType ou entityId manquant pour CommentSection');
+      console.warn('⚠️ entityType ou entityId manquant');
       return;
     }
 
@@ -55,37 +55,31 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
   };
 
   // ========================
-  // 💬 GESTION DES COMMENTAIRES - CORRIGÉE
+  // 💬 ENVOI DE COMMENTAIRE - ULTRA-SIMPLIFIÉ
   // ========================
 
   const handleSubmitComment = async (e) => {
     e.preventDefault();
     
-    // ✅ VALIDATIONS STRICTES
-    if (!newComment || typeof newComment !== 'string') {
-      console.warn('⚠️ Commentaire vide ou invalide');
-      return;
-    }
+    console.log('📤 handleSubmitComment démarré');
     
-    const commentText = newComment.trim();
-    if (!commentText) {
-      console.warn('⚠️ Commentaire vide après trim');
+    // ✅ VALIDATIONS DE BASE
+    if (!newComment?.trim()) {
+      console.warn('⚠️ Commentaire vide');
       return;
     }
     
     if (submitting) {
-      console.warn('⚠️ Soumission déjà en cours');
+      console.warn('⚠️ Déjà en cours');
       return;
     }
     
-    if (!user || !user.uid) {
-      console.error('❌ Utilisateur non connecté');
-      setError('Vous devez être connecté pour commenter');
+    if (!user?.uid) {
+      setError('Vous devez être connecté');
       return;
     }
 
     if (!entityType || !entityId) {
-      console.error('❌ entityType ou entityId manquant');
       setError('Erreur: contexte manquant');
       return;
     }
@@ -94,41 +88,38 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
       setSubmitting(true);
       setError(null);
       
+      const commentText = newComment.trim();
       console.log('📤 Envoi commentaire:', {
         entityType,
         entityId,
         userId: user.uid,
-        content: commentText,
-        length: commentText.length
+        contentLength: commentText.length
       });
 
-      // ✅ STRUCTURE CORRIGÉE pour collaborationService
+      // ✅ STRUCTURE ULTRA-SIMPLE
       const commentData = {
-        entityType: String(entityType),
-        entityId: String(entityId),
-        userId: String(user.uid),
-        content: commentText,
-        replyTo: replyTo?.id || null,
-        mentions: [] // Vide pour simplifier
+        entityType: entityType,
+        entityId: entityId,
+        userId: user.uid,
+        content: commentText
       };
 
-      // Validation finale avant envoi
-      if (!commentData.entityType || !commentData.entityId || !commentData.userId || !commentData.content) {
-        throw new Error('Données de commentaire incomplètes');
-      }
-
+      console.log('📤 Appel collaborationService.addComment...');
       const addedComment = await collaborationService.addComment(commentData);
       
-      if (!addedComment || !addedComment.id) {
-        throw new Error('Commentaire non créé correctement');
+      if (!addedComment?.id) {
+        throw new Error('Commentaire non créé');
       }
 
-      console.log('✅ Commentaire ajouté:', addedComment.id);
+      console.log('✅ Commentaire ajouté avec ID:', addedComment.id);
       
-      // ✅ AJOUT OPTIMISTE À LA LISTE
+      // ✅ AJOUT OPTIMISTE
       const optimisticComment = {
         id: addedComment.id,
-        ...commentData,
+        entityType: entityType,
+        entityId: entityId,
+        userId: user.uid,
+        content: commentText,
         createdAt: new Date(),
         updatedAt: new Date(),
         user: {
@@ -139,32 +130,18 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
       };
 
       setComments(prev => [...prev, optimisticComment]);
-      
-      // Reset du formulaire
       setNewComment('');
       setReplyTo(null);
       
-      // Auto-focus pour continuer la conversation
       if (textareaRef.current) {
         textareaRef.current.focus();
       }
 
     } catch (error) {
       console.error('❌ Erreur ajout commentaire:', error);
+      setError(`Erreur: ${error.message}`);
       
-      // Messages d'erreur spécifiques
-      let errorMessage = 'Erreur lors de l\'ajout du commentaire';
-      if (error.message.includes('permission')) {
-        errorMessage = 'Permissions insuffisantes';
-      } else if (error.message.includes('network')) {
-        errorMessage = 'Problème de connexion';
-      } else if (error.message.includes('Firebase')) {
-        errorMessage = 'Erreur de base de données';
-      }
-      
-      setError(errorMessage);
-      
-      // Recharger les commentaires en cas d'erreur pour resync
+      // Recharger en cas d'erreur
       setTimeout(loadComments, 2000);
       
     } finally {
@@ -172,14 +149,15 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
     }
   };
 
+  // ========================
+  // 🗑️ SUPPRESSION DE COMMENTAIRE
+  // ========================
+
   const handleDeleteComment = async (commentId) => {
-    if (!commentId) return;
-    
-    if (!confirm('Supprimer ce commentaire ?')) return;
+    if (!commentId || !confirm('Supprimer ce commentaire ?')) return;
 
     try {
       console.log('🗑️ Suppression commentaire:', commentId);
-      
       await collaborationService.deleteComment(commentId, user.uid);
       
       // Mise à jour optimiste
@@ -190,10 +168,14 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
       ));
 
     } catch (error) {
-      console.error('❌ Erreur suppression commentaire:', error);
-      setError('Impossible de supprimer le commentaire');
+      console.error('❌ Erreur suppression:', error);
+      setError('Impossible de supprimer');
     }
   };
+
+  // ========================
+  // ✏️ MODIFICATION DE COMMENTAIRE
+  // ========================
 
   const handleEditComment = async (commentId, newContent) => {
     if (!commentId || !newContent?.trim()) return;
@@ -201,7 +183,6 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
     try {
       await collaborationService.updateComment(commentId, { content: newContent.trim() }, user.uid);
       
-      // Mise à jour optimiste
       setComments(prev => prev.map(comment => 
         comment.id === commentId 
           ? { ...comment, content: newContent.trim(), isEdited: true, updatedAt: new Date() }
@@ -211,8 +192,8 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
       setEditingComment(null);
 
     } catch (error) {
-      console.error('❌ Erreur modification commentaire:', error);
-      setError('Impossible de modifier le commentaire');
+      console.error('❌ Erreur modification:', error);
+      setError('Impossible de modifier');
     }
   };
 
@@ -248,7 +229,7 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
   };
 
   // ========================
-  // 🎨 RENDU DES COMMENTAIRES
+  // 🎨 RENDU D'UN COMMENTAIRE
   // ========================
 
   const renderComment = (comment) => {
@@ -432,7 +413,7 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
         )}
       </div>
 
-      {/* Formulaire d'ajout - CORRIGÉ */}
+      {/* Formulaire d'ajout */}
       {user ? (
         <form onSubmit={handleSubmitComment} className="p-4 border-t border-gray-700 space-y-3">
           <div className="flex gap-3">
@@ -447,13 +428,7 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
               <textarea
                 ref={textareaRef}
                 value={newComment}
-                onChange={(e) => {
-                  // ✅ VALIDATION EN TEMPS RÉEL
-                  const value = e.target.value;
-                  if (typeof value === 'string') {
-                    setNewComment(value);
-                  }
-                }}
+                onChange={(e) => setNewComment(e.target.value)}
                 placeholder={replyTo ? `Répondre à ${replyTo.user?.name || 'ce commentaire'}...` : "Ajouter un commentaire..."}
                 className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows="3"
