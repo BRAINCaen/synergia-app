@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/collaborationService.js
-// Service de collaboration SIMPLIFIÉ - Sans requêtes complexes
+// SERVICE COLLABORATION - FIX COMPLET pour commentaires
 // ==========================================
 
 import { 
@@ -8,172 +8,128 @@ import {
   doc, 
   addDoc, 
   updateDoc, 
-  deleteDoc,
+  deleteDoc, 
   getDocs, 
-  getDoc,
+  getDoc, 
   query, 
   where, 
   orderBy, 
   limit,
-  onSnapshot,
   serverTimestamp,
-  arrayUnion,
-  arrayRemove,
-  increment,
-  writeBatch
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
 /**
- * 🤝 SERVICE DE COLLABORATION SIMPLIFIÉ
+ * 🤝 SERVICE DE COLLABORATION - VERSION CORRIGÉE
  */
 class CollaborationService {
   constructor() {
+    console.log('🤝 CollaborationService initialisé - VERSION CORRIGÉE');
     this.listeners = new Map();
-    this.notificationQueue = [];
   }
 
-  // ========================
-  // 💬 SYSTÈME DE COMMENTAIRES SIMPLIFIÉ
-  // ========================
-
   /**
-   * 📝 AJOUTER UN COMMENTAIRE
+   * 💬 AJOUTER UN COMMENTAIRE - VERSION CORRIGÉE
    */
   async addComment(commentData) {
     try {
-      const { entityType, entityId, userId, content, mentions = [] } = commentData;
+      console.log('💬 [ADD_COMMENT] Ajout commentaire:', commentData);
 
-      // Validation des données
-      if (!entityType || !entityId || !userId || !content?.trim()) {
-        throw new Error('Données manquantes pour créer le commentaire');
+      // ✅ VALIDATION STRICTE
+      if (!commentData || typeof commentData !== 'object') {
+        throw new Error('Données de commentaire invalides');
       }
 
-      const comment = {
-        entityType, // 'task' ou 'project'
-        entityId,
-        userId,
-        authorId: userId, // Pour compatibilité
-        content: content.trim(),
-        mentions,
+      const { entityType, entityId, userId, content, replyTo = null, mentions = [] } = commentData;
+
+      // Validation des champs requis
+      if (!entityType || typeof entityType !== 'string') {
+        throw new Error('entityType requis et doit être une chaîne');
+      }
+      if (!entityId || typeof entityId !== 'string') {
+        throw new Error('entityId requis et doit être une chaîne');
+      }
+      if (!userId || typeof userId !== 'string') {
+        throw new Error('userId requis et doit être une chaîne');
+      }
+      if (!content || typeof content !== 'string' || !content.trim()) {
+        throw new Error('content requis et ne peut pas être vide');
+      }
+
+      // ✅ STRUCTURE CORRIGÉE
+      const commentToAdd = {
+        entityType: String(entityType).trim(),
+        entityId: String(entityId).trim(),
+        userId: String(userId).trim(),
+        content: String(content).trim(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        replyTo: replyTo || null,
+        mentions: Array.isArray(mentions) ? mentions : [],
         isEdited: false,
-        reactions: {},
-        replyTo: commentData.replyTo || null,
-        attachments: commentData.attachments || [],
-        // ✅ CORRECTION: Pas de champ isDeleted pour éviter l'index complexe
+        deletedAt: null
       };
 
-      const docRef = await addDoc(collection(db, 'comments'), comment);
-      
-      console.log('✅ Commentaire ajouté:', docRef.id);
-      return { id: docRef.id, ...comment };
-
-    } catch (error) {
-      console.error('❌ Erreur ajout commentaire:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🔄 METTRE À JOUR UN COMMENTAIRE
-   */
-  async updateComment(commentId, updates, userId) {
-    try {
-      if (!commentId || !userId) {
-        throw new Error('Paramètres manquants pour mettre à jour le commentaire');
-      }
-
-      const commentRef = doc(db, 'comments', commentId);
-      const commentSnap = await getDoc(commentRef);
-
-      if (!commentSnap.exists()) {
-        throw new Error('Commentaire non trouvé');
-      }
-
-      const commentData = commentSnap.data();
-      
-      // Vérification de permission plus flexible
-      const isOwner = commentData.userId === userId || commentData.authorId === userId;
-      
-      if (!isOwner) {
-        console.warn('⚠️ Tentative de modification par:', userId, 'Propriétaire:', commentData.userId || commentData.authorId);
-        throw new Error('Permission refusée - Vous ne pouvez modifier que vos propres commentaires');
-      }
-
-      // Préparer les données de mise à jour
-      const updateData = {
-        content: updates.content || commentData.content,
-        updatedAt: serverTimestamp(),
-        isEdited: true,
-        lastEditBy: userId
-      };
-
-      await updateDoc(commentRef, updateData);
-
-      console.log('✅ Commentaire mis à jour:', commentId);
-      return { id: commentId, ...commentData, ...updateData };
-
-    } catch (error) {
-      console.error('❌ Erreur mise à jour commentaire:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🗑️ SUPPRIMER UN COMMENTAIRE
-   */
-  async deleteComment(commentId, userId) {
-    try {
-      if (!commentId || !userId) {
-        throw new Error('Paramètres manquants pour supprimer le commentaire');
-      }
-
-      const commentRef = doc(db, 'comments', commentId);
-      const commentSnap = await getDoc(commentRef);
-
-      if (!commentSnap.exists()) {
-        throw new Error('Commentaire non trouvé');
-      }
-
-      const commentData = commentSnap.data();
-      
-      // Vérification de permission plus flexible
-      const isOwner = commentData.userId === userId || commentData.authorId === userId;
-      
-      if (!isOwner) {
-        console.warn('⚠️ Tentative de suppression par:', userId, 'Propriétaire:', commentData.userId || commentData.authorId);
-        throw new Error('Permission refusée - Vous ne pouvez supprimer que vos propres commentaires');
-      }
-
-      // ✅ CORRECTION: Suppression simple avec marquage textuel
-      await updateDoc(commentRef, {
-        content: '[Commentaire supprimé]',
-        deletedAt: serverTimestamp(),
-        deletedBy: userId,
-        updatedAt: serverTimestamp()
+      console.log('💬 [ADD_COMMENT] Structure validée:', {
+        entityType: commentToAdd.entityType,
+        entityId: commentToAdd.entityId,
+        userId: commentToAdd.userId,
+        contentLength: commentToAdd.content.length
       });
 
-      console.log('✅ Commentaire marqué comme supprimé:', commentId);
-      return commentId;
+      // Ajouter à Firestore
+      const docRef = await addDoc(collection(db, 'comments'), commentToAdd);
+      
+      if (!docRef || !docRef.id) {
+        throw new Error('Échec de création du commentaire dans Firestore');
+      }
+
+      console.log('✅ [ADD_COMMENT] Commentaire créé avec ID:', docRef.id);
+
+      // Retourner le commentaire avec son ID
+      return {
+        id: docRef.id,
+        ...commentToAdd,
+        createdAt: new Date(), // Pour l'affichage immédiat
+        updatedAt: new Date()
+      };
 
     } catch (error) {
-      console.error('❌ Erreur suppression commentaire:', error);
-      throw error;
+      console.error('❌ [ADD_COMMENT] Erreur:', error);
+      
+      // Messages d'erreur plus spécifiques
+      if (error.code === 'permission-denied') {
+        throw new Error('Permissions insuffisantes pour ajouter un commentaire');
+      } else if (error.code === 'unavailable') {
+        throw new Error('Service temporairement indisponible, veuillez réessayer');
+      } else if (error.message.includes('Firebase')) {
+        throw new Error('Erreur de base de données');
+      } else {
+        throw error;
+      }
     }
   }
 
   /**
-   * 📖 RÉCUPÉRER LES COMMENTAIRES D'UNE ENTITÉ - VERSION SIMPLIFIÉE
+   * 📖 RÉCUPÉRER LES COMMENTAIRES - VERSION SIMPLIFIÉE
    */
   async getComments(entityType, entityId, limitCount = 50) {
     try {
-      // ✅ CORRECTION: Requête simple sans filtre sur isDeleted
+      console.log('📖 [GET_COMMENTS] Récupération:', { entityType, entityId, limitCount });
+
+      // Validation des paramètres
+      if (!entityType || !entityId) {
+        console.warn('⚠️ [GET_COMMENTS] Paramètres manquants');
+        return [];
+      }
+
+      // ✅ REQUÊTE SIMPLE sans contraintes d'index
+      const commentsRef = collection(db, 'comments');
       const q = query(
-        collection(db, 'comments'),
-        where('entityType', '==', entityType),
-        where('entityId', '==', entityId),
+        commentsRef,
+        where('entityType', '==', String(entityType)),
+        where('entityId', '==', String(entityId)),
         orderBy('createdAt', 'asc'),
         limit(limitCount)
       );
@@ -185,7 +141,7 @@ class CollaborationService {
         const data = doc.data();
         
         // Filtrer les commentaires supprimés côté client
-        if (data.content !== '[Commentaire supprimé]') {
+        if (data.content && data.content !== '[Commentaire supprimé]') {
           comments.push({
             id: doc.id,
             ...data,
@@ -195,65 +151,231 @@ class CollaborationService {
         }
       });
 
-      console.log(`✅ ${comments.length} commentaires récupérés pour ${entityType}:${entityId}`);
+      console.log(`✅ [GET_COMMENTS] ${comments.length} commentaires récupérés`);
       return comments;
 
     } catch (error) {
-      console.error('❌ Erreur récupération commentaires:', error);
-      return []; // Retourner tableau vide au lieu de throw
+      console.error('❌ [GET_COMMENTS] Erreur:', error);
+      
+      // En cas d'erreur, retourner un tableau vide plutôt que de planter
+      if (error.code === 'failed-precondition' && error.message.includes('index')) {
+        console.warn('⚠️ [GET_COMMENTS] Index manquant, requête alternative...');
+        
+        // Requête de fallback sans orderBy
+        try {
+          const fallbackQ = query(
+            collection(db, 'comments'),
+            where('entityType', '==', String(entityType)),
+            where('entityId', '==', String(entityId)),
+            limit(limitCount)
+          );
+          
+          const fallbackSnapshot = await getDocs(fallbackQ);
+          const fallbackComments = [];
+          
+          fallbackSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.content && data.content !== '[Commentaire supprimé]') {
+              fallbackComments.push({
+                id: doc.id,
+                ...data,
+                createdAt: data.createdAt?.toDate?.() || new Date(),
+                updatedAt: data.updatedAt?.toDate?.() || new Date()
+              });
+            }
+          });
+          
+          // Trier côté client
+          fallbackComments.sort((a, b) => a.createdAt - b.createdAt);
+          
+          console.log(`✅ [GET_COMMENTS] Fallback: ${fallbackComments.length} commentaires récupérés`);
+          return fallbackComments;
+          
+        } catch (fallbackError) {
+          console.error('❌ [GET_COMMENTS] Fallback échoué:', fallbackError);
+          return [];
+        }
+      }
+      
+      return [];
     }
   }
 
   /**
-   * 🎧 ÉCOUTER LES COMMENTAIRES EN TEMPS RÉEL - VERSION SIMPLIFIÉE
+   * ✏️ METTRE À JOUR UN COMMENTAIRE
+   */
+  async updateComment(commentId, updateData, userId) {
+    try {
+      console.log('✏️ [UPDATE_COMMENT] Mise à jour:', { commentId, userId });
+
+      if (!commentId || !updateData || !userId) {
+        throw new Error('Paramètres manquants pour la mise à jour');
+      }
+
+      const commentRef = doc(db, 'comments', commentId);
+      const commentSnap = await getDoc(commentRef);
+
+      if (!commentSnap.exists()) {
+        throw new Error('Commentaire non trouvé');
+      }
+
+      const commentData = commentSnap.data();
+      
+      // Vérification de permission
+      if (commentData.userId !== userId) {
+        throw new Error('Permission refusée - Vous ne pouvez modifier que vos propres commentaires');
+      }
+
+      // Mise à jour
+      const updates = {
+        ...updateData,
+        updatedAt: serverTimestamp(),
+        isEdited: true
+      };
+
+      await updateDoc(commentRef, updates);
+
+      console.log('✅ [UPDATE_COMMENT] Commentaire mis à jour');
+      return commentId;
+
+    } catch (error) {
+      console.error('❌ [UPDATE_COMMENT] Erreur:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🗑️ SUPPRIMER UN COMMENTAIRE
+   */
+  async deleteComment(commentId, userId) {
+    try {
+      console.log('🗑️ [DELETE_COMMENT] Suppression:', { commentId, userId });
+
+      if (!commentId || !userId) {
+        throw new Error('Paramètres manquants pour la suppression');
+      }
+
+      const commentRef = doc(db, 'comments', commentId);
+      const commentSnap = await getDoc(commentRef);
+
+      if (!commentSnap.exists()) {
+        throw new Error('Commentaire non trouvé');
+      }
+
+      const commentData = commentSnap.data();
+      
+      // Vérification de permission
+      if (commentData.userId !== userId) {
+        throw new Error('Permission refusée - Vous ne pouvez supprimer que vos propres commentaires');
+      }
+
+      // ✅ SUPPRESSION SOFT (marquage)
+      await updateDoc(commentRef, {
+        content: '[Commentaire supprimé]',
+        deletedAt: serverTimestamp(),
+        deletedBy: userId,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ [DELETE_COMMENT] Commentaire marqué comme supprimé');
+      return commentId;
+
+    } catch (error) {
+      console.error('❌ [DELETE_COMMENT] Erreur:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🎧 ÉCOUTER LES COMMENTAIRES EN TEMPS RÉEL - OPTIONNEL
    */
   subscribeToComments(entityType, entityId, callback) {
     try {
-      // ✅ CORRECTION: Requête simple sans filtre complexe
+      console.log('🎧 [SUBSCRIBE] Écoute temps réel:', { entityType, entityId });
+
+      // Créer l'ID unique pour ce listener
+      const listenerId = `comments_${entityType}_${entityId}`;
+      
+      // Si un listener existe déjà pour cette entité, l'arrêter
+      if (this.listeners.has(listenerId)) {
+        this.listeners.get(listenerId)();
+        this.listeners.delete(listenerId);
+      }
+
+      // ✅ REQUÊTE SIMPLE pour éviter les erreurs d'index
       const q = query(
         collection(db, 'comments'),
-        where('entityType', '==', entityType),
-        where('entityId', '==', entityId),
-        orderBy('createdAt', 'asc')
+        where('entityType', '==', String(entityType)),
+        where('entityId', '==', String(entityId)),
+        limit(50)
       );
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const comments = [];
-        
-        snapshot.forEach(doc => {
-          const data = doc.data();
+      const unsubscribe = onSnapshot(q, 
+        (snapshot) => {
+          const comments = [];
           
-          // Filtrer les commentaires supprimés côté client
-          if (data.content !== '[Commentaire supprimé]') {
-            comments.push({
-              id: doc.id,
-              ...data,
-              createdAt: data.createdAt?.toDate?.() || new Date(),
-              updatedAt: data.updatedAt?.toDate?.() || new Date()
-            });
-          }
-        });
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            
+            // Filtrer les commentaires supprimés
+            if (data.content && data.content !== '[Commentaire supprimé]') {
+              comments.push({
+                id: doc.id,
+                ...data,
+                createdAt: data.createdAt?.toDate?.() || new Date(),
+                updatedAt: data.updatedAt?.toDate?.() || new Date()
+              });
+            }
+          });
 
-        callback(comments);
-      }, (error) => {
-        console.error('❌ Erreur écoute commentaires:', error);
-        callback([]); // Fallback sur tableau vide
-      });
+          // Trier côté client par date de création
+          comments.sort((a, b) => a.createdAt - b.createdAt);
+
+          console.log(`🎧 [SUBSCRIBE] ${comments.length} commentaires reçus en temps réel`);
+          callback(comments);
+        },
+        (error) => {
+          console.error('❌ [SUBSCRIBE] Erreur listener:', error);
+          
+          // En cas d'erreur, callback avec tableau vide
+          callback([]);
+        }
+      );
 
       // Stocker le listener pour nettoyage
-      const listenerId = `comments_${entityType}_${entityId}`;
       this.listeners.set(listenerId, unsubscribe);
 
+      console.log('✅ [SUBSCRIBE] Listener créé:', listenerId);
       return unsubscribe;
 
     } catch (error) {
-      console.error('❌ Erreur souscription commentaires:', error);
-      return () => {}; // Fonction vide pour éviter les erreurs
+      console.error('❌ [SUBSCRIBE] Erreur création listener:', error);
+      
+      // Retourner une fonction vide pour éviter les erreurs
+      return () => {};
     }
   }
 
   /**
-   * 🔍 RECHERCHER DES UTILISATEURS POUR MENTIONS
+   * 🧹 NETTOYER LES LISTENERS
+   */
+  cleanup() {
+    console.log('🧹 [CLEANUP] Nettoyage des listeners:', this.listeners.size);
+    
+    this.listeners.forEach((unsubscribe, listenerId) => {
+      try {
+        unsubscribe();
+        console.log('✅ [CLEANUP] Listener arrêté:', listenerId);
+      } catch (error) {
+        console.error('❌ [CLEANUP] Erreur arrêt listener:', listenerId, error);
+      }
+    });
+    
+    this.listeners.clear();
+  }
+
+  /**
+   * 🔍 RECHERCHER DES UTILISATEURS POUR MENTIONS - SIMPLIFIÉ
    */
   async searchUsersForMention(searchTerm, limitCount = 10) {
     try {
@@ -261,7 +383,7 @@ class CollaborationService {
         return [];
       }
 
-      // Recherche simple par nom/email
+      // Requête simple sur les utilisateurs
       const q = query(
         collection(db, 'users'),
         limit(limitCount)
@@ -280,7 +402,7 @@ class CollaborationService {
             id: doc.id,
             name: data.displayName || data.email,
             email: data.email,
-            photoURL: data.photoURL
+            avatar: data.photoURL || null
           });
         }
       });
@@ -294,172 +416,31 @@ class CollaborationService {
   }
 
   /**
-   * 📬 CRÉER DES NOTIFICATIONS POUR LES MENTIONS - VERSION SIMPLIFIÉE
+   * 📊 OBTENIR LES STATISTIQUES DE COMMENTAIRES
    */
-  async createMentionNotifications(commentId, mentions, fromUserId, entityType, entityId) {
+  async getCommentStats(entityType, entityId) {
     try {
-      // Version simplifiée sans batch
-      for (const mentionedUserId of mentions) {
-        if (mentionedUserId === fromUserId) continue;
-
-        await addDoc(collection(db, 'notifications'), {
-          userId: mentionedUserId,
-          type: 'mention',
-          title: 'Vous avez été mentionné',
-          message: `Vous avez été mentionné dans un commentaire`,
-          data: {
-            commentId,
-            entityType,
-            entityId,
-            fromUserId
-          },
-          read: false,
-          createdAt: serverTimestamp()
-        });
-      }
-
-      console.log(`✅ ${mentions.length} notifications de mention créées`);
-
-    } catch (error) {
-      console.error('❌ Erreur création notifications mention:', error);
-    }
-  }
-
-  /**
-   * 📝 LOGGER L'ACTIVITÉ - VERSION SIMPLIFIÉE
-   */
-  async logActivity(activityData) {
-    try {
-      await addDoc(collection(db, 'activities'), {
-        ...activityData,
-        timestamp: serverTimestamp()
-      });
-    } catch (error) {
-      console.warn('⚠️ Erreur log activité:', error);
-      // Ne pas faire échouer l'opération principale
-    }
-  }
-
-  /**
-   * ✅ MÉTHODES MANQUANTES AJOUTÉES
-   */
-  
-  // Récupérer l'activité d'une entité
-  async getEntityActivity(entityType, entityId, limitCount = 20) {
-    try {
-      const q = query(
-        collection(db, 'activities'),
-        where('entityType', '==', entityType),
-        where('entityId', '==', entityId),
-        orderBy('timestamp', 'desc'),
-        limit(limitCount)
-      );
-
-      const snapshot = await getDocs(q);
-      const activities = [];
-
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        activities.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp?.toDate?.() || new Date()
-        });
-      });
-
-      return activities;
-
-    } catch (error) {
-      console.error('❌ Erreur récupération activité entité:', error);
-      return [];
-    }
-  }
-
-  // Récupérer les notifications d'un utilisateur
-  async getUserNotifications(userId, limitCount = 50) {
-    try {
-      const q = query(
-        collection(db, 'notifications'),
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
-      );
-
-      const snapshot = await getDocs(q);
-      const notifications = [];
-
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        notifications.push({
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate?.() || new Date()
-        });
-      });
-
-      return notifications;
-
-    } catch (error) {
-      console.error('❌ Erreur récupération notifications:', error);
-      return [];
-    }
-  }
-
-  // Marquer une notification comme lue
-  async markNotificationAsRead(notificationId) {
-    try {
-      const notificationRef = doc(db, 'notifications', notificationId);
-      await updateDoc(notificationRef, {
-        read: true,
-        readAt: serverTimestamp()
-      });
+      const comments = await this.getComments(entityType, entityId);
       
-      console.log('✅ Notification marquée comme lue:', notificationId);
-      return true;
-
-    } catch (error) {
-      console.error('❌ Erreur marquage notification:', error);
-      return false;
-    }
-  }
-
-  /**
-   * 🧹 NETTOYER LES LISTENERS
-   */
-  cleanup() {
-    this.listeners.forEach((unsubscribe) => {
-      if (typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
-    });
-    this.listeners.clear();
-    console.log('✅ Listeners collaboration nettoyés');
-  }
-
-  /**
-   * 🔧 OBTENIR LES STATISTIQUES D'UNE ENTITÉ
-   */
-  async getEntityStats(entityType, entityId) {
-    try {
-      const comments = await this.getComments(entityType, entityId, 1000);
-      
-      return {
-        commentCount: comments.length,
-        uniqueCommenters: new Set(comments.map(c => c.userId)).size,
-        lastActivity: comments.length > 0 ? Math.max(...comments.map(c => c.createdAt)) : null
+      const stats = {
+        total: comments.length,
+        uniqueAuthors: new Set(comments.map(c => c.userId)).size,
+        lastCommentDate: comments.length > 0 ? 
+          Math.max(...comments.map(c => c.createdAt.getTime())) : null
       };
 
+      return stats;
+
     } catch (error) {
-      console.error('❌ Erreur statistiques entité:', error);
-      return {
-        commentCount: 0,
-        uniqueCommenters: 0,
-        lastActivity: null
-      };
+      console.error('❌ Erreur statistiques commentaires:', error);
+      return { total: 0, uniqueAuthors: 0, lastCommentDate: null };
     }
   }
 }
 
-// Export singleton
-export const collaborationService = new CollaborationService();
-export default collaborationService;
+// ✅ INSTANCE UNIQUE DU SERVICE
+const collaborationService = new CollaborationService();
+
+// ✅ EXPORTS
+export default CollaborationService;
+export { collaborationService };
