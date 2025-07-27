@@ -1,198 +1,210 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminTaskValidationPage.jsx
-// PAGE ADMIN COMPLÈTE - VERSION CORRIGÉE ERREURS
+// PAGE ADMIN VALIDATION CORRIGÉE - UTILISE LES BONNES MÉTHODES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { 
-  ArrowLeft, 
-  Search, 
-  RefreshCw, 
   CheckCircle, 
   XCircle, 
   Clock, 
-  Eye,
-  AlertTriangle,
-  Camera,
-  Video,
-  MessageSquare,
-  Trophy,
-  User,
+  User, 
   Calendar,
-  Tag,
-  Gift,
-  Settings,
-  Award,
-  X,
-  Shield
+  Trophy,
+  MessageSquare,
+  Image as ImageIcon,
+  Video,
+  Search,
+  RefreshCw,
+  AlertTriangle,
+  Eye,
+  Loader,
+  Filter
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../shared/stores/authStore.js';
-import { taskValidationService } from '../core/services/taskValidationService.js';
 
-// Import du service récompenses corrigé (optionnel)
-import { rewardsService } from '../core/services/rewardsService.js';
+// ✅ IMPORT CORRIGÉ DU SERVICE ADMIN
+import { adminValidationService } from '../core/services/adminValidationService';
+import { useAuthStore } from '../shared/stores/authStore';
 
 /**
- * 👨‍💼 PAGE ADMIN VALIDATION DES TÂCHES - VERSION STABLE
+ * 🛡️ PAGE D'ADMINISTRATION DES VALIDATIONS - VERSION CORRIGÉE
  */
 const AdminTaskValidationPage = () => {
-  const navigate = useNavigate();
   const { user } = useAuthStore();
   
-  // États validation des tâches
-  const [validationRequests, setValidationRequests] = useState([]);
+  // 📊 États principaux
+  const [validations, setValidations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [validating, setValidating] = useState(false);
-  const [activeTab, setActiveTab] = useState('pending');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterDifficulty, setFilterDifficulty] = useState('all');
-  
-  // Modal de validation
-  const [showValidationModal, setShowValidationModal] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [adminComment, setAdminComment] = useState('');
-
-  // Statistiques
+  const [error, setError] = useState(null);
   const [stats, setStats] = useState({
+    total: 0,
     pending: 0,
-    validated: 0,
+    approved: 0,
     rejected: 0,
-    todayValidated: 0
+    today: 0
   });
 
-  useEffect(() => {
-    loadValidationRequests();
-  }, []);
+  // 🎨 États UI
+  const [activeTab, setActiveTab] = useState('pending');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedValidation, setSelectedValidation] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  // Charger les demandes de validation
-  const loadValidationRequests = async () => {
+  // 📝 États pour l'action admin
+  const [adminComment, setAdminComment] = useState('');
+  const [showRejectModal, setShowRejectModal] = useState(false);
+
+  /**
+   * 🔄 CHARGEMENT INITIAL
+   */
+  useEffect(() => {
+    loadValidations();
+    loadStats();
+  }, [activeTab]);
+
+  /**
+   * 📥 CHARGER LES VALIDATIONS SELON L'ONGLET ACTIF
+   */
+  const loadValidations = async () => {
     try {
       setLoading(true);
-      console.log('📋 Chargement de TOUTES les demandes de validation...');
+      setError(null);
       
-      // Utiliser getAllValidations au lieu de getPendingValidations
-      const requests = await taskValidationService.getAllValidations();
-      console.log('✅ TOUTES les demandes chargées:', {
-        total: requests.length,
-        pending: requests.filter(r => r.status === 'pending').length,
-        approved: requests.filter(r => r.status === 'approved').length,
-        rejected: requests.filter(r => r.status === 'rejected').length
-      });
+      console.log('📥 [ADMIN] Chargement validations:', activeTab);
       
-      setValidationRequests(requests);
+      let validationsData = [];
       
-      // Calculer les statistiques
-      const pending = requests.filter(r => r.status === 'pending').length;
-      const validated = requests.filter(r => r.status === 'approved').length;
-      const rejected = requests.filter(r => r.status === 'rejected').length;
+      // ✅ UTILISATION DES BONNES MÉTHODES DU SERVICE
+      switch (activeTab) {
+        case 'pending':
+          validationsData = await adminValidationService.getPendingValidations();
+          break;
+        case 'approved':
+          validationsData = await adminValidationService.getApprovedValidations();
+          break;
+        case 'rejected':
+          validationsData = await adminValidationService.getRejectedValidations();
+          break;
+        case 'all':
+        default:
+          validationsData = await adminValidationService.getAllValidations();
+          break;
+      }
       
-      setStats({
-        pending,
-        validated,
-        rejected,
-        todayValidated: requests.filter(r => 
-          r.status === 'approved' && 
-          r.reviewedAt && 
-          (() => {
-            try {
-              const reviewDate = r.reviewedAt.toDate ? r.reviewedAt.toDate() : new Date(r.reviewedAt);
-              return reviewDate.toDateString() === new Date().toDateString();
-            } catch {
-              return false;
-            }
-          })()
-        ).length
-      });
+      console.log(`✅ [ADMIN] ${validationsData.length} validations chargées`);
+      setValidations(validationsData);
       
     } catch (error) {
-      console.error('❌ Erreur chargement validations:', error);
-      setValidationRequests([]);
+      console.error('❌ [ADMIN] Erreur chargement validations:', error);
+      setError('Erreur lors du chargement des validations: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Traiter une validation
-  const handleValidation = async (approve) => {
-    if (!selectedRequest) return;
-    
+  /**
+   * 📊 CHARGER LES STATISTIQUES
+   */
+  const loadStats = async () => {
     try {
-      setValidating(true);
-      console.log(`${approve ? '✅' : '❌'} Traitement validation:`, selectedRequest.id);
+      const statsData = await adminValidationService.getValidationStats();
+      setStats(statsData);
+    } catch (error) {
+      console.error('❌ [ADMIN] Erreur chargement stats:', error);
+    }
+  };
+
+  /**
+   * ✅ APPROUVER UNE VALIDATION
+   */
+  const handleApprove = async (validationId, comment = '') => {
+    try {
+      setActionLoading(true);
+      console.log('✅ [ADMIN] Approbation validation:', validationId);
       
-      await taskValidationService.validateTask(selectedRequest.id, {
-        userId: user.uid,
-        approved: approve,
-        comment: adminComment || (approve ? 'Tâche validée' : 'Tâche rejetée'),
-        xpAwarded: approve ? selectedRequest.xpValue || 25 : 0
-      });
+      await adminValidationService.approveValidation(validationId, user.uid, comment);
       
-      console.log(`${approve ? '✅' : '❌'} Validation terminée`);
+      console.log('✅ [ADMIN] Validation approuvée avec succès');
       
       // Recharger les données
-      await loadValidationRequests();
+      await loadValidations();
+      await loadStats();
       
-      // Fermer le modal
-      setShowValidationModal(false);
-      setSelectedRequest(null);
+      // Fermer les modals
+      setShowDetailModal(false);
+      setSelectedValidation(null);
       setAdminComment('');
       
     } catch (error) {
-      console.error('❌ Erreur validation:', error);
-      alert('Erreur lors de la validation: ' + error.message);
+      console.error('❌ [ADMIN] Erreur approbation:', error);
+      alert('Erreur lors de l\'approbation: ' + error.message);
     } finally {
-      setValidating(false);
+      setActionLoading(false);
     }
   };
 
-  // Filtrer les demandes
-  const filteredRequests = validationRequests.filter(request => {
-    // Filtrage par onglet
-    let matchesTab = false;
-    if (activeTab === 'pending') {
-      matchesTab = request.status === 'pending';
-    } else if (activeTab === 'validated') {
-      matchesTab = request.status === 'approved';
-    } else if (activeTab === 'rejected') {
-      matchesTab = request.status === 'rejected';
-    } else if (activeTab === 'all') {
-      matchesTab = true;
+  /**
+   * ❌ REJETER UNE VALIDATION
+   */
+  const handleReject = async (validationId, comment) => {
+    try {
+      if (!comment || comment.trim() === '') {
+        alert('Un commentaire est requis pour rejeter une validation');
+        return;
+      }
+
+      setActionLoading(true);
+      console.log('❌ [ADMIN] Rejet validation:', validationId);
+      
+      await adminValidationService.rejectValidation(validationId, user.uid, comment);
+      
+      console.log('❌ [ADMIN] Validation rejetée avec succès');
+      
+      // Recharger les données
+      await loadValidations();
+      await loadStats();
+      
+      // Fermer les modals
+      setShowDetailModal(false);
+      setShowRejectModal(false);
+      setSelectedValidation(null);
+      setAdminComment('');
+      
+    } catch (error) {
+      console.error('❌ [ADMIN] Erreur rejet:', error);
+      alert('Erreur lors du rejet: ' + error.message);
+    } finally {
+      setActionLoading(false);
     }
+  };
+
+  /**
+   * 👁️ OUVRIR LES DÉTAILS D'UNE VALIDATION
+   */
+  const handleViewDetails = (validation) => {
+    setSelectedValidation(validation);
+    setShowDetailModal(true);
+  };
+
+  /**
+   * 🔍 FILTRER LES VALIDATIONS
+   */
+  const filteredValidations = validations.filter(validation => {
+    if (!searchTerm) return true;
     
-    const matchesSearch = !searchTerm || 
-      request.taskTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.userName?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDifficulty = filterDifficulty === 'all' || request.difficulty === filterDifficulty;
-    
-    return matchesTab && matchesSearch && matchesDifficulty;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      validation.taskTitle?.toLowerCase().includes(searchLower) ||
+      validation.userName?.toLowerCase().includes(searchLower) ||
+      validation.userEmail?.toLowerCase().includes(searchLower) ||
+      validation.comment?.toLowerCase().includes(searchLower)
+    );
   });
 
-  // Fonction pour obtenir l'icône de difficulté
-  const getDifficultyIcon = (difficulty) => {
-    switch (difficulty) {
-      case 'easy': return '🟢';
-      case 'normal': return '🟡';
-      case 'hard': return '🟠';
-      case 'expert': return '🔴';
-      default: return '⚪';
-    }
-  };
-
-  // Fonction pour obtenir la couleur de difficulté
-  const getDifficultyColor = (difficulty) => {
-    switch (difficulty) {
-      case 'easy': return 'text-green-600 bg-green-50';
-      case 'normal': return 'text-yellow-600 bg-yellow-50';
-      case 'hard': return 'text-orange-600 bg-orange-50';
-      case 'expert': return 'text-red-600 bg-red-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  };
-
-  // Fonction pour formater la date
+  /**
+   * 📅 FORMATER UNE DATE
+   */
   const formatDate = (timestamp) => {
     if (!timestamp) return 'Date inconnue';
     
@@ -206,15 +218,30 @@ const AdminTaskValidationPage = () => {
         minute: '2-digit'
       });
     } catch (error) {
-      return 'Format de date invalide';
+      return 'Date invalide';
     }
   };
 
+  /**
+   * 🎨 OBTENIR LA COULEUR D'UN STATUT
+   */
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
+      case 'approved': return 'bg-green-500/20 text-green-300 border-green-500/30';
+      case 'rejected': return 'bg-red-500/20 text-red-300 border-red-500/30';
+      default: return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
+    }
+  };
+
+  /**
+   * 🔄 AFFICHAGE LOADING
+   */
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="w-8 h-8 text-white animate-spin mx-auto mb-4" />
+          <Loader className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-4" />
           <p className="text-white">Chargement des validations...</p>
         </div>
       </div>
@@ -223,435 +250,366 @@ const AdminTaskValidationPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      
-      {/* Header */}
-      <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                <span>Retour Dashboard</span>
-              </button>
-              
-              <div className="h-6 w-px bg-gray-600"></div>
-              
-              <div className="flex items-center space-x-2">
-                <Shield className="w-6 h-6 text-red-400" />
-                <h1 className="text-xl font-bold text-white">Administration Synergia</h1>
-              </div>
-            </div>
+      <div className="container mx-auto px-4 py-8">
+        
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              🛡️ Administration des Validations
+            </h1>
+            <p className="text-gray-400">
+              Gérez les demandes de validation des tâches
+            </p>
+          </div>
+          
+          <div className="mt-4 lg:mt-0">
+            <button
+              onClick={() => {
+                loadValidations();
+                loadStats();
+              }}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <RefreshCw className="w-5 h-5 mr-2" />
+              Actualiser
+            </button>
+          </div>
+        </div>
 
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={loadValidationRequests}
-                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>Actualiser</span>
-              </button>
+        {/* Statistiques */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div className="bg-blue-600/20 backdrop-blur-sm rounded-xl p-4 border border-blue-500/30">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-white">{stats.total}</p>
+              <p className="text-sm text-blue-300">Total</p>
+            </div>
+          </div>
+          
+          <div className="bg-yellow-600/20 backdrop-blur-sm rounded-xl p-4 border border-yellow-500/30">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-white">{stats.pending}</p>
+              <p className="text-sm text-yellow-300">En Attente</p>
+            </div>
+          </div>
+          
+          <div className="bg-green-600/20 backdrop-blur-sm rounded-xl p-4 border border-green-500/30">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-white">{stats.approved}</p>
+              <p className="text-sm text-green-300">Validées</p>
+            </div>
+          </div>
+          
+          <div className="bg-red-600/20 backdrop-blur-sm rounded-xl p-4 border border-red-500/30">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-white">{stats.rejected}</p>
+              <p className="text-sm text-red-300">Rejetées</p>
+            </div>
+          </div>
+          
+          <div className="bg-purple-600/20 backdrop-blur-sm rounded-xl p-4 border border-purple-500/30">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-white">{stats.today}</p>
+              <p className="text-sm text-purple-300">Aujourd'hui</p>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-        {/* Statistiques */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <motion.div 
-            className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm font-medium">En Attente</p>
-                <p className="text-3xl font-bold text-yellow-400">{stats.pending}</p>
-              </div>
-              <Clock className="w-8 h-8 text-yellow-400" />
-            </div>
-          </motion.div>
-
-          <motion.div 
-            className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm font-medium">Validées</p>
-                <p className="text-3xl font-bold text-green-400">{stats.validated}</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-400" />
-            </div>
-          </motion.div>
-
-          <motion.div 
-            className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm font-medium">Rejetées</p>
-                <p className="text-3xl font-bold text-red-400">{stats.rejected}</p>
-              </div>
-              <XCircle className="w-8 h-8 text-red-400" />
-            </div>
-          </motion.div>
-
-          <motion.div 
-            className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm font-medium">Aujourd'hui</p>
-                <p className="text-3xl font-bold text-blue-400">{stats.todayValidated}</p>
-              </div>
-              <Award className="w-8 h-8 text-blue-400" />
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Filtres et recherche */}
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0 lg:space-x-4">
+        {/* Filtres et Recherche */}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 mb-6">
+          <div className="flex flex-col md:flex-row gap-4 items-center">
             
-            {/* Onglets */}
-            <div className="flex items-center space-x-1 bg-gray-700/50 rounded-lg p-1">
+            {/* Onglets de filtrage */}
+            <div className="flex space-x-2">
               {[
-                { id: 'pending', label: 'En Attente', count: stats.pending },
-                { id: 'validated', label: 'Validées', count: stats.validated },
-                { id: 'rejected', label: 'Rejetées', count: stats.rejected },
-                { id: 'all', label: 'Toutes', count: validationRequests.length }
+                { key: 'pending', label: 'En Attente', count: stats.pending },
+                { key: 'approved', label: 'Validées', count: stats.approved },
+                { key: 'rejected', label: 'Rejetées', count: stats.rejected },
+                { key: 'all', label: 'Toutes', count: stats.total }
               ].map(tab => (
                 <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === tab.id
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === tab.key
                       ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-600/50'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   }`}
                 >
-                  {tab.label}
-                  {tab.count > 0 && (
-                    <span className="ml-2 bg-gray-600 text-gray-300 py-0.5 px-2 rounded-full text-xs">
-                      {tab.count}
-                    </span>
-                  )}
+                  {tab.label} ({tab.count})
                 </button>
               ))}
             </div>
 
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-              
-              {/* Recherche */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Rechercher..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* Filtre difficulté */}
-              <select
-                value={filterDifficulty}
-                onChange={(e) => setFilterDifficulty(e.target.value)}
-                className="px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">Toutes difficultés</option>
-                <option value="easy">🟢 Facile</option>
-                <option value="normal">🟡 Normale</option>
-                <option value="hard">🟠 Difficile</option>
-                <option value="expert">🔴 Expert</option>
-              </select>
+            {/* Barre de recherche */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Rechercher par tâche, utilisateur, commentaire..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
           </div>
         </div>
 
-        {/* Liste des demandes */}
-        <div className="space-y-4">
-          {filteredRequests.length === 0 ? (
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-12 text-center">
-              <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Aucune demande trouvée</h3>
-              <p className="text-gray-400">
-                {activeTab === 'pending' 
-                  ? 'Aucune demande en attente de validation'
-                  : `Aucune demande ${activeTab} ne correspond aux critères`
-                }
-              </p>
-            </div>
-          ) : (
-            filteredRequests.map((request, index) => (
-              <motion.div
-                key={request.id}
-                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:border-gray-600/50 transition-all duration-200"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <div className="flex items-start justify-between">
-                  
-                  <div className="flex-1">
-                    
-                    {/* En-tête de la demande */}
-                    <div className="flex items-center space-x-4 mb-4">
-                      <div className="flex items-center space-x-2">
-                        <User className="w-5 h-5 text-gray-400" />
-                        <span className="text-white font-medium">{request.userName || 'Utilisateur inconnu'}</span>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-300 text-sm">{formatDate(request.createdAt)}</span>
-                      </div>
-                      
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDifficultyColor(request.difficulty)}`}>
-                        {getDifficultyIcon(request.difficulty)} {request.difficulty || 'normal'}
-                      </span>
-                    </div>
+        {/* Liste des validations */}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700">
+          <div className="p-6">
+            <h2 className="text-xl font-semibold text-white mb-6">
+              {activeTab === 'pending' ? '⏳ Validations en Attente' :
+               activeTab === 'approved' ? '✅ Validations Approuvées' :
+               activeTab === 'rejected' ? '❌ Validations Rejetées' :
+               '📋 Toutes les Validations'}
+              <span className="ml-2 text-sm text-gray-400">
+                ({filteredValidations.length})
+              </span>
+            </h2>
 
-                    {/* Contenu de la demande */}
-                    <h3 className="text-lg font-semibold text-white mb-2">
-                      {request.taskTitle || 'Titre non spécifié'}
-                    </h3>
-                    
-                    <p className="text-gray-300 mb-4 line-clamp-2">
-                      {request.description || 'Aucune description fournie'}
-                    </p>
-
-                    {/* Médias attachés */}
-                    {(request.mediaUrls && request.mediaUrls.length > 0) && (
-                      <div className="flex items-center space-x-4 mb-4">
-                        {request.mediaUrls.some(url => url.includes('image')) && (
-                          <div className="flex items-center space-x-1 text-sm text-gray-400">
-                            <Camera className="w-4 h-4" />
-                            <span>Photos attachées</span>
-                          </div>
-                        )}
-                        {request.mediaUrls.some(url => url.includes('video')) && (
-                          <div className="flex items-center space-x-1 text-sm text-gray-400">
-                            <Video className="w-4 h-4" />
-                            <span>Vidéos attachées</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Récompense XP */}
-                    <div className="flex items-center space-x-2">
-                      <Trophy className="w-4 h-4 text-yellow-400" />
-                      <span className="text-yellow-400 font-medium">
-                        +{request.xpAmount || 25} XP
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center space-x-3">
-                    
-                    {request.status === 'pending' && (
-                      <>
-                        {/* Voir détails */}
-                        <button
-                          onClick={() => {
-                            setSelectedRequest(request);
-                            setShowValidationModal(true);
-                          }}
-                          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                          <span>Examiner</span>
-                        </button>
-                      </>
-                    )}
-
-                    {request.status === 'approved' && (
-                      <div className="flex items-center space-x-2 text-green-400">
-                        <CheckCircle className="w-5 h-5" />
-                        <span className="font-medium">Validée</span>
-                      </div>
-                    )}
-
-                    {request.status === 'rejected' && (
-                      <div className="flex items-center space-x-2 text-red-400">
-                        <XCircle className="w-5 h-5" />
-                        <span className="font-medium">Rejetée</span>
-                      </div>
-                    )}
-                  </div>
+            {error && (
+              <div className="mb-6 p-4 bg-red-900/50 border border-red-500/50 rounded-lg">
+                <div className="flex items-center">
+                  <AlertTriangle className="w-5 h-5 text-red-400 mr-2" />
+                  <span className="text-red-300">{error}</span>
                 </div>
-              </motion.div>
-            ))
-          )}
+              </div>
+            )}
+
+            {filteredValidations.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">
+                  {activeTab === 'pending' ? '⏳' : activeTab === 'approved' ? '✅' : '❌'}
+                </div>
+                <h3 className="text-lg font-medium text-white mb-2">
+                  Aucune validation trouvée
+                </h3>
+                <p className="text-gray-400 mb-6">
+                  {activeTab === 'pending' ? 'Aucune demande en attente de validation' :
+                   activeTab === 'approved' ? 'Aucune validation approuvée' :
+                   activeTab === 'rejected' ? 'Aucune validation rejetée' :
+                   'Aucune validation dans le système'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredValidations.map(validation => (
+                  <ValidationCard 
+                    key={validation.id}
+                    validation={validation}
+                    onViewDetails={handleViewDetails}
+                    onApprove={handleApprove}
+                    onReject={(id) => {
+                      setSelectedValidation(validation);
+                      setShowRejectModal(true);
+                    }}
+                    formatDate={formatDate}
+                    getStatusColor={getStatusColor}
+                    actionLoading={actionLoading}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Modal de validation */}
-      {showValidationModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <motion.div
-            className="bg-gray-800 border border-gray-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+      {/* Modal de détails - À implémenter selon vos besoins */}
+      {showDetailModal && selectedValidation && (
+        <ValidationDetailModal 
+          validation={selectedValidation}
+          onClose={() => {
+            setShowDetailModal(false);
+            setSelectedValidation(null);
+          }}
+          onApprove={handleApprove}
+          onReject={() => setShowRejectModal(true)}
+          formatDate={formatDate}
+          actionLoading={actionLoading}
+        />
+      )}
+
+      {/* Modal de rejet - À implémenter selon vos besoins */}
+      {showRejectModal && selectedValidation && (
+        <RejectModal 
+          validation={selectedValidation}
+          onClose={() => {
+            setShowRejectModal(false);
+            setSelectedValidation(null);
+            setAdminComment('');
+          }}
+          onConfirm={(comment) => handleReject(selectedValidation.id, comment)}
+          comment={adminComment}
+          setComment={setAdminComment}
+          loading={actionLoading}
+        />
+      )}
+    </div>
+  );
+};
+
+/**
+ * 🎴 COMPOSANT CARTE DE VALIDATION
+ */
+const ValidationCard = ({ 
+  validation, 
+  onViewDetails, 
+  onApprove, 
+  onReject, 
+  formatDate, 
+  getStatusColor, 
+  actionLoading 
+}) => {
+  return (
+    <div className="bg-gray-700/50 border border-gray-600 rounded-xl p-4 hover:bg-gray-700/70 transition-colors">
+      <div className="flex items-start justify-between">
+        
+        {/* Informations principales */}
+        <div className="flex-1">
+          <div className="flex items-center mb-2">
+            <h3 className="text-lg font-semibold text-white">
+              {validation.taskTitle || validation.originalTaskTitle || 'Tâche sans titre'}
+            </h3>
+            <span className={`ml-3 px-2 py-1 text-xs rounded border ${getStatusColor(validation.status)}`}>
+              {validation.status === 'pending' ? 'En attente' :
+               validation.status === 'approved' ? 'Approuvée' :
+               validation.status === 'rejected' ? 'Rejetée' : validation.status}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+            <div className="flex items-center text-gray-400">
+              <User className="w-4 h-4 mr-2" />
+              {validation.userName}
+            </div>
+            <div className="flex items-center text-gray-400">
+              <Calendar className="w-4 h-4 mr-2" />
+              {formatDate(validation.submittedAt)}
+            </div>
+            <div className="flex items-center text-gray-400">
+              <Trophy className="w-4 h-4 mr-2" />
+              {validation.xpAmount || validation.difficulty || 'N/A'} XP
+            </div>
+            {validation.comment && (
+              <div className="flex items-center text-gray-400">
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Commentaire fourni
+              </div>
+            )}
+          </div>
+
+          {validation.comment && (
+            <p className="text-gray-300 text-sm italic mb-4 bg-gray-800/50 p-3 rounded">
+              "{validation.comment}"
+            </p>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center space-x-2 ml-4">
+          <button
+            onClick={() => onViewDetails(validation)}
+            className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-600 rounded-lg transition-colors"
+            title="Voir les détails"
           >
-            
-            {/* Header du modal */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-700">
-              <h2 className="text-xl font-semibold text-white">Validation de tâche</h2>
+            <Eye className="w-4 h-4" />
+          </button>
+
+          {validation.status === 'pending' && (
+            <>
               <button
-                onClick={() => {
-                  setShowValidationModal(false);
-                  setSelectedRequest(null);
-                  setAdminComment('');
-                }}
-                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-
-            {/* Contenu du modal */}
-            <div className="p-6 space-y-6">
-              
-              {/* Informations utilisateur */}
-              <div className="bg-gray-700/50 rounded-lg p-4">
-                <h3 className="font-semibold text-white mb-3">Informations utilisateur</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-400">Nom:</span>
-                    <span className="text-white ml-2">{selectedRequest.userName}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Email:</span>
-                    <span className="text-white ml-2">{selectedRequest.userEmail || 'Non disponible'}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Date soumise:</span>
-                    <span className="text-white ml-2">{formatDate(selectedRequest.submittedAt)}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Difficulté:</span>
-                    <span className="text-white ml-2">
-                      {getDifficultyIcon(selectedRequest.difficulty)} {selectedRequest.difficulty}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Détails de la tâche */}
-              <div className="bg-gray-700/50 rounded-lg p-4">
-                <h3 className="font-semibold text-white mb-3">Détails de la tâche</h3>
-                <div className="space-y-3">
-                  <div>
-                    <span className="text-gray-400">Titre:</span>
-                    <p className="text-white mt-1">{selectedRequest.taskTitle}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Description:</span>
-                    <p className="text-white mt-1">{selectedRequest.description}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Récompense:</span>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Trophy className="w-4 h-4 text-yellow-400" />
-                      <span className="text-yellow-400 font-medium">+{selectedRequest.xpAmount || 25} XP</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Médias attachés */}
-              {selectedRequest.mediaUrls && selectedRequest.mediaUrls.length > 0 && (
-                <div className="bg-gray-700/50 rounded-lg p-4">
-                  <h3 className="font-semibold text-white mb-3">Médias attachés</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    {selectedRequest.mediaUrls.map((url, index) => (
-                      <div key={index} className="relative">
-                        {url.includes('image') ? (
-                          <img
-                            src={url}
-                            alt={`Preuve ${index + 1}`}
-                            className="w-full h-32 object-cover rounded-lg"
-                          />
-                        ) : (
-                          <video
-                            src={url}
-                            controls
-                            className="w-full h-32 object-cover rounded-lg"
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Commentaire admin */}
-              <div className="bg-gray-700/50 rounded-lg p-4">
-                <h3 className="font-semibold text-white mb-3">Commentaire d'administration</h3>
-                <textarea
-                  value={adminComment}
-                  onChange={(e) => setAdminComment(e.target.value)}
-                  placeholder="Ajouter un commentaire (optionnel)..."
-                  className="w-full h-24 bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                />
-              </div>
-            </div>
-
-            {/* Actions du modal */}
-            <div className="flex items-center justify-end space-x-4 p-6 border-t border-gray-700">
-              <button
-                onClick={() => {
-                  setShowValidationModal(false);
-                  setSelectedRequest(null);
-                  setAdminComment('');
-                }}
-                className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
-                disabled={validating}
-              >
-                Annuler
-              </button>
-              
-              <button
-                onClick={() => handleValidation(false)}
-                className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors disabled:opacity-50"
-                disabled={validating}
-              >
-                <XCircle className="w-4 h-4" />
-                <span>{validating ? 'Rejet...' : 'Rejeter'}</span>
-              </button>
-              
-              <button
-                onClick={() => handleValidation(true)}
-                className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors disabled:opacity-50"
-                disabled={validating}
+                onClick={() => onApprove(validation.id, 'Validation approuvée rapidement')}
+                disabled={actionLoading}
+                className="p-2 text-gray-400 hover:text-green-400 hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50"
+                title="Approuver"
               >
                 <CheckCircle className="w-4 h-4" />
-                <span>{validating ? 'Validation...' : 'Valider'}</span>
               </button>
-            </div>
-          </motion.div>
+
+              <button
+                onClick={() => onReject(validation.id)}
+                disabled={actionLoading}
+                className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50"
+                title="Rejeter"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            </>
+          )}
         </div>
-      )}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * 📋 MODALS SIMPLIFIÉES (à développer selon vos besoins)
+ */
+const ValidationDetailModal = ({ validation, onClose, onApprove, onReject, formatDate, actionLoading }) => {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <h2 className="text-xl font-bold text-white mb-4">Détails de la validation</h2>
+          <p className="text-gray-300">Tâche: {validation.taskTitle}</p>
+          <p className="text-gray-300">Utilisateur: {validation.userName}</p>
+          <p className="text-gray-300">Date: {formatDate(validation.submittedAt)}</p>
+          <div className="flex space-x-3 mt-6">
+            <button onClick={onClose} className="px-4 py-2 bg-gray-600 text-white rounded">
+              Fermer
+            </button>
+            {validation.status === 'pending' && (
+              <>
+                <button
+                  onClick={() => onApprove(validation.id)}
+                  disabled={actionLoading}
+                  className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
+                >
+                  Approuver
+                </button>
+                <button
+                  onClick={onReject}
+                  disabled={actionLoading}
+                  className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-50"
+                >
+                  Rejeter
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const RejectModal = ({ validation, onClose, onConfirm, comment, setComment, loading }) => {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 rounded-xl max-w-md w-full">
+        <div className="p-6">
+          <h2 className="text-xl font-bold text-white mb-4">Rejeter la validation</h2>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Commentaire obligatoire pour le rejet..."
+            className="w-full p-3 bg-gray-700 text-white rounded border border-gray-600 h-24"
+          />
+          <div className="flex space-x-3 mt-4">
+            <button onClick={onClose} className="px-4 py-2 bg-gray-600 text-white rounded">
+              Annuler
+            </button>
+            <button
+              onClick={() => onConfirm(comment)}
+              disabled={loading || !comment.trim()}
+              className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-50"
+            >
+              {loading ? 'Rejet...' : 'Rejeter'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
