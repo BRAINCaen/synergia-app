@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/ui/TaskDetailModal.jsx
-// MODAL DÉTAIL TÂCHE - SANS bouton "Marquer terminée" + commentaires réparés
+// MODAL DÉTAIL TÂCHE - CORRIGÉE SANS BOUTON "MARQUER TERMINÉE"
 // ==========================================
 
 import React, { useState } from 'react';
@@ -22,7 +22,7 @@ import {
 import CommentSection from '../collaboration/CommentSection.jsx';
 
 /**
- * 📋 MODAL DÉTAIL DE TÂCHE - CORRIGÉE
+ * 📋 MODAL DÉTAIL DE TÂCHE - VERSION CORRIGÉE
  */
 const TaskDetailModal = ({ 
   task, 
