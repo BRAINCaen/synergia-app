@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskForm.jsx
-// FORMULAIRE TÂCHE - XP AUTOMATIQUE + OVERRIDE ADMIN UNIQUEMENT
+// FORMULAIRE DE TÂCHE CORRIGÉ - XP AUTO + ADMIN OVERRIDE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -21,47 +21,16 @@ import {
   Link,
   Zap,
   Shield,
-  Info,
-  Repeat
+  Info
 } from 'lucide-react';
 
 import { useAuthStore } from '../../shared/stores/authStore';
 import ProjectSelector, { LinkedProjectDisplay } from '../../components/tasks/TaskProjectLinking';
 
 /**
- * 🔄 CONFIGURATION DES RÉCURRENCES AVEC XP ADAPTATIF
+ * 🏆 CALCUL AUTOMATIQUE DES XP
  */
-const RECURRENCE_CONFIG = {
-  none: {
-    label: 'Tâche unique',
-    icon: '📋',
-    multiplier: 1,
-    description: 'Tâche à faire une seule fois'
-  },
-  daily: {
-    label: 'Quotidienne',
-    icon: '📅',
-    multiplier: 0.6, // Moins d'XP car très fréquent
-    description: 'Se répète tous les jours'
-  },
-  weekly: {
-    label: 'Hebdomadaire',
-    icon: '📆',
-    multiplier: 1.0, // XP standard
-    description: 'Se répète toutes les semaines'
-  },
-  monthly: {
-    label: 'Mensuelle',
-    icon: '🗓️',
-    multiplier: 2.0, // Plus d'XP car moins fréquent
-    description: 'Se répète tous les mois'
-  }
-};
-
-/**
- * 🏆 CALCUL AUTOMATIQUE INTELLIGENT DES XP
- */
-const calculateAutoXP = (difficulty, priority, recurrenceType = 'none') => {
+const calculateAutoXP = (difficulty, priority) => {
   // XP de base selon la difficulté
   const difficultyXP = {
     'easy': 15,
@@ -79,10 +48,9 @@ const calculateAutoXP = (difficulty, priority, recurrenceType = 'none') => {
   };
   
   const baseXP = difficultyXP[difficulty] || 25;
-  const priorityXP = baseXP * (priorityMultiplier[priority] || 1.2);
-  const recurrenceMultiplier = RECURRENCE_CONFIG[recurrenceType]?.multiplier || 1;
+  const finalXP = baseXP * (priorityMultiplier[priority] || 1.2);
   
-  return Math.round(priorityXP * recurrenceMultiplier);
+  return Math.round(finalXP);
 };
 
 /**
@@ -114,11 +82,11 @@ const TaskForm = ({
   const { user } = useAuthStore();
   const isAdmin = checkIsAdmin(user);
 
-  // 📊 État du formulaire
+  // 📊 État du formulaire (basé sur l'existant)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    difficulty: 'medium', // ✅ NOUVEAU : Difficulté au lieu de complexity
+    difficulty: 'medium', // ✅ AJOUTÉ : pour calcul XP
     priority: 'medium',
     category: '',
     estimatedHours: 1,
@@ -127,38 +95,30 @@ const TaskForm = ({
     assignedTo: [],
     projectId: null,
     notes: '',
-    // ✅ NOUVEAU : Support récurrence
-    isRecurring: false,
-    recurrenceType: 'none',
     // ✅ ADMIN UNIQUEMENT : Override XP manuel
-    xpOverride: null // null = utiliser calcul auto, number = override admin
+    xpOverride: null
   });
 
-  // 🎨 États UI
+  // 🎨 États UI (conservés de l'existant)
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [selectedProject, setSelectedProject] = useState(null);
   const [newTag, setNewTag] = useState('');
   const [calculatedXP, setCalculatedXP] = useState(25);
-  const [showXPDetails, setShowXPDetails] = useState(false);
 
   // 🧮 CALCUL AUTOMATIQUE DES XP EN TEMPS RÉEL
   useEffect(() => {
-    const autoXP = calculateAutoXP(
-      formData.difficulty,
-      formData.priority,
-      formData.isRecurring ? formData.recurrenceType : 'none'
-    );
+    const autoXP = calculateAutoXP(formData.difficulty, formData.priority);
     setCalculatedXP(autoXP);
-  }, [formData.difficulty, formData.priority, formData.isRecurring, formData.recurrenceType]);
+  }, [formData.difficulty, formData.priority]);
 
-  // 📥 Initialiser le formulaire
+  // 📥 Initialiser le formulaire (conservé de l'existant + ajouts)
   useEffect(() => {
     if (initialData) {
       setFormData({
         title: initialData.title || '',
         description: initialData.description || '',
-        difficulty: initialData.difficulty || initialData.complexity || 'medium',
+        difficulty: initialData.difficulty || 'medium', // ✅ AJOUTÉ
         priority: initialData.priority || 'medium',
         category: initialData.category || '',
         estimatedHours: initialData.estimatedHours || 1,
@@ -167,10 +127,7 @@ const TaskForm = ({
         assignedTo: initialData.assignedTo || [],
         projectId: initialData.projectId || null,
         notes: initialData.notes || '',
-        isRecurring: initialData.isRecurring || false,
-        recurrenceType: initialData.recurrenceType || 'none',
-        // ✅ ADMIN : Préserver override XP existant
-        xpOverride: isAdmin && initialData.xpReward ? initialData.xpReward : null
+        xpOverride: isAdmin && initialData.xpReward ? initialData.xpReward : null // ✅ AJOUTÉ
       });
 
       // Charger les infos du projet si projectId existe
@@ -191,8 +148,6 @@ const TaskForm = ({
         assignedTo: [],
         projectId: null,
         notes: '',
-        isRecurring: false,
-        recurrenceType: 'none',
         xpOverride: null
       });
       setSelectedProject(null);
@@ -200,7 +155,7 @@ const TaskForm = ({
   }, [initialData, isOpen, isAdmin]);
 
   /**
-   * 📁 CHARGER LES INFORMATIONS D'UN PROJET
+   * 📁 CHARGER LES INFORMATIONS D'UN PROJET (conservé)
    */
   const loadProjectInfo = async (projectId) => {
     try {
@@ -216,7 +171,7 @@ const TaskForm = ({
   };
 
   /**
-   * 📅 FORMATER DATE POUR INPUT
+   * 📅 FORMATER DATE POUR INPUT (conservé)
    */
   const formatDateForInput = (date) => {
     if (!date) return '';
@@ -230,64 +185,7 @@ const TaskForm = ({
   };
 
   /**
-   * 🔄 GESTION CHANGEMENT FORMULAIRE
-   */
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-
-    // Effacer les erreurs pour ce champ
-    if (errors[field]) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: undefined
-      }));
-    }
-  };
-
-  /**
-   * 🏷️ GESTION DES TAGS
-   */
-  const handleAddTag = () => {
-    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, newTag.trim()]
-      }));
-      setNewTag('');
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }));
-  };
-
-  /**
-   * 📁 GESTION PROJET
-   */
-  const handleProjectSelect = (project) => {
-    setSelectedProject(project);
-    setFormData(prev => ({
-      ...prev,
-      projectId: project?.id || null
-    }));
-  };
-
-  const handleProjectUnlink = () => {
-    setSelectedProject(null);
-    setFormData(prev => ({
-      ...prev,
-      projectId: null
-    }));
-  };
-
-  /**
-   * ✅ VALIDATION DU FORMULAIRE
+   * ✅ VALIDATION DU FORMULAIRE (mise à jour)
    */
   const validateForm = () => {
     const newErrors = {};
@@ -316,7 +214,7 @@ const TaskForm = ({
   };
 
   /**
-   * 📤 SOUMISSION DU FORMULAIRE
+   * 📤 SOUMISSION DU FORMULAIRE (mise à jour)
    */
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -331,14 +229,16 @@ const TaskForm = ({
         ? formData.xpOverride  // Admin override
         : calculatedXP;        // Calcul automatique
 
-      // Préparer les données avec projet et XP finaux
+      // Préparer les données avec projet et XP finaux (conservé + ajouts)
       const taskData = {
         ...formData,
         projectId: selectedProject?.id || null,
         projectTitle: selectedProject?.title || null,
         dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
         xpReward: finalXP, // ✅ XP calculé automatiquement ou overridé par admin
-        // Métadonnées de calcul XP pour transparence
+        createdBy: user.uid,
+        updatedAt: new Date(),
+        // ✅ Métadonnées de calcul XP pour transparence
         xpCalculation: {
           automatic: calculatedXP,
           override: isAdmin ? formData.xpOverride : null,
@@ -346,511 +246,455 @@ const TaskForm = ({
           calculatedBy: isAdmin && formData.xpOverride !== null ? 'admin_override' : 'automatic',
           factors: {
             difficulty: formData.difficulty,
-            priority: formData.priority,
-            recurrence: formData.isRecurring ? formData.recurrenceType : 'none'
+            priority: formData.priority
           }
         }
       };
 
-      await onSubmit(taskData);
-      onClose();
+      console.log('📤 Soumission tâche avec XP auto:', {
+        title: taskData.title,
+        xpReward: taskData.xpReward,
+        calculatedBy: taskData.xpCalculation.calculatedBy
+      });
 
+      await onSubmit(taskData);
+      
+      // Réinitialiser le formulaire (conservé)
+      setFormData({
+        title: '',
+        description: '',
+        difficulty: 'medium',
+        priority: 'medium',
+        category: '',
+        estimatedHours: 1,
+        dueDate: '',
+        tags: [],
+        assignedTo: [],
+        projectId: null,
+        notes: '',
+        xpOverride: null
+      });
+      setSelectedProject(null);
+      setErrors({});
+      
     } catch (error) {
-      console.error('❌ Erreur soumission formulaire:', error);
-      setErrors({ general: 'Erreur lors de la sauvegarde' });
+      console.error('❌ Erreur soumission tâche:', error);
+      setErrors({ submit: 'Erreur lors de la sauvegarde: ' + error.message });
     } finally {
       setLoading(false);
     }
   };
 
+  /**
+   * 🏷️ GESTION DES TAGS (conservé)
+   */
+  const addTag = () => {
+    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, newTag.trim()]
+      }));
+      setNewTag('');
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
+    }));
+  };
+
+  /**
+   * 📁 GESTION LIAISON PROJET (conservé)
+   */
+  const handleProjectSelect = (project) => {
+    setSelectedProject(project);
+    setFormData(prev => ({
+      ...prev,
+      projectId: project.id
+    }));
+    console.log('🔗 Projet sélectionné:', project.title);
+  };
+
+  const handleProjectClear = () => {
+    setSelectedProject(null);
+    setFormData(prev => ({
+      ...prev,
+      projectId: null
+    }));
+    console.log('🔗 Projet délié');
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-600">
         
-        {/* 🎯 HEADER */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 text-white">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Target className="w-6 h-6" />
-              <div>
-                <h2 className="text-xl font-bold">
-                  {initialData ? 'Modifier la tâche' : 'Créer une nouvelle tâche'}
-                </h2>
-                <p className="text-blue-100 text-sm">
-                  {selectedProject ? `Projet: ${selectedProject.title}` : 'Tâche indépendante'}
-                </p>
-              </div>
+        {/* Header (conservé) */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-700">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-500/20 rounded-lg mr-3">
+              <Target className="w-6 h-6 text-blue-400" />
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div>
+              <h2 className="text-xl font-semibold text-white">
+                {initialData ? 'Modifier la tâche' : 'Créer une nouvelle tâche'}
+              </h2>
+              <p className="text-gray-400 text-sm">
+                {selectedProject ? `Projet: ${selectedProject.title}` : 'Tâche indépendante'}
+              </p>
+            </div>
           </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
         </div>
 
-        {/* 📝 CONTENU */}
-        <div className="p-6 max-h-[calc(90vh-100px)] overflow-y-auto">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Contenu (mise à jour avec XP) */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          
+          {/* Titre (conservé) */}
+          <div>
+            <label className="block text-gray-300 text-sm font-medium mb-2">
+              Titre de la tâche *
+            </label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              className={`w-full px-3 py-2 bg-gray-700 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.title ? 'border-red-500' : 'border-gray-600'
+              }`}
+              placeholder="Ex: Mettre à jour le site web"
+            />
+            {errors.title && (
+              <p className="mt-1 text-red-400 text-sm">{errors.title}</p>
+            )}
+          </div>
 
-            {/* 📄 INFORMATIONS DE BASE */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Informations de base
-              </h3>
+          {/* Description (conservé) */}
+          <div>
+            <label className="block text-gray-300 text-sm font-medium mb-2">
+              Description *
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              className={`w-full px-3 py-2 bg-gray-700 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 h-20 resize-none ${
+                errors.description ? 'border-red-500' : 'border-gray-600'
+              }`}
+              placeholder="Décrivez la tâche en détail..."
+            />
+            {errors.description && (
+              <p className="mt-1 text-red-400 text-sm">{errors.description}</p>
+            )}
+          </div>
 
-              {/* Titre */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Titre de la tâche *
-                </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => handleInputChange('title', e.target.value)}
-                  placeholder="Ex: Mettre à jour le site web"
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    errors.title ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.title && (
-                  <p className="mt-1 text-sm text-red-600">{errors.title}</p>
-                )}
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description *
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  placeholder="Décrivez la tâche en détail..."
-                  rows={3}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    errors.description ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.description && (
-                  <p className="mt-1 text-sm text-red-600">{errors.description}</p>
-                )}
-              </div>
+          {/* Paramètres (mise à jour avec difficulté) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* ✅ AJOUTÉ : Difficulté */}
+            <div>
+              <label className="block text-gray-300 text-sm font-medium mb-2">
+                Difficulté
+              </label>
+              <select
+                value={formData.difficulty}
+                onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value }))}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="easy">🟢 Facile (15 XP base)</option>
+                <option value="medium">🟡 Moyenne (25 XP base)</option>
+                <option value="hard">🟠 Difficile (40 XP base)</option>
+                <option value="expert">🔴 Expert (60 XP base)</option>
+              </select>
             </div>
 
-            {/* 🎯 PARAMÈTRES DE TÂCHE */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Target className="w-5 h-5" />
-                Paramètres
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Difficulté */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Difficulté
-                  </label>
-                  <select
-                    value={formData.difficulty}
-                    onChange={(e) => handleInputChange('difficulty', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="easy">🟢 Facile (15 XP base)</option>
-                    <option value="medium">🟡 Moyenne (25 XP base)</option>
-                    <option value="hard">🟠 Difficile (40 XP base)</option>
-                    <option value="expert">🔴 Expert (60 XP base)</option>
-                  </select>
-                </div>
-
-                {/* Priorité */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Priorité
-                  </label>
-                  <select
-                    value={formData.priority}
-                    onChange={(e) => handleInputChange('priority', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="low">🔵 Basse (×1.0)</option>
-                    <option value="medium">🟡 Moyenne (×1.2)</option>
-                    <option value="high">🟠 Élevée (×1.5)</option>
-                    <option value="urgent">🔴 Urgente (×2.0)</option>
-                  </select>
-                </div>
-
-                {/* Catégorie */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Catégorie
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => handleInputChange('category', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Sélectionner une catégorie</option>
-                    {categories.length > 0 ? (
-                      categories.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="development">Développement</option>
-                        <option value="marketing">Marketing</option>
-                        <option value="design">Design</option>
-                        <option value="support">Support</option>
-                        <option value="management">Gestion</option>
-                        <option value="maintenance">Maintenance</option>
-                      </>
-                    )}
-                  </select>
-                </div>
-
-                {/* Durée estimée */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Durée estimée (heures)
-                  </label>
-                  <input
-                    type="number"
-                    min="0.5"
-                    max="100"
-                    step="0.5"
-                    value={formData.estimatedHours}
-                    onChange={(e) => handleInputChange('estimatedHours', parseFloat(e.target.value))}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                      errors.estimatedHours ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.estimatedHours && (
-                    <p className="mt-1 text-sm text-red-600">{errors.estimatedHours}</p>
-                  )}
-                </div>
-              </div>
+            {/* Priorité (mise à jour avec indicateurs XP) */}
+            <div>
+              <label className="block text-gray-300 text-sm font-medium mb-2">
+                Priorité
+              </label>
+              <select
+                value={formData.priority}
+                onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="low">🔵 Basse (×1.0)</option>
+                <option value="medium">🟡 Moyenne (×1.2)</option>
+                <option value="high">🟠 Élevée (×1.5)</option>
+                <option value="urgent">🔴 Urgente (×2.0)</option>
+              </select>
             </div>
 
-            {/* 🔄 RÉCURRENCE */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Repeat className="w-5 h-5" />
-                Récurrence
-              </h3>
+            {/* Catégorie (conservé) */}
+            <div>
+              <label className="block text-gray-300 text-sm font-medium mb-2">
+                Catégorie
+              </label>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Sélectionner une catégorie</option>
+                {categories.length > 0 ? (
+                  categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))
+                ) : (
+                  <>
+                    <option value="development">Développement</option>
+                    <option value="marketing">Marketing</option>
+                    <option value="design">Design</option>
+                    <option value="support">Support</option>
+                    <option value="management">Gestion</option>
+                    <option value="maintenance">Maintenance</option>
+                  </>
+                )}
+              </select>
+            </div>
 
-              {/* Activer récurrence */}
+            {/* Durée estimée (conservé) */}
+            <div>
+              <label className="block text-gray-300 text-sm font-medium mb-2">
+                Durée estimée (heures)
+              </label>
+              <input
+                type="number"
+                min="0.5"
+                max="100"
+                step="0.5"
+                value={formData.estimatedHours}
+                onChange={(e) => setFormData(prev => ({ ...prev, estimatedHours: parseFloat(e.target.value) }))}
+                className={`w-full px-3 py-2 bg-gray-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.estimatedHours ? 'border-red-500' : 'border-gray-600'
+                }`}
+              />
+              {errors.estimatedHours && (
+                <p className="mt-1 text-red-400 text-sm">{errors.estimatedHours}</p>
+              )}
+            </div>
+          </div>
+
+          {/* ✅ NOUVEAU : RÉCOMPENSE XP */}
+          <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="isRecurring"
-                  checked={formData.isRecurring}
-                  onChange={(e) => {
-                    const isChecked = e.target.checked;
-                    handleInputChange('isRecurring', isChecked);
-                    if (!isChecked) {
-                      handleInputChange('recurrenceType', 'none');
-                    }
-                  }}
-                  className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
-                  Tâche récurrente
-                </label>
-              </div>
-
-              {/* Type de récurrence */}
-              {formData.isRecurring && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Type de récurrence
-                  </label>
-                  <select
-                    value={formData.recurrenceType}
-                    onChange={(e) => handleInputChange('recurrenceType', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="none">Sélectionner...</option>
-                    {Object.entries(RECURRENCE_CONFIG).filter(([key]) => key !== 'none').map(([key, config]) => (
-                      <option key={key} value={key}>
-                        {config.icon} {config.label} (×{config.multiplier} XP)
-                      </option>
-                    ))}
-                  </select>
+                <div className="p-2 bg-yellow-500/20 rounded-lg">
+                  <Trophy className="w-5 h-5 text-yellow-400" />
                 </div>
-              )}
+                <div>
+                  <h3 className="font-medium text-white">Récompense XP</h3>
+                  <p className="text-gray-400 text-sm">Calculée automatiquement</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-yellow-400">
+                  {isAdmin && formData.xpOverride !== null ? formData.xpOverride : calculatedXP}
+                </div>
+                <div className="text-xs text-gray-500">XP par tâche</div>
+              </div>
             </div>
 
-            {/* 🏆 RÉCOMPENSE XP */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Trophy className="w-5 h-5" />
-                Récompense XP
-                <button
-                  type="button"
-                  onClick={() => setShowXPDetails(!showXPDetails)}
-                  className="ml-2 p-1 hover:bg-gray-100 rounded-lg transition-colors"
-                  title="Voir les détails du calcul"
-                >
-                  <Info className="w-4 h-4 text-gray-500" />
-                </button>
-              </h3>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="text-center p-2 bg-gray-600 rounded">
+                <div className="text-gray-400">Difficulté</div>
+                <div className="font-medium text-white">{formData.difficulty}</div>
+              </div>
+              <div className="text-center p-2 bg-gray-600 rounded">
+                <div className="text-gray-400">Priorité</div>
+                <div className="font-medium text-white">{formData.priority}</div>
+              </div>
+            </div>
 
-              {/* Affichage XP calculé */}
-              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-yellow-100 rounded-lg">
-                      <Zap className="w-5 h-5 text-yellow-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">XP Automatique</h4>
-                      <p className="text-sm text-gray-600">
-                        Calculé selon difficulté, priorité et récurrence
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-yellow-600">
-                      {isAdmin && formData.xpOverride !== null ? formData.xpOverride : calculatedXP}
-                    </div>
-                    <div className="text-xs text-gray-500">XP par occurrence</div>
-                  </div>
+            {/* ✅ ADMIN UNIQUEMENT : Override XP */}
+            {isAdmin && (
+              <div className="mt-4 p-3 bg-blue-600/20 border border-blue-500/30 rounded-lg">
+                <div className="flex items-center space-x-2 mb-3">
+                  <Shield className="w-4 h-4 text-blue-400" />
+                  <span className="text-blue-300 text-sm font-medium">Override Admin</span>
                 </div>
 
-                {/* Détails du calcul XP */}
-                {showXPDetails && (
-                  <div className="mt-4 pt-4 border-t border-yellow-200">
-                    <div className="grid grid-cols-3 gap-3 text-sm">
-                      <div className="text-center p-2 bg-white rounded border">
-                        <div className="text-gray-500">Difficulté</div>
-                        <div className="font-semibold">{formData.difficulty}</div>
-                      </div>
-                      <div className="text-center p-2 bg-white rounded border">
-                        <div className="text-gray-500">Priorité</div>
-                        <div className="font-semibold">{formData.priority}</div>
-                      </div>
-                      <div className="text-center p-2 bg-white rounded border">
-                        <div className="text-gray-500">Récurrence</div>
-                        <div className="font-semibold">
-                          {formData.isRecurring ? formData.recurrenceType : 'unique'}
-                        </div>
-                      </div>
-                    </div>
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    id="useXpOverride"
+                    checked={formData.xpOverride !== null}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setFormData(prev => ({ ...prev, xpOverride: calculatedXP }));
+                      } else {
+                        setFormData(prev => ({ ...prev, xpOverride: null }));
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="useXpOverride" className="text-blue-300 text-sm">
+                    Remplacer par une valeur personnalisée
+                  </label>
+                </div>
 
-                    {formData.isRecurring && (
-                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <div className="flex items-center gap-2 text-sm text-blue-700">
-                          <Info className="w-4 h-4" />
-                          <span>
-                            Tâche récurrente : {RECURRENCE_CONFIG[formData.recurrenceType]?.description}
-                          </span>
-                        </div>
-                      </div>
+                {formData.xpOverride !== null && (
+                  <div className="mt-3">
+                    <input
+                      type="number"
+                      min="1"
+                      max="1000"
+                      value={formData.xpOverride}
+                      onChange={(e) => setFormData(prev => ({ ...prev, xpOverride: parseInt(e.target.value) }))}
+                      className={`w-full px-3 py-2 bg-gray-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        errors.xpOverride ? 'border-red-500' : 'border-blue-500'
+                      }`}
+                      placeholder="XP personnalisé (1-1000)"
+                    />
+                    {errors.xpOverride && (
+                      <p className="mt-1 text-red-400 text-sm">{errors.xpOverride}</p>
                     )}
                   </div>
                 )}
               </div>
+            )}
+          </div>
 
-              {/* ✅ ADMIN UNIQUEMENT : Override XP */}
-              {isAdmin && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Shield className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-blue-900">Override Admin</h4>
-                      <p className="text-sm text-blue-700">
-                        Remplacer le calcul automatique par une valeur personnalisée
-                      </p>
-                    </div>
-                  </div>
+          {/* Projet (conservé) */}
+          <div>
+            <label className="block text-gray-300 text-sm font-medium mb-2">
+              <Folder className="w-4 h-4 inline mr-1" />
+              Projet (optionnel)
+            </label>
+            
+            {selectedProject ? (
+              <LinkedProjectDisplay
+                project={selectedProject}
+                onUnlink={handleProjectClear}
+                showUnlinkButton={true}
+              />
+            ) : (
+              <ProjectSelector onProjectSelect={handleProjectSelect} />
+            )}
+          </div>
 
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      id="useXpOverride"
-                      checked={formData.xpOverride !== null}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          handleInputChange('xpOverride', calculatedXP);
-                        } else {
-                          handleInputChange('xpOverride', null);
-                        }
-                      }}
-                      className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="useXpOverride" className="text-sm font-medium text-blue-700">
-                      Utiliser un override XP
-                    </label>
-                  </div>
-
-                  {formData.xpOverride !== null && (
-                    <div className="mt-3">
-                      <label className="block text-sm font-medium text-blue-700 mb-2">
-                        XP personnalisé (1-1000)
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="1000"
-                        value={formData.xpOverride}
-                        onChange={(e) => handleInputChange('xpOverride', parseInt(e.target.value))}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                          errors.xpOverride ? 'border-red-500' : 'border-blue-300'
-                        }`}
-                      />
-                      {errors.xpOverride && (
-                        <p className="mt-1 text-sm text-red-600">{errors.xpOverride}</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* 📁 PROJET (OPTIONNEL) */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Folder className="w-5 h-5" />
-                Projet (optionnel)
-              </h3>
-
-              {selectedProject ? (
-                <LinkedProjectDisplay
-                  project={selectedProject}
-                  onUnlink={handleProjectUnlink}
-                  showUnlinkButton={true}
-                />
-              ) : (
-                <ProjectSelector onProjectSelect={handleProjectSelect} />
-              )}
-            </div>
-
-            {/* 🏷️ TAGS */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Tag className="w-5 h-5" />
-                Tags
-              </h3>
-
+          {/* Tags (conservé) */}
+          <div>
+            <label className="block text-gray-300 text-sm font-medium mb-2">
+              <Tag className="w-4 h-4 inline mr-1" />
+              Tags
+            </label>
+            
+            {formData.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">
                 {formData.tags.map((tag, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
+                    className="inline-flex items-center px-2 py-1 bg-blue-600 text-blue-100 rounded-full text-sm"
                   >
                     {tag}
                     <button
                       type="button"
-                      onClick={() => handleRemoveTag(tag)}
-                      className="ml-2 hover:text-blue-600"
+                      onClick={() => removeTag(tag)}
+                      className="ml-1 hover:text-blue-300"
                     >
                       <X className="w-3 h-3" />
                     </button>
                   </span>
                 ))}
               </div>
-
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddTag();
-                    }
-                  }}
-                  placeholder="Ajouter un tag..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddTag}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Ajouter</span>
-                </button>
-              </div>
-            </div>
-
-            {/* 📅 ÉCHÉANCE ET AUTRES */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Date d'échéance */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Calendar className="w-4 h-4 inline mr-1" />
-                  Date d'échéance
-                </label>
-                <input
-                  type="date"
-                  value={formData.dueDate}
-                  onChange={(e) => handleInputChange('dueDate', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* 📝 NOTES SUPPLÉMENTAIRES */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Notes supplémentaires
-              </label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => handleInputChange('notes', e.target.value)}
-                placeholder="Informations complémentaires..."
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* 🚨 ERREURS GÉNÉRALES */}
-            {errors.general && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="flex items-center space-x-2">
-                  <AlertTriangle className="w-5 h-5 text-red-500" />
-                  <p className="text-red-700">{errors.general}</p>
-                </div>
-              </div>
             )}
 
-            {/* 🎛️ ACTIONS */}
-            <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addTag();
+                  }
+                }}
+                className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ajouter un tag..."
+              />
               <button
                 type="button"
-                onClick={onClose}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                onClick={addTag}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Annuler
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Sauvegarde...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    <span>{initialData ? 'Mettre à jour' : 'Créer la tâche'}</span>
-                  </>
-                )}
+                <Plus className="w-4 h-4" />
               </button>
             </div>
-          </form>
-        </div>
+          </div>
+
+          {/* Date d'échéance (conservé) */}
+          <div>
+            <label className="block text-gray-300 text-sm font-medium mb-2">
+              <Calendar className="w-4 h-4 inline mr-1" />
+              Date d'échéance
+            </label>
+            <input
+              type="date"
+              value={formData.dueDate}
+              onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Notes supplémentaires (conservé) */}
+          <div>
+            <label className="block text-gray-300 text-sm font-medium mb-2">
+              Notes supplémentaires
+            </label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 h-16 resize-none"
+              placeholder="Informations complémentaires, ressources, etc..."
+            />
+          </div>
+
+          {/* Erreur de soumission (conservé) */}
+          {errors.submit && (
+            <div className="flex items-center p-3 bg-red-900/50 border border-red-500/50 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-red-400 mr-2" />
+              <span className="text-red-300">{errors.submit}</span>
+            </div>
+          )}
+
+          {/* Boutons (conservé) */}
+          <div className="flex space-x-3 pt-4 border-t border-gray-700">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500 transition-colors disabled:opacity-50"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Sauvegarde...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  {initialData ? 'Mettre à jour' : 'Créer la tâche'}
+                </>
+              )}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
