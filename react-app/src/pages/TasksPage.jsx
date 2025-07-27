@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// VERSION FINALE - SYSTÈME VOLONTAIRES + CORRECTIONS SOUMISSIONS
+// VERSION AVEC ACCÈS RAPIDE "MES TÂCHES"
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -25,7 +25,10 @@ import {
   UserMinus,
   RefreshCw,
   Bug,
-  Heart
+  Heart,
+  ChevronRight,
+  BookOpen,
+  Zap
 } from 'lucide-react';
 
 // ✅ IMPORTS STANDARDS
@@ -37,7 +40,7 @@ import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal';
 import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal';
 import { taskService } from '../core/services/taskService';
 
-// ✅ IMPORT DU NOUVEAU COMPOSANT VOLONTAIRE
+// ✅ IMPORT DU COMPOSANT VOLONTAIRE
 import VolunteerTaskCard from '../components/tasks/VolunteerTaskSystem';
 
 /**
@@ -174,19 +177,22 @@ const createSafeTask = (task) => {
 const TasksPage = () => {
   const { user } = useAuthStore();
   
-  // 📊 ÉTATS LOCAUX
+  // 📊 États locaux
   const [allTasks, setAllTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // 🎨 ÉTATS UI
+  // 🎨 États UI
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterScope, setFilterScope] = useState('available'); // ✅ Par défaut sur "disponibles"
   
-  // 🔄 ÉTATS MODALS
+  // ✅ NOUVEL ÉTAT : Affichage de la section "Mes tâches"
+  const [showMyTasksSection, setShowMyTasksSection] = useState(true);
+  
+  // 🔄 États modals
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showTaskDetail, setShowTaskDetail] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -353,6 +359,8 @@ const TasksPage = () => {
     }
   };
 
+  // [... TOUTES LES AUTRES FONCTIONS RESTENT IDENTIQUES ...]
+
   /**
    * 🗑️ GESTION SUPPRESSION DE TÂCHE
    */
@@ -501,6 +509,14 @@ const TasksPage = () => {
   const myTasks = allTasks.filter(task => task.userContext?.isMyTask);
   const inValidationTasks = allTasks.filter(task => task.status === 'validation_pending');
 
+  // ✅ NOUVEAU : Tâches pour accès rapide
+  const myTasksInProgress = myTasks.filter(task => 
+    task.status === 'in_progress' || 
+    task.status === 'pending' || 
+    task.status === 'validation_pending'
+  );
+  const myTasksCompleted = myTasks.filter(task => task.status === 'completed');
+
   // 🔄 AFFICHAGE LOADING
   if (loading) {
     return (
@@ -560,6 +576,182 @@ const TasksPage = () => {
               <Plus className="w-5 h-5 mr-2" />
               Créer une Tâche
             </button>
+          </div>
+        </div>
+
+        {/* ✅ NOUVELLE SECTION : ACCÈS RAPIDE MES TÂCHES */}
+        {myTasks.length > 0 && (
+          <div className="mb-8">
+            <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 backdrop-blur-sm rounded-xl border border-purple-500/30 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <div className="p-2 bg-purple-500/20 rounded-lg mr-3">
+                    <BookOpen className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-white">
+                      💼 Mes Tâches
+                    </h2>
+                    <p className="text-purple-300 text-sm">
+                      Accès rapide à vos tâches en cours et terminées
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-white">{myTasksInProgress.length}</p>
+                    <p className="text-xs text-purple-300">En cours</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-white">{myTasksCompleted.length}</p>
+                    <p className="text-xs text-purple-300">Terminées</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setFilterScope('my_tasks');
+                      setShowMyTasksSection(false);
+                    }}
+                    className="flex items-center px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                  >
+                    Voir toutes
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Tâches en cours (max 3) */}
+              {myTasksInProgress.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-medium text-white flex items-center">
+                    <Zap className="w-5 h-5 mr-2 text-yellow-400" />
+                    Tâches en cours
+                  </h3>
+                  <div className="grid gap-3">
+                    {myTasksInProgress.slice(0, 3).map(task => (
+                      <div key={task.id} className="bg-gray-800/50 border border-gray-600 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center mb-2">
+                              <h4 className="text-white font-medium">{task.title}</h4>
+                              <span className={`ml-2 px-2 py-1 text-xs rounded ${
+                                task.status === 'validation_pending' ? 'bg-orange-500/20 text-orange-300' :
+                                task.status === 'in_progress' ? 'bg-blue-500/20 text-blue-300' :
+                                'bg-yellow-500/20 text-yellow-300'
+                              }`}>
+                                {task.status === 'validation_pending' ? 'En validation' :
+                                 task.status === 'in_progress' ? 'En cours' : 'À commencer'}
+                              </span>
+                            </div>
+                            <p className="text-gray-400 text-sm line-clamp-1">{task.description}</p>
+                            <div className="flex items-center mt-2 text-xs text-gray-500">
+                              <Trophy className="w-3 h-3 mr-1" />
+                              {task.xpReward} XP
+                              {task.category && (
+                                <>
+                                  <span className="mx-2">•</span>
+                                  <span>{SYNERGIA_ROLES.find(r => r.id === task.category)?.icon} {task.category}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2 ml-4">
+                            <button
+                              onClick={() => handleViewDetails(task)}
+                              className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition-colors"
+                              title="Voir détails"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            {task.status !== 'validation_pending' && task.status !== 'completed' && (
+                              <button
+                                onClick={() => {
+                                  setSelectedTask(task);
+                                  setShowSubmitModal(true);
+                                }}
+                                className="p-2 text-gray-400 hover:text-green-400 hover:bg-gray-700 rounded-lg transition-colors"
+                                title="Soumettre"
+                              >
+                                <Send className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {myTasksInProgress.length > 3 && (
+                    <button
+                      onClick={() => setFilterScope('my_tasks')}
+                      className="w-full py-2 text-purple-300 hover:text-purple-200 text-sm border-2 border-dashed border-purple-500/30 rounded-lg hover:border-purple-500/50 transition-colors"
+                    >
+                      Voir {myTasksInProgress.length - 3} tâches de plus...
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Message si aucune tâche */}
+              {myTasks.length === 0 && (
+                <div className="text-center py-6">
+                  <Heart className="w-12 h-12 text-purple-400 mx-auto mb-3" />
+                  <p className="text-purple-300 mb-2">Aucune tâche pour le moment</p>
+                  <p className="text-purple-400 text-sm">Explorez les tâches disponibles ci-dessous !</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Statistiques dynamiques */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-blue-600/20 backdrop-blur-sm rounded-xl p-4 border border-blue-500/30">
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-500/20 rounded-lg">
+                <Globe className="w-6 h-6 text-blue-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-blue-300">Total</p>
+                <p className="text-lg font-semibold text-white">{allTasks.length}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-green-600/20 backdrop-blur-sm rounded-xl p-4 border border-green-500/30">
+            <div className="flex items-center">
+              <div className="p-2 bg-green-500/20 rounded-lg">
+                <Star className="w-6 h-6 text-green-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-green-300">Disponibles</p>
+                <p className="text-lg font-semibold text-white">{availableTasks.length}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-purple-600/20 backdrop-blur-sm rounded-xl p-4 border border-purple-500/30">
+            <div className="flex items-center">
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                <Heart className="w-6 h-6 text-purple-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-purple-300">Mes tâches</p>
+                <p className="text-lg font-semibold text-white">{myTasks.length}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-orange-600/20 backdrop-blur-sm rounded-xl p-4 border border-orange-500/30">
+            <div className="flex items-center">
+              <div className="p-2 bg-orange-500/20 rounded-lg">
+                <Clock className="w-6 h-6 text-orange-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-orange-300">En validation</p>
+                <p className="text-lg font-semibold text-white">{inValidationTasks.length}</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -631,57 +823,6 @@ const TasksPage = () => {
                 </option>
               ))}
             </select>
-          </div>
-        </div>
-
-        {/* Statistiques dynamiques */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-blue-600/20 backdrop-blur-sm rounded-xl p-4 border border-blue-500/30">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-500/20 rounded-lg">
-                <Globe className="w-6 h-6 text-blue-400" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-blue-300">Total</p>
-                <p className="text-lg font-semibold text-white">{allTasks.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-green-600/20 backdrop-blur-sm rounded-xl p-4 border border-green-500/30">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-500/20 rounded-lg">
-                <Star className="w-6 h-6 text-green-400" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-green-300">Disponibles</p>
-                <p className="text-lg font-semibold text-white">{availableTasks.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-purple-600/20 backdrop-blur-sm rounded-xl p-4 border border-purple-500/30">
-            <div className="flex items-center">
-              <div className="p-2 bg-purple-500/20 rounded-lg">
-                <Heart className="w-6 h-6 text-purple-400" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-purple-300">Mes tâches</p>
-                <p className="text-lg font-semibold text-white">{myTasks.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-orange-600/20 backdrop-blur-sm rounded-xl p-4 border border-orange-500/30">
-            <div className="flex items-center">
-              <div className="p-2 bg-orange-500/20 rounded-lg">
-                <Clock className="w-6 h-6 text-orange-400" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-orange-300">En validation</p>
-                <p className="text-lg font-semibold text-white">{inValidationTasks.length}</p>
-              </div>
-            </div>
           </div>
         </div>
 
