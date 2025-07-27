@@ -1,5 +1,5 @@
 // ==========================================
-// 📁 react-app/src/shared/components/ui/TaskDetailModal.jsx
+// 📁 react-app/src/components/ui/TaskDetailModal.jsx
 // MODAL DÉTAIL TÂCHE - SANS bouton "Marquer terminée" + commentaires réparés
 // ==========================================
 
@@ -19,7 +19,7 @@ import {
   Upload,
   Users
 } from 'lucide-react';
-import CommentSection from '../../components/collaboration/CommentSection.jsx';
+import CommentSection from '../collaboration/CommentSection.jsx';
 
 /**
  * 📋 MODAL DÉTAIL DE TÂCHE - CORRIGÉE
@@ -297,7 +297,7 @@ const TaskDetailModal = ({
           )}
         </div>
 
-        {/* Footer avec actions */}
+        {/* Footer avec actions - ✅ SANS BOUTON "MARQUER TERMINÉE" */}
         <div className="border-t border-gray-600 bg-gray-750 px-6 py-4">
           <div className="flex items-center justify-between">
             
