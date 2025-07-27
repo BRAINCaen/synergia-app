@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/collaborationService.js
-// SERVICE COLLABORATION - FIX COMPLET
+// SERVICE COLLABORATION - VERSION ULTRA-SIMPLIFIÉE POUR ÉVITER LES ERREURS
 // ==========================================
 
 import { 
@@ -8,25 +8,20 @@ import {
   doc, 
   addDoc, 
   updateDoc, 
-  deleteDoc, 
   getDocs, 
   getDoc, 
   query, 
   where, 
-  orderBy, 
-  limit,
-  serverTimestamp,
-  onSnapshot
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
 /**
- * 🤝 SERVICE DE COLLABORATION - VERSION FINALE CORRIGÉE
+ * 🤝 SERVICE DE COLLABORATION - VERSION FINALE ULTRA-SIMPLE
  */
 class CollaborationService {
   constructor() {
-    console.log('🤝 CollaborationService initialisé - FINAL FIX');
-    this.listeners = new Map();
+    console.log('🤝 CollaborationService - Version Ultra-Simple');
   }
 
   /**
@@ -34,66 +29,60 @@ class CollaborationService {
    */
   async addComment(commentData) {
     try {
-      console.log('💬 [ADD_COMMENT] Ajout:', commentData);
+      console.log('💬 Ajout commentaire ultra-simple:', commentData);
 
-      // ✅ VALIDATION BASIQUE
+      // Validation minimale
       if (!commentData?.entityType || !commentData?.entityId || !commentData?.userId || !commentData?.content) {
-        throw new Error('Données de commentaire manquantes');
+        throw new Error('Données manquantes');
       }
 
-      // ✅ STRUCTURE ULTRA-SIMPLE
-      const commentToAdd = {
-        entityType: String(commentData.entityType).trim(),
-        entityId: String(commentData.entityId).trim(),
-        userId: String(commentData.userId).trim(),
-        content: String(commentData.content).trim(),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+      // Structure ultra-simple
+      const comment = {
+        entityType: commentData.entityType,
+        entityId: commentData.entityId,
+        userId: commentData.userId,
+        content: commentData.content,
+        createdAt: serverTimestamp()
       };
 
-      console.log('💬 [ADD_COMMENT] Ajout à Firestore...');
-      const docRef = await addDoc(collection(db, 'comments'), commentToAdd);
+      console.log('💬 Ajout à Firestore...');
+      const docRef = await addDoc(collection(db, 'comments'), comment);
       
-      console.log('✅ [ADD_COMMENT] Succès ID:', docRef.id);
-
+      console.log('✅ Commentaire créé:', docRef.id);
       return {
         id: docRef.id,
-        ...commentToAdd,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        ...comment,
+        createdAt: new Date()
       };
 
     } catch (error) {
-      console.error('❌ [ADD_COMMENT] Erreur:', error);
-      throw new Error(`Erreur ajout commentaire: ${error.message}`);
+      console.error('❌ Erreur ajout commentaire:', error);
+      throw new Error(`Impossible d'ajouter le commentaire: ${error.message}`);
     }
   }
 
   /**
    * 📖 RÉCUPÉRER COMMENTAIRES - VERSION ULTRA-SIMPLIFIÉE
    */
-  async getComments(entityType, entityId, limitCount = 50) {
+  async getComments(entityType, entityId) {
     try {
-      console.log('📖 [GET_COMMENTS] Récupération:', { entityType, entityId });
+      console.log('📖 Récupération commentaires:', { entityType, entityId });
 
       if (!entityType || !entityId) {
-        console.warn('⚠️ Paramètres manquants');
         return [];
       }
 
-      // ✅ REQUÊTE LA PLUS SIMPLE POSSIBLE
+      // Requête la plus simple possible
       const commentsRef = collection(db, 'comments');
       const q = query(
         commentsRef,
-        where('entityType', '==', String(entityType)),
-        where('entityId', '==', String(entityId))
-        // ✅ PAS de orderBy, PAS de limit pour éviter tout problème d'index
+        where('entityType', '==', entityType),
+        where('entityId', '==', entityId)
       );
 
-      console.log('📖 [GET_COMMENTS] Exécution requête...');
       const snapshot = await getDocs(q);
-      
       const comments = [];
+
       snapshot.forEach(doc => {
         const data = doc.data();
         comments.push({
@@ -104,26 +93,26 @@ class CollaborationService {
         });
       });
 
-      // ✅ TRI CÔTÉ CLIENT
+      // Tri côté client
       comments.sort((a, b) => a.createdAt - b.createdAt);
 
-      console.log(`✅ [GET_COMMENTS] ${comments.length} commentaires récupérés`);
+      console.log(`✅ ${comments.length} commentaires récupérés`);
       return comments;
 
     } catch (error) {
-      console.error('❌ [GET_COMMENTS] Erreur:', error);
+      console.error('❌ Erreur récupération commentaires:', error);
       
-      // ✅ FALLBACK ULTIME : Requête sans contraintes
+      // En cas d'erreur, essayer une approche différente
       try {
-        console.log('🔄 [GET_COMMENTS] Tentative fallback...');
-        const fallbackSnapshot = await getDocs(collection(db, 'comments'));
-        const fallbackComments = [];
+        console.log('🔄 Tentative de récupération alternative...');
         
-        fallbackSnapshot.forEach(doc => {
+        const allComments = await getDocs(collection(db, 'comments'));
+        const filteredComments = [];
+        
+        allComments.forEach(doc => {
           const data = doc.data();
-          // Filtrer côté client
-          if (data.entityType === String(entityType) && data.entityId === String(entityId)) {
-            fallbackComments.push({
+          if (data.entityType === entityType && data.entityId === entityId) {
+            filteredComments.push({
               id: doc.id,
               ...data,
               createdAt: data.createdAt?.toDate?.() || new Date(),
@@ -132,12 +121,12 @@ class CollaborationService {
           }
         });
         
-        fallbackComments.sort((a, b) => a.createdAt - b.createdAt);
-        console.log(`✅ [GET_COMMENTS] Fallback: ${fallbackComments.length} commentaires`);
-        return fallbackComments;
+        filteredComments.sort((a, b) => a.createdAt - b.createdAt);
+        console.log(`✅ Récupération alternative: ${filteredComments.length} commentaires`);
+        return filteredComments;
         
       } catch (fallbackError) {
-        console.error('❌ [GET_COMMENTS] Fallback échoué:', fallbackError);
+        console.error('❌ Fallback échoué:', fallbackError);
         return [];
       }
     }
@@ -148,7 +137,7 @@ class CollaborationService {
    */
   async deleteComment(commentId, userId) {
     try {
-      console.log('🗑️ [DELETE_COMMENT] Suppression:', { commentId, userId });
+      console.log('🗑️ Suppression commentaire:', { commentId, userId });
 
       if (!commentId || !userId) {
         throw new Error('Paramètres manquants');
@@ -162,34 +151,30 @@ class CollaborationService {
       }
 
       const commentData = commentSnap.data();
-      
-      // Vérification de permission
       if (commentData.userId !== userId) {
-        throw new Error('Permission refusée');
+        throw new Error('Non autorisé');
       }
 
-      // ✅ SUPPRESSION SIMPLE
       await updateDoc(commentRef, {
         content: '[Commentaire supprimé]',
-        deletedAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        deletedAt: serverTimestamp()
       });
 
-      console.log('✅ [DELETE_COMMENT] Commentaire supprimé');
+      console.log('✅ Commentaire supprimé');
       return commentId;
 
     } catch (error) {
-      console.error('❌ [DELETE_COMMENT] Erreur:', error);
+      console.error('❌ Erreur suppression:', error);
       throw error;
     }
   }
 
   /**
-   * ✏️ METTRE À JOUR UN COMMENTAIRE
+   * ✏️ MODIFIER UN COMMENTAIRE
    */
   async updateComment(commentId, updateData, userId) {
     try {
-      console.log('✏️ [UPDATE_COMMENT] Mise à jour:', { commentId, userId });
+      console.log('✏️ Modification commentaire:', { commentId, userId });
 
       if (!commentId || !updateData || !userId) {
         throw new Error('Paramètres manquants');
@@ -203,9 +188,8 @@ class CollaborationService {
       }
 
       const commentData = commentSnap.data();
-      
       if (commentData.userId !== userId) {
-        throw new Error('Permission refusée');
+        throw new Error('Non autorisé');
       }
 
       await updateDoc(commentRef, {
@@ -214,34 +198,19 @@ class CollaborationService {
         isEdited: true
       });
 
-      console.log('✅ [UPDATE_COMMENT] Commentaire mis à jour');
+      console.log('✅ Commentaire modifié');
       return commentId;
 
     } catch (error) {
-      console.error('❌ [UPDATE_COMMENT] Erreur:', error);
+      console.error('❌ Erreur modification:', error);
       throw error;
     }
   }
-
-  /**
-   * 🧹 NETTOYER LES LISTENERS
-   */
-  cleanup() {
-    console.log('🧹 [CLEANUP] Nettoyage listeners');
-    this.listeners.forEach((unsubscribe) => {
-      try {
-        unsubscribe();
-      } catch (error) {
-        console.error('❌ Erreur nettoyage listener:', error);
-      }
-    });
-    this.listeners.clear();
-  }
 }
 
-// ✅ INSTANCE UNIQUE
+// Instance unique
 const collaborationService = new CollaborationService();
 
-// ✅ EXPORTS
+// Exports
 export default CollaborationService;
 export { collaborationService };
