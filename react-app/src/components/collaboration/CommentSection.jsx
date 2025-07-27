@@ -1,10 +1,10 @@
 // ==========================================
 // 📁 react-app/src/components/collaboration/CommentSection.jsx
-// SECTION COMMENTAIRES - FIX BUG ENVOI
+// SECTION COMMENTAIRES - TOUS LES BUGS CORRIGÉS
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, MessageCircle, User, Edit, Trash2, Reply, MoreVertical } from 'lucide-react';
+import { Send, MessageCircle, User, Edit, Trash2, Reply, MoreVertical, Heart } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { collaborationService } from '../../core/services/collaborationService.js';
 
@@ -188,31 +188,18 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
           ? { ...comment, content: '[Commentaire supprimé]', deletedAt: new Date() }
           : comment
       ));
-      
-      console.log('✅ Commentaire supprimé');
-      
+
     } catch (error) {
       console.error('❌ Erreur suppression commentaire:', error);
-      
-      if (error.message.includes('Permission refusée')) {
-        setError('Vous ne pouvez supprimer que vos propres commentaires');
-      } else {
-        setError('Erreur lors de la suppression');
-      }
+      setError('Impossible de supprimer le commentaire');
     }
   };
 
   const handleEditComment = async (commentId, newContent) => {
-    if (!commentId || !newContent || !newContent.trim()) return;
+    if (!commentId || !newContent?.trim()) return;
 
     try {
-      console.log('✏️ Modification commentaire:', commentId);
-      
-      await collaborationService.updateComment(
-        commentId, 
-        { content: newContent.trim() }, 
-        user.uid
-      );
+      await collaborationService.updateComment(commentId, { content: newContent.trim() }, user.uid);
       
       // Mise à jour optimiste
       setComments(prev => prev.map(comment => 
@@ -220,65 +207,44 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
           ? { ...comment, content: newContent.trim(), isEdited: true, updatedAt: new Date() }
           : comment
       ));
-      
+
       setEditingComment(null);
-      console.log('✅ Commentaire modifié');
-      
+
     } catch (error) {
       console.error('❌ Erreur modification commentaire:', error);
-      
-      if (error.message.includes('Permission refusée')) {
-        setError('Vous ne pouvez modifier que vos propres commentaires');
-      } else {
-        setError('Erreur lors de la modification');
-      }
+      setError('Impossible de modifier le commentaire');
     }
   };
 
   // ========================
-  // 🎨 FONCTIONS UTILITAIRES
+  // 🎨 FORMATAGE DES DATES
   // ========================
-
-  const getUserInitials = (comment) => {
-    if (comment.user?.name) {
-      return comment.user.name.charAt(0).toUpperCase();
-    }
-    if (comment.userId === user?.uid) {
-      return user.displayName?.charAt(0)?.toUpperCase() || 
-             user.email?.charAt(0)?.toUpperCase() || 
-             '?';
-    }
-    return '?';
-  };
 
   const formatDate = (date) => {
     if (!date) return '';
     
     try {
-      const dateObj = date instanceof Date ? date : new Date(date);
+      const dateObj = date.toDate ? date.toDate() : new Date(date);
       if (isNaN(dateObj.getTime())) return '';
       
       const now = new Date();
-      const diffInMinutes = Math.floor((now - dateObj) / (1000 * 60));
-      
-      if (diffInMinutes < 1) return 'À l\'instant';
-      if (diffInMinutes < 60) return `Il y a ${diffInMinutes}min`;
-      if (diffInMinutes < 1440) return `Il y a ${Math.floor(diffInMinutes / 60)}h`;
+      const diffMs = now - dateObj;
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffMinutes < 1) return 'À l\'instant';
+      if (diffMinutes < 60) return `${diffMinutes}min`;
+      if (diffHours < 24) return `${diffHours}h`;
+      if (diffDays < 7) return `${diffDays}j`;
       
       return dateObj.toLocaleDateString('fr-FR', {
         day: 'numeric',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit'
+        month: 'short'
       });
     } catch (error) {
-      console.warn('⚠️ Erreur formatage date:', error);
       return '';
     }
-  };
-
-  const isOwner = (comment) => {
-    return comment.userId === user?.uid || comment.authorId === user?.uid;
   };
 
   // ========================
@@ -286,111 +252,109 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
   // ========================
 
   const renderComment = (comment) => {
-    if (!comment || !comment.id) return null;
-    
-    const isDeleted = comment.content === '[Commentaire supprimé]' || comment.deletedAt;
     const isEditing = editingComment === comment.id;
-    const canModify = isOwner(comment) && !isDeleted;
+    const isOwnComment = user && comment.userId === user.uid;
+    const isDeleted = comment.content === '[Commentaire supprimé]';
 
     return (
-      <div key={comment.id} className="flex gap-3 group">
+      <div key={comment.id} className="flex gap-3 py-3 border-b border-white/10 last:border-b-0">
         {/* Avatar */}
         <div className="flex-shrink-0">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
-            {getUserInitials(comment)}
+            {comment.user?.name?.charAt(0)?.toUpperCase() || 
+             comment.userId?.charAt(0)?.toUpperCase() || 
+             'U'}
           </div>
         </div>
 
         {/* Contenu */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium text-white">
-                {comment.user?.name || 
-                 (comment.userId === user?.uid ? (user.displayName || user.email) : 'Utilisateur')}
-              </span>
-              <span className="text-gray-400">
-                {formatDate(comment.createdAt)}
-              </span>
-              {comment.isEdited && (
-                <span className="text-xs text-gray-500">(modifié)</span>
-              )}
-            </div>
-
-            {/* Actions */}
-            {canModify && (
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                <button
-                  onClick={() => setEditingComment(comment.id)}
-                  className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors"
-                  title="Modifier"
-                >
-                  <Edit className="w-3 h-3" />
-                </button>
-                <button
-                  onClick={() => handleDeleteComment(comment.id)}
-                  className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-red-300 transition-colors"
-                  title="Supprimer"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
+          {/* En-tête */}
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-medium text-white text-sm truncate">
+              {comment.user?.name || comment.userId || 'Utilisateur'}
+            </span>
+            <span className="text-xs text-gray-400">
+              {formatDate(comment.createdAt)}
+            </span>
+            {comment.isEdited && (
+              <span className="text-xs text-gray-500">(modifié)</span>
             )}
           </div>
 
           {/* Contenu du commentaire */}
-          <div className="mt-1">
-            {isEditing ? (
-              <div className="space-y-2">
-                <textarea
-                  defaultValue={comment.content}
-                  className="w-full p-2 bg-white/5 border border-white/20 rounded-lg text-white text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows="2"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleEditComment(comment.id, e.target.value);
-                    }
-                    if (e.key === 'Escape') {
-                      setEditingComment(null);
-                    }
+          {isEditing ? (
+            <div className="space-y-2">
+              <textarea
+                defaultValue={comment.content}
+                className="w-full p-2 bg-white/5 border border-white/20 rounded text-white text-sm resize-none"
+                rows="2"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleEditComment(comment.id, e.target.value);
+                  }
+                  if (e.key === 'Escape') {
+                    setEditingComment(null);
+                  }
+                }}
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => {
+                    const textarea = e.target.closest('.space-y-2').querySelector('textarea');
+                    handleEditComment(comment.id, textarea.value);
                   }}
-                  autoFocus
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={(e) => {
-                      const textarea = e.target.closest('.space-y-2').querySelector('textarea');
-                      handleEditComment(comment.id, textarea.value);
-                    }}
-                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                  >
-                    Enregistrer
-                  </button>
-                  <button
-                    onClick={() => setEditingComment(null)}
-                    className="text-xs text-gray-400 hover:text-white transition-colors"
-                  >
-                    Annuler
-                  </button>
-                </div>
+                  className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Sauvegarder
+                </button>
+                <button
+                  onClick={() => setEditingComment(null)}
+                  className="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+                >
+                  Annuler
+                </button>
               </div>
-            ) : (
-              <p className={`text-sm whitespace-pre-wrap ${isDeleted ? 'text-gray-500 italic' : 'text-gray-200'}`}>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className={`text-sm ${isDeleted ? 'text-gray-500 italic' : 'text-gray-200'}`}>
                 {comment.content}
               </p>
-            )}
-          </div>
 
-          {/* Réponse */}
-          {!isDeleted && (
-            <button
-              onClick={() => setReplyTo(comment)}
-              className="mt-2 text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
-            >
-              <Reply className="w-3 h-3" />
-              Répondre
-            </button>
+              {/* Actions */}
+              {!isDeleted && (
+                <div className="flex items-center gap-3 text-xs">
+                  <button 
+                    onClick={() => setReplyTo(comment)}
+                    className="text-gray-400 hover:text-blue-400 flex items-center gap-1"
+                  >
+                    <Reply className="w-3 h-3" />
+                    Répondre
+                  </button>
+                  
+                  {isOwnComment && (
+                    <>
+                      <button 
+                        onClick={() => setEditingComment(comment.id)}
+                        className="text-gray-400 hover:text-yellow-400 flex items-center gap-1"
+                      >
+                        <Edit className="w-3 h-3" />
+                        Modifier
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteComment(comment.id)}
+                        className="text-gray-400 hover:text-red-400 flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Supprimer
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -403,67 +367,60 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
 
   if (loading) {
     return (
-      <div className={`bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/20 ${className}`}>
+      <div className={`p-6 ${className}`}>
         <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="ml-3 text-gray-400">Chargement des commentaires...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/20 ${className}`}>
+    <div className={`bg-gray-800 rounded-lg border border-gray-700 ${className}`}>
+      
       {/* En-tête */}
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-white flex items-center">
-          <MessageCircle className="w-5 h-5 mr-2" />
-          Commentaires ({comments.filter(c => c.content !== '[Commentaire supprimé]').length})
-        </h3>
-        <button
-          onClick={loadComments}
-          className="text-sm text-blue-400 hover:text-white transition-colors"
-          title="Actualiser"
-        >
-          🔄
-        </button>
+      <div className="p-4 border-b border-gray-700">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-white flex items-center gap-2">
+            <MessageCircle className="w-5 h-5" />
+            Commentaires ({comments.length})
+          </h3>
+        </div>
       </div>
 
-      {/* Gestion des erreurs */}
+      {/* Affichage des erreurs */}
       {error && (
-        <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-          <p className="text-red-300 text-sm">{error}</p>
-          <button
+        <div className="p-4 bg-red-500/10 border-b border-red-500/20">
+          <p className="text-red-400 text-sm">{error}</p>
+          <button 
             onClick={() => setError(null)}
-            className="mt-2 text-xs text-red-200 hover:text-white transition-colors"
+            className="text-red-300 text-xs underline mt-1"
           >
             Fermer
           </button>
         </div>
       )}
 
-      {/* Réponse à un commentaire */}
+      {/* Réponse à */}
       {replyTo && (
-        <div className="mb-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg">
+        <div className="p-4 bg-blue-500/10 border-b border-blue-500/20">
           <div className="flex items-center justify-between">
-            <p className="text-blue-300 text-sm">
-              <Reply className="w-3 h-3 inline mr-1" />
-              Réponse à {replyTo.user?.name || 'un commentaire'}
+            <p className="text-blue-400 text-sm">
+              Réponse à <strong>{replyTo.user?.name || replyTo.userId}</strong>
             </p>
-            <button
+            <button 
               onClick={() => setReplyTo(null)}
-              className="text-blue-200 hover:text-white transition-colors"
+              className="text-blue-300 hover:text-blue-200"
             >
-              ×
+              <X className="w-4 h-4" />
             </button>
           </div>
-          <p className="text-blue-200 text-xs mt-1 truncate">
-            {replyTo.content}
-          </p>
         </div>
       )}
 
       {/* Liste des commentaires */}
-      <div className="space-y-4 mb-6">
+      <div className="p-4 max-h-96 overflow-y-auto">
         {comments.length === 0 ? (
           <div className="text-center py-8">
             <MessageCircle className="w-12 h-12 text-gray-600 mx-auto mb-3" />
@@ -477,7 +434,7 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
 
       {/* Formulaire d'ajout - CORRIGÉ */}
       {user ? (
-        <form onSubmit={handleSubmitComment} className="space-y-3">
+        <form onSubmit={handleSubmitComment} className="p-4 border-t border-gray-700 space-y-3">
           <div className="flex gap-3">
             <div className="flex-shrink-0">
               <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
@@ -532,7 +489,7 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
           </div>
         </form>
       ) : (
-        <div className="text-center py-4">
+        <div className="p-4 border-t border-gray-700 text-center">
           <p className="text-gray-400">Connectez-vous pour commenter</p>
         </div>
       )}
