@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/projectService.js
-// SERVICE COMPLET DE GESTION DES PROJETS
+// SERVICE CORRIGÉ - FIREBASE SANS ERREURS UNDEFINED
 // ==========================================
 
 import { 
@@ -16,53 +16,107 @@ import {
   orderBy, 
   limit,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
 /**
- * 📁 SERVICE COMPLET DE GESTION DES PROJETS
- * Toutes les opérations CRUD pour les projets + bénévolat
+ * 🛡️ FONCTION DE NETTOYAGE DES DONNÉES POUR FIREBASE
+ * Supprime tous les champs undefined/null avant envoi
+ */
+const sanitizeDataForFirebase = (data) => {
+  const cleanData = {};
+  
+  for (const [key, value] of Object.entries(data)) {
+    // Ignorer les valeurs undefined, null ou chaînes vides
+    if (value !== undefined && value !== null && value !== '') {
+      // Traitement spécial pour les arrays
+      if (Array.isArray(value)) {
+        cleanData[key] = value.filter(item => item !== undefined && item !== null && item !== '');
+      }
+      // Traitement spécial pour les objets
+      else if (typeof value === 'object' && value !== null) {
+        const cleanObject = sanitizeDataForFirebase(value);
+        if (Object.keys(cleanObject).length > 0) {
+          cleanData[key] = cleanObject;
+        }
+      }
+      // Valeurs primitives
+      else {
+        cleanData[key] = value;
+      }
+    }
+  }
+  
+  return cleanData;
+};
+
+/**
+ * 📁 SERVICE COMPLET DE GESTION DES PROJETS - VERSION CORRIGÉE
  */
 class ProjectService {
   constructor() {
-    console.log('📁 ProjectService initialisé');
+    console.log('📁 ProjectService initialisé - Version corrigée Firebase');
   }
 
   /**
-   * ➕ CRÉER UN NOUVEAU PROJET
+   * ➕ CRÉER UN NOUVEAU PROJET - CORRIGÉ POUR ÉVITER LES ERREURS FIREBASE
    */
   async createProject(projectData, userId) {
     try {
-      console.log('➕ [CREATE] Création projet:', projectData.title);
+      console.log('➕ [CREATE] Création projet:', projectData?.title || 'Sans titre');
 
-      const newProject = {
-        ...projectData,
-        createdBy: userId,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      // 🛡️ VALIDATION DES PARAMÈTRES OBLIGATOIRES
+      if (!projectData || !userId) {
+        throw new Error('Données de projet et utilisateur requis');
+      }
+
+      if (!projectData.title || projectData.title.trim() === '') {
+        throw new Error('Le titre du projet est obligatoire');
+      }
+
+      // 🧹 NETTOYAGE ET PRÉPARATION DES DONNÉES
+      const baseProjectData = {
+        title: projectData.title.trim(),
+        description: projectData.description?.trim() || '',
         status: projectData.status || 'planning',
         priority: projectData.priority || 'medium',
-        teamMembers: projectData.teamMembers || [userId], // Créateur automatiquement membre
+        category: projectData.category || 'general',
+        createdBy: userId.trim(),
+        teamMembers: Array.isArray(projectData.teamMembers) 
+          ? [...new Set([userId, ...projectData.teamMembers])] // Créateur toujours membre
+          : [userId],
+        tags: Array.isArray(projectData.tags) ? projectData.tags : [],
+        budget: typeof projectData.budget === 'number' ? projectData.budget : 0,
+        actualSpent: 0,
         progress: 0,
         tasks: [],
-        tags: projectData.tags || [],
-        budget: projectData.budget || 0,
-        actualSpent: 0
+        milestones: [],
+        // Timestamps Firebase
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
 
-      const docRef = await addDoc(collection(db, 'projects'), newProject);
+      // 🛡️ NETTOYAGE FINAL - SUPPRESSION DE TOUS LES UNDEFINED
+      const cleanProjectData = sanitizeDataForFirebase(baseProjectData);
+
+      console.log('🧹 [CREATE] Données nettoyées:', Object.keys(cleanProjectData));
+
+      // 🔥 CRÉATION DANS FIREBASE
+      const docRef = await addDoc(collection(db, 'projects'), cleanProjectData);
       
       console.log('✅ [CREATE] Projet créé avec ID:', docRef.id);
       
       return {
         id: docRef.id,
-        ...newProject
+        ...cleanProjectData
       };
 
     } catch (error) {
       console.error('❌ [CREATE] Erreur création projet:', error);
-      throw error;
+      throw new Error(`Erreur création projet: ${error.message}`);
     }
   }
 
@@ -98,16 +152,58 @@ class ProjectService {
   }
 
   /**
-   * 📄 RÉCUPÉRER UN PROJET PAR ID
+   * 👤 RÉCUPÉRER LES PROJETS D'UN UTILISATEUR
+   */
+  async getUserProjects(userId) {
+    try {
+      console.log('👤 [GET_USER] Récupération projets utilisateur:', userId);
+
+      if (!userId) {
+        console.warn('⚠️ [GET_USER] UserId manquant');
+        return [];
+      }
+
+      const userProjectsQuery = query(
+        collection(db, 'projects'),
+        where('teamMembers', 'array-contains', userId),
+        orderBy('updatedAt', 'desc')
+      );
+      
+      const projectsSnapshot = await getDocs(userProjectsQuery);
+      const projects = [];
+      
+      projectsSnapshot.forEach(doc => {
+        projects.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      console.log('✅ [GET_USER] Projets utilisateur récupérés:', projects.length);
+      return projects;
+
+    } catch (error) {
+      console.error('❌ [GET_USER] Erreur récupération projets utilisateur:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🔍 RÉCUPÉRER UN PROJET SPÉCIFIQUE
    */
   async getProject(projectId) {
     try {
-      console.log('📄 [GET] Récupération projet:', projectId);
+      console.log('🔍 [GET] Récupération projet:', projectId);
+
+      if (!projectId) {
+        throw new Error('ID du projet requis');
+      }
 
       const projectDoc = await getDoc(doc(db, 'projects', projectId));
       
       if (!projectDoc.exists()) {
-        throw new Error('Projet introuvable');
+        console.warn('⚠️ [GET] Projet non trouvé:', projectId);
+        return null;
       }
 
       const project = {
@@ -125,113 +221,30 @@ class ProjectService {
   }
 
   /**
-   * 👤 RÉCUPÉRER LES PROJETS D'UN UTILISATEUR
+   * ✏️ METTRE À JOUR UN PROJET - AVEC NETTOYAGE DES DONNÉES
    */
-  async getUserProjects(userId, options = {}) {
-    try {
-      console.log('👤 [GET_USER] Récupération projets utilisateur:', userId);
-
-      // Récupérer les projets créés par l'utilisateur
-      let createdProjectsQuery = query(
-        collection(db, 'projects'),
-        where('createdBy', '==', userId)
-      );
-
-      // Récupérer les projets où l'utilisateur est membre de l'équipe
-      let memberProjectsQuery = query(
-        collection(db, 'projects'),
-        where('teamMembers', 'array-contains', userId)
-      );
-
-      // Appliquer les filtres optionnels
-      if (options.status) {
-        createdProjectsQuery = query(createdProjectsQuery, where('status', '==', options.status));
-        memberProjectsQuery = query(memberProjectsQuery, where('status', '==', options.status));
-      }
-
-      if (options.priority) {
-        createdProjectsQuery = query(createdProjectsQuery, where('priority', '==', options.priority));
-        memberProjectsQuery = query(memberProjectsQuery, where('priority', '==', options.priority));
-      }
-
-      // Ordre
-      createdProjectsQuery = query(createdProjectsQuery, orderBy('createdAt', 'desc'));
-      memberProjectsQuery = query(memberProjectsQuery, orderBy('createdAt', 'desc'));
-
-      // Exécuter les requêtes
-      const [createdSnapshot, memberSnapshot] = await Promise.all([
-        getDocs(createdProjectsQuery),
-        getDocs(memberProjectsQuery)
-      ]);
-
-      const projects = new Map();
-
-      // Ajouter les projets créés
-      createdSnapshot.forEach(doc => {
-        projects.set(doc.id, {
-          id: doc.id,
-          ...doc.data(),
-          userRole: 'creator'
-        });
-      });
-
-      // Ajouter les projets où l'utilisateur est membre (éviter doublons)
-      memberSnapshot.forEach(doc => {
-        if (!projects.has(doc.id)) {
-          projects.set(doc.id, {
-            id: doc.id,
-            ...doc.data(),
-            userRole: 'member'
-          });
-        }
-      });
-
-      const userProjects = Array.from(projects.values());
-
-      // Appliquer la limite si spécifiée
-      if (options.limit) {
-        userProjects.splice(options.limit);
-      }
-
-      console.log('✅ [GET_USER] Projets utilisateur récupérés:', userProjects.length);
-      return userProjects;
-
-    } catch (error) {
-      console.error('❌ [GET_USER] Erreur récupération projets utilisateur:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * ✏️ METTRE À JOUR UN PROJET
-   */
-  async updateProject(projectId, updates, userId) {
+  async updateProject(projectId, updates) {
     try {
       console.log('✏️ [UPDATE] Mise à jour projet:', projectId);
 
-      const projectRef = doc(db, 'projects', projectId);
-      
-      // Vérifier que le projet existe
-      const projectDoc = await getDoc(projectRef);
-      if (!projectDoc.exists()) {
-        throw new Error('Projet introuvable');
+      if (!projectId || !updates) {
+        throw new Error('ID du projet et données de mise à jour requis');
       }
 
-      const updatedData = {
+      // 🧹 NETTOYAGE DES DONNÉES DE MISE À JOUR
+      const cleanUpdates = sanitizeDataForFirebase({
         ...updates,
-        updatedAt: serverTimestamp(),
-        updatedBy: userId
-      };
+        updatedAt: serverTimestamp()
+      });
 
-      await updateDoc(projectRef, updatedData);
+      console.log('🧹 [UPDATE] Données nettoyées:', Object.keys(cleanUpdates));
 
+      await updateDoc(doc(db, 'projects', projectId), cleanUpdates);
+      
       console.log('✅ [UPDATE] Projet mis à jour');
       
-      return {
-        id: projectId,
-        ...projectDoc.data(),
-        ...updatedData
-      };
+      // Retourner le projet mis à jour
+      return await this.getProject(projectId);
 
     } catch (error) {
       console.error('❌ [UPDATE] Erreur mise à jour projet:', error);
@@ -242,57 +255,18 @@ class ProjectService {
   /**
    * 🗑️ SUPPRIMER UN PROJET
    */
-  async deleteProject(projectId, userId) {
+  async deleteProject(projectId) {
     try {
       console.log('🗑️ [DELETE] Suppression projet:', projectId);
 
-      const projectRef = doc(db, 'projects', projectId);
+      if (!projectId) {
+        throw new Error('ID du projet requis');
+      }
+
+      await deleteDoc(doc(db, 'projects', projectId));
       
-      // Vérifier que le projet existe
-      const projectDoc = await getDoc(projectRef);
-      if (!projectDoc.exists()) {
-        throw new Error('Projet introuvable');
-      }
-
-      const projectData = projectDoc.data();
-
-      // Vérifier les permissions (seul le créateur peut supprimer)
-      if (projectData.createdBy !== userId) {
-        throw new Error('Vous n\'avez pas le droit de supprimer ce projet');
-      }
-
-      // Utiliser un batch pour supprimer le projet et ses données liées
-      const batch = writeBatch(db);
-
-      // Supprimer le projet
-      batch.delete(projectRef);
-
-      // Supprimer les tâches liées
-      const tasksQuery = query(
-        collection(db, 'tasks'),
-        where('projectId', '==', projectId)
-      );
-
-      const tasksSnapshot = await getDocs(tasksQuery);
-      tasksSnapshot.forEach(doc => {
-        batch.delete(doc.ref);
-      });
-
-      // Supprimer les participations liées
-      const participationsQuery = query(
-        collection(db, 'projectParticipations'),
-        where('projectId', '==', projectId)
-      );
-
-      const participationsSnapshot = await getDocs(participationsQuery);
-      participationsSnapshot.forEach(doc => {
-        batch.delete(doc.ref);
-      });
-
-      await batch.commit();
-
-      console.log('✅ [DELETE] Projet et données liées supprimés');
-      return { success: true };
+      console.log('✅ [DELETE] Projet supprimé:', projectId);
+      return true;
 
     } catch (error) {
       console.error('❌ [DELETE] Erreur suppression projet:', error);
@@ -301,260 +275,72 @@ class ProjectService {
   }
 
   /**
-   * 🙋‍♂️ REJOINDRE UN PROJET COMME VOLONTAIRE
+   * 👥 AJOUTER UN MEMBRE À L'ÉQUIPE
    */
-  async joinProjectAsVolunteer(projectId, userId) {
+  async addTeamMember(projectId, userId) {
     try {
-      console.log('🙋‍♂️ [PROJECT VOLUNTEER] Candidature projet:', { projectId, userId });
+      console.log('👥 [ADD_MEMBER] Ajout membre:', { projectId, userId });
 
-      // Vérifier si le projet existe
-      const projectRef = doc(db, 'projects', projectId);
-      const projectDoc = await getDoc(projectRef);
-      
-      if (!projectDoc.exists()) {
-        throw new Error('Projet introuvable');
+      if (!projectId || !userId) {
+        throw new Error('ID du projet et utilisateur requis');
       }
-
-      const projectData = projectDoc.data();
-      
-      // Vérifier si déjà membre de l'équipe
-      if (projectData.teamMembers && projectData.teamMembers.includes(userId)) {
-        throw new Error('Vous faites déjà partie de ce projet');
-      }
-
-      // Récupérer les données utilisateur
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      const userData = userDoc.exists() ? userDoc.data() : {};
-
-      const batch = writeBatch(db);
-
-      if (projectData.requiresApproval) {
-        // Créer une demande pour approbation
-        const volunteerRequestRef = doc(collection(db, 'volunteerRequests'));
-        batch.set(volunteerRequestRef, {
-          projectId,
-          projectTitle: projectData.title || 'Projet sans titre',
-          userId,
-          userName: userData.displayName || userData.name || 'Utilisateur anonyme',
-          userEmail: userData.email || '',
-          requestedAt: serverTimestamp(),
-          status: 'pending',
-          type: 'project_volunteer',
-          message: `Demande de participation au projet "${projectData.title}"`
-        });
-
-        await batch.commit();
-
-        return {
-          success: true,
-          pending: true,
-          message: 'Demande de participation envoyée et en attente d\'approbation'
-        };
-
-      } else {
-        // Ajouter directement à l'équipe
-        const currentTeam = projectData.teamMembers || [];
-        batch.update(projectRef, {
-          teamMembers: [...currentTeam, userId],
-          updatedAt: serverTimestamp()
-        });
-
-        // Créer un enregistrement de participation
-        const participationRef = doc(collection(db, 'projectParticipations'));
-        batch.set(participationRef, {
-          projectId,
-          projectTitle: projectData.title || 'Projet sans titre',
-          userId,
-          userName: userData.displayName || userData.name || 'Utilisateur anonyme',
-          userEmail: userData.email || '',
-          joinedAt: serverTimestamp(),
-          role: 'volunteer',
-          isVolunteer: true,
-          status: 'active'
-        });
-
-        await batch.commit();
-
-        return {
-          success: true,
-          pending: false,
-          message: 'Vous avez rejoint l\'équipe du projet avec succès'
-        };
-      }
-
-    } catch (error) {
-      console.error('❌ [PROJECT VOLUNTEER] Erreur candidature projet:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 👥 GÉRER L'ÉQUIPE D'UN PROJET
-   */
-  async addTeamMember(projectId, memberId, addedBy, role = 'member') {
-    try {
-      console.log('👥 [TEAM] Ajout membre équipe:', { projectId, memberId, role });
 
       const projectRef = doc(db, 'projects', projectId);
-      const projectDoc = await getDoc(projectRef);
       
-      if (!projectDoc.exists()) {
-        throw new Error('Projet introuvable');
-      }
-
-      const projectData = projectDoc.data();
-      const currentTeam = projectData.teamMembers || [];
-
-      if (currentTeam.includes(memberId)) {
-        throw new Error('Cette personne fait déjà partie de l\'équipe');
-      }
-
-      // Récupérer les données du nouveau membre
-      const memberDoc = await getDoc(doc(db, 'users', memberId));
-      const memberData = memberDoc.exists() ? memberDoc.data() : {};
-
-      const batch = writeBatch(db);
-
-      // Mettre à jour la liste des membres
-      batch.update(projectRef, {
-        teamMembers: [...currentTeam, memberId],
+      await updateDoc(projectRef, {
+        teamMembers: arrayUnion(userId),
         updatedAt: serverTimestamp()
       });
-
-      // Créer un enregistrement de participation
-      const participationRef = doc(collection(db, 'projectParticipations'));
-      batch.set(participationRef, {
-        projectId,
-        projectTitle: projectData.title || 'Projet sans titre',
-        userId: memberId,
-        userName: memberData.displayName || memberData.name || 'Utilisateur anonyme',
-        userEmail: memberData.email || '',
-        joinedAt: serverTimestamp(),
-        addedBy,
-        role,
-        isVolunteer: false,
-        status: 'active'
-      });
-
-      await batch.commit();
-
-      console.log('✅ [TEAM] Membre ajouté à l\'équipe');
-      return { success: true };
+      
+      console.log('✅ [ADD_MEMBER] Membre ajouté à l\'équipe');
+      return true;
 
     } catch (error) {
-      console.error('❌ [TEAM] Erreur ajout membre équipe:', error);
+      console.error('❌ [ADD_MEMBER] Erreur ajout membre:', error);
       throw error;
     }
   }
 
   /**
-   * 🚪 RETIRER UN MEMBRE DE L'ÉQUIPE
+   * 👥 RETIRER UN MEMBRE DE L'ÉQUIPE
    */
-  async removeTeamMember(projectId, memberId, removedBy) {
+  async removeTeamMember(projectId, userId) {
     try {
-      console.log('🚪 [TEAM] Retrait membre équipe:', { projectId, memberId });
+      console.log('👥 [REMOVE_MEMBER] Retrait membre:', { projectId, userId });
+
+      if (!projectId || !userId) {
+        throw new Error('ID du projet et utilisateur requis');
+      }
 
       const projectRef = doc(db, 'projects', projectId);
-      const projectDoc = await getDoc(projectRef);
       
-      if (!projectDoc.exists()) {
-        throw new Error('Projet introuvable');
-      }
-
-      const projectData = projectDoc.data();
-      const currentTeam = projectData.teamMembers || [];
-
-      if (!currentTeam.includes(memberId)) {
-        throw new Error('Cette personne ne fait pas partie de l\'équipe');
-      }
-
-      // Ne pas permettre de retirer le créateur
-      if (projectData.createdBy === memberId) {
-        throw new Error('Le créateur du projet ne peut pas être retiré de l\'équipe');
-      }
-
-      const batch = writeBatch(db);
-
-      // Mettre à jour la liste des membres
-      const newTeam = currentTeam.filter(id => id !== memberId);
-      batch.update(projectRef, {
-        teamMembers: newTeam,
+      await updateDoc(projectRef, {
+        teamMembers: arrayRemove(userId),
         updatedAt: serverTimestamp()
       });
-
-      // Mettre à jour le statut de participation
-      const participationQuery = query(
-        collection(db, 'projectParticipations'),
-        where('projectId', '==', projectId),
-        where('userId', '==', memberId)
-      );
-
-      const participationSnapshot = await getDocs(participationQuery);
-      participationSnapshot.forEach(doc => {
-        batch.update(doc.ref, {
-          status: 'removed',
-          removedAt: serverTimestamp(),
-          removedBy
-        });
-      });
-
-      await batch.commit();
-
-      console.log('✅ [TEAM] Membre retiré de l\'équipe');
-      return { success: true };
+      
+      console.log('✅ [REMOVE_MEMBER] Membre retiré de l\'équipe');
+      return true;
 
     } catch (error) {
-      console.error('❌ [TEAM] Erreur retrait membre équipe:', error);
+      console.error('❌ [REMOVE_MEMBER] Erreur retrait membre:', error);
       throw error;
     }
   }
 
   /**
-   * 📊 METTRE À JOUR LE STATUT D'UN PROJET
+   * 📊 METTRE À JOUR LA PROGRESSION DU PROJET
    */
-  async updateProjectStatus(projectId, newStatus, userId) {
+  async updateProjectProgress(projectId) {
     try {
-      console.log('📊 [STATUS] Changement statut projet:', { projectId, newStatus });
+      console.log('📊 [PROGRESS] Calcul progression projet:', projectId);
 
-      const updates = {
-        status: newStatus,
-        updatedAt: serverTimestamp(),
-        updatedBy: userId
-      };
-
-      // Ajouter des timestamps spécifiques selon le statut
-      if (newStatus === 'active') {
-        updates.startedAt = serverTimestamp();
-      } else if (newStatus === 'completed') {
-        updates.completedAt = serverTimestamp();
-      } else if (newStatus === 'cancelled') {
-        updates.cancelledAt = serverTimestamp();
-      }
-
-      await this.updateProject(projectId, updates, userId);
-
-      console.log('✅ [STATUS] Statut mis à jour vers:', newStatus);
-      return { success: true };
-
-    } catch (error) {
-      console.error('❌ [STATUS] Erreur changement statut:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📈 CALCULER LA PROGRESSION D'UN PROJET
-   */
-  async calculateProjectProgress(projectId) {
-    try {
-      console.log('📈 [PROGRESS] Calcul progression projet:', projectId);
-
-      // Récupérer toutes les tâches du projet
+      // Récupérer les tâches du projet
       const tasksQuery = query(
         collection(db, 'tasks'),
         where('projectId', '==', projectId)
       );
-
+      
       const tasksSnapshot = await getDocs(tasksQuery);
       const tasks = [];
       
@@ -562,18 +348,20 @@ class ProjectService {
         tasks.push(doc.data());
       });
 
-      if (tasks.length === 0) {
-        return 0;
+      // Calculer la progression
+      let progress = 0;
+      if (tasks.length > 0) {
+        const completedTasks = tasks.filter(task => task.status === 'completed').length;
+        progress = Math.round((completedTasks / tasks.length) * 100);
       }
 
-      // Calculer le pourcentage de tâches terminées
-      const completedTasks = tasks.filter(task => task.status === 'completed').length;
-      const progress = Math.round((completedTasks / tasks.length) * 100);
+      // Mettre à jour le projet
+      await updateDoc(doc(db, 'projects', projectId), {
+        progress: progress,
+        updatedAt: serverTimestamp()
+      });
 
-      // Mettre à jour le projet avec la nouvelle progression
-      await this.updateProject(projectId, { progress }, 'system');
-
-      console.log('✅ [PROGRESS] Progression calculée:', progress + '%');
+      console.log('✅ [PROGRESS] Progression mise à jour:', progress + '%');
       return progress;
 
     } catch (error) {
@@ -585,68 +373,47 @@ class ProjectService {
   /**
    * 🔍 RECHERCHER DES PROJETS
    */
-  async searchProjects(searchParams, userId) {
+  async searchProjects(searchTerm, filters = {}) {
     try {
-      console.log('🔍 [SEARCH] Recherche projets:', searchParams);
+      console.log('🔍 [SEARCH] Recherche projets:', searchTerm);
 
       let projectsQuery = collection(db, 'projects');
-
-      // Filtres de base
-      if (searchParams.createdBy) {
-        projectsQuery = query(projectsQuery, where('createdBy', '==', searchParams.createdBy));
-      } else if (searchParams.userProjects && userId) {
-        // Rechercher dans les projets de l'utilisateur
-        projectsQuery = query(projectsQuery, where('teamMembers', 'array-contains', userId));
+      
+      // Appliquer les filtres
+      if (filters.status) {
+        projectsQuery = query(projectsQuery, where('status', '==', filters.status));
+      }
+      
+      if (filters.priority) {
+        projectsQuery = query(projectsQuery, where('priority', '==', filters.priority));
+      }
+      
+      if (filters.category) {
+        projectsQuery = query(projectsQuery, where('category', '==', filters.category));
       }
 
-      if (searchParams.status) {
-        projectsQuery = query(projectsQuery, where('status', '==', searchParams.status));
-      }
-
-      if (searchParams.priority) {
-        projectsQuery = query(projectsQuery, where('priority', '==', searchParams.priority));
-      }
-
-      // Ordre
-      projectsQuery = query(projectsQuery, orderBy('createdAt', 'desc'));
-
-      // Limite
-      if (searchParams.limit) {
-        projectsQuery = query(projectsQuery, limit(searchParams.limit));
-      }
-
+      // Ajouter l'ordre
+      projectsQuery = query(projectsQuery, orderBy('updatedAt', 'desc'));
+      
       const projectsSnapshot = await getDocs(projectsQuery);
-      const projects = [];
+      let projects = [];
       
       projectsSnapshot.forEach(doc => {
-        const projectData = { id: doc.id, ...doc.data() };
-        
-        // Filtrage côté client pour les critères complexes
-        let matches = true;
-        
-        if (searchParams.keyword) {
-          const keyword = searchParams.keyword.toLowerCase();
-          matches = matches && (
-            projectData.title?.toLowerCase().includes(keyword) ||
-            projectData.description?.toLowerCase().includes(keyword) ||
-            projectData.tags?.some(tag => tag.toLowerCase().includes(keyword))
-          );
-        }
-
-        if (searchParams.deadlineBefore) {
-          const deadline = projectData.deadline?.toDate ? projectData.deadline.toDate() : new Date(projectData.deadline);
-          matches = matches && deadline && deadline <= new Date(searchParams.deadlineBefore);
-        }
-
-        if (searchParams.deadlineAfter) {
-          const deadline = projectData.deadline?.toDate ? projectData.deadline.toDate() : new Date(projectData.deadline);
-          matches = matches && deadline && deadline >= new Date(searchParams.deadlineAfter);
-        }
-
-        if (matches) {
-          projects.push(projectData);
-        }
+        projects.push({
+          id: doc.id,
+          ...doc.data()
+        });
       });
+
+      // Filtrage côté client pour la recherche textuelle
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        projects = projects.filter(project => 
+          project.title?.toLowerCase().includes(searchLower) ||
+          project.description?.toLowerCase().includes(searchLower) ||
+          project.tags?.some(tag => tag.toLowerCase().includes(searchLower))
+        );
+      }
 
       console.log('✅ [SEARCH] Projets trouvés:', projects.length);
       return projects;
@@ -658,64 +425,29 @@ class ProjectService {
   }
 
   /**
-   * 📊 STATISTIQUES DES PROJETS
+   * 📊 OBTENIR LES STATISTIQUES DES PROJETS D'UN UTILISATEUR
    */
-  async getProjectStats(userId) {
+  async getUserProjectStats(userId) {
     try {
-      console.log('📊 [STATS] Calcul statistiques projets:', userId);
+      console.log('📊 [STATS] Calcul statistiques projets utilisateur:', userId);
 
       const userProjects = await this.getUserProjects(userId);
-
+      
       const stats = {
-        total: userProjects.length,
-        planning: 0,
-        active: 0,
-        onHold: 0,
-        completed: 0,
-        cancelled: 0,
+        totalProjects: userProjects.length,
+        activeProjects: userProjects.filter(p => p.status === 'active').length,
+        completedProjects: userProjects.filter(p => p.status === 'completed').length,
+        planningProjects: userProjects.filter(p => p.status === 'planning').length,
         averageProgress: 0,
-        totalBudget: 0,
-        totalSpent: 0
+        totalBudget: userProjects.reduce((sum, p) => sum + (p.budget || 0), 0),
+        totalSpent: userProjects.reduce((sum, p) => sum + (p.actualSpent || 0), 0)
       };
 
-      let totalProgress = 0;
-
-      userProjects.forEach(project => {
-        // Comptage par statut
-        switch (project.status) {
-          case 'planning':
-            stats.planning++;
-            break;
-          case 'active':
-            stats.active++;
-            break;
-          case 'on_hold':
-            stats.onHold++;
-            break;
-          case 'completed':
-            stats.completed++;
-            break;
-          case 'cancelled':
-            stats.cancelled++;
-            break;
-        }
-
-        // Progression moyenne
-        if (project.progress) {
-          totalProgress += project.progress;
-        }
-
-        // Budget
-        if (project.budget) {
-          stats.totalBudget += project.budget;
-        }
-        if (project.actualSpent) {
-          stats.totalSpent += project.actualSpent;
-        }
-      });
-
-      stats.averageProgress = userProjects.length > 0 ? 
-        Math.round(totalProgress / userProjects.length) : 0;
+      // Calcul progression moyenne
+      if (userProjects.length > 0) {
+        const totalProgress = userProjects.reduce((sum, p) => sum + (p.progress || 0), 0);
+        stats.averageProgress = Math.round(totalProgress / userProjects.length);
+      }
 
       console.log('✅ [STATS] Statistiques calculées:', stats);
       return stats;
@@ -735,23 +467,25 @@ class ProjectService {
 
       const originalProject = await this.getProject(projectId);
       
+      if (!originalProject) {
+        throw new Error('Projet original non trouvé');
+      }
+
       // Préparer les données du nouveau projet
       const duplicatedProjectData = {
-        ...originalProject,
         title: modifications.title || `${originalProject.title} (Copie)`,
+        description: originalProject.description,
+        category: originalProject.category,
+        priority: originalProject.priority,
+        tags: originalProject.tags || [],
+        budget: originalProject.budget || 0,
         status: 'planning',
-        teamMembers: [userId], // Seul le créateur dans la nouvelle équipe
+        // Nouveaux champs pour la copie
+        teamMembers: [userId],
         progress: 0,
-        tasks: [],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        createdBy: userId,
-        // Retirer les champs qui ne doivent pas être dupliqués
-        id: undefined,
-        completedAt: undefined,
-        completedBy: undefined,
-        startedAt: undefined,
         actualSpent: 0,
+        tasks: [],
+        milestones: [],
         ...modifications
       };
 
@@ -769,3 +503,6 @@ class ProjectService {
 
 // Export de l'instance
 export const projectService = new ProjectService();
+
+// Export de la classe pour compatibilité
+export default ProjectService;
