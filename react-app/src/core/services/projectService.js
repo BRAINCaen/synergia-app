@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/projectService.js
-// SERVICE CORRIGÉ - FIREBASE SANS ERREURS UNDEFINED
+// SERVICE CORRIGÉ - ORDRE DES PARAMÈTRES UNIFIÉ
 // ==========================================
 
 import { 
@@ -58,19 +58,25 @@ const sanitizeDataForFirebase = (data) => {
  */
 class ProjectService {
   constructor() {
-    console.log('📁 ProjectService initialisé - Version corrigée Firebase');
+    console.log('📁 ProjectService initialisé - Paramètres unifiés');
   }
 
   /**
-   * ➕ CRÉER UN NOUVEAU PROJET - CORRIGÉ POUR ÉVITER LES ERREURS FIREBASE
+   * ➕ CRÉER UN NOUVEAU PROJET - CORRIGÉ POUR ORDRE DES PARAMÈTRES UNIFIÉ
+   * SIGNATURE FINALE: createProject(projectData, userId) - comme attendu par ProjectsPage
    */
   async createProject(projectData, userId) {
     try {
       console.log('➕ [CREATE] Création projet:', projectData?.title || 'Sans titre');
+      console.log('👤 [CREATE] Utilisateur:', userId);
 
       // 🛡️ VALIDATION DES PARAMÈTRES OBLIGATOIRES
-      if (!projectData || !userId) {
-        throw new Error('Données de projet et utilisateur requis');
+      if (!projectData) {
+        throw new Error('Les données du projet sont requises');
+      }
+
+      if (!userId) {
+        throw new Error('L\'identifiant utilisateur est requis');
       }
 
       if (!projectData.title || projectData.title.trim() === '') {
@@ -489,6 +495,7 @@ class ProjectService {
         ...modifications
       };
 
+      // ✅ UTILISATION CORRECTE : createProject(projectData, userId)
       const newProject = await this.createProject(duplicatedProjectData, userId);
 
       console.log('✅ [DUPLICATE] Projet dupliqué:', newProject.id);
@@ -506,3 +513,8 @@ export const projectService = new ProjectService();
 
 // Export de la classe pour compatibilité
 export default ProjectService;
+
+// ✅ LOG DE CONFIRMATION DES PARAMÈTRES
+console.log('✅ ProjectService - Ordre des paramètres unifié');
+console.log('📋 createProject(projectData, userId) - Compatible avec ProjectsPage');
+console.log('🔧 Correction appliquée pour éliminer les erreurs de paramètres');
