@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/projectService.js
-// SERVICE CORRIGÉ - ORDRE DES PARAMÈTRES UNIFIÉ
+// SERVICE PROJETS - CORRECTION MINIMALE SANS CASSER L'EXISTANT
 // ==========================================
 
 import { 
@@ -23,101 +23,55 @@ import {
 import { db } from '../firebase.js';
 
 /**
- * 🛡️ FONCTION DE NETTOYAGE DES DONNÉES POUR FIREBASE
- * Supprime tous les champs undefined/null avant envoi
- */
-const sanitizeDataForFirebase = (data) => {
-  const cleanData = {};
-  
-  for (const [key, value] of Object.entries(data)) {
-    // Ignorer les valeurs undefined, null ou chaînes vides
-    if (value !== undefined && value !== null && value !== '') {
-      // Traitement spécial pour les arrays
-      if (Array.isArray(value)) {
-        cleanData[key] = value.filter(item => item !== undefined && item !== null && item !== '');
-      }
-      // Traitement spécial pour les objets
-      else if (typeof value === 'object' && value !== null) {
-        const cleanObject = sanitizeDataForFirebase(value);
-        if (Object.keys(cleanObject).length > 0) {
-          cleanData[key] = cleanObject;
-        }
-      }
-      // Valeurs primitives
-      else {
-        cleanData[key] = value;
-      }
-    }
-  }
-  
-  return cleanData;
-};
-
-/**
- * 📁 SERVICE COMPLET DE GESTION DES PROJETS - VERSION CORRIGÉE
+ * 📁 SERVICE COMPLET DE GESTION DES PROJETS - CORRECTION MINIMALE
  */
 class ProjectService {
   constructor() {
-    console.log('📁 ProjectService initialisé - Paramètres unifiés');
+    console.log('📁 ProjectService initialisé');
   }
 
   /**
-   * ➕ CRÉER UN NOUVEAU PROJET - CORRIGÉ POUR ORDRE DES PARAMÈTRES UNIFIÉ
-   * SIGNATURE FINALE: createProject(projectData, userId) - comme attendu par ProjectsPage
+   * ➕ CRÉER UN NOUVEAU PROJET - ORDRE PARAMÈTRES CORRIGÉ
    */
   async createProject(projectData, userId) {
     try {
       console.log('➕ [CREATE] Création projet:', projectData?.title || 'Sans titre');
-      console.log('👤 [CREATE] Utilisateur:', userId);
 
-      // 🛡️ VALIDATION DES PARAMÈTRES OBLIGATOIRES
-      if (!projectData) {
-        throw new Error('Les données du projet sont requises');
-      }
-
-      if (!userId) {
-        throw new Error('L\'identifiant utilisateur est requis');
+      // Validation simple
+      if (!projectData || !userId) {
+        throw new Error('Données de projet et utilisateur requis');
       }
 
       if (!projectData.title || projectData.title.trim() === '') {
         throw new Error('Le titre du projet est obligatoire');
       }
 
-      // 🧹 NETTOYAGE ET PRÉPARATION DES DONNÉES
-      const baseProjectData = {
+      // Préparation des données sans sanitization complexe pour éviter les bugs
+      const newProject = {
         title: projectData.title.trim(),
         description: projectData.description?.trim() || '',
         status: projectData.status || 'planning',
         priority: projectData.priority || 'medium',
         category: projectData.category || 'general',
         createdBy: userId.trim(),
-        teamMembers: Array.isArray(projectData.teamMembers) 
-          ? [...new Set([userId, ...projectData.teamMembers])] // Créateur toujours membre
-          : [userId],
-        tags: Array.isArray(projectData.tags) ? projectData.tags : [],
-        budget: typeof projectData.budget === 'number' ? projectData.budget : 0,
+        teamMembers: [userId],
+        tags: projectData.tags || [],
+        budget: projectData.budget || 0,
         actualSpent: 0,
         progress: 0,
         tasks: [],
-        milestones: [],
-        // Timestamps Firebase
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
 
-      // 🛡️ NETTOYAGE FINAL - SUPPRESSION DE TOUS LES UNDEFINED
-      const cleanProjectData = sanitizeDataForFirebase(baseProjectData);
-
-      console.log('🧹 [CREATE] Données nettoyées:', Object.keys(cleanProjectData));
-
-      // 🔥 CRÉATION DANS FIREBASE
-      const docRef = await addDoc(collection(db, 'projects'), cleanProjectData);
+      console.log('🔥 [CREATE] Envoi à Firebase...');
+      const docRef = await addDoc(collection(db, 'projects'), newProject);
       
       console.log('✅ [CREATE] Projet créé avec ID:', docRef.id);
       
       return {
         id: docRef.id,
-        ...cleanProjectData
+        ...newProject
       };
 
     } catch (error) {
@@ -227,7 +181,7 @@ class ProjectService {
   }
 
   /**
-   * ✏️ METTRE À JOUR UN PROJET - AVEC NETTOYAGE DES DONNÉES
+   * ✏️ METTRE À JOUR UN PROJET
    */
   async updateProject(projectId, updates) {
     try {
@@ -237,19 +191,15 @@ class ProjectService {
         throw new Error('ID du projet et données de mise à jour requis');
       }
 
-      // 🧹 NETTOYAGE DES DONNÉES DE MISE À JOUR
-      const cleanUpdates = sanitizeDataForFirebase({
+      const updateData = {
         ...updates,
         updatedAt: serverTimestamp()
-      });
+      };
 
-      console.log('🧹 [UPDATE] Données nettoyées:', Object.keys(cleanUpdates));
-
-      await updateDoc(doc(db, 'projects', projectId), cleanUpdates);
+      await updateDoc(doc(db, 'projects', projectId), updateData);
       
       console.log('✅ [UPDATE] Projet mis à jour');
       
-      // Retourner le projet mis à jour
       return await this.getProject(projectId);
 
     } catch (error) {
@@ -333,179 +283,6 @@ class ProjectService {
       throw error;
     }
   }
-
-  /**
-   * 📊 METTRE À JOUR LA PROGRESSION DU PROJET
-   */
-  async updateProjectProgress(projectId) {
-    try {
-      console.log('📊 [PROGRESS] Calcul progression projet:', projectId);
-
-      // Récupérer les tâches du projet
-      const tasksQuery = query(
-        collection(db, 'tasks'),
-        where('projectId', '==', projectId)
-      );
-      
-      const tasksSnapshot = await getDocs(tasksQuery);
-      const tasks = [];
-      
-      tasksSnapshot.forEach(doc => {
-        tasks.push(doc.data());
-      });
-
-      // Calculer la progression
-      let progress = 0;
-      if (tasks.length > 0) {
-        const completedTasks = tasks.filter(task => task.status === 'completed').length;
-        progress = Math.round((completedTasks / tasks.length) * 100);
-      }
-
-      // Mettre à jour le projet
-      await updateDoc(doc(db, 'projects', projectId), {
-        progress: progress,
-        updatedAt: serverTimestamp()
-      });
-
-      console.log('✅ [PROGRESS] Progression mise à jour:', progress + '%');
-      return progress;
-
-    } catch (error) {
-      console.error('❌ [PROGRESS] Erreur calcul progression:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🔍 RECHERCHER DES PROJETS
-   */
-  async searchProjects(searchTerm, filters = {}) {
-    try {
-      console.log('🔍 [SEARCH] Recherche projets:', searchTerm);
-
-      let projectsQuery = collection(db, 'projects');
-      
-      // Appliquer les filtres
-      if (filters.status) {
-        projectsQuery = query(projectsQuery, where('status', '==', filters.status));
-      }
-      
-      if (filters.priority) {
-        projectsQuery = query(projectsQuery, where('priority', '==', filters.priority));
-      }
-      
-      if (filters.category) {
-        projectsQuery = query(projectsQuery, where('category', '==', filters.category));
-      }
-
-      // Ajouter l'ordre
-      projectsQuery = query(projectsQuery, orderBy('updatedAt', 'desc'));
-      
-      const projectsSnapshot = await getDocs(projectsQuery);
-      let projects = [];
-      
-      projectsSnapshot.forEach(doc => {
-        projects.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
-
-      // Filtrage côté client pour la recherche textuelle
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        projects = projects.filter(project => 
-          project.title?.toLowerCase().includes(searchLower) ||
-          project.description?.toLowerCase().includes(searchLower) ||
-          project.tags?.some(tag => tag.toLowerCase().includes(searchLower))
-        );
-      }
-
-      console.log('✅ [SEARCH] Projets trouvés:', projects.length);
-      return projects;
-
-    } catch (error) {
-      console.error('❌ [SEARCH] Erreur recherche projets:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📊 OBTENIR LES STATISTIQUES DES PROJETS D'UN UTILISATEUR
-   */
-  async getUserProjectStats(userId) {
-    try {
-      console.log('📊 [STATS] Calcul statistiques projets utilisateur:', userId);
-
-      const userProjects = await this.getUserProjects(userId);
-      
-      const stats = {
-        totalProjects: userProjects.length,
-        activeProjects: userProjects.filter(p => p.status === 'active').length,
-        completedProjects: userProjects.filter(p => p.status === 'completed').length,
-        planningProjects: userProjects.filter(p => p.status === 'planning').length,
-        averageProgress: 0,
-        totalBudget: userProjects.reduce((sum, p) => sum + (p.budget || 0), 0),
-        totalSpent: userProjects.reduce((sum, p) => sum + (p.actualSpent || 0), 0)
-      };
-
-      // Calcul progression moyenne
-      if (userProjects.length > 0) {
-        const totalProgress = userProjects.reduce((sum, p) => sum + (p.progress || 0), 0);
-        stats.averageProgress = Math.round(totalProgress / userProjects.length);
-      }
-
-      console.log('✅ [STATS] Statistiques calculées:', stats);
-      return stats;
-
-    } catch (error) {
-      console.error('❌ [STATS] Erreur calcul statistiques:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📋 DUPLIQUER UN PROJET
-   */
-  async duplicateProject(projectId, userId, modifications = {}) {
-    try {
-      console.log('📋 [DUPLICATE] Duplication projet:', projectId);
-
-      const originalProject = await this.getProject(projectId);
-      
-      if (!originalProject) {
-        throw new Error('Projet original non trouvé');
-      }
-
-      // Préparer les données du nouveau projet
-      const duplicatedProjectData = {
-        title: modifications.title || `${originalProject.title} (Copie)`,
-        description: originalProject.description,
-        category: originalProject.category,
-        priority: originalProject.priority,
-        tags: originalProject.tags || [],
-        budget: originalProject.budget || 0,
-        status: 'planning',
-        // Nouveaux champs pour la copie
-        teamMembers: [userId],
-        progress: 0,
-        actualSpent: 0,
-        tasks: [],
-        milestones: [],
-        ...modifications
-      };
-
-      // ✅ UTILISATION CORRECTE : createProject(projectData, userId)
-      const newProject = await this.createProject(duplicatedProjectData, userId);
-
-      console.log('✅ [DUPLICATE] Projet dupliqué:', newProject.id);
-      return newProject;
-
-    } catch (error) {
-      console.error('❌ [DUPLICATE] Erreur duplication projet:', error);
-      throw error;
-    }
-  }
 }
 
 // Export de l'instance
@@ -513,8 +290,3 @@ export const projectService = new ProjectService();
 
 // Export de la classe pour compatibilité
 export default ProjectService;
-
-// ✅ LOG DE CONFIRMATION DES PARAMÈTRES
-console.log('✅ ProjectService - Ordre des paramètres unifié');
-console.log('📋 createProject(projectData, userId) - Compatible avec ProjectsPage');
-console.log('🔧 Correction appliquée pour éliminer les erreurs de paramètres');
