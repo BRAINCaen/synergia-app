@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/hooks/useProjectService.js
-// HOOK SIMPLE SANS COMPLEXITÉ - RESTAURATION FONCTIONNELLE
+// VERSION ORIGINALE RESTAURÉE - AUCUNE MODIFICATION
 // ==========================================
 
 import { useState, useEffect } from 'react';
@@ -8,7 +8,8 @@ import { projectService } from '../../core/services/projectService.js';
 import { useAuthStore } from '../stores/authStore.js';
 
 /**
- * 🚀 HOOK PROJETS SIMPLE ET FONCTIONNEL
+ * 🚀 HOOK PROJETS FIREBASE COMPLET
+ * Remplace le mock service par du Firebase pur
  */
 export const useProjectService = () => {
   const { user } = useAuthStore();
@@ -50,9 +51,6 @@ export const useProjectService = () => {
     }
   };
 
-  /**
-   * ➕ CRÉER UN PROJET - CORRECTION SIMPLE
-   */
   const createProject = async (projectData) => {
     if (!user?.uid) {
       return { success: false, error: 'Utilisateur non connecté' };
@@ -61,7 +59,6 @@ export const useProjectService = () => {
     try {
       console.log('🚀 Création projet:', projectData.title);
       
-      // CORRECTION : Ordre des paramètres fixé
       const newProject = await projectService.createProject(projectData, user.uid);
       
       // Ajouter le nouveau projet à la liste
@@ -131,7 +128,7 @@ export const useProjectService = () => {
   };
 };
 
-// Export de classe pour compatibilité - VERSION SIMPLE
+// Export de classe pour compatibilité
 export class ProjectService {
   constructor() {
     console.log('✅ ProjectService Firebase initialisé');
@@ -141,15 +138,14 @@ export class ProjectService {
     return projectService.getUserProjects(userId);
   }
 
-  // CORRECTION : Ordre des paramètres unifié
   async createProject(projectData, userId) {
     return projectService.createProject(projectData, userId);
   }
 
   subscribeToUserProjects(userId, callback) {
-    return projectService.subscribeToUserProjects?.(userId, callback);
+    return projectService.subscribeToUserProjects(userId, callback);
   }
 }
 
-// Export par défaut : hook
+// Export par défaut : service Firebase pur
 export default useProjectService;
