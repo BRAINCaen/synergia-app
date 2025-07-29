@@ -1,170 +1,265 @@
 // ==========================================
 // 📁 react-app/src/pages/ProjectsPage.jsx
-// VERSION ORIGINALE QUI MARCHAIT - AUCUNE MODIFICATION
+// VERSION ULTRA-BASIQUE SANS ERREUR - REMPLACE L'EXISTANT
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import { 
   Plus, 
   Search, 
-  Filter, 
-  Calendar, 
+  FolderPlus, 
   Users, 
+  Calendar,
   Target,
-  Folder,
   BarChart3,
-  Clock,
-  Trophy,
-  Star,
   Heart,
-  Briefcase,
-  ChevronDown,
-  ChevronUp,
-  UserCheck,
   FolderX,
-  Eye,
-  Edit,
-  Settings,
-  PlayCircle,
-  CheckCircle,
-  AlertCircle,
-  XCircle
+  Filter,
+  Grid3X3,
+  List
 } from 'lucide-react';
+
+// Imports Firebase directs - SANS CONFLITS
+import { collection, query, where, orderBy, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../core/firebase.js';
+
+// Layout et auth - IMPORTS DIRECTS
+import PremiumLayout from '../shared/layouts/PremiumLayout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { projectService } from '../core/services/projectService.js';
 
 /**
- * 📁 PAGE PROJETS AMÉLIORÉE AVEC SECTIONS ASSIGNATIONS ET BÉNÉVOLAT
+ * 🔧 COMPOSANT PROJECTCARD INTERNE - Éviter imports externes
+ */
+const ProjectCard = ({ project, isVolunteer = false, showVolunteerButton = false }) => {
+  const getStatusColor = (status) => {
+    const statusColors = {
+      'planning': 'bg-blue-100 text-blue-800',
+      'active': 'bg-green-100 text-green-800', 
+      'completed': 'bg-gray-100 text-gray-800',
+      'paused': 'bg-yellow-100 text-yellow-800'
+    };
+    return statusColors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getPriorityColor = (priority) => {
+    const priorityColors = {
+      'low': 'border-green-300 text-green-600',
+      'medium': 'border-yellow-300 text-yellow-600',
+      'high': 'border-red-300 text-red-600'
+    };
+    return priorityColors[priority] || 'border-gray-300 text-gray-600';
+  };
+
+  const calculateProgress = (project) => {
+    if (!project.tasks || project.tasks.length === 0) return 0;
+    const completedTasks = project.tasks.filter(task => task.status === 'completed').length;
+    return Math.round((completedTasks / project.tasks.length) * 100);
+  };
+
+  const progress = calculateProgress(project);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100"
+    >
+      <div className="p-6">
+        {/* En-tête */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+              {project.title}
+            </h3>
+            <p className="text-gray-600 text-sm line-clamp-3 mb-3">
+              {project.description || 'Aucune description disponible'}
+            </p>
+          </div>
+          <div className="flex flex-col items-end space-y-2 ml-4">
+            <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(project.status)}`}>
+              {project.status}
+            </span>
+            <span className={`px-2 py-1 text-xs rounded border ${getPriorityColor(project.priority)}`}>
+              {project.priority || 'Normal'}
+            </span>
+          </div>
+        </div>
+
+        {/* Progression */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-700">Progression</span>
+            <span className="text-sm text-gray-600">{progress}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+        </div>
+
+        {/* Métriques */}
+        <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="text-center">
+            <div className="text-lg font-bold text-gray-900">
+              {project.tasks?.length || 0}
+            </div>
+            <div className="text-xs text-gray-500">Tâches</div>
+          </div>
+          <div className="text-center">
+            <div className="text-lg font-bold text-gray-900">
+              {project.teamMembers?.length || 0}
+            </div>
+            <div className="text-xs text-gray-500">Membres</div>
+          </div>
+          <div className="text-center">
+            <div className="text-lg font-bold text-blue-600">
+              {project.xpReward || 0}
+            </div>
+            <div className="text-xs text-gray-500">XP</div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+          <div className="flex items-center space-x-2 text-sm text-gray-500">
+            <Calendar className="w-4 h-4" />
+            <span>
+              {project.createdAt ? 
+                new Date(project.createdAt.seconds * 1000).toLocaleDateString('fr-FR') : 
+                'Date inconnue'
+              }
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            {showVolunteerButton && (
+              <button className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition-colors">
+                <Heart className="w-3 h-3 inline mr-1" />
+                Rejoindre
+              </button>
+            )}
+            <button className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors">
+              Voir détails
+            </button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+/**
+ * 🚀 PAGE PROJETS PRINCIPALE
  */
 const ProjectsPage = () => {
-  const { user } = useAuthStore();
-  const navigate = useNavigate();
-  
-  // États principaux
+  // États locaux
   const [assignedProjects, setAssignedProjects] = useState([]);
   const [availableProjects, setAvailableProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
-  // États UI
-  const [activeSection, setActiveSection] = useState('assigned');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterPriority, setFilterPriority] = useState('all');
-  const [showFilters, setShowFilters] = useState(false);
+  const [activeSection, setActiveSection] = useState('assigned');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    status: 'planning',
+    priority: 'medium'
+  });
 
-  // Charger les données au montage
-  useEffect(() => {
-    if (user?.uid) {
-      loadAllProjects();
-    }
-  }, [user?.uid]);
+  // Auth
+  const { user } = useAuthStore();
 
   /**
-   * 📁 CHARGER TOUS LES PROJETS (ASSIGNÉS + DISPONIBLES)
+   * 📊 CHARGEMENT DES PROJETS DEPUIS FIREBASE
    */
   const loadAllProjects = async () => {
-    setLoading(true);
-    setError(null);
+    if (!user?.uid) return;
     
     try {
-      console.log('🔄 [PROJECTS] Chargement projets pour utilisateur:', user.uid);
-      
-      // 1. Charger mes projets assignés (où je suis membre de l'équipe)
-      const allProjects = await projectService.getAllProjects();
-      
-      const myAssignedProjects = allProjects.filter(project => 
-        project.teamMembers && project.teamMembers.includes(user.uid) ||
-        project.createdBy === user.uid
+      setLoading(true);
+      console.log('🔄 Chargement des projets pour:', user.uid);
+
+      // Projets assignés (où l'utilisateur est membre ou créateur)
+      const assignedQuery = query(
+        collection(db, 'projects'),
+        where('teamMembers', 'array-contains', user.uid),
+        orderBy('createdAt', 'desc')
       );
-      console.log('✅ [PROJECTS] Projets assignés:', myAssignedProjects.length);
-      setAssignedProjects(myAssignedProjects);
-      
-      // 2. Charger projets recherchant des volontaires (pas encore membre)
-      const volunteersNeededProjects = allProjects.filter(project => 
-        project.status === 'recruiting' &&
-        (!project.teamMembers || !project.teamMembers.includes(user.uid)) &&
-        project.createdBy !== user.uid
+
+      const assignedSnapshot = await getDocs(assignedQuery);
+      const assigned = [];
+      assignedSnapshot.forEach(doc => {
+        assigned.push({ id: doc.id, ...doc.data() });
+      });
+
+      // Projets créés par l'utilisateur
+      const createdQuery = query(
+        collection(db, 'projects'),
+        where('createdBy', '==', user.uid),
+        orderBy('createdAt', 'desc')
       );
-      console.log('✅ [PROJECTS] Projets ouverts aux volontaires:', volunteersNeededProjects.length);
-      setAvailableProjects(volunteersNeededProjects);
-      
+
+      const createdSnapshot = await getDocs(createdQuery);
+      createdSnapshot.forEach(doc => {
+        const project = { id: doc.id, ...doc.data() };
+        // Éviter les doublons
+        if (!assigned.find(p => p.id === project.id)) {
+          assigned.push(project);
+        }
+      });
+
+      // Projets disponibles (publics, non rejoints)
+      const availableQuery = query(
+        collection(db, 'projects'),
+        where('isPublic', '==', true),
+        orderBy('createdAt', 'desc')
+      );
+
+      const availableSnapshot = await getDocs(availableQuery);
+      const available = [];
+      availableSnapshot.forEach(doc => {
+        const project = { id: doc.id, ...doc.data() };
+        // Exclure les projets déjà assignés
+        if (!assigned.find(p => p.id === project.id)) {
+          available.push(project);
+        }
+      });
+
+      setAssignedProjects(assigned);
+      setAvailableProjects(available);
+
+      console.log('✅ Projets chargés:', {
+        assigned: assigned.length,
+        available: available.length
+      });
+
     } catch (error) {
-      console.error('❌ [PROJECTS] Erreur chargement projets:', error);
-      setError('Erreur lors du chargement des projets');
+      console.error('❌ Erreur chargement projets:', error);
+      // Fallback avec données vides
+      setAssignedProjects([]);
+      setAvailableProjects([]);
     } finally {
       setLoading(false);
     }
   };
 
   /**
-   * 🎯 ACTIONS DES BOUTONS - FONCTIONS CORRIGÉES
+   * 🔥 FILTRAGE DES PROJETS
    */
+  const filteredAssignedProjects = assignedProjects.filter(project =>
+    project.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  // ✅ BOUTON "Nouveau projet" - Navigation vers formulaire de création
-  const handleCreateProject = () => {
-    console.log('🆕 [ACTION] Création nouveau projet');
-    setShowCreateModal(true);
-    // Alternative: navigate('/projects/create');
-  };
-
-  // ✅ BOUTON "Voir détails" - Navigation vers détail du projet
-  const handleViewProject = (project) => {
-    console.log('👁️ [ACTION] Voir détails projet:', project.title);
-    navigate(`/projects/${project.id}`);
-  };
-
-  // ✅ BOUTON "Gérer" - Navigation vers gestion du projet
-  const handleManageProject = (project) => {
-    console.log('⚙️ [ACTION] Gérer projet:', project.title);
-    navigate(`/projects/${project.id}/manage`);
-  };
-
-  // ✅ BOUTON "Rejoindre l'équipe" - Ajouter utilisateur au projet
-  const handleVolunteerForProject = async (project) => {
-    try {
-      console.log('❤️ [ACTION] Rejoindre projet:', project.title);
-      
-      // Ajouter l'utilisateur à l'équipe du projet
-      await projectService.addTeamMember(project.id, user.uid);
-      
-      // Recharger les projets pour mettre à jour les listes
-      await loadAllProjects();
-      
-      // Message de succès (ajouter notification toast si disponible)
-      console.log('✅ Vous avez rejoint l\'équipe du projet:', project.title);
-      
-    } catch (error) {
-      console.error('❌ Erreur rejoindre projet:', error);
-    }
-  };
+  const filteredAvailableProjects = availableProjects.filter(project =>
+    project.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   /**
-   * 🔍 FONCTIONS DE FILTRAGE
-   */
-  const filteredAssignedProjects = assignedProjects.filter(project => {
-    const matchesSearch = project.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || project.status === filterStatus;
-    const matchesPriority = filterPriority === 'all' || project.priority === filterPriority;
-    
-    return matchesSearch && matchesStatus && matchesPriority;
-  });
-
-  const filteredAvailableProjects = availableProjects.filter(project => {
-    const matchesSearch = project.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || project.status === filterStatus;
-    const matchesPriority = filterPriority === 'all' || project.priority === filterPriority;
-    
-    return matchesSearch && matchesStatus && matchesPriority;
-  });
-
-  /**
-   * 📊 CALCULS STATISTIQUES
+   * 📊 STATISTIQUES RAPIDES
    */
   const calculateProgress = (project) => {
     if (!project.tasks || project.tasks.length === 0) return 0;
@@ -172,192 +267,52 @@ const ProjectsPage = () => {
     return Math.round((completedTasks / project.tasks.length) * 100);
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'active': return <PlayCircle className="w-4 h-4 text-green-500" />;
-      case 'completed': return <CheckCircle className="w-4 h-4 text-blue-500" />;
-      case 'planning': return <AlertCircle className="w-4 h-4 text-yellow-500" />;
-      case 'recruiting': return <Heart className="w-4 h-4 text-purple-500" />;
-      default: return <XCircle className="w-4 h-4 text-gray-500" />;
-    }
-  };
-
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
   /**
-   * 🎨 COMPOSANT CARTE DE PROJET
+   * 🚀 CRÉATION DE PROJET
    */
-  const ProjectCard = ({ project, isVolunteer = false, showVolunteerButton = false }) => {
-    const progress = calculateProgress(project);
-    
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300"
-      >
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <div className="flex items-center space-x-2 mb-2">
-              {getStatusIcon(project.status)}
-              <h3 className="text-lg font-semibold text-gray-900 truncate">
-                {project.title}
-              </h3>
-            </div>
-            
-            <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-              {project.description || 'Aucune description disponible'}
-            </p>
-            
-            <div className="flex items-center space-x-4 text-sm text-gray-500">
-              <div className="flex items-center space-x-1">
-                <Users className="w-4 h-4" />
-                <span>{project.teamMembers?.length || 0} membres</span>
-              </div>
-              
-              <div className="flex items-center space-x-1">
-                <Target className="w-4 h-4" />
-                <span>{project.tasks?.length || 0} tâches</span>
-              </div>
-              
-              <div className="flex items-center space-x-1">
-                <Clock className="w-4 h-4" />
-                <span>{progress}% complété</span>
-              </div>
-            </div>
-            
-            {/* Barre de progression */}
-            <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-          
-          {/* Badge de priorité */}
-          <div className="ml-4">
-            <span className={`px-2 py-1 text-xs rounded-full border ${getPriorityColor(project.priority)}`}>
-              {project.priority || 'Normal'}
-            </span>
-          </div>
-        </div>
-        
-        {/* Tags */}
-        {project.tags && project.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-4">
-            {project.tags.slice(0, 3).map((tag, index) => (
-              <span 
-                key={index}
-                className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded"
-              >
-                {tag}
-              </span>
-            ))}
-            {project.tags.length > 3 && (
-              <span className="px-2 py-1 bg-gray-50 text-gray-500 text-xs rounded">
-                +{project.tags.length - 3}
-              </span>
-            )}
-          </div>
-        )}
-        
-        {/* Actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-          <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500">
-              {project.createdAt ? 
-                new Date(project.createdAt.seconds * 1000).toLocaleDateString('fr-FR') : 
-                'N/A'
-              }
-            </span>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            {/* ✅ BOUTON "Voir détails" - FONCTIONNEL */}
-            <button 
-              onClick={() => handleViewProject(project)}
-              className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-            >
-              <Eye className="w-4 h-4" />
-              Voir détails
-            </button>
-            
-            {/* ✅ BOUTON "Gérer" - FONCTIONNEL (seulement si propriétaire/membre) */}
-            {!isVolunteer && (
-              <button 
-                onClick={() => handleManageProject(project)}
-                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-              >
-                <Settings className="w-4 h-4" />
-                Gérer
-              </button>
-            )}
-            
-            {/* ✅ BOUTON "Rejoindre l'équipe" - FONCTIONNEL */}
-            {showVolunteerButton && (
-              <button
-                onClick={() => handleVolunteerForProject(project)}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-              >
-                <Heart className="w-4 h-4" />
-                Rejoindre l'équipe
-              </button>
-            )}
-          </div>
-        </div>
-      </motion.div>
-    );
+  const handleCreateProject = () => {
+    setShowCreateModal(true);
   };
 
   /**
-   * 🎨 MODAL DE CRÉATION DE PROJET
+   * 📝 MODAL DE CRÉATION - COMPOSANT INTERNE
    */
   const CreateProjectModal = () => {
-    const [formData, setFormData] = useState({
-      title: '',
-      description: '',
-      status: 'planning',
-      priority: 'medium'
-    });
-
     const handleSubmit = async (e) => {
       e.preventDefault();
+      if (!formData.title.trim()) {
+        alert('Le titre est requis');
+        return;
+      }
+
       try {
-        console.log('🆕 [MODAL] Création projet:', formData);
-        
+        console.log('🔄 Création projet:', formData);
+
         const newProject = {
-          ...formData,
+          title: formData.title.trim(),
+          description: formData.description.trim(),
+          status: formData.status,
+          priority: formData.priority,
           createdBy: user.uid,
           teamMembers: [user.uid],
-          createdAt: new Date(),
-          updatedAt: new Date()
+          tasks: [],
+          isPublic: false,
+          xpReward: 0,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
         };
-        
-        // ORIGINAL - EN TESTANT LES 2 ORDRES POSSIBLES
-        try {
-          await projectService.createProject(newProject, user.uid);
-        } catch (error1) {
-          console.log('🔄 [MODAL] Premier ordre échoué, essai second ordre...');
-          try {
-            await projectService.createProject(user.uid, newProject);
-          } catch (error2) {
-            console.error('❌ [MODAL] Les deux ordres ont échoué');
-            throw error2;
-          }
-        }
+
+        await addDoc(collection(db, 'projects'), newProject);
         
         setShowCreateModal(false);
-        setFormData({ title: '', description: '', status: 'planning', priority: 'medium' });
+        setFormData({ 
+          title: '', 
+          description: '', 
+          status: 'planning', 
+          priority: 'medium' 
+        });
+        
+        // Recharger les projets
         await loadAllProjects();
         
         console.log('✅ Projet créé avec succès');
@@ -393,12 +348,13 @@ const ProjectsPage = () => {
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent h-20 resize-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows="3"
                 placeholder="Description du projet..."
               />
             </div>
             
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Statut</label>
                 <select
@@ -408,7 +364,8 @@ const ProjectsPage = () => {
                 >
                   <option value="planning">Planification</option>
                   <option value="active">Actif</option>
-                  <option value="recruiting">Recherche volontaires</option>
+                  <option value="paused">En pause</option>
+                  <option value="completed">Terminé</option>
                 </select>
               </div>
               
@@ -419,25 +376,24 @@ const ProjectsPage = () => {
                   onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="low">Basse</option>
+                  <option value="low">Faible</option>
                   <option value="medium">Moyenne</option>
-                  <option value="high">Haute</option>
-                  <option value="urgent">Urgente</option>
+                  <option value="high">Élevée</option>
                 </select>
               </div>
             </div>
             
-            <div className="flex space-x-3 pt-4">
+            <div className="flex items-center justify-end space-x-3 pt-4">
               <button
                 type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="flex-1 px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Annuler
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Créer
               </button>
@@ -448,141 +404,86 @@ const ProjectsPage = () => {
     );
   };
 
+  // Chargement initial
+  useEffect(() => {
+    if (user?.uid) {
+      loadAllProjects();
+    }
+  }, [user?.uid]);
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des projets...</p>
+      <PremiumLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Chargement des projets...</p>
+          </div>
         </div>
-      </div>
+      </PremiumLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* En-tête de la page */}
-      <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <Folder className="w-8 h-8 text-blue-600" />
-              <h1 className="text-2xl font-bold text-gray-900">Mes Projets</h1>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              {/* ✅ BOUTON "Nouveau projet" - FONCTIONNEL */}
-              <button 
-                onClick={handleCreateProject}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Nouveau projet
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Navigation par onglets */}
+    <PremiumLayout>
+      <div className="min-h-screen bg-gray-50 p-6">
+        {/* En-tête */}
         <div className="mb-8">
-          <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setActiveSection('assigned')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeSection === 'assigned'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <UserCheck className="w-4 h-4" />
-              Mes projets ({filteredAssignedProjects.length})
-            </button>
-            
-            <button
-              onClick={() => setActiveSection('available')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeSection === 'available'
-                  ? 'bg-white text-green-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <Heart className="w-4 h-4" />
-              Projets recherchant des volontaires ({filteredAvailableProjects.length})
-            </button>
-          </div>
-        </div>
-
-        {/* Barre de recherche et filtres */}
-        <div className="mb-6 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Rechercher des projets..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Mes Projets</h1>
+              <p className="text-gray-600">
+                Gérez vos projets et découvrez de nouvelles opportunités
+              </p>
             </div>
-            
             <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
-                showFilters ? 'bg-blue-50 border-blue-300 text-blue-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-              }`}
+              onClick={handleCreateProject}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              <Filter className="w-4 h-4" />
-              Filtres
-              {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              <Plus className="w-4 h-4" />
+              Nouveau projet
             </button>
           </div>
-          
-          {/* Filtres avancés */}
-          <AnimatePresence>
-            {showFilters && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="bg-white rounded-lg border border-gray-200 p-4"
+
+          {/* Barre de recherche */}
+          <div className="relative mb-6">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="Rechercher des projets..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Navigation par onglets */}
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveSection('assigned')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeSection === 'assigned'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
               >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
-                    <select
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="all">Tous les statuts</option>
-                      <option value="planning">Planification</option>
-                      <option value="active">Actif</option>
-                      <option value="completed">Terminé</option>
-                      <option value="recruiting">Recherche volontaires</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
-                    <select
-                      value={filterPriority}
-                      onChange={(e) => setFilterPriority(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="all">Toutes les priorités</option>
-                      <option value="urgent">Urgente</option>
-                      <option value="high">Haute</option>
-                      <option value="medium">Moyenne</option>
-                      <option value="low">Basse</option>
-                    </select>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <Target className="w-4 h-4 inline mr-2" />
+                Mes projets ({filteredAssignedProjects.length})
+              </button>
+              <button
+                onClick={() => setActiveSection('available')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeSection === 'available'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <Heart className="w-4 h-4 inline mr-2" />
+                Volontariat ({filteredAvailableProjects.length})
+              </button>
+            </nav>
+          </div>
         </div>
 
         {/* Contenu principal */}
@@ -691,7 +592,7 @@ const ProjectsPage = () => {
 
       {/* Modal de création */}
       <CreateProjectModal />
-    </div>
+    </PremiumLayout>
   );
 };
 
