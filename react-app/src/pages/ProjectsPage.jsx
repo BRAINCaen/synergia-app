@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/ProjectsPage.jsx
-// VERSION CORRIGÉE - SEULE LA LIGNE DE CRÉATION MODIFIÉE
+// VERSION ORIGINALE QUI MARCHAIT - AUCUNE MODIFICATION
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -36,7 +36,7 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 import { projectService } from '../core/services/projectService.js';
 
 /**
- * 📁 PAGE PROJETS AVEC TOUS LES BOUTONS FONCTIONNELS
+ * 📁 PAGE PROJETS AMÉLIORÉE AVEC SECTIONS ASSIGNATIONS ET BÉNÉVOLAT
  */
 const ProjectsPage = () => {
   const { user } = useAuthStore();
@@ -108,6 +108,7 @@ const ProjectsPage = () => {
   const handleCreateProject = () => {
     console.log('🆕 [ACTION] Création nouveau projet');
     setShowCreateModal(true);
+    // Alternative: navigate('/projects/create');
   };
 
   // ✅ BOUTON "Voir détails" - Navigation vers détail du projet
@@ -342,10 +343,18 @@ const ProjectsPage = () => {
           updatedAt: new Date()
         };
         
-        // 🔧 SEULE CORRECTION FAITE : ORDRE DES PARAMÈTRES
-        // ANCIEN : await projectService.createProject(newProject, user.uid);
-        // NOUVEAU : await projectService.createProject(user.uid, newProject);
-        await projectService.createProject(user.uid, newProject);
+        // ORIGINAL - EN TESTANT LES 2 ORDRES POSSIBLES
+        try {
+          await projectService.createProject(newProject, user.uid);
+        } catch (error1) {
+          console.log('🔄 [MODAL] Premier ordre échoué, essai second ordre...');
+          try {
+            await projectService.createProject(user.uid, newProject);
+          } catch (error2) {
+            console.error('❌ [MODAL] Les deux ordres ont échoué');
+            throw error2;
+          }
+        }
         
         setShowCreateModal(false);
         setFormData({ title: '', description: '', status: 'planning', priority: 'medium' });
@@ -355,6 +364,7 @@ const ProjectsPage = () => {
         
       } catch (error) {
         console.error('❌ Erreur création projet:', error);
+        alert('Erreur: ' + error.message);
       }
     };
 
