@@ -1,23 +1,26 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APP CORRIGÉ AVEC ROUTE PROJECT DETAIL AJOUTÉE
+// APP CORRIGÉ - GARDE TOUTES LES FONCTIONNALITÉS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
+// 🛡️ IMPORT DU CORRECTIF SÉCURISÉ EN PREMIER
+import './utils/secureImportFix.js';
+
 // 🔧 Import du Layout sophistiqué avec sidebar
 import Layout from './components/layout/Layout.jsx';
 
-// Stores
+// Stores - IMPORT SÉCURISÉ
 import { useAuthStore } from './shared/stores/authStore.js';
 
-// Pages principales
+// Pages principales - TOUS LES IMPORTS CONSERVÉS
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
-import ProjectDetailPage from './pages/ProjectDetailPage.jsx'; // ✅ NOUVELLE PAGE AJOUTÉE
+import ProjectDetailPage from './pages/ProjectDetailPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import GamificationPage from './pages/GamificationPage.jsx';
 import TeamPage from './pages/TeamPage.jsx';
@@ -29,18 +32,18 @@ import RewardsPage from './pages/RewardsPage.jsx';
 import BadgesPage from './pages/BadgesPage.jsx';
 import TimeTrackPage from './pages/TimeTrackPage.jsx';
 
-// Pages nouvellement créées
+// Pages nouvellement créées - TOUS CONSERVÉS
 import LeaderboardPage from './pages/LeaderboardPage.jsx';
 import RoleProgressionPage from './pages/RoleProgressionPage.jsx';
 import RoleTasksPage from './pages/RoleTasksPage.jsx';
 import RoleBadgesPage from './pages/RoleBadgesPage.jsx';
 import EscapeProgressionPage from './pages/EscapeProgressionPage.jsx';
 
-// Pages admin existantes
+// Pages admin existantes - TOUS CONSERVÉS
 import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
 import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 
-// Pages admin nouvellement créées
+// Pages admin nouvellement créées - TOUS CONSERVÉS
 import AdminDashboardTuteurPage from './pages/AdminDashboardTuteurPage.jsx';
 import AdminRolePermissionsPage from './pages/AdminRolePermissionsPage.jsx';
 import AdminRewardsPage from './pages/AdminRewardsPage.jsx';
@@ -49,8 +52,31 @@ import AdminUsersPage from './pages/AdminUsersPage.jsx';
 import AdminAnalyticsPage from './pages/AdminAnalyticsPage.jsx';
 import AdminSettingsPage from './pages/AdminSettingsPage.jsx';
 
-// Import du correctif d'erreurs
+// Import du correctif d'erreurs - CONSERVÉ
 import './utils/safeFix.js';
+
+// 🔒 Composant de protection pour les routes
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuthStore();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white">Chargement de Synergia...</p>
+          <p className="text-gray-400 text-sm mt-2">Version 3.5 - Mode corrigé</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
 
 console.log('🚀 App.jsx - Toutes les pages importées avec succès');
 
@@ -59,7 +85,11 @@ function App() {
 
   useEffect(() => {
     console.log('🚀 App - Initialisation de l\'authentification');
-    initialize();
+    try {
+      initialize();
+    } catch (error) {
+      console.error('❌ Erreur initialisation auth:', error);
+    }
   }, [initialize]);
 
   if (loading) {
@@ -121,7 +151,7 @@ function App() {
             } 
           />
           
-          {/* ✅ NOUVELLE ROUTE AJOUTÉE POUR LES DÉTAILS DE PROJET */}
+          {/* ✅ ROUTE DÉTAIL PROJET CONSERVÉE */}
           <Route 
             path="/projects/:id" 
             element={
@@ -145,7 +175,7 @@ function App() {
           />
           
           {/* ==========================================
-              🎮 ROUTES GAMIFICATION
+              🎮 ROUTES GAMIFICATION CONSERVÉES
               ========================================== */}
           
           <Route 
@@ -193,11 +223,11 @@ function App() {
           />
           
           {/* ==========================================
-              📈 ROUTES PROGRESSION
+              🎯 ROUTES PROGRESSION CONSERVÉES
               ========================================== */}
           
           <Route 
-            path="/role/progression" 
+            path="/role-progression" 
             element={
               <ProtectedRoute>
                 <Layout>
@@ -208,7 +238,7 @@ function App() {
           />
           
           <Route 
-            path="/role/tasks" 
+            path="/role-tasks" 
             element={
               <ProtectedRoute>
                 <Layout>
@@ -219,7 +249,7 @@ function App() {
           />
           
           <Route 
-            path="/role/badges" 
+            path="/role-badges" 
             element={
               <ProtectedRoute>
                 <Layout>
@@ -241,7 +271,7 @@ function App() {
           />
           
           {/* ==========================================
-              👥 ROUTES ÉQUIPE
+              👥 ROUTES ÉQUIPE CONSERVÉES
               ========================================== */}
           
           <Route 
@@ -267,7 +297,7 @@ function App() {
           />
           
           {/* ==========================================
-              🛠️ ROUTES OUTILS
+              🛠️ ROUTES OUTILS CONSERVÉES
               ========================================== */}
           
           <Route 
@@ -315,7 +345,7 @@ function App() {
           />
           
           {/* ==========================================
-              🛡️ ROUTES ADMIN
+              🛡️ ROUTES ADMIN CONSERVÉES
               ========================================== */}
           
           <Route 
@@ -421,62 +451,32 @@ function App() {
               🔄 REDIRECTIONS ET 404
               ========================================== */}
           
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route 
+            path="/" 
+            element={<Navigate to="/dashboard" replace />} 
+          />
           
-          <Route path="*" element={
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 flex items-center justify-center">
-              <div className="text-center">
-                <h1 className="text-6xl font-bold text-white mb-4">404</h1>
-                <p className="text-gray-400 mb-8">Page non trouvée</p>
-                <button
-                  onClick={() => window.location.href = '/dashboard'}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
-                >
-                  🏠 Retour au Dashboard
-                </button>
+          <Route 
+            path="*" 
+            element={
+              <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 flex items-center justify-center">
+                <div className="text-center">
+                  <h1 className="text-6xl font-bold text-white mb-4">404</h1>
+                  <p className="text-gray-400 mb-8">Page non trouvée</p>
+                  <button
+                    onClick={() => window.location.href = '/dashboard'}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+                  >
+                    🏠 Retour au Dashboard
+                  </button>
+                </div>
               </div>
-            </div>
-          } />
+            } 
+          />
         </Routes>
       </div>
     </Router>
   );
 }
 
-// ==========================================
-// 🛡️ COMPOSANT ROUTE PROTÉGÉE
-// ==========================================
-
-function ProtectedRoute({ children }) {
-  const { user, loading } = useAuthStore();
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">Vérification authentification...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return children;
-}
-
 export default App;
-
-// Log de confirmation
-console.log('✅ App.jsx corrigé avec TOUTES les routes');
-console.log('🎯 Routes principales: dashboard, tasks, projects, analytics');
-console.log('📁 NOUVELLE ROUTE: /projects/:id → ProjectDetailPage'); // ✅ AJOUT CONFIRMÉ
-console.log('🎮 Routes gamification: gamification, badges, leaderboard, rewards');
-console.log('📈 Routes progression: role/progression, role/tasks, role/badges, escape-progression');
-console.log('👥 Routes équipe: team, users');
-console.log('🛠️ Routes outils: onboarding, timetrack, profile, settings');
-console.log('🛡️ Routes admin: dashboard-tuteur, task-validation, role-permissions, etc.');
-console.log('📊 Total: 24+ routes définies avec détails projets');
