@@ -33,14 +33,52 @@ export const useObjectives = () => {
       setLoading(true);
       setError(null);
 
-      // Préparer les stats utilisateur pour le calcul des objectifs
+      // Préparer les stats utilisateur pour les objectifs quotidiens et hebdomadaires
       const userStats = {
-        tasksCompletedToday: gamification?.tasksCompletedToday || 0,
+        // === OBJECTIFS QUOTIDIENS ===
+        // Innovation & partage
+        improvementProposedToday: gamification?.improvementProposedToday || false,
+        socialContentToday: gamification?.socialContentToday || false,
+        
+        // Flexibilité & gestion d'équipe
+        surpriseTeamHandledToday: gamification?.surpriseTeamHandledToday || false,
+        helpedColleagueToday: gamification?.helpedColleagueToday || false,
+        
+        // Service client
+        fiveStarReviewToday: gamification?.fiveStarReviewToday || false,
+        
+        // Sécurité & maintenance
+        securityCheckToday: gamification?.securityCheckToday || false,
+        technicalFixToday: gamification?.technicalFixToday || false,
+        
+        // Leadership
+        conflictResolvedToday: gamification?.conflictResolvedToday || false,
+        
+        // === OBJECTIFS HEBDOMADAIRES ===
+        // Service client & avis
+        positiveReviewsThisWeek: gamification?.positiveReviewsThisWeek || 0,
+        
+        // Responsabilités & horaires
+        openingsClosingsThisWeek: gamification?.openingsClosingsThisWeek || 0,
+        weekendWorkedThisWeek: gamification?.weekendWorkedThisWeek || false,
+        
+        // Polyvalence & flexibilité
+        allRoomsAnimatedThisWeek: gamification?.allRoomsAnimatedThisWeek || false,
+        replacementDoneThisWeek: gamification?.replacementDoneThisWeek || false,
+        
+        // Créativité & amélioration
+        decorationChangedThisWeek: gamification?.decorationChangedThisWeek || false,
+        immersionIdeaThisWeek: gamification?.immersionIdeaThisWeek || false,
+        
+        // Bien-être & leadership
+        wellbeingMomentThisWeek: gamification?.wellbeingMomentThisWeek || false,
+        unexpectedSituationThisWeek: gamification?.unexpectedSituationThisWeek || false,
+        
+        // Données de base (conservées pour compatibilité)
         weeklyXp: gamification?.weeklyXp || 0,
         monthlyXp: gamification?.monthlyXp || 0,
         currentStreak: gamification?.currentStreak || 0,
-        tasksCompleted: gamification?.tasksCompleted || 0,
-        earlyBirdToday: gamification?.earlyBirdToday || false
+        tasksCompleted: gamification?.tasksCompleted || 0
       };
 
       console.log('📊 Chargement objectifs avec stats:', userStats);
