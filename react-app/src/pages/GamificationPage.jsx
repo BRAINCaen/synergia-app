@@ -65,6 +65,27 @@ const GamificationPage = () => {
   const progressPercentage = Math.min(100, (currentLevelXp / xpForNextLevel) * 100);
 
   /**
+   * 🏷️ OBTENIR LE LABEL D'UNE CATÉGORIE
+   */
+  const getCategoryLabel = (category) => {
+    const labels = {
+      'innovation': 'Innovation',
+      'flexibility': 'Flexibilité',  
+      'customer_service': 'Service Client',
+      'teamwork': 'Équipe',
+      'security': 'Sécurité',
+      'leadership': 'Leadership',
+      'maintenance': 'Maintenance',
+      'marketing': 'Marketing',
+      'responsibility': 'Responsabilité',
+      'dedication': 'Dévouement',
+      'versatility': 'Polyvalence',
+      'creativity': 'Créativité'
+    };
+    return labels[category] || 'Autre';
+  };
+
+  /**
    * 🎁 GESTIONNAIRE DE RÉCLAMATION D'OBJECTIF CORRIGÉ
    */
   const handleClaimReward = async (objective) => {
@@ -330,18 +351,31 @@ const GamificationPage = () => {
             </div>
           )}
 
-          {/* OBJECTIFS RÉELS */}
+          {/* OBJECTIFS QUOTIDIENS & HEBDOMADAIRES */}
           {activeTab === 'objectives' && (
             <div>
               {/* En-tête objectifs */}
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-white text-2xl font-semibold">Objectifs disponibles</h3>
+                <div>
+                  <h3 className="text-white text-2xl font-semibold">Objectifs Quotidiens & Hebdomadaires</h3>
+                  <p className="text-gray-400 text-sm mt-1">Petites réussites et défis spéciaux pour Game Masters</p>
+                </div>
                 {hasClaimableObjectives && (
                   <div className="bg-green-500 text-white px-3 py-1 rounded-full text-sm flex items-center gap-1">
                     <Gift className="w-4 h-4" />
                     {objectiveStats.available} à réclamer !
                   </div>
                 )}
+              </div>
+
+              {/* Filtres par type */}
+              <div className="flex gap-2 mb-6 flex-wrap">
+                <button className="bg-orange-500/20 text-orange-300 px-3 py-1 rounded-full text-sm border border-orange-500/30">
+                  📅 Quotidiens
+                </button>
+                <button className="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full text-sm border border-blue-500/30">
+                  🗓️ Hebdomadaires
+                </button>
               </div>
 
               {/* Affichage des erreurs */}
@@ -398,14 +432,30 @@ const GamificationPage = () => {
                             </div>
                           </div>
                           
-                          {/* Récompense */}
+                          {/* Récompense avec bonus catégorie */}
                           <div className="flex items-center gap-4 text-sm">
                             <span className="text-green-400 font-semibold">
                               +{objective.xpReward} XP
                             </span>
+                            {objective.categoryBonus && (
+                              <span className="text-blue-400 font-semibold">
+                                +{objective.categoryBonus} bonus
+                              </span>
+                            )}
+                            {objective.totalXpReward && (
+                              <span className="text-yellow-400 font-bold">
+                                = {objective.totalXpReward} XP total
+                              </span>
+                            )}
                             {objective.badgeReward && (
                               <span className="text-yellow-400">
                                 🏆 {objective.badgeReward}
+                              </span>
+                            )}
+                            {/* Badge de catégorie */}
+                            {objective.category && (
+                              <span className="text-purple-400 text-xs bg-purple-500/20 px-2 py-1 rounded">
+                                {getCategoryLabel(objective.category)}
                               </span>
                             )}
                           </div>
