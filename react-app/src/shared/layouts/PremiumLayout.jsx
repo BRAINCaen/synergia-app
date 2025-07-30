@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/layouts/PremiumLayout.jsx
-// LAYOUT PREMIUM SIMPLE ET FONCTIONNEL
+// LAYOUT PREMIUM COMPLET ET FONCTIONNEL
 // ==========================================
 
 import React from 'react';
@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
 
 /**
- * 🎨 LAYOUT PREMIUM SIMPLE
+ * 🎨 LAYOUT PREMIUM PRINCIPAL
  */
 const PremiumLayout = ({ 
   children, 
@@ -271,5 +271,9 @@ export const PremiumSearchBar = ({
     </div>
   );
 };
+
+// Log de fonctionnement
+console.log('✅ PremiumLayout complet chargé');
+console.log('🎨 Composants disponibles: PremiumCard, PremiumButton, StatCard, PremiumSearchBar');
 
 export default PremiumLayout;
