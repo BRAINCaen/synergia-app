@@ -1,64 +1,41 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// VERSION 100% VÉRIFIÉE - TOUS IMPORTS CONFIRMÉS EXISTANTS
+// VERSION SANS IMPORTS PROBLÉMATIQUES - CORRECTION TIMEOUT
 // ==========================================
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// 🛡️ IMPORTS DE SÉCURITÉ CONFIRMÉS
-import './utils/secureImportFix.js';
-import './utils/safeFix.js';
+// ❌ SUPPRIMÉ - CAUSE PROBABLE DU TIMEOUT
+// import './utils/secureImportFix.js';
+// import './utils/safeFix.js';
 
-// 🔧 STORE CONFIRMÉ EXISTANT
+// 🔧 SEULEMENT L'ESSENTIEL
 import { useAuthStore } from './shared/stores/authStore.js';
-
-// 🛡️ COMPOSANT ROUTE PROTÉGÉE CONFIRMÉ
 import ProtectedRoute from './routes/ProtectedRoute.jsx';
 
-// ✅ PAGES DE BASE - TOUS CONFIRMÉS EXISTANTS
+// ✅ PAGES DE BASE SEULEMENT - PAS LES NOUVELLES PAGES PROBLÉMATIQUES
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
-import AnalyticsPage from './pages/AnalyticsPage.jsx';
 
-// ✅ PAGES GAMIFICATION - TOUS CONFIRMÉS EXISTANTS
-import GamificationPage from './pages/GamificationPage.jsx';
-import BadgesPage from './pages/BadgesPage.jsx';
-import LeaderboardPage from './pages/LeaderboardPage.jsx';
-import RewardsPage from './pages/RewardsPage.jsx';
+// ❌ TEMPORAIREMENT SUPPRIMÉ - CONTIENT POTENTIELLEMENT DES IMPORTS PROBLÉMATIQUES
+// import AnalyticsPage from './pages/AnalyticsPage.jsx';
+// import GamificationPage from './pages/GamificationPage.jsx';
 
-// ✅ PAGES PROGRESSION - TOUS CONFIRMÉS EXISTANTS
-import RoleProgressionPage from './pages/RoleProgressionPage.jsx';
-import RoleTasksPage from './pages/RoleTasksPage.jsx';
-import RoleBadgesPage from './pages/RoleBadgesPage.jsx';
-import EscapeProgressionPage from './pages/EscapeProgressionPage.jsx';
-
-// ✅ PAGES ÉQUIPE - TOUS CONFIRMÉS EXISTANTS
+// ✅ PAGES SIMPLES SANS DÉPENDANCES COMPLEXES
 import TeamPage from './pages/TeamPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
-
-// ✅ PAGES OUTILS - TOUS CONFIRMÉS EXISTANTS
-import OnboardingPage from './pages/OnboardingPage.jsx';
-import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 
-// ✅ PAGES ADMIN - TOUS CONFIRMÉS EXISTANTS
-import AdminDashboardTuteurPage from './pages/AdminDashboardTuteurPage.jsx';
-import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
-import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
-import AdminRolePermissionsPage from './pages/AdminRolePermissionsPage.jsx';
-import AdminRewardsPage from './pages/AdminRewardsPage.jsx';
-import AdminBadgesPage from './pages/AdminBadgesPage.jsx';
-import AdminUsersPage from './pages/AdminUsersPage.jsx';
-import AdminAnalyticsPage from './pages/AdminAnalyticsPage.jsx';
-import AdminSettingsPage from './pages/AdminSettingsPage.jsx';
+// ❌ TOUTES LES PAGES ADMIN SUPPRIMÉES TEMPORAIREMENT
+// Elles contiennent potentiellement des imports qui causent le timeout
 
 /**
- * 🚀 APPLICATION PRINCIPALE - VERSION 100% VÉRIFIÉE
- * Tous les imports ont été vérifiés et confirmés existants
+ * 🚀 APPLICATION PRINCIPALE - VERSION DÉBOGAGE TIMEOUT
+ * Imports réduits au minimum pour identifier la cause du timeout
  */
 function App() {
   const { user } = useAuthStore();
@@ -73,7 +50,7 @@ function App() {
             element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
           />
           
-          {/* 📊 Routes principales */}
+          {/* 📊 Routes de base uniquement */}
           <Route 
             path="/dashboard" 
             element={<ProtectedRoute><Dashboard /></ProtectedRoute>} 
@@ -86,48 +63,8 @@ function App() {
             path="/projects" 
             element={<ProtectedRoute><ProjectsPage /></ProtectedRoute>} 
           />
-          <Route 
-            path="/analytics" 
-            element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} 
-          />
           
-          {/* 🎮 Routes gamification */}
-          <Route 
-            path="/gamification" 
-            element={<ProtectedRoute><GamificationPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/badges" 
-            element={<ProtectedRoute><BadgesPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/leaderboard" 
-            element={<ProtectedRoute><LeaderboardPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/rewards" 
-            element={<ProtectedRoute><RewardsPage /></ProtectedRoute>} 
-          />
-          
-          {/* 🎯 Routes progression de rôle */}
-          <Route 
-            path="/role/progression" 
-            element={<ProtectedRoute><RoleProgressionPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/role/tasks" 
-            element={<ProtectedRoute><RoleTasksPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/role/badges" 
-            element={<ProtectedRoute><RoleBadgesPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/escape-progression" 
-            element={<ProtectedRoute><EscapeProgressionPage /></ProtectedRoute>} 
-          />
-          
-          {/* 👥 Routes équipe */}
+          {/* ✅ Pages simples sans dépendances complexes */}
           <Route 
             path="/team" 
             element={<ProtectedRoute><TeamPage /></ProtectedRoute>} 
@@ -135,16 +72,6 @@ function App() {
           <Route 
             path="/users" 
             element={<ProtectedRoute><UsersPage /></ProtectedRoute>} 
-          />
-          
-          {/* 🛠️ Routes outils */}
-          <Route 
-            path="/onboarding" 
-            element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/timetrack" 
-            element={<ProtectedRoute><TimeTrackPage /></ProtectedRoute>} 
           />
           <Route 
             path="/profile" 
@@ -155,45 +82,100 @@ function App() {
             element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} 
           />
           
-          {/* 🛡️ Routes admin */}
+          {/* 🚫 ROUTES TEMPORAIREMENT DÉSACTIVÉES POUR DEBUG TIMEOUT */}
           <Route 
-            path="/admin/dashboard-tuteur" 
-            element={<ProtectedRoute><AdminDashboardTuteurPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/admin/task-validation" 
-            element={<ProtectedRoute><AdminTaskValidationPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/admin/complete-test" 
-            element={<ProtectedRoute><CompleteAdminTestPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/admin/role-permissions" 
-            element={<ProtectedRoute><AdminRolePermissionsPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/admin/rewards" 
-            element={<ProtectedRoute><AdminRewardsPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/admin/badges" 
-            element={<ProtectedRoute><AdminBadgesPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/admin/users" 
-            element={<ProtectedRoute><AdminUsersPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/admin/analytics" 
-            element={<ProtectedRoute><AdminAnalyticsPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/admin/settings" 
-            element={<ProtectedRoute><AdminSettingsPage /></ProtectedRoute>} 
+            path="/analytics" 
+            element={
+              <ProtectedRoute>
+                <div style={{
+                  minHeight: '100vh',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  textAlign: 'center'
+                }}>
+                  <div>
+                    <h1>📊 Analytics</h1>
+                    <p>Page temporairement désactivée pour résoudre les problèmes de build</p>
+                    <p>Sera réactivée une fois le timeout corrigé</p>
+                  </div>
+                </div>
+              </ProtectedRoute>
+            } 
           />
           
-          {/* 🔄 Redirections */}
+          <Route 
+            path="/gamification" 
+            element={
+              <ProtectedRoute>
+                <div style={{
+                  minHeight: '100vh',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  textAlign: 'center'
+                }}>
+                  <div>
+                    <h1>🎮 Gamification</h1>
+                    <p>Système de réclamation d'objectifs avec validation admin</p>
+                    <p>En cours de développement - Page temporairement désactivée</p>
+                    <div style={{
+                      marginTop: '20px',
+                      padding: '15px',
+                      background: 'rgba(255,255,255,0.1)',
+                      borderRadius: '8px'
+                    }}>
+                      <p>🎯 Fonctionnalités prévues :</p>
+                      <p>• Réclamation d'objectifs par les utilisateurs</p>
+                      <p>• Validation par les administrateurs</p>
+                      <p>• Attribution automatique des XP</p>
+                      <p>• Historique des réclamations</p>
+                    </div>
+                  </div>
+                </div>
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 🔄 Redirections vers pages temporaires pour les autres routes */}
+          <Route 
+            path="/badges" 
+            element={<Navigate to="/gamification" replace />} 
+          />
+          <Route 
+            path="/leaderboard" 
+            element={<Navigate to="/gamification" replace />} 
+          />
+          <Route 
+            path="/rewards" 
+            element={<Navigate to="/gamification" replace />} 
+          />
+          <Route 
+            path="/role/*" 
+            element={<Navigate to="/dashboard" replace />} 
+          />
+          <Route 
+            path="/escape-progression" 
+            element={<Navigate to="/dashboard" replace />} 
+          />
+          <Route 
+            path="/onboarding" 
+            element={<Navigate to="/dashboard" replace />} 
+          />
+          <Route 
+            path="/timetrack" 
+            element={<Navigate to="/dashboard" replace />} 
+          />
+          <Route 
+            path="/admin/*" 
+            element={<Navigate to="/dashboard" replace />} 
+          />
+          
+          {/* 🔄 Redirections par défaut */}
           <Route 
             path="/" 
             element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} 
