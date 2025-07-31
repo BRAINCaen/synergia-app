@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/vite.config.js
-// CONFIGURATION OPTIMISÉE POUR BUILD NETLIFY RAPIDE
+// CONFIGURATION OPTIMISÉE SANS DUPLICATION
 // ==========================================
 
 import { defineConfig } from 'vite';
@@ -36,12 +36,22 @@ export default defineConfig({
         }
       },
       
-      // ✅ CORRECTION CRITIQUE : Externaliser les modules problématiques
+      // ✅ CORRECTION CRITIQUE : Pas d'externals problématiques
       external: [],
       
       // Optimiser les imports
       treeshake: {
         moduleSideEffects: false
+      },
+      
+      // ✅ SUPPRESSION DES WARNINGS POUR BUILD RAPIDE
+      onwarn(warning, warn) {
+        // Supprimer les warnings non critiques pendant le build
+        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
+        if (warning.code === 'SOURCEMAP_ERROR') return;
+        if (warning.code === 'MISSING_EXPORT') return;
+        if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return;
+        warn(warning);
       }
     },
     
@@ -129,22 +139,7 @@ export default defineConfig({
   // ==========================================
   // 📊 LOGS ET DEBUG
   // ==========================================
-  logLevel: process.env.NODE_ENV === 'production' ? 'error' : 'info',
-  
-  // Réduire les warnings en production
-  build: {
-    ...this?.build,
-    rollupOptions: {
-      ...this?.build?.rollupOptions,
-      onwarn(warning, warn) {
-        // Supprimer les warnings non critiques pendant le build
-        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
-        if (warning.code === 'SOURCEMAP_ERROR') return;
-        if (warning.code === 'MISSING_EXPORT') return;
-        warn(warning);
-      }
-    }
-  }
+  logLevel: process.env.NODE_ENV === 'production' ? 'error' : 'info'
 });
 
 // ==========================================
@@ -155,3 +150,4 @@ console.log('🚀 Minification: esbuild (plus rapide)');
 console.log('📦 Chunks: vendor, router, firebase, ui séparés');
 console.log('⚡ Sourcemaps: désactivés en production');
 console.log('🎯 Target: esnext pour build optimisé');
+console.log('🔧 Warnings: supprimés pour build plus rapide');
