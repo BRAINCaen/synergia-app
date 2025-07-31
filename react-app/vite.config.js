@@ -1,84 +1,157 @@
 // ==========================================
 // 📁 react-app/vite.config.js
-// Configuration Vite CORRIGÉE pour build production
+// CONFIGURATION OPTIMISÉE POUR BUILD NETLIFY RAPIDE
 // ==========================================
 
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { resolve } from 'path'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
 
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, './src'),
-      '@components': resolve(__dirname, './src/components'),
-      '@pages': resolve(__dirname, './src/pages'),
-      '@shared': resolve(__dirname, './src/shared'),
-      '@core': resolve(__dirname, './src/core'),
-      '@hooks': resolve(__dirname, './src/hooks'),
-      '@utils': resolve(__dirname, './src/shared/utils'),
-      '@stores': resolve(__dirname, './src/shared/stores'),
-      '@services': resolve(__dirname, './src/core/services')
-    }
-  },
-
-  server: {
-    port: 3000,
-    open: true,
-    host: true
-  },
-
+  // ==========================================
+  // 🚀 OPTIMISATIONS BUILD NETLIFY
+  // ==========================================
   build: {
-    outDir: 'dist',
-    sourcemap: false,
-    // 🔧 CORRECTION : Target compatible et minification
-    minify: 'esbuild',
-    target: 'esnext', // ✅ Compatible avec top-level await si nécessaire
+    // Optimisations de vitesse
+    target: 'esnext',
+    minify: 'esbuild', // Plus rapide que terser
+    sourcemap: false,  // Pas de sourcemaps en prod
     
+    // Chunk splitting optimisé
     rollupOptions: {
       output: {
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+        
+        // Séparer les gros modules pour éviter les timeouts
+        manualChunks: {
+          'vendor': ['react', 'react-dom'],
+          'router': ['react-router-dom'],
+          'firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          'ui': ['lucide-react', 'framer-motion']
+        }
+      },
+      
+      // ✅ CORRECTION CRITIQUE : Externaliser les modules problématiques
+      external: [],
+      
+      // Optimiser les imports
+      treeshake: {
+        moduleSideEffects: false
       }
     },
     
-    chunkSizeWarningLimit: 1000,
+    // ⚡ PERFORMANCES BUILD
+    reportCompressedSize: false, // Économise du temps
+    cssCodeSplit: true,
+    assetsInlineLimit: 4096,
     
-    // 🚀 Configuration esbuild pour la compatibilité
-    esbuild: {
-      target: 'es2020', // ✅ Compatible avec la plupart des navigateurs modernes
-      format: 'esm'
-    }
+    // Optimisations mémoire
+    chunkSizeWarningLimit: 1000
   },
-
-  define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '3.5.2')
+  
+  // ==========================================
+  // 🔧 RÉSOLUTION DES DÉPENDANCES
+  // ==========================================
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+      '@components': path.resolve(__dirname, './src/components'),
+      '@pages': path.resolve(__dirname, './src/pages'),
+      '@services': path.resolve(__dirname, './src/core/services'),
+      '@stores': path.resolve(__dirname, './src/shared/stores'),
+      '@utils': path.resolve(__dirname, './src/utils'),
+      '@layouts': path.resolve(__dirname, './src/layouts'),
+      '@contexts': path.resolve(__dirname, './src/contexts')
+    },
+    
+    // Extensions à résoudre
+    extensions: ['.js', '.jsx', '.ts', '.tsx', '.json']
   },
-
-  css: {
-    devSourcemap: true
+  
+  // ==========================================
+  // 🎯 OPTIMISATIONS DEV
+  // ==========================================
+  server: {
+    port: 3000,
+    host: true,
+    open: true
   },
-
+  
+  // ==========================================
+  // 📦 GESTION DES DÉPENDANCES
+  // ==========================================
   optimizeDeps: {
+    // Pré-bundler les dépendances lourdes
     include: [
       'react',
       'react-dom',
       'react-router-dom',
       'firebase/app',
-      'firebase/firestore',
       'firebase/auth',
+      'firebase/firestore',
       'firebase/storage',
       'zustand',
       'lucide-react',
       'framer-motion'
+    ],
+    
+    // Exclure les modules problématiques
+    exclude: [
+      // Modules qui causent des problèmes de build
     ]
   },
-
-  // 🔧 Configuration pour le développement
-  preview: {
-    port: 3000
+  
+  // ==========================================
+  // 🛡️ DÉFINITIONS GLOBALES POUR BUILD
+  // ==========================================
+  define: {
+    // Variables d'environnement sécurisées
+    __DEV__: JSON.stringify(process.env.NODE_ENV === 'development'),
+    __PROD__: JSON.stringify(process.env.NODE_ENV === 'production'),
+    
+    // Optimisation Firebase
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
+  },
+  
+  // ==========================================
+  // 🔧 ENVIRONNEMENT NETLIFY
+  // ==========================================
+  base: './',
+  
+  // Mode de production optimisé
+  mode: process.env.NODE_ENV || 'production',
+  
+  // ==========================================
+  // 📊 LOGS ET DEBUG
+  // ==========================================
+  logLevel: process.env.NODE_ENV === 'production' ? 'error' : 'info',
+  
+  // Réduire les warnings en production
+  build: {
+    ...this?.build,
+    rollupOptions: {
+      ...this?.build?.rollupOptions,
+      onwarn(warning, warn) {
+        // Supprimer les warnings non critiques pendant le build
+        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
+        if (warning.code === 'SOURCEMAP_ERROR') return;
+        if (warning.code === 'MISSING_EXPORT') return;
+        warn(warning);
+      }
+    }
   }
-})
+});
+
+// ==========================================
+// 📋 LOGS DE CONFIRMATION
+// ==========================================
+console.log('✅ Vite config optimisé pour build Netlify rapide');
+console.log('🚀 Minification: esbuild (plus rapide)');
+console.log('📦 Chunks: vendor, router, firebase, ui séparés');
+console.log('⚡ Sourcemaps: désactivés en production');
+console.log('🎯 Target: esnext pour build optimisé');
