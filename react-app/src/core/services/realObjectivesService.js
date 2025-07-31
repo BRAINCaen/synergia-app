@@ -12,7 +12,7 @@ import {
   increment,
   onSnapshot
 } from 'firebase/firestore';
-import { db } from '../config/firebase.config.js';
+import { db } from '../firebase.js';
 import { gamificationService } from './gamificationService.js';
 
 class RealObjectivesService {
