@@ -1,172 +1,300 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// VERSION DEBUG POUR IDENTIFIER LE PROBLÈME DE TIMEOUT
+// VERSION DEBUG D'URGENCE - BYPASS TOTAL AUTH
 // ==========================================
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// ==========================================
-// 🔧 IMPORTS SIMPLIFIÉS POUR DEBUG
-// ==========================================
-
-// ✅ Context provider simplifié
-import { SimpleAuthProvider } from './contexts/SimpleAuthContext.jsx';
-
-// ✅ Imports de base vérifiés
-import ProtectedRoute from './routes/ProtectedRoute.jsx';
-
-// ✅ SEULEMENT les pages les plus simples pour identifier le problème
-import Login from './pages/Login.jsx';
+console.log('🚨 DEBUG URGENCE - App.jsx chargé');
 
 // ==========================================
-// 🎯 PAGE DE DEBUG INTERNE SIMPLE
+// 🔧 COMPOSANT DEBUG DIRECT (SANS IMPORTS EXTERNES)
 // ==========================================
-const DebugDashboard = () => (
-  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-6">
-    <div className="max-w-4xl mx-auto">
-      <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-8">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
-          🚀 Synergia v3.5 - Debug Mode
+const EmergencyDebugPage = () => {
+  const [debugInfo, setDebugInfo] = useState({
+    timestamp: new Date().toLocaleTimeString(),
+    userAgent: navigator.userAgent.substring(0, 50),
+    url: window.location.href,
+    errors: []
+  });
+
+  useEffect(() => {
+    console.log('🔍 Page de debug chargée');
+    
+    // Capturer les erreurs
+    const errorHandler = (error) => {
+      console.error('💥 Erreur capturée:', error);
+      setDebugInfo(prev => ({
+        ...prev,
+        errors: [...prev.errors, error.message || error.toString()]
+      }));
+    };
+
+    window.addEventListener('error', errorHandler);
+    window.addEventListener('unhandledrejection', (event) => {
+      errorHandler(event.reason);
+    });
+
+    return () => {
+      window.removeEventListener('error', errorHandler);
+      window.removeEventListener('unhandledrejection', errorHandler);
+    };
+  }, []);
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      padding: '20px',
+      color: 'white',
+      fontFamily: 'Arial, sans-serif'
+    }}>
+      <div style={{
+        maxWidth: '800px',
+        margin: '0 auto',
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        padding: '30px',
+        borderRadius: '10px',
+        backdropFilter: 'blur(10px)'
+      }}>
+        <h1 style={{ 
+          fontSize: '2.5rem', 
+          marginBottom: '20px',
+          textAlign: 'center'
+        }}>
+          🚨 DEBUG D'URGENCE - SYNERGIA
         </h1>
-        <p className="text-gray-400 text-lg mb-6">
-          Build test réussi ! Tous les imports sont corrects.
-        </p>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-green-600/20 border border-green-500/30 rounded-lg p-4">
-            <h3 className="text-green-400 font-bold mb-2">✅ Corrections Appliquées</h3>
-            <ul className="text-green-300 text-sm space-y-1">
-              <li>• SimpleAuthProvider: Fonctionnel</li>
-              <li>• ProtectedRoute: Import corrigé</li>
-              <li>• Build Vite: Configuration optimisée</li>
-              <li>• NPM Install: 502ms (vs 52s)</li>
-            </ul>
-          </div>
-          
-          <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-4">
-            <h3 className="text-blue-400 font-bold mb-2">📊 Prochaines Étapes</h3>
-            <ul className="text-blue-300 text-sm space-y-1">
-              <li>• Test Dashboard: En cours</li>
-              <li>• Test Pages complexes: À venir</li>
-              <li>• Test Gamification: À venir</li>
-              <li>• Déploiement final: Bientôt</li>
-            </ul>
-          </div>
-        </div>
-        
-        <div className="mt-8 p-4 bg-yellow-900/30 border border-yellow-600/30 rounded-lg">
-          <h3 className="text-yellow-400 font-bold mb-2">🔍 Diagnostic Build</h3>
-          <p className="text-yellow-300 text-sm">
-            Si ce debug passe, le problème est dans une page spécifique. 
-            Nous ajouterons les pages une par une pour identifier le coupable.
-          </p>
+        <div style={{
+          backgroundColor: 'rgba(0,255,0,0.1)',
+          padding: '15px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          border: '1px solid rgba(0,255,0,0.3)'
+        }}>
+          <h2 style={{ color: '#4ade80', marginBottom: '10px' }}>
+            ✅ SUCCÈS - Build et Déploiement
+          </h2>
+          <ul style={{ margin: 0, paddingLeft: '20px' }}>
+            <li>✅ Build Netlify réussi</li>
+            <li>✅ Application déployée</li>
+            <li>✅ React Router fonctionne</li>
+            <li>✅ JavaScript s'exécute</li>
+          </ul>
         </div>
 
-        <div className="mt-6 flex space-x-4">
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
-            🏠 Dashboard (Debug)
+        <div style={{
+          backgroundColor: 'rgba(255,255,0,0.1)',
+          padding: '15px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          border: '1px solid rgba(255,255,0,0.3)'
+        }}>
+          <h2 style={{ color: '#facc15', marginBottom: '10px' }}>
+            🔍 INFORMATIONS DE DEBUG
+          </h2>
+          <p><strong>Heure:</strong> {debugInfo.timestamp}</p>
+          <p><strong>URL:</strong> {debugInfo.url}</p>
+          <p><strong>Navigateur:</strong> {debugInfo.userAgent}...</p>
+          <p><strong>Erreurs détectées:</strong> {debugInfo.errors.length}</p>
+        </div>
+
+        {debugInfo.errors.length > 0 && (
+          <div style={{
+            backgroundColor: 'rgba(255,0,0,0.1)',
+            padding: '15px',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            border: '1px solid rgba(255,0,0,0.3)'
+          }}>
+            <h2 style={{ color: '#ef4444', marginBottom: '10px' }}>
+              ❌ ERREURS CAPTURÉES
+            </h2>
+            {debugInfo.errors.map((error, index) => (
+              <p key={index} style={{ 
+                backgroundColor: 'rgba(0,0,0,0.2)', 
+                padding: '8px', 
+                borderRadius: '4px',
+                fontFamily: 'monospace',
+                fontSize: '12px'
+              }}>
+                {error}
+              </p>
+            ))}
+          </div>
+        )}
+
+        <div style={{
+          backgroundColor: 'rgba(0,0,255,0.1)',
+          padding: '15px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          border: '1px solid rgba(0,0,255,0.3)'
+        }}>
+          <h2 style={{ color: '#3b82f6', marginBottom: '10px' }}>
+            🎯 PLAN D'ACTION
+          </h2>
+          <ol style={{ margin: 0, paddingLeft: '20px' }}>
+            <li>Cette page prouve que React fonctionne</li>
+            <li>Le problème est dans les imports ou contexts</li>
+            <li>Nous allons identifier le composant coupable</li>
+            <li>Puis réactiver progressivement les fonctionnalités</li>
+          </ol>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '15px',
+          marginTop: '30px'
+        }}>
+          <button 
+            onClick={() => window.location.reload()}
+            style={{
+              backgroundColor: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              padding: '12px 20px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            🔄 Recharger
           </button>
-          <button className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors">
-            📊 Analytics (Prochainement)
+          
+          <button 
+            onClick={() => console.log('Test console log')}
+            style={{
+              backgroundColor: '#10b981',
+              color: 'white',
+              border: 'none',
+              padding: '12px 20px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            🧪 Test Console
           </button>
-          <button className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors">
-            🎮 Gamification (Prochainement)
+          
+          <button 
+            onClick={() => alert('JavaScript fonctionne !')}
+            style={{
+              backgroundColor: '#f59e0b',
+              color: 'white',
+              border: 'none',
+              padding: '12px 20px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            ⚡ Test JavaScript
           </button>
+          
+          <button 
+            onClick={() => {
+              const info = {
+                localStorage: typeof localStorage !== 'undefined',
+                sessionStorage: typeof sessionStorage !== 'undefined',
+                fetch: typeof fetch !== 'undefined',
+                Promise: typeof Promise !== 'undefined'
+              };
+              console.log('🔍 APIs disponibles:', info);
+              alert('Voir console pour détails APIs');
+            }}
+            style={{
+              backgroundColor: '#8b5cf6',
+              color: 'white',
+              border: 'none',
+              padding: '12px 20px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            🔧 Test APIs
+          </button>
+        </div>
+
+        <div style={{
+          textAlign: 'center',
+          marginTop: '30px',
+          padding: '20px',
+          backgroundColor: 'rgba(255,255,255,0.1)',
+          borderRadius: '8px'
+        }}>
+          <h3 style={{ color: '#4ade80' }}>🎉 BONNE NOUVELLE</h3>
+          <p>Si vous voyez cette page, le build est 100% réussi !</p>
+          <p>Il reste juste à identifier pourquoi l'auth bloque.</p>
+          <p style={{ fontSize: '12px', opacity: 0.8, marginTop: '15px' }}>
+            Version: Synergia v3.5.3 - Debug d'urgence
+          </p>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ==========================================
-// 🎯 LOADING ULTRA-SIMPLE
-// ==========================================
-const SimpleLoading = ({ message = "Chargement..." }) => (
-  <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
-      <p className="text-white">{message}</p>
-    </div>
-  </div>
-);
-
-// ==========================================
-// 🧩 COMPOSANT APP DEBUG
+// 🧩 COMPOSANT APP ULTRA-SIMPLE
 // ==========================================
 function App() {
-  // ==========================================
-  // ⚡ LOGS DE DEBUG
-  // ==========================================
+  const [appLoaded, setAppLoaded] = useState(false);
+
   useEffect(() => {
-    console.log('🐛 DEBUG MODE - Synergia v3.5');
-    console.log('✅ App.jsx chargé sans erreur');
-    console.log('🔧 Imports simplifiés pour identifier le problème');
-    console.log('⏱️ Timeout attendu: < 30 secondes');
+    console.log('🚨 App.jsx - Version debug d\'urgence');
+    console.log('⏱️ Chargement immédiat sans auth...');
     
-    // Timer de debug
-    const debugTimer = setTimeout(() => {
-      console.log('⏱️ 10 secondes écoulées - App fonctionne');
-    }, 10000);
+    // Chargement immédiat sans délai
+    setAppLoaded(true);
     
-    return () => clearTimeout(debugTimer);
+    // Debug des erreurs globales
+    window.addEventListener('error', (e) => {
+      console.error('💥 Erreur globale:', e.error);
+    });
+    
+    window.addEventListener('unhandledrejection', (e) => {
+      console.error('💥 Promise rejetée:', e.reason);
+    });
+    
   }, []);
 
-  // ==========================================
-  // 🎨 RENDU MINIMAL POUR DEBUG
-  // ==========================================
+  if (!appLoaded) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: '#1a1a2e',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'white'
+      }}>
+        <div>Chargement debug...</div>
+      </div>
+    );
+  }
+
   return (
-    <SimpleAuthProvider>
-      <Router>
-        <div className="App">
-          <Routes>
-            {/* ==========================================
-                🔐 ROUTE LOGIN SIMPLE
-                ========================================== */}
-            <Route path="/login" element={<Login />} />
-            
-            {/* ==========================================
-                🛡️ ROUTE DEBUG DASHBOARD
-                ========================================== */}
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <DebugDashboard />
-              </ProtectedRoute>
-            } />
-            
-            {/* ==========================================
-                🔄 REDIRECTIONS SIMPLES
-                ========================================== */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            
-            <Route path="*" element={
-              <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-                <div className="text-center">
-                  <h1 className="text-4xl font-bold text-white mb-4">🔍 Debug Mode</h1>
-                  <p className="text-gray-400 mb-4">Page non trouvée en mode debug</p>
-                  <button
-                    onClick={() => window.location.href = '/dashboard'}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-                  >
-                    🏠 Dashboard Debug
-                  </button>
-                </div>
-              </div>
-            } />
-          </Routes>
-        </div>
-      </Router>
-    </SimpleAuthProvider>
+    <Router>
+      <div className="App">
+        <Routes>
+          <Route path="/*" element={<EmergencyDebugPage />} />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 
 export default App;
 
 // ==========================================
-// 📋 LOGS DE DEBUG
+// 📋 LOGS CRITIQUES
 // ==========================================
-console.log('🐛 App.jsx DEBUG - Version ultra-simple chargée');
-console.log('🎯 Objectif: Identifier la cause du timeout');
-console.log('✅ Si ce build passe → Le problème est dans une page spécifique');
-console.log('❌ Si ce build échoue → Le problème est dans les imports de base');
-console.log('⏱️ Timeout attendu: < 30 secondes');
+console.log('🚨 APP DEBUG D\'URGENCE CHARGÉ');
+console.log('🎯 Cette version bypass complètement l\'auth');
+console.log('✅ Si cette page s\'affiche → React fonctionne');
+console.log('❌ Si blocage persiste → Problème plus profond');
+console.log('🔍 Ouvrir F12 Console pour plus d\'infos');
