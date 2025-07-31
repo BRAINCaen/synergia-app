@@ -1,20 +1,20 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// VERSION CORRIGÉE - SEULEMENT LES IMPORTS EXISTANTS
+// VERSION CORRIGÉE - CHEMINS D'IMPORTS CORRIGÉS
 // ==========================================
 
 import React, { useEffect, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 // ==========================================
-// 🔧 IMPORTS CORE - SEULEMENT CE QUI EXISTE
+// 🔧 IMPORTS CORE - CHEMINS CORRIGÉS
 // ==========================================
 
 // ✅ Context provider qui existe réellement
 import { SimpleAuthProvider } from './contexts/SimpleAuthContext.jsx';
 
-// ✅ Guards et layout
-import ProtectedRoute from './components/routing/ProtectedRoute.jsx';
+// ✅ Guards et layout avec CHEMINS CORRECTS
+import ProtectedRoute from './routes/ProtectedRoute.jsx';
 import PremiumLayout from './layouts/PremiumLayout.jsx';
 
 // ==========================================
@@ -132,7 +132,7 @@ function App() {
       };
     }
     
-    console.log('🚀 Synergia v3.5 - Toutes fonctionnalités avec imports corrigés');
+    console.log('🚀 Synergia v3.5 - Chemins d\'imports corrigés pour build');
   }, []);
 
   // ==========================================
@@ -156,132 +156,132 @@ function App() {
               {/* Dashboard */}
               <Route path="/dashboard" element={
                 <ProtectedRoute>
-                  <PremiumLayout>
-                    <Suspense fallback={<LoadingFallback pageName="Dashboard" />}>
+                  <Suspense fallback={<LoadingFallback pageName="Dashboard" />}>
+                    <PremiumLayout>
                       <Dashboard />
-                    </Suspense>
-                  </PremiumLayout>
+                    </PremiumLayout>
+                  </Suspense>
                 </ProtectedRoute>
               } />
               
               {/* Tâches */}
               <Route path="/tasks" element={
                 <ProtectedRoute>
-                  <PremiumLayout>
-                    <Suspense fallback={<LoadingFallback pageName="Tâches" />}>
+                  <Suspense fallback={<LoadingFallback pageName="Tâches" />}>
+                    <PremiumLayout>
                       <TasksPage />
-                    </Suspense>
-                  </PremiumLayout>
+                    </PremiumLayout>
+                  </Suspense>
                 </ProtectedRoute>
               } />
               
               {/* Projets */}
               <Route path="/projects" element={
                 <ProtectedRoute>
-                  <PremiumLayout>
-                    <Suspense fallback={<LoadingFallback pageName="Projets" />}>
+                  <Suspense fallback={<LoadingFallback pageName="Projets" />}>
+                    <PremiumLayout>
                       <ProjectsPage />
-                    </Suspense>
-                  </PremiumLayout>
+                    </PremiumLayout>
+                  </Suspense>
                 </ProtectedRoute>
               } />
               
               {/* Analytics */}
               <Route path="/analytics" element={
                 <ProtectedRoute>
-                  <PremiumLayout>
-                    <Suspense fallback={<LoadingFallback pageName="Analytics" />}>
+                  <Suspense fallback={<LoadingFallback pageName="Analytics" />}>
+                    <PremiumLayout>
                       <AnalyticsPage />
-                    </Suspense>
-                  </PremiumLayout>
+                    </PremiumLayout>
+                  </Suspense>
                 </ProtectedRoute>
               } />
               
               {/* Gamification */}
               <Route path="/gamification" element={
                 <ProtectedRoute>
-                  <PremiumLayout>
-                    <Suspense fallback={<LoadingFallback pageName="Gamification" />}>
+                  <Suspense fallback={<LoadingFallback pageName="Gamification" />}>
+                    <PremiumLayout>
                       <GamificationPage />
-                    </Suspense>
-                  </PremiumLayout>
+                    </PremiumLayout>
+                  </Suspense>
                 </ProtectedRoute>
               } />
               
               {/* Utilisateurs */}
               <Route path="/users" element={
                 <ProtectedRoute>
-                  <PremiumLayout>
-                    <Suspense fallback={<LoadingFallback pageName="Utilisateurs" />}>
+                  <Suspense fallback={<LoadingFallback pageName="Utilisateurs" />}>
+                    <PremiumLayout>
                       <UsersPage />
-                    </Suspense>
-                  </PremiumLayout>
+                    </PremiumLayout>
+                  </Suspense>
                 </ProtectedRoute>
               } />
               
               {/* Équipe */}
               <Route path="/team" element={
                 <ProtectedRoute>
-                  <PremiumLayout>
-                    <Suspense fallback={<LoadingFallback pageName="Équipe" />}>
+                  <Suspense fallback={<LoadingFallback pageName="Équipe" />}>
+                    <PremiumLayout>
                       <TeamPage />
-                    </Suspense>
-                  </PremiumLayout>
+                    </PremiumLayout>
+                  </Suspense>
                 </ProtectedRoute>
               } />
               
               {/* Intégration */}
               <Route path="/onboarding" element={
                 <ProtectedRoute>
-                  <PremiumLayout>
-                    <Suspense fallback={<LoadingFallback pageName="Intégration" />}>
+                  <Suspense fallback={<LoadingFallback pageName="Intégration" />}>
+                    <PremiumLayout>
                       <OnboardingPage />
-                    </Suspense>
-                  </PremiumLayout>
+                    </PremiumLayout>
+                  </Suspense>
                 </ProtectedRoute>
               } />
               
               {/* Suivi temps */}
               <Route path="/time-track" element={
                 <ProtectedRoute>
-                  <PremiumLayout>
-                    <Suspense fallback={<LoadingFallback pageName="Suivi Temps" />}>
+                  <Suspense fallback={<LoadingFallback pageName="Suivi Temps" />}>
+                    <PremiumLayout>
                       <TimeTrackPage />
-                    </Suspense>
-                  </PremiumLayout>
+                    </PremiumLayout>
+                  </Suspense>
                 </ProtectedRoute>
               } />
               
               {/* Profil */}
               <Route path="/profile" element={
                 <ProtectedRoute>
-                  <PremiumLayout>
-                    <Suspense fallback={<LoadingFallback pageName="Profil" />}>
+                  <Suspense fallback={<LoadingFallback pageName="Profil" />}>
+                    <PremiumLayout>
                       <ProfilePage />
-                    </Suspense>
-                  </PremiumLayout>
+                    </PremiumLayout>
+                  </Suspense>
                 </ProtectedRoute>
               } />
               
               {/* Paramètres */}
               <Route path="/settings" element={
                 <ProtectedRoute>
-                  <PremiumLayout>
-                    <Suspense fallback={<LoadingFallback pageName="Paramètres" />}>
+                  <Suspense fallback={<LoadingFallback pageName="Paramètres" />}>
+                    <PremiumLayout>
                       <SettingsPage />
-                    </Suspense>
-                  </PremiumLayout>
+                    </PremiumLayout>
+                  </Suspense>
                 </ProtectedRoute>
               } />
               
               {/* Récompenses */}
               <Route path="/rewards" element={
                 <ProtectedRoute>
-                  <PremiumLayout>
-                    <Suspense fallback={<LoadingFallback pageName="Récompenses" />}>
+                  <Suspense fallback={<LoadingFallback pageName="Récompenses" />}>
+                    <PremiumLayout>
                       <RewardsPage />
-                    </Suspense>
-                  </PremiumLayout>
+                    </PremiumLayout>
+                  </Suspense>
                 </ProtectedRoute>
               } />
               
@@ -345,8 +345,9 @@ if (typeof document !== 'undefined') {
 // ==========================================
 // 📋 LOGS DE CONFIRMATION
 // ==========================================
-console.log('✅ App.jsx corrigé - Imports existants uniquement');
-console.log('🔧 Context: SimpleAuthProvider utilisé');
+console.log('✅ App.jsx corrigé - Chemins d\'imports CORRECTS');
+console.log('🔧 ProtectedRoute: ./routes/ProtectedRoute.jsx');
+console.log('🔧 SimpleAuthProvider: ./contexts/SimpleAuthContext.jsx'); 
 console.log('📦 Lazy loading: Toutes les pages optimisées');
 console.log('🎯 Fonctionnalités: Dashboard, Tasks, Projects, Analytics, Gamification, Users, Team, etc.');
-console.log('🚀 Build: Compatible Netlify sans imports manquants');
+console.log('🚀 Build: Compatible Netlify avec chemins corrects');
