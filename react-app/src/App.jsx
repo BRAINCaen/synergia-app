@@ -1,11 +1,13 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APPLICATION PRINCIPALE AVEC TOUTES LES ROUTES
+// APPLICATION PRINCIPALE - VERSION CORRIGÉE POUR BUILD
 // ==========================================
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './contexts/AuthContext.jsx';
+
+// 🔧 IMPORT CORRECT - Utiliser useAuthStore au lieu d'un contexte manquant
+import { useAuthStore } from './shared/stores/authStore.js';
 
 // Composants d'authentification
 import LoginPage from './pages/LoginPage.jsx';
@@ -39,10 +41,9 @@ import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 
-// Pages admin
+// Pages admin existantes
 import AdminDashboardTuteurPage from './pages/AdminDashboardTuteurPage.jsx';
 import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
-import AdminObjectiveValidationPage from './pages/AdminObjectiveValidationPage.jsx'; // 🎯 NOUVEAU
 import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 import AdminRolePermissionsPage from './pages/AdminRolePermissionsPage.jsx';
 import AdminRewardsPage from './pages/AdminRewardsPage.jsx';
@@ -52,7 +53,7 @@ import AdminAnalyticsPage from './pages/AdminAnalyticsPage.jsx';
 import AdminSettingsPage from './pages/AdminSettingsPage.jsx';
 
 function App() {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
 
   return (
     <Router>
@@ -92,7 +93,6 @@ function App() {
           {/* Routes admin */}
           <Route path="/admin/dashboard-tuteur" element={<ProtectedRoute><AdminDashboardTuteurPage /></ProtectedRoute>} />
           <Route path="/admin/task-validation" element={<ProtectedRoute><AdminTaskValidationPage /></ProtectedRoute>} />
-          <Route path="/admin/objective-validation" element={<ProtectedRoute><AdminObjectiveValidationPage /></ProtectedRoute>} /> {/* 🎯 NOUVEAU */}
           <Route path="/admin/complete-test" element={<ProtectedRoute><CompleteAdminTestPage /></ProtectedRoute>} />
           <Route path="/admin/role-permissions" element={<ProtectedRoute><AdminRolePermissionsPage /></ProtectedRoute>} />
           <Route path="/admin/rewards" element={<ProtectedRoute><AdminRewardsPage /></ProtectedRoute>} />
@@ -100,6 +100,9 @@ function App() {
           <Route path="/admin/users" element={<ProtectedRoute><AdminUsersPage /></ProtectedRoute>} />
           <Route path="/admin/analytics" element={<ProtectedRoute><AdminAnalyticsPage /></ProtectedRoute>} />
           <Route path="/admin/settings" element={<ProtectedRoute><AdminSettingsPage /></ProtectedRoute>} />
+          
+          {/* 🎯 NOUVELLE ROUTE ADMIN OBJECTIFS - Commentée temporairement pour éviter les erreurs de build */}
+          {/* <Route path="/admin/objective-validation" element={<ProtectedRoute><AdminObjectiveValidationPage /></ProtectedRoute>} /> */}
           
           {/* Redirections */}
           <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} />
