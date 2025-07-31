@@ -1,15 +1,16 @@
 // ==========================================
 // 📁 react-app/src/shared/hooks/useObjectives.js
-// HOOK REACT POUR LA GESTION DES OBJECTIFS
+// HOOK REACT POUR LA GESTION DES OBJECTIFS AVEC RÉCLAMATION
 // ==========================================
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useUnifiedFirebaseData } from './useUnifiedFirebaseData.js';
 import { objectivesService } from '../../core/services/objectivesService.js';
+import { objectiveClaimService } from '../../core/services/objectiveClaimService.js';
 
 /**
- * 🎯 HOOK POUR LA GESTION DES OBJECTIFS
+ * 🎯 HOOK POUR LA GESTION DES OBJECTIFS AVEC SYSTÈME DE RÉCLAMATION
  */
 export const useObjectives = () => {
   const { user, isAuthenticated } = useAuth();
@@ -17,9 +18,10 @@ export const useObjectives = () => {
   
   // États locaux
   const [objectives, setObjectives] = useState([]);
+  const [userClaims, setUserClaims] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [claimingObjective, setClaimingObjective] = useState(null);
+  const [submittingClaim, setSubmittingClaim] = useState(null);
 
   /**
    * 📥 CHARGER LES OBJECTIFS POUR L'UTILISATEUR ACTUEL
@@ -42,37 +44,24 @@ export const useObjectives = () => {
         
         // Flexibilité & gestion d'équipe
         surpriseTeamHandledToday: gamification?.surpriseTeamHandledToday || false,
-        helpedColleagueToday: gamification?.helpedColleagueToday || false,
+        teamImproveActionToday: gamification?.teamImproveActionToday || false,
         
-        // Service client
-        fiveStarReviewToday: gamification?.fiveStarReviewToday || false,
-        
-        // Sécurité & maintenance
-        securityCheckToday: gamification?.securityCheckToday || false,
-        technicalFixToday: gamification?.technicalFixToday || false,
-        
-        // Leadership
-        conflictResolvedToday: gamification?.conflictResolvedToday || false,
+        // Service client & sécurité
+        clientNeedAddressedToday: gamification?.clientNeedAddressedToday || false,
+        securityActionToday: gamification?.securityActionToday || false,
         
         // === OBJECTIFS HEBDOMADAIRES ===
-        // Service client & avis
-        positiveReviewsThisWeek: gamification?.positiveReviewsThisWeek || 0,
+        // Maintenance & marketing
+        equipmentMaintained: gamification?.equipmentMaintained || false,
+        socialMediaContentShared: gamification?.socialMediaContentShared || false,
         
-        // Responsabilités & horaires
-        openingsClosingsThisWeek: gamification?.openingsClosingsThisWeek || 0,
-        weekendWorkedThisWeek: gamification?.weekendWorkedThisWeek || false,
+        // Responsabilité & dévouement
+        responsibilityTakenWeekly: gamification?.responsibilityTakenWeekly || false,
+        extraHoursWorkedWeekly: gamification?.extraHoursWorkedWeekly || false,
         
-        // Polyvalence & flexibilité
-        allRoomsAnimatedThisWeek: gamification?.allRoomsAnimatedThisWeek || false,
-        replacementDoneThisWeek: gamification?.replacementDoneThisWeek || false,
-        
-        // Créativité & amélioration
-        decorationChangedThisWeek: gamification?.decorationChangedThisWeek || false,
-        immersionIdeaThisWeek: gamification?.immersionIdeaThisWeek || false,
-        
-        // Bien-être & leadership
-        wellbeingMomentThisWeek: gamification?.wellbeingMomentThisWeek || false,
-        unexpectedSituationThisWeek: gamification?.unexpectedSituationThisWeek || false,
+        // Polyvalence & créativité
+        departmentHelpProvided: gamification?.departmentHelpProvided || false,
+        unexpectedSituationHandled: gamification?.unexpectedSituationHandled || false,
         
         // Données de base (conservées pour compatibilité)
         weeklyXp: gamification?.weeklyXp || 0,
@@ -83,10 +72,40 @@ export const useObjectives = () => {
 
       console.log('📊 Chargement objectifs avec stats:', userStats);
 
-      const objectivesData = await objectivesService.getObjectivesForUser(user.uid, userStats);
-      setObjectives(objectivesData);
+      // Charger les objectifs et les réclamations en parallèle
+      const [objectivesData, claimsData] = await Promise.all([
+        objectivesService.getObjectivesForUser(user.uid, userStats),
+        objectiveClaimService.getUserClaims(user.uid)
+      ]);
 
-      console.log(`✅ ${objectivesData.length} objectifs chargés`);
+      // Enrichir les objectifs avec le statut des réclamations
+      const enrichedObjectives = objectivesData.map(objective => {
+        const activeClaim = claimsData.find(claim => 
+          claim.objectiveId === objective.id && 
+          claim.status === 'pending'
+        );
+
+        const approvedClaim = claimsData.find(claim => 
+          claim.objectiveId === objective.id && 
+          claim.status === 'approved'
+        );
+
+        return {
+          ...objective,
+          hasActiveClaim: !!activeClaim,
+          isAlreadyClaimed: !!approvedClaim,
+          canClaim: objective.canClaim && !activeClaim && !approvedClaim,
+          claimStatus: activeClaim ? 'pending' : approvedClaim ? 'approved' : null,
+          lastClaim: claimsData
+            .filter(claim => claim.objectiveId === objective.id)
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null
+        };
+      });
+
+      setObjectives(enrichedObjectives);
+      setUserClaims(claimsData);
+
+      console.log(`✅ ${enrichedObjectives.length} objectifs chargés avec statut réclamations`);
 
     } catch (err) {
       console.error('❌ Erreur chargement objectifs:', err);
@@ -97,52 +116,69 @@ export const useObjectives = () => {
   }, [isAuthenticated, user?.uid, gamification, dataLoading]);
 
   /**
-   * 🎁 RÉCLAMER UN OBJECTIF
+   * 📝 SOUMETTRE UNE RÉCLAMATION D'OBJECTIF
    */
-  const claimObjective = useCallback(async (objective) => {
-    if (!isAuthenticated || !user?.uid || !objective.canClaim || claimingObjective) {
-      return { success: false, error: 'Conditions non remplies pour réclamer' };
+  const submitObjectiveClaim = useCallback(async (objective, evidence = '') => {
+    if (!isAuthenticated || !user?.uid || !objective.canClaim || submittingClaim) {
+      return { success: false, error: 'Conditions non remplies pour soumettre la réclamation' };
     }
 
     try {
-      setClaimingObjective(objective.id);
+      setSubmittingClaim(objective.id);
       setError(null);
 
-      console.log('🎯 Réclamation objectif:', objective.title);
+      console.log('📝 Soumission réclamation objectif:', objective.title);
 
-      const result = await objectivesService.claimObjective(user.uid, objective);
+      const result = await objectiveClaimService.createObjectiveClaim(
+        user.uid, 
+        objective, 
+        evidence
+      );
 
       if (result.success) {
         // Recharger les objectifs pour mettre à jour l'état
         await loadObjectives();
 
-        console.log(`✅ Objectif réclamé: +${result.xpGained} XP`);
+        console.log(`✅ Réclamation soumise: ${result.claimRequestId}`);
         
         return {
           success: true,
-          xpGained: result.xpGained,
-          message: `🎉 Félicitations ! +${result.xpGained} XP réclamés pour "${objective.title}"`
+          claimRequestId: result.claimRequestId,
+          message: result.message,
+          expectedXP: result.expectedXP,
+          estimatedProcessingTime: result.estimatedProcessingTime
         };
       }
 
+      return result;
+
     } catch (err) {
-      console.error('❌ Erreur réclamation objectif:', err);
+      console.error('❌ Erreur soumission réclamation objectif:', err);
       setError(err.message);
       return {
         success: false,
         error: err.message
       };
     } finally {
-      setClaimingObjective(null);
+      setSubmittingClaim(null);
     }
-  }, [isAuthenticated, user?.uid, claimingObjective, loadObjectives]);
+  }, [isAuthenticated, user?.uid, submittingClaim, loadObjectives]);
+
+  /**
+   * 🎁 MÉTHODE HÉRITÉE POUR COMPATIBILITÉ (maintenant redirige vers submitObjectiveClaim)
+   */
+  const claimObjective = useCallback(async (objective, evidence = '') => {
+    console.log('⚠️ Utilisation de claimObjective() héritée - redirection vers submitObjectiveClaim()');
+    return await submitObjectiveClaim(objective, evidence);
+  }, [submitObjectiveClaim]);
 
   /**
    * 📊 OBTENIR LES STATISTIQUES DES OBJECTIFS
    */
   const getObjectiveStats = useCallback(() => {
     const completed = objectives.filter(obj => obj.status === 'completed').length;
-    const claimed = objectives.filter(obj => obj.isClaimed).length;
+    const claimed = objectives.filter(obj => obj.isAlreadyClaimed).length;
+    const pending = objectives.filter(obj => obj.hasActiveClaim).length;
     const available = objectives.filter(obj => obj.canClaim).length;
     const active = objectives.filter(obj => obj.status === 'active').length;
 
@@ -150,6 +186,7 @@ export const useObjectives = () => {
       total: objectives.length,
       completed,
       claimed,
+      pending,
       available,
       active,
       completionRate: objectives.length > 0 ? Math.round((completed / objectives.length) * 100) : 0
@@ -157,7 +194,7 @@ export const useObjectives = () => {
   }, [objectives]);
 
   /**
-   * 🎯 OBTENIR LES OBJECTIFS PAR CATÉGORIE
+   * 🎯 OBTENIR LES OBJECTIFS PAR TYPE
    */
   const getObjectivesByType = useCallback(() => {
     const grouped = objectives.reduce((acc, objective) => {
@@ -177,7 +214,7 @@ export const useObjectives = () => {
    */
   const getNextObjectives = useCallback(() => {
     return objectives
-      .filter(obj => obj.status === 'active' && !obj.isClaimed)
+      .filter(obj => obj.status === 'active' && !obj.isAlreadyClaimed && !obj.hasActiveClaim)
       .sort((a, b) => b.progress - a.progress)
       .slice(0, 3);
   }, [objectives]);
@@ -189,6 +226,66 @@ export const useObjectives = () => {
     return objectives.filter(obj => obj.canClaim);
   }, [objectives]);
 
+  /**
+   * ⏳ OBTENIR LES RÉCLAMATIONS EN ATTENTE
+   */
+  const getPendingClaims = useCallback(() => {
+    return userClaims.filter(claim => claim.status === 'pending');
+  }, [userClaims]);
+
+  /**
+   * ✅ OBTENIR LES RÉCLAMATIONS APPROUVÉES
+   */
+  const getApprovedClaims = useCallback(() => {
+    return userClaims.filter(claim => claim.status === 'approved');
+  }, [userClaims]);
+
+  /**
+   * ❌ OBTENIR LES RÉCLAMATIONS REJETÉES
+   */
+  const getRejectedClaims = useCallback(() => {
+    return userClaims.filter(claim => claim.status === 'rejected');
+  }, [userClaims]);
+
+  /**
+   * 📈 OBTENIR LES STATISTIQUES DES RÉCLAMATIONS
+   */
+  const getClaimStats = useCallback(() => {
+    const pending = getPendingClaims().length;
+    const approved = getApprovedClaims().length;
+    const rejected = getRejectedClaims().length;
+    const total = userClaims.length;
+    
+    const totalXPEarned = getApprovedClaims()
+      .reduce((sum, claim) => sum + (claim.xpAmount || 0), 0);
+
+    return {
+      total,
+      pending,
+      approved,
+      rejected,
+      totalXPEarned,
+      successRate: total > 0 ? Math.round((approved / total) * 100) : 0
+    };
+  }, [userClaims, getPendingClaims, getApprovedClaims, getRejectedClaims]);
+
+  /**
+   * 🔍 VÉRIFIER SI UN OBJECTIF A UNE RÉCLAMATION ACTIVE
+   */
+  const hasActiveClaim = useCallback((objectiveId) => {
+    return userClaims.some(claim => 
+      claim.objectiveId === objectiveId && 
+      claim.status === 'pending'
+    );
+  }, [userClaims]);
+
+  /**
+   * 🔄 RAFRAÎCHIR LES DONNÉES
+   */
+  const refreshData = useCallback(async () => {
+    await loadObjectives();
+  }, [loadObjectives]);
+
   // Charger les objectifs au montage et lors des changements
   useEffect(() => {
     if (!dataLoading) {
@@ -196,13 +293,13 @@ export const useObjectives = () => {
     }
   }, [loadObjectives, dataLoading]);
 
-  // Recharger toutes les 60 secondes pour les objectifs en temps réel
+  // Recharger toutes les 2 minutes pour les objectifs en temps réel
   useEffect(() => {
     if (!isAuthenticated || dataLoading) return;
 
     const interval = setInterval(() => {
       loadObjectives();
-    }, 60000); // 1 minute
+    }, 120000); // 2 minutes
 
     return () => clearInterval(interval);
   }, [loadObjectives, isAuthenticated, dataLoading]);
@@ -210,22 +307,35 @@ export const useObjectives = () => {
   return {
     // État principal
     objectives,
+    userClaims,
     loading: loading || dataLoading,
     error,
     
-    // Actions
+    // Actions principales
     loadObjectives,
+    submitObjectiveClaim,
+    refreshData,
+    
+    // Action héritée pour compatibilité
     claimObjective,
     
-    // États dérivés
+    // États dérivés - Objectifs
     stats: getObjectiveStats(),
     objectivesByType: getObjectivesByType(),
     nextObjectives: getNextObjectives(),
     claimableObjectives: getClaimableObjectives(),
     
+    // États dérivés - Réclamations
+    pendingClaims: getPendingClaims(),
+    approvedClaims: getApprovedClaims(),
+    rejectedClaims: getRejectedClaims(),
+    claimStats: getClaimStats(),
+    
     // Utilitaires
-    isClaimingObjective: (objectiveId) => claimingObjective === objectiveId,
+    isSubmittingClaim: (objectiveId) => submittingClaim === objectiveId,
     hasClaimableObjectives: getClaimableObjectives().length > 0,
+    hasPendingClaims: getPendingClaims().length > 0,
+    hasActiveClaim,
     
     // Données brutes pour debug
     rawGamificationData: gamification
