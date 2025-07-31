@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APPLICATION PRINCIPALE - VERSION CORRIGÉE POUR BUILD
+// APPLICATION PRINCIPALE - VERSION FINALE CORRIGÉE
 // ==========================================
 
 import React from 'react';
@@ -9,12 +9,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 // 🔧 IMPORT CORRECT - Utiliser useAuthStore au lieu d'un contexte manquant
 import { useAuthStore } from './shared/stores/authStore.js';
 
-// Composants d'authentification
-import LoginPage from './pages/LoginPage.jsx';
+// Composants d'authentification - NOMS CORRECTS
+import Login from './pages/Login.jsx';  // ✅ Le vrai nom du fichier
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
-// Pages principales
-import DashboardPage from './pages/DashboardPage.jsx';
+// Pages principales - NOMS CORRECTS DES FICHIERS EXISTANTS
+import Dashboard from './pages/Dashboard.jsx';  // ✅ Le vrai nom
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
@@ -41,7 +41,7 @@ import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 
-// Pages admin existantes
+// Pages admin existantes - NOMS CORRECTS
 import AdminDashboardTuteurPage from './pages/AdminDashboardTuteurPage.jsx';
 import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
 import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
@@ -59,11 +59,11 @@ function App() {
     <Router>
       <div className="App">
         <Routes>
-          {/* Route publique */}
-          <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+          {/* Route publique - NOM CORRIGÉ */}
+          <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
           
-          {/* Routes principales */}
-          <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          {/* Routes principales - NOMS CORRIGÉS */}
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/tasks" element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
           <Route path="/projects" element={<ProtectedRoute><ProjectsPage /></ProtectedRoute>} />
           <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
@@ -100,9 +100,6 @@ function App() {
           <Route path="/admin/users" element={<ProtectedRoute><AdminUsersPage /></ProtectedRoute>} />
           <Route path="/admin/analytics" element={<ProtectedRoute><AdminAnalyticsPage /></ProtectedRoute>} />
           <Route path="/admin/settings" element={<ProtectedRoute><AdminSettingsPage /></ProtectedRoute>} />
-          
-          {/* 🎯 NOUVELLE ROUTE ADMIN OBJECTIFS - Commentée temporairement pour éviter les erreurs de build */}
-          {/* <Route path="/admin/objective-validation" element={<ProtectedRoute><AdminObjectiveValidationPage /></ProtectedRoute>} /> */}
           
           {/* Redirections */}
           <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} />
