@@ -1,11 +1,11 @@
 // ==========================================
 // 📁 react-app/src/contexts/SimpleAuthContext.jsx
-// CONTEXT D'AUTHENTIFICATION SIMPLE SANS BLOCAGE
+// VERSION AVEC TIMEOUT DE SÉCURITÉ POUR ÉVITER BLOCAGE
 // ==========================================
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-console.log('🔐 [SIMPLE-AUTH] Context en cours de chargement...');
+console.log('🔐 [AUTH] SimpleAuth Context - Version avec timeout de sécurité');
 
 // Variables globales pour Firebase
 let auth = null;
@@ -25,7 +25,7 @@ const AuthContext = createContext({
 });
 
 /**
- * 🔐 PROVIDER D'AUTHENTIFICATION SIMPLE
+ * 🔐 PROVIDER D'AUTHENTIFICATION AVEC TIMEOUT DE SÉCURITÉ
  */
 export const SimpleAuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -33,154 +33,209 @@ export const SimpleAuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [firebaseReady, setFirebaseReady] = useState(false);
+  const [error, setError] = useState(null);
 
-  console.log('🔐 [SIMPLE-AUTH] Provider initialisé');
+  console.log('🔐 [AUTH] Provider initialisé');
 
-  // Initialiser Firebase de manière asynchrone
+  // ==========================================
+  // ⏰ TIMEOUT DE SÉCURITÉ CRITIQUE
+  // ==========================================
   useEffect(() => {
+    const safetyTimeout = setTimeout(() => {
+      console.warn('⚠️ [AUTH] Timeout de sécurité atteint - Déblocage forcé');
+      setLoading(false);
+      setInitialized(true);
+      setError('Initialisation Firebase en timeout - Mode dégradé activé');
+    }, 5000); // 5 secondes maximum
+
+    return () => clearTimeout(safetyTimeout);
+  }, []);
+
+  // ==========================================
+  // 🔄 INITIALISATION FIREBASE AVEC TIMEOUT
+  // ==========================================
+  useEffect(() => {
+    let initializationAborted = false;
+
     const initializeFirebase = async () => {
       try {
-        console.log('🔄 [SIMPLE-AUTH] Chargement Firebase...');
+        console.log('🔄 [AUTH] Chargement Firebase...');
         
-        // Import Firebase auth
-        const authModule = await import('firebase/auth');
+        // Timeout pour l'initialisation Firebase
+        const firebaseTimeout = setTimeout(() => {
+          if (!initializationAborted) {
+            console.warn('⚠️ [AUTH] Firebase timeout - Passage en mode dégradé');
+            setFirebaseReady(false);
+            setLoading(false);
+            setInitialized(true);
+            setError('Firebase non disponible - Mode dégradé');
+          }
+        }, 3000);
+        
+        // Import Firebase auth avec timeout
+        const authModule = await Promise.race([
+          import('firebase/auth'),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout import auth')), 2000))
+        ]);
+        
         signInWithPopup = authModule.signInWithPopup;
         signOut = authModule.signOut;
         onAuthStateChanged = authModule.onAuthStateChanged;
         GoogleAuthProvider = authModule.GoogleAuthProvider;
         
-        // Import Firebase config
-        const firebaseModule = await import('../core/firebase.js');
+        // Import Firebase config avec timeout
+        const firebaseModule = await Promise.race([
+          import('../core/firebase.js'),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout import firebase')), 2000))
+        ]);
+        
         auth = firebaseModule.auth;
         
-        console.log('✅ [SIMPLE-AUTH] Firebase chargé avec succès');
-        setFirebaseReady(true);
+        clearTimeout(firebaseTimeout);
+        
+        if (!initializationAborted) {
+          console.log('✅ [AUTH] Firebase chargé avec succès');
+          setFirebaseReady(true);
+          setError(null);
+        }
         
       } catch (error) {
-        console.error('❌ [SIMPLE-AUTH] Erreur chargement Firebase:', error);
-        setLoading(false);
-        setInitialized(true);
+        if (!initializationAborted) {
+          console.error('❌ [AUTH] Erreur chargement Firebase:', error);
+          setFirebaseReady(false);
+          setLoading(false);
+          setInitialized(true);
+          setError(`Erreur Firebase: ${error.message}`);
+        }
       }
     };
     
     initializeFirebase();
+    
+    return () => {
+      initializationAborted = true;
+    };
   }, []);
 
-  // Initialiser l'authentification une fois Firebase prêt
+  // ==========================================
+  // 🔐 INITIALISATION AUTH AVEC TIMEOUT
+  // ==========================================
   useEffect(() => {
     if (!firebaseReady || !auth || !onAuthStateChanged) {
       return;
     }
 
-    console.log('🔄 [SIMPLE-AUTH] Initialisation de l\'authentification...');
+    console.log('🔄 [AUTH] Initialisation de l\'authentification...');
+
+    let authAborted = false;
+
+    // Timeout pour l'auth
+    const authTimeout = setTimeout(() => {
+      if (!authAborted) {
+        console.warn('⚠️ [AUTH] Auth timeout - Déblocage forcé');
+        setLoading(false);
+        setInitialized(true);
+        setIsAuthenticated(false);
+        setUser(null);
+      }
+    }, 3000);
 
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      console.log('🔔 [SIMPLE-AUTH] Auth state changed:', firebaseUser ? 'Connecté' : 'Déconnecté');
+      if (authAborted) return;
+      
+      console.log('🔔 [AUTH] Auth state changed:', firebaseUser ? '✅ Connecté' : '❌ Déconnecté');
+      
+      clearTimeout(authTimeout);
       
       if (firebaseUser) {
-        const userData = {
+        setUser({
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           displayName: firebaseUser.displayName,
-          photoURL: firebaseUser.photoURL,
-          emailVerified: firebaseUser.emailVerified
-        };
-        
-        setUser(userData);
+          photoURL: firebaseUser.photoURL
+        });
         setIsAuthenticated(true);
-        console.log('✅ [SIMPLE-AUTH] Utilisateur connecté:', userData.email);
       } else {
         setUser(null);
         setIsAuthenticated(false);
-        console.log('ℹ️ [SIMPLE-AUTH] Aucun utilisateur connecté');
       }
       
       setLoading(false);
       setInitialized(true);
+      setError(null);
     });
 
-    return unsubscribe;
+    return () => {
+      authAborted = true;
+      clearTimeout(authTimeout);
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }, [firebaseReady]);
 
-  /**
-   * 🚀 CONNEXION AVEC GOOGLE
-   */
+  // ==========================================
+  // 🔑 FONCTIONS D'AUTHENTIFICATION
+  // ==========================================
   const signInWithGoogle = async () => {
-    if (!auth || !signInWithPopup || !GoogleAuthProvider) {
-      return { success: false, error: 'Firebase non initialisé' };
+    if (!auth || !GoogleAuthProvider || !signInWithPopup) {
+      return { 
+        success: false, 
+        error: 'Firebase non initialisé - Mode dégradé actif' 
+      };
     }
 
     try {
-      setLoading(true);
-      console.log('🔐 [SIMPLE-AUTH] Tentative de connexion Google...');
+      console.log('🔄 [AUTH] Tentative de connexion Google...');
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
       
-      const googleProvider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, googleProvider);
-      const userData = result.user;
-      
-      console.log('✅ [SIMPLE-AUTH] Connexion Google réussie:', userData.email);
-      
-      return { success: true, user: userData };
+      console.log('✅ [AUTH] Connexion Google réussie');
+      return { 
+        success: true, 
+        user: result.user 
+      };
     } catch (error) {
-      console.error('❌ [SIMPLE-AUTH] Erreur connexion Google:', error);
-      
-      let errorMessage = 'Erreur de connexion';
-      if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Connexion annulée par l\'utilisateur';
-      } else if (error.code === 'auth/popup-blocked') {
-        errorMessage = 'Popup bloquée par le navigateur';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      setLoading(false);
-      return { success: false, error: errorMessage };
+      console.error('❌ [AUTH] Erreur connexion Google:', error);
+      return { 
+        success: false, 
+        error: error.message 
+      };
     }
   };
 
-  /**
-   * 🚪 DÉCONNEXION
-   */
   const signOutUser = async () => {
     if (!auth || !signOut) {
-      return { success: false, error: 'Firebase non initialisé' };
+      return { 
+        success: false, 
+        error: 'Firebase non initialisé' 
+      };
     }
 
     try {
-      setLoading(true);
-      console.log('🚪 [SIMPLE-AUTH] Déconnexion...');
-      
+      console.log('🔄 [AUTH] Déconnexion...');
       await signOut(auth);
-      
-      console.log('✅ [SIMPLE-AUTH] Déconnexion réussie');
+      console.log('✅ [AUTH] Déconnexion réussie');
       return { success: true };
     } catch (error) {
-      console.error('❌ [SIMPLE-AUTH] Erreur déconnexion:', error);
-      setLoading(false);
-      return { success: false, error: error.message };
+      console.error('❌ [AUTH] Erreur déconnexion:', error);
+      return { 
+        success: false, 
+        error: error.message 
+      };
     }
   };
 
-  // Timeout de sécurité - après 10 secondes, débloquer l'interface
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (!initialized) {
-        console.warn('⚠️ [SIMPLE-AUTH] Timeout atteint, déblocage forcé');
-        setLoading(false);
-        setInitialized(true);
-      }
-    }, 10000);
-
-    return () => clearTimeout(timeout);
-  }, [initialized]);
-
-  // Valeur du contexte
+  // ==========================================
+  // 📤 VALEUR DU CONTEXTE
+  // ==========================================
   const value = {
     user,
     loading,
     isAuthenticated,
     initialized,
     firebaseReady,
+    error,
     signInWithGoogle,
     signOut: signOutUser
   };
@@ -206,11 +261,11 @@ export const useSimpleAuth = () => {
 };
 
 /**
- * 🛡️ HOC POUR PROTÉGER LES ROUTES
+ * 🛡️ HOC POUR PROTÉGER LES ROUTES AVEC TIMEOUT
  */
 export const withAuth = (Component) => {
   return function AuthenticatedComponent(props) {
-    const { user, loading, isAuthenticated } = useSimpleAuth();
+    const { user, loading, isAuthenticated, error } = useSimpleAuth();
     
     if (loading) {
       return (
@@ -220,9 +275,25 @@ export const withAuth = (Component) => {
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: '#0f0f23',
-          color: 'white'
+          color: 'white',
+          flexDirection: 'column'
         }}>
-          🔄 Vérification de l'authentification...
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              border: '3px solid #333',
+              borderTop: '3px solid #fff',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }}></div>
+          </div>
+          <p>🔄 Vérification de l'authentification...</p>
+          {error && (
+            <p style={{ color: '#ff6b6b', fontSize: '14px', marginTop: '10px' }}>
+              ⚠️ {error}
+            </p>
+          )}
         </div>
       );
     }
@@ -239,7 +310,11 @@ export const withAuth = (Component) => {
 // Export par défaut
 export default SimpleAuthProvider;
 
-// Logs de confirmation
-console.log('🔐 SimpleAuth Context créé avec imports asynchrones');
-console.log('✅ Compatible avec React 18 et production');
-console.log('⏰ Timeout de sécurité : 10 secondes');
+// ==========================================
+// 📋 LOGS DE CONFIRMATION
+// ==========================================
+console.log('🔐 SimpleAuth Context avec timeout de sécurité créé');
+console.log('✅ Timeout global: 5 secondes maximum');
+console.log('⏰ Timeout Firebase: 3 secondes maximum');
+console.log('🛡️ Mode dégradé: Activé en cas de problème');
+console.log('🚀 Build: Compatible avec Netlify et stable');
