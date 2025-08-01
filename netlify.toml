@@ -1,80 +1,101 @@
 # ==========================================
 # 📁 netlify.toml
-# Configuration Netlify CORRIGÉE - Résolution erreur package-lock.json
+# CONFIGURATION FORCE CACHE BUST - REMPLACER COMPLÈTEMENT
 # ==========================================
 
 [build]
-  # Répertoire de base pour le build
   base = "react-app"
-  
-  # 🚀 CORRECTION : Utiliser npm install au lieu de npm ci
-  command = "npm install && npm run build"
-  
-  # Répertoire à publier (VITE génère dans 'dist', pas 'build')
+  # ⚡ NOUVEAU : Ajout d'un timestamp pour forcer le rebuild
+  command = "echo 'Build $(date)' && npm install && npm run build"
   publish = "dist"
 
-# Variables d'environnement CORRIGÉES
+# ==========================================
+# 🚫 DÉSACTIVER TOUS LES CACHES NETLIFY
+# ==========================================
 [build.environment]
-  # 🚀 CORRECTION CRITIQUE : Forcer l'installation des devDependencies
-  # NPM_CONFIG_PRODUCTION = "false" force npm à installer les devDependencies
   NPM_CONFIG_PRODUCTION = "false"
-  
-  # Optimisations build
   GENERATE_SOURCEMAP = "false"
   CI = "true"
-  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+  # 🚨 NOUVEAU : Variables pour forcer le refresh
+  NETLIFY_CACHE_BUST = "v3.5.3-2025"
+  FORCE_REBUILD = "true"
 
-# Redirections pour SPA (Single Page Application)
+# ==========================================
+# 🔄 REDIRECTIONS AVEC CACHE BUST
+# ==========================================
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-  force = false
+  force = true
+  # 🚨 NOUVEAU : Headers pour empêcher le cache
+  [redirects.headers]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
 
-# Headers de sécurité et performance
+# ==========================================
+# 🚫 HEADERS ANTI-CACHE AGRESSIFS
+# ==========================================
 [[headers]]
   for = "/*"
   [headers.values]
+    # Anti-cache total
+    Cache-Control = "no-cache, no-store, must-revalidate, max-age=0"
+    Pragma = "no-cache"
+    Expires = "Thu, 01 Jan 1970 00:00:00 GMT"
+    
     # Sécurité
     X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff" 
+    X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
-    Referrer-Policy = "strict-origin-when-cross-origin"
     
-    # PWA et cache
-    Service-Worker-Allowed = "/"
-    
-    # CORS pour Firebase
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    # 🚨 NOUVEAU : Headers pour forcer le refresh
+    X-Force-Refresh = "v3.5.3-2025"
+    X-Cache-Bust = "true"
 
-# Cache statique pour assets
+# ==========================================
+# 🚫 MÊME LES ASSETS SANS CACHE
+# ==========================================
 [[headers]]
   for = "/assets/*"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
 
-# Cache pour service worker
 [[headers]]
-  for = "/sw.js"
+  for = "*.js"
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
 
-# Cache pour manifest
 [[headers]]
-  for = "/manifest.json"
+  for = "*.css"
   [headers.values]
-    Cache-Control = "public, max-age=86400"
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
 
-# 🚀 CONTEXTES CORRIGÉS - Installation forcée des devDependencies
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
+# ==========================================
+# 🔧 CONTEXTES AVEC CACHE BUST
+# ==========================================
 [context.production]
-  command = "npm install && npm run build"
+  command = "echo 'PRODUCTION BUILD $(date)' && npm install && npm run build"
   [context.production.environment]
     NPM_CONFIG_PRODUCTION = "false"
+    FORCE_REBUILD = "true"
 
 [context.deploy-preview]
-  command = "npm install && npm run build"
+  command = "echo 'PREVIEW BUILD $(date)' && npm install && npm run build"
 
 [context.branch-deploy]
-  command = "npm install && npm run build"
+  command = "echo 'BRANCH BUILD $(date)' && npm install && npm run build"
