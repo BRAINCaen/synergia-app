@@ -1,40 +1,33 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APP PRINCIPAL - SANS DOUBLE LAYOUT
+// VERSION MINIMALE QUI MARCHE - SEULEMENT LES PAGES QUI EXISTENT
 // ==========================================
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// LAYOUTS - SEULEMENT DashboardLayout
+// LAYOUT - SEULEMENT DashboardLayout
 import DashboardLayout from './layouts/DashboardLayout.jsx';
 
-// PAGES
+// PAGES QUI EXISTENT VRAIMENT (d'après la recherche)
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import GamificationPage from './pages/GamificationPage.jsx';
-import BadgesPage from './pages/BadgesPage.jsx';
-import LeaderboardPage from './pages/LeaderboardPage.jsx';
-import RewardsPage from './pages/RewardsPage.jsx';
-import TeamPage from './pages/TeamPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
+import TeamPage from './pages/TeamPage.jsx';
 import OnboardingPage from './pages/OnboardingPage.jsx';
 import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
-
-// PAGES ADMIN
-import TaskValidationPage from './pages/admin/TaskValidationPage.jsx';
-import ProfileTestPage from './pages/admin/ProfileTestPage.jsx';
-import CompleteTestPage from './pages/admin/CompleteTestPage.jsx';
+import RewardsPage from './pages/RewardsPage.jsx';
 
 // AUTH
 import Login from './pages/Login.jsx';
 import { useAuthStore } from './shared/stores/authStore.js';
 
-// AUTH GUARD SIMPLE
+// AUTH GUARD MINIMAL
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuthStore();
   
@@ -60,8 +53,33 @@ const ProtectedRoute = ({ children }) => {
   );
 };
 
+// COMPOSANTS FALLBACK POUR PAGES MANQUANTES
+const BadgesPage = () => (
+  <div className="p-6">
+    <div className="text-center">
+      <h1 className="text-3xl font-bold text-white mb-4">🏆 Badges</h1>
+      <p className="text-gray-400 mb-6">Vos accomplissements et récompenses</p>
+      <div className="bg-gray-800/50 rounded-lg p-8">
+        <p className="text-gray-300">Page en développement...</p>
+      </div>
+    </div>
+  </div>
+);
+
+const LeaderboardPage = () => (
+  <div className="p-6">
+    <div className="text-center">
+      <h1 className="text-3xl font-bold text-white mb-4">🥇 Classement</h1>
+      <p className="text-gray-400 mb-6">Classement de l'équipe</p>
+      <div className="bg-gray-800/50 rounded-lg p-8">
+        <p className="text-gray-300">Page en développement...</p>
+      </div>
+    </div>
+  </div>
+);
+
 // ==========================================
-// 🚀 APP PRINCIPAL - UN SEUL LAYOUT
+// 🚀 APP PRINCIPAL - MINIMAL ET FONCTIONNEL
 // ==========================================
 const App = () => {
   console.log('🚀 [APP] Synergia v3.5 - Initialisation...');
@@ -72,7 +90,7 @@ const App = () => {
         {/* LOGIN - SANS LAYOUT */}
         <Route path="/login" element={<Login />} />
         
-        {/* TOUTES LES PAGES - AVEC DASHBOARDLAYOUT SEULEMENT */}
+        {/* PAGES PRINCIPALES - QUI EXISTENT */}
         <Route 
           path="/dashboard" 
           element={
@@ -114,33 +132,6 @@ const App = () => {
           element={
             <ProtectedRoute>
               <GamificationPage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path="/badges" 
-          element={
-            <ProtectedRoute>
-              <BadgesPage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path="/leaderboard" 
-          element={
-            <ProtectedRoute>
-              <LeaderboardPage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path="/rewards" 
-          element={
-            <ProtectedRoute>
-              <RewardsPage />
             </ProtectedRoute>
           } 
         />
@@ -198,31 +189,31 @@ const App = () => {
             </ProtectedRoute>
           } 
         />
+        
+        <Route 
+          path="/rewards" 
+          element={
+            <ProtectedRoute>
+              <RewardsPage />
+            </ProtectedRoute>
+          } 
+        />
 
-        {/* ROUTES ADMIN */}
+        {/* PAGES FALLBACK - TEMPORAIRES */}
         <Route 
-          path="/admin/task-validation" 
+          path="/badges" 
           element={
             <ProtectedRoute>
-              <TaskValidationPage />
+              <BadgesPage />
             </ProtectedRoute>
           } 
         />
         
         <Route 
-          path="/admin/profile-test" 
+          path="/leaderboard" 
           element={
             <ProtectedRoute>
-              <ProfileTestPage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path="/admin/complete-test" 
-          element={
-            <ProtectedRoute>
-              <CompleteTestPage />
+              <LeaderboardPage />
             </ProtectedRoute>
           } 
         />
