@@ -1,10 +1,9 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/authStore.js
-// Store d'authentification SIMPLIFIÉ QUI FONCTIONNE
+// VERSION STABLE RESTAURÉE - AUTH SIMPLE QUI MARCHE
 // ==========================================
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
@@ -13,146 +12,140 @@ import {
 } from 'firebase/auth';
 import { auth } from '../../core/firebase.js';
 
-// Créer le provider Google
+// Provider Google
 const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope('email');
+googleProvider.addScope('profile');
 
-export const useAuthStore = create(
-  persist(
-    (set, get) => ({
-      // État initial
-      user: null,
-      loading: true,
-      error: null,
-      isAuthenticated: false,
-      initialized: false,
+/**
+ * 🔐 STORE D'AUTHENTIFICATION SIMPLE ET FONCTIONNEL
+ */
+export const useAuthStore = create((set, get) => ({
+  // État initial
+  user: null,
+  loading: true,
+  error: null,
 
-      // Actions
-      initializeAuth: () => {
-        console.log('🔄 Initialisation de l\'authentification...');
-        
-        set({ loading: true });
-        
-        const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-          console.log('🔔 Auth state changed:', firebaseUser ? 'Connecté' : 'Déconnecté');
-          
-          if (firebaseUser) {
-            const userData = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName,
-              photoURL: firebaseUser.photoURL,
-              emailVerified: firebaseUser.emailVerified
-            };
-            
-            set({ 
-              user: userData, 
-              isAuthenticated: true, 
-              loading: false, 
-              error: null,
-              initialized: true
-            });
-            
-            console.log('✅ Utilisateur connecté:', userData.email);
-          } else {
-            set({ 
-              user: null, 
-              isAuthenticated: false, 
-              loading: false, 
-              error: null,
-              initialized: true
-            });
-            
-            console.log('ℹ️ Aucun utilisateur connecté');
-          }
-        });
-
-        // Retourner la fonction de nettoyage
-        return unsubscribe;
-      },
-
-      // Connexion avec Google
-      signInWithGoogle: async () => {
-        try {
-          set({ loading: true, error: null });
-          
-          console.log('🔐 Tentative de connexion Google...');
-          
-          const result = await signInWithPopup(auth, googleProvider);
-          const user = result.user;
-          
-          console.log('✅ Connexion Google réussie:', user.email);
-          
-          return { success: true, user };
-        } catch (error) {
-          console.error('❌ Erreur connexion Google:', error);
-          
-          let errorMessage = 'Erreur de connexion';
-          if (error.code === 'auth/popup-closed-by-user') {
-            errorMessage = 'Connexion annulée';
-          } else if (error.code === 'auth/popup-blocked') {
-            errorMessage = 'Popup bloquée par le navigateur';
-          }
-          
-          set({ error: errorMessage, loading: false });
-          return { success: false, error: errorMessage };
-        }
-      },
-
-      // Déconnexion
-      signOut: async () => {
-        try {
-          set({ loading: true, error: null });
-          
-          await firebaseSignOut(auth);
-          
-          console.log('✅ Déconnexion réussie');
-          
-          set({ 
-            user: null, 
-            isAuthenticated: false, 
-            loading: false,
-            error: null 
-          });
-          
-          return { success: true };
-        } catch (error) {
-          console.error('❌ Erreur déconnexion:', error);
-          
-          set({ error: 'Erreur de déconnexion', loading: false });
-          return { success: false, error: error.message };
-        }
-      },
-
-      // Nettoyer les erreurs
-      clearError: () => {
-        set({ error: null });
-      },
-
-      // Mettre à jour l'utilisateur
-      updateUser: (userData) => {
-        set(state => ({
-          user: { ...state.user, ...userData }
-        }));
-      }
-    }),
-    {
-      name: 'auth-store',
-      partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated
-      })
+  // ==========================================
+  // 🚀 CONNEXION GOOGLE
+  // ==========================================
+  signInWithGoogle: async () => {
+    try {
+      set({ loading: true, error: null });
+      console.log('🔐 Tentative de connexion Google...');
+      
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      console.log('✅ Connexion réussie:', user.email);
+      
+      // Pas de set() ici, onAuthStateChanged s'en charge
+      return user;
+      
+    } catch (error) {
+      console.error('❌ Erreur connexion Google:', error);
+      set({ 
+        error: error.message, 
+        loading: false 
+      });
+      throw error;
     }
-  )
-);
+  },
 
-// Auto-initialisation
-let authInitialized = false;
+  // ==========================================
+  // 🚪 DÉCONNEXION
+  // ==========================================
+  signOut: async () => {
+    try {
+      set({ loading: true, error: null });
+      console.log('🚪 Déconnexion...');
+      
+      await firebaseSignOut(auth);
+      console.log('✅ Déconnexion réussie');
+      
+      // Pas de set() ici, onAuthStateChanged s'en charge
+      
+    } catch (error) {
+      console.error('❌ Erreur déconnexion:', error);
+      set({ 
+        error: error.message, 
+        loading: false 
+      });
+      throw error;
+    }
+  },
 
-if (!authInitialized) {
+  // ==========================================
+  // 🔄 INITIALISATION DE L'ÉCOUTE AUTH
+  // ==========================================
+  initializeAuth: () => {
+    console.log('🔄 Initialisation listener auth...');
+    
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log('🔔 Auth state changed:', user?.email || 'Non connecté');
+      
+      if (user) {
+        // Utilisateur connecté
+        set({
+          user: {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            emailVerified: user.emailVerified
+          },
+          loading: false,
+          error: null
+        });
+      } else {
+        // Utilisateur déconnecté
+        set({
+          user: null,
+          loading: false,
+          error: null
+        });
+      }
+    });
+
+    return unsubscribe;
+  },
+
+  // ==========================================
+  // 🧹 ACTIONS UTILITAIRES
+  // ==========================================
+  clearError: () => {
+    set({ error: null });
+  },
+
+  setLoading: (loading) => {
+    set({ loading });
+  }
+}));
+
+// ==========================================
+// 🚀 INITIALISATION AUTOMATIQUE
+// ==========================================
+console.log('🔐 AuthStore initialisé');
+
+// Démarrer l'écoute auth automatiquement
+let unsubscribe = null;
+
+// Fonction d'initialisation
+const initAuth = () => {
   const store = useAuthStore.getState();
-  store.initializeAuth();
-  authInitialized = true;
-  console.log('🚀 AuthStore auto-initialisé');
+  unsubscribe = store.initializeAuth();
+};
+
+// Initialiser dès que possible
+if (typeof window !== 'undefined') {
+  initAuth();
 }
 
-export default useAuthStore;
+// Nettoyage à la fermeture
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    if (unsubscribe) {
+      unsubscribe();
+    }
+  });
+}
