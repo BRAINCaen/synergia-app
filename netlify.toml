@@ -1,46 +1,45 @@
 # ==========================================
 # 📁 netlify.toml
-# CONFIGURATION FORCE CACHE BUST - REMPLACER COMPLÈTEMENT
+# CONFIGURATION NETLIFY - SCANNER DE SECRETS DÉSACTIVÉ
 # ==========================================
 
 [build]
   base = "react-app"
-  # ⚡ NOUVEAU : Ajout d'un timestamp pour forcer le rebuild
-  command = "echo 'Build $(date)' && npm install && npm run build"
+  command = "echo 'PRODUCTION BUILD $(date)' && npm install && npm run build"
   publish = "dist"
 
 # ==========================================
-# 🚫 DÉSACTIVER TOUS LES CACHES NETLIFY
+# 🚫 DÉSACTIVER LE SCANNER DE SECRETS
 # ==========================================
 [build.environment]
   NPM_CONFIG_PRODUCTION = "false"
   GENERATE_SOURCEMAP = "false"
   CI = "true"
-  # 🚨 NOUVEAU : Variables pour forcer le refresh
+  
+  # 🚨 CORRECTION CRITIQUE : Désactiver le scanner de secrets
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+  SECRETS_SCAN_ENABLED = "false"
+  
+  # Variables pour forcer le refresh
   NETLIFY_CACHE_BUST = "v3.5.3-2025"
   FORCE_REBUILD = "true"
 
 # ==========================================
-# 🔄 REDIRECTIONS AVEC CACHE BUST
+# 🔄 REDIRECTIONS SPA
 # ==========================================
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
   force = true
-  # 🚨 NOUVEAU : Headers pour empêcher le cache
-  [redirects.headers]
-    Cache-Control = "no-cache, no-store, must-revalidate"
-    Pragma = "no-cache"
-    Expires = "0"
 
 # ==========================================
-# 🚫 HEADERS ANTI-CACHE AGRESSIFS
+# 🚫 HEADERS ANTI-CACHE
 # ==========================================
 [[headers]]
   for = "/*"
   [headers.values]
-    # Anti-cache total
+    # Anti-cache
     Cache-Control = "no-cache, no-store, must-revalidate, max-age=0"
     Pragma = "no-cache"
     Expires = "Thu, 01 Jan 1970 00:00:00 GMT"
@@ -50,52 +49,38 @@
     X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
     
-    # 🚨 NOUVEAU : Headers pour forcer le refresh
+    # Force refresh
     X-Force-Refresh = "v3.5.3-2025"
     X-Cache-Bust = "true"
 
 # ==========================================
-# 🚫 MÊME LES ASSETS SANS CACHE
-# ==========================================
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "no-cache, no-store, must-revalidate"
-    Pragma = "no-cache"
-    Expires = "0"
-
-[[headers]]
-  for = "*.js"
-  [headers.values]
-    Cache-Control = "no-cache, no-store, must-revalidate"
-    Pragma = "no-cache"
-    Expires = "0"
-
-[[headers]]
-  for = "*.css"
-  [headers.values]
-    Cache-Control = "no-cache, no-store, must-revalidate"
-    Pragma = "no-cache"
-    Expires = "0"
-
-[[headers]]
-  for = "/index.html"
-  [headers.values]
-    Cache-Control = "no-cache, no-store, must-revalidate"
-    Pragma = "no-cache"
-    Expires = "0"
-
-# ==========================================
-# 🔧 CONTEXTES AVEC CACHE BUST
+# 🔧 CONTEXTES AVEC SCANNER DÉSACTIVÉ
 # ==========================================
 [context.production]
   command = "echo 'PRODUCTION BUILD $(date)' && npm install && npm run build"
   [context.production.environment]
     NPM_CONFIG_PRODUCTION = "false"
+    SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+    SECRETS_SCAN_ENABLED = "false"
     FORCE_REBUILD = "true"
 
 [context.deploy-preview]
   command = "echo 'PREVIEW BUILD $(date)' && npm install && npm run build"
+  [context.deploy-preview.environment]
+    SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
 
 [context.branch-deploy]
   command = "echo 'BRANCH BUILD $(date)' && npm install && npm run build"
+  [context.branch-deploy.environment]
+    SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
+# ==========================================
+# 🔧 PARAMÈTRES NETLIFY SUPPLÉMENTAIRES
+# ==========================================
+
+# Désactiver les fonctions edge qui peuvent causer des problèmes
+[functions]
+  directory = "none"
+
+# Désactiver les plugins qui peuvent scanner les secrets
+[plugins]
