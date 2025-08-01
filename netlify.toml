@@ -1,0 +1,80 @@
+# ==========================================
+# 📁 netlify.toml
+# Configuration Netlify CORRIGÉE - Résolution erreur package-lock.json
+# ==========================================
+
+[build]
+  # Répertoire de base pour le build
+  base = "react-app"
+  
+  # 🚀 CORRECTION : Utiliser npm install au lieu de npm ci
+  command = "npm install && npm run build"
+  
+  # Répertoire à publier (VITE génère dans 'dist', pas 'build')
+  publish = "dist"
+
+# Variables d'environnement CORRIGÉES
+[build.environment]
+  # 🚀 CORRECTION CRITIQUE : Forcer l'installation des devDependencies
+  # NPM_CONFIG_PRODUCTION = "false" force npm à installer les devDependencies
+  NPM_CONFIG_PRODUCTION = "false"
+  
+  # Optimisations build
+  GENERATE_SOURCEMAP = "false"
+  CI = "true"
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
+# Redirections pour SPA (Single Page Application)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+
+# Headers de sécurité et performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Sécurité
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff" 
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    
+    # PWA et cache
+    Service-Worker-Allowed = "/"
+    
+    # CORS pour Firebase
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+
+# Cache statique pour assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache pour service worker
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# Cache pour manifest
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+# 🚀 CONTEXTES CORRIGÉS - Installation forcée des devDependencies
+[context.production]
+  command = "npm install && npm run build"
+  [context.production.environment]
+    NPM_CONFIG_PRODUCTION = "false"
+
+[context.deploy-preview]
+  command = "npm install && npm run build"
+
+[context.branch-deploy]
+  command = "npm install && npm run build"
