@@ -14,7 +14,7 @@ import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
-import Analytics from './pages/Analytics.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import GamificationPage from './pages/GamificationPage.jsx';
 import TeamPage from './pages/TeamPage.jsx';
 import NotFound from './pages/NotFound.jsx';
@@ -205,7 +205,7 @@ function App() {
             path="/analytics" 
             element={
               <ProtectedRoute>
-                <Analytics />
+                <AnalyticsPage />
               </ProtectedRoute>
             } 
           />
