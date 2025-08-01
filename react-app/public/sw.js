@@ -1,128 +1,121 @@
 // ===================================================================
-// 🚨 SERVICE WORKER D'URGENCE - FORCE LA MISE À JOUR IMMÉDIATE
+// 🔧 SERVICE WORKER SIMPLE - SANS RECHARGEMENT AUTOMATIQUE
 // Fichier: react-app/public/sw.js (REMPLACER COMPLÈTEMENT)
 // ===================================================================
 
-console.log('🚨 SERVICE WORKER D\'URGENCE - FORCE UPDATE v3.5.3');
+console.log('🔧 Service Worker Simple v3.5.3 - Pas de rechargement auto');
 
 // ==========================================
-// 🧹 NETTOYAGE IMMÉDIAT À L'INSTALLATION
+// 📦 INSTALLATION SIMPLE
 // ==========================================
 self.addEventListener('install', (event) => {
-  console.log('🚨 SW Urgence: Nettoyage immédiat en cours...');
+  console.log('📦 SW: Installation simple...');
   
   event.waitUntil(
-    Promise.all([
-      // Supprimer TOUS les caches existants
-      caches.keys().then(cacheNames => {
-        console.log('🗑️ Suppression de', cacheNames.length, 'caches...');
-        return Promise.all(
-          cacheNames.map(cacheName => {
-            console.log('🗑️ Suppression cache:', cacheName);
-            return caches.delete(cacheName);
-          })
-        );
-      }),
+    // Nettoyer les anciens caches uniquement
+    caches.keys().then(cacheNames => {
+      const oldCaches = cacheNames.filter(name => 
+        name.includes('workbox') || 
+        name.includes('runtime-') || 
+        name.includes('static-')
+      );
       
-      // Forcer l'activation immédiate
-      self.skipWaiting()
-    ]).then(() => {
-      console.log('✅ Nettoyage terminé - SW d\'urgence installé');
+      if (oldCaches.length > 0) {
+        console.log('🗑️ Suppression', oldCaches.length, 'anciens caches');
+        return Promise.all(oldCaches.map(name => caches.delete(name)));
+      }
+    }).then(() => {
+      console.log('✅ Installation terminée - Activation en attente');
     })
   );
+  
+  // PAS de skipWaiting() - Laisser l'utilisateur contrôler
 });
 
 // ==========================================
-// 🔄 ACTIVATION ET PRISE DE CONTRÔLE
+// ⚡ ACTIVATION CONTRÔLÉE
 // ==========================================
 self.addEventListener('activate', (event) => {
-  console.log('🚨 SW Urgence: Activation et prise de contrôle...');
+  console.log('⚡ SW: Activation...');
   
   event.waitUntil(
-    Promise.all([
-      // Vider tous les caches restants
-      caches.keys().then(cacheNames => {
-        return Promise.all(
-          cacheNames.map(cacheName => caches.delete(cacheName))
-        );
-      }),
+    // Nettoyer les caches une dernière fois
+    caches.keys().then(cacheNames => {
+      const cachesToDelete = cacheNames.filter(name => 
+        name.includes('old') || name.includes('temp')
+      );
       
-      // Prendre contrôle immédiat de toutes les pages
-      self.clients.claim()
-    ]).then(() => {
-      console.log('🚨 SW d\'urgence: Contrôle pris, rechargement des pages...');
-      
-      // Forcer le rechargement de toutes les pages ouvertes
-      return self.clients.matchAll().then(clients => {
-        clients.forEach(client => {
-          console.log('📱 Rechargement page:', client.url);
-          client.postMessage({
-            type: 'FORCE_RELOAD',
-            message: 'Mise à jour forcée - rechargement immédiat'
-          });
-        });
-      });
+      return Promise.all(cachesToDelete.map(name => caches.delete(name)));
+    }).then(() => {
+      console.log('✅ SW activé - Prêt à servir');
+      // PAS de clients.claim() - Pas de prise de contrôle forcée
     })
   );
 });
 
 // ==========================================
-// 🚫 AUCUNE INTERCEPTION - TOUJOURS DU RÉSEAU
+// 🌐 STRATÉGIE RÉSEAU SIMPLE
 // ==========================================
 self.addEventListener('fetch', (event) => {
-  // NE RIEN METTRE EN CACHE - Toujours chercher sur le réseau
-  console.log('🌐 Requête réseau direct:', event.request.url);
+  const { request } = event;
+  const url = new URL(request.url);
   
-  event.respondWith(
-    fetch(event.request.clone())
-      .then(response => {
-        console.log('✅ Réponse réseau:', response.status, event.request.url);
-        return response;
-      })
-      .catch(error => {
-        console.error('❌ Erreur réseau:', error, event.request.url);
-        // En cas d'erreur, ne pas servir de cache - laisser l'erreur passer
-        throw error;
-      })
-  );
-});
-
-// ==========================================
-// 📨 GESTION DES MESSAGES D'URGENCE
-// ==========================================
-self.addEventListener('message', (event) => {
-  console.log('📨 Message SW reçu:', event.data);
-  
-  if (event.data && event.data.type === 'EMERGENCY_UPDATE') {
-    console.log('🚨 Message d\'urgence - nettoyage et rechargement...');
-    
-    // Supprimer tous les caches
-    caches.keys().then(cacheNames => {
-      return Promise.all(cacheNames.map(name => caches.delete(name)));
-    }).then(() => {
-      console.log('🧹 Tous les caches supprimés');
-      
-      // Forcer le rechargement de la page
-      self.clients.matchAll().then(clients => {
-        clients.forEach(client => {
-          client.postMessage({ type: 'RELOAD_NOW' });
-        });
-      });
-    });
+  // Pour les fichiers de l'app, toujours vérifier le réseau d'abord
+  if (url.origin === self.location.origin) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          // Si le réseau fonctionne, utiliser la réponse réseau
+          if (response && response.status === 200) {
+            console.log('🌐 Réseau OK:', url.pathname);
+            return response;
+          }
+          throw new Error('Réponse réseau invalide');
+        })
+        .catch(error => {
+          // En cas d'erreur réseau, essayer le cache
+          console.log('📦 Tentative cache pour:', url.pathname);
+          return caches.match(request).then(cached => {
+            if (cached) {
+              console.log('✅ Trouvé en cache:', url.pathname);
+              return cached;
+            }
+            throw error;
+          });
+        })
+    );
   }
 });
 
 // ==========================================
-// 🔄 AUTO-DÉSINSTALLATION APRÈS 1 HEURE
+// 📨 MESSAGES MANUELS UNIQUEMENT
 // ==========================================
-setTimeout(() => {
-  console.log('🚨 SW d\'urgence: Auto-désinstallation après 1h');
+self.addEventListener('message', (event) => {
+  console.log('📨 Message SW reçu:', event.data);
   
-  self.registration.unregister().then(() => {
-    console.log('✅ Service Worker d\'urgence désinstallé automatiquement');
-  });
-}, 60 * 60 * 1000); // 1 heure
+  if (event.data && event.data.type === 'MANUAL_RELOAD') {
+    console.log('🔄 Rechargement manuel demandé');
+    
+    // Nettoyer et informer, mais ne pas recharger automatiquement
+    caches.keys().then(cacheNames => {
+      return Promise.all(cacheNames.map(name => caches.delete(name)));
+    }).then(() => {
+      // Informer la page que le nettoyage est terminé
+      event.ports[0].postMessage({ type: 'CLEANUP_DONE' });
+    });
+  }
+  
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('⏭️ Activation forcée demandée');
+    self.skipWaiting();
+  }
+});
 
-console.log('🚨 Service Worker d\'urgence activé - Mode force update');
-console.log('🗑️ Aucun cache utilisé - Toujours réseau direct');
-console.log('🔄 Auto-désinstallation dans 1h');
+// ==========================================
+// ❌ PLUS D'AUTO-DÉSINSTALLATION
+// ==========================================
+// Service Worker reste actif jusqu'à désinstallation manuelle
+
+console.log('✅ Service Worker simple initialisé');
+console.log('🌐 Stratégie: Réseau d\'abord, cache en fallback');
+console.log('🔧 Contrôle: Manuel uniquement, pas d\'automatismes');
