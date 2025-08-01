@@ -1,98 +1,96 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta charset="UTF-8" />  
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Synergia v3.5.3 - Application Fonctionnelle</title>
+  <title>🚨 Synergia v3.5.3 - Mode Urgence</title>
   
-  <!-- Meta tags -->
-  <meta name="description" content="Synergia - Plateforme collaborative gamifiée">
-  <meta name="theme-color" content="#3B82F6">
-  
-  <!-- Cache busting -->
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
-</head>
-<body>
-  <div id="root">
-    <!-- Fallback de chargement simple -->
-    <div style="
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      min-height: 100vh; 
+  <!-- CSS inline pour éviter les imports -->
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      height: 100%;
+      font-family: Arial, sans-serif;
+    }
+    
+    #root {
+      height: 100%;
+    }
+    
+    /* Fallback si React ne charge pas */
+    .loading-fallback {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      font-family: Arial, sans-serif;
       text-align: center;
-    ">
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top: 4px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Élément root obligatoire -->
+  <div id="root">
+    <!-- Fallback visible pendant le chargement -->
+    <div class="loading-fallback">
       <div>
-        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">🚀 Synergia</h1>
-        <p style="font-size: 1.2rem; margin-bottom: 2rem;">Chargement de l'application...</p>
-        <div style="
-          width: 50px; 
-          height: 50px; 
-          border: 4px solid rgba(255,255,255,0.3); 
-          border-top: 4px solid white; 
-          border-radius: 50%; 
-          animation: spin 1s linear infinite;
-          margin: 0 auto;
-        "></div>
-        <style>
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        </style>
-        <p style="font-size: 0.9rem; margin-top: 2rem; opacity: 0.8;">
-          v3.5.3 - Déploiement réussi
+        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">🚨 Synergia</h1>
+        <div class="spinner"></div>
+        <p style="font-size: 1.2rem;">Mode Urgence - Test Démarrage...</p>
+        <p style="font-size: 0.9rem; margin-top: 1rem; opacity: 0.8;">
+          v3.5.3 - Reconstruction Minimale
         </p>
       </div>
     </div>
   </div>
 
-  <!-- Script de nettoyage minimal -->
+  <!-- Logs de diagnostic -->
   <script>
-    console.log('%c🚀 SYNERGIA v3.5.3 - DÉMARRAGE', 'color: #22c55e; font-size: 20px; font-weight: bold;');
-    console.log('%c✅ Build déployé avec succès', 'color: #22c55e; font-size: 16px;');
+    console.log('%c🚨 INDEX.HTML - MODE URGENCE', 'color: #ef4444; font-size: 20px; font-weight: bold;');
+    console.log('📍 Élément root:', document.getElementById('root'));
+    console.log('📍 Title:', document.title);
+    console.log('📍 Charset:', document.characterSet);
+    console.log('📍 URL:', window.location.href);
     
-    // Nettoyage unique au premier chargement
-    if (!sessionStorage.getItem('cleanupDone')) {
-      console.log('🧹 Nettoyage initial...');
-      
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-        sessionStorage.setItem('cleanupDone', 'true');
-        console.log('✅ Storage nettoyé');
-      } catch (error) {
-        console.warn('⚠️ Erreur nettoyage:', error);
-      }
+    // Test de base JavaScript
+    try {
+      console.log('✅ JavaScript: OK');
+      console.log('✅ DOM: OK');
+      console.log('✅ Console: OK');
+    } catch (error) {
+      console.error('❌ Erreur JavaScript de base:', error);
     }
     
-    // Fonctions de debug disponibles
-    window.forceReload = () => {
-      console.log('🔄 Force reload...');
-      sessionStorage.removeItem('cleanupDone');
-      window.location.reload(true);
+    // Fonction d'urgence
+    window.emergencyTest = () => {
+      alert('✅ JavaScript fonctionne !');
     };
     
-    window.clearAll = () => {
-      console.log('🧹 Clear all...');
-      localStorage.clear();
-      sessionStorage.clear();
-      if ('caches' in window) {
-        caches.keys().then(names => names.forEach(name => caches.delete(name)));
-      }
-      setTimeout(() => window.location.reload(true), 1000);
-    };
-    
-    console.log('🛠️ Debug functions: forceReload(), clearAll()');
+    console.log('🔧 Test d\'urgence: emergencyTest()');
   </script>
   
-  <!-- Script principal React -->
+  <!-- Script React - SEULEMENT si tout est OK -->
   <script type="module" src="/src/index.jsx"></script>
 </body>
 </html>
