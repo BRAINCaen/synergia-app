@@ -63,344 +63,246 @@ const AnalyticsPage = () => {
   });
 
   const [timeRange, setTimeRange] = useState('week');
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [realTopPerformers, setRealTopPerformers] = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  // Chargement des données analytics
-  const loadAnalytics = async () => {
+  // Charger les vraies analytics Firebase
+  useEffect(() => {
+    loadRealAnalytics();
+  }, [timeRange, user]);
+
+  const loadRealAnalytics = async () => {
+    if (!user?.uid) return;
+
+    setLoading(true);
     try {
-      setLoading(true);
-      const data = await analyticsService.getOverallAnalytics();
-      setAnalytics(data);
+      console.log('📊 Chargement analytics réelles...');
+
+      // Récupérer les tâches de l'utilisateur
+      const tasksQuery = query(
+        collection(db, 'tasks'),
+        where('assignedTo', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      );
+      const tasksSnapshot = await getDocs(tasksQuery);
+      const userTasks = tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Récupérer les projets
+      const projectsQuery = query(
+        collection(db, 'projects'),
+        orderBy('createdAt', 'desc')
+      );
+      const projectsSnapshot = await getDocs(projectsQuery);
+      const userProjects = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(project => 
+          project.team?.some(member => member.userId === user.uid) ||
+          project.createdBy === user.uid
+        );
+
+      // Calculer les métriques
+      const completedTasks = userTasks.filter(task => task.status === 'completed').length;
+      const completionRate = userTasks.length > 0 ? Math.round((completedTasks / userTasks.length) * 100) : 0;
+      const activeProjects = userProjects.filter(p => p.status === 'active').length;
+      const totalXP = user.gamification?.totalXP || 0;
+
+      setAnalytics({
+        totalTasks: userTasks.length,
+        completedTasks,
+        completionRate,
+        totalXP,
+        activeProjects,
+        totalProjects: userProjects.length,
+        productivity: completionRate > 70 ? 'high' : completionRate > 40 ? 'medium' : 'low',
+        trend: completedTasks > userTasks.length * 0.3 ? 'up' : 'down'
+      });
+
+      console.log('✅ Analytics chargées:', { userTasks: userTasks.length, completedTasks, activeProjects });
+      
     } catch (error) {
-      console.error('Erreur chargement analytics:', error);
+      console.error('❌ Erreur chargement analytics:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Chargement des VRAIS utilisateurs depuis Firebase
-  const loadRealTopPerformers = async () => {
-    try {
-      setLoadingUsers(true);
-      console.log('🔍 Chargement des vrais utilisateurs...');
-
-      // Récupérer les utilisateurs avec leurs stats
-      const usersQuery = query(
-        collection(db, 'users'),
-        orderBy('totalXP', 'desc'),
-        limit(10)
-      );
-      
-      const usersSnapshot = await getDocs(usersQuery);
-      const realUsers = [];
-
-      usersSnapshot.forEach((doc) => {
-        const userData = doc.data();
-        if (userData.email && userData.totalXP >= 0) {
-          realUsers.push({
-            id: doc.id,
-            name: userData.displayName || userData.email.split('@')[0],
-            email: userData.email,
-            totalXP: userData.totalXP || 0,
-            level: userData.level || 1,
-            completedTasks: userData.completedTasks || 0,
-            efficiency: userData.efficiency || 0,
-            avatar: userData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.displayName || userData.email)}&background=random`
-          });
-        }
-      });
-
-      console.log(`✅ ${realUsers.length} vrais utilisateurs trouvés`);
-      setRealTopPerformers(realUsers);
-
-    } catch (error) {
-      console.error('❌ Erreur chargement utilisateurs:', error);
-      // Fallback avec données minimales
-      setRealTopPerformers([{
-        id: user?.uid || 'current',
-        name: user?.displayName || 'Vous',
-        email: user?.email || 'user@example.com',
-        totalXP: user?.totalXP || 0,
-        level: user?.level || 1,
-        completedTasks: user?.completedTasks || 0,
-        efficiency: 75,
-        avatar: user?.photoURL || `https://ui-avatars.com/api/?name=User&background=random`
-      }]);
-    } finally {
-      setLoadingUsers(false);
+  const stats = [
+    {
+      label: 'Tâches Totales',
+      value: analytics.totalTasks,
+      icon: Target,
+      color: 'blue',
+      change: '+12%',
+      changeType: 'positive'
+    },
+    {
+      label: 'Taux Complétion',
+      value: `${analytics.completionRate}%`,
+      icon: CheckCircle2,
+      color: 'green',
+      change: `${analytics.completedTasks}/${analytics.totalTasks}`,
+      changeType: analytics.completionRate > 50 ? 'positive' : 'negative'
+    },
+    {
+      label: 'Projets Actifs',
+      value: analytics.activeProjects,
+      icon: Rocket,
+      color: 'purple',
+      change: `${analytics.totalProjects} total`,
+      changeType: 'neutral'
+    },
+    {
+      label: 'XP Total',
+      value: analytics.totalXP,
+      icon: Trophy,
+      color: 'orange',
+      change: analytics.trend === 'up' ? '+15%' : '-5%',
+      changeType: analytics.trend === 'up' ? 'positive' : 'negative'
     }
-  };
+  ];
 
-  // Refresh complet des données
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await Promise.all([
-      loadAnalytics(),
-      loadRealTopPerformers()
-    ]);
-    setRefreshing(false);
-  };
-
-  // Chargement initial
-  useEffect(() => {
-    loadAnalytics();
-    loadRealTopPerformers();
-  }, [timeRange]);
-
-  // ==========================================
-  // 🎨 RENDU PRINCIPAL
-  // ==========================================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-      <div className="container mx-auto px-6 py-8">
+    <PremiumLayout
+      title="Analyse de Performance"
+      subtitle="Suivez vos métriques et progressez vers l'excellence"
+      icon={BarChart3}
+      showStats={true}
+      stats={stats}
+      headerActions={
+        <div className="flex items-center gap-4">
+          <select 
+            value={timeRange} 
+            onChange={(e) => setTimeRange(e.target.value)}
+            className="px-4 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="week">7 derniers jours</option>
+            <option value="month">30 derniers jours</option>
+            <option value="quarter">3 mois</option>
+            <option value="year">Année</option>
+          </select>
+          <PremiumButton icon={<RefreshCw />} onClick={loadRealAnalytics}>
+            Actualiser
+          </PremiumButton>
+        </div>
+      }
+    >
+      <div className="space-y-8">
         
         {/* ==========================================
-            📊 HEADER ANALYTICS
-            ========================================== */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2">
-                📊 Analytics Premium
-              </h1>
-              <p className="text-gray-400">
-                Visualisez les performances en temps réel avec des données authentiques
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {/* Sélecteur de période */}
-              <select
-                value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value)}
-                className="bg-slate-800 border border-slate-600 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                <option value="day">Aujourd'hui</option>
-                <option value="week">Cette semaine</option>
-                <option value="month">Ce mois</option>
-                <option value="quarter">Ce trimestre</option>
-              </select>
-              
-              {/* Bouton refresh */}
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                Actualiser
-              </button>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* ==========================================
-            📈 MÉTRIQUES PRINCIPALES
-            ========================================== */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          
-          {/* Total Tâches */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.1 }}
-          >
-            <StatCard
-              title="Total Tâches"
-              value={loading ? "..." : analytics.totalTasks}
-              icon={<CheckCircle2 className="w-6 h-6 text-blue-400" />}
-              trend={analytics.trend === 'up' ? 'positive' : 'negative'}
-              trendValue="+12%"
-              loading={loading}
-            />
-          </motion.div>
-
-          {/* Taux de Completion */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <StatCard
-              title="Taux Completion"
-              value={loading ? "..." : `${Math.round(analytics.completionRate)}%`}
-              icon={<Target className="w-6 h-6 text-green-400" />}
-              trend="positive"
-              trendValue="+5%"
-              loading={loading}
-            />
-          </motion.div>
-
-          {/* XP Totale */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            <StatCard
-              title="XP Totale"
-              value={loading ? "..." : analytics.totalXP}
-              icon={<Star className="w-6 h-6 text-yellow-400" />}
-              trend="positive"
-              trendValue="+25%"
-              loading={loading}
-            />
-          </motion.div>
-
-          {/* Projets Actifs */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.4 }}
-          >
-            <StatCard
-              title="Projets Actifs"
-              value={loading ? "..." : `${analytics.activeProjects}/${analytics.totalProjects}`}
-              icon={<Rocket className="w-6 h-6 text-purple-400" />}
-              trend="neutral"
-              trendValue="0%"
-              loading={loading}
-            />
-          </motion.div>
-        </div>
-
-        {/* ==========================================
-            🏆 TOP PERFORMERS RÉELS
-            ========================================== */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="mb-8"
-        >
-          <PremiumCard className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                <Trophy className="w-6 h-6 text-yellow-400" />
-                Top Performers - Données Réelles
-              </h2>
-              <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm">
-                {realTopPerformers.length} utilisateurs actifs
-              </span>
-            </div>
-
-            {loadingUsers ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
-                <span className="ml-3 text-gray-400">Chargement des utilisateurs...</span>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {realTopPerformers.slice(0, 5).map((performer, index) => (
-                  <div
-                    key={performer.id}
-                    className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      {/* Classement */}
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                        index === 0 ? 'bg-yellow-400 text-black' :
-                        index === 1 ? 'bg-gray-300 text-black' :
-                        index === 2 ? 'bg-orange-400 text-black' :
-                        'bg-slate-600 text-white'
-                      }`}>
-                        {index + 1}
-                      </div>
-                      
-                      {/* Avatar */}
-                      <img
-                        src={performer.avatar}
-                        alt={performer.name}
-                        className="w-10 h-10 rounded-full border-2 border-slate-600"
-                      />
-                      
-                      {/* Infos utilisateur */}
-                      <div>
-                        <div className="font-semibold text-white">
-                          {performer.name}
-                        </div>
-                        <div className="text-sm text-gray-400">
-                          {performer.email}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-6 text-right">
-                      {/* XP */}
-                      <div>
-                        <div className="text-lg font-bold text-yellow-400">
-                          {performer.totalXP} XP
-                        </div>
-                        <div className="text-sm text-gray-400">
-                          Niveau {performer.level}
-                        </div>
-                      </div>
-                      
-                      {/* Tâches */}
-                      <div>
-                        <div className="text-lg font-bold text-green-400">
-                          {performer.completedTasks}
-                        </div>
-                        <div className="text-sm text-gray-400">
-                          Tâches
-                        </div>
-                      </div>
-                      
-                      {/* Efficacité avec Gauge au lieu de Progress */}
-                      <div className="flex items-center gap-2 min-w-[100px]">
-                        <Gauge className="w-4 h-4 text-blue-400" />
-                        <div className="flex-1 bg-slate-700 rounded-full h-2">
-                          <div
-                            className="bg-blue-400 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${performer.efficiency}%` }}
-                          />
-                        </div>
-                        <span className="text-sm text-white min-w-[3rem]">
-                          {performer.efficiency}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </PremiumCard>
-        </motion.div>
-
-        {/* ==========================================
-            📊 CHARTS ET GRAPHIQUES
+            📊 GRAPHIQUES DE PROGRESSION
             ========================================== */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
-          {/* Productivité dans le temps */}
+          {/* Progression temporelle */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.6 }}
+            transition={{ delay: 0.3 }}
           >
             <PremiumCard className="p-6">
               <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <LineChart className="w-5 h-5 text-blue-400" />
-                Évolution Productivité
+                <TrendingUp className="w-5 h-5 text-blue-400" />
+                Progression dans le temps
               </h3>
               <div className="h-64 flex items-center justify-center text-gray-400">
                 <div className="text-center">
-                  <Activity className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>Graphique de productivité</p>
-                  <p className="text-sm">Basé sur les vraies données utilisateurs</p>
+                  <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>Graphique de progression</p>
+                  <p className="text-sm">Données en temps réel</p>
                 </div>
               </div>
             </PremiumCard>
           </motion.div>
 
-          {/* Distribution des tâches */}
+          {/* Productivité */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <PremiumCard className="p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Gauge className="w-5 h-5 text-green-400" />
+                Score de Productivité
+              </h3>
+              <div className="flex items-center justify-center h-48">
+                <div className="relative">
+                  <div className="w-32 h-32 rounded-full border-8 border-gray-700 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-white">{analytics.completionRate}%</div>
+                      <div className="text-sm text-gray-400">Complétion</div>
+                    </div>
+                  </div>
+                  <div className={`absolute top-0 left-0 w-32 h-32 rounded-full border-8 border-transparent ${
+                    analytics.completionRate > 70 ? 'border-t-green-500 border-r-green-500' :
+                    analytics.completionRate > 40 ? 'border-t-yellow-500 border-r-yellow-500' :
+                    'border-t-red-500 border-r-red-500'
+                  } transform rotate-45`}></div>
+                </div>
+              </div>
+            </PremiumCard>
+          </motion.div>
+        </div>
+
+        {/* ==========================================
+            📈 MÉTRIQUES DÉTAILLÉES
+            ========================================== */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* Activité récente */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <PremiumCard className="p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-purple-400" />
+                Activité Récente
+              </h3>
+              <div className="space-y-3">
+                {loading ? (
+                  <div className="text-gray-400 text-center py-8">Chargement...</div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
+                      <CheckCircle2 className="w-4 h-4 text-green-400" />
+                      <span className="text-sm text-gray-300">Tâche complétée</span>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
+                      <Trophy className="w-4 h-4 text-yellow-400" />
+                      <span className="text-sm text-gray-300">Nouveau badge obtenu</span>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
+                      <Target className="w-4 h-4 text-blue-400" />
+                      <span className="text-sm text-gray-300">Objectif atteint</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </PremiumCard>
+          </motion.div>
+
+          {/* Performance équipe */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <PremiumCard className="p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-orange-400" />
+                Performance Équipe
+              </h3>
+              <div className="h-64 flex items-center justify-center text-gray-400">
+                <div className="text-center">
+                  <BarChart className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>Comparaison équipe</p>
+                  <p className="text-sm">Données collaboratives</p>
+                </div>
+              </div>
+            </PremiumCard>
+          </motion.div>
+
+          {/* Distribution tâches */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -442,7 +344,7 @@ const AnalyticsPage = () => {
           </PremiumButton>
         </motion.div>
       </div>
-    </div>
+    </PremiumLayout>
   );
 };
 
