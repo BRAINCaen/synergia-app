@@ -1,0 +1,279 @@
+// src/shared/components/ui/ConfirmationModal.jsx
+// Modals de confirmation pour les actions critiques
+import React, { useState } from 'react';
+import { AlertTriangle, Trash2, X, CheckCircle } from 'lucide-react';
+
+const ConfirmationModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  confirmText = 'Confirmer',
+  cancelText = 'Annuler',
+  type = 'danger', // 'danger', 'warning', 'info'
+  requiresConfirmation = false,
+  confirmationText = '',
+  loading = false
+}) => {
+  const [inputValue, setInputValue] = useState('');
+
+  // Configuration selon le type
+  const typeConfig = {
+    danger: {
+      icon: Trash2,
+      iconColor: 'text-red-400',
+      bgColor: 'bg-red-600',
+      hoverColor: 'hover:bg-red-700',
+      borderColor: 'border-red-500'
+    },
+    warning: {
+      icon: AlertTriangle,
+      iconColor: 'text-yellow-400',
+      bgColor: 'bg-yellow-600',
+      hoverColor: 'hover:bg-yellow-700',
+      borderColor: 'border-yellow-500'
+    },
+    info: {
+      icon: CheckCircle,
+      iconColor: 'text-blue-400',
+      bgColor: 'bg-blue-600',
+      hoverColor: 'hover:bg-blue-700',
+      borderColor: 'border-blue-500'
+    }
+  };
+
+  const config = typeConfig[type];
+  const Icon = config.icon;
+
+  // Vérifier si la confirmation peut être validée
+  const canConfirm = !requiresConfirmation || inputValue.toLowerCase() === confirmationText.toLowerCase();
+
+  const handleConfirm = () => {
+    if (canConfirm && !loading) {
+      onConfirm();
+    }
+  };
+
+  const handleClose = () => {
+    if (!loading) {
+      setInputValue('');
+      onClose();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        {/* Overlay */}
+        <div 
+          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          onClick={handleClose}
+        ></div>
+
+        {/* Modal */}
+        <div className="inline-block align-bottom bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+          
+          {/* Header avec icône */}
+          <div className="sm:flex sm:items-start">
+            <div className={`mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full ${config.bgColor} bg-opacity-20 sm:mx-0 sm:h-10 sm:w-10`}>
+              <Icon className={`h-6 w-6 ${config.iconColor}`} />
+            </div>
+            
+            <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
+              <h3 className="text-lg leading-6 font-medium text-white mb-2">
+                {title}
+              </h3>
+              <div className="mt-2">
+                <p className="text-sm text-gray-300">
+                  {message}
+                </p>
+              </div>
+
+              {/* Champ de confirmation si requis */}
+              {requiresConfirmation && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Pour confirmer, tapez <span className="font-bold text-white">"{confirmationText}"</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    placeholder={confirmationText}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={loading}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Bouton fermer */}
+            <button
+              onClick={handleClose}
+              disabled={loading}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Actions */}
+          <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-3">
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={!canConfirm || loading}
+              className={`w-full inline-flex justify-center rounded-lg border border-transparent px-4 py-2 text-base font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${config.bgColor} ${config.hoverColor} focus:ring-${type === 'danger' ? 'red' : type === 'warning' ? 'yellow' : 'blue'}-500`}
+            >
+              {loading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Traitement...
+                </div>
+              ) : (
+                confirmText
+              )}
+            </button>
+            
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={loading}
+              className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-600 px-4 py-2 bg-gray-700 text-base font-medium text-gray-300 shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 sm:mt-0 sm:w-auto sm:text-sm transition-colors disabled:opacity-50"
+            >
+              {cancelText}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Hook pour utiliser facilement les modals de confirmation
+export const useConfirmationModal = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [config, setConfig] = useState({});
+
+  const openModal = (modalConfig) => {
+    setConfig(modalConfig);
+    setIsOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsOpen(false);
+    setConfig({});
+  };
+
+  const confirmDelete = (itemName, onConfirm, options = {}) => {
+    openModal({
+      title: options.title || 'Confirmer la suppression',
+      message: options.message || `Êtes-vous sûr de vouloir supprimer "${itemName}" ? Cette action est irréversible.`,
+      confirmText: options.confirmText || 'Supprimer',
+      type: 'danger',
+      requiresConfirmation: options.requiresConfirmation,
+      confirmationText: options.requiresConfirmation ? itemName : '',
+      onConfirm: () => {
+        onConfirm();
+        closeModal();
+      }
+    });
+  };
+
+  const confirmAction = (title, message, onConfirm, options = {}) => {
+    openModal({
+      title,
+      message,
+      confirmText: options.confirmText || 'Confirmer',
+      type: options.type || 'warning',
+      requiresConfirmation: options.requiresConfirmation,
+      confirmationText: options.confirmationText || '',
+      onConfirm: () => {
+        onConfirm();
+        closeModal();
+      }
+    });
+  };
+
+  const ConfirmationModalComponent = () => (
+    <ConfirmationModal
+      isOpen={isOpen}
+      onClose={closeModal}
+      onConfirm={config.onConfirm}
+      title={config.title}
+      message={config.message}
+      confirmText={config.confirmText}
+      type={config.type}
+      requiresConfirmation={config.requiresConfirmation}
+      confirmationText={config.confirmationText}
+    />
+  );
+
+  return {
+    openModal,
+    closeModal,
+    confirmDelete,
+    confirmAction,
+    ConfirmationModal: ConfirmationModalComponent
+  };
+};
+
+// Modals prédéfinis pour Synergia
+export const SynergiaModals = {
+  deleteTask: (taskTitle, onConfirm) => ({
+    title: 'Supprimer la tâche',
+    message: `Êtes-vous sûr de vouloir supprimer la tâche "${taskTitle}" ? Vous perdrez toute progression associée.`,
+    confirmText: 'Supprimer la tâche',
+    type: 'danger',
+    onConfirm
+  }),
+
+  deleteProject: (projectTitle, onConfirm) => ({
+    title: 'Supprimer le projet',
+    message: `Êtes-vous sûr de vouloir supprimer le projet "${projectTitle}" ? Toutes les tâches associées seront également supprimées.`,
+    confirmText: 'Supprimer le projet',
+    type: 'danger',
+    requiresConfirmation: true,
+    confirmationText: projectTitle,
+    onConfirm
+  }),
+
+  leaveProject: (projectTitle, onConfirm) => ({
+    title: 'Quitter le projet',
+    message: `Voulez-vous vraiment quitter le projet "${projectTitle}" ? Vous n'aurez plus accès aux tâches associées.`,
+    confirmText: 'Quitter',
+    type: 'warning',
+    onConfirm
+  }),
+
+  resetProgress: (onConfirm) => ({
+    title: 'Réinitialiser les progrès',
+    message: 'Cette action supprimera définitivement tous vos progrès (XP, niveau, badges). Cette opération est irréversible.',
+    confirmText: 'Réinitialiser',
+    type: 'danger',
+    requiresConfirmation: true,
+    confirmationText: 'RESET',
+    onConfirm
+  }),
+
+  changeRole: (userName, newRole, onConfirm) => ({
+    title: 'Modifier le rôle',
+    message: `Voulez-vous changer le rôle de "${userName}" vers "${newRole}" ? Cette action affectera ses permissions.`,
+    confirmText: 'Modifier le rôle',
+    type: 'warning',
+    onConfirm
+  }),
+
+  archiveProject: (projectTitle, onConfirm) => ({
+    title: 'Archiver le projet',
+    message: `Le projet "${projectTitle}" sera archivé et ne sera plus visible dans la liste active. Vous pourrez le restaurer plus tard.`,
+    confirmText: 'Archiver',
+    type: 'info',
+    onConfirm
+  })
+};
+
+export default ConfirmationModal;
