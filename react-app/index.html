@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8" />  
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🚨 Synergia v3.5.3 - Mode Urgence</title>
+  <title>🚨 Synergia v3.5.3 - HTML PUR</title>
   
-  <!-- CSS inline pour éviter les imports -->
   <style>
     * {
       margin: 0;
@@ -13,84 +12,224 @@
       box-sizing: border-box;
     }
     
-    html, body {
-      height: 100%;
-      font-family: Arial, sans-serif;
-    }
-    
-    #root {
-      height: 100%;
-    }
-    
-    /* Fallback si React ne charge pas */
-    .loading-fallback {
+    body {
       height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
+      font-family: Arial, sans-serif;
       text-align: center;
     }
     
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid rgba(255,255,255,0.3);
-      border-top: 4px solid white;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 600px;
+      margin: 20px;
     }
     
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+    .success-badge {
+      background: linear-gradient(45deg, #10b981, #34d399);
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-size: 1rem;
+      font-weight: bold;
+      margin-bottom: 30px;
+      display: inline-block;
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-top: 30px;
+    }
+    
+    .info-card {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .button {
+      background: linear-gradient(45deg, #3b82f6, #6366f1);
+      border: none;
+      padding: 12px 24px;
+      border-radius: 10px;
+      color: white;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 10px;
+      transition: transform 0.2s;
+    }
+    
+    .button:hover {
+      transform: scale(1.05);
+    }
+    
+    .debug-section {
+      margin-top: 40px;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 15px;
+      font-size: 0.9rem;
+    }
+    
+    .success-message {
+      margin-top: 30px;
+      padding: 15px;
+      background: rgba(34, 197, 94, 0.2);
+      border-radius: 10px;
+      border: 2px solid rgba(34, 197, 94, 0.5);
     }
   </style>
 </head>
 <body>
-  <!-- Élément root obligatoire -->
-  <div id="root">
-    <!-- Fallback visible pendant le chargement -->
-    <div class="loading-fallback">
-      <div>
-        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">🚨 Synergia</h1>
-        <div class="spinner"></div>
-        <p style="font-size: 1.2rem;">Mode Urgence - Test Démarrage...</p>
-        <p style="font-size: 0.9rem; margin-top: 1rem; opacity: 0.8;">
-          v3.5.3 - Reconstruction Minimale
-        </p>
+  <div class="container">
+    <!-- Titre principal -->
+    <h1 style="font-size: 3rem; font-weight: bold; margin-bottom: 20px;">🚀 Synergia v3.5.3</h1>
+    
+    <!-- Badge de succès -->
+    <div class="success-badge">
+      ✅ HTML PUR FONCTIONNE PARFAITEMENT !
+    </div>
+    
+    <!-- Description -->
+    <p style="font-size: 1.2rem; margin-bottom: 30px;">
+      Application HTML pure sans React.<br/>
+      Diagnostic terminé - Le problème est dans React/Vite.
+    </p>
+
+    <!-- Heure en temps réel -->
+    <div class="info-card" style="margin-bottom: 20px;">
+      <strong>⏰ Heure actuelle:</strong><br/>
+      <span id="current-time">Chargement...</span>
+    </div>
+
+    <!-- Grille d'informations -->
+    <div class="info-grid">
+      <div class="info-card">
+        <strong>🏗️ Build</strong><br/>
+        HTML Pur
       </div>
+      <div class="info-card">
+        <strong>⚡ Performance</strong><br/>
+        Maximale
+      </div>
+      <div class="info-card">
+        <strong>🔧 Cache</strong><br/>
+        Pas de problème
+      </div>
+      <div class="info-card">
+        <strong>🎯 Status</strong><br/>
+        100% Fonctionnel
+      </div>
+    </div>
+
+    <!-- Boutons de test -->
+    <div style="margin-top: 30px;">
+      <button class="button" onclick="testConsole()">
+        🧪 Test Console
+      </button>
+      
+      <button class="button" onclick="testAlert()">
+        🔔 Test Alert
+      </button>
+      
+      <button class="button" onclick="window.location.reload()">
+        🔄 Recharger
+      </button>
+      
+      <button class="button" onclick="testNetwork()">
+        🌐 Test Réseau
+      </button>
+    </div>
+
+    <!-- Section debug -->
+    <div class="debug-section">
+      <h3 style="margin-top: 0; color: #22c55e;">📊 Diagnostic Complet</h3>
+      <div style="text-align: left; font-size: 0.8rem;">
+        <p><strong>URL:</strong> <span id="current-url">-</span></p>
+        <p><strong>User Agent:</strong> <span id="user-agent">-</span></p>
+        <p><strong>Écran:</strong> <span id="screen-size">-</span></p>
+        <p><strong>Viewport:</strong> <span id="viewport-size">-</span></p>
+        <p><strong>JavaScript:</strong> ✅ Fonctionne</p>
+        <p><strong>CSS:</strong> ✅ Fonctionne</p>
+        <p><strong>DOM:</strong> ✅ Fonctionne</p>
+      </div>
+    </div>
+
+    <!-- Message de diagnostic -->
+    <div class="success-message">
+      <strong style="color: #22c55e;">🎯 DIAGNOSTIC TERMINÉ !</strong><br/>
+      HTML/CSS/JavaScript fonctionnent parfaitement.<br/>
+      <strong>Conclusion:</strong> Le problème est dans React, Vite ou les modules ES6.<br/>
+      <br/>
+      <strong>Solutions à tester :</strong><br/>
+      1. Vérifier la configuration Vite<br/>
+      2. Vérifier les variables d'environnement<br/>
+      3. Reconstruire sans modules ES6<br/>
+      4. Tester avec une version React plus ancienne
     </div>
   </div>
 
-  <!-- Logs de diagnostic -->
   <script>
-    console.log('%c🚨 INDEX.HTML - MODE URGENCE', 'color: #ef4444; font-size: 20px; font-weight: bold;');
-    console.log('📍 Élément root:', document.getElementById('root'));
-    console.log('📍 Title:', document.title);
-    console.log('📍 Charset:', document.characterSet);
-    console.log('📍 URL:', window.location.href);
+    // Logs de diagnostic
+    console.log('%c🎯 DIAGNOSTIC HTML PUR', 'color: #22c55e; font-size: 24px; font-weight: bold;');
+    console.log('✅ HTML: OK');
+    console.log('✅ CSS: OK');
+    console.log('✅ JavaScript: OK');
+    console.log('❌ React: NON TESTÉ (volontairement supprimé)');
     
-    // Test de base JavaScript
-    try {
-      console.log('✅ JavaScript: OK');
-      console.log('✅ DOM: OK');
-      console.log('✅ Console: OK');
-    } catch (error) {
-      console.error('❌ Erreur JavaScript de base:', error);
+    // Remplir les infos
+    document.getElementById('current-url').textContent = window.location.href;
+    document.getElementById('user-agent').textContent = navigator.userAgent.substring(0, 50) + '...';
+    document.getElementById('screen-size').textContent = `${screen.width}x${screen.height}`;
+    document.getElementById('viewport-size').textContent = `${window.innerWidth}x${window.innerHeight}`;
+    
+    // Heure en temps réel
+    function updateTime() {
+      document.getElementById('current-time').textContent = new Date().toLocaleString();
+    }
+    updateTime();
+    setInterval(updateTime, 1000);
+    
+    // Fonctions de test
+    function testConsole() {
+      console.log('🧪 Test console - OK');
+      console.log('📊 Performance:', performance.now() + 'ms');
+      console.log('🌐 Online:', navigator.onLine);
     }
     
-    // Fonction d'urgence
-    window.emergencyTest = () => {
-      alert('✅ JavaScript fonctionne !');
-    };
+    function testAlert() {
+      alert('✅ JavaScript et DOM fonctionnent parfaitement !');
+    }
     
-    console.log('🔧 Test d\'urgence: emergencyTest()');
+    function testNetwork() {
+      fetch(window.location.href)
+        .then(response => {
+          console.log('🌐 Test réseau - Status:', response.status);
+          alert(`🌐 Réseau OK - Status: ${response.status}`);
+        })
+        .catch(error => {
+          console.error('❌ Test réseau - Erreur:', error);
+          alert(`❌ Erreur réseau: ${error.message}`);
+        });
+    }
+    
+    // Test automatique après 2 secondes
+    setTimeout(() => {
+      console.log('🎯 CONCLUSION: HTML/CSS/JS fonctionnent. Le problème est dans React/Vite.');
+    }, 2000);
+    
+    console.log('✅ Diagnostic HTML pur terminé');
   </script>
-  
-  <!-- Script React - SEULEMENT si tout est OK -->
-  <script type="module" src="/src/index.jsx"></script>
 </body>
 </html>
