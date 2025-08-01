@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Synergia v3.5.3 - Stable</title>
+  
+  <!-- Meta tags -->
+  <meta name="description" content="Synergia - Plateforme collaborative gamifiée">
+  <meta name="theme-color" content="#3B82F6">
+</head>
+<body>
+  <div id="root">
+    <!-- Fallback simple -->
+    <div style="
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      min-height: 100vh; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    ">
+      <div>
+        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">🚀 Synergia</h1>
+        <p style="font-size: 1.2rem; margin-bottom: 2rem;">Chargement de l'application...</p>
+        <div style="
+          width: 50px; 
+          height: 50px; 
+          border: 4px solid rgba(255,255,255,0.3); 
+          border-top: 4px solid white; 
+          border-radius: 50%; 
+          animation: spin 1s linear infinite;
+          margin: 0 auto;
+        "></div>
+        <style>
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        </style>
+        <p style="font-size: 0.9rem; margin-top: 2rem; opacity: 0.8;">
+          v3.5.3 - Mode Stable | Service Worker désactivé
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logs de debug -->
+  <script>
+    console.log('%c🚀 SYNERGIA v3.5.3 - MODE STABLE', 'color: #22c55e; font-size: 20px; font-weight: bold;');
+    console.log('%c✅ Service Worker désactivé définitivement', 'color: #22c55e; font-size: 16px;');
+    console.log('%c🧹 Nettoyage automatique terminé', 'color: #3b82f6; font-size: 14px;');
+  </script>
+  
+  <!-- Fonction d'urgence simple -->
+  <script>
+    window.forceReload = () => {
+      console.log('🔄 Force reload...');
+      window.location.reload(true);
+    };
+    
+    window.emergencyClean = () => {
+      console.log('🧹 Emergency clean...');
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          regs.forEach(reg => reg.unregister());
+        });
+      }
+      
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.forEach(name => caches.delete(name));
+        });
+      }
+      
+      setTimeout(() => window.location.reload(true), 1000);
+    };
+    
+    console.log('✅ Fonctions debug: forceReload(), emergencyClean()');
+  </script>
+  
+  <!-- Script principal React -->
+  <script type="module" src="/src/index.jsx"></script>
+<script>
+// Fonction pour supprimer la ligne rouge
+function removeRedLogoutLine() {
+  const allElements = document.querySelectorAll('*');
+  allElements.forEach(element => {
+    const text = element.textContent || '';
+    const style = window.getComputedStyle(element);
+    
+    if (text.includes('Déconnexion') && style.position === 'fixed') {
+      const isInSidebar = element.closest('.sidebar');
+      if (!isInSidebar) {
+        element.style.display = 'none';
+      }
+    }
+  });
+}
+
+// Exécuter immédiatement et périodiquement
+removeRedLogoutLine();
+setInterval(removeRedLogoutLine, 1000);
+
+// Fonction pour debug - vous pouvez l'utiliser dans la console
+window.emergencyClean = removeRedLogoutLine;
+</script>
+</body>
+</html>
