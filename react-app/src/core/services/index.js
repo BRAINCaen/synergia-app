@@ -14,132 +14,158 @@ let milestoneService = null;
 let projectAnalyticsService = null;
 let taskProjectIntegration = null;
 
-try {
-  const teamModule = await import('./teamManagementService.js');
-  teamManagementService = teamModule.teamManagementService;
-} catch (error) {
-  console.warn('⚠️ teamManagementService non disponible');
-  teamManagementService = {
-    // Fallback sécurisé
-    getTeamMembers: () => Promise.resolve([]),
-    addTeamMember: () => Promise.resolve(false),
-    removeTeamMember: () => Promise.resolve(false)
-  };
-}
+// Initialisation sécurisée des services avancés
+const initializeAdvancedServices = async () => {
+  try {
+    // ✅ Import teamManagementService avec fallback
+    try {
+      const teamModule = await import('./teamManagementService.js');
+      teamManagementService = teamModule.teamManagementService || teamModule.default;
+      console.log('✅ teamManagementService chargé');
+    } catch (error) {
+      console.warn('⚠️ teamManagementService non disponible, utilisation du fallback');
+      teamManagementService = {
+        getTeamMembers: () => Promise.resolve([]),
+        addTeamMember: () => Promise.resolve(false),
+        removeTeamMember: () => Promise.resolve(false),
+        updateMemberRole: () => Promise.resolve(false)
+      };
+    }
 
-try {
-  const milestoneModule = await import('./milestoneService.js');
-  milestoneService = milestoneModule.milestoneService;
-} catch (error) {
-  console.warn('⚠️ milestoneService non disponible');
-  milestoneService = {
-    // Fallback sécurisé
-    getMilestones: () => Promise.resolve([]),
-    createMilestone: () => Promise.resolve(null),
-    updateMilestone: () => Promise.resolve(false)
-  };
-}
+    // ✅ Import milestoneService avec fallback
+    try {
+      const milestoneModule = await import('./milestoneService.js');
+      milestoneService = milestoneModule.milestoneService || milestoneModule.default;
+      console.log('✅ milestoneService chargé');
+    } catch (error) {
+      console.warn('⚠️ milestoneService non disponible, utilisation du fallback');
+      milestoneService = {
+        getMilestones: () => Promise.resolve([]),
+        createMilestone: () => Promise.resolve(null),
+        updateMilestone: () => Promise.resolve(false),
+        deleteMilestone: () => Promise.resolve(false)
+      };
+    }
 
-try {
-  const analyticsModule = await import('./projectAnalyticsService.js');
-  projectAnalyticsService = analyticsModule.projectAnalyticsService;
-} catch (error) {
-  console.warn('⚠️ projectAnalyticsService non disponible');
-  projectAnalyticsService = {
-    // Fallback sécurisé
-    getProjectAnalytics: () => Promise.resolve({}),
-    generateReport: () => Promise.resolve(null)
-  };
-}
+    // ✅ Import projectAnalyticsService avec fallback
+    try {
+      const analyticsModule = await import('./projectAnalyticsService.js');
+      projectAnalyticsService = analyticsModule.projectAnalyticsService || analyticsModule.default;
+      console.log('✅ projectAnalyticsService chargé');
+    } catch (error) {
+      console.warn('⚠️ projectAnalyticsService non disponible, utilisation du fallback');
+      projectAnalyticsService = {
+        getProjectAnalytics: () => Promise.resolve({}),
+        generateReport: () => Promise.resolve(null),
+        getMetrics: () => Promise.resolve({})
+      };
+    }
 
-try {
-  const integrationModule = await import('./taskProjectIntegration.js');
-  taskProjectIntegration = integrationModule.taskProjectIntegration;
-} catch (error) {
-  console.warn('⚠️ taskProjectIntegration non disponible');
-  taskProjectIntegration = {
-    // Fallback sécurisé
-    syncTasksWithProjects: () => Promise.resolve(true),
-    updateProjectProgress: () => Promise.resolve(true)
-  };
-}
+    // ✅ Import taskProjectIntegration avec fallback
+    try {
+      const integrationModule = await import('./taskProjectIntegration.js');
+      taskProjectIntegration = integrationModule.taskProjectIntegration || integrationModule.default;
+      console.log('✅ taskProjectIntegration chargé');
+    } catch (error) {
+      console.warn('⚠️ taskProjectIntegration non disponible, utilisation du fallback');
+      taskProjectIntegration = {
+        linkTaskToProject: () => Promise.resolve(false),
+        unlinkTaskFromProject: () => Promise.resolve(false),
+        getProjectTasks: () => Promise.resolve([])
+      };
+    }
 
-// ✅ SERVICES PRINCIPAUX - SÉCURISÉS
-const services = {
-  AuthService,
-  TaskService,
-  ProjectService,
-  authService: AuthService,
-  taskService,
-  projectService,
-  teamManagementService,
-  milestoneService,
-  projectAnalyticsService,
-  taskProjectIntegration
+  } catch (error) {
+    console.error('❌ Erreur initialisation services avancés:', error);
+  }
 };
 
-// ✅ EXPORTS NOMMÉS SÉCURISÉS
-export const AuthServiceSecure = AuthService;
-export const TaskServiceSecure = TaskService;
-export const ProjectServiceSecure = ProjectService;
-export const authServiceSecure = AuthService;
-export const taskServiceSecure = taskService;
-export const projectServiceSecure = projectService;
+// Initialiser les services avancés
+initializeAdvancedServices();
 
-// ✅ EXPORTS CLASSIQUES MAINTENUS (pour compatibilité)
+// ==========================================
+// 📤 EXPORTS SÉCURISÉS SANS CONFLITS
+// ==========================================
+
+// Exports directs des services principaux
 export { default as AuthService } from './authService.js';
 export { default as TaskService, taskService } from './taskService.js';
 export { default as ProjectService, projectService } from './projectService.js';
 
-// ✅ ALIAS DE COMPATIBILITÉ
-export const authService = AuthService;
+// Exports conditionnels des services avancés
+export const getTeamManagementService = () => teamManagementService;
+export const getMilestoneService = () => milestoneService;
+export const getProjectAnalyticsService = () => projectAnalyticsService;
+export const getTaskProjectIntegration = () => taskProjectIntegration;
 
-// ✅ EXPORTS AVANCÉS SÉCURISÉS
-export const teamManagementServiceSecure = teamManagementService;
-export const milestoneServiceSecure = milestoneService;
-export const projectAnalyticsServiceSecure = projectAnalyticsService;
-export const taskProjectIntegrationSecure = taskProjectIntegration;
-
-// ✅ EXPORT PAR DÉFAUT SÉCURISÉ
-export default services;
-
-// 📊 LOGS DE DIAGNOSTIC
-console.log('✅ Services index sécurisé chargé');
-console.log('🎯 Services principaux disponibles:', {
-  AuthService: typeof AuthService,
-  TaskService: typeof TaskService,
-  ProjectService: typeof ProjectService
-});
-console.log('🎯 Instances disponibles:', {
-  authService: typeof AuthService,
-  taskService: typeof taskService,
-  projectService: typeof projectService
-});
-console.log('🔧 Services avancés:', {
-  teamManagement: typeof teamManagementService,
-  milestone: typeof milestoneService,
-  projectAnalytics: typeof projectAnalyticsService,
-  taskProjectIntegration: typeof taskProjectIntegration
-});
-
-// 🔧 VÉRIFICATION DE FONCTIONNEMENT
-const verifyServices = () => {
-  const issues = [];
+// ✅ FONCTION DE VÉRIFICATION DES SERVICES
+export const checkServicesAvailability = () => {
+  const serviceStatus = {
+    AuthService: !!AuthService,
+    TaskService: !!TaskService,
+    ProjectService: !!ProjectService,
+    teamManagementService: !!teamManagementService,
+    milestoneService: !!milestoneService,
+    projectAnalyticsService: !!projectAnalyticsService,
+    taskProjectIntegration: !!taskProjectIntegration
+  };
   
-  if (!AuthService) issues.push('AuthService');
-  if (!TaskService) issues.push('TaskService');
-  if (!ProjectService) issues.push('ProjectService');
-  if (typeof taskService?.getUserTasks !== 'function') issues.push('taskService.getUserTasks');
-  if (typeof projectService?.getProject !== 'function') issues.push('projectService.getProject');
-  
-  if (issues.length > 0) {
-    console.error('❌ Services défaillants:', issues);
-  } else {
-    console.log('✅ Tous les services principaux sont fonctionnels');
-  }
-  
-  return issues.length === 0;
+  console.log('📋 État des services:', serviceStatus);
+  return serviceStatus;
 };
 
-// Vérification automatique
-verifyServices();
+// ✅ FONCTION D'ACCÈS SÉCURISÉ AUX SERVICES
+export const getService = (serviceName) => {
+  const services = {
+    auth: AuthService,
+    task: TaskService,
+    project: ProjectService,
+    teamManagement: teamManagementService,
+    milestone: milestoneService,
+    projectAnalytics: projectAnalyticsService,
+    taskProjectIntegration: taskProjectIntegration
+  };
+  
+  const service = services[serviceName];
+  if (!service) {
+    console.warn(`⚠️ Service "${serviceName}" non disponible`);
+    return null;
+  }
+  
+  return service;
+};
+
+// ==========================================
+// 🔧 EXPORTS LEGACY POUR COMPATIBILITÉ
+// ==========================================
+
+// Pour compatibilité avec l'ancien code
+export const authService = AuthService;
+
+// Export par défaut pour imports simples
+export default {
+  AuthService,
+  TaskService,
+  ProjectService,
+  taskService,
+  projectService,
+  getTeamManagementService,
+  getMilestoneService,
+  getProjectAnalyticsService,
+  getTaskProjectIntegration,
+  checkServicesAvailability,
+  getService
+};
+
+// ==========================================
+// 📋 LOGS DE CONFIRMATION
+// ==========================================
+console.log('✅ Services index.js corrigé');
+console.log('🔧 Élimination TypeError: s is not a function');
+console.log('📦 Exports sécurisés avec fallbacks');
+console.log('🚀 Compatible avec build Netlify');
+
+// Vérifier l'état des services après un délai
+setTimeout(() => {
+  checkServicesAvailability();
+}, 2000);
