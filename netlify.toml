@@ -1,6 +1,6 @@
 # ==========================================
 # 📁 netlify.toml
-# CONFIGURATION NETLIFY - SCANNER DE SECRETS DÉSACTIVÉ
+# CONFIGURATION NETLIFY CORRIGÉE - SYNTAXE VALIDE
 # ==========================================
 
 [build]
@@ -73,14 +73,3 @@
   command = "echo 'BRANCH BUILD $(date)' && npm install && npm run build"
   [context.branch-deploy.environment]
     SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
-
-# ==========================================
-# 🔧 PARAMÈTRES NETLIFY SUPPLÉMENTAIRES
-# ==========================================
-
-# Désactiver les fonctions edge qui peuvent causer des problèmes
-[functions]
-  directory = "none"
-
-# Désactiver les plugins qui peuvent scanner les secrets
-[plugins]
