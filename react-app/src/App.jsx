@@ -1,184 +1,143 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// REACT AVEC AUTHENTIFICATION GOOGLE RÉACTIVÉE
+// APPLICATION PRINCIPALE - ÉTAT DE FONCTIONNEMENT TOTAL
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// Import des composants
-import Dashboard from './pages/Dashboard.jsx';
-import Tasks from './pages/Tasks.jsx';
-import Projects from './pages/Projects.jsx';
-import Team from './pages/Team.jsx';
-import Gamification from './pages/Gamification.jsx';
-import Analytics from './pages/Analytics.jsx';
+// Layout principal
+import DashboardLayout from './layouts/DashboardLayout.jsx';
+
+// Pages principales - TOUTES IMPORTÉES
 import Login from './pages/Login.jsx';
+import Dashboard from './pages/Dashboard.jsx';
+import TasksPage from './pages/TasksPage.jsx';
+import ProjectsPage from './pages/ProjectsPage.jsx';
+import Analytics from './pages/Analytics.jsx';
+import GamificationPage from './pages/GamificationPage.jsx';
+import TeamPage from './pages/TeamPage.jsx';
 import NotFound from './pages/NotFound.jsx';
 
-// Import du contexte d'authentification
-import { SimpleAuthProvider, useSimpleAuth } from './contexts/SimpleAuthContext.jsx';
+// Pages additionnelles existantes
+import BadgesPage from './pages/BadgesPage.jsx';
+import UsersPage from './pages/UsersPage.jsx';
+import OnboardingPage from './pages/OnboardingPage.jsx';
+import TimeTrackPage from './pages/TimeTrackPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
+import RewardsPage from './pages/RewardsPage.jsx';
+
+// Pages Admin
+import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
+import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
+
+// Composants fallback (si certaines pages n'existent pas)
+import TaskList from './modules/tasks/TaskList.jsx';
+import BadgeCollection from './components/gamification/BadgeCollection.jsx';
+import Leaderboard from './components/gamification/Leaderboard.jsx';
+import Profile from './modules/profile/components/Profile.jsx';
+
+// Store d'authentification
+import { useAuthStore } from './shared/stores/authStore.js';
 
 /**
  * 🔐 COMPOSANT DE PROTECTION DES ROUTES
  */
 function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading, initialized } = useSimpleAuth();
+  const { user, loading } = useAuthStore();
   
-  // Affichage de chargement pendant l'initialisation
-  if (!initialized || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
           <h2 className="text-white text-lg font-semibold">
-            🔄 Initialisation de l'authentification...
+            🔄 Chargement...
           </h2>
-          <p className="text-indigo-200 text-sm">
-            Connexion à Firebase en cours
-          </p>
         </div>
       </div>
     );
   }
   
-  // Redirection vers login si pas authentifié
-  if (!isAuthenticated) {
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
   
-  return children;
-}
-
-/**
- * 🚀 COMPOSANT PRINCIPAL DE L'APPLICATION
- */
-function AppContent() {
-  const { isAuthenticated, user, firebaseReady, error, initialized } = useSimpleAuth();
-  
   return (
-    <Router>
-      <div className="App">
-        {/* Informations de diagnostic en développement */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="fixed top-0 right-0 z-50 bg-black/80 text-white p-2 text-xs">
-            <div>🔐 Auth: {isAuthenticated ? '✅ Connecté' : '❌ Déconnecté'}</div>
-            <div>🔥 Firebase: {firebaseReady ? '✅ Prêt' : '❌ Non prêt'}</div>
-            <div>🔄 Init: {initialized ? '✅ Fait' : '⏳ En cours'}</div>
-            {user && <div>👤 User: {user.email}</div>}
-            {error && <div className="text-red-400">❌ {error}</div>}
-          </div>
-        )}
-
-        <Routes>
-          {/* Route publique : Login */}
-          <Route 
-            path="/login" 
-            element={
-              isAuthenticated ? 
-                <Navigate to="/dashboard" replace /> : 
-                <Login />
-            } 
-          />
-          
-          {/* Routes protégées */}
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/tasks" 
-            element={
-              <ProtectedRoute>
-                <Tasks />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/projects" 
-            element={
-              <ProtectedRoute>
-                <Projects />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/team" 
-            element={
-              <ProtectedRoute>
-                <Team />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/gamification" 
-            element={
-              <ProtectedRoute>
-                <Gamification />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/analytics" 
-            element={
-              <ProtectedRoute>
-                <Analytics />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* Redirection racine */}
-          <Route 
-            path="/" 
-            element={<Navigate to="/dashboard" replace />} 
-          />
-          
-          {/* Page 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </div>
-    </Router>
+    <DashboardLayout>
+      {children}
+    </DashboardLayout>
   );
 }
 
 /**
- * 🎯 COMPOSANT RACINE AVEC PROVIDER D'AUTHENTIFICATION
+ * 🌟 COMPOSANT FALLBACK POUR PAGES MANQUANTES
+ */
+function FallbackPage({ pageName, description, fallbackComponent: FallbackComponent }) {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
+      <div className="max-w-2xl mx-auto text-center space-y-6">
+        <div className="text-6xl mb-4">🚧</div>
+        <h1 className="text-3xl font-bold text-gray-900">
+          {pageName}
+        </h1>
+        <p className="text-gray-600 text-lg">
+          {description}
+        </p>
+        
+        {FallbackComponent && (
+          <div className="mt-8 p-6 bg-white rounded-lg shadow-lg">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800">
+              Composant de démonstration :
+            </h3>
+            <FallbackComponent />
+          </div>
+        )}
+        
+        <div className="flex justify-center space-x-4 mt-8">
+          <button
+            onClick={() => window.location.href = '/dashboard'}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+          >
+            🏠 Retour au Dashboard
+          </button>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-colors"
+          >
+            🔄 Actualiser
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 🎯 COMPOSANT PRINCIPAL DE L'APPLICATION
  */
 function App() {
-  const [appStatus, setAppStatus] = useState('initializing');
+  const { user, initializeAuth } = useAuthStore();
+  const [appReady, setAppReady] = useState(false);
   
   useEffect(() => {
-    // Diagnostic de l'application au démarrage
-    console.log('🚀 [APP] Synergia v3.5 - Démarrage...');
-    console.log('🔧 [APP] Mode:', process.env.NODE_ENV);
-    console.log('🌐 [APP] Base URL:', window.location.origin);
+    // Initialisation de l'application
+    console.log('🚀 [APP] Synergia v3.5 - Initialisation...');
     
-    // Vérification des variables d'environnement Firebase
-    const firebaseVars = {
-      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    };
+    // Initialiser l'auth store
+    const cleanup = initializeAuth();
     
-    console.log('🔥 [APP] Variables Firebase:', {
-      apiKey: firebaseVars.apiKey ? '✅ Définie' : '❌ Manquante',
-      authDomain: firebaseVars.authDomain ? '✅ Définie' : '❌ Manquante',
-      projectId: firebaseVars.projectId ? '✅ Définie' : '❌ Manquante',
-    });
+    // Marquer l'app comme prête
+    setTimeout(() => {
+      setAppReady(true);
+      console.log('✅ [APP] Application prête');
+    }, 500);
     
-    setAppStatus('ready');
-  }, []);
+    return cleanup;
+  }, [initializeAuth]);
   
-  if (appStatus === 'initializing') {
+  if (!appReady) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -196,9 +155,265 @@ function App() {
   }
   
   return (
-    <SimpleAuthProvider>
-      <AppContent />
-    </SimpleAuthProvider>
+    <Router>
+      <div className="App">
+        <Routes>
+          {/* Route publique : Login */}
+          <Route 
+            path="/login" 
+            element={
+              user ? <Navigate to="/dashboard" replace /> : <Login />
+            } 
+          />
+          
+          {/* ================================
+              ROUTES PRINCIPALES PROTÉGÉES 
+              ================================ */}
+          
+          {/* Dashboard */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Tâches */}
+          <Route 
+            path="/tasks" 
+            element={
+              <ProtectedRoute>
+                <TasksPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Projets */}
+          <Route 
+            path="/projects" 
+            element={
+              <ProtectedRoute>
+                <ProjectsPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Analytics */}
+          <Route 
+            path="/analytics" 
+            element={
+              <ProtectedRoute>
+                <Analytics />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* ================================
+              ROUTES GAMIFICATION
+              ================================ */}
+          
+          {/* Gamification principale */}
+          <Route 
+            path="/gamification" 
+            element={
+              <ProtectedRoute>
+                <GamificationPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Badges */}
+          <Route 
+            path="/badges" 
+            element={
+              <ProtectedRoute>
+                <BadgesPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Classement/Leaderboard */}
+          <Route 
+            path="/leaderboard" 
+            element={
+              <ProtectedRoute>
+                <FallbackPage 
+                  pageName="🥇 Classement" 
+                  description="Classement de l'équipe avec scores et performances"
+                  fallbackComponent={Leaderboard}
+                />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Récompenses */}
+          <Route 
+            path="/rewards" 
+            element={
+              <ProtectedRoute>
+                <RewardsPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* ================================
+              ROUTES ÉQUIPE & SOCIAL
+              ================================ */}
+          
+          {/* Équipe */}
+          <Route 
+            path="/team" 
+            element={
+              <ProtectedRoute>
+                <TeamPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Utilisateurs */}
+          <Route 
+            path="/users" 
+            element={
+              <ProtectedRoute>
+                <UsersPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* ================================
+              ROUTES OUTILS & PARAMÈTRES
+              ================================ */}
+          
+          {/* Onboarding */}
+          <Route 
+            path="/onboarding" 
+            element={
+              <ProtectedRoute>
+                <OnboardingPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Time Tracking */}
+          <Route 
+            path="/timetrack" 
+            element={
+              <ProtectedRoute>
+                <TimeTrackPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Profil */}
+          <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Paramètres */}
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* ================================
+              ROUTES ADMIN
+              ================================ */}
+          
+          {/* Validation des tâches */}
+          <Route 
+            path="/admin/task-validation" 
+            element={
+              <ProtectedRoute>
+                <AdminTaskValidationPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Test complet admin */}
+          <Route 
+            path="/admin/complete-test" 
+            element={
+              <ProtectedRoute>
+                <CompleteAdminTestPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Test profil admin */}
+          <Route 
+            path="/admin/profile-test" 
+            element={
+              <ProtectedRoute>
+                <FallbackPage 
+                  pageName="🧪 Test Profil Admin" 
+                  description="Tests et validation des profils utilisateurs"
+                  fallbackComponent={Profile}
+                />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* ================================
+              ROUTES FALLBACK & COMPATIBILITÉ
+              ================================ */}
+          
+          {/* Ancienne route tasks-list */}
+          <Route 
+            path="/tasks-list" 
+            element={
+              <ProtectedRoute>
+                <FallbackPage 
+                  pageName="📋 Liste des Tâches" 
+                  description="Interface de gestion des tâches"
+                  fallbackComponent={TaskList}
+                />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Ancienne route badge-collection */}
+          <Route 
+            path="/badge-collection" 
+            element={
+              <ProtectedRoute>
+                <FallbackPage 
+                  pageName="🏆 Collection de Badges" 
+                  description="Vos badges et accomplissements"
+                  fallbackComponent={BadgeCollection}
+                />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* ================================
+              REDIRECTIONS & 404
+              ================================ */}
+          
+          {/* Redirection racine */}
+          <Route 
+            path="/" 
+            element={<Navigate to="/dashboard" replace />} 
+          />
+          
+          {/* Page 404 */}
+          <Route 
+            path="*" 
+            element={<NotFound />} 
+          />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 
