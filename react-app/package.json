@@ -63,3 +63,12 @@
     "build_timeout": "15m"
   }
 }
+{
+  "scripts": {
+    "dev": "vite",
+    "build": "echo 'Force build v3.5.3-2025' && vite build --mode production --force",
+    "build-force": "rm -rf dist && rm -rf node_modules/.vite && npm run build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
+  }
+}
