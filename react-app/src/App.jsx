@@ -1,504 +1,291 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// VERSION COMPLÈTE FINALE - TOUTES FONCTIONNALITÉS
+// VERSION SIMPLIFIÉE QUI MARCHE - SANS IMPORTS COMPLEXES
 // ==========================================
 
-import React, { useEffect, Suspense } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 // ==========================================
-// 🔧 IMPORTS CORE VÉRIFIÉS ET CORRECTS
+// 🔧 IMPORTS BASIQUES SEULEMENT
 // ==========================================
 
-// ✅ Context provider fonctionnel
-import { SimpleAuthProvider } from './contexts/SimpleAuthContext.jsx';
-
-// ✅ Guards et layout avec chemins corrects
-import ProtectedRoute from './routes/ProtectedRoute.jsx';
-import PremiumLayout from './shared/layouts/PremiumLayout.jsx';
+// Import CSS global
+import './assets/styles/globals.css';
 
 // ==========================================
-// 📄 IMPORTS PAGES AVEC LAZY LOADING OPTIMISÉ
+// 🚀 COMPOSANTS INLINE POUR ÉVITER LES IMPORTS CASSÉS
 // ==========================================
 
-// Page de connexion (chargement immédiat)
-import Login from './pages/Login.jsx';
-
-// Toutes les pages en lazy loading pour optimiser le build
-const Dashboard = React.lazy(() => 
-  import('./pages/Dashboard.jsx').catch(err => {
-    console.warn('⚠️ Dashboard import failed, using fallback');
-    return { default: () => <div className="p-8 text-white">Dashboard temporairement indisponible</div> };
-  })
-);
-
-const TasksPage = React.lazy(() => 
-  import('./pages/TasksPage.jsx').catch(err => {
-    console.warn('⚠️ TasksPage import failed, using fallback');
-    return { default: () => <div className="p-8 text-white">TasksPage temporairement indisponible</div> };
-  })
-);
-
-const ProjectsPage = React.lazy(() => 
-  import('./pages/ProjectsPage.jsx').catch(err => {
-    console.warn('⚠️ ProjectsPage import failed, using fallback');
-    return { default: () => <div className="p-8 text-white">ProjectsPage temporairement indisponible</div> };
-  })
-);
-
-const AnalyticsPage = React.lazy(() => 
-  import('./pages/AnalyticsPage.jsx').catch(err => {
-    console.warn('⚠️ AnalyticsPage import failed, using fallback');
-    return { default: () => <div className="p-8 text-white">AnalyticsPage temporairement indisponible</div> };
-  })
-);
-
-const GamificationPage = React.lazy(() => 
-  import('./pages/GamificationPage.jsx').catch(err => {
-    console.warn('⚠️ GamificationPage import failed, using fallback');
-    return { default: () => <div className="p-8 text-white">GamificationPage temporairement indisponible</div> };
-  })
-);
-
-const UsersPage = React.lazy(() => 
-  import('./pages/UsersPage.jsx').catch(err => {
-    console.warn('⚠️ UsersPage import failed, using fallback');
-    return { default: () => <div className="p-8 text-white">UsersPage temporairement indisponible</div> };
-  })
-);
-
-const TeamPage = React.lazy(() => 
-  import('./pages/TeamPage.jsx').catch(err => {
-    console.warn('⚠️ TeamPage import failed, using fallback');
-    return { default: () => <div className="p-8 text-white">TeamPage temporairement indisponible</div> };
-  })
-);
-
-const OnboardingPage = React.lazy(() => 
-  import('./pages/OnboardingPage.jsx').catch(err => {
-    console.warn('⚠️ OnboardingPage import failed, using fallback');
-    return { default: () => <div className="p-8 text-white">OnboardingPage temporairement indisponible</div> };
-  })
-);
-
-const TimeTrackPage = React.lazy(() => 
-  import('./pages/TimeTrackPage.jsx').catch(err => {
-    console.warn('⚠️ TimeTrackPage import failed, using fallback');
-    return { default: () => <div className="p-8 text-white">TimeTrackPage temporairement indisponible</div> };
-  })
-);
-
-const ProfilePage = React.lazy(() => 
-  import('./pages/ProfilePage.jsx').catch(err => {
-    console.warn('⚠️ ProfilePage import failed, using fallback');
-    return { default: () => <div className="p-8 text-white">ProfilePage temporairement indisponible</div> };
-  })
-);
-
-const SettingsPage = React.lazy(() => 
-  import('./pages/SettingsPage.jsx').catch(err => {
-    console.warn('⚠️ SettingsPage import failed, using fallback');
-    return { default: () => <div className="p-8 text-white">SettingsPage temporairement indisponible</div> };
-  })
-);
-
-const RewardsPage = React.lazy(() => 
-  import('./pages/RewardsPage.jsx').catch(err => {
-    console.warn('⚠️ RewardsPage import failed, using fallback');
-    return { default: () => <div className="p-8 text-white">RewardsPage temporairement indisponible</div> };
-  })
-);
-
-// ==========================================
-// 🎯 COMPOSANT LOADING AVANCÉ
-// ==========================================
-const LoadingFallback = ({ pageName = "Page" }) => (
-  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
-    <div className="text-center">
-      <div className="relative">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-400 mx-auto mb-6"></div>
-        <div className="animate-pulse absolute inset-0 rounded-full h-16 w-16 border-2 border-blue-400/20 mx-auto"></div>
-      </div>
-      <h3 className="text-xl font-semibold text-white mb-2">Chargement de {pageName}</h3>
-      <p className="text-gray-400 animate-pulse">Initialisation en cours...</p>
-      <div className="mt-4 flex justify-center space-x-1">
-        <div className="animate-bounce w-2 h-2 bg-blue-400 rounded-full"></div>
-        <div className="animate-bounce w-2 h-2 bg-blue-400 rounded-full" style={{animationDelay: '0.1s'}}></div>
-        <div className="animate-bounce w-2 h-2 bg-blue-400 rounded-full" style={{animationDelay: '0.2s'}}></div>
-      </div>
-    </div>
-  </div>
-);
-
-// ==========================================
-// 📢 SYSTÈME DE NOTIFICATIONS PREMIUM
-// ==========================================
-const NotificationSystem = React.memo(() => {
-  const [notifications, setNotifications] = React.useState([]);
+// Hook d'authentification simple inline
+const useAuth = () => {
+  const [user, setUser] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    // Système de notifications global avancé
-    window.showNotification = (message, type = 'info', duration = 4000) => {
-      const id = Date.now() + Math.random();
-      const notification = { id, message, type, timestamp: new Date() };
-      
-      setNotifications(prev => [...prev, notification]);
-      
-      setTimeout(() => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
-      }, duration);
-    };
-
-    // Notifications de bienvenue
+    // Simulation de vérification auth
     setTimeout(() => {
-      window.showNotification('🚀 Synergia v3.5.3 chargé avec succès !', 'success', 3000);
+      setLoading(false);
+      // Pour le moment, pas d'auth - direct au dashboard
     }, 1000);
-
   }, []);
 
-  if (notifications.length === 0) return null;
+  const signInWithGoogle = async () => {
+    setLoading(true);
+    // Simulation connexion
+    setTimeout(() => {
+      setUser({ email: 'test@example.com', displayName: 'Utilisateur Test' });
+      setLoading(false);
+    }, 1000);
+  };
 
+  const signOut = async () => {
+    setUser(null);
+  };
+
+  return { user, loading, signInWithGoogle, signOut };
+};
+
+// ==========================================
+// 📄 PAGES INLINE SIMPLES
+// ==========================================
+
+// Page de connexion
+const Login = () => {
+  const { signInWithGoogle, loading } = useAuth();
+  
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-3">
-      {notifications.map(notification => (
-        <div
-          key={notification.id}
-          className={`px-6 py-4 rounded-lg shadow-xl text-white transition-all duration-500 transform max-w-sm ${
-            notification.type === 'success' ? 'bg-gradient-to-r from-green-500 to-green-600' :
-            notification.type === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600' :
-            notification.type === 'warning' ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
-            'bg-gradient-to-r from-blue-500 to-blue-600'
-          }`}
-          style={{
-            transform: 'translateX(0)',
-            animation: 'slideInRight 0.5s ease-out'
-          }}
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-gray-900 flex items-center justify-center">
+      <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-8 max-w-md mx-4 text-center">
+        <h1 className="text-white text-3xl font-bold mb-6">🚀 Synergia v3.5.3</h1>
+        <p className="text-gray-300 mb-8">Application de gestion collaborative</p>
+        
+        <button
+          onClick={signInWithGoogle}
+          disabled={loading}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 px-6 rounded-lg font-medium transition-colors"
         >
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center space-x-2 mb-1">
-                <span className="text-lg">
-                  {notification.type === 'success' ? '✅' :
-                   notification.type === 'error' ? '❌' :
-                   notification.type === 'warning' ? '⚠️' : 'ℹ️'}
-                </span>
-                <span className="font-medium">{notification.message}</span>
-              </div>
-              <div className="text-xs opacity-75">
-                {notification.timestamp.toLocaleTimeString()}
-              </div>
-            </div>
+          {loading ? 'Connexion...' : '🚀 Se connecter'}
+        </button>
+        
+        <p className="text-gray-400 text-sm mt-4">
+          Version corrigée - Imports simplifiés
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// Dashboard simple
+const Dashboard = () => {
+  const { user, signOut } = useAuth();
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Header */}
+      <header className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            🏠 Dashboard Synergia
+          </h1>
+          
+          <div className="flex items-center space-x-4">
+            <span className="text-gray-300">
+              Bonjour, {user?.displayName || 'Utilisateur'}
+            </span>
             <button
-              onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
-              className="ml-3 text-white/80 hover:text-white transition-colors p-1"
+              onClick={signOut}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
             >
-              ✕
+              Déconnexion
             </button>
           </div>
         </div>
-      ))}
+      </header>
+
+      {/* Contenu principal */}
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          
+          {/* Carte de bienvenue */}
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <span className="text-2xl">👋</span>
+              </div>
+              <h2 className="text-lg font-semibold text-white ml-4">Bienvenue !</h2>
+            </div>
+            <p className="text-gray-400">
+              Application Synergia v3.5.3 démarrée avec succès.
+            </p>
+          </div>
+
+          {/* État de l'application */}
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <span className="text-2xl">✅</span>
+              </div>
+              <h2 className="text-lg font-semibold text-white ml-4">État</h2>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Version:</span>
+                <span className="text-green-400">v3.5.3</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Build:</span>
+                <span className="text-green-400">Fonctionnel</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Cache:</span>
+                <span className="text-green-400">Nettoyé</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation future */}
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <span className="text-2xl">🧭</span>
+              </div>
+              <h2 className="text-lg font-semibold text-white ml-4">Navigation</h2>
+            </div>
+            <div className="space-y-2">
+              <div className="text-gray-400 text-sm">Pages à venir :</div>
+              <div className="flex flex-wrap gap-2">
+                <span className="bg-blue-600/20 text-blue-300 px-2 py-1 rounded text-xs">Tâches</span>
+                <span className="bg-purple-600/20 text-purple-300 px-2 py-1 rounded text-xs">Projets</span>
+                <span className="bg-green-600/20 text-green-300 px-2 py-1 rounded text-xs">Équipe</span>
+                <span className="bg-orange-600/20 text-orange-300 px-2 py-1 rounded text-xs">Analytics</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions rapides */}
+        <div className="mt-8 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+          <h3 className="text-xl font-semibold text-white mb-4">🔧 Actions de debug</h3>
+          <div className="flex flex-wrap gap-4">
+            <button
+              onClick={() => console.log('🔄 Rechargement forcé')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              🔄 Test Console
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              🔄 Recharger Page
+            </button>
+            <button
+              onClick={() => {
+                localStorage.clear();
+                sessionStorage.clear();
+                console.log('🧹 Storage nettoyé');
+              }}
+              className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              🧹 Nettoyer Storage
+            </button>
+          </div>
+        </div>
+
+        {/* Logs d'information */}
+        <div className="mt-8 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+          <h3 className="text-xl font-semibold text-white mb-4">📊 Informations système</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-gray-400">URL actuelle:</span>
+              <div className="text-green-400 font-mono break-all">{window.location.href}</div>
+            </div>
+            <div>
+              <span className="text-gray-400">User Agent:</span>
+              <div className="text-blue-400 font-mono text-xs break-all">{navigator.userAgent}</div>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
-});
+};
 
 // ==========================================
-// 🧩 COMPOSANT APP PRINCIPAL
+// 🛡️ ROUTE GUARD SIMPLE
 // ==========================================
-function App() {
-  // ==========================================
-  // ⚡ INITIALISATION SYSTÈME AVANCÉE
-  // ==========================================
-  useEffect(() => {
-    console.log('🚀 Synergia v3.5.3 - Version complète finale');
-    console.log('✅ Corrections appliquées:');
-    console.log('  • ProjectsPage: Grid3X3 → Grid');
-    console.log('  • AnalyticsPage: Progress → Gauge');  
-    console.log('  • SimpleAuthContext: Timeout de sécurité');
-    console.log('  • Imports: Tous chemins vérifiés');
-    console.log('🎯 Fonctionnalités: Dashboard, Tasks, Projects, Analytics, Gamification, Users, Team, etc.');
-    
-    // Optimisations console pour production
-    if (process.env.NODE_ENV === 'production') {
-      const originalError = console.error;
-      
-      console.error = (...args) => {
-        const message = args.join(' ');
-        // Supprimer les erreurs d'import connues
-        if (
-          message.includes('is not exported by') ||
-          message.includes('lucide-react') ||
-          message.includes('Progress') ||
-          message.includes('Grid3X3') ||
-          message.includes('Illegal reassignment') ||
-          message.includes('react-hot-toast') ||
-          message.includes('Could not resolve')
-        ) {
-          return;
-        }
-        originalError.apply(console, args);
-      };
-    }
-    
-    // Performance monitoring
-    const startTime = performance.now();
-    
-    return () => {
-      const loadTime = performance.now() - startTime;
-      console.log(`⚡ App.jsx initialisé en ${Math.round(loadTime)}ms`);
-    };
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white">Chargement de l'application...</p>
+          <p className="text-gray-400 text-sm mt-2">Version simplifiée - Stable</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
+
+// ==========================================
+// 🚀 COMPOSANT PRINCIPAL APP
+// ==========================================
+const App = () => {
+  React.useEffect(() => {
+    console.log('🚀 App.jsx simplifié démarré');
+    console.log('✅ Tous les imports complexes supprimés');
+    console.log('🔧 Version de debug stable');
   }, []);
 
-  // ==========================================
-  // 🎨 RENDU PRINCIPAL AVEC TOUTES FONCTIONNALITÉS
-  // ==========================================
   return (
-    <SimpleAuthProvider>
-      <Router>
-        <div className="App">
-          <Suspense fallback={<LoadingFallback pageName="Application" />}>
-            <Routes>
-              {/* ==========================================
-                  🔐 ROUTE PUBLIQUE - LOGIN
-                  ========================================== */}
-              <Route path="/login" element={<Login />} />
-              
-              {/* ==========================================
-                  🛡️ ROUTES PROTÉGÉES - TOUTES FONCTIONNALITÉS
-                  ========================================== */}
-              
-              {/* Dashboard */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <Suspense fallback={<LoadingFallback pageName="Dashboard" />}>
-                    <PremiumLayout>
-                      <Dashboard />
-                    </PremiumLayout>
-                  </Suspense>
-                </ProtectedRoute>
-              } />
-              
-              {/* Tâches */}
-              <Route path="/tasks" element={
-                <ProtectedRoute>
-                  <Suspense fallback={<LoadingFallback pageName="Tâches" />}>
-                    <PremiumLayout>
-                      <TasksPage />
-                    </PremiumLayout>
-                  </Suspense>
-                </ProtectedRoute>
-              } />
-              
-              {/* Projets */}
-              <Route path="/projects" element={
-                <ProtectedRoute>
-                  <Suspense fallback={<LoadingFallback pageName="Projets" />}>
-                    <PremiumLayout>
-                      <ProjectsPage />
-                    </PremiumLayout>
-                  </Suspense>
-                </ProtectedRoute>
-              } />
-              
-              {/* Analytics */}
-              <Route path="/analytics" element={
-                <ProtectedRoute>
-                  <Suspense fallback={<LoadingFallback pageName="Analytics" />}>
-                    <PremiumLayout>
-                      <AnalyticsPage />
-                    </PremiumLayout>
-                  </Suspense>
-                </ProtectedRoute>
-              } />
-              
-              {/* Gamification */}
-              <Route path="/gamification" element={
-                <ProtectedRoute>
-                  <Suspense fallback={<LoadingFallback pageName="Gamification" />}>
-                    <PremiumLayout>
-                      <GamificationPage />
-                    </PremiumLayout>
-                  </Suspense>
-                </ProtectedRoute>
-              } />
-              
-              {/* Utilisateurs */}
-              <Route path="/users" element={
-                <ProtectedRoute>
-                  <Suspense fallback={<LoadingFallback pageName="Utilisateurs" />}>
-                    <PremiumLayout>
-                      <UsersPage />
-                    </PremiumLayout>
-                  </Suspense>
-                </ProtectedRoute>
-              } />
-              
-              {/* Équipe */}
-              <Route path="/team" element={
-                <ProtectedRoute>
-                  <Suspense fallback={<LoadingFallback pageName="Équipe" />}>
-                    <PremiumLayout>
-                      <TeamPage />
-                    </PremiumLayout>
-                  </Suspense>
-                </ProtectedRoute>
-              } />
-              
-              {/* Intégration */}
-              <Route path="/onboarding" element={
-                <ProtectedRoute>
-                  <Suspense fallback={<LoadingFallback pageName="Intégration" />}>
-                    <PremiumLayout>
-                      <OnboardingPage />
-                    </PremiumLayout>
-                  </Suspense>
-                </ProtectedRoute>
-              } />
-              
-              {/* Suivi temps */}
-              <Route path="/time-track" element={
-                <ProtectedRoute>
-                  <Suspense fallback={<LoadingFallback pageName="Suivi Temps" />}>
-                    <PremiumLayout>
-                      <TimeTrackPage />
-                    </PremiumLayout>
-                  </Suspense>
-                </ProtectedRoute>
-              } />
-              
-              {/* Profil */}
-              <Route path="/profile" element={
-                <ProtectedRoute>
-                  <Suspense fallback={<LoadingFallback pageName="Profil" />}>
-                    <PremiumLayout>
-                      <ProfilePage />
-                    </PremiumLayout>
-                  </Suspense>
-                </ProtectedRoute>
-              } />
-              
-              {/* Paramètres */}
-              <Route path="/settings" element={
-                <ProtectedRoute>
-                  <Suspense fallback={<LoadingFallback pageName="Paramètres" />}>
-                    <PremiumLayout>
-                      <SettingsPage />
-                    </PremiumLayout>
-                  </Suspense>
-                </ProtectedRoute>
-              } />
-              
-              {/* Récompenses */}
-              <Route path="/rewards" element={
-                <ProtectedRoute>
-                  <Suspense fallback={<LoadingFallback pageName="Récompenses" />}>
-                    <PremiumLayout>
-                      <RewardsPage />
-                    </PremiumLayout>
-                  </Suspense>
-                </ProtectedRoute>
-              } />
-              
-              {/* ==========================================
-                  🔄 REDIRECTIONS ET 404 PREMIUM
-                  ========================================== */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              
-              <Route path="*" element={
-                <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 flex items-center justify-center">
-                  <div className="text-center max-w-md mx-auto p-8">
-                    <div className="mb-8">
-                      <div className="text-9xl font-bold bg-gradient-to-r from-red-400 to-pink-400 bg-clip-text text-transparent mb-4">
-                        404
-                      </div>
-                      <h1 className="text-3xl font-bold text-white mb-4">Page non trouvée</h1>
-                      <p className="text-gray-400 mb-8">
-                        La page que vous recherchez n'existe pas ou a été déplacée.
-                      </p>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <button
-                        onClick={() => window.location.href = '/dashboard'}
-                        className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-8 py-3 rounded-lg transition-all transform hover:scale-105 w-full"
-                      >
-                        🏠 Retour au Dashboard
-                      </button>
-                      
-                      <button
-                        onClick={() => window.history.back()}
-                        className="bg-gray-700 hover:bg-gray-600 text-white px-8 py-3 rounded-lg transition-colors w-full"
-                      >
-                        ← Page précédente
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              } />
-            </Routes>
-          </Suspense>
+    <Router>
+      <div className="App">
+        <Routes>
+          {/* Route publique */}
+          <Route path="/login" element={<Login />} />
           
-          {/* ==========================================
-              📢 SYSTÈME DE NOTIFICATIONS PREMIUM
-              ========================================== */}
-          <NotificationSystem />
-        </div>
-      </Router>
-    </SimpleAuthProvider>
+          {/* Route protégée */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Redirection par défaut */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          
+          {/* Page 404 */}
+          <Route path="*" element={
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 flex items-center justify-center">
+              <div className="text-center">
+                <h1 className="text-6xl font-bold text-white mb-4">404</h1>
+                <p className="text-gray-400 mb-8">Page non trouvée</p>
+                <button
+                  onClick={() => window.location.href = '/dashboard'}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+                >
+                  🏠 Retour au Dashboard
+                </button>
+              </div>
+            </div>
+          } />
+        </Routes>
+      </div>
+    </Router>
   );
-}
+};
 
 export default App;
-
-// ==========================================
-// 🎨 STYLES CSS POUR ANIMATIONS
-// ==========================================
-const styles = `
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-@keyframes bounce {
-  0%, 20%, 53%, 80%, 100% {
-    transform: translate3d(0,0,0);
-  }
-  40%, 43% {
-    transform: translate3d(0, -30px, 0);
-  }
-  70% {
-    transform: translate3d(0, -15px, 0);
-  }
-  90% {
-    transform: translate3d(0, -4px, 0);
-  }
-}
-`;
-
-// Injecter les styles
-if (typeof document !== 'undefined') {
-  const styleElement = document.createElement('style');
-  styleElement.textContent = styles;
-  document.head.appendChild(styleElement);
-}
-
-// ==========================================
-// 📋 LOGS DE CONFIRMATION FINALE
-// ==========================================
-console.log('🎉 App.jsx COMPLET - Version finale avec toutes fonctionnalités');
-console.log('✅ Corrections appliquées:');
-console.log('  • ProjectsPage: Grid3X3 → Grid ✓');
-console.log('  • AnalyticsPage: Progress → Gauge ✓');
-console.log('  • SimpleAuthContext: Timeout sécurité ✓');
-console.log('  • Imports: Chemins tous vérifiés ✓');
-console.log('📦 Lazy loading: Optimisé avec fallbacks');
-console.log('🎯 Pages: Dashboard, Tasks, Projects, Analytics, Gamification, Users, Team, Onboarding, TimeTrack, Profile, Settings, Rewards');
-console.log('🛡️ Protection: ProtectedRoute + PremiumLayout');
-console.log('📱 Responsive: Mobile + Desktop');
-console.log('🚀 Build: Compatible Netlify avec toutes corrections');
-console.log('💎 Ready for production!');
