@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Synergia v3.5.3 - Stable</title>
+  <title>Synergia v3.5.3 - Mise à jour forcée</title>
   
   <!-- Meta tags -->
   <meta name="description" content="Synergia - Plateforme collaborative gamifiée">
@@ -12,7 +12,7 @@
 </head>
 <body>
   <div id="root">
-    <!-- Fallback simple -->
+    <!-- Fallback avec message de mise à jour -->
     <div style="
       display: flex; 
       align-items: center; 
@@ -25,12 +25,13 @@
     ">
       <div>
         <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">🚀 Synergia</h1>
-        <p style="font-size: 1.2rem; margin-bottom: 2rem;">Chargement de l'application...</p>
+        <p style="font-size: 1.4rem; margin-bottom: 1rem; color: #22c55e;">MISE À JOUR EN COURS...</p>
+        <p style="font-size: 1rem; margin-bottom: 2rem;">Nettoyage des caches et rechargement de la nouvelle version</p>
         <div style="
           width: 50px; 
           height: 50px; 
           border: 4px solid rgba(255,255,255,0.3); 
-          border-top: 4px solid white; 
+          border-top: 4px solid #22c55e; 
           border-radius: 50%; 
           animation: spin 1s linear infinite;
           margin: 0 auto;
@@ -42,36 +43,129 @@
           }
         </style>
         <p style="font-size: 0.9rem; margin-top: 2rem; opacity: 0.8;">
-          v3.5.3 - Mode Stable | Service Worker désactivé
+          v3.5.3 - Mise à jour forcée | Cache vidé automatiquement
         </p>
       </div>
     </div>
   </div>
 
-  <!-- Logs de debug -->
+  <!-- 🚨 SCRIPT DE NETTOYAGE D'URGENCE - EXÉCUTION IMMÉDIATE -->
   <script>
-    console.log('%c🚀 SYNERGIA v3.5.3 - MODE STABLE', 'color: #22c55e; font-size: 20px; font-weight: bold;');
-    console.log('%c✅ Service Worker désactivé définitivement', 'color: #22c55e; font-size: 16px;');
-    console.log('%c🧹 Nettoyage automatique terminé', 'color: #3b82f6; font-size: 14px;');
-  </script>
-  
-  <!-- Fonction d'urgence simple -->
-  <script>
+    console.log('%c🚨 NETTOYAGE D\'URGENCE SYNERGIA v3.5.3', 'color: #ef4444; font-size: 20px; font-weight: bold;');
+    console.log('%c🧹 Suppression de tous les caches...', 'color: #f59e0b; font-size: 16px;');
+    
+    // ==========================================
+    // 🧹 NETTOYAGE COMPLET IMMÉDIAT
+    // ==========================================
+    
+    // 1. Vider le localStorage
+    try {
+      localStorage.clear();
+      console.log('✅ localStorage vidé');
+    } catch (e) {
+      console.warn('⚠️ Erreur localStorage:', e);
+    }
+    
+    // 2. Vider le sessionStorage
+    try {
+      sessionStorage.clear();
+      console.log('✅ sessionStorage vidé');
+    } catch (e) {
+      console.warn('⚠️ Erreur sessionStorage:', e);
+    }
+    
+    // 3. Désinstaller tous les Service Workers
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        console.log('🔍 Service Workers trouvés:', registrations.length);
+        
+        registrations.forEach((registration, index) => {
+          console.log(`🗑️ Désinstallation SW ${index + 1}:`, registration.scope);
+          registration.unregister().then(success => {
+            if (success) {
+              console.log(`✅ SW ${index + 1} désinstallé avec succès`);
+            } else {
+              console.warn(`⚠️ Échec désinstallation SW ${index + 1}`);
+            }
+          });
+        });
+        
+        // Attendre un peu puis installer le nouveau SW
+        setTimeout(() => {
+          console.log('🔄 Installation du nouveau Service Worker...');
+          navigator.serviceWorker.register('/sw.js', { 
+            updateViaCache: 'none',
+            scope: '/'
+          }).then(registration => {
+            console.log('✅ Nouveau SW installé:', registration.scope);
+            
+            // Forcer la mise à jour
+            registration.update().then(() => {
+              console.log('🔄 SW mis à jour, rechargement dans 2s...');
+              setTimeout(() => {
+                window.location.reload(true);
+              }, 2000);
+            });
+          }).catch(error => {
+            console.warn('⚠️ Erreur installation SW:', error);
+            // Recharger quand même
+            setTimeout(() => {
+              window.location.reload(true);
+            }, 3000);
+          });
+        }, 1000);
+      });
+    } else {
+      console.log('ℹ️ Service Worker non supporté, rechargement direct...');
+      setTimeout(() => {
+        window.location.reload(true);
+      }, 2000);
+    }
+    
+    // 4. Vider tous les caches du navigateur
+    if ('caches' in window) {
+      caches.keys().then(cacheNames => {
+        console.log('🔍 Caches trouvés:', cacheNames.length);
+        
+        return Promise.all(
+          cacheNames.map(cacheName => {
+            console.log('🗑️ Suppression cache:', cacheName);
+            return caches.delete(cacheName);
+          })
+        );
+      }).then(() => {
+        console.log('✅ Tous les caches supprimés');
+      }).catch(error => {
+        console.warn('⚠️ Erreur suppression caches:', error);
+      });
+    }
+    
+    // ==========================================
+    // 🔄 LISTENER POUR MESSAGES DU SERVICE WORKER
+    // ==========================================
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        console.log('📨 Message du SW:', event.data);
+        
+        if (event.data.type === 'FORCE_RELOAD' || event.data.type === 'RELOAD_NOW') {
+          console.log('🔄 SW demande un rechargement immédiat');
+          window.location.reload(true);
+        }
+      });
+    }
+    
+    // ==========================================
+    // 🆘 FONCTIONS D'URGENCE GLOBALES
+    // ==========================================
     window.forceReload = () => {
-      console.log('🔄 Force reload...');
+      console.log('🔄 Force reload manuel...');
       window.location.reload(true);
     };
     
     window.emergencyClean = () => {
-      console.log('🧹 Emergency clean...');
+      console.log('🚨 Nettoyage d\'urgence manuel...');
       localStorage.clear();
       sessionStorage.clear();
-      
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(regs => {
-          regs.forEach(reg => reg.unregister());
-        });
-      }
       
       if ('caches' in window) {
         caches.keys().then(names => {
@@ -79,37 +173,28 @@
         });
       }
       
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          regs.forEach(reg => reg.unregister());
+        });
+      }
+      
       setTimeout(() => window.location.reload(true), 1000);
     };
     
-    console.log('✅ Fonctions debug: forceReload(), emergencyClean()');
+    // ==========================================
+    // ⏰ RECHARGEMENT DE SÉCURITÉ APRÈS 10 SECONDES
+    // ==========================================
+    setTimeout(() => {
+      console.log('⏰ Rechargement de sécurité après 10 secondes');
+      window.location.reload(true);
+    }, 10000);
+    
+    console.log('✅ Script de nettoyage d\'urgence initialisé');
+    console.log('🔧 Fonctions disponibles: forceReload(), emergencyClean()');
   </script>
   
   <!-- Script principal React -->
   <script type="module" src="/src/index.jsx"></script>
-<script>
-// Fonction pour supprimer la ligne rouge
-function removeRedLogoutLine() {
-  const allElements = document.querySelectorAll('*');
-  allElements.forEach(element => {
-    const text = element.textContent || '';
-    const style = window.getComputedStyle(element);
-    
-    if (text.includes('Déconnexion') && style.position === 'fixed') {
-      const isInSidebar = element.closest('.sidebar');
-      if (!isInSidebar) {
-        element.style.display = 'none';
-      }
-    }
-  });
-}
-
-// Exécuter immédiatement et périodiquement
-removeRedLogoutLine();
-setInterval(removeRedLogoutLine, 1000);
-
-// Fonction pour debug - vous pouvez l'utiliser dans la console
-window.emergencyClean = removeRedLogoutLine;
-</script>
 </body>
 </html>
