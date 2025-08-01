@@ -1,55 +1,41 @@
 // ==========================================
 // 📁 react-app/src/index.jsx
-// INDEX MINIMAL POUR FAIRE MARCHER REACT
+// POINT D'ENTRÉE PRINCIPAL - CONFIGURATION COMPLETE
 // ==========================================
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
+import './index.css';
 
-console.log('🚀 Index.jsx - Démarrage React minimal');
+// Logs de démarrage
+console.log('🚀 [INDEX] Synergia v3.5 - Démarrage...');
+console.log('🔧 [INDEX] Mode:', import.meta.env.MODE);
+console.log('🌐 [INDEX] Base URL:', window.location.origin);
 
-// Vérification de base
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  console.error('❌ Root element not found');
-  throw new Error('Root element not found');
+// Configuration React 18
+const root = ReactDOM.createRoot(document.getElementById('root'));
+
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+console.log('✅ [INDEX] Application montée avec succès');
+
+// Fonctions utilitaires globales pour debug
+if (import.meta.env.MODE === 'development') {
+  window.debugSynergia = {
+    version: '3.5',
+    mode: import.meta.env.MODE,
+    timestamp: new Date().toISOString(),
+    buildInfo: {
+      react: '18.x',
+      vite: '4.x',
+      firebase: '10.x'
+    }
+  };
+  
+  console.log('🔧 [DEBUG] Outils debug disponibles:', window.debugSynergia);
 }
-
-console.log('✅ Root element found:', rootElement);
-
-// Créer le root React 18
-const root = ReactDOM.createRoot(rootElement);
-
-// Rendu simple sans StrictMode pour éviter les problèmes
-try {
-  console.log('⚛️ Rendering React App...');
-  
-  root.render(<App />);
-  
-  console.log('✅ React App rendered successfully');
-  
-} catch (error) {
-  console.error('❌ Error rendering React App:', error);
-  
-  // Fallback en cas d'erreur
-  document.body.innerHTML = `
-    <div style="
-      height: 100vh; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      background: #dc2626; 
-      color: white; 
-      font-family: Arial;
-      text-align: center;
-    ">
-      <div>
-        <h1>❌ ERREUR REACT</h1>
-        <p>${error.message}</p>
-      </div>
-    </div>
-  `;
-}
-
-console.log('🏁 Index.jsx complete');
