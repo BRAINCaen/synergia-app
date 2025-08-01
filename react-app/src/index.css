@@ -1,18 +1,9 @@
 /* ==========================================
    📁 react-app/src/index.css
-   CSS SIMPLIFIÉ ET FONCTIONNEL
+   CSS MINIMAL - SEULEMENT L'ESSENTIEL
    ========================================== */
 
-/* ==========================================
-   🎨 TAILWIND BASE
-   ========================================== */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* ==========================================
-   🔧 RESET ET BASE
-   ========================================== */
+/* Reset de base */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -32,175 +23,12 @@ html, body {
   height: 100%;
 }
 
-/* ==========================================
-   🎨 CLASSES UTILITAIRES SYNERGIA
-   ========================================== */
-
-/* Gradients principaux */
-.gradient-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.gradient-dark {
-  background: linear-gradient(135deg, #0f172a, #581c87, #0f172a);
-}
-
-/* Glass morphism */
-.glass {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.glass-dark {
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* ==========================================
-   🚀 ANIMATIONS SIMPLES
-   ========================================== */
-
-/* Spinner de chargement */
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-/* Fade in */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-out;
-}
-
-/* ==========================================
-   🎯 CLASSES SPÉCIFIQUES SYNERGIA  
-   ========================================== */
-
-/* Boutons */
-.btn-primary {
-  @apply bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors;
-}
-
-.btn-secondary {
-  @apply bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors;
-}
-
-.btn-success {
-  @apply bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors;
-}
-
-.btn-danger {
-  @apply bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors;
-}
-
-/* Cartes */
-.card {
-  @apply bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6;
-}
-
-.card-header {
-  @apply flex items-center mb-4;
-}
-
-.card-title {
-  @apply text-lg font-semibold text-white;
-}
-
-.card-content {
-  @apply text-gray-400;
-}
-
-/* Layout */
-.page-container {
-  @apply min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900;
-}
-
-.content-wrapper {
-  @apply max-w-7xl mx-auto px-6 py-8;
-}
-
-/* ==========================================
-   📱 RESPONSIVE
-   ========================================== */
-
-/* Mobile first */
-@media (max-width: 640px) {
-  .content-wrapper {
-    @apply px-4 py-6;
-  }
-  
-  .card {
-    @apply p-4;
-  }
-}
-
-/* Tablet */
-@media (min-width: 768px) {
-  .content-wrapper {
-    @apply px-8;
-  }
-}
-
-/* Desktop */
-@media (min-width: 1024px) {
-  .content-wrapper {
-    @apply px-12;
-  }
-}
-
-/* ==========================================
-   🔧 UTILITAIRES DEBUG
-   ========================================== */
-
-/* Classes pour debug visuel */
-.debug-red {
-  border: 2px solid red !important;
-}
-
-.debug-green {
-  border: 2px solid green !important;
-}
-
-.debug-blue {
-  border: 2px solid blue !important;
-}
-
-/* ==========================================
-   ✅ CONFIRMATION CHARGEMENT
-   ========================================== */
-
-/* Marquer que le CSS est chargé */
+/* Log de confirmation que le CSS est chargé */
 body::after {
-  content: "✅ CSS Synergia v3.5.3 chargé";
+  content: "CSS Minimal chargé";
   position: fixed;
   bottom: -100px;
   left: 0;
   font-size: 0;
   opacity: 0;
-}
-
-/* Log console CSS chargé */
-html::before {
-  content: "🎨 Styles Synergia v3.5.3 actifs";
-  display: none;
 }
