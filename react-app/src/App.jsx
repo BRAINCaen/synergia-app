@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APPLICATION PRINCIPALE - ÉTAT DE FONCTIONNEMENT TOTAL
+// VERSION BUILD COMPATIBLE - SANS IMPORTS MANQUANTS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -9,7 +9,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 // Layout principal
 import DashboardLayout from './layouts/DashboardLayout.jsx';
 
-// Pages principales - TOUTES IMPORTÉES
+// Pages principales - SEULEMENT CELLES QUI EXISTENT
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
@@ -17,26 +17,9 @@ import ProjectsPage from './pages/ProjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import GamificationPage from './pages/GamificationPage.jsx';
 import TeamPage from './pages/TeamPage.jsx';
-import NotFound from './pages/NotFound.jsx';
 
-// Pages additionnelles existantes
-import BadgesPage from './pages/BadgesPage.jsx';
-import UsersPage from './pages/UsersPage.jsx';
-import OnboardingPage from './pages/OnboardingPage.jsx';
-import TimeTrackPage from './pages/TimeTrackPage.jsx';
+// Pages additionnelles qui existent (selon la recherche)
 import ProfilePage from './pages/ProfilePage.jsx';
-import SettingsPage from './pages/SettingsPage.jsx';
-import RewardsPage from './pages/RewardsPage.jsx';
-
-// Pages Admin
-import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
-import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
-
-// Composants fallback (si certaines pages n'existent pas)
-import TaskList from './modules/tasks/TaskList.jsx';
-import BadgeCollection from './components/gamification/BadgeCollection.jsx';
-import Leaderboard from './components/gamification/Leaderboard.jsx';
-import Profile from './modules/profile/components/Profile.jsx';
 
 // Store d'authentification
 import { useAuthStore } from './shared/stores/authStore.js';
@@ -72,13 +55,13 @@ function ProtectedRoute({ children }) {
 }
 
 /**
- * 🌟 COMPOSANT FALLBACK POUR PAGES MANQUANTES
+ * 🌟 COMPOSANT FALLBACK POUR PAGES EN CONSTRUCTION
  */
-function FallbackPage({ pageName, description, fallbackComponent: FallbackComponent }) {
+function PageInConstruction({ pageName, description, icon = "🚧" }) {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
       <div className="max-w-2xl mx-auto text-center space-y-6">
-        <div className="text-6xl mb-4">🚧</div>
+        <div className="text-6xl mb-4">{icon}</div>
         <h1 className="text-3xl font-bold text-gray-900">
           {pageName}
         </h1>
@@ -86,14 +69,17 @@ function FallbackPage({ pageName, description, fallbackComponent: FallbackCompon
           {description}
         </p>
         
-        {FallbackComponent && (
-          <div className="mt-8 p-6 bg-white rounded-lg shadow-lg">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800">
-              Composant de démonstration :
-            </h3>
-            <FallbackComponent />
+        <div className="bg-white rounded-lg shadow-lg p-6 mt-8">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800">
+            🎮 Cette page sera bientôt disponible !
+          </h3>
+          <div className="text-gray-600 space-y-2">
+            <p>✨ Interface moderne et intuitive</p>
+            <p>🔥 Fonctionnalités avancées</p>
+            <p>📊 Données temps réel</p>
+            <p>🎯 Système de gamification intégré</p>
           </div>
-        )}
+        </div>
         
         <div className="flex justify-center space-x-4 mt-8">
           <button
@@ -229,7 +215,11 @@ function App() {
             path="/badges" 
             element={
               <ProtectedRoute>
-                <BadgesPage />
+                <PageInConstruction 
+                  pageName="🏆 Badges" 
+                  description="Collection de vos accomplissements et badges"
+                  icon="🏆"
+                />
               </ProtectedRoute>
             } 
           />
@@ -239,10 +229,10 @@ function App() {
             path="/leaderboard" 
             element={
               <ProtectedRoute>
-                <FallbackPage 
+                <PageInConstruction 
                   pageName="🥇 Classement" 
                   description="Classement de l'équipe avec scores et performances"
-                  fallbackComponent={Leaderboard}
+                  icon="🥇"
                 />
               </ProtectedRoute>
             } 
@@ -253,7 +243,11 @@ function App() {
             path="/rewards" 
             element={
               <ProtectedRoute>
-                <RewardsPage />
+                <PageInConstruction 
+                  pageName="🎁 Récompenses" 
+                  description="Boutique de récompenses et échanges XP"
+                  icon="🎁"
+                />
               </ProtectedRoute>
             } 
           />
@@ -277,7 +271,11 @@ function App() {
             path="/users" 
             element={
               <ProtectedRoute>
-                <UsersPage />
+                <PageInConstruction 
+                  pageName="👥 Utilisateurs" 
+                  description="Gestion des membres de l'équipe"
+                  icon="👥"
+                />
               </ProtectedRoute>
             } 
           />
@@ -291,7 +289,11 @@ function App() {
             path="/onboarding" 
             element={
               <ProtectedRoute>
-                <OnboardingPage />
+                <PageInConstruction 
+                  pageName="🎯 Intégration" 
+                  description="Processus d'intégration et formation"
+                  icon="🎯"
+                />
               </ProtectedRoute>
             } 
           />
@@ -301,7 +303,11 @@ function App() {
             path="/timetrack" 
             element={
               <ProtectedRoute>
-                <TimeTrackPage />
+                <PageInConstruction 
+                  pageName="⏰ Suivi du Temps" 
+                  description="Suivi du temps de travail et productivité"
+                  icon="⏰"
+                />
               </ProtectedRoute>
             } 
           />
@@ -321,7 +327,11 @@ function App() {
             path="/settings" 
             element={
               <ProtectedRoute>
-                <SettingsPage />
+                <PageInConstruction 
+                  pageName="⚙️ Paramètres" 
+                  description="Configuration et préférences utilisateur"
+                  icon="⚙️"
+                />
               </ProtectedRoute>
             } 
           />
@@ -335,7 +345,11 @@ function App() {
             path="/admin/task-validation" 
             element={
               <ProtectedRoute>
-                <AdminTaskValidationPage />
+                <PageInConstruction 
+                  pageName="🛡️ Validation Tâches" 
+                  description="Interface admin pour valider les tâches"
+                  icon="🛡️"
+                />
               </ProtectedRoute>
             } 
           />
@@ -345,7 +359,11 @@ function App() {
             path="/admin/complete-test" 
             element={
               <ProtectedRoute>
-                <CompleteAdminTestPage />
+                <PageInConstruction 
+                  pageName="🧪 Test Complet" 
+                  description="Tests et diagnostics système"
+                  icon="🧪"
+                />
               </ProtectedRoute>
             } 
           />
@@ -355,42 +373,10 @@ function App() {
             path="/admin/profile-test" 
             element={
               <ProtectedRoute>
-                <FallbackPage 
+                <PageInConstruction 
                   pageName="🧪 Test Profil Admin" 
                   description="Tests et validation des profils utilisateurs"
-                  fallbackComponent={Profile}
-                />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* ================================
-              ROUTES FALLBACK & COMPATIBILITÉ
-              ================================ */}
-          
-          {/* Ancienne route tasks-list */}
-          <Route 
-            path="/tasks-list" 
-            element={
-              <ProtectedRoute>
-                <FallbackPage 
-                  pageName="📋 Liste des Tâches" 
-                  description="Interface de gestion des tâches"
-                  fallbackComponent={TaskList}
-                />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* Ancienne route badge-collection */}
-          <Route 
-            path="/badge-collection" 
-            element={
-              <ProtectedRoute>
-                <FallbackPage 
-                  pageName="🏆 Collection de Badges" 
-                  description="Vos badges et accomplissements"
-                  fallbackComponent={BadgeCollection}
+                  icon="🔬"
                 />
               </ProtectedRoute>
             } 
@@ -409,7 +395,20 @@ function App() {
           {/* Page 404 */}
           <Route 
             path="*" 
-            element={<NotFound />} 
+            element={
+              <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 flex items-center justify-center">
+                <div className="text-center">
+                  <h1 className="text-6xl font-bold text-white mb-4">404</h1>
+                  <p className="text-gray-400 mb-8">Page non trouvée</p>
+                  <button
+                    onClick={() => window.location.href = '/dashboard'}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+                  >
+                    🏠 Retour au Dashboard
+                  </button>
+                </div>
+              </div>
+            } 
           />
         </Routes>
       </div>
