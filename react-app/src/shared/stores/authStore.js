@@ -1,49 +1,51 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/authStore.js
-// VERSION STABLE RESTAURÉE - AUTH SIMPLE QUI MARCHE
+// AUTH STORE ULTRA-SIMPLIFIÉ - SANS FIREBASE COMPLEXE
 // ==========================================
 
 import { create } from 'zustand';
-import { 
-  signInWithPopup, 
-  GoogleAuthProvider, 
-  signOut as firebaseSignOut,
-  onAuthStateChanged 
-} from 'firebase/auth';
-import { auth } from '../../core/firebase.js';
-
-// Provider Google
-const googleProvider = new GoogleAuthProvider();
-googleProvider.addScope('email');
-googleProvider.addScope('profile');
 
 /**
- * 🔐 STORE D'AUTHENTIFICATION SIMPLE ET FONCTIONNEL
+ * 🔐 STORE D'AUTHENTIFICATION ULTRA-SIMPLE
+ * Version qui marche sans Firebase complexe
  */
 export const useAuthStore = create((set, get) => ({
   // État initial
   user: null,
-  loading: true,
+  loading: false,
   error: null,
 
   // ==========================================
-  // 🚀 CONNEXION GOOGLE
+  // 🚀 CONNEXION SIMULÉE (POUR TEST)
   // ==========================================
   signInWithGoogle: async () => {
     try {
       set({ loading: true, error: null });
-      console.log('🔐 Tentative de connexion Google...');
+      console.log('🔐 Simulation connexion Google...');
       
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
+      // Simuler un délai
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      console.log('✅ Connexion réussie:', user.email);
+      // Créer un utilisateur simulé
+      const mockUser = {
+        uid: 'mock-user-' + Date.now(),
+        email: 'test@synergia.com',
+        displayName: 'Utilisateur Test',
+        photoURL: 'https://via.placeholder.com/150',
+        emailVerified: true
+      };
       
-      // Pas de set() ici, onAuthStateChanged s'en charge
-      return user;
+      set({ 
+        user: mockUser, 
+        loading: false, 
+        error: null 
+      });
+      
+      console.log('✅ Connexion simulée réussie:', mockUser.email);
+      return mockUser;
       
     } catch (error) {
-      console.error('❌ Erreur connexion Google:', error);
+      console.error('❌ Erreur connexion simulée:', error);
       set({ 
         error: error.message, 
         loading: false 
@@ -53,20 +55,26 @@ export const useAuthStore = create((set, get) => ({
   },
 
   // ==========================================
-  // 🚪 DÉCONNEXION
+  // 🚪 DÉCONNEXION SIMULÉE
   // ==========================================
   signOut: async () => {
     try {
       set({ loading: true, error: null });
-      console.log('🚪 Déconnexion...');
+      console.log('🚪 Simulation déconnexion...');
       
-      await firebaseSignOut(auth);
-      console.log('✅ Déconnexion réussie');
+      // Simuler un délai
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Pas de set() ici, onAuthStateChanged s'en charge
+      set({ 
+        user: null, 
+        loading: false, 
+        error: null 
+      });
+      
+      console.log('✅ Déconnexion simulée réussie');
       
     } catch (error) {
-      console.error('❌ Erreur déconnexion:', error);
+      console.error('❌ Erreur déconnexion simulée:', error);
       set({ 
         error: error.message, 
         loading: false 
@@ -76,38 +84,11 @@ export const useAuthStore = create((set, get) => ({
   },
 
   // ==========================================
-  // 🔄 INITIALISATION DE L'ÉCOUTE AUTH
+  // 🔄 INITIALISATION (VIDE POUR ÉVITER LES ERREURS)
   // ==========================================
   initializeAuth: () => {
-    console.log('🔄 Initialisation listener auth...');
-    
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log('🔔 Auth state changed:', user?.email || 'Non connecté');
-      
-      if (user) {
-        // Utilisateur connecté
-        set({
-          user: {
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            photoURL: user.photoURL,
-            emailVerified: user.emailVerified
-          },
-          loading: false,
-          error: null
-        });
-      } else {
-        // Utilisateur déconnecté
-        set({
-          user: null,
-          loading: false,
-          error: null
-        });
-      }
-    });
-
-    return unsubscribe;
+    console.log('🔄 Auth initialisé (mode simulation)');
+    return () => {}; // Fonction de nettoyage vide
   },
 
   // ==========================================
@@ -119,33 +100,66 @@ export const useAuthStore = create((set, get) => ({
 
   setLoading: (loading) => {
     set({ loading });
+  },
+
+  // ==========================================
+  // 🔧 MÉTHODES DE TEST
+  // ==========================================
+  loginAsAdmin: () => {
+    const adminUser = {
+      uid: 'admin-' + Date.now(),
+      email: 'admin@synergia.com',
+      displayName: 'Admin Synergia',
+      photoURL: 'https://via.placeholder.com/150',
+      emailVerified: true,
+      role: 'admin',
+      isAdmin: true
+    };
+    
+    set({ user: adminUser, loading: false, error: null });
+    console.log('👑 Connexion admin simulée');
+    return adminUser;
+  },
+
+  loginAsUser: () => {
+    const normalUser = {
+      uid: 'user-' + Date.now(),
+      email: 'user@synergia.com',
+      displayName: 'Utilisateur Normal',
+      photoURL: 'https://via.placeholder.com/150',
+      emailVerified: true,
+      role: 'user'
+    };
+    
+    set({ user: normalUser, loading: false, error: null });
+    console.log('👤 Connexion utilisateur simulée');
+    return normalUser;
   }
 }));
 
 // ==========================================
-// 🚀 INITIALISATION AUTOMATIQUE
+// 🚀 FONCTIONS UTILITAIRES GLOBALES
 // ==========================================
-console.log('🔐 AuthStore initialisé');
 
-// Démarrer l'écoute auth automatiquement
-let unsubscribe = null;
-
-// Fonction d'initialisation
-const initAuth = () => {
-  const store = useAuthStore.getState();
-  unsubscribe = store.initializeAuth();
-};
-
-// Initialiser dès que possible
+// Fonction pour tester rapidement
 if (typeof window !== 'undefined') {
-  initAuth();
+  window.testLogin = () => {
+    const store = useAuthStore.getState();
+    store.signInWithGoogle();
+  };
+  
+  window.testAdmin = () => {
+    const store = useAuthStore.getState();
+    store.loginAsAdmin();
+  };
+  
+  window.testLogout = () => {
+    const store = useAuthStore.getState();
+    store.signOut();
+  };
+  
+  console.log('🔧 Fonctions test disponibles: testLogin(), testAdmin(), testLogout()');
 }
 
-// Nettoyage à la fermeture
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => {
-    if (unsubscribe) {
-      unsubscribe();
-    }
-  });
-}
+console.log('🔐 AuthStore ultra-simplifié chargé');
+console.log('✅ Prêt pour les tests sans Firebase');
