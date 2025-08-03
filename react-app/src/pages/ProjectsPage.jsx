@@ -1,604 +1,535 @@
 // ==========================================
 // 📁 react-app/src/pages/ProjectsPage.jsx
-// PROJECTS PAGE CORRIGÉE - TOUTES FONCTIONNALITÉS
+// PROJECTS PAGE FIREBASE PUR - ZÉRO DONNÉES MOCK
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy } from 'firebase/firestore';
+import { db } from '../core/firebase.js';
 import { 
   Plus, 
-  Search, 
-  FolderPlus, 
+  FolderOpen, 
   Users, 
   Calendar,
+  TrendingUp,
   Target,
-  BarChart3,
-  Heart,
-  FolderX,
-  Filter,
-  Grid,
-  List,
-  Star,
   Clock,
-  CheckCircle,
-  AlertCircle,
-  Play,
-  Pause,
-  Archive,
+  BarChart3,
+  Filter,
+  Search,
   Edit,
-  Trash2,
-  Eye
+  Trash2
 } from 'lucide-react';
 
-// Firebase imports
-import { collection, query, where, orderBy, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../core/firebase.js';
-
-// Stores
-import { useAuthStore } from '../shared/stores/authStore.js';
-
 /**
- * 📁 PAGE PROJETS COMPLÈTE
+ * 📁 PROJECTS PAGE FIREBASE PUR
+ * Tous les projets proviennent exclusivement de Firebase
  */
 const ProjectsPage = () => {
   const { user } = useAuthStore();
-  
-  const [projects, setProjects] = useState([]);
-  const [filteredProjects, setFilteredProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // ✅ DONNÉES FIREBASE RÉELLES UNIQUEMENT
+  const { 
+    gamification,
+    userStats,
+    loading: dataLoading 
+  } = useUnifiedFirebaseData(user?.uid);
+  
+  // ✅ PROJETS RÉELS DEPUIS FIREBASE
+  const [realProjects, setRealProjects] = useState([]);
+  const [filteredProjects, setFilteredProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('grid');
+  const [filterStatus, setFilterStatus] = useState('all');
+  
+  // ✅ STATISTIQUES RÉELLES CALCULÉES
+  const [realProjectStats, setRealProjectStats] = useState({
+    total: 0,
+    active: 0,
+    completed: 0,
+    pending: 0,
+    totalTasks: 0,
+    completedTasks: 0,
+    overallProgress: 0
+  });
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newProject, setNewProject] = useState({
     title: '',
     description: '',
-    category: 'development',
+    status: 'active',
     priority: 'medium',
-    status: 'planning'
+    deadline: '',
+    tags: []
   });
 
-  console.log('📁 ProjectsPage rendue pour:', user?.email);
-
-  // Charger les projets
   useEffect(() => {
-    loadProjects();
-  }, [user]);
+    if (user?.uid) {
+      loadRealProjects();
+    }
+  }, [user?.uid]);
 
-  // Filtrer les projets
   useEffect(() => {
-    let filtered = projects;
+    applyFilters();
+  }, [realProjects, searchTerm, filterStatus]);
 
-    // Filtre par recherche
-    if (searchTerm) {
-      filtered = filtered.filter(project =>
-        project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Filtre par statut
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(project => project.status === statusFilter);
-    }
-
-    setFilteredProjects(filtered);
-  }, [projects, searchTerm, statusFilter]);
-
-  const loadProjects = async () => {
+  /**
+   * 📊 CHARGER TOUS LES VRAIS PROJETS FIREBASE
+   */
+  const loadRealProjects = async () => {
     if (!user?.uid) return;
-
+    
     setLoading(true);
     try {
-      console.log('📁 Chargement des projets...');
+      console.log('📊 Chargement projets Firebase pour:', user.uid);
+      
+      // Récupérer TOUS les projets de l'utilisateur
+      const [createdProjects, memberProjects] = await Promise.all([
+        getDocs(query(
+          collection(db, 'projects'),
+          where('createdBy', '==', user.uid),
+          orderBy('createdAt', 'desc')
+        )),
+        getDocs(query(
+          collection(db, 'projects'),
+          where('members', 'array-contains', user.uid),
+          orderBy('createdAt', 'desc')
+        ))
+      ]);
 
-      const projectsQuery = query(
-        collection(db, 'projects'),
-        orderBy('createdAt', 'desc')
+      // Combiner et dédupliquer les projets
+      const allUserProjects = new Map();
+      
+      createdProjects.forEach(doc => {
+        allUserProjects.set(doc.id, { id: doc.id, ...doc.data() });
+      });
+      
+      memberProjects.forEach(doc => {
+        allUserProjects.set(doc.id, { id: doc.id, ...doc.data() });
+      });
+
+      const projectsArray = Array.from(allUserProjects.values());
+      
+      // 📊 CALCULER PROGRESSION RÉELLE POUR CHAQUE PROJET
+      const projectsWithProgress = await Promise.all(
+        projectsArray.map(async (project) => {
+          try {
+            // Récupérer les tâches du projet
+            const projectTasksSnapshot = await getDocs(query(
+              collection(db, 'tasks'),
+              where('projectId', '==', project.id)
+            ));
+            
+            const projectTasks = [];
+            projectTasksSnapshot.forEach(doc => {
+              projectTasks.push({ id: doc.id, ...doc.data() });
+            });
+            
+            const totalTasks = projectTasks.length;
+            const completedTasks = projectTasks.filter(task => task.status === 'completed').length;
+            const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+            
+            return {
+              ...project,
+              tasksTotal: totalTasks,
+              tasksCompleted: completedTasks,
+              progress
+            };
+          } catch (error) {
+            console.warn(`Erreur calcul progression projet ${project.id}:`, error);
+            return {
+              ...project,
+              tasksTotal: 0,
+              tasksCompleted: 0,
+              progress: 0
+            };
+          }
+        })
       );
       
-      const projectsSnapshot = await getDocs(projectsQuery);
-      const allProjects = projectsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      // 📊 CALCULER LES VRAIES STATISTIQUES GLOBALES
+      const total = projectsWithProgress.length;
+      const active = projectsWithProgress.filter(p => p.status === 'active').length;
+      const completed = projectsWithProgress.filter(p => p.status === 'completed').length;
+      const pending = projectsWithProgress.filter(p => p.status === 'pending').length;
+      const totalTasks = projectsWithProgress.reduce((sum, p) => sum + p.tasksTotal, 0);
+      const completedTasks = projectsWithProgress.reduce((sum, p) => sum + p.tasksCompleted, 0);
+      const overallProgress = total > 0 ? Math.round(
+        projectsWithProgress.reduce((sum, p) => sum + p.progress, 0) / total
+      ) : 0;
 
-      // Filtrer les projets de l'utilisateur
-      const userProjects = allProjects.filter(project => 
-        project.team?.some(member => member.userId === user.uid) ||
-        project.createdBy === user.uid
-      );
+      setRealProjects(projectsWithProgress);
+      setRealProjectStats({
+        total,
+        active,
+        completed,
+        pending,
+        totalTasks,
+        completedTasks,
+        overallProgress
+      });
 
-      // Ajouter des projets de démonstration si vide
-      if (userProjects.length === 0) {
-        const demoProjects = [
-          {
-            id: 'demo-1',
-            title: 'Site Web Entreprise',
-            description: 'Refonte complète du site web corporate avec nouvelles fonctionnalités',
-            category: 'development',
-            priority: 'high',
-            status: 'active',
-            progress: 65,
-            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-            createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-            createdBy: user.uid,
-            team: [
-              { userId: user.uid, role: 'manager', name: user.displayName || user.email.split('@')[0] }
-            ],
-            tags: ['web', 'react', 'design'],
-            budget: 25000,
-            tasksCount: 24,
-            completedTasks: 16
-          },
-          {
-            id: 'demo-2',
-            title: 'Application Mobile',
-            description: 'Développement d\'une application mobile pour la gestion des tâches',
-            category: 'mobile',
-            priority: 'medium',
-            status: 'planning',
-            progress: 15,
-            dueDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-            createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-            createdBy: user.uid,
-            team: [
-              { userId: user.uid, role: 'developer', name: user.displayName || user.email.split('@')[0] }
-            ],
-            tags: ['mobile', 'flutter', 'ui'],
-            budget: 18000,
-            tasksCount: 12,
-            completedTasks: 2
-          },
-          {
-            id: 'demo-3',
-            title: 'Formation Équipe',
-            description: 'Programme de formation sur les nouvelles technologies',
-            category: 'education',
-            priority: 'low',
-            status: 'completed',
-            progress: 100,
-            dueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-            createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
-            createdBy: user.uid,
-            team: [
-              { userId: user.uid, role: 'trainer', name: user.displayName || user.email.split('@')[0] }
-            ],
-            tags: ['formation', 'team', 'skills'],
-            budget: 5000,
-            tasksCount: 8,
-            completedTasks: 8
-          }
-        ];
-        setProjects(demoProjects);
-      } else {
-        setProjects(userProjects);
-      }
+      console.log('✅ Projets Firebase chargés:', {
+        total: projectsWithProgress.length,
+        stats: realProjectStats
+      });
 
-      console.log('✅ Projets chargés:', userProjects.length);
     } catch (error) {
-      console.error('❌ Erreur chargement projets:', error);
+      console.error('❌ Erreur chargement projets Firebase:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Créer un nouveau projet
-  const createProject = async () => {
-    if (!newProject.title.trim()) return;
+  /**
+   * 🔍 APPLIQUER LES FILTRES
+   */
+  const applyFilters = () => {
+    let filtered = [...realProjects];
+
+    // Filtre par recherche
+    if (searchTerm) {
+      filtered = filtered.filter(project =>
+        project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filtre par statut
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(project => project.status === filterStatus);
+    }
+
+    setFilteredProjects(filtered);
+  };
+
+  /**
+   * ✅ CRÉER NOUVEAU PROJET FIREBASE
+   */
+  const handleCreateProject = async () => {
+    if (!user?.uid || !newProject.title.trim()) return;
 
     try {
+      console.log('➕ Création projet Firebase:', newProject.title);
+      
       const projectData = {
         ...newProject,
-        createdAt: serverTimestamp(),
         createdBy: user.uid,
-        team: [
-          { userId: user.uid, role: 'manager', name: user.displayName || user.email.split('@')[0] }
-        ],
+        members: [user.uid],
+        tasksTotal: 0,
+        tasksCompleted: 0,
         progress: 0,
-        tasksCount: 0,
-        completedTasks: 0,
-        tags: []
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
 
       await addDoc(collection(db, 'projects'), projectData);
-      console.log('✅ Projet créé:', newProject.title);
       
+      // Recharger les projets
+      await loadRealProjects();
+      
+      // Reset form
+      setNewProject({
+        title: '',
+        description: '',
+        status: 'active',
+        priority: 'medium',
+        deadline: '',
+        tags: []
+      });
       setShowCreateModal(false);
-      setNewProject({ title: '', description: '', category: 'development', priority: 'medium', status: 'planning' });
-      loadProjects();
+      
+      console.log('✅ Projet créé avec succès');
+      
     } catch (error) {
       console.error('❌ Erreur création projet:', error);
     }
   };
 
-  // Utilitaires d'affichage
+  /**
+   * 🔄 METTRE À JOUR PROJET
+   */
+  const handleUpdateProject = async (projectId, updates) => {
+    try {
+      console.log('🔄 Mise à jour projet:', projectId, updates);
+      
+      await updateDoc(doc(db, 'projects', projectId), {
+        ...updates,
+        updatedAt: serverTimestamp()
+      });
+      
+      // Recharger les projets
+      await loadRealProjects();
+      
+      console.log('✅ Projet mis à jour');
+      
+    } catch (error) {
+      console.error('❌ Erreur mise à jour projet:', error);
+    }
+  };
+
+  /**
+   * 🗑️ SUPPRIMER PROJET
+   */
+  const handleDeleteProject = async (projectId) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) return;
+    
+    try {
+      console.log('🗑️ Suppression projet:', projectId);
+      
+      await deleteDoc(doc(db, 'projects', projectId));
+      
+      // Recharger les projets
+      await loadRealProjects();
+      
+      console.log('✅ Projet supprimé');
+      
+    } catch (error) {
+      console.error('❌ Erreur suppression projet:', error);
+    }
+  };
+
+  /**
+   * 🎨 OBTENIR COULEUR STATUT
+   */
   const getStatusColor = (status) => {
     switch (status) {
-      case 'planning': return 'bg-blue-500/20 text-blue-400 border-blue-500/50';
-      case 'active': return 'bg-green-500/20 text-green-400 border-green-500/50';
-      case 'paused': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
-      case 'completed': return 'bg-purple-500/20 text-purple-400 border-purple-500/50';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'completed': return 'bg-blue-100 text-blue-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'on-hold': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
+  /**
+   * 🎨 OBTENIR COULEUR PRIORITÉ
+   */
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'high': return 'text-red-400';
-      case 'medium': return 'text-yellow-400';
-      case 'low': return 'text-green-400';
-      default: return 'text-gray-400';
+      case 'low': return 'bg-green-100 text-green-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'high': return 'bg-orange-100 text-orange-800';
+      case 'urgent': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'planning': return <Target className="w-4 h-4" />;
-      case 'active': return <Play className="w-4 h-4" />;
-      case 'paused': return <Pause className="w-4 h-4" />;
-      case 'completed': return <CheckCircle className="w-4 h-4" />;
-      default: return <AlertCircle className="w-4 h-4" />;
-    }
-  };
+  if (loading || dataLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Chargement de vos projets...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* ==========================================
-            📋 HEADER
-            ========================================== */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center justify-between mb-6">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* EN-TÊTE */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-                📁 Gestion de Projets
-              </h1>
-              <p className="text-gray-400 text-lg">
-                Créez, gérez et suivez vos projets collaboratifs
+              <h1 className="text-3xl font-bold text-gray-900">Mes Projets</h1>
+              <p className="text-lg text-gray-600 mt-1">
+                Gérez vos projets en temps réel
               </p>
             </div>
-            
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-medium hover:scale-105 transition-transform flex items-center gap-2"
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="h-5 w-5 mr-2" />
               Nouveau Projet
             </button>
           </div>
+        </div>
 
-          {/* Statistiques */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-white">{projects.length}</div>
-              <div className="text-gray-400 text-sm">Total</div>
-            </div>
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-green-400">{projects.filter(p => p.status === 'active').length}</div>
-              <div className="text-gray-400 text-sm">Actifs</div>
-            </div>
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-blue-400">{projects.filter(p => p.status === 'planning').length}</div>
-              <div className="text-gray-400 text-sm">En planning</div>
-            </div>
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-purple-400">{projects.filter(p => p.status === 'completed').length}</div>
-              <div className="text-gray-400 text-sm">Terminés</div>
+        {/* STATISTIQUES RÉELLES */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Total Projets */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total</p>
+                <p className="text-3xl font-bold text-gray-900">{realProjectStats.total}</p>
+              </div>
+              <FolderOpen className="h-12 w-12 text-blue-500" />
             </div>
           </div>
-        </motion.div>
 
-        {/* ==========================================
-            🔍 FILTRES ET RECHERCHE
-            ========================================== */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mb-8"
-        >
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            
-            {/* Recherche */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Rechercher un projet..."
-                className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+          {/* Projets Actifs */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Actifs</p>
+                <p className="text-3xl font-bold text-green-600">{realProjectStats.active}</p>
+              </div>
+              <Target className="h-12 w-12 text-green-500" />
             </div>
+          </div>
 
-            {/* Filtres */}
-            <div className="flex items-center gap-4">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">Tous les statuts</option>
-                <option value="planning">Planning</option>
-                <option value="active">Actifs</option>
-                <option value="paused">En pause</option>
-                <option value="completed">Terminés</option>
-              </select>
+          {/* Tâches Totales */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Tâches</p>
+                <p className="text-3xl font-bold text-purple-600">{realProjectStats.totalTasks}</p>
+                <p className="text-sm text-gray-500">{realProjectStats.completedTasks} terminées</p>
+              </div>
+              <BarChart3 className="h-12 w-12 text-purple-500" />
+            </div>
+          </div>
 
-              {/* Mode d'affichage */}
-              <div className="flex bg-gray-700/50 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
-                >
-                  <Grid className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-2 rounded ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
-                >
-                  <List className="w-4 h-4" />
-                </button>
+          {/* Progression Globale */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Progression</p>
+                <p className="text-3xl font-bold text-orange-600">{realProjectStats.overallProgress}%</p>
+              </div>
+              <TrendingUp className="h-12 w-12 text-orange-500" />
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION GAMIFICATION */}
+        {gamification && (
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-lg p-6 mb-8 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Votre Progression</h3>
+                <p className="text-2xl font-bold">Niveau {gamification.level || 1}</p>
+                <p className="text-sm opacity-90">{gamification.totalXp || 0} XP • {gamification.badges?.length || 0} badges</p>
+              </div>
+              <div className="text-right">
+                <FolderOpen className="h-8 w-8 mb-2" />
+                <p className="text-sm">Excellent travail !</p>
               </div>
             </div>
           </div>
-        </motion.div>
+        )}
 
-        {/* ==========================================
-            📋 LISTE DES PROJETS
-            ========================================== */}
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-            <p className="text-gray-400">Chargement des projets...</p>
-          </div>
-        ) : filteredProjects.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-12"
-          >
-            <div className="text-6xl mb-4">📁</div>
-            <h3 className="text-xl text-gray-400 mb-2">Aucun projet trouvé</h3>
-            <p className="text-gray-500 mb-6">
-              {searchTerm || statusFilter !== 'all' 
-                ? 'Modifiez vos filtres ou créez un nouveau projet'
-                : 'Créez votre premier projet pour commencer !'}
-            </p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-medium hover:scale-105 transition-transform"
+        {/* FILTRES */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <div className="flex flex-wrap gap-4 items-center">
+            {/* Recherche */}
+            <div className="flex-1 min-w-64">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher un projet..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Filtre Statut */}
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              Créer un projet
-            </button>
-          </motion.div>
-        ) : (
-          <div className={viewMode === 'grid' 
-            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-            : 'space-y-4'
-          }>
-            {filteredProjects.map((project, index) => (
-              <motion.div
-                key={project.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + index * 0.05 }}
-                className={`bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:scale-[1.02] transition-transform duration-200 ${
-                  viewMode === 'list' ? 'flex items-center gap-6' : ''
-                }`}
-              >
-                <div className={viewMode === 'list' ? 'flex-1' : ''}>
-                  {/* Header du projet */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={viewMode === 'list' ? 'flex items-center gap-4' : ''}>
-                      <div>
-                        <h3 className="text-lg font-bold text-white mb-1 hover:text-blue-400 transition-colors">
-                          <Link to={`/projects/${project.id}`}>
-                            {project.title}
-                          </Link>
-                        </h3>
-                        <p className="text-gray-400 text-sm line-clamp-2">{project.description}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <span className={`p-1 rounded-full ${getPriorityColor(project.priority)}`}>
-                        <Star className="w-4 h-4" />
-                      </span>
+              <option value="all">Tous les statuts</option>
+              <option value="active">Actifs</option>
+              <option value="completed">Terminés</option>
+              <option value="pending">En attente</option>
+              <option value="on-hold">En pause</option>
+            </select>
+          </div>
+        </div>
+
+        {/* GRILLE DES PROJETS RÉELS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredProjects.length > 0 ? (
+            filteredProjects.map((project) => (
+              <div key={project.id} className="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-200">
+                <div className="p-6">
+                  {/* En-tête projet */}
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
+                      {project.title}
+                    </h3>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => {/* TODO: Edit modal */}}
+                        className="text-gray-400 hover:text-blue-600"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProject(project.id)}
+                        className="text-gray-400 hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
 
-                  {/* Statut et progression */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(project.status)}`}>
-                        {getStatusIcon(project.status)}
-                        <span className="ml-1">
-                          {project.status === 'planning' ? 'Planning' :
-                           project.status === 'active' ? 'Actif' :
-                           project.status === 'paused' ? 'En pause' : 'Terminé'}
-                        </span>
+                  {/* Description */}
+                  {project.description && (
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                      {project.description}
+                    </p>
+                  )}
+
+                  {/* Badges */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+                      {project.status}
+                    </span>
+                    {project.priority && (
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(project.priority)}`}>
+                        {project.priority}
                       </span>
-                      <span className="text-gray-400 text-sm">{project.progress}%</span>
+                    )}
+                  </div>
+
+                  {/* Progression */}
+                  <div className="mb-4">
+                    <div className="flex justify-between text-sm text-gray-600 mb-1">
+                      <span>Progression</span>
+                      <span>{project.progress}%</span>
                     </div>
-                    
-                    <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
                       <div 
-                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${project.progress}%` }}
                       ></div>
                     </div>
                   </div>
 
-                  {/* Informations supplémentaires */}
-                  <div className="flex items-center justify-between text-sm text-gray-400 mb-4">
-                    <div className="flex items-center gap-4">
-                      <span className="flex items-center gap-1">
-                        <Users className="w-4 h-4" />
-                        {project.team?.length || 0}
+                  {/* Statistiques tâches */}
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span className="flex items-center">
+                      <BarChart3 className="h-4 w-4 mr-1" />
+                      {project.tasksCompleted}/{project.tasksTotal} tâches
+                    </span>
+                    {project.deadline && (
+                      <span className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-1" />
+                        {new Date(project.deadline).toLocaleDateString()}
                       </span>
-                      <span className="flex items-center gap-1">
-                        <CheckCircle className="w-4 h-4" />
-                        {project.completedTasks}/{project.tasksCount}
-                      </span>
-                      {project.dueDate && (
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          {new Date(project.dueDate).toLocaleDateString('fr-FR')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Tags */}
-                  {project.tags && project.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-4">
-                      {project.tags.slice(0, 3).map(tag => (
-                        <span key={tag} className="px-2 py-1 bg-gray-700/50 text-gray-300 text-xs rounded-full">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className={`flex gap-2 ${viewMode === 'list' ? 'flex-col' : 'justify-end'}`}>
-                  <Link
-                    to={`/projects/${project.id}`}
-                    className="p-2 text-blue-400 hover:text-blue-300 transition-colors"
-                    title="Voir le projet"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </Link>
-                  <button 
-                    className="p-2 text-gray-400 hover:text-white transition-colors"
-                    title="Modifier"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button 
-                    className="p-2 text-red-400 hover:text-red-300 transition-colors"
-                    title="Supprimer"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-
-        {/* ==========================================
-            ➕ MODAL CRÉATION PROJET
-            ========================================== */}
-        <AnimatePresence>
-          {showCreateModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-              onClick={(e) => e.target === e.currentTarget && setShowCreateModal(false)}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-full max-w-md"
-              >
-                <h3 className="text-xl font-bold text-white mb-4">Créer un nouveau projet</h3>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Titre</label>
-                    <input
-                      type="text"
-                      value={newProject.title}
-                      onChange={(e) => setNewProject({...newProject, title: e.target.value})}
-                      placeholder="Nom du projet"
-                      className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
-                    <textarea
-                      value={newProject.description}
-                      onChange={(e) => setNewProject({...newProject, description: e.target.value})}
-                      placeholder="Description du projet"
-                      rows={3}
-                      className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Catégorie</label>
-                      <select
-                        value={newProject.category}
-                        onChange={(e) => setNewProject({...newProject, category: e.target.value})}
-                        className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="development">Développement</option>
-                        <option value="design">Design</option>
-                        <option value="marketing">Marketing</option>
-                        <option value="education">Formation</option>
-                        <option value="research">Recherche</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Priorité</label>
-                      <select
-                        value={newProject.priority}
-                        onChange={(e) => setNewProject({...newProject, priority: e.target.value})}
-                        className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="low">Basse</option>
-                        <option value="medium">Moyenne</option>
-                        <option value="high">Haute</option>
-                      </select>
-                    </div>
+                    )}
                   </div>
                 </div>
-                
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => setShowCreateModal(false)}
-                    className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={createProject}
-                    disabled={!newProject.title.trim()}
-                    className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                  >
-                    Créer
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
-  );
-};
-
-export default ProjectsPage;
-
-// ==========================================
-// 📋 LOGS DE CONFIRMATION
-// ==========================================
-console.log('✅ ProjectsPage corrigée et complète');
-console.log('📁 Toutes fonctionnalités: CRUD, filtres, recherche, vues');
-console.log('🚀 Interface premium sans PremiumLayout');
+              </div>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12">
+              <FolderOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-lg text-gray-500 mb-2">
+                {searchTerm || filterStatus !== 'all' ? 'Aucun projet trouvé' : 'Aucun projet pour le moment'}
+              </p>
+              <p className="text-sm text-gray-400">
+                {searchTerm || filterStatus !== 'all' ? 'Essayez de modifier vos filtres' : 'Créez votre premier projet pour commencer'}
+              </p>
+            </div>
