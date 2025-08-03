@@ -1,212 +1,168 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APP D'URGENCE - VERSION ULTRA-MINIMALE
+// APP NORMAL RESTAURÉ - AVEC AUTHSTORE CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// ==========================================
-// 🔧 COMPOSANT ULTRA-SIMPLE SANS DEPENDENCIES
-// ==========================================
+// 🔧 Import du Layout sophistiqué avec sidebar
+import Layout from './components/layout/Layout.jsx';
 
-const EmergencyApp = () => {
-  const [status, setStatus] = useState('Chargement...');
-  const [user, setUser] = useState(null);
-  const [error, setError] = useState(null);
+// Stores (maintenant corrigé)
+import { useAuthStore } from './shared/stores/authStore.js';
 
+// ✅ Import du correctif d'erreurs simplifié
+import './utils/safeFix.js';
+
+// Pages principales
+import Login from './pages/Login.jsx';
+import Dashboard from './pages/Dashboard.jsx';
+import TasksPage from './pages/TasksPage.jsx';
+import ProjectsPage from './pages/ProjectsPage.jsx';
+import ProjectDetailPage from './pages/ProjectDetailPage.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import GamificationPage from './pages/GamificationPage.jsx';
+import TeamPage from './pages/TeamPage.jsx';
+import UsersPage from './pages/UsersPage.jsx';
+import OnboardingPage from './pages/OnboardingPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
+import RewardsPage from './pages/RewardsPage.jsx';
+import BadgesPage from './pages/BadgesPage.jsx';
+import TimeTrackPage from './pages/TimeTrackPage.jsx';
+
+// Pages nouvellement créées
+import LeaderboardPage from './pages/LeaderboardPage.jsx';
+import RoleProgressionPage from './pages/RoleProgressionPage.jsx';
+import RoleTasksPage from './pages/RoleTasksPage.jsx';
+import RoleBadgesPage from './pages/RoleBadgesPage.jsx';
+import EscapeProgressionPage from './pages/EscapeProgressionPage.jsx';
+
+// Pages admin existantes
+import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
+import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
+
+// Pages admin nouvellement créées
+import AdminDashboardTuteurPage from './pages/AdminDashboardTuteurPage.jsx';
+import AdminRolePermissionsPage from './pages/AdminRolePermissionsPage.jsx';
+import AdminRewardsPage from './pages/AdminRewardsPage.jsx';
+import AdminBadgesPage from './pages/AdminBadgesPage.jsx';
+import AdminUsersPage from './pages/AdminUsersPage.jsx';
+import AdminAnalyticsPage from './pages/AdminAnalyticsPage.jsx';
+import AdminSettingsPage from './pages/AdminSettingsPage.jsx';
+
+console.log('🚀 App.jsx chargé - Synergia v3.5');
+
+/**
+ * 🎯 COMPOSANT PRINCIPAL SÉCURISÉ
+ */
+const App = () => {
+  const { user, loading: authLoading, checkAuthState } = useAuthStore();
+
+  // Vérifier l'état d'authentification au montage
   useEffect(() => {
-    console.log('🚨 App d\'urgence démarrée');
-    
-    // Test basique Firebase
-    const testFirebase = async () => {
-      try {
-        // Import dynamique pour éviter les erreurs de build
-        const { auth } = await import('./core/firebase.js');
-        const { onAuthStateChanged } = await import('firebase/auth');
-        
-        console.log('🔥 Firebase importé avec succès');
-        setStatus('Firebase connecté');
-        
-        // Observer l'auth
-        onAuthStateChanged(auth, (user) => {
-          console.log('👤 Utilisateur:', user?.email || 'Non connecté');
-          setUser(user);
-          setStatus(user ? `Connecté: ${user.email}` : 'Non connecté');
-        });
-        
-      } catch (err) {
-        console.error('❌ Erreur Firebase:', err);
-        setError(err.message);
-        setStatus('Erreur Firebase');
-      }
-    };
+    console.log('🔐 Vérification état auth...');
+    checkAuthState();
+  }, [checkAuthState]);
 
-    testFirebase();
-  }, []);
-
-  // Fonction de connexion Google
-  const handleGoogleLogin = async () => {
-    try {
-      setStatus('Connexion en cours...');
-      
-      const { signInWithPopup, GoogleAuthProvider } = await import('firebase/auth');
-      const { auth } = await import('./core/firebase.js');
-      
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      
-      console.log('✅ Connexion réussie:', result.user.email);
-      setUser(result.user);
-      setStatus(`Connecté: ${result.user.email}`);
-      
-    } catch (err) {
-      console.error('❌ Erreur connexion:', err);
-      setError(err.message);
-      setStatus('Erreur de connexion');
-    }
-  };
-
-  // Fonction de déconnexion
-  const handleLogout = async () => {
-    try {
-      const { signOut } = await import('firebase/auth');
-      const { auth } = await import('./core/firebase.js');
-      
-      await signOut(auth);
-      setUser(null);
-      setStatus('Déconnecté');
-      console.log('👋 Déconnexion réussie');
-      
-    } catch (err) {
-      console.error('❌ Erreur déconnexion:', err);
-      setError(err.message);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-      <div className="max-w-2xl w-full">
-        
-        {/* Header d'urgence */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-4">
-            🚨 Mode Urgence Synergia
-          </h1>
-          <p className="text-gray-400 text-lg">
-            Application en mode diagnostic minimal
-          </p>
-        </div>
-
-        {/* Status principal */}
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8 mb-6">
-          <div className="text-center">
-            <div className="text-6xl mb-4">
-              {error ? '❌' : user ? '✅' : '🔄'}
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-2">
-              {error ? 'Erreur Critique' : user ? 'Connexion Réussie' : 'Test en Cours'}
-            </h2>
-            <p className="text-gray-400 mb-6">
-              {error || status}
-            </p>
-
-            {/* Actions */}
-            <div className="space-y-4">
-              {!user ? (
-                <button
-                  onClick={handleGoogleLogin}
-                  className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
-                >
-                  🔍 Tester Connexion Google
-                </button>
-              ) : (
-                <button
-                  onClick={handleLogout}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-                >
-                  👋 Se Déconnecter
-                </button>
-              )}
-              
-              <button
-                onClick={() => window.location.reload()}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-              >
-                🔄 Recharger Page
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Informations de debug */}
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-white mb-4">🔧 Informations Debug</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-400">React:</span>
-              <span className="text-green-400">✅ Fonctionnel</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Firebase:</span>
-              <span className={error ? "text-red-400" : "text-green-400"}>
-                {error ? "❌ Erreur" : "✅ Connecté"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Auth:</span>
-              <span className={user ? "text-green-400" : "text-yellow-400"}>
-                {user ? "✅ Connecté" : "⏳ En attente"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">URL:</span>
-              <span className="text-white">{window.location.pathname}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Temps:</span>
-              <span className="text-white">{new Date().toLocaleTimeString()}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Si utilisateur connecté, informations */}
-        {user && (
-          <div className="mt-6 bg-green-900/20 border border-green-700 rounded-xl p-6">
-            <h3 className="text-lg font-bold text-green-400 mb-4">👤 Utilisateur Connecté</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-400">Email:</span>
-                <span className="text-white">{user.email}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Nom:</span>
-                <span className="text-white">{user.displayName || 'Non défini'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">UID:</span>
-                <span className="text-white text-xs">{user.uid?.substring(0, 20)}...</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Message de récupération */}
-        <div className="mt-6 text-center">
-          <p className="text-gray-400 text-sm">
-            🔧 Cette version d'urgence teste les composants de base.<br/>
-            Si tout fonctionne ici, le problème vient des stores complexes.
-          </p>
+  // Écran de chargement
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-white text-lg">Chargement de Synergia...</p>
         </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <Router>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <Routes>
+          {/* ==========================================
+              🔐 ROUTES PUBLIQUES (Non connecté)
+              ========================================== */}
+          {!user ? (
+            <>
+              <Route path="/login" element={<Login />} />
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </>
+          ) : (
+            /* ==========================================
+               🔒 ROUTES PROTÉGÉES (Connecté)
+               ========================================== */
+            <Route
+              path="/*"
+              element={
+                <Layout>
+                  <Routes>
+                    {/* ==========================================
+                        📊 PAGES PRINCIPALES
+                        ========================================== */}
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/tasks" element={<TasksPage />} />
+                    <Route path="/projects" element={<ProjectsPage />} />
+                    <Route path="/projects/:id" element={<ProjectDetailPage />} />
+                    <Route path="/analytics" element={<AnalyticsPage />} />
+                    <Route path="/gamification" element={<GamificationPage />} />
+                    <Route path="/team" element={<TeamPage />} />
+                    <Route path="/users" element={<UsersPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/onboarding" element={<OnboardingPage />} />
+                    <Route path="/time-track" element={<TimeTrackPage />} />
+
+                    {/* ==========================================
+                        🎮 PAGES GAMIFICATION
+                        ========================================== */}
+                    <Route path="/rewards" element={<RewardsPage />} />
+                    <Route path="/badges" element={<BadgesPage />} />
+                    <Route path="/leaderboard" element={<LeaderboardPage />} />
+
+                    {/* ==========================================
+                        🎭 PAGES GESTION DES RÔLES
+                        ========================================== */}
+                    <Route path="/role-progression" element={<RoleProgressionPage />} />
+                    <Route path="/role-tasks" element={<RoleTasksPage />} />
+                    <Route path="/role-badges" element={<RoleBadgesPage />} />
+                    <Route path="/escape-progression" element={<EscapeProgressionPage />} />
+
+                    {/* ==========================================
+                        🛡️ PAGES ADMIN
+                        ========================================== */}
+                    <Route path="/admin/dashboard-tuteur" element={<AdminDashboardTuteurPage />} />
+                    <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
+                    <Route path="/admin/role-permissions" element={<AdminRolePermissionsPage />} />
+                    <Route path="/admin/rewards" element={<AdminRewardsPage />} />
+                    <Route path="/admin/badges" element={<AdminBadgesPage />} />
+                    <Route path="/admin/users" element={<AdminUsersPage />} />
+                    <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+                    <Route path="/admin/settings" element={<AdminSettingsPage />} />
+                    <Route path="/admin/test" element={<CompleteAdminTestPage />} />
+
+                    {/* Route par défaut pour les chemins inconnus */}
+                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                  </Routes>
+                </Layout>
+              }
+            />
+          )}
+        </Routes>
+      </div>
+    </Router>
   );
 };
 
-export default EmergencyApp;
+export default App;
 
 // ==========================================
 // 📋 LOGS DE CONFIRMATION
 // ==========================================
-console.log('🚨 App d\'urgence chargée');
-console.log('🔧 Version ultra-minimale sans stores complexes');
-console.log('🛡️ Tests Firebase directs sans intermédiaires');
+console.log('✅ App.jsx restauré avec AuthStore corrigé');
+console.log('🔧 Toutes les routes et fonctionnalités disponibles');
+console.log('🛡️ Version stable avec Layout complet');
+console.log('🚀 Synergia v3.5 - Mode Production');
