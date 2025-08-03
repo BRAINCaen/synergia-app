@@ -1,9 +1,9 @@
 // ==========================================
 // 📁 react-app/src/pages/GamificationPage.jsx
-// GAMIFICATION FIREBASE COMPLET - BUILD SAFE
+// GAMIFICATION FIREBASE COMPLET - BOUCLE CORRIGÉE
 // ==========================================
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 
 /**
- * 🎮 PAGE GAMIFICATION FIREBASE COMPLET - BUILD SAFE
+ * 🎮 PAGE GAMIFICATION FIREBASE COMPLET - BOUCLE CORRIGÉE
  */
 const GamificationPage = () => {
   const { user } = useAuthStore();
@@ -52,17 +52,35 @@ const GamificationPage = () => {
     challenges: []
   });
 
+  // ✅ REF POUR ÉVITER LES CHARGEMENTS MULTIPLES
+  const dataLoadedRef = useRef(false);
+  const lastDataHashRef = useRef('');
+
   /**
    * 📊 CHARGER VRAIES DONNÉES GAMIFICATION FIREBASE
-   * ✅ CORRECTION: Utilisation de useCallback pour éviter la boucle infinie
+   * ✅ CORRECTION: useCallback avec dépendances stables
    */
   const loadRealGamificationData = useCallback(async () => {
     if (!user?.uid) return;
     
+    // ✅ CORRECTION: Créer un hash des données pour éviter les rechargements inutiles
+    const dataHash = JSON.stringify({
+      gamificationLevel: gamification?.level,
+      gamificationTotalXP: gamification?.totalXP,
+      userStatsTasksCompleted: userStats?.tasksCompleted,
+      loginStreak: gamification?.loginStreak
+    });
+
+    // ✅ CORRECTION: Si les données n'ont pas changé, ne pas recharger
+    if (dataHash === lastDataHashRef.current && dataLoadedRef.current) {
+      console.log('🔄 Données inchangées, pas de rechargement');
+      return;
+    }
+
+    console.log('🎮 Chargement gamification Firebase pour:', user.uid);
     setLoading(true);
+    
     try {
-      console.log('🎮 Chargement gamification Firebase pour:', user.uid);
-      
       // 🔥 CALCULER LES VRAIS STATS DEPUIS FIREBASE
       const level = gamification?.level || 1;
       const totalXP = gamification?.totalXP || 0;
@@ -70,20 +88,28 @@ const GamificationPage = () => {
       const currentLevelXP = level > 1 ? Math.floor(100 * Math.pow(1.5, level - 1)) : 0;
       const xp = totalXP - currentLevelXP;
       
-      // 🏆 CALCULER LE RANG RÉEL
-      const usersQuery = query(collection(db, 'gamification'));
-      const usersSnapshot = await getDocs(usersQuery);
-      const allUsers = [];
-      
-      usersSnapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.totalXP) {
-          allUsers.push({ uid: doc.id, totalXP: data.totalXP });
+      // 🏆 CALCULER LE RANG RÉEL - UNE SEULE FOIS
+      let userRank = 0;
+      if (!dataLoadedRef.current) {
+        try {
+          const usersQuery = query(collection(db, 'gamification'));
+          const usersSnapshot = await getDocs(usersQuery);
+          const allUsers = [];
+          
+          usersSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.totalXP) {
+              allUsers.push({ uid: doc.id, totalXP: data.totalXP });
+            }
+          });
+          
+          allUsers.sort((a, b) => b.totalXP - a.totalXP);
+          userRank = allUsers.findIndex(u => u.uid === user.uid) + 1;
+        } catch (error) {
+          console.warn('⚠️ Impossible de calculer le rang:', error);
+          userRank = 1;
         }
-      });
-      
-      allUsers.sort((a, b) => b.totalXP - a.totalXP);
-      const userRank = allUsers.findIndex(u => u.uid === user.uid) + 1;
+      }
       
       // 🎯 CRÉER LES DÉFIS DYNAMIQUES
       const challenges = [
@@ -126,12 +152,16 @@ const GamificationPage = () => {
           xp,
           nextLevelXP,
           totalXP,
-          rank: userRank || 0,
+          rank: userRank || realGamificationData.user.rank || 0,
           streak: gamification?.loginStreak || 1,
           badges: (gamification?.badges || []).length
         },
         challenges
       });
+      
+      // ✅ MARQUER COMME CHARGÉ ET SAUVER LE HASH
+      dataLoadedRef.current = true;
+      lastDataHashRef.current = dataHash;
       
       console.log('✅ Gamification data loaded:', {
         level,
@@ -145,12 +175,24 @@ const GamificationPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?.uid, gamification, userStats]); // ✅ CORRECTION: Dépendances spécifiques
+  }, [user?.uid]); // ✅ CORRECTION: SEULE DÉPENDANCE STABLE
 
-  // ✅ CORRECTION: useEffect avec dépendances correctes
+  // ✅ CORRECTION: useEffect séparé pour écouter les changements de données
+  const prevGamificationRef = useRef();
+  const prevUserStatsRef = useRef();
+
   useEffect(() => {
-    if (user?.uid && !dataLoading) {
+    // ✅ CORRECTION: Comparer les données pour détecter les vrais changements
+    const gamificationChanged = JSON.stringify(gamification) !== JSON.stringify(prevGamificationRef.current);
+    const userStatsChanged = JSON.stringify(userStats) !== JSON.stringify(prevUserStatsRef.current);
+
+    if (user?.uid && !dataLoading && (gamificationChanged || userStatsChanged || !dataLoadedRef.current)) {
+      console.log('🔄 Données changées, rechargement nécessaire');
       loadRealGamificationData();
+      
+      // Sauver les références actuelles
+      prevGamificationRef.current = gamification;
+      prevUserStatsRef.current = userStats;
     }
   }, [user?.uid, dataLoading, loadRealGamificationData]);
 
@@ -223,7 +265,7 @@ const GamificationPage = () => {
             <div className="flex items-center justify-between mb-4">
               <Crown className="w-8 h-8 text-purple-400" />
               <span className="text-2xl font-bold text-white">
-                #{realGamificationData.user.rank}
+                #{realGamificationData.user.rank || '?'}
               </span>
             </div>
             <p className="text-purple-200 text-sm">Classement Global</p>
@@ -282,7 +324,9 @@ const GamificationPage = () => {
                   <div className="w-full bg-gray-700 rounded-full h-3">
                     <div 
                       className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full"
-                      style={{ width: `${(realGamificationData.user.xp / (realGamificationData.user.nextLevelXP - (realGamificationData.user.level > 1 ? Math.floor(100 * Math.pow(1.5, realGamificationData.user.level - 2)) : 0))) * 100}%` }}
+                      style={{ 
+                        width: `${Math.min((realGamificationData.user.xp / (realGamificationData.user.nextLevelXP - (realGamificationData.user.level > 1 ? Math.floor(100 * Math.pow(1.5, realGamificationData.user.level - 2)) : 0))) * 100, 100)}%` 
+                      }}
                     ></div>
                   </div>
                 </div>
@@ -319,76 +363,59 @@ const GamificationPage = () => {
               Défis Actifs
             </h3>
             
-            {realGamificationData.challenges.length === 0 ? (
-              <div className="bg-white/10 backdrop-blur-md rounded-xl p-8 text-center">
-                <Target className="w-16 h-16 text-purple-300 mx-auto mb-4" />
-                <h4 className="text-xl font-bold text-white mb-2">Aucun défi actif</h4>
-                <p className="text-purple-200 mb-4">
-                  Créez des tâches pour débloquer de nouveaux défis !
-                </p>
-                <Link 
-                  to="/tasks"
-                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Créer une Tâche
-                </Link>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {realGamificationData.challenges.map(challenge => (
-                  <div key={challenge.id} className="bg-white/10 backdrop-blur-md rounded-xl p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h4 className="text-lg font-bold text-white">{challenge.title}</h4>
-                        <p className="text-purple-200 text-sm">{challenge.description}</p>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        challenge.difficulty === 'easy' ? 'bg-green-500/20 text-green-300' :
-                        challenge.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
-                        'bg-red-500/20 text-red-300'
-                      }`}>
-                        {challenge.difficulty}
-                      </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {realGamificationData.challenges.map(challenge => (
+                <div key={challenge.id} className="bg-white/10 backdrop-blur-md rounded-xl p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h4 className="text-lg font-bold text-white">{challenge.title}</h4>
+                      <p className="text-purple-200 text-sm">{challenge.description}</p>
                     </div>
-                    
-                    <div className="mb-4">
-                      <div className="flex justify-between text-white text-sm mb-2">
-                        <span>Progression</span>
-                        <span>{challenge.progress} / {challenge.total}</span>
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all duration-500"
-                          style={{ width: `${Math.min((challenge.progress / challenge.total) * 100, 100)}%` }}
-                        ></div>
-                      </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      challenge.difficulty === 'easy' ? 'bg-green-500/20 text-green-300' :
+                      challenge.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                      'bg-red-500/20 text-red-300'
+                    }`}>
+                      {challenge.difficulty}
+                    </span>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <div className="flex justify-between text-white text-sm mb-2">
+                      <span>Progression</span>
+                      <span>{challenge.progress} / {challenge.total}</span>
                     </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center text-yellow-400">
-                        <Gift className="w-4 h-4 mr-1" />
-                        <span className="text-sm font-medium">+{challenge.reward} XP</span>
-                      </div>
-                      
-                      {challenge.progress >= challenge.total ? (
-                        <button
-                          onClick={() => claimChallenge(challenge.id)}
-                          className="px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg text-sm font-medium hover:from-green-600 hover:to-blue-600 transition-all"
-                        >
-                          <Gift className="w-4 h-4 inline mr-1" />
-                          Réclamer
-                        </button>
-                      ) : (
-                        <div className="text-purple-300 text-sm">
-                          {challenge.total - challenge.progress} restant
-                        </div>
-                      )}
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min((challenge.progress / challenge.total) * 100, 100)}%` }}
+                      ></div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center text-yellow-400">
+                      <Gift className="w-4 h-4 mr-1" />
+                      <span className="text-sm font-medium">+{challenge.reward} XP</span>
+                    </div>
+                    
+                    {challenge.progress >= challenge.total ? (
+                      <button
+                        onClick={() => claimChallenge(challenge.id)}
+                        className="px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg text-sm font-medium hover:from-green-600 hover:to-blue-600 transition-all"
+                      >
+                        <Gift className="w-4 h-4 inline mr-1" />
+                        Réclamer
+                      </button>
+                    ) : (
+                      <div className="text-purple-300 text-sm">
+                        {challenge.total - challenge.progress} restant
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
