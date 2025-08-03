@@ -36,7 +36,10 @@ console.error = (...args) => {
   const shouldSuppress = errorFilters.some(filter => message.includes(filter));
   
   if (shouldSuppress) {
-    console.log('🤫 [SUPPRIMÉ] Erreur non-critique:', args[0]?.substring(0, 100) + '...');
+    // ✅ CORRECTION: Vérifier que args[0] est une string avant substring
+    const firstArg = args[0];
+    const preview = typeof firstArg === 'string' ? firstArg.substring(0, 100) + '...' : '[Objet complexe]';
+    console.log('🤫 [SUPPRIMÉ] Erreur non-critique:', preview);
     return;
   }
   
@@ -58,7 +61,10 @@ console.warn = (...args) => {
   const shouldSuppress = warnFilters.some(filter => message.includes(filter));
   
   if (shouldSuppress) {
-    console.log('🤫 [SUPPRIMÉ] Warning non-critique:', args[0]?.substring(0, 80) + '...');
+    // ✅ CORRECTION: Vérifier que args[0] est une string avant substring
+    const firstArg = args[0];
+    const preview = typeof firstArg === 'string' ? firstArg.substring(0, 80) + '...' : '[Objet complexe]';
+    console.log('🤫 [SUPPRIMÉ] Warning non-critique:', preview);
     return;
   }
   
