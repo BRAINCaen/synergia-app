@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// SYNERGIA v3.5 STABLE - SANS BOUCLES DE RÉINITIALISATION
+// SYNERGIA v3.5 STABLE - IMPORTS CORRIGÉS POUR BUILD
 // ==========================================
 
 import React, { useEffect } from 'react';
@@ -16,13 +16,12 @@ import { useAuthStore, initializeAuthStore } from './shared/stores/authStore.js'
 import './utils/safeFix.js';
 
 // ==========================================
-// 📄 PAGES PRINCIPALES
+// 📄 PAGES PRINCIPALES EXISTANTES
 // ==========================================
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
-import ProjectDetailPage from './pages/ProjectDetailPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import GamificationPage from './pages/GamificationPage.jsx';
 import TeamPage from './pages/TeamPage.jsx';
@@ -35,25 +34,15 @@ import BadgesPage from './pages/BadgesPage.jsx';
 import TimeTrackPage from './pages/TimeTrackPage.jsx';
 
 // ==========================================
-// 🎮 PAGES GAMIFICATION
+// 🎮 PAGES GAMIFICATION EXISTANTES
 // ==========================================
-import LeaderboardPage from './pages/LeaderboardPage.jsx';
-import ClaimantPage from './pages/ClaimantPage.jsx';
 import RoleProgressionPage from './pages/RoleProgressionPage.jsx';
-import RoleTasksPage from './pages/RoleTasksPage.jsx';
-import RoleBadgesPage from './pages/RoleBadgesPage.jsx';
-import EscapeProgressionPage from './pages/EscapeProgressionPage.jsx';
 
 // ==========================================
-// 🛡️ PAGES ADMIN
+// 🛡️ PAGES ADMIN EXISTANTES
 // ==========================================
-import AdminDashboardTuteurPage from './pages/AdminDashboardTuteurPage.jsx';
 import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
 import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
-import AdminUserManagementPage from './pages/AdminUserManagementPage.jsx';
-import AdminAnalyticsPage from './pages/AdminAnalyticsPage.jsx';
-import AdminParametersPage from './pages/AdminParametersPage.jsx';
-import AdminGestionUtilisateursPage from './pages/AdminGestionUtilisateursPage.jsx';
 
 // ==========================================
 // 🛡️ COMPOSANT DE PROTECTION
@@ -79,6 +68,38 @@ const ProtectedRoute = ({ children }) => {
   
   return <Layout>{children}</Layout>;
 };
+
+// ==========================================
+// 🔧 COMPOSANT FALLBACK POUR PAGES MANQUANTES
+// ==========================================
+const PageNotImplemented = ({ pageName }) => (
+  <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-6">
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-white/10 backdrop-blur-md rounded-xl p-8 text-center">
+        <h1 className="text-3xl font-bold text-white mb-4">
+          Page {pageName}
+        </h1>
+        <p className="text-purple-200 mb-6">
+          Cette page sera disponible dans une prochaine version.
+        </p>
+        <div className="flex justify-center space-x-4">
+          <a 
+            href="/dashboard" 
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+          >
+            Retour au Dashboard
+          </a>
+          <a 
+            href="/gamification" 
+            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+          >
+            Voir Gamification
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 // ==========================================
 // 🚀 COMPOSANT PRINCIPAL APP
@@ -162,7 +183,7 @@ const App = () => {
             path="/projects/:projectId" 
             element={
               <ProtectedRoute>
-                <ProjectDetailPage />
+                <ProjectsPage />
               </ProtectedRoute>
             } 
           />
@@ -201,7 +222,7 @@ const App = () => {
             path="/leaderboard" 
             element={
               <ProtectedRoute>
-                <LeaderboardPage />
+                <PageNotImplemented pageName="Classement" />
               </ProtectedRoute>
             } 
           />
@@ -210,7 +231,7 @@ const App = () => {
             path="/claimant" 
             element={
               <ProtectedRoute>
-                <ClaimantPage />
+                <PageNotImplemented pageName="Réclamations" />
               </ProtectedRoute>
             } 
           />
@@ -240,7 +261,7 @@ const App = () => {
             path="/role-tasks" 
             element={
               <ProtectedRoute>
-                <RoleTasksPage />
+                <PageNotImplemented pageName="Tâches par Rôle" />
               </ProtectedRoute>
             } 
           />
@@ -249,7 +270,7 @@ const App = () => {
             path="/role-badges" 
             element={
               <ProtectedRoute>
-                <RoleBadgesPage />
+                <PageNotImplemented pageName="Badges Rôle" />
               </ProtectedRoute>
             } 
           />
@@ -258,7 +279,7 @@ const App = () => {
             path="/escape-progression" 
             element={
               <ProtectedRoute>
-                <EscapeProgressionPage />
+                <PageNotImplemented pageName="Escape Progression" />
               </ProtectedRoute>
             } 
           />
@@ -324,13 +345,13 @@ const App = () => {
           />
 
           {/* ==========================================
-              🛡️ ROUTES ADMIN
+              🛡️ ROUTES ADMIN EXISTANTES
               ========================================== */}
           <Route 
             path="/admin/dashboard-tuteur" 
             element={
               <ProtectedRoute>
-                <AdminDashboardTuteurPage />
+                <PageNotImplemented pageName="Dashboard Tuteur" />
               </ProtectedRoute>
             } 
           />
@@ -357,7 +378,7 @@ const App = () => {
             path="/admin/user-management" 
             element={
               <ProtectedRoute>
-                <AdminUserManagementPage />
+                <PageNotImplemented pageName="Gestion Utilisateurs" />
               </ProtectedRoute>
             } 
           />
@@ -366,7 +387,7 @@ const App = () => {
             path="/admin/analytics" 
             element={
               <ProtectedRoute>
-                <AdminAnalyticsPage />
+                <PageNotImplemented pageName="Analytics Admin" />
               </ProtectedRoute>
             } 
           />
@@ -375,7 +396,7 @@ const App = () => {
             path="/admin/parameters" 
             element={
               <ProtectedRoute>
-                <AdminParametersPage />
+                <PageNotImplemented pageName="Paramètres Admin" />
               </ProtectedRoute>
             } 
           />
@@ -384,7 +405,7 @@ const App = () => {
             path="/admin/gestion-utilisateurs" 
             element={
               <ProtectedRoute>
-                <AdminGestionUtilisateursPage />
+                <PageNotImplemented pageName="Gestion Utilisateurs Admin" />
               </ProtectedRoute>
             } 
           />
@@ -417,6 +438,6 @@ const App = () => {
 // ==========================================
 console.log('✅ App Synergia v3.5 stable chargé');
 console.log('🔧 AuthStore stable intégré');
-console.log('🛡️ Toutes les routes protégées configurées');
+console.log('🛡️ Imports corrigés pour build Netlify');
 
 export default App;
