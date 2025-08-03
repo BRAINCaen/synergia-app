@@ -1,158 +1,194 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/authStore.js
-// Store d'authentification SIMPLIFIÉ QUI FONCTIONNE
+// AUTH STORE D'URGENCE - VERSION ULTRA-SIMPLIFIÉE
 // ==========================================
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { 
   signInWithPopup, 
-  GoogleAuthProvider, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
-  onAuthStateChanged 
+  onAuthStateChanged,
+  GoogleAuthProvider 
 } from 'firebase/auth';
 import { auth } from '../../core/firebase.js';
 
-// Créer le provider Google
+// ==========================================
+// 🔧 VERSION D'URGENCE SANS COMPLEXITÉ
+// ==========================================
+
+// Provider Google
 const googleProvider = new GoogleAuthProvider();
 
-export const useAuthStore = create(
-  persist(
-    (set, get) => ({
-      // État initial
-      user: null,
-      loading: true,
-      error: null,
-      isAuthenticated: false,
-      initialized: false,
+// Store ultra-simplifié
+export const useAuthStore = create((set, get) => {
+  
+  // État minimal
+  const initialState = {
+    user: null,
+    loading: true,
+    error: null
+  };
 
-      // Actions
-      initializeAuth: () => {
-        console.log('🔄 Initialisation de l\'authentification...');
+  // Fonction de mise à jour utilisateur
+  const setUser = (user) => {
+    console.log('👤 Mise à jour utilisateur:', user?.email || 'Déconnexion');
+    set({ user, loading: false, error: null });
+  };
+
+  // Fonction d'erreur
+  const setError = (error) => {
+    console.error('❌ Erreur auth:', error);
+    set({ error: error.message, loading: false });
+  };
+
+  // Fonction de chargement
+  const setLoading = (loading) => {
+    set({ loading });
+  };
+
+  // ==========================================
+  // 🔐 MÉTHODES D'AUTHENTIFICATION
+  // ==========================================
+
+  const methods = {
+    
+    // Connexion Google
+    signInWithGoogle: async () => {
+      try {
+        setLoading(true);
+        console.log('🔍 Tentative connexion Google...');
         
-        set({ loading: true });
+        const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
         
-        const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-          console.log('🔔 Auth state changed:', firebaseUser ? 'Connecté' : 'Déconnecté');
-          
-          if (firebaseUser) {
-            const userData = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName,
-              photoURL: firebaseUser.photoURL,
-              emailVerified: firebaseUser.emailVerified
-            };
-            
-            set({ 
-              user: userData, 
-              isAuthenticated: true, 
-              loading: false, 
-              error: null,
-              initialized: true
-            });
-            
-            console.log('✅ Utilisateur connecté:', userData.email);
-          } else {
-            set({ 
-              user: null, 
-              isAuthenticated: false, 
-              loading: false, 
-              error: null,
-              initialized: true
-            });
-            
-            console.log('ℹ️ Aucun utilisateur connecté');
-          }
-        });
-
-        // Retourner la fonction de nettoyage
-        return unsubscribe;
-      },
-
-      // Connexion avec Google
-      signInWithGoogle: async () => {
-        try {
-          set({ loading: true, error: null });
-          
-          console.log('🔐 Tentative de connexion Google...');
-          
-          const result = await signInWithPopup(auth, googleProvider);
-          const user = result.user;
-          
-          console.log('✅ Connexion Google réussie:', user.email);
-          
-          return { success: true, user };
-        } catch (error) {
-          console.error('❌ Erreur connexion Google:', error);
-          
-          let errorMessage = 'Erreur de connexion';
-          if (error.code === 'auth/popup-closed-by-user') {
-            errorMessage = 'Connexion annulée';
-          } else if (error.code === 'auth/popup-blocked') {
-            errorMessage = 'Popup bloquée par le navigateur';
-          }
-          
-          set({ error: errorMessage, loading: false });
-          return { success: false, error: errorMessage };
-        }
-      },
-
-      // Déconnexion
-      signOut: async () => {
-        try {
-          set({ loading: true, error: null });
-          
-          await firebaseSignOut(auth);
-          
-          console.log('✅ Déconnexion réussie');
-          
-          set({ 
-            user: null, 
-            isAuthenticated: false, 
-            loading: false,
-            error: null 
-          });
-          
-          return { success: true };
-        } catch (error) {
-          console.error('❌ Erreur déconnexion:', error);
-          
-          set({ error: 'Erreur de déconnexion', loading: false });
-          return { success: false, error: error.message };
-        }
-      },
-
-      // Nettoyer les erreurs
-      clearError: () => {
-        set({ error: null });
-      },
-
-      // Mettre à jour l'utilisateur
-      updateUser: (userData) => {
-        set(state => ({
-          user: { ...state.user, ...userData }
-        }));
+        console.log('✅ Connexion Google réussie:', user.email);
+        setUser(user);
+        return user;
+        
+      } catch (error) {
+        console.error('❌ Erreur connexion Google:', error);
+        setError(error);
+        throw error;
       }
-    }),
-    {
-      name: 'auth-store',
-      partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated
-      })
+    },
+
+    // Connexion email
+    signInWithEmail: async (email, password) => {
+      try {
+        setLoading(true);
+        console.log('📧 Tentative connexion email:', email);
+        
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        const user = result.user;
+        
+        console.log('✅ Connexion email réussie:', user.email);
+        setUser(user);
+        return user;
+        
+      } catch (error) {
+        console.error('❌ Erreur connexion email:', error);
+        setError(error);
+        throw error;
+      }
+    },
+
+    // Inscription
+    signUp: async (email, password) => {
+      try {
+        setLoading(true);
+        console.log('📝 Tentative inscription:', email);
+        
+        const result = await createUserWithEmailAndPassword(auth, email, password);
+        const user = result.user;
+        
+        console.log('✅ Inscription réussie:', user.email);
+        setUser(user);
+        return user;
+        
+      } catch (error) {
+        console.error('❌ Erreur inscription:', error);
+        setError(error);
+        throw error;
+      }
+    },
+
+    // Déconnexion
+    signOut: async () => {
+      try {
+        console.log('👋 Déconnexion...');
+        await firebaseSignOut(auth);
+        setUser(null);
+        console.log('✅ Déconnexion réussie');
+        
+      } catch (error) {
+        console.error('❌ Erreur déconnexion:', error);
+        setError(error);
+        throw error;
+      }
+    },
+
+    // Vérifier l'état d'auth
+    checkAuthState: () => {
+      console.log('🔍 Vérification état authentification...');
+      
+      // Observer les changements d'état
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        console.log('🔔 Auth state changed:', user ? 'Connecté' : 'Déconnecté');
+        
+        if (user) {
+          console.log('✅ Utilisateur connecté:', user.email);
+          setUser(user);
+        } else {
+          console.log('❌ Aucun utilisateur connecté');
+          setUser(null);
+        }
+      }, (error) => {
+        console.error('❌ Erreur observer auth:', error);
+        setError(error);
+      });
+
+      // Stocker la fonction de désabonnement
+      set({ unsubscribe });
+      
+      return unsubscribe;
+    },
+
+    // Réinitialiser l'erreur
+    clearError: () => {
+      set({ error: null });
     }
-  )
-);
+  };
 
-// Auto-initialisation
-let authInitialized = false;
+  // ==========================================
+  // 🚀 INITIALISATION AUTO
+  // ==========================================
+  
+  // Démarrer l'observation de l'auth au chargement du store
+  setTimeout(() => {
+    try {
+      methods.checkAuthState();
+      console.log('🚀 AuthStore auto-initialisé');
+    } catch (error) {
+      console.error('❌ Erreur initialisation AuthStore:', error);
+      set({ error: error.message, loading: false });
+    }
+  }, 100);
 
-if (!authInitialized) {
-  const store = useAuthStore.getState();
-  store.initializeAuth();
-  authInitialized = true;
-  console.log('🚀 AuthStore auto-initialisé');
-}
+  // Retourner l'état et les méthodes
+  return {
+    ...initialState,
+    ...methods
+  };
+});
 
+// ==========================================
+// 📋 LOGS DE CONFIRMATION
+// ==========================================
+console.log('✅ AuthStore d\'urgence chargé');
+console.log('🔧 Version ultra-simplifiée sans complexité');
+console.log('🛡️ Gestion d\'erreurs renforcée');
+
+// Export par défaut pour compatibilité
 export default useAuthStore;
