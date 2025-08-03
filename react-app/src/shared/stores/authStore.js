@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/authStore.js
-// AUTH STORE D'URGENCE - VERSION ULTRA-SIMPLIFIÉE
+// AUTH STORE STABLE - SANS BOUCLES DE RÉINITIALISATION
 // ==========================================
 
 import { create } from 'zustand';
@@ -15,41 +15,29 @@ import {
 import { auth } from '../../core/firebase.js';
 
 // ==========================================
-// 🔧 VERSION D'URGENCE SANS COMPLEXITÉ
+// 🔧 VERSION STABLE SANS AUTO-RÉINITIALISATION
 // ==========================================
 
 // Provider Google
 const googleProvider = new GoogleAuthProvider();
 
-// Store ultra-simplifié
+// Variable pour éviter les initialisations multiples
+let authStateInitialized = false;
+
+// Store stable
 export const useAuthStore = create((set, get) => {
   
   // État minimal
   const initialState = {
     user: null,
     loading: true,
-    error: null
-  };
-
-  // Fonction de mise à jour utilisateur
-  const setUser = (user) => {
-    console.log('👤 Mise à jour utilisateur:', user?.email || 'Déconnexion');
-    set({ user, loading: false, error: null });
-  };
-
-  // Fonction d'erreur
-  const setError = (error) => {
-    console.error('❌ Erreur auth:', error);
-    set({ error: error.message, loading: false });
-  };
-
-  // Fonction de chargement
-  const setLoading = (loading) => {
-    set({ loading });
+    error: null,
+    isAuthenticated: false,
+    unsubscribe: null
   };
 
   // ==========================================
-  // 🔐 MÉTHODES D'AUTHENTIFICATION
+  // 🔐 MÉTHODES D'AUTHENTIFICATION STABLES
   // ==========================================
 
   const methods = {
@@ -57,19 +45,29 @@ export const useAuthStore = create((set, get) => {
     // Connexion Google
     signInWithGoogle: async () => {
       try {
-        setLoading(true);
+        set({ loading: true, error: null });
         console.log('🔍 Tentative connexion Google...');
         
         const result = await signInWithPopup(auth, googleProvider);
         const user = result.user;
         
         console.log('✅ Connexion Google réussie:', user.email);
-        setUser(user);
+        set({ 
+          user, 
+          loading: false, 
+          error: null,
+          isAuthenticated: true 
+        });
         return user;
         
       } catch (error) {
         console.error('❌ Erreur connexion Google:', error);
-        setError(error);
+        set({ 
+          error: error.message, 
+          loading: false,
+          user: null,
+          isAuthenticated: false 
+        });
         throw error;
       }
     },
@@ -77,19 +75,29 @@ export const useAuthStore = create((set, get) => {
     // Connexion email
     signInWithEmail: async (email, password) => {
       try {
-        setLoading(true);
+        set({ loading: true, error: null });
         console.log('📧 Tentative connexion email:', email);
         
         const result = await signInWithEmailAndPassword(auth, email, password);
         const user = result.user;
         
         console.log('✅ Connexion email réussie:', user.email);
-        setUser(user);
+        set({ 
+          user, 
+          loading: false, 
+          error: null,
+          isAuthenticated: true 
+        });
         return user;
         
       } catch (error) {
         console.error('❌ Erreur connexion email:', error);
-        setError(error);
+        set({ 
+          error: error.message, 
+          loading: false,
+          user: null,
+          isAuthenticated: false 
+        });
         throw error;
       }
     },
@@ -97,19 +105,29 @@ export const useAuthStore = create((set, get) => {
     // Inscription
     signUp: async (email, password) => {
       try {
-        setLoading(true);
+        set({ loading: true, error: null });
         console.log('📝 Tentative inscription:', email);
         
         const result = await createUserWithEmailAndPassword(auth, email, password);
         const user = result.user;
         
         console.log('✅ Inscription réussie:', user.email);
-        setUser(user);
+        set({ 
+          user, 
+          loading: false, 
+          error: null,
+          isAuthenticated: true 
+        });
         return user;
         
       } catch (error) {
         console.error('❌ Erreur inscription:', error);
-        setError(error);
+        set({ 
+          error: error.message, 
+          loading: false,
+          user: null,
+          isAuthenticated: false 
+        });
         throw error;
       }
     },
@@ -119,34 +137,53 @@ export const useAuthStore = create((set, get) => {
       try {
         console.log('👋 Déconnexion...');
         await firebaseSignOut(auth);
-        setUser(null);
+        set({ 
+          user: null, 
+          loading: false, 
+          error: null,
+          isAuthenticated: false 
+        });
         console.log('✅ Déconnexion réussie');
         
       } catch (error) {
         console.error('❌ Erreur déconnexion:', error);
-        setError(error);
+        set({ 
+          error: error.message, 
+          loading: false 
+        });
         throw error;
       }
     },
 
-    // Vérifier l'état d'auth
-    checkAuthState: () => {
-      console.log('🔍 Vérification état authentification...');
+    // ✅ CORRECTION: Initialisation unique et stable
+    initializeAuth: () => {
+      // Éviter les initialisations multiples
+      if (authStateInitialized) {
+        console.log('🔒 Auth déjà initialisé, ignorer');
+        return;
+      }
+
+      console.log('🔍 Initialisation unique auth state...');
+      authStateInitialized = true;
       
-      // Observer les changements d'état
+      // Observer les changements d'état UNE SEULE FOIS
       const unsubscribe = onAuthStateChanged(auth, (user) => {
-        console.log('🔔 Auth state changed:', user ? 'Connecté' : 'Déconnecté');
+        console.log('🔔 Auth state changed:', user ? `Connecté: ${user.email}` : 'Déconnecté');
         
-        if (user) {
-          console.log('✅ Utilisateur connecté:', user.email);
-          setUser(user);
-        } else {
-          console.log('❌ Aucun utilisateur connecté');
-          setUser(null);
-        }
+        set({ 
+          user, 
+          loading: false, 
+          error: null,
+          isAuthenticated: !!user 
+        });
       }, (error) => {
         console.error('❌ Erreur observer auth:', error);
-        setError(error);
+        set({ 
+          error: error.message, 
+          loading: false,
+          user: null,
+          isAuthenticated: false 
+        });
       });
 
       // Stocker la fonction de désabonnement
@@ -158,23 +195,18 @@ export const useAuthStore = create((set, get) => {
     // Réinitialiser l'erreur
     clearError: () => {
       set({ error: null });
+    },
+
+    // Nettoyer les listeners
+    cleanup: () => {
+      const { unsubscribe } = get();
+      if (unsubscribe) {
+        unsubscribe();
+        set({ unsubscribe: null });
+      }
+      authStateInitialized = false;
     }
   };
-
-  // ==========================================
-  // 🚀 INITIALISATION AUTO
-  // ==========================================
-  
-  // Démarrer l'observation de l'auth au chargement du store
-  setTimeout(() => {
-    try {
-      methods.checkAuthState();
-      console.log('🚀 AuthStore auto-initialisé');
-    } catch (error) {
-      console.error('❌ Erreur initialisation AuthStore:', error);
-      set({ error: error.message, loading: false });
-    }
-  }, 100);
 
   // Retourner l'état et les méthodes
   return {
@@ -184,11 +216,24 @@ export const useAuthStore = create((set, get) => {
 });
 
 // ==========================================
+// 🚀 INITIALISATION MANUELLE AU LIEU D'AUTO
+// ==========================================
+
+// Fonction d'initialisation à appeler manuellement depuis App.jsx
+export const initializeAuthStore = () => {
+  if (!authStateInitialized) {
+    console.log('🚀 Initialisation manuelle AuthStore');
+    const store = useAuthStore.getState();
+    store.initializeAuth();
+  }
+};
+
+// ==========================================
 // 📋 LOGS DE CONFIRMATION
 // ==========================================
-console.log('✅ AuthStore d\'urgence chargé');
-console.log('🔧 Version ultra-simplifiée sans complexité');
-console.log('🛡️ Gestion d\'erreurs renforcée');
+console.log('✅ AuthStore stable chargé');
+console.log('🔧 Sans auto-réinitialisation');
+console.log('🛡️ Appel initializeAuthStore() requis');
 
 // Export par défaut pour compatibilité
 export default useAuthStore;
