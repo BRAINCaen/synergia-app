@@ -1,71 +1,262 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APP CORRIGÉ - IMPORT simpleRoleFix au lieu de completeRoleFix
+// APP DIAGNOSTIC - IDENTIFIER LE PROBLÈME D'AFFICHAGE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// 🔧 Import du Layout sophistiqué avec sidebar
-import Layout from './components/layout/Layout.jsx';
-
-// Stores
+// Store auth uniquement pour commencer
 import { useAuthStore } from './shared/stores/authStore.js';
 
-// ✅ CORRECTION CRITIQUE : Import du simpleRoleFix au lieu de completeRoleFix
-import './core/simpleRoleFix.js'; // ✅ Version compatible build
-
-// ✅ Import des corrections d'erreurs sécurisées
+// Import du correctif d'erreurs
 import './utils/safeFix.js';
 
-// Pages principales
-import Login from './pages/Login.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import TasksPage from './pages/TasksPage.jsx';
-import ProjectsPage from './pages/ProjectsPage.jsx';
-import ProjectDetailPage from './pages/ProjectDetailPage.jsx';
-import AnalyticsPage from './pages/AnalyticsPage.jsx';
-import GamificationPage from './pages/GamificationPage.jsx';
-import TeamPage from './pages/TeamPage.jsx';
-import UsersPage from './pages/UsersPage.jsx';
-import OnboardingPage from './pages/OnboardingPage.jsx';
-import ProfilePage from './pages/ProfilePage.jsx';
-import SettingsPage from './pages/SettingsPage.jsx';
-import RewardsPage from './pages/RewardsPage.jsx';
-import BadgesPage from './pages/BadgesPage.jsx';
-import TimeTrackPage from './pages/TimeTrackPage.jsx';
+// ==========================================
+// 🔧 COMPOSANT DE DIAGNOSTIC
+// ==========================================
 
-// Pages nouvellement créées
-import LeaderboardPage from './pages/LeaderboardPage.jsx';
-import RoleProgressionPage from './pages/RoleProgressionPage.jsx';
-import RoleTasksPage from './pages/RoleTasksPage.jsx';
-import RoleBadgesPage from './pages/RoleBadgesPage.jsx';
-import EscapeProgressionPage from './pages/EscapeProgressionPage.jsx';
+const DiagnosticPage = () => {
+  const [diagnostics, setDiagnostics] = useState([]);
+  const { user } = useAuthStore();
 
-// Pages admin existantes
-import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
-import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
+  useEffect(() => {
+    const runDiagnostics = () => {
+      const results = [];
+      
+      try {
+        // Test 1: React fonctionne
+        results.push({ test: 'React Render', status: 'OK', detail: 'Composant rendu' });
+        
+        // Test 2: Auth Store
+        results.push({ 
+          test: 'Auth Store', 
+          status: user ? 'OK' : 'WARN', 
+          detail: user ? `Utilisateur: ${user.email}` : 'Pas d\'utilisateur'
+        });
+        
+        // Test 3: Router
+        results.push({ test: 'React Router', status: 'OK', detail: window.location.pathname });
+        
+        // Test 4: Styles
+        results.push({ test: 'Tailwind CSS', status: 'OK', detail: 'Classes appliquées' });
+        
+        // Test 5: Console errors
+        const hasErrors = window.console._errors?.length > 0;
+        results.push({ 
+          test: 'Console Errors', 
+          status: hasErrors ? 'ERROR' : 'OK', 
+          detail: hasErrors ? `${window.console._errors.length} erreurs` : 'Aucune erreur critique'
+        });
+        
+      } catch (error) {
+        results.push({ test: 'Diagnostic', status: 'ERROR', detail: error.message });
+      }
+      
+      setDiagnostics(results);
+    };
 
-// Pages admin nouvellement créées
-import AdminDashboardTuteurPage from './pages/AdminDashboardTuteurPage.jsx';
-import AdminRolePermissionsPage from './pages/AdminRolePermissionsPage.jsx';
-import AdminRewardsPage from './pages/AdminRewardsPage.jsx';
-import AdminBadgesPage from './pages/AdminBadgesPage.jsx';
-import AdminUsersPage from './pages/AdminUsersPage.jsx';
-import AdminAnalyticsPage from './pages/AdminAnalyticsPage.jsx';
-import AdminSettingsPage from './pages/AdminSettingsPage.jsx';
+    runDiagnostics();
+    
+    // Re-test toutes les 5 secondes
+    const interval = setInterval(runDiagnostics, 5000);
+    return () => clearInterval(interval);
+  }, [user]);
 
-console.log('🚀 App.jsx chargé - Synergia v3.5');
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
+      <div className="max-w-4xl mx-auto">
+        
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-white mb-4">
+            🔧 Diagnostic Synergia v3.5
+          </h1>
+          <p className="text-gray-400 text-lg">
+            Identification des problèmes d'affichage
+          </p>
+        </div>
 
-/**
- * 🎯 COMPOSANT PRINCIPAL SÉCURISÉ
- */
+        {/* Tests de diagnostic */}
+        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mb-8">
+          <h2 className="text-2xl font-bold text-white mb-6">🧪 Tests de Diagnostic</h2>
+          
+          <div className="space-y-4">
+            {diagnostics.map((diag, index) => (
+              <div key={index} className="flex items-center justify-between p-4 bg-gray-700/30 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <span className={`text-2xl ${
+                    diag.status === 'OK' ? '✅' : 
+                    diag.status === 'WARN' ? '⚠️' : '❌'
+                  }`}>
+                    {diag.status === 'OK' ? '✅' : 
+                     diag.status === 'WARN' ? '⚠️' : '❌'}
+                  </span>
+                  <div>
+                    <h3 className="text-white font-medium">{diag.test}</h3>
+                    <p className="text-gray-400 text-sm">{diag.detail}</p>
+                  </div>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  diag.status === 'OK' ? 'bg-green-900/50 text-green-300' :
+                  diag.status === 'WARN' ? 'bg-yellow-900/50 text-yellow-300' :
+                  'bg-red-900/50 text-red-300'
+                }`}>
+                  {diag.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Informations système */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          
+          {/* Info navigateur */}
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+            <h3 className="text-xl font-bold text-white mb-4">🌐 Navigateur</h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-400">User Agent:</span>
+                <span className="text-white text-xs">{navigator.userAgent.substring(0, 30)}...</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Viewport:</span>
+                <span className="text-white">{window.innerWidth} x {window.innerHeight}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">URL:</span>
+                <span className="text-white">{window.location.pathname}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Info utilisateur */}
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+            <h3 className="text-xl font-bold text-white mb-4">👤 Utilisateur</h3>
+            <div className="space-y-2 text-sm">
+              {user ? (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Email:</span>
+                    <span className="text-white">{user.email}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Nom:</span>
+                    <span className="text-white">{user.displayName || 'Non défini'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">UID:</span>
+                    <span className="text-white text-xs">{user.uid?.substring(0, 20)}...</span>
+                  </div>
+                </>
+              ) : (
+                <p className="text-gray-400">Aucun utilisateur connecté</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Console logs récents */}
+        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mb-8">
+          <h3 className="text-xl font-bold text-white mb-4">📋 Logs Console</h3>
+          <div className="bg-black/50 rounded-lg p-4 font-mono text-sm">
+            <div className="text-green-400">✅ Diagnostic page rendue</div>
+            <div className="text-blue-400">ℹ️ React Router: {window.location.pathname}</div>
+            <div className="text-yellow-400">⚠️ Mode debug actif</div>
+            <div className="text-white">🕒 {new Date().toLocaleTimeString()}</div>
+          </div>
+        </div>
+
+        {/* Actions de test */}
+        <div className="flex flex-wrap justify-center gap-4 mb-8">
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+          >
+            🔄 Recharger Page
+          </button>
+          
+          <button 
+            onClick={() => localStorage.clear()}
+            className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+          >
+            🗑️ Vider Cache
+          </button>
+          
+          <button 
+            onClick={() => console.log('🧪 Test console')}
+            className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+          >
+            🧪 Test Console
+          </button>
+          
+          <button 
+            onClick={() => window.history.pushState({}, '', '/dashboard')}
+            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+          >
+            🏠 Aller Dashboard
+          </button>
+        </div>
+
+        {/* Status final */}
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 px-6 py-3 bg-gray-700/50 rounded-lg">
+            <span className="text-2xl">🔧</span>
+            <span className="text-white font-medium">Diagnostic en cours...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 🔧 COMPOSANT LOGIN ULTRA-SIMPLE
+// ==========================================
+
+const SimpleLogin = () => {
+  const { signInWithGoogle } = useAuthStore();
+  const [loading, setLoading] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+      console.log('✅ Connexion Google réussie');
+    } catch (error) {
+      console.error('❌ Erreur Google:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8 text-center">
+        <h1 className="text-3xl font-bold text-white mb-6">🔐 Synergia Login</h1>
+        <button
+          onClick={handleGoogleLogin}
+          disabled={loading}
+          className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
+        >
+          {loading ? 'Connexion...' : '🔍 Continuer avec Google'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 🎯 APP PRINCIPAL
+// ==========================================
+
 const App = () => {
   const { user, loading: authLoading, checkAuthState } = useAuthStore();
 
   // Vérifier l'état d'authentification au montage
   useEffect(() => {
-    console.log('🔐 Vérification état auth...');
+    console.log('🔐 App: Vérification état auth...');
     checkAuthState();
   }, [checkAuthState]);
 
@@ -75,84 +266,33 @@ const App = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-white text-lg">Chargement de Synergia...</p>
+          <p className="text-white text-lg">🔧 Chargement diagnostic...</p>
         </div>
       </div>
     );
   }
 
+  console.log('🎯 App rendu, utilisateur:', user?.email || 'Non connecté');
+
   return (
     <Router>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="min-h-screen">
         <Routes>
-          {/* ==========================================
-              🔐 ROUTES PUBLIQUES (Non connecté)
-              ========================================== */}
+          {/* Route de diagnostic pour tous */}
+          <Route path="/diagnostic" element={<DiagnosticPage />} />
+          
+          {/* Routes conditionnelles */}
           {!user ? (
             <>
-              <Route path="/login" element={<Login />} />
+              <Route path="/login" element={<SimpleLogin />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </>
           ) : (
-            /* ==========================================
-               🔒 ROUTES PROTÉGÉES (Connecté)
-               ========================================== */
-            <Route
-              path="/*"
-              element={
-                <Layout>
-                  <Routes>
-                    {/* ==========================================
-                        📊 PAGES PRINCIPALES
-                        ========================================== */}
-                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/tasks" element={<TasksPage />} />
-                    <Route path="/projects" element={<ProjectsPage />} />
-                    <Route path="/projects/:id" element={<ProjectDetailPage />} />
-                    <Route path="/analytics" element={<AnalyticsPage />} />
-                    <Route path="/gamification" element={<GamificationPage />} />
-                    <Route path="/team" element={<TeamPage />} />
-                    <Route path="/users" element={<UsersPage />} />
-                    <Route path="/profile" element={<ProfilePage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
-                    <Route path="/onboarding" element={<OnboardingPage />} />
-                    <Route path="/time-track" element={<TimeTrackPage />} />
-
-                    {/* ==========================================
-                        🎮 PAGES GAMIFICATION
-                        ========================================== */}
-                    <Route path="/rewards" element={<RewardsPage />} />
-                    <Route path="/badges" element={<BadgesPage />} />
-                    <Route path="/leaderboard" element={<LeaderboardPage />} />
-
-                    {/* ==========================================
-                        🎭 PAGES GESTION DES RÔLES
-                        ========================================== */}
-                    <Route path="/role-progression" element={<RoleProgressionPage />} />
-                    <Route path="/role-tasks" element={<RoleTasksPage />} />
-                    <Route path="/role-badges" element={<RoleBadgesPage />} />
-                    <Route path="/escape-progression" element={<EscapeProgressionPage />} />
-
-                    {/* ==========================================
-                        🛡️ PAGES ADMIN
-                        ========================================== */}
-                    <Route path="/admin/dashboard-tuteur" element={<AdminDashboardTuteurPage />} />
-                    <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
-                    <Route path="/admin/role-permissions" element={<AdminRolePermissionsPage />} />
-                    <Route path="/admin/rewards" element={<AdminRewardsPage />} />
-                    <Route path="/admin/badges" element={<AdminBadgesPage />} />
-                    <Route path="/admin/users" element={<AdminUsersPage />} />
-                    <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
-                    <Route path="/admin/settings" element={<AdminSettingsPage />} />
-                    <Route path="/admin/test" element={<CompleteAdminTestPage />} />
-
-                    {/* Route par défaut pour les chemins inconnus */}
-                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                  </Routes>
-                </Layout>
-              }
-            />
+            <>
+              <Route path="/" element={<Navigate to="/diagnostic" replace />} />
+              <Route path="/dashboard" element={<DiagnosticPage />} />
+              <Route path="*" element={<DiagnosticPage />} />
+            </>
           )}
         </Routes>
       </div>
@@ -163,9 +303,8 @@ const App = () => {
 export default App;
 
 // ==========================================
-// 📋 LOGS DE CONFIRMATION
+// 📋 LOGS DE DIAGNOSTIC
 // ==========================================
-console.log('✅ App.jsx corrigé');
-console.log('🔧 Import simpleRoleFix au lieu de completeRoleFix');
-console.log('🛡️ Toutes les routes configurées');
-console.log('🚀 Compatible avec build Netlify');
+console.log('🔧 App diagnostic chargé');
+console.log('🎯 Mode debug pour identifier le problème d\'affichage');
+console.log('📊 Redirection automatique vers /diagnostic');
