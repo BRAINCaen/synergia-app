@@ -1,12 +1,13 @@
 // ==========================================
-// 📁 react-app/src/pages/AnalyticsPage.jsx  
-// CORRECTION IMPORT "Progress" -> "Gauge"
+// 📁 react-app/src/pages/AnalyticsPage.jsx
+// ANALYTICS PAGE FIREBASE PUR - CORRIGÉE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-
-// ✅ CORRECTION CRITIQUE : Progress remplacé par Gauge
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { db } from '../core/firebase.js';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -25,335 +26,585 @@ import {
   Activity,
   CheckCircle2,
   AlertCircle,
-  Gauge, // ✅ CORRIGÉ : Progress n'existe pas, utilisation de Gauge
+  Gauge,
   PieChart,
   LineChart,
-  BarChart,
   ArrowUp,
   ArrowDown,
   Minus,
   Rocket,
-  Brain
+  Brain,
+  Award
 } from 'lucide-react';
 
-// Layout et composants premium
-import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
-
-// Services et stores
-import { useAuthStore } from '../shared/stores/authStore.js';
-import { analyticsService } from '../core/services/analyticsService.js';
-import { collection, query, getDocs, orderBy, limit, where } from 'firebase/firestore';
-import { db } from '../core/firebase.js';
-
 /**
- * 📊 ANALYTICS PREMIUM AVEC VRAIS UTILISATEURS
+ * 📊 ANALYTICS PAGE FIREBASE PUR
+ * Tableaux de bord et métriques avec données réelles Firebase
  */
 const AnalyticsPage = () => {
   const { user } = useAuthStore();
+  const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState('week');
   
-  const [analytics, setAnalytics] = useState({
-    totalTasks: 0,
-    completedTasks: 0,
-    completionRate: 0,
-    totalXP: 0,
-    activeProjects: 0,
-    totalProjects: 0,
-    productivity: 'medium',
-    trend: 'up'
+  // ✅ DONNÉES FIREBASE RÉELLES
+  const { 
+    gamification,
+    userStats,
+    loading: dataLoading 
+  } = useUnifiedFirebaseData(user?.uid);
+  
+  // ✅ ANALYTICS RÉELLES CALCULÉES
+  const [realAnalytics, setRealAnalytics] = useState({
+    overview: {
+      totalTasks: 0,
+      completedTasks: 0,
+      totalProjects: 0,
+      totalXp: 0,
+      completionRate: 0,
+      productivity: 'medium'
+    },
+    performance: {
+      tasksThisWeek: 0,
+      tasksLastWeek: 0,
+      xpThisWeek: 0,
+      xpLastWeek: 0,
+      trend: 'up'
+    },
+    productivity: {
+      dailyAverage: 0,
+      peakDay: 'Lundi',
+      bestHour: '10h',
+      focusTime: 0
+    },
+    goals: {
+      weeklyTarget: 10,
+      achieved: 0,
+      remaining: 0,
+      onTrack: true
+    }
   });
 
-  const [timeRange, setTimeRange] = useState('week');
-  const [loading, setLoading] = useState(true);
+  const [chartData, setChartData] = useState({
+    weeklyProgress: [],
+    tasksByStatus: [],
+    projectsProgress: [],
+    xpHistory: []
+  });
 
-  // Charger les vraies analytics Firebase
   useEffect(() => {
-    loadRealAnalytics();
-  }, [timeRange, user]);
+    if (user?.uid) {
+      loadRealAnalytics();
+    }
+  }, [user?.uid, timeRange]);
 
+  /**
+   * 📊 CHARGER TOUTES LES VRAIES ANALYTICS FIREBASE
+   */
   const loadRealAnalytics = async () => {
     if (!user?.uid) return;
-
+    
     setLoading(true);
     try {
-      console.log('📊 Chargement analytics réelles...');
+      console.log('📊 Chargement analytics Firebase pour:', user.uid);
+      
+      // Paralléliser toutes les requêtes
+      const [
+        userTasksSnapshot,
+        userProjectsSnapshot,
+        userActivitySnapshot
+      ] = await Promise.all([
+        // Tâches utilisateur
+        getDocs(query(
+          collection(db, 'tasks'),
+          where('userId', '==', user.uid),
+          orderBy('createdAt', 'desc')
+        )),
+        // Projets utilisateur
+        getDocs(query(
+          collection(db, 'projects'),
+          where('createdBy', '==', user.uid),
+          orderBy('createdAt', 'desc')
+        )),
+        // Activité utilisateur
+        getDocs(query(
+          collection(db, 'userActivity'),
+          where('userId', '==', user.uid),
+          orderBy('timestamp', 'desc')
+        ))
+      ]);
 
-      // Récupérer les tâches de l'utilisateur
-      const tasksQuery = query(
-        collection(db, 'tasks'),
-        where('assignedTo', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
-      const tasksSnapshot = await getDocs(tasksQuery);
-      const userTasks = tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-      // Récupérer les projets
-      const projectsQuery = query(
-        collection(db, 'projects'),
-        orderBy('createdAt', 'desc')
-      );
-      const projectsSnapshot = await getDocs(projectsQuery);
-      const userProjects = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(project => 
-          project.team?.some(member => member.userId === user.uid) ||
-          project.createdBy === user.uid
-        );
-
-      // Calculer les métriques
-      const completedTasks = userTasks.filter(task => task.status === 'completed').length;
-      const completionRate = userTasks.length > 0 ? Math.round((completedTasks / userTasks.length) * 100) : 0;
-      const activeProjects = userProjects.filter(p => p.status === 'active').length;
-      const totalXP = user.gamification?.totalXP || 0;
-
-      setAnalytics({
-        totalTasks: userTasks.length,
-        completedTasks,
-        completionRate,
-        totalXP,
-        activeProjects,
-        totalProjects: userProjects.length,
-        productivity: completionRate > 70 ? 'high' : completionRate > 40 ? 'medium' : 'low',
-        trend: completedTasks > userTasks.length * 0.3 ? 'up' : 'down'
+      // 🔥 TRAITER LES TÂCHES
+      const userTasks = [];
+      userTasksSnapshot.forEach(doc => {
+        userTasks.push({ id: doc.id, ...doc.data() });
       });
 
-      console.log('✅ Analytics chargées:', { userTasks: userTasks.length, completedTasks, activeProjects });
-      
+      // 🔥 TRAITER LES PROJETS
+      const userProjects = [];
+      userProjectsSnapshot.forEach(doc => {
+        userProjects.push({ id: doc.id, ...doc.data() });
+      });
+
+      // 🔥 TRAITER L'ACTIVITÉ
+      const userActivity = [];
+      userActivitySnapshot.forEach(doc => {
+        const activity = doc.data();
+        userActivity.push({
+          id: doc.id,
+          ...activity,
+          timestamp: activity.timestamp?.toDate() || new Date()
+        });
+      });
+
+      // 📊 CALCULER MÉTRIQUES GLOBALES
+      const completedTasks = userTasks.filter(task => task.status === 'completed');
+      const totalXp = completedTasks.reduce((sum, task) => sum + (task.xpReward || 0), 0);
+      const completionRate = userTasks.length > 0 ? Math.round((completedTasks.length / userTasks.length) * 100) : 0;
+
+      // 📅 CALCULER PERFORMANCE HEBDOMADAIRE
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      const twoWeeksAgo = new Date();
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+      const tasksThisWeek = userTasks.filter(task => 
+        task.updatedAt && task.updatedAt.toDate() > oneWeekAgo && task.status === 'completed'
+      ).length;
+
+      const tasksLastWeek = userTasks.filter(task => 
+        task.updatedAt && 
+        task.updatedAt.toDate() > twoWeeksAgo && 
+        task.updatedAt.toDate() <= oneWeekAgo &&
+        task.status === 'completed'
+      ).length;
+
+      const xpThisWeek = userTasks
+        .filter(task => task.updatedAt && task.updatedAt.toDate() > oneWeekAgo && task.status === 'completed')
+        .reduce((sum, task) => sum + (task.xpReward || 0), 0);
+
+      const xpLastWeek = userTasks
+        .filter(task => 
+          task.updatedAt && 
+          task.updatedAt.toDate() > twoWeeksAgo && 
+          task.updatedAt.toDate() <= oneWeekAgo &&
+          task.status === 'completed'
+        )
+        .reduce((sum, task) => sum + (task.xpReward || 0), 0);
+
+      // 📈 GÉNÉRER DONNÉES DE GRAPHIQUES
+      const last7Days = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dayTasks = userTasks.filter(task => {
+          if (!task.updatedAt || task.status !== 'completed') return false;
+          const taskDate = task.updatedAt.toDate();
+          return taskDate.toDateString() === date.toDateString();
+        });
+        
+        last7Days.push({
+          day: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
+          tasks: dayTasks.length,
+          xp: dayTasks.reduce((sum, task) => sum + (task.xpReward || 0), 0),
+          date: date.toISOString().split('T')[0]
+        });
+      }
+
+      // 📊 DISTRIBUTION TÂCHES PAR STATUT
+      const tasksByStatus = [
+        { name: 'Terminées', value: userTasks.filter(t => t.status === 'completed').length, color: '#10b981' },
+        { name: 'En cours', value: userTasks.filter(t => t.status === 'in-progress').length, color: '#3b82f6' },
+        { name: 'À faire', value: userTasks.filter(t => t.status === 'todo').length, color: '#f59e0b' }
+      ];
+
+      // 🎯 CALCULER OBJECTIFS
+      const weeklyTarget = 10; // Objectif par défaut
+      const achieved = tasksThisWeek;
+      const remaining = Math.max(0, weeklyTarget - achieved);
+      const onTrack = achieved >= (weeklyTarget * 0.7); // 70% = on track
+
+      // ✅ METTRE À JOUR LES ANALYTICS
+      setRealAnalytics({
+        overview: {
+          totalTasks: userTasks.length,
+          completedTasks: completedTasks.length,
+          totalProjects: userProjects.length,
+          totalXp: gamification?.totalXp || totalXp,
+          completionRate,
+          productivity: completionRate >= 80 ? 'high' : completionRate >= 60 ? 'medium' : 'low'
+        },
+        performance: {
+          tasksThisWeek,
+          tasksLastWeek,
+          xpThisWeek,
+          xpLastWeek,
+          trend: tasksThisWeek >= tasksLastWeek ? 'up' : 'down'
+        },
+        productivity: {
+          dailyAverage: Math.round((completedTasks.length / 30) * 10) / 10,
+          peakDay: getPeakDay(userTasks),
+          bestHour: getBestHour(userTasks),
+          focusTime: calculateFocusTime(userActivity)
+        },
+        goals: {
+          weeklyTarget,
+          achieved,
+          remaining,
+          onTrack
+        }
+      });
+
+      setChartData({
+        weeklyProgress: last7Days,
+        tasksByStatus,
+        projectsProgress: userProjects.map(p => ({
+          name: p.title,
+          progress: Math.round(Math.random() * 100), // TODO: calcul réel depuis tâches
+          color: `#${Math.floor(Math.random()*16777215).toString(16)}`
+        })),
+        xpHistory: last7Days.map(day => ({
+          day: day.day,
+          xp: day.xp
+        }))
+      });
+
+      console.log('✅ Analytics Firebase chargées:', {
+        tasks: userTasks.length,
+        projects: userProjects.length,
+        analytics: realAnalytics
+      });
+
     } catch (error) {
-      console.error('❌ Erreur chargement analytics:', error);
+      console.error('❌ Erreur chargement analytics Firebase:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const stats = [
-    {
-      label: 'Tâches Totales',
-      value: analytics.totalTasks,
-      icon: Target,
-      color: 'blue',
-      change: '+12%',
-      changeType: 'positive'
-    },
-    {
-      label: 'Taux Complétion',
-      value: `${analytics.completionRate}%`,
-      icon: CheckCircle2,
-      color: 'green',
-      change: `${analytics.completedTasks}/${analytics.totalTasks}`,
-      changeType: analytics.completionRate > 50 ? 'positive' : 'negative'
-    },
-    {
-      label: 'Projets Actifs',
-      value: analytics.activeProjects,
-      icon: Rocket,
-      color: 'purple',
-      change: `${analytics.totalProjects} total`,
-      changeType: 'neutral'
-    },
-    {
-      label: 'XP Total',
-      value: analytics.totalXP,
-      icon: Trophy,
-      color: 'orange',
-      change: analytics.trend === 'up' ? '+15%' : '-5%',
-      changeType: analytics.trend === 'up' ? 'positive' : 'negative'
-    }
-  ];
+  /**
+   * 📈 FONCTIONS UTILITAIRES
+   */
+  const getPeakDay = (tasks) => {
+    const dayCount = {};
+    tasks.filter(t => t.status === 'completed').forEach(task => {
+      if (task.updatedAt) {
+        const day = task.updatedAt.toDate().toLocaleDateString('fr-FR', { weekday: 'long' });
+        dayCount[day] = (dayCount[day] || 0) + 1;
+      }
+    });
+    return Object.keys(dayCount).reduce((a, b) => dayCount[a] > dayCount[b] ? a : b, 'Lundi');
+  };
+
+  const getBestHour = (tasks) => {
+    const hourCount = {};
+    tasks.filter(t => t.status === 'completed').forEach(task => {
+      if (task.updatedAt) {
+        const hour = task.updatedAt.toDate().getHours();
+        hourCount[hour] = (hourCount[hour] || 0) + 1;
+      }
+    });
+    const bestHour = Object.keys(hourCount).reduce((a, b) => hourCount[a] > hourCount[b] ? a : b, '10');
+    return `${bestHour}h`;
+  };
+
+  const calculateFocusTime = (activity) => {
+    // Estimation basée sur l'activité
+    return Math.round((activity.length / 10) * 100) / 100;
+  };
+
+  /**
+   * 📊 EXPORTER LES DONNÉES
+   */
+  const handleExport = () => {
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      user: user.email,
+      analytics: realAnalytics,
+      chartData,
+      gamification: {
+        level: gamification?.level || 1,
+        totalXp: gamification?.totalXp || 0,
+        badges: gamification?.badges?.length || 0
+      }
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `synergia-analytics-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    
+    URL.revokeObjectURL(url);
+  };
+
+  if (loading || dataLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Chargement des analytics...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <PremiumLayout
-      title="Analyse de Performance"
-      subtitle="Suivez vos métriques et progressez vers l'excellence"
-      icon={BarChart3}
-      showStats={true}
-      stats={stats}
-      headerActions={
-        <div className="flex items-center gap-4">
-          <select 
-            value={timeRange} 
-            onChange={(e) => setTimeRange(e.target.value)}
-            className="px-4 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="week">7 derniers jours</option>
-            <option value="month">30 derniers jours</option>
-            <option value="quarter">3 mois</option>
-            <option value="year">Année</option>
-          </select>
-          <PremiumButton icon={<RefreshCw />} onClick={loadRealAnalytics}>
-            Actualiser
-          </PremiumButton>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* EN-TÊTE */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-4">
+              <BarChart3 className="h-10 w-10 text-blue-600" />
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Analytics</h1>
+                <p className="text-lg text-gray-600 mt-1">
+                  Votre tableau de bord de performance
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <select
+                value={timeRange}
+                onChange={(e) => setTimeRange(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="week">7 derniers jours</option>
+                <option value="month">30 derniers jours</option>
+                <option value="quarter">3 derniers mois</option>
+              </select>
+              
+              <button
+                onClick={loadRealAnalytics}
+                className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Actualiser
+              </button>
+              
+              <button
+                onClick={handleExport}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Exporter
+              </button>
+            </div>
+          </div>
         </div>
-      }
-    >
-      <div className="space-y-8">
-        
-        {/* ==========================================
-            📊 GRAPHIQUES DE PROGRESSION
-            ========================================== */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
-          {/* Progression temporelle */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <PremiumCard className="p-6">
-              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-blue-400" />
-                Progression dans le temps
-              </h3>
-              <div className="h-64 flex items-center justify-center text-gray-400">
-                <div className="text-center">
-                  <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>Graphique de progression</p>
-                  <p className="text-sm">Données en temps réel</p>
+
+        {/* MÉTRIQUES PRINCIPALES */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Total Tâches */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Tâches</p>
+                <p className="text-3xl font-bold text-gray-900">{realAnalytics.overview.totalTasks}</p>
+                <p className="text-sm text-gray-500">{realAnalytics.overview.completedTasks} terminées</p>
+              </div>
+              <CheckSquare className="h-12 w-12 text-blue-500" />
+            </div>
+          </div>
+
+          {/* Taux de Completion */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Taux de Completion</p>
+                <p className="text-3xl font-bold text-green-600">{realAnalytics.overview.completionRate}%</p>
+                <div className="flex items-center mt-1">
+                  {realAnalytics.performance.trend === 'up' ? (
+                    <ArrowUp className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <ArrowDown className="h-4 w-4 text-red-500" />
+                  )}
+                  <span className={`text-sm ml-1 ${realAnalytics.performance.trend === 'up' ? 'text-green-500' : 'text-red-500'}`}>
+                    Tendance {realAnalytics.performance.trend === 'up' ? 'positive' : 'négative'}
+                  </span>
                 </div>
               </div>
-            </PremiumCard>
-          </motion.div>
+              <Target className="h-12 w-12 text-green-500" />
+            </div>
+          </div>
 
-          {/* Productivité */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5 }}
-          >
-            <PremiumCard className="p-6">
-              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <Gauge className="w-5 h-5 text-green-400" />
-                Score de Productivité
-              </h3>
-              <div className="flex items-center justify-center h-48">
-                <div className="relative">
-                  <div className="w-32 h-32 rounded-full border-8 border-gray-700 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-white">{analytics.completionRate}%</div>
-                      <div className="text-sm text-gray-400">Complétion</div>
+          {/* XP Total */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">XP Total</p>
+                <p className="text-3xl font-bold text-purple-600">{realAnalytics.overview.totalXp}</p>
+                <p className="text-sm text-gray-500">+{realAnalytics.performance.xpThisWeek} cette semaine</p>
+              </div>
+              <Star className="h-12 w-12 text-purple-500" />
+            </div>
+          </div>
+
+          {/* Projets */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Projets</p>
+                <p className="text-3xl font-bold text-orange-600">{realAnalytics.overview.totalProjects}</p>
+                <p className="text-sm text-gray-500">Créés</p>
+              </div>
+              <Rocket className="h-12 w-12 text-orange-500" />
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION GAMIFICATION */}
+        {gamification && (
+          <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 mb-8 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Progression Gamification</h3>
+                <div className="grid grid-cols-3 gap-6">
+                  <div>
+                    <p className="text-sm opacity-90">Niveau</p>
+                    <p className="text-2xl font-bold">{gamification.level || 1}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm opacity-90">XP</p>
+                    <p className="text-2xl font-bold">{gamification.totalXp || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm opacity-90">Badges</p>
+                    <p className="text-2xl font-bold">{gamification.badges?.length || 0}</p>
+                  </div>
+                </div>
+              </div>
+              <Trophy className="h-16 w-16 opacity-80" />
+            </div>
+          </div>
+        )}
+
+        {/* GRAPHIQUES ET DÉTAILS */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Progression Hebdomadaire */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <LineChart className="h-5 w-5 mr-2 text-blue-500" />
+              Progression (7 jours)
+            </h3>
+            <div className="space-y-3">
+              {chartData.weeklyProgress.map((day, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 w-12">{day.day}</span>
+                  <div className="flex-1 mx-4">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(100, (day.tasks / Math.max(1, Math.max(...chartData.weeklyProgress.map(d => d.tasks)))) * 100)}%` }}
+                      ></div>
                     </div>
                   </div>
-                  <div className={`absolute top-0 left-0 w-32 h-32 rounded-full border-8 border-transparent ${
-                    analytics.completionRate > 70 ? 'border-t-green-500 border-r-green-500' :
-                    analytics.completionRate > 40 ? 'border-t-yellow-500 border-r-yellow-500' :
-                    'border-t-red-500 border-r-red-500'
-                  } transform rotate-45`}></div>
+                  <div className="text-right">
+                    <span className="text-sm font-medium text-gray-900">{day.tasks}</span>
+                    <span className="text-xs text-purple-600 ml-2">+{day.xp}</span>
+                  </div>
                 </div>
-              </div>
-            </PremiumCard>
-          </motion.div>
+              ))}
+            </div>
+          </div>
+
+          {/* Répartition des Tâches */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <PieChart className="h-5 w-5 mr-2 text-green-500" />
+              Répartition des Tâches
+            </h3>
+            <div className="space-y-4">
+              {chartData.tasksByStatus.map((status, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div 
+                      className="w-4 h-4 rounded-full mr-3"
+                      style={{ backgroundColor: status.color }}
+                    ></div>
+                    <span className="text-sm text-gray-600">{status.name}</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">{status.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* ==========================================
-            📈 MÉTRIQUES DÉTAILLÉES
-            ========================================== */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Activité récente */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <PremiumCard className="p-6">
-              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-purple-400" />
-                Activité Récente
-              </h3>
-              <div className="space-y-3">
-                {loading ? (
-                  <div className="text-gray-400 text-center py-8">Chargement...</div>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
-                      <CheckCircle2 className="w-4 h-4 text-green-400" />
-                      <span className="text-sm text-gray-300">Tâche complétée</span>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
-                      <Trophy className="w-4 h-4 text-yellow-400" />
-                      <span className="text-sm text-gray-300">Nouveau badge obtenu</span>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
-                      <Target className="w-4 h-4 text-blue-400" />
-                      <span className="text-sm text-gray-300">Objectif atteint</span>
-                    </div>
-                  </>
-                )}
+        {/* INSIGHTS ET RECOMMANDATIONS */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Productivité */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <Activity className="h-5 w-5 mr-2 text-orange-500" />
+              Insights Productivité
+            </h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Moyenne quotidienne</span>
+                <span className="font-medium">{realAnalytics.productivity.dailyAverage} tâches/jour</span>
               </div>
-            </PremiumCard>
-          </motion.div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Jour le plus productif</span>
+                <span className="font-medium">{realAnalytics.productivity.peakDay}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Heure optimale</span>
+                <span className="font-medium">{realAnalytics.productivity.bestHour}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Temps de focus</span>
+                <span className="font-medium">{realAnalytics.productivity.focusTime}h/jour</span>
+              </div>
+            </div>
+          </div>
 
-          {/* Performance équipe */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-          >
-            <PremiumCard className="p-6">
-              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <Users className="w-5 h-5 text-orange-400" />
-                Performance Équipe
-              </h3>
-              <div className="h-64 flex items-center justify-center text-gray-400">
-                <div className="text-center">
-                  <BarChart className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>Comparaison équipe</p>
-                  <p className="text-sm">Données collaboratives</p>
-                </div>
+          {/* Objectifs */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <Target className="h-5 w-5 mr-2 text-red-500" />
+              Objectifs Hebdomadaires
+            </h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Objectif</span>
+                <span className="font-medium">{realAnalytics.goals.weeklyTarget} tâches</span>
               </div>
-            </PremiumCard>
-          </motion.div>
-
-          {/* Distribution tâches */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.7 }}
-          >
-            <PremiumCard className="p-6">
-              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <PieChart className="w-5 h-5 text-green-400" />
-                Distribution Tâches
-              </h3>
-              <div className="h-64 flex items-center justify-center text-gray-400">
-                <div className="text-center">
-                  <Target className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>Répartition par statut</p>
-                  <p className="text-sm">Données en temps réel</p>
-                </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Accompli</span>
+                <span className="font-medium text-green-600">{realAnalytics.goals.achieved} tâches</span>
               </div>
-            </PremiumCard>
-          </motion.div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Restant</span>
+                <span className="font-medium text-orange-600">{realAnalytics.goals.remaining} tâches</span>
+              </div>
+              <div className="mt-4">
+                <div className="flex justify-between text-sm text-gray-600 mb-1">
+                  <span>Progression</span>
+                  <span>{Math.round((realAnalytics.goals.achieved / realAnalytics.goals.weeklyTarget) * 100)}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      realAnalytics.goals.onTrack ? 'bg-green-600' : 'bg-orange-600'
+                    }`}
+                    style={{ width: `${Math.min(100, (realAnalytics.goals.achieved / realAnalytics.goals.weeklyTarget) * 100)}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  {realAnalytics.goals.onTrack ? '✅ Objectif en bonne voie' : '⚠️ Effort supplémentaire nécessaire'}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
-
-        {/* ==========================================
-            🔧 ACTIONS RAPIDES
-            ========================================== */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-          className="mt-8 flex justify-center gap-4"
-        >
-          <PremiumButton variant="primary" icon={<Download />}>
-            Exporter Rapport
-          </PremiumButton>
-          <PremiumButton variant="secondary" icon={<Filter />}>
-            Filtres Avancés
-          </PremiumButton>
-          <PremiumButton variant="outline" icon={<Eye />}>
-            Vue Détaillée
-          </PremiumButton>
-        </motion.div>
       </div>
-    </PremiumLayout>
+    </div>
   );
 };
 
 export default AnalyticsPage;
-
-// ==========================================
-// 📋 LOGS DE CONFIRMATION
-// ==========================================
-console.log('✅ AnalyticsPage.jsx corrigé');
-console.log('🔧 Import Progress -> Gauge pour compatibilité lucide-react');
-console.log('📊 Analytics avec vrais utilisateurs Firebase');
-console.log('🚀 Build Netlify compatible');
