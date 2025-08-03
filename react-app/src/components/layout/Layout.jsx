@@ -1,10 +1,10 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT CORRIGÉ - SUPPRESSION ERREURS BLOQUANTES
+// LAYOUT STABLE - SANS HOOKS PROBLÉMATIQUES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Home, 
   CheckSquare, 
@@ -29,8 +29,6 @@ import {
   Lock,
   Gift,
   PieChart,
-  UsersIcon,
-  SettingsIcon,
   Gamepad2,
   GraduationCap,
   Activity,
@@ -41,7 +39,7 @@ import {
 import { useAuthStore } from '../../shared/stores/authStore.js';
 
 /**
- * 🎯 LAYOUT PRINCIPAL CORRIGÉ
+ * 🎯 LAYOUT PRINCIPAL STABLE - SANS BOUCLES
  */
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -49,7 +47,7 @@ const Layout = ({ children }) => {
   const { user, signOut } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  console.log('🎯 Layout rendu pour:', user?.email);
+  console.log('🎯 Layout stable - User:', user?.email);
 
   // Gérer la fermeture automatique du sidebar sur mobile
   useEffect(() => {
@@ -66,7 +64,7 @@ const Layout = ({ children }) => {
     }
   };
 
-  // ✅ NAVIGATION COMPLÈTE - STRUCTURE SIMPLIFIÉE
+  // ✅ NAVIGATION SIMPLIFIÉE ET STABLE
   const navigationSections = [
     {
       title: 'PRINCIPAL',
@@ -87,42 +85,19 @@ const Layout = ({ children }) => {
       ]
     },
     {
-      title: 'PROGRESSION',
-      items: [
-        { path: '/role-progression', label: 'Progression Rôles', icon: Target },
-        { path: '/role-tasks', label: 'Tâches par Rôle', icon: CheckSquare },
-        { path: '/role-badges', label: 'Badges Rôles', icon: Award },
-        { path: '/escape-progression', label: 'Escape Progression', icon: Activity }
-      ]
-    },
-    {
       title: 'ÉQUIPE & SOCIAL',
       items: [
         { path: '/team', label: 'Équipe', icon: Users },
-        { path: '/users', label: 'Utilisateurs', icon: UsersIcon }
+        { path: '/users', label: 'Utilisateurs', icon: User }
       ]
     },
     {
       title: 'OUTILS',
       items: [
         { path: '/onboarding', label: 'Onboarding', icon: BookOpen },
-        { path: '/time-track', label: 'Pointeuse', icon: Clock },
+        { path: '/timetrack', label: 'Pointeuse', icon: Clock },
         { path: '/profile', label: 'Profil', icon: User },
         { path: '/settings', label: 'Paramètres', icon: Settings }
-      ]
-    },
-    {
-      title: 'ADMINISTRATION',
-      items: [
-        { path: '/admin/dashboard-tuteur', label: 'Dashboard Tuteur', icon: GraduationCap },
-        { path: '/admin/task-validation', label: 'Validation Tâches', icon: Shield },
-        { path: '/admin/test', label: 'Test Complet', icon: TestTube },
-        { path: '/admin/role-permissions', label: 'Permissions Rôles', icon: Lock },
-        { path: '/admin/rewards', label: 'Gestion Récompenses', icon: Gift },
-        { path: '/admin/badges', label: 'Gestion Badges', icon: Trophy },
-        { path: '/admin/users', label: 'Gestion Utilisateurs', icon: Users },
-        { path: '/admin/analytics', label: 'Analytics Admin', icon: PieChart },
-        { path: '/admin/settings', label: 'Paramètres Admin', icon: SettingsIcon }
       ]
     }
   ];
@@ -136,7 +111,7 @@ const Layout = ({ children }) => {
     <div className="min-h-screen bg-gray-100 flex">
       
       {/* ==========================================
-          📱 SIDEBAR
+          📱 SIDEBAR STABLE
           ========================================== */}
       <div className={`
         fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 transform transition-transform duration-300 ease-in-out
@@ -151,6 +126,7 @@ const Layout = ({ children }) => {
               <span className="text-white font-bold text-sm">S</span>
             </div>
             <span className="text-white font-semibold">Synergia</span>
+            <span className="text-xs bg-green-500 text-white px-2 py-1 rounded-full">v3.5</span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -197,7 +173,7 @@ const Layout = ({ children }) => {
           ))}
         </nav>
 
-        {/* User info et déconnexion */}
+        {/* User info et déconnexion - VERSION SIMPLIFIÉE */}
         <div className="absolute bottom-0 left-0 right-0 p-4 bg-gray-800">
           <div className="flex items-center space-x-3 mb-3">
             <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden">
@@ -214,16 +190,17 @@ const Layout = ({ children }) => {
                 {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
               </p>
               <p className="text-xs text-gray-400 truncate">
-                {user?.email || 'email@example.com'}
+                Connecté
               </p>
             </div>
           </div>
+          
           <button
             onClick={handleLogout}
-            className="w-full flex items-center px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors duration-200"
+            className="w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-300 bg-gray-700 rounded-md hover:bg-gray-600 hover:text-white transition-colors duration-200"
           >
-            <LogOut className="mr-3 h-4 w-4" />
-            Se déconnecter
+            <LogOut className="w-4 h-4 mr-2" />
+            Déconnexion
           </button>
         </div>
       </div>
@@ -232,42 +209,37 @@ const Layout = ({ children }) => {
           📱 OVERLAY MOBILE
           ========================================== */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* ==========================================
-          📄 CONTENU PRINCIPAL
+          📱 CONTENU PRINCIPAL
           ========================================== */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 lg:ml-0">
         
         {/* Header mobile */}
-        <div className="lg:hidden bg-white shadow-sm border-b border-gray-200">
-          <div className="flex items-center justify-between px-4 py-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-            <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded flex items-center justify-center">
-                <span className="text-white font-bold text-xs">S</span>
-              </div>
-              <span className="font-semibold text-gray-900">Synergia</span>
-            </div>
-            <div className="w-6 h-6" /> {/* Spacer */}
+        <div className="sticky top-0 z-30 lg:hidden flex items-center justify-between h-16 px-4 bg-white shadow-sm border-b">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-gray-500 hover:text-gray-900"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+          
+          <div className="flex items-center space-x-2">
+            <span className="text-lg font-semibold text-gray-900">Synergia</span>
+            <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">v3.5</span>
           </div>
+          
+          <div className="w-6 h-6" /> {/* Spacer */}
         </div>
 
-        {/* Contenu des pages */}
-        <main className="flex-1 overflow-auto">
-          {/* ✅ RENDU DIRECT DES ENFANTS */}
-          <div className="h-full">
-            {children}
-          </div>
+        {/* Contenu principal */}
+        <main className="flex-1">
+          {children}
         </main>
       </div>
     </div>
@@ -275,10 +247,3 @@ const Layout = ({ children }) => {
 };
 
 export default Layout;
-
-// ==========================================
-// 📋 LOGS DE CONFIRMATION
-// ==========================================
-console.log('✅ Layout.jsx corrigé et simplifié');
-console.log('🎯 Sidebar complète avec toutes les pages');
-console.log('🚀 Rendu direct des enfants sans Outlet');
