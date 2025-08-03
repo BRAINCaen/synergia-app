@@ -3,7 +3,7 @@
 // GAMIFICATION FIREBASE COMPLET - BUILD SAFE
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
@@ -52,549 +52,279 @@ const GamificationPage = () => {
     challenges: []
   });
 
-  useEffect(() => {
-    if (user?.uid) {
-      loadRealGamificationData();
-    }
-  }, [user?.uid, gamification, userStats]);
-
   /**
    * 📊 CHARGER VRAIES DONNÉES GAMIFICATION FIREBASE
+   * ✅ CORRECTION: Utilisation de useCallback pour éviter la boucle infinie
    */
-  const loadRealGamificationData = async () => {
+  const loadRealGamificationData = useCallback(async () => {
     if (!user?.uid) return;
     
     setLoading(true);
     try {
       console.log('🎮 Chargement gamification Firebase pour:', user.uid);
       
-      // Récupérer les tâches utilisateur pour calculer les défis
-      let userTasks = [];
-      try {
-        const userTasksSnapshot = await getDocs(query(
-          collection(db, 'tasks'),
-          where('userId', '==', user.uid)
-        ));
-        
-        userTasksSnapshot.forEach(doc => {
-          userTasks.push({ id: doc.id, ...doc.data() });
-        });
-      } catch (error) {
-        console.warn('⚠️ Erreur chargement tâches:', error);
-        userTasks = [];
-      }
+      // 🔥 CALCULER LES VRAIS STATS DEPUIS FIREBASE
+      const level = gamification?.level || 1;
+      const totalXP = gamification?.totalXP || 0;
+      const nextLevelXP = Math.floor(100 * Math.pow(1.5, level));
+      const currentLevelXP = level > 1 ? Math.floor(100 * Math.pow(1.5, level - 1)) : 0;
+      const xp = totalXP - currentLevelXP;
       
-      // Calculer les vraies statistiques depuis Firebase
-      const totalXp = gamification?.totalXp || userStats?.totalXp || 0;
-      const level = gamification?.level || Math.floor(totalXp / 1000) + 1;
-      const nextLevelXP = level * 1000;
-      const completedTasks = userTasks.filter(task => task.status === 'completed');
+      // 🏆 CALCULER LE RANG RÉEL
+      const usersQuery = query(collection(db, 'gamification'));
+      const usersSnapshot = await getDocs(usersQuery);
+      const allUsers = [];
       
-      // Calculer streak réel
-      const streak = userStats?.loginStreak || 1;
+      usersSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.totalXP) {
+          allUsers.push({ uid: doc.id, totalXP: data.totalXP });
+        }
+      });
       
-      // Calcul du rang (simulation - dans une vraie app, ce serait une requête leaderboard)
-      const rank = Math.max(1, 20 - Math.floor(totalXp / 100));
+      allUsers.sort((a, b) => b.totalXP - a.totalXP);
+      const userRank = allUsers.findIndex(u => u.uid === user.uid) + 1;
       
-      // Générer défis réels basés sur les données utilisateur
-      const realChallenges = generateRealChallenges(userTasks, completedTasks, totalXp);
+      // 🎯 CRÉER LES DÉFIS DYNAMIQUES
+      const challenges = [
+        {
+          id: 'daily_tasks',
+          title: 'Compléteur du Jour',
+          description: 'Terminer 3 tâches aujourd\'hui',
+          progress: Math.min(userStats?.tasksCompletedToday || 0, 3),
+          total: 3,
+          reward: 50,
+          difficulty: 'easy',
+          type: 'daily'
+        },
+        {
+          id: 'weekly_xp',
+          title: 'Chasseur d\'XP',
+          description: 'Gagner 500 XP cette semaine',
+          progress: Math.min(gamification?.weeklyXP || 0, 500),
+          total: 500,
+          reward: 200,
+          difficulty: 'medium',
+          type: 'weekly'
+        },
+        {
+          id: 'project_completion',
+          title: 'Maître des Projets',
+          description: 'Terminer un projet complet',
+          progress: userStats?.projectsCompleted || 0,
+          total: 1,
+          reward: 300,
+          difficulty: 'hard',
+          type: 'project'
+        }
+      ];
       
+      // ✅ METTRE À JOUR L'ÉTAT AVEC LES VRAIES DONNÉES
       setRealGamificationData({
         user: {
           level,
-          xp: totalXp,
+          xp,
           nextLevelXP,
-          totalXP: totalXp,
-          rank,
-          streak,
-          badges: gamification?.badges?.length || 0
+          totalXP,
+          rank: userRank || 0,
+          streak: gamification?.loginStreak || 1,
+          badges: (gamification?.badges || []).length
         },
-        challenges: realChallenges
+        challenges
       });
-
-      console.log('✅ Gamification Firebase chargée:', {
+      
+      console.log('✅ Gamification data loaded:', {
         level,
-        totalXp,
-        badges: gamification?.badges?.length || 0,
-        challenges: realChallenges.length,
-        userTasks: userTasks.length
+        totalXP,
+        rank: userRank,
+        challengesCount: challenges.length
       });
-
+      
     } catch (error) {
-      console.error('❌ Erreur chargement gamification Firebase:', error);
-      // Fallback avec données par défaut
-      setRealGamificationData({
-        user: {
-          level: 1,
-          xp: 0,
-          nextLevelXP: 1000,
-          totalXP: 0,
-          rank: 0,
-          streak: 1,
-          badges: 0
-        },
-        challenges: []
-      });
+      console.error('❌ Erreur chargement gamification:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.uid, gamification, userStats]); // ✅ CORRECTION: Dépendances spécifiques
 
-  /**
-   * 🎯 GÉNÉRER DÉFIS RÉELS BASÉS SUR LES DONNÉES UTILISATEUR
-   */
-  const generateRealChallenges = (userTasks, completedTasks, totalXp) => {
-    const challenges = [];
-    
-    // Défi 1: Basé sur les tâches terminées
-    if (completedTasks.length < 10) {
-      challenges.push({
-        id: 1,
-        name: 'Maître Productivité',
-        description: `Terminer ${10 - completedTasks.length} tâches supplémentaires`,
-        progress: completedTasks.length,
-        target: 10,
-        reward: 200,
-        endDate: getNextWeek(),
-        difficulty: 'medium',
-        category: 'Productivité'
-      });
+  // ✅ CORRECTION: useEffect avec dépendances correctes
+  useEffect(() => {
+    if (user?.uid && !dataLoading) {
+      loadRealGamificationData();
     }
-    
-    // Défi 2: Basé sur le niveau XP
-    if (totalXp < 500) {
-      challenges.push({
-        id: 2,
-        name: 'Montée en XP',
-        description: 'Atteindre 500 XP au total',
-        progress: totalXp,
-        target: 500,
-        reward: 150,
-        endDate: getEndOfMonth(),
-        difficulty: 'medium',
-        category: 'Progression'
-      });
+  }, [user?.uid, dataLoading, loadRealGamificationData]);
+
+  // 🎯 FONCTION POUR RÉCLAMER UN DÉFI
+  const claimChallenge = async (challengeId) => {
+    try {
+      console.log('🎯 Réclamation défi:', challengeId);
+      // Logique de réclamation ici
+    } catch (error) {
+      console.error('❌ Erreur réclamation défi:', error);
     }
-    
-    // Défi 3: Défis hebdomadaires
-    const tasksThisWeek = completedTasks.filter(task => {
-      if (!task.updatedAt) return false;
-      const taskDate = task.updatedAt.toDate ? task.updatedAt.toDate() : new Date(task.updatedAt);
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      return taskDate > oneWeekAgo;
-    }).length;
-    
-    challenges.push({
-      id: 3,
-      name: 'Sprint Hebdomadaire',
-      description: 'Terminer 5 tâches cette semaine',
-      progress: Math.min(5, tasksThisWeek),
-      target: 5,
-      reward: 100,
-      endDate: getNextSunday(),
-      difficulty: 'easy',
-      category: 'Hebdomadaire'
-    });
-    
-    // Si pas de tâches, défi de démarrage
-    if (userTasks.length === 0) {
-      challenges.push({
-        id: 4,
-        name: 'Premier Pas',
-        description: 'Créer votre première tâche',
-        progress: 0,
-        target: 1,
-        reward: 50,
-        endDate: getNextWeek(),
-        difficulty: 'easy',
-        category: 'Débutant'
-      });
-    }
-    
-    return challenges.slice(0, 4); // Limiter à 4 défis max
   };
-
-  /**
-   * 📅 FONCTIONS UTILITAIRES DATES
-   */
-  const getNextSunday = () => {
-    const date = new Date();
-    const dayOfWeek = date.getDay();
-    const daysUntilSunday = 7 - dayOfWeek;
-    date.setDate(date.getDate() + daysUntilSunday);
-    return date.toISOString().split('T')[0];
-  };
-
-  const getEndOfMonth = () => {
-    const date = new Date();
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
-  };
-
-  const getNextWeek = () => {
-    const date = new Date();
-    date.setDate(date.getDate() + 7);
-    return date.toISOString().split('T')[0];
-  };
-
-  /**
-   * 🎯 REJOINDRE UN DÉFI
-   */
-  const joinChallenge = (challenge) => {
-    console.log('🎯 Défi rejoint:', challenge.name);
-    alert(`🚀 Vous avez rejoint le défi "${challenge.name}" !\n\nProgressez en accomplissant des tâches pour gagner ${challenge.reward} XP !`);
-  };
-
-  // ✅ SEULEMENT 2 ONGLETS
-  const tabs = [
-    { id: 'overview', label: 'Vue d\'ensemble', icon: Trophy },
-    { id: 'challenges', label: 'Défis', icon: Target }
-  ];
 
   if (loading || dataLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-yellow-600 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-400">Chargement de votre gamification...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white">Chargement de votre gamification...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-6">
       <div className="max-w-7xl mx-auto">
-        
-        {/* EN-TÊTE */}
+        {/* HEADER */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent mb-2">
-            🎮 Centre de Gamification
+          <h1 className="text-4xl font-bold text-white mb-2 flex items-center">
+            <Trophy className="w-10 h-10 mr-3 text-yellow-400" />
+            Gamification
           </h1>
-          <p className="text-gray-400 text-lg">
-            Progressez, débloquez des récompenses et défiez vos collègues !
-          </p>
+          <p className="text-purple-200">Votre progression et récompenses</p>
         </div>
 
-        {/* STATISTIQUES UTILISATEUR RÉELLES FIREBASE */}
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-            
-            {/* Niveau et XP RÉELS FIREBASE */}
-            <div className="md:col-span-2 text-center">
-              <div className="relative mb-4">
-                <div className="w-24 h-24 mx-auto bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center mb-2">
-                  <span className="text-2xl font-bold text-white">{realGamificationData.user.level}</span>
-                </div>
-                <div className="text-lg font-bold text-white">Niveau {realGamificationData.user.level}</div>
-                <div className="text-gray-400 text-sm">{realGamificationData.user.xp} / {realGamificationData.user.nextLevelXP} XP</div>
-              </div>
-              
-              {/* Barre de progression RÉELLE */}
-              <div className="w-full bg-gray-700 rounded-full h-3 mb-2">
-                <div 
-                  className="bg-gradient-to-r from-yellow-500 to-orange-500 h-3 rounded-full transition-all duration-1000"
-                  style={{ 
-                    width: `${Math.min(100, (realGamificationData.user.xp / realGamificationData.user.nextLevelXP) * 100)}%` 
-                  }}
-                ></div>
-              </div>
-              <p className="text-gray-400 text-sm">
-                {Math.max(0, realGamificationData.user.nextLevelXP - realGamificationData.user.xp)} XP pour le niveau suivant
-              </p>
+        {/* STATS UTILISATEUR */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Star className="w-8 h-8 text-yellow-400" />
+              <span className="text-2xl font-bold text-white">
+                Niveau {realGamificationData.user.level}
+              </span>
             </div>
-
-            {/* Statistiques RÉELLES FIREBASE */}
-            <div className="md:col-span-3 grid grid-cols-3 gap-4">
-              
-              {/* Classement RÉEL */}
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-400 mb-1">
-                  {realGamificationData.user.rank > 0 ? `#${realGamificationData.user.rank}` : '-'}
-                </div>
-                <div className="text-gray-400 text-sm">Classement</div>
-              </div>
-
-              {/* Streak RÉEL FIREBASE */}
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-400 mb-1">{realGamificationData.user.streak}</div>
-                <div className="text-gray-400 text-sm">Streak jours</div>
-              </div>
-
-              {/* Badges RÉELS FIREBASE */}
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-400 mb-1">{realGamificationData.user.badges}</div>
-                <div className="text-gray-400 text-sm">Badges</div>
-              </div>
-
+            <div className="w-full bg-gray-700 rounded-full h-2">
+              <div 
+                className="bg-gradient-to-r from-yellow-400 to-orange-500 h-2 rounded-full transition-all duration-500"
+                style={{ 
+                  width: `${Math.min((realGamificationData.user.xp / (realGamificationData.user.nextLevelXP - (realGamificationData.user.level > 1 ? Math.floor(100 * Math.pow(1.5, realGamificationData.user.level - 2)) : 0))) * 100, 100)}%` 
+                }}
+              ></div>
             </div>
+            <p className="text-purple-200 text-sm mt-2">
+              {realGamificationData.user.xp} / {realGamificationData.user.nextLevelXP - (realGamificationData.user.level > 1 ? Math.floor(100 * Math.pow(1.5, realGamificationData.user.level - 2)) : 0)} XP
+            </p>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Target className="w-8 h-8 text-blue-400" />
+              <span className="text-2xl font-bold text-white">
+                {realGamificationData.user.totalXP.toLocaleString()} XP
+              </span>
+            </div>
+            <p className="text-purple-200 text-sm">Total Experience</p>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Crown className="w-8 h-8 text-purple-400" />
+              <span className="text-2xl font-bold text-white">
+                #{realGamificationData.user.rank}
+              </span>
+            </div>
+            <p className="text-purple-200 text-sm">Classement Global</p>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Flame className="w-8 h-8 text-red-400" />
+              <span className="text-2xl font-bold text-white">
+                {realGamificationData.user.streak} jours
+              </span>
+            </div>
+            <p className="text-purple-200 text-sm">Série Active</p>
           </div>
         </div>
 
-        {/* SECTION GAMIFICATION FIREBASE */}
-        {gamification && (
-          <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 mb-8 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Progression Firebase</h3>
-                <div className="grid grid-cols-3 gap-6">
-                  <div>
-                    <p className="text-sm opacity-90">Niveau</p>
-                    <p className="text-2xl font-bold">{gamification.level || 1}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm opacity-90">XP Total</p>
-                    <p className="text-2xl font-bold">{gamification.totalXp || 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm opacity-90">Badges</p>
-                    <p className="text-2xl font-bold">{gamification.badges?.length || 0}</p>
-                  </div>
-                </div>
-              </div>
-              <Trophy className="h-16 w-16 opacity-80" />
-            </div>
-          </div>
-        )}
-
-        {/* NAVIGATION TABS */}
-        <div className="flex space-x-1 mb-8 bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-2">
-          {tabs.map(tab => {
-            const Icon = tab.icon;
-            return (
+        {/* ONGLETS */}
+        <div className="mb-8">
+          <div className="flex space-x-4 bg-white/10 backdrop-blur-md rounded-lg p-2">
+            {[
+              { id: 'overview', label: 'Vue d\'ensemble', icon: BarChart3 },
+              { id: 'challenges', label: 'Défis', icon: Target },
+              { id: 'badges', label: 'Badges', icon: Award }
+            ].map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
+                className={`flex items-center px-4 py-2 rounded-lg transition-all ${
                   activeTab === tab.id
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                    ? 'bg-white/20 text-white'
+                    : 'text-purple-200 hover:bg-white/10'
                 }`}
               >
-                <Icon className="w-5 h-5" />
+                <tab.icon className="w-4 h-4 mr-2" />
                 {tab.label}
               </button>
-            );
-          })}
+            ))}
+          </div>
         </div>
 
-        {/* CONTENU DYNAMIQUE */}
+        {/* CONTENU DES ONGLETS */}
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            
-            {/* Défis en cours */}
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <Target className="w-5 h-5 text-blue-400" />
-                Défis en Cours
+            {/* PROGRESSION */}
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center">
+                <BarChart3 className="w-5 h-5 mr-2" />
+                Progression
               </h3>
-              
-                {realGamificationData.challenges.length > 0 ? (
-                  <div className="space-y-4 mb-4">
-                    {realGamificationData.challenges.slice(0, 3).map(challenge => (
-                      <div key={challenge.id} className="p-4 bg-gray-700/30 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-white">{challenge.name}</h4>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            challenge.difficulty === 'easy' ? 'bg-green-900/50 text-green-400' :
-                            challenge.difficulty === 'medium' ? 'bg-yellow-900/50 text-yellow-400' :
-                            'bg-red-900/50 text-red-400'
-                          }`}>
-                            {challenge.difficulty}
-                          </span>
-                        </div>
-                        <p className="text-gray-400 text-sm mb-3">{challenge.description}</p>
-                        
-                        <div className="mb-3">
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="text-gray-400">Progression</span>
-                            <span className="text-white">{challenge.progress}/{challenge.target} ({Math.round((challenge.progress / challenge.target) * 100)}%)</span>
-                          </div>
-                          <div className="w-full bg-gray-700 rounded-full h-2">
-                            <div 
-                              className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
-                              style={{ width: `${Math.min(100, (challenge.progress / challenge.target) * 100)}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <span className="text-yellow-400 text-sm flex items-center gap-1">
-                            <Trophy className="w-4 h-4" />
-                            {challenge.reward} XP
-                          </span>
-                          <span className="text-gray-400 text-sm">
-                            Expire: {new Date(challenge.endDate).toLocaleDateString('fr-FR')}
-                          </span>
-                        </div>
-                        
-                        {/* Statut */}
-                        <div className="mt-3">
-                          {challenge.progress >= challenge.target ? (
-                            <span className="text-green-400 text-sm">✅ Défi terminé !</span>
-                          ) : (
-                            <span className="text-blue-400 text-sm">
-                              🚀 Encore {challenge.target - challenge.progress} à accomplir
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Target className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-400">Créez des tâches pour débloquer des défis !</p>
-                    <p className="text-gray-500 text-sm mt-2">Vos défis seront générés automatiquement</p>
-                  </div>
-                )}
-              
-              <button 
-                onClick={() => setActiveTab('challenges')}
-                className="w-full text-center text-blue-400 hover:text-blue-300 py-2 border border-blue-500/30 rounded-lg hover:bg-blue-500/10 transition-colors"
-              >
-                Voir tous les défis →
-              </button>
-            </div>
-
-            {/* Statistiques détaillées */}
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-green-400" />
-                Vos Performances
-              </h3>
-              
-              <div className="space-y-6">
-                
-                {/* Progression niveau */}
+              <div className="space-y-4">
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-400">Progression Niveau</span>
-                    <span className="text-white font-medium">
-                      Niveau {realGamificationData.user.level}
-                    </span>
+                  <div className="flex justify-between text-white mb-2">
+                    <span>Niveau actuel</span>
+                    <span>Niveau {realGamificationData.user.level}</span>
                   </div>
                   <div className="w-full bg-gray-700 rounded-full h-3">
                     <div 
-                      className="bg-gradient-to-r from-yellow-500 to-orange-500 h-3 rounded-full"
-                      style={{ width: `${Math.min(100, (realGamificationData.user.xp / realGamificationData.user.nextLevelXP) * 100)}%` }}
+                      className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full"
+                      style={{ width: `${(realGamificationData.user.xp / (realGamificationData.user.nextLevelXP - (realGamificationData.user.level > 1 ? Math.floor(100 * Math.pow(1.5, realGamificationData.user.level - 2)) : 0))) * 100}%` }}
                     ></div>
                   </div>
-                  <div className="text-sm text-gray-400 mt-1">
-                    {realGamificationData.user.xp} / {realGamificationData.user.nextLevelXP} XP
-                  </div>
                 </div>
+                <div className="text-purple-200 text-sm">
+                  Prochain niveau dans {(realGamificationData.user.nextLevelXP - realGamificationData.user.totalXP).toLocaleString()} XP
+                </div>
+              </div>
+            </div>
 
-                {/* Actions rapides vers pages dédiées */}
-                <div className="space-y-3">
-                  <Link 
-                    to="/badges"
-                    className="flex items-center justify-between p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg hover:bg-yellow-500/20 transition-colors group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Award className="w-5 h-5 text-yellow-400" />
-                      <span className="text-white">Mes Badges</span>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-white" />
-                  </Link>
-                  
-                  <Link 
-                    to="/rewards"
-                    className="flex items-center justify-between p-3 bg-green-500/10 border border-green-500/30 rounded-lg hover:bg-green-500/20 transition-colors group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Gift className="w-5 h-5 text-green-400" />
-                      <span className="text-white">Récompenses</span>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-white" />
-                  </Link>
-                  
-                  <Link 
-                    to="/leaderboard"
-                    className="flex items-center justify-between p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg hover:bg-purple-500/20 transition-colors group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Crown className="w-5 h-5 text-purple-400" />
-                      <span className="text-white">Classement</span>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-white" />
-                  </Link>
+            {/* STATISTIQUES */}
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center">
+                <Users className="w-5 h-5 mr-2" />
+                Statistiques
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-white">{realGamificationData.user.badges}</div>
+                  <div className="text-purple-200 text-sm">Badges</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-white">{realGamificationData.user.streak}</div>
+                  <div className="text-purple-200 text-sm">Jours consécutifs</div>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Défis */}
         {activeTab === 'challenges' && (
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">Défis Disponibles</h3>
-            </div>
+          <div>
+            <h3 className="text-xl font-bold text-white mb-6 flex items-center">
+              <Target className="w-5 h-5 mr-2" />
+              Défis Actifs
+            </h3>
             
-            {realGamificationData.challenges.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {realGamificationData.challenges.map(challenge => (
-                  <div
-                    key={challenge.id}
-                    className="p-6 bg-gray-700/30 rounded-xl border border-gray-600/50 hover:border-blue-500/50 transition-all"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-bold text-white">{challenge.name}</h4>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        challenge.difficulty === 'easy' ? 'bg-green-900/50 text-green-400' :
-                        challenge.difficulty === 'medium' ? 'bg-yellow-900/50 text-yellow-400' :
-                        'bg-red-900/50 text-red-400'
-                      }`}>
-                        {challenge.difficulty}
-                      </span>
-                    </div>
-                    
-                    <p className="text-gray-400 text-sm mb-4">{challenge.description}</p>
-                    
-                    {/* Progression */}
-                    <div className="mb-4">
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-gray-400">Progression</span>
-                        <span className="text-white font-medium">
-                          {challenge.progress}/{challenge.target}
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
-                          style={{ width: `${Math.min(100, (challenge.progress / challenge.target) * 100)}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    
-                    {/* Récompense */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-1 text-yellow-400">
-                        <Trophy className="w-4 h-4" />
-                        <span className="font-medium">{challenge.reward} XP</span>
-                      </div>
-                      <div className="text-gray-400 text-xs">
-                        {challenge.category}
-                      </div>
-                    </div>
-                    
-                    {/* Action */}
-                    <button 
-                      onClick={() => joinChallenge(challenge)}
-                      className="w-full py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all"
-                    >
-                      Commencer
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Target className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-lg text-gray-500 mb-2">Aucun défi disponible</p>
-                <p className="text-sm text-gray-400 mb-6">
-                  Créez des tâches pour débloquer vos premiers défis !
+            {realGamificationData.challenges.length === 0 ? (
+              <div className="bg-white/10 backdrop-blur-md rounded-xl p-8 text-center">
+                <Target className="w-16 h-16 text-purple-300 mx-auto mb-4" />
+                <h4 className="text-xl font-bold text-white mb-2">Aucun défi actif</h4>
+                <p className="text-purple-200 mb-4">
+                  Créez des tâches pour débloquer de nouveaux défis !
                 </p>
                 <Link 
                   to="/tasks"
@@ -603,6 +333,90 @@ const GamificationPage = () => {
                   <Plus className="w-4 h-4 mr-2" />
                   Créer une Tâche
                 </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {realGamificationData.challenges.map(challenge => (
+                  <div key={challenge.id} className="bg-white/10 backdrop-blur-md rounded-xl p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h4 className="text-lg font-bold text-white">{challenge.title}</h4>
+                        <p className="text-purple-200 text-sm">{challenge.description}</p>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        challenge.difficulty === 'easy' ? 'bg-green-500/20 text-green-300' :
+                        challenge.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                        'bg-red-500/20 text-red-300'
+                      }`}>
+                        {challenge.difficulty}
+                      </span>
+                    </div>
+                    
+                    <div className="mb-4">
+                      <div className="flex justify-between text-white text-sm mb-2">
+                        <span>Progression</span>
+                        <span>{challenge.progress} / {challenge.total}</span>
+                      </div>
+                      <div className="w-full bg-gray-700 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min((challenge.progress / challenge.total) * 100, 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center text-yellow-400">
+                        <Gift className="w-4 h-4 mr-1" />
+                        <span className="text-sm font-medium">+{challenge.reward} XP</span>
+                      </div>
+                      
+                      {challenge.progress >= challenge.total ? (
+                        <button
+                          onClick={() => claimChallenge(challenge.id)}
+                          className="px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg text-sm font-medium hover:from-green-600 hover:to-blue-600 transition-all"
+                        >
+                          <Gift className="w-4 h-4 inline mr-1" />
+                          Réclamer
+                        </button>
+                      ) : (
+                        <div className="text-purple-300 text-sm">
+                          {challenge.total - challenge.progress} restant
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'badges' && (
+          <div>
+            <h3 className="text-xl font-bold text-white mb-6 flex items-center">
+              <Award className="w-5 h-5 mr-2" />
+              Collection de Badges
+            </h3>
+            
+            {realGamificationData.user.badges === 0 ? (
+              <div className="bg-white/10 backdrop-blur-md rounded-xl p-8 text-center">
+                <Award className="w-16 h-16 text-purple-300 mx-auto mb-4" />
+                <h4 className="text-xl font-bold text-white mb-2">Aucun badge débloqué</h4>
+                <p className="text-purple-200 mb-4">
+                  Complétez des tâches et relevez des défis pour gagner vos premiers badges !
+                </p>
+                <Link 
+                  to="/tasks"
+                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Créer une Tâche
+                </Link>
+              </div>
+            ) : (
+              <div className="text-center text-purple-200">
+                Vous avez {realGamificationData.user.badges} badge(s) !
               </div>
             )}
           </div>
