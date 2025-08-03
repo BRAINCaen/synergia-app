@@ -216,15 +216,21 @@ export const useAuthStore = create((set, get) => {
 });
 
 // ==========================================
-// 🚀 INITIALISATION MANUELLE AU LIEU D'AUTO
+// 🚀 INITIALISATION UNIQUE ET SÉCURISÉE
 // ==========================================
 
 // Fonction d'initialisation à appeler manuellement depuis App.jsx
 export const initializeAuthStore = () => {
   if (!authStateInitialized) {
-    console.log('🚀 Initialisation manuelle AuthStore');
+    console.log('🚀 Initialisation unique AuthStore');
     const store = useAuthStore.getState();
-    store.initializeAuth();
+    
+    // S'assurer qu'on ne lance qu'une seule fois
+    if (store && typeof store.initializeAuth === 'function') {
+      store.initializeAuth();
+    }
+  } else {
+    console.log('🔒 AuthStore déjà initialisé, ignorer');
   }
 };
 
