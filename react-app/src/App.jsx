@@ -1,10 +1,13 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APP BYPASS LAYOUT - TEST DIRECT DES PAGES
+// SYNERGIA v3.5 COMPLET - TOUTES FONCTIONNALITÉS RESTAURÉES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+
+// 🔧 Layout sophistiqué avec sidebar
+import Layout from './components/layout/Layout.jsx';
 
 // Stores (corrigé)
 import { useAuthStore } from './shared/stores/authStore.js';
@@ -12,199 +15,162 @@ import { useAuthStore } from './shared/stores/authStore.js';
 // Import des correctifs
 import './utils/safeFix.js';
 
-// Pages - import direct
+// ==========================================
+// 📄 PAGES PRINCIPALES
+// ==========================================
+import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
+import ProjectsPage from './pages/ProjectsPage.jsx';
+import ProjectDetailPage from './pages/ProjectDetailPage.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import GamificationPage from './pages/GamificationPage.jsx';
+import TeamPage from './pages/TeamPage.jsx';
+import UsersPage from './pages/UsersPage.jsx';
+import OnboardingPage from './pages/OnboardingPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
+import RewardsPage from './pages/RewardsPage.jsx';
+import BadgesPage from './pages/BadgesPage.jsx';
+import TimeTrackPage from './pages/TimeTrackPage.jsx';
 
 // ==========================================
-// 🔧 NAVIGATION SIMPLE SANS LAYOUT
+// 🎮 PAGES GAMIFICATION
 // ==========================================
-
-const SimpleNav = () => {
-  const { user, signOut } = useAuthStore();
-  const [currentPath, setCurrentPath] = useState(window.location.pathname);
-
-  const navLinks = [
-    { path: '/dashboard', label: '🏠 Dashboard' },
-    { path: '/tasks', label: '✅ Tâches' },
-    { path: '/projects', label: '📁 Projets' },
-    { path: '/analytics', label: '📊 Analytics' },
-  ];
-
-  const navigate = (path) => {
-    window.history.pushState({}, '', path);
-    setCurrentPath(path);
-    window.location.reload(); // Force reload pour test
-  };
-
-  const handleLogout = async () => {
-    await signOut();
-    window.location.reload();
-  };
-
-  return (
-    <div className="bg-gray-800 border-b border-gray-700 p-4">
-      <div className="flex items-center justify-between max-w-6xl mx-auto">
-        
-        {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold">S</span>
-          </div>
-          <span className="text-white font-bold text-xl">Synergia</span>
-          <span className="bg-green-500 text-white px-2 py-1 rounded text-xs">TEST</span>
-        </div>
-
-        {/* Navigation */}
-        <div className="flex items-center gap-4">
-          {navLinks.map(link => (
-            <button
-              key={link.path}
-              onClick={() => navigate(link.path)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                currentPath === link.path
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-300 hover:text-white hover:bg-gray-700'
-              }`}
-            >
-              {link.label}
-            </button>
-          ))}
-        </div>
-
-        {/* User info */}
-        <div className="flex items-center gap-4">
-          <span className="text-gray-300 text-sm">
-            {user?.email?.split('@')[0]}
-          </span>
-          <button
-            onClick={handleLogout}
-            className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm transition-colors"
-          >
-            👋 Déconnexion
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+import LeaderboardPage from './pages/LeaderboardPage.jsx';
+import RoleProgressionPage from './pages/RoleProgressionPage.jsx';
+import RoleTasksPage from './pages/RoleTasksPage.jsx';
+import RoleBadgesPage from './pages/RoleBadgesPage.jsx';
+import EscapeProgressionPage from './pages/EscapeProgressionPage.jsx';
 
 // ==========================================
-// 🔧 COMPOSANT LOGIN SIMPLE
+// 🛡️ PAGES ADMIN
 // ==========================================
+import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
+import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
+import AdminDashboardTuteurPage from './pages/AdminDashboardTuteurPage.jsx';
+import AdminRolePermissionsPage from './pages/AdminRolePermissionsPage.jsx';
+import AdminRewardsPage from './pages/AdminRewardsPage.jsx';
+import AdminBadgesPage from './pages/AdminBadgesPage.jsx';
+import AdminUsersPage from './pages/AdminUsersPage.jsx';
+import AdminAnalyticsPage from './pages/AdminAnalyticsPage.jsx';
+import AdminSettingsPage from './pages/AdminSettingsPage.jsx';
 
-const SimpleLogin = () => {
-  const { signInWithGoogle } = useAuthStore();
-  const [loading, setLoading] = useState(false);
+console.log('🚀 Synergia v3.5 COMPLET - Toutes fonctionnalités restaurées');
 
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    try {
-      await signInWithGoogle();
-      console.log('✅ Connexion réussie');
-    } catch (error) {
-      console.error('❌ Erreur:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-      <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-8 text-center max-w-md">
-        <h1 className="text-2xl font-bold text-white mb-6">🔐 Connexion Test</h1>
-        <button
-          onClick={handleGoogleLogin}
-          disabled={loading}
-          className="w-full bg-white hover:bg-gray-100 text-gray-900 py-3 px-4 rounded-lg font-medium disabled:opacity-50"
-        >
-          {loading ? 'Connexion...' : '🔍 Google Login'}
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// ==========================================
-// 🔧 PAGE DE TEST SIMPLE
-// ==========================================
-
-const TestPage = ({ pageName }) => {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
-      <div className="max-w-4xl mx-auto text-center">
-        <h1 className="text-4xl font-bold text-white mb-4">
-          🧪 Page de Test: {pageName}
-        </h1>
-        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-8">
-          <p className="text-gray-300 text-lg mb-4">
-            Cette page s'affiche correctement !
-          </p>
-          <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
-            <div className="bg-blue-600 text-white p-4 rounded-lg">
-              <div className="text-2xl font-bold">✅</div>
-              <div className="text-sm">React fonctionne</div>
-            </div>
-            <div className="bg-green-600 text-white p-4 rounded-lg">
-              <div className="text-2xl font-bold">🔥</div>
-              <div className="text-sm">CSS fonctionne</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==========================================
-// 🎯 APP PRINCIPAL DE TEST
-// ==========================================
-
+/**
+ * 🎯 APPLICATION COMPLÈTE SYNERGIA v3.5
+ */
 const App = () => {
   const { user, loading: authLoading, checkAuthState } = useAuthStore();
 
+  // Vérifier l'état d'authentification au montage
   useEffect(() => {
-    console.log('🔐 App: Vérification auth...');
+    console.log('🔐 Initialisation complète Synergia...');
     checkAuthState();
   }, [checkAuthState]);
 
-  // Écran de chargement
+  // Écran de chargement premium
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-white">🔧 Test de chargement...</p>
+          {/* Logo animé */}
+          <div className="relative mb-8">
+            <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <span className="text-3xl">⚡</span>
+            </div>
+            <div className="animate-spin rounded-full h-24 w-24 border-4 border-blue-500 border-t-transparent absolute -top-2 -left-2"></div>
+          </div>
+          
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+            Synergia v3.5
+          </h1>
+          <p className="text-gray-400 mb-4">Chargement de votre espace collaboratif...</p>
+          
+          {/* Barre de progression */}
+          <div className="w-64 bg-gray-700 rounded-full h-2 mx-auto">
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full animate-pulse" style={{width: '75%'}}></div>
+          </div>
         </div>
       </div>
     );
   }
 
-  console.log('🎯 App rendu, utilisateur:', user?.email || 'Non connecté');
-
   return (
     <Router>
-      <div className="min-h-screen">
-        {!user ? (
-          // Mode non connecté
-          <Routes>
-            <Route path="/login" element={<SimpleLogin />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
-        ) : (
-          // Mode connecté - SANS Layout.jsx
-          <div>
-            <SimpleNav />
-            <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/tasks" element={<TasksPage />} />
-              <Route path="/projects" element={<TestPage pageName="Projets" />} />
-              <Route path="/analytics" element={<TestPage pageName="Analytics" />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </div>
-        )}
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <Routes>
+          {/* ==========================================
+              🔐 ROUTES PUBLIQUES (Non connecté)
+              ========================================== */}
+          {!user ? (
+            <>
+              <Route path="/login" element={<Login />} />
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </>
+          ) : (
+            /* ==========================================
+               🔒 ROUTES PROTÉGÉES (Connecté)
+               ========================================== */
+            <Route
+              path="/*"
+              element={
+                <Layout>
+                  <Routes>
+                    {/* ==========================================
+                        📊 PAGES PRINCIPALES
+                        ========================================== */}
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/tasks" element={<TasksPage />} />
+                    <Route path="/projects" element={<ProjectsPage />} />
+                    <Route path="/projects/:id" element={<ProjectDetailPage />} />
+                    <Route path="/analytics" element={<AnalyticsPage />} />
+                    <Route path="/team" element={<TeamPage />} />
+                    <Route path="/users" element={<UsersPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/onboarding" element={<OnboardingPage />} />
+                    <Route path="/time-track" element={<TimeTrackPage />} />
+
+                    {/* ==========================================
+                        🎮 PAGES GAMIFICATION
+                        ========================================== */}
+                    <Route path="/gamification" element={<GamificationPage />} />
+                    <Route path="/rewards" element={<RewardsPage />} />
+                    <Route path="/badges" element={<BadgesPage />} />
+                    <Route path="/leaderboard" element={<LeaderboardPage />} />
+
+                    {/* ==========================================
+                        🎭 PAGES PROGRESSION RÔLES
+                        ========================================== */}
+                    <Route path="/role-progression" element={<RoleProgressionPage />} />
+                    <Route path="/role-tasks" element={<RoleTasksPage />} />
+                    <Route path="/role-badges" element={<RoleBadgesPage />} />
+                    <Route path="/escape-progression" element={<EscapeProgressionPage />} />
+
+                    {/* ==========================================
+                        🛡️ PAGES ADMINISTRATION
+                        ========================================== */}
+                    <Route path="/admin/dashboard-tuteur" element={<AdminDashboardTuteurPage />} />
+                    <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
+                    <Route path="/admin/role-permissions" element={<AdminRolePermissionsPage />} />
+                    <Route path="/admin/rewards" element={<AdminRewardsPage />} />
+                    <Route path="/admin/badges" element={<AdminBadgesPage />} />
+                    <Route path="/admin/users" element={<AdminUsersPage />} />
+                    <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+                    <Route path="/admin/settings" element={<AdminSettingsPage />} />
+                    <Route path="/admin/test" element={<CompleteAdminTestPage />} />
+
+                    {/* Route par défaut pour les chemins inconnus */}
+                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                  </Routes>
+                </Layout>
+              }
+            />
+          )}
+        </Routes>
       </div>
     </Router>
   );
@@ -213,8 +179,12 @@ const App = () => {
 export default App;
 
 // ==========================================
-// 📋 LOGS DE TEST
+// 📋 LOGS DE CONFIRMATION COMPLETS
 // ==========================================
-console.log('🧪 App de test chargé - BYPASS Layout.jsx');
-console.log('🔧 Navigation simple sans composants complexes');
-console.log('🎯 Test direct du rendu des pages');
+console.log('🎉 SYNERGIA v3.5 COMPLET RESTAURÉ');
+console.log('📊 Pages principales: Dashboard, Tasks, Projects, Analytics');
+console.log('🎮 Gamification: Rewards, Badges, Leaderboard, Role System');
+console.log('🛡️ Administration: Validation, Permissions, Gestion');
+console.log('👥 Social: Team, Users, Profile');
+console.log('⚙️ Outils: Settings, Onboarding, TimeTrack');
+console.log('🚀 TOUTES LES FONCTIONNALITÉS DISPONIBLES !');
