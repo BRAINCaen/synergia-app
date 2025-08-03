@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/GamificationPage.jsx
-// GAMIFICATION COMPLÈTE - TOUS LES SYSTÈMES
+// GAMIFICATION SIMPLIFIÉE - VUE D'ENSEMBLE + DÉFIS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -31,7 +31,7 @@ import {
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 /**
- * 🎮 PAGE GAMIFICATION ULTRA-COMPLÈTE
+ * 🎮 PAGE GAMIFICATION SIMPLIFIÉE
  */
 const GamificationPage = () => {
   const { user } = useAuthStore();
@@ -39,7 +39,7 @@ const GamificationPage = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [gamificationData, setGamificationData] = useState({
     user: {
-      level: 7,
+      level: 2,
       xp: 1250,
       nextLevelXP: 2000,
       totalXP: 1250,
@@ -47,10 +47,7 @@ const GamificationPage = () => {
       streak: 5,
       badges: []
     },
-    leaderboard: [],
-    rewards: [],
-    challenges: [],
-    achievements: []
+    challenges: []
   });
 
   console.log('🎮 GamificationPage rendue pour:', user?.email);
@@ -67,73 +64,58 @@ const GamificationPage = () => {
       const level = Math.floor(userXP / 1000) + 1;
       const nextLevelXP = level * 1000;
 
-      // Badges disponibles (simulation)
-      const allBadges = [
-        { id: 1, name: 'Premier Pas', description: 'Première connexion', icon: '🎯', category: 'milestone', rarity: 'common', unlocked: true, unlockedAt: '2024-01-15' },
-        { id: 2, name: 'Productif', description: 'Compléter 10 tâches', icon: '⚡', category: 'achievement', rarity: 'uncommon', unlocked: true, unlockedAt: '2024-01-20' },
-        { id: 3, name: 'Collaborateur', description: 'Participer à 5 projets', icon: '👥', category: 'social', rarity: 'rare', unlocked: false },
-        { id: 4, name: 'Expert', description: 'Atteindre le niveau 10', icon: '🧠', category: 'milestone', rarity: 'epic', unlocked: false },
-        { id: 5, name: 'Mentor', description: 'Aider 10 collègues', icon: '🎓', category: 'social', rarity: 'legendary', unlocked: false },
-        { id: 6, name: 'Innovateur', description: 'Créer 3 projets innovants', icon: '💡', category: 'creativity', rarity: 'rare', unlocked: false },
-        { id: 7, name: 'Persévérant', description: 'Streak de 30 jours', icon: '🔥', category: 'dedication', rarity: 'epic', unlocked: false },
-        { id: 8, name: 'Leader', description: 'Diriger 5 projets', icon: '👑', category: 'leadership', rarity: 'legendary', unlocked: false }
-      ];
-
-      // Récompenses disponibles
-      const rewards = [
-        { id: 1, name: 'Formation Premium', description: 'Accès à une formation avancée', cost: 500, icon: '📚', type: 'education', available: true },
-        { id: 2, name: 'Journée Home Office', description: 'Une journée de télétravail bonus', cost: 300, icon: '🏠', type: 'benefit', available: true },
-        { id: 3, name: 'Bon Restaurant', description: 'Repas d\'équipe offert', cost: 800, icon: '🍽️', type: 'social', available: true },
-        { id: 4, name: 'Matériel Bureau', description: 'Upgrade de votre setup', cost: 1000, icon: '💻', type: 'equipment', available: false },
-        { id: 5, name: 'Conférence Tech', description: 'Participation à un événement', cost: 1500, icon: '🎤', type: 'education', available: false }
-      ];
-
-      // Défis actifs
-      const challenges = [
-        { id: 1, name: 'Marathon Productivité', description: 'Compléter 20 tâches cette semaine', progress: 12, target: 20, reward: 200, endDate: '2024-01-30', type: 'weekly', difficulty: 'medium' },
-        { id: 2, name: 'Collaborateur du Mois', description: 'Participer à 3 nouveaux projets', progress: 1, target: 3, reward: 500, endDate: '2024-01-31', type: 'monthly', difficulty: 'hard' },
-        { id: 3, name: 'Streak Master', description: 'Maintenir un streak de 7 jours', progress: 5, target: 7, reward: 150, endDate: '2024-01-25', type: 'daily', difficulty: 'easy' }
-      ];
-
-      // Leaderboard (simulation)
-      const leaderboard = [
-        { rank: 1, name: 'Alice Martin', avatar: '👩‍💼', xp: 3450, level: 4, badge: '👑' },
-        { rank: 2, name: 'Thomas Dubois', avatar: '👨‍💻', xp: 3200, level: 4, badge: '🥈' },
-        { rank: 3, name: 'Sophie Laurent', avatar: '👩‍🎨', xp: 2980, level: 3, badge: '🥉' },
-        { rank: 4, name: 'Marc Bernard', avatar: '👨‍🔬', xp: 2750, level: 3, badge: '⭐' },
-        { rank: 15, name: user?.displayName || user?.email?.split('@')[0] || 'Vous', avatar: '👤', xp: userXP, level: level, badge: '🎯', isCurrentUser: true }
+      // Défis actifs (simulation basée sur de vraies données)
+      const activeChallenges = [
+        { 
+          id: 1, 
+          name: 'Marathon Productivité', 
+          description: 'Compléter 20 tâches cette semaine',
+          progress: 12,
+          target: 20,
+          reward: 200,
+          endDate: '2024-01-30',
+          difficulty: 'medium',
+          category: 'Hebdomadaire'
+        },
+        { 
+          id: 2, 
+          name: 'Collaboration Extrême', 
+          description: 'Collaborer sur 5 projets différents',
+          progress: 2,
+          target: 5,
+          reward: 500,
+          endDate: '2024-02-15',
+          difficulty: 'hard',
+          category: 'Mensuel'
+        },
+        { 
+          id: 3, 
+          name: 'Streak Master', 
+          description: '7 jours consécutifs de connexion',
+          progress: 5,
+          target: 7,
+          reward: 150,
+          endDate: '2024-01-25',
+          difficulty: 'easy',
+          category: 'Quotidien'
+        }
       ];
 
       setGamificationData({
         user: {
-          level,
+          level: level,
           xp: userXP,
-          nextLevelXP,
+          nextLevelXP: nextLevelXP,
           totalXP: userXP,
           rank: 15,
           streak: 5,
-          badges: allBadges.filter(b => b.unlocked)
+          badges: 2
         },
-        leaderboard,
-        rewards,
-        challenges,
-        achievements: allBadges
+        challenges: activeChallenges
       });
 
-      console.log('🎮 Données gamification chargées');
     } catch (error) {
       console.error('❌ Erreur chargement gamification:', error);
-    }
-  };
-
-  // Réclamer une récompense
-  const claimReward = (reward) => {
-    if (gamificationData.user.xp >= reward.cost) {
-      console.log('🎁 Récompense réclamée:', reward.name);
-      // TODO: Intégrer avec le système de récompenses
-      alert(`🎉 Récompense "${reward.name}" réclamée ! (-${reward.cost} XP)`);
-    } else {
-      alert(`❌ XP insuffisant ! Il vous faut ${reward.cost - gamificationData.user.xp} XP de plus.`);
     }
   };
 
@@ -145,10 +127,7 @@ const GamificationPage = () => {
 
   const tabs = [
     { id: 'overview', label: 'Vue d\'ensemble', icon: Trophy },
-    { id: 'badges', label: 'Badges', icon: Award },
-    { id: 'rewards', label: 'Récompenses', icon: Gift },
-    { id: 'challenges', label: 'Défis', icon: Target },
-    { id: 'leaderboard', label: 'Classement', icon: Crown }
+    { id: 'challenges', label: 'Défis', icon: Target }
   ];
 
   return (
@@ -192,10 +171,13 @@ const GamificationPage = () => {
                 <div className="text-gray-400 text-sm">{gamificationData.user.xp} / {gamificationData.user.nextLevelXP} XP</div>
               </div>
               
+              {/* Barre de progression */}
               <div className="w-full bg-gray-700 rounded-full h-3 mb-2">
                 <div 
-                  className="bg-gradient-to-r from-yellow-500 to-orange-500 h-3 rounded-full transition-all duration-300"
-                  style={{ width: `${(gamificationData.user.xp / gamificationData.user.nextLevelXP) * 100}%` }}
+                  className="bg-gradient-to-r from-yellow-500 to-orange-500 h-3 rounded-full transition-all duration-1000"
+                  style={{ 
+                    width: `${(gamificationData.user.xp / gamificationData.user.nextLevelXP) * 100}%` 
+                  }}
                 ></div>
               </div>
               <p className="text-gray-400 text-sm">
@@ -205,49 +187,59 @@ const GamificationPage = () => {
 
             {/* Statistiques */}
             <div className="md:col-span-3 grid grid-cols-3 gap-4">
+              
+              {/* Classement */}
               <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-400">{gamificationData.user.rank}</div>
+                <div className="text-2xl font-bold text-yellow-400 mb-1">15</div>
                 <div className="text-gray-400 text-sm">Classement</div>
               </div>
+
+              {/* Streak */}
               <div className="text-center">
-                <div className="text-2xl font-bold text-orange-400">{gamificationData.user.streak}</div>
+                <div className="text-2xl font-bold text-orange-400 mb-1">5</div>
                 <div className="text-gray-400 text-sm">Streak jours</div>
               </div>
+
+              {/* Badges */}
               <div className="text-center">
-                <div className="text-2xl font-bold text-purple-400">{gamificationData.user.badges.length}</div>
+                <div className="text-2xl font-bold text-purple-400 mb-1">2</div>
                 <div className="text-gray-400 text-sm">Badges</div>
               </div>
+
             </div>
           </div>
         </motion.div>
 
         {/* ==========================================
-            🔄 NAVIGATION TABS
+            🎯 NAVIGATION TABS
             ========================================== */}
-        <div className="mb-8">
-          <div className="flex flex-wrap gap-2">
-            {tabs.map(tab => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                    activeTab === tab.id
-                      ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white'
-                      : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="flex space-x-1 mb-8 bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-2"
+        >
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
+                  activeTab === tab.id
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </motion.div>
 
         {/* ==========================================
-            📄 CONTENU DES TABS
+            📱 CONTENU DYNAMIQUE
             ========================================== */}
         <AnimatePresence mode="wait">
           
@@ -258,233 +250,154 @@ const GamificationPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="space-y-8"
+              className="grid grid-cols-1 lg:grid-cols-2 gap-8"
             >
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                
-                {/* Défis actifs */}
-                <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <Target className="w-5 h-5 text-blue-400" />
-                    Défis Actifs
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    {gamificationData.challenges.slice(0, 3).map(challenge => (
-                      <div key={challenge.id} className="p-4 bg-gray-700/30 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-white">{challenge.name}</h4>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            challenge.difficulty === 'easy' ? 'bg-green-900/50 text-green-400' :
-                            challenge.difficulty === 'medium' ? 'bg-yellow-900/50 text-yellow-400' :
-                            'bg-red-900/50 text-red-400'
-                          }`}>
-                            {challenge.difficulty}
-                          </span>
-                        </div>
-                        <p className="text-gray-400 text-sm mb-3">{challenge.description}</p>
-                        
-                        <div className="mb-3">
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="text-gray-400">Progression</span>
-                            <span className="text-white">{challenge.progress}/{challenge.target}</span>
-                          </div>
-                          <div className="w-full bg-gray-700 rounded-full h-2">
-                            <div 
-                              className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
-                              style={{ width: `${(challenge.progress / challenge.target) * 100}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <span className="text-yellow-400 text-sm">🏆 {challenge.reward} XP</span>
-                          <span className="text-gray-400 text-sm">Expire: {new Date(challenge.endDate).toLocaleDateString('fr-FR')}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <Link 
-                    to="#challenges"
-                    onClick={() => setActiveTab('challenges')}
-                    className="block mt-4 text-center text-blue-400 hover:text-blue-300"
-                  >
-                    Voir tous les défis →
-                  </Link>
-                </div>
-
-                {/* Badges récents */}
-                <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <Award className="w-5 h-5 text-yellow-400" />
-                    Badges Récents
-                  </h3>
-                  
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    {gamificationData.user.badges.slice(0, 4).map(badge => (
-                      <div key={badge.id} className="p-4 bg-yellow-900/20 border border-yellow-700/50 rounded-lg text-center">
-                        <div className="text-3xl mb-2">{badge.icon}</div>
-                        <h4 className="font-medium text-yellow-400 text-sm">{badge.name}</h4>
-                        <p className="text-gray-400 text-xs">{badge.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <Link 
-                    to="#badges"
-                    onClick={() => setActiveTab('badges')}
-                    className="block text-center text-yellow-400 hover:text-yellow-300"
-                  >
-                    Voir tous les badges →
-                  </Link>
-                </div>
-              </div>
-
-              {/* Top 5 Leaderboard */}
+              
+              {/* Défis en cours */}
               <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
                 <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                  <Crown className="w-5 h-5 text-purple-400" />
-                  Top 5 du Classement
+                  <Target className="w-5 h-5 text-blue-400" />
+                  Défis en Cours
                 </h3>
                 
-                <div className="space-y-3">
-                  {gamificationData.leaderboard.slice(0, 5).map(player => (
-                    <div 
-                      key={player.rank}
-                      className={`flex items-center gap-4 p-3 rounded-lg ${
-                        player.isCurrentUser ? 'bg-blue-900/30 border border-blue-700/50' : 'bg-gray-700/30'
-                      }`}
-                    >
-                      <div className="text-2xl">{player.badge}</div>
-                      <div className="text-lg">{player.avatar}</div>
-                      <div className="flex-1">
-                        <div className="font-medium text-white">
-                          {player.name} {player.isCurrentUser && '(Vous)'}
-                        </div>
-                        <div className="text-gray-400 text-sm">Niveau {player.level} • {player.xp.toLocaleString()} XP</div>
+                <div className="space-y-4 mb-4">
+                  {gamificationData.challenges.slice(0, 3).map(challenge => (
+                    <div key={challenge.id} className="p-4 bg-gray-700/30 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-white">{challenge.name}</h4>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          challenge.difficulty === 'easy' ? 'bg-green-900/50 text-green-400' :
+                          challenge.difficulty === 'medium' ? 'bg-yellow-900/50 text-yellow-400' :
+                          'bg-red-900/50 text-red-400'
+                        }`}>
+                          {challenge.difficulty}
+                        </span>
                       </div>
-                      <div className="text-yellow-400 font-bold">#{player.rank}</div>
+                      <p className="text-gray-400 text-sm mb-3">{challenge.description}</p>
+                      
+                      <div className="mb-3">
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-gray-400">Progression</span>
+                          <span className="text-white">{challenge.progress}/{challenge.target} ({Math.round((challenge.progress / challenge.target) * 100)}%)</span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div 
+                            className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${(challenge.progress / challenge.target) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="text-yellow-400 text-sm flex items-center gap-1">
+                          <Trophy className="w-4 h-4" />
+                          {challenge.reward} XP
+                        </span>
+                        <span className="text-gray-400 text-sm">
+                          Expire: {new Date(challenge.endDate).toLocaleDateString('fr-FR')}
+                        </span>
+                      </div>
+                      
+                      {/* Statut */}
+                      <div className="mt-3">
+                        {challenge.progress >= challenge.target ? (
+                          <span className="text-green-400 text-sm">✅ Défi terminé !</span>
+                        ) : (
+                          <span className="text-blue-400 text-sm">
+                            🚀 Encore {challenge.target - challenge.progress} à faire
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
                 
-                <Link 
-                  to="#leaderboard"
-                  onClick={() => setActiveTab('leaderboard')}
-                  className="block mt-4 text-center text-purple-400 hover:text-purple-300"
+                <button 
+                  onClick={() => setActiveTab('challenges')}
+                  className="w-full text-center text-blue-400 hover:text-blue-300 py-2 border border-blue-500/30 rounded-lg hover:bg-blue-500/10 transition-colors"
                 >
-                  Voir le classement complet →
-                </Link>
+                  Voir tous les défis →
+                </button>
               </div>
-            </motion.div>
-          )}
 
-          {/* Badges */}
-          {activeTab === 'badges' && (
-            <motion.div
-              key="badges"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-            >
+              {/* Statistiques détaillées */}
               <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-                <h3 className="text-xl font-bold text-white mb-6">Collection de Badges</h3>
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-green-400" />
+                  Vos Performances
+                </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {gamificationData.achievements.map(badge => (
-                    <motion.div
-                      key={badge.id}
-                      whileHover={{ scale: 1.05 }}
-                      className={`p-6 rounded-xl text-center border-2 ${
-                        badge.unlocked 
-                          ? 'bg-gradient-to-br from-yellow-900/20 to-orange-900/20 border-yellow-500/50' 
-                          : 'bg-gray-700/20 border-gray-600/50'
-                      }`}
-                    >
-                      <div className="text-4xl mb-3">{badge.unlocked ? badge.icon : '🔒'}</div>
-                      <h4 className={`font-bold mb-2 ${badge.unlocked ? 'text-yellow-400' : 'text-gray-400'}`}>
-                        {badge.name}
-                      </h4>
-                      <p className="text-gray-400 text-sm mb-3">{badge.description}</p>
-                      
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          badge.rarity === 'common' ? 'bg-gray-600 text-gray-300' :
-                          badge.rarity === 'uncommon' ? 'bg-green-600 text-green-200' :
-                          badge.rarity === 'rare' ? 'bg-blue-600 text-blue-200' :
-                          badge.rarity === 'epic' ? 'bg-purple-600 text-purple-200' :
-                          'bg-yellow-600 text-yellow-200'
-                        }`}>
-                          {badge.rarity}
-                        </span>
-                      </div>
-                      
-                      {badge.unlocked && badge.unlockedAt && (
-                        <p className="text-xs text-gray-500">
-                          Débloqué le {new Date(badge.unlockedAt).toLocaleDateString('fr-FR')}
-                        </p>
-                      )}
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Récompenses */}
-          {activeTab === 'rewards' && (
-            <motion.div
-              key="rewards"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-            >
-              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-white">Boutique de Récompenses</h3>
-                  <div className="text-yellow-400 font-bold">
-                    💰 {gamificationData.user.xp} XP disponibles
+                <div className="space-y-6">
+                  
+                  {/* Progression niveau */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-gray-400">Progression Niveau</span>
+                      <span className="text-white font-medium">
+                        Niveau {gamificationData.user.level} → {gamificationData.user.level + 1}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-3">
+                      <div 
+                        className="bg-gradient-to-r from-yellow-500 to-orange-500 h-3 rounded-full"
+                        style={{ width: `${(gamificationData.user.xp / gamificationData.user.nextLevelXP) * 100}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-sm text-gray-400 mt-1">
+                      {gamificationData.user.xp} / {gamificationData.user.nextLevelXP} XP
+                    </div>
                   </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {gamificationData.rewards.map(reward => (
-                    <motion.div
-                      key={reward.id}
-                      whileHover={{ scale: 1.02 }}
-                      className={`p-6 rounded-xl border ${
-                        reward.available && gamificationData.user.xp >= reward.cost
-                          ? 'bg-gradient-to-br from-green-900/20 to-blue-900/20 border-green-500/50'
-                          : 'bg-gray-700/20 border-gray-600/50'
-                      }`}
+
+                  {/* Statistiques */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-4 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg">
+                      <Crown className="w-6 h-6 text-purple-400 mx-auto mb-2" />
+                      <div className="text-xl font-bold text-white">#15</div>
+                      <div className="text-sm text-gray-400">Classement</div>
+                    </div>
+                    
+                    <div className="text-center p-4 bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-lg">
+                      <Flame className="w-6 h-6 text-orange-400 mx-auto mb-2" />
+                      <div className="text-xl font-bold text-white">5</div>
+                      <div className="text-sm text-gray-400">Streak jours</div>
+                    </div>
+                  </div>
+
+                  {/* Actions rapides */}
+                  <div className="space-y-3">
+                    <Link 
+                      to="/badges"
+                      className="flex items-center justify-between p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg hover:bg-yellow-500/20 transition-colors group"
                     >
-                      <div className="text-center mb-4">
-                        <div className="text-4xl mb-2">{reward.icon}</div>
-                        <h4 className="font-bold text-white mb-1">{reward.name}</h4>
-                        <p className="text-gray-400 text-sm">{reward.description}</p>
+                      <div className="flex items-center gap-3">
+                        <Award className="w-5 h-5 text-yellow-400" />
+                        <span className="text-white">Mes Badges</span>
                       </div>
-                      
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-yellow-400 mb-3">
-                          {reward.cost} XP
-                        </div>
-                        
-                        <button
-                          onClick={() => claimReward(reward)}
-                          disabled={!reward.available || gamificationData.user.xp < reward.cost}
-                          className={`w-full px-4 py-2 rounded-lg font-medium transition-colors ${
-                            reward.available && gamificationData.user.xp >= reward.cost
-                              ? 'bg-gradient-to-r from-green-500 to-blue-500 text-white hover:from-green-600 hover:to-blue-600'
-                              : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                          }`}
-                        >
-                          {!reward.available ? '🔒 Indisponible' :
-                           gamificationData.user.xp < reward.cost ? '💰 XP insuffisant' : '🎁 Réclamer'}
-                        </button>
+                      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-white" />
+                    </Link>
+                    
+                    <Link 
+                      to="/rewards"
+                      className="flex items-center justify-between p-3 bg-green-500/10 border border-green-500/30 rounded-lg hover:bg-green-500/20 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Gift className="w-5 h-5 text-green-400" />
+                        <span className="text-white">Récompenses</span>
                       </div>
-                    </motion.div>
-                  ))}
+                      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-white" />
+                    </Link>
+                    
+                    <Link 
+                      to="/leaderboard"
+                      className="flex items-center justify-between p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg hover:bg-purple-500/20 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Crown className="w-5 h-5 text-purple-400" />
+                        <span className="text-white">Classement</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-white" />
+                    </Link>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -499,175 +412,110 @@ const GamificationPage = () => {
               exit={{ opacity: 0, y: -20 }}
             >
               <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-                <h3 className="text-xl font-bold text-white mb-6">Défis Disponibles</h3>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-white">Défis Disponibles</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 text-sm">Filtrer par:</span>
+                    <select className="bg-gray-700 text-white rounded-lg px-3 py-1 text-sm border border-gray-600">
+                      <option>Tous</option>
+                      <option>Quotidien</option>
+                      <option>Hebdomadaire</option>
+                      <option>Mensuel</option>
+                    </select>
+                  </div>
+                </div>
                 
-                <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {gamificationData.challenges.map(challenge => (
                     <motion.div
                       key={challenge.id}
-                      whileHover={{ scale: 1.01 }}
-                      className="p-6 bg-gray-700/30 rounded-xl border border-gray-600/50"
+                      whileHover={{ scale: 1.02 }}
+                      className="p-6 bg-gray-700/30 rounded-xl border border-gray-600/50 hover:border-blue-500/50 transition-all"
                     >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h4 className="text-lg font-bold text-white">{challenge.name}</h4>
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              challenge.type === 'daily' ? 'bg-green-900/50 text-green-400' :
-                              challenge.type === 'weekly' ? 'bg-blue-900/50 text-blue-400' :
-                              'bg-purple-900/50 text-purple-400'
-                            }`}>
-                              {challenge.type === 'daily' ? '📅 Quotidien' :
-                               challenge.type === 'weekly' ? '📊 Hebdomadaire' : '🗓️ Mensuel'}
-                            </span>
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              challenge.difficulty === 'easy' ? 'bg-green-900/50 text-green-400' :
-                              challenge.difficulty === 'medium' ? 'bg-yellow-900/50 text-yellow-400' :
-                              'bg-red-900/50 text-red-400'
-                            }`}>
-                              {challenge.difficulty === 'easy' ? '😊 Facile' :
-                               challenge.difficulty === 'medium' ? '😐 Moyen' : '😤 Difficile'}
-                            </span>
-                          </div>
-                          <p className="text-gray-400 mb-4">{challenge.description}</p>
-                        </div>
-                        
-                        <div className="text-right">
-                          <div className="text-yellow-400 font-bold text-lg">🏆 {challenge.reward} XP</div>
-                          <div className="text-gray-400 text-sm">Expire: {new Date(challenge.endDate).toLocaleDateString('fr-FR')}</div>
-                        </div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-bold text-white">{challenge.name}</h4>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          challenge.difficulty === 'easy' ? 'bg-green-900/50 text-green-400' :
+                          challenge.difficulty === 'medium' ? 'bg-yellow-900/50 text-yellow-400' :
+                          'bg-red-900/50 text-red-400'
+                        }`}>
+                          {challenge.difficulty}
+                        </span>
                       </div>
                       
+                      <p className="text-gray-400 text-sm mb-4">{challenge.description}</p>
+                      
+                      {/* Progression */}
                       <div className="mb-4">
                         <div className="flex justify-between text-sm mb-2">
                           <span className="text-gray-400">Progression</span>
                           <span className="text-white font-medium">
-                            {challenge.progress}/{challenge.target} ({Math.round((challenge.progress / challenge.target) * 100)}%)
+                            {challenge.progress}/{challenge.target}
                           </span>
                         </div>
-                        <div className="w-full bg-gray-700 rounded-full h-3">
+                        <div className="w-full bg-gray-700 rounded-full h-2">
                           <div 
-                            className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300"
-                            style={{ width: `${Math.min((challenge.progress / challenge.target) * 100, 100)}%` }}
+                            className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${(challenge.progress / challenge.target) * 100}%` }}
                           ></div>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {Math.round((challenge.progress / challenge.target) * 100)}% complété
                         </div>
                       </div>
                       
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-gray-400">
-                          {challenge.progress >= challenge.target ? (
-                            <span className="text-green-400 font-medium">✅ Défi complété !</span>
-                          ) : (
-                            <span>Encore {challenge.target - challenge.progress} à faire</span>
-                          )}
+                      {/* Récompense et échéance */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-1 text-yellow-400">
+                          <Trophy className="w-4 h-4" />
+                          <span className="font-medium">{challenge.reward} XP</span>
                         </div>
-                        
-                        <button
-                          onClick={() => joinChallenge(challenge)}
-                          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                            challenge.progress >= challenge.target
-                              ? 'bg-green-600 text-white cursor-default'
-                              : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600'
-                          }`}
-                          disabled={challenge.progress >= challenge.target}
-                        >
-                          {challenge.progress >= challenge.target ? '🏆 Complété' : '🚀 Rejoindre'}
-                        </button>
+                        <div className="text-gray-400 text-xs">
+                          Expire: {new Date(challenge.endDate).toLocaleDateString('fr-FR')}
+                        </div>
                       </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Leaderboard */}
-          {activeTab === 'leaderboard' && (
-            <motion.div
-              key="leaderboard"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-            >
-              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-                <h3 className="text-xl font-bold text-white mb-6">🏆 Classement Global</h3>
-                
-                {/* Podium */}
-                <div className="flex items-end justify-center gap-4 mb-8">
-                  {gamificationData.leaderboard.slice(0, 3).map((player, index) => (
-                    <motion.div
-                      key={player.rank}
-                      initial={{ opacity: 0, y: 50 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 + index * 0.1 }}
-                      className={`text-center p-4 rounded-xl ${
-                        index === 0 ? 'bg-gradient-to-br from-yellow-900/30 to-orange-900/30 border-2 border-yellow-500/50 h-32' :
-                        index === 1 ? 'bg-gradient-to-br from-gray-700/30 to-gray-600/30 border-2 border-gray-400/50 h-28' :
-                        'bg-gradient-to-br from-orange-900/30 to-red-900/30 border-2 border-orange-500/50 h-24'
-                      }`}
-                    >
-                      <div className="text-3xl mb-1">{player.badge}</div>
-                      <div className="text-lg mb-1">{player.avatar}</div>
-                      <div className="font-bold text-white text-sm">{player.name}</div>
-                      <div className="text-xs text-gray-400">Niv. {player.level}</div>
-                      <div className="text-yellow-400 text-xs font-bold">{player.xp.toLocaleString()} XP</div>
-                    </motion.div>
-                  ))}
-                </div>
-                
-                {/* Liste complète */}
-                <div className="space-y-2">
-                  {gamificationData.leaderboard.map((player, index) => (
-                    <motion.div
-                      key={player.rank}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.5 + index * 0.05 }}
-                      className={`flex items-center gap-4 p-4 rounded-lg transition-colors ${
-                        player.isCurrentUser 
-                          ? 'bg-blue-900/30 border border-blue-700/50' 
-                          : 'bg-gray-700/20 hover:bg-gray-700/30'
-                      }`}
-                    >
-                      <div className="w-8 text-center">
-                        <span className={`font-bold ${
-                          player.rank === 1 ? 'text-yellow-400' :
-                          player.rank === 2 ? 'text-gray-400' :
-                          player.rank === 3 ? 'text-orange-400' :
-                          'text-white'
-                        }`}>
-                          #{player.rank}
+                      
+                      {/* Statut et action */}
+                      <div className="space-y-2">
+                        {challenge.progress >= challenge.target ? (
+                          <div className="text-center">
+                            <div className="text-green-400 text-sm mb-2">✅ Défi terminé !</div>
+                            <button className="w-full py-2 bg-green-600 text-white rounded-lg font-medium">
+                              Récupérer Récompense
+                            </button>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="text-blue-400 text-sm mb-2 text-center">
+                              🚀 Encore {challenge.target - challenge.progress} à accomplir
+                            </div>
+                            <button 
+                              onClick={() => joinChallenge(challenge)}
+                              className="w-full py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all"
+                            >
+                              Rejoindre
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Catégorie */}
+                      <div className="mt-3 text-center">
+                        <span className="px-2 py-1 bg-gray-600/50 text-gray-300 rounded-full text-xs">
+                          {challenge.category}
                         </span>
                       </div>
-                      
-                      <div className="text-2xl">{player.badge}</div>
-                      <div className="text-xl">{player.avatar}</div>
-                      
-                      <div className="flex-1">
-                        <div className="font-medium text-white">
-                          {player.name} {player.isCurrentUser && '(Vous)'}
-                        </div>
-                        <div className="text-gray-400 text-sm">
-                          Niveau {player.level} • {player.xp.toLocaleString()} XP
-                        </div>
-                      </div>
-                      
-                      <div className="text-right">
-                        <div className="w-20 bg-gray-700 rounded-full h-2">
-                          <div 
-                            className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
-                            style={{ width: `${Math.min((player.xp / 5000) * 100, 100)}%` }}
-                          ></div>
-                        </div>
-                      </div>
                     </motion.div>
                   ))}
                 </div>
                 
-                <div className="mt-6 text-center">
-                  <p className="text-gray-400 text-sm">
-                    💡 Complétez des tâches et participez à des projets pour grimper dans le classement !
-                  </p>
+                {/* Ajouter plus de défis */}
+                <div className="mt-8 text-center">
+                  <p className="text-gray-400 mb-4">Plus de défis arrivent bientôt !</p>
+                  <button className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all">
+                    <Plus className="w-4 h-4 inline mr-2" />
+                    Suggérer un Défi
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -675,13 +523,13 @@ const GamificationPage = () => {
         </AnimatePresence>
 
         {/* ==========================================
-            🔗 LIENS RAPIDES
+            🔗 LIENS RAPIDES VERS AUTRES PAGES
             ========================================== */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1 }}
-          className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4"
+          className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4"
         >
           <Link
             to="/leaderboard"
@@ -706,14 +554,6 @@ const GamificationPage = () => {
             <Gift className="w-6 h-6 mx-auto mb-2" />
             <span className="font-medium">Mes Récompenses</span>
           </Link>
-          
-          <Link
-            to="/role-progression"
-            className="p-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg text-white text-center hover:scale-105 transition-transform"
-          >
-            <Target className="w-6 h-6 mx-auto mb-2" />
-            <span className="font-medium">Progression Rôles</span>
-          </Link>
         </motion.div>
       </div>
     </div>
@@ -725,6 +565,6 @@ export default GamificationPage;
 // ==========================================
 // 📋 LOGS DE CONFIRMATION
 // ==========================================
-console.log('🎮 GamificationPage COMPLÈTE chargée');
-console.log('🏆 Tous les systèmes: Badges, Récompenses, Défis, Classement');
-console.log('🚀 Interface premium avec animations et interactions');
+console.log('🎮 GamificationPage SIMPLIFIÉE chargée');
+console.log('🏆 Onglets actifs: Vue d\'ensemble + Défis');
+console.log('🚀 Interface premium avec liens vers pages dédiées');
