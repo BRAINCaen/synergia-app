@@ -749,14 +749,15 @@ const TasksPage = () => {
   };
 
   /**
-   * 📊 CHARGER TOUTES LES TÂCHES - LOGIQUE CORRIGÉE
+   * 📊 CHARGER TOUTES LES TÂCHES - AVEC DEBUG COMPLET
    */
   const loadAllTasks = async () => {
     if (!user?.uid) return;
     
     setLoading(true);
     try {
-      console.log('📊 Chargement de toutes les tâches pour:', user.uid);
+      console.log('📊 ========== DÉBUT CHARGEMENT TÂCHES ==========');
+      console.log('📊 [1] Chargement pour utilisateur:', user.uid);
       
       const allTasksQuery = query(
         collection(db, 'tasks'),
@@ -772,13 +773,19 @@ const TasksPage = () => {
         });
       });
       
-      console.log('📊 Total tâches trouvées:', allTasks.length);
+      console.log('📊 [2] Total tâches Firebase:', allTasks.length);
       
       // ✅ CORRECTION 1: Mes tâches (assignées à moi OU créées par moi)
       const myTasksList = allTasks.filter(task => {
         const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
         const isCreatedByMe = task.createdBy === user.uid;
-        return isAssignedToMe || isCreatedByMe;
+        const result = isAssignedToMe || isCreatedByMe;
+        
+        if (result) {
+          console.log(`📊 [3] MA TÂCHE: "${task.title}" - Assigné: ${isAssignedToMe}, Créé: ${isCreatedByMe}`);
+        }
+        
+        return result;
       });
       
       // ✅ CORRECTION 2: Tâches disponibles (ouvertes aux volontaires ET pas assignées à moi)
@@ -793,8 +800,13 @@ const TasksPage = () => {
         // - ET statut ouvert
         const isAvailableStatus = ['pending', 'open'].includes(task.status);
         const isOpenForVolunteers = !hasAssignees || task.openToVolunteers;
+        const result = !isAssignedToMe && !isCreatedByMe && isAvailableStatus && isOpenForVolunteers;
         
-        return !isAssignedToMe && !isCreatedByMe && isAvailableStatus && isOpenForVolunteers;
+        if (result) {
+          console.log(`📊 [4] TÂCHE DISPONIBLE: "${task.title}" - Status: ${task.status}, Open: ${task.openToVolunteers}`);
+        }
+        
+        return result;
       });
 
       // ✅ CORRECTION 3: Tâches des autres (assignées à d'autres ET pas créées par moi)
@@ -802,20 +814,32 @@ const TasksPage = () => {
         const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
         const isCreatedByMe = task.createdBy === user.uid;
         const hasAssignees = (task.assignedTo || []).length > 0;
+        const result = hasAssignees && !isAssignedToMe && !isCreatedByMe;
         
-        return hasAssignees && !isAssignedToMe && !isCreatedByMe;
+        if (result) {
+          console.log(`📊 [5] TÂCHE DES AUTRES: "${task.title}" - Assignés: ${task.assignedTo?.length || 0}`);
+        }
+        
+        return result;
       });
       
-      console.log('✅ Mes tâches:', myTasksList.length);
-      console.log('✅ Tâches disponibles:', availableTasksList.length);
-      console.log('✅ Tâches des autres:', otherTasksList.length);
+      console.log('📊 [6] RÉSULTATS FINAUX:');
+      console.log('📊   - Mes tâches:', myTasksList.length);
+      console.log('📊   - Tâches disponibles:', availableTasksList.length);
+      console.log('📊   - Tâches des autres:', otherTasksList.length);
       
+      // ✅ MISE À JOUR DES ÉTATS
       setMyTasks(myTasksList);
       setAvailableTasks(availableTasksList);
       setOtherTasks(otherTasksList);
       
+      console.log('📊 [7] États mis à jour avec succès');
+      console.log('📊 ========== FIN CHARGEMENT TÂCHES ==========');
+      
     } catch (error) {
+      console.error('❌ ========== ERREUR CHARGEMENT ==========');
       console.error('❌ Erreur chargement tâches:', error);
+      console.error('❌ =====================================');
     } finally {
       setLoading(false);
     }
@@ -902,56 +926,137 @@ const TasksPage = () => {
   };
 
   /**
-   * 🚪 SE RETIRER D'UNE TÂCHE - AVEC RECALCUL XP
+   * 🚪 SE RETIRER D'UNE TÂCHE - DEBUG COMPLET + CORRECTION DÉFINITIVE
    */
   const handleWithdrawFromTask = async (taskId) => {
     try {
       const confirmed = window.confirm('Êtes-vous sûr de vouloir vous retirer de cette tâche ?');
       if (!confirmed) return;
       
-      console.log('🚪 [DEBUG] Début retrait de tâche:', taskId);
+      console.log('🚪 ========== DÉBUT RETRAIT DEBUG ==========');
+      console.log('🚪 [1] Task ID:', taskId);
+      console.log('🚪 [2] User ID:', user.uid);
       
       const taskRef = doc(db, 'tasks', taskId);
+      
+      // ✅ ÉTAPE 1: Récupérer les données actuelles
+      console.log('🚪 [3] Récupération données tâche...');
       const taskDoc = await getDoc(taskRef);
       
       if (!taskDoc.exists()) {
-        alert('Tâche introuvable');
+        console.error('❌ [ERROR] Tâche introuvable:', taskId);
+        alert('Erreur: Tâche introuvable');
         return;
       }
       
       const currentTask = taskDoc.data();
       const currentAssignees = currentTask.assignedTo || [];
+      
+      console.log('🚪 [4] Tâche actuelle:', {
+        title: currentTask.title,
+        status: currentTask.status,
+        assignedTo: currentAssignees
+      });
+      
+      // ✅ ÉTAPE 2: Vérifier présence utilisateur
+      const userIndex = currentAssignees.indexOf(user.uid);
+      const isUserAssigned = userIndex !== -1;
+      
+      console.log('🚪 [5] Vérification assignation:', {
+        userInList: isUserAssigned,
+        userIndex: userIndex,
+        currentAssignees: currentAssignees
+      });
+      
+      if (!isUserAssigned) {
+        console.warn('⚠️ [WARNING] Utilisateur pas dans la liste des assignés');
+        alert('Vous n\'êtes pas assigné à cette tâche');
+        return;
+      }
+      
+      // ✅ ÉTAPE 3: Créer nouvelle liste sans l'utilisateur
       const newAssignees = currentAssignees.filter(id => id !== user.uid);
       
-      // ✅ RECALCUL AUTOMATIQUE DES XP
+      console.log('🚪 [6] Nouvelle liste assignés:', {
+        ancien: currentAssignees,
+        nouveau: newAssignees,
+        différence: currentAssignees.length - newAssignees.length
+      });
+      
+      // ✅ ÉTAPE 4: Recalculer XP
       const totalXP = currentTask.xpReward || 0;
       const xpPerUser = newAssignees.length > 0 ? Math.floor(totalXP / newAssignees.length) : totalXP;
       
+      console.log('🚪 [7] Calcul XP:', {
+        totalXP: totalXP,
+        nouveauNombreAssignés: newAssignees.length,
+        xpParPersonne: xpPerUser
+      });
+      
+      // ✅ ÉTAPE 5: Préparer données de mise à jour
       const updateData = {
         assignedTo: newAssignees,
         updatedAt: serverTimestamp(),
         lastWithdrawAt: serverTimestamp(),
         lastWithdrawBy: user.uid,
-        xpPerUser: xpPerUser,
-        xpDistribution: newAssignees.reduce((acc, userId) => {
-          acc[userId] = xpPerUser;
-          return acc;
-        }, {})
+        xpPerUser: xpPerUser
       };
       
-      // Si plus personne n'est assigné, remettre la tâche disponible
+      // Si plus personne, remettre disponible
       if (newAssignees.length === 0) {
         updateData.status = 'open';
         updateData.openToVolunteers = true;
+        console.log('🚪 [8] Plus personne assigné - statut changé vers "open"');
       }
       
+      // Ajouter distribution XP
+      if (newAssignees.length > 0) {
+        updateData.xpDistribution = newAssignees.reduce((acc, userId) => {
+          acc[userId] = xpPerUser;
+          return acc;
+        }, {});
+      }
+      
+      console.log('🚪 [9] Données de mise à jour:', updateData);
+      
+      // ✅ ÉTAPE 6: Mettre à jour Firebase
+      console.log('🚪 [10] Mise à jour Firebase...');
       await updateDoc(taskRef, updateData);
       
-      console.log('✅ Retrait réussi - XP redistribué:', xpPerUser, 'par personne restante');
+      console.log('✅ [11] Mise à jour Firebase RÉUSSIE');
+      
+      // ✅ ÉTAPE 7: Vérifier la mise à jour
+      console.log('🚪 [12] Vérification post-mise à jour...');
+      const updatedTaskDoc = await getDoc(taskRef);
+      const updatedTaskData = updatedTaskDoc.data();
+      
+      console.log('🚪 [13] Tâche après mise à jour:', {
+        assignedTo: updatedTaskData.assignedTo,
+        status: updatedTaskData.status,
+        lastWithdrawBy: updatedTaskData.lastWithdrawBy
+      });
+      
+      // ✅ ÉTAPE 8: Forcer le rechargement
+      console.log('🚪 [14] Rechargement des tâches...');
+      
+      // ✅ CORRECTION MAJEURE: Attendre et forcer plusieurs rechargements
+      await new Promise(resolve => setTimeout(resolve, 500)); // Attendre 500ms
       await loadAllTasks();
+      await new Promise(resolve => setTimeout(resolve, 200)); // Attendre encore
+      await loadAllTasks(); // Double rechargement pour être sûr
+      
+      console.log('✅ [15] RETRAIT TERMINÉ AVEC SUCCÈS');
+      console.log('🚪 ========== FIN RETRAIT DEBUG ==========');
+      
+      // Notification de succès
+      alert('Vous avez été retiré de la tâche avec succès !');
       
     } catch (error) {
-      console.error('❌ Erreur retrait:', error);
+      console.error('❌ ========== ERREUR RETRAIT ==========');
+      console.error('❌ [ERROR] Erreur complète:', error);
+      console.error('❌ [ERROR] Stack trace:', error.stack);
+      console.error('❌ [ERROR] Message:', error.message);
+      console.error('❌ =======================================');
       alert('Erreur lors du retrait: ' + error.message);
     }
   };
