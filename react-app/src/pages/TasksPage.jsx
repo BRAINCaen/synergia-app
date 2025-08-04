@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// TASKS PAGE AVEC CORRECTIONS DE BUGS + MODAL DÉTAILS
+// TASKS PAGE AVEC NOMS D'UTILISATEURS ET APERÇUS AMÉLIORÉS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -50,7 +50,172 @@ import {
 } from 'lucide-react';
 
 /**
- * 🎨 MODAL DÉTAILS DE TÂCHE
+ * 👥 SERVICE DE GESTION DES UTILISATEURS
+ */
+class UserService {
+  constructor() {
+    this.userCache = new Map();
+    this.isLoading = false;
+  }
+
+  // Récupérer tous les utilisateurs et les mettre en cache
+  async loadAllUsers() {
+    if (this.isLoading) return;
+    
+    try {
+      this.isLoading = true;
+      console.log('👥 Chargement de tous les utilisateurs...');
+      
+      const usersQuery = query(collection(db, 'users'));
+      const usersSnapshot = await getDocs(usersQuery);
+      
+      usersSnapshot.forEach(doc => {
+        const userData = doc.data();
+        const cleanName = this.cleanDisplayName(userData);
+        
+        this.userCache.set(doc.id, {
+          id: doc.id,
+          displayName: cleanName,
+          email: userData.email || '',
+          photoURL: userData.photoURL || null,
+          rawData: userData
+        });
+      });
+      
+      console.log('✅ Utilisateurs chargés:', this.userCache.size);
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement utilisateurs:', error);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // Nettoyer les noms d'affichage
+  cleanDisplayName(userData) {
+    let cleanName = userData.displayName || userData.email || 'Utilisateur';
+    
+    // Nettoyer les URLs Google
+    if (cleanName.includes('googleusercontent.com')) {
+      console.log('🧹 Nettoyage URL Google');
+      // Prendre l'email à la place
+      cleanName = userData.email || 'Utilisateur';
+    }
+    
+    // Extraire le nom avant @ pour les emails
+    if (cleanName.includes('@')) {
+      const emailParts = cleanName.split('@');
+      cleanName = emailParts[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+    
+    return cleanName;
+  }
+
+  // Obtenir un utilisateur par ID
+  getUser(userId) {
+    return this.userCache.get(userId) || {
+      id: userId,
+      displayName: `User ${userId.substring(0, 8)}...`,
+      email: '',
+      photoURL: null
+    };
+  }
+
+  // Obtenir plusieurs utilisateurs
+  getUsers(userIds) {
+    return userIds.map(id => this.getUser(id));
+  }
+}
+
+// Instance globale du service
+const userService = new UserService();
+
+/**
+ * 🎨 COMPOSANT AVATAR UTILISATEUR
+ */
+const UserAvatar = ({ user, size = 'sm' }) => {
+  const sizeClasses = {
+    xs: 'w-6 h-6 text-xs',
+    sm: 'w-8 h-8 text-sm',
+    md: 'w-10 h-10 text-base',
+    lg: 'w-12 h-12 text-lg'
+  };
+
+  if (user.photoURL) {
+    return (
+      <img
+        src={user.photoURL}
+        alt={user.displayName}
+        className={`${sizeClasses[size]} rounded-full object-cover`}
+      />
+    );
+  }
+
+  // Avatar avec initiales
+  const initials = user.displayName
+    .split(' ')
+    .map(word => word[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase();
+
+  return (
+    <div className={`${sizeClasses[size]} rounded-full bg-blue-500 text-white flex items-center justify-center font-medium`}>
+      {initials}
+    </div>
+  );
+};
+
+/**
+ * 🎨 COMPOSANT LISTE D'ASSIGNÉS
+ */
+const AssignedUsersList = ({ userIds, maxDisplay = 3 }) => {
+  const users = userService.getUsers(userIds);
+  const displayUsers = users.slice(0, maxDisplay);
+  const remainingCount = users.length - maxDisplay;
+
+  if (users.length === 0) {
+    return (
+      <span className="text-gray-500 text-sm">Non assigné</span>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Avatars */}
+      <div className="flex -space-x-2">
+        {displayUsers.map((user, index) => (
+          <div
+            key={user.id}
+            className="relative"
+            title={user.displayName}
+          >
+            <UserAvatar user={user} size="sm" />
+          </div>
+        ))}
+        {remainingCount > 0 && (
+          <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-xs font-medium">
+            +{remainingCount}
+          </div>
+        )}
+      </div>
+      
+      {/* Noms */}
+      <div className="flex flex-col">
+        <span className="text-sm font-medium text-gray-900">
+          {displayUsers.map(user => user.displayName).join(', ')}
+          {remainingCount > 0 && ` et ${remainingCount} autre${remainingCount > 1 ? 's' : ''}`}
+        </span>
+        <span className="text-xs text-gray-500">
+          {users.length} assigné{users.length > 1 ? 's' : ''}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * 🎨 MODAL DÉTAILS DE TÂCHE AMÉLIORÉE
  */
 const TaskDetailsModal = ({ isOpen, task, onClose }) => {
   if (!isOpen || !task) return null;
@@ -66,15 +231,7 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
     }
   };
 
-  const getPriorityColor = (priority) => {
-    switch(priority) {
-      case 'urgent': return 'bg-red-100 text-red-800';
-      case 'high': return 'bg-orange-100 text-orange-800';
-      case 'medium': return 'bg-blue-100 text-blue-800';
-      case 'low': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-blue-100 text-blue-800';
-    }
-  };
+  const assignedUsers = userService.getUsers(task.assignedTo || []);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -119,22 +276,16 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
 
           {/* Métadonnées principales */}
           <div className="grid grid-cols-2 gap-4">
-            {/* Priorité */}
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
                 <AlertCircle className="h-4 w-4 text-gray-500" />
                 <span className="text-sm font-medium text-gray-700">Priorité</span>
               </div>
-              <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                {task.priority === 'urgent' && 'Urgente'}
-                {task.priority === 'high' && 'Haute'}
-                {task.priority === 'medium' && 'Moyenne'}
-                {task.priority === 'low' && 'Basse'}
-                {!task.priority && 'Non définie'}
+              <span className="text-lg font-semibold text-gray-900 capitalize">
+                {task.priority || 'Moyenne'}
               </span>
             </div>
 
-            {/* XP */}
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Zap className="h-4 w-4 text-yellow-500" />
@@ -146,28 +297,29 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
             </div>
           </div>
 
-          {/* Assignés */}
+          {/* Assignés - AMÉLIORÉ */}
           <div>
             <div className="flex items-center gap-2 mb-3">
               <Users className="h-5 w-5 text-gray-500" />
               <h3 className="text-lg font-semibold text-gray-900">
-                Personnes assignées ({(task.assignedTo || []).length})
+                Personnes assignées ({assignedUsers.length})
               </h3>
             </div>
             
-            {(task.assignedTo || []).length === 0 ? (
+            {assignedUsers.length === 0 ? (
               <div className="bg-gray-50 rounded-lg p-4 text-center">
                 <p className="text-gray-500">Aucune personne assignée</p>
               </div>
             ) : (
               <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex flex-wrap gap-2">
-                  {task.assignedTo.map((userId, index) => (
-                    <div key={index} className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-sm">
-                      <User className="h-4 w-4 text-blue-500" />
-                      <span className="text-sm font-medium text-gray-700">
-                        ID: {userId.substring(0, 8)}...
-                      </span>
+                <div className="space-y-3">
+                  {assignedUsers.map((user) => (
+                    <div key={user.id} className="flex items-center gap-3 bg-white px-3 py-2 rounded-lg shadow-sm">
+                      <UserAvatar user={user} size="md" />
+                      <div>
+                        <p className="font-medium text-gray-900">{user.displayName}</p>
+                        <p className="text-sm text-gray-500">{user.email}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -197,7 +349,6 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
 
           {/* Informations temporelles */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Date de création */}
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="h-4 w-4 text-gray-500" />
@@ -214,7 +365,6 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
               </p>
             </div>
 
-            {/* Date d'échéance */}
             {task.dueDate && (
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -232,16 +382,19 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
             )}
           </div>
 
-          {/* Informations supplémentaires */}
-          <div className="bg-blue-50 rounded-lg p-4">
-            <h4 className="font-semibold text-blue-900 mb-2">Informations techniques</h4>
-            <div className="text-sm text-blue-800 space-y-1">
-              <p><strong>ID:</strong> {task.id}</p>
-              <p><strong>Créé par:</strong> {task.createdBy?.substring(0, 8)}...</p>
-              {task.projectId && <p><strong>Projet:</strong> {task.projectId}</p>}
-              {task.estimatedHours && <p><strong>Temps estimé:</strong> {task.estimatedHours}h</p>}
+          {/* Créateur */}
+          {task.createdBy && (
+            <div className="bg-blue-50 rounded-lg p-4">
+              <h4 className="font-semibold text-blue-900 mb-2">Créateur</h4>
+              <div className="flex items-center gap-3">
+                <UserAvatar user={userService.getUser(task.createdBy)} size="md" />
+                <div>
+                  <p className="font-medium text-blue-800">{userService.getUser(task.createdBy).displayName}</p>
+                  <p className="text-sm text-blue-600">{userService.getUser(task.createdBy).email}</p>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Actions */}
@@ -259,7 +412,7 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
 };
 
 /**
- * ✅ TASKS PAGE AVEC CORRECTIONS
+ * ✅ TASKS PAGE PRINCIPALE
  */
 const TasksPage = () => {
   const { user } = useAuthStore();
@@ -268,8 +421,8 @@ const TasksPage = () => {
   // États pour les tâches
   const [myTasks, setMyTasks] = useState([]);
   const [availableTasks, setAvailableTasks] = useState([]);
-  const [otherTasks, setOtherTasks] = useState([]); // ✅ NOUVEAU: Tâches des autres
-  const [activeTab, setActiveTab] = useState('my_tasks'); // my_tasks | available_tasks | other_tasks
+  const [otherTasks, setOtherTasks] = useState([]);
+  const [activeTab, setActiveTab] = useState('my_tasks');
   
   // États pour les filtres
   const [searchTerm, setSearchTerm] = useState('');
@@ -290,32 +443,39 @@ const TasksPage = () => {
     myInProgress: 0,
     myPending: 0,
     availableTotal: 0,
-    otherTotal: 0, // ✅ NOUVEAU: Compteur tâches des autres
+    otherTotal: 0,
     completionRate: 0,
     totalXpEarned: 0
   });
 
   useEffect(() => {
     if (user?.uid) {
-      loadAllTasks();
+      initializeData();
     }
   }, [user?.uid]);
 
   useEffect(() => {
     calculateStats();
-  }, [myTasks, availableTasks, otherTasks]); // ✅ AJOUT: otherTasks dans les dépendances
+  }, [myTasks, availableTasks, otherTasks]);
 
   /**
-   * 📊 CHARGER TOUTES LES TÂCHES - CORRECTION MAJEURE
+   * 🚀 INITIALISER TOUTES LES DONNÉES
+   */
+  const initializeData = async () => {
+    await userService.loadAllUsers();
+    await loadAllTasks();
+  };
+
+  /**
+   * 📊 CHARGER TOUTES LES TÂCHES
    */
   const loadAllTasks = async () => {
     if (!user?.uid) return;
     
     setLoading(true);
     try {
-      console.log('📊 Chargement TOUTES les tâches pour:', user.uid);
+      console.log('📊 Chargement de toutes les tâches pour:', user.uid);
       
-      // ✅ CORRECTION 1: Charger TOUTES les tâches d'abord
       const allTasksQuery = query(
         collection(db, 'tasks'),
         orderBy('createdAt', 'desc')
@@ -332,14 +492,13 @@ const TasksPage = () => {
       
       console.log('📊 Total tâches trouvées:', allTasks.length);
       
-      // ✅ CORRECTION 2: Séparer MES TÂCHES (assignées à moi OU créées par moi)
+      // Séparer les tâches
       const myTasksList = allTasks.filter(task => {
         const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
         const isCreatedByMe = task.createdBy === user.uid;
         return isAssignedToMe || isCreatedByMe;
       });
       
-      // ✅ CORRECTION 3: TÂCHES DISPONIBLES (ouvertes ET pas assignées à moi ET pas créées par moi)
       const availableTasksList = allTasks.filter(task => {
         const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
         const isCreatedByMe = task.createdBy === user.uid;
@@ -347,14 +506,11 @@ const TasksPage = () => {
         return isAvailable && !isAssignedToMe && !isCreatedByMe;
       });
 
-      // ✅ NOUVEAU: TÂCHES DES AUTRES (assignées à d'autres ET pas créées par moi)
       const otherTasksList = allTasks.filter(task => {
         const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
         const isCreatedByMe = task.createdBy === user.uid;
         const hasAssignees = (task.assignedTo || []).length > 0;
-        const isNotAvailable = !['pending', 'open'].includes(task.status);
         
-        // Tâches assignées à d'autres (pas à moi, pas créées par moi, avec des assignés)
         return hasAssignees && !isAssignedToMe && !isCreatedByMe;
       });
       
@@ -382,7 +538,7 @@ const TasksPage = () => {
     const myInProgress = myTasks.filter(t => t.status === 'in_progress').length;
     const myPending = myTasks.filter(t => ['pending', 'todo', 'open'].includes(t.status)).length;
     const availableTotal = availableTasks.length;
-    const otherTotal = otherTasks.length; // ✅ NOUVEAU: Compteur tâches des autres
+    const otherTotal = otherTasks.length;
     const completionRate = myTotal > 0 ? Math.round((myCompleted / myTotal) * 100) : 0;
     const totalXpEarned = myTasks
       .filter(t => t.status === 'completed')
@@ -394,7 +550,7 @@ const TasksPage = () => {
       myInProgress,
       myPending,
       availableTotal,
-      otherTotal, // ✅ NOUVEAU
+      otherTotal,
       completionRate,
       totalXpEarned
     });
@@ -426,7 +582,7 @@ const TasksPage = () => {
   };
 
   /**
-   * 🚪 SE RETIRER D'UNE TÂCHE - CORRECTION
+   * 🚪 SE RETIRER D'UNE TÂCHE
    */
   const handleWithdrawFromTask = async (taskId) => {
     try {
@@ -437,8 +593,6 @@ const TasksPage = () => {
       
       const taskRef = doc(db, 'tasks', taskId);
       
-      // ✅ CORRECTION: Ne pas changer le statut à 'pending' automatiquement
-      // Laisser le statut tel quel pour que d'autres puissent encore se porter volontaires
       await updateDoc(taskRef, {
         assignedTo: arrayRemove(user.uid),
         updatedAt: serverTimestamp()
@@ -462,7 +616,7 @@ const TasksPage = () => {
   };
 
   /**
-   * 👁️ VOIR LES DÉTAILS D'UNE TÂCHE - NOUVELLE FONCTION
+   * 👁️ VOIR LES DÉTAILS D'UNE TÂCHE
    */
   const handleViewTaskDetails = (task) => {
     setSelectedTaskForDetails(task);
@@ -493,11 +647,11 @@ const TasksPage = () => {
   };
 
   /**
-   * 🎨 COMPOSANT CARTE DE TÂCHE - AVEC CORRECTION BOUTON DÉTAILS
+   * 🎨 COMPOSANT CARTE DE TÂCHE AMÉLIORÉE
    */
   const TaskCard = ({ task, isMyTask = false, isOtherTask = false }) => {
     const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
-    const canVolunteer = !isAssignedToMe && !isMyTask && !isOtherTask; // ✅ Pas de volontariat sur les tâches des autres
+    const canVolunteer = !isAssignedToMe && !isMyTask && !isOtherTask;
     const canSubmit = isAssignedToMe && task.status === 'in_progress';
     const canComplete = isAssignedToMe && ['in_progress', 'validation_pending'].includes(task.status);
     
@@ -559,14 +713,18 @@ const TasksPage = () => {
             <Zap className="w-4 h-4 text-yellow-500" />
             <span>{task.xpReward || 0} XP</span>
           </div>
-          
-          {(task.assignedTo || []).length > 0 && (
-            <div className="flex items-center gap-1">
-              <Users className="w-4 h-4" />
-              <span>{task.assignedTo.length} assigné{task.assignedTo.length > 1 ? 's' : ''}</span>
-            </div>
-          )}
         </div>
+
+        {/* ✅ NOUVEAU: Assignés avec noms dans l'aperçu */}
+        {(task.assignedTo || []).length > 0 && (
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">Assigné à :</span>
+            </div>
+            <AssignedUsersList userIds={task.assignedTo} maxDisplay={2} />
+          </div>
+        )}
 
         {/* Tags */}
         {task.tags && task.tags.length > 0 && (
@@ -632,7 +790,7 @@ const TasksPage = () => {
             </button>
           )}
 
-          {/* ✅ NOUVEAU: Badge pour les tâches des autres */}
+          {/* Badge pour les tâches des autres */}
           {isOtherTask && (
             <span className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">
               <Users className="w-4 h-4" />
@@ -640,7 +798,7 @@ const TasksPage = () => {
             </span>
           )}
           
-          {/* ✅ CORRECTION: Bouton détails fonctionnel */}
+          {/* Bouton détails */}
           <button 
             onClick={() => handleViewTaskDetails(task)}
             className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm ml-auto"
@@ -912,7 +1070,6 @@ const TasksPage = () => {
             </div>
           )}
 
-          {/* ✅ NOUVEAU: ONGLET LES AUTRES TÂCHES */}
           {activeTab === 'other_tasks' && (
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -1003,7 +1160,7 @@ const TasksPage = () => {
           />
         )}
 
-        {/* ✅ NOUVEAU: Modal détails */}
+        {/* Modal détails améliorée */}
         <TaskDetailsModal
           isOpen={showDetailsModal}
           task={selectedTaskForDetails}
