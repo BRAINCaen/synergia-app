@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// TASKS PAGE COMPLÈTE - SYSTÈME VOLONTARIAT RESTAURÉ
+// TASKS PAGE COMPLÈTE - VERSION CORRIGÉE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -598,3 +598,132 @@ const TasksPage = () => {
                     Aucune tâche assignée
                   </h3>
                   <p className="text-gray-500 mb-4">
+                    Vous n'avez pas encore de tâches assignées. Explorez les tâches disponibles pour commencer !
+                  </p>
+                  <button
+                    onClick={() => setActiveTab('available_tasks')}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <HandHeart className="h-5 w-5 mr-2" />
+                    Voir les tâches disponibles
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {myTasks
+                    .filter(task => {
+                      // Filtrage par recherche
+                      if (searchTerm && !task.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
+                          !task.description?.toLowerCase().includes(searchTerm.toLowerCase())) {
+                        return false;
+                      }
+                      // Filtrage par statut
+                      if (filterStatus !== 'all' && task.status !== filterStatus) {
+                        return false;
+                      }
+                      // Filtrage par priorité
+                      if (filterPriority !== 'all' && task.priority !== filterPriority) {
+                        return false;
+                      }
+                      return true;
+                    })
+                    .map(task => (
+                      <TaskCard key={task.id} task={task} isMyTask={true} />
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'available_tasks' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Tâches Disponibles ({availableTasks.length})
+                </h2>
+                <div className="text-sm text-gray-500">
+                  Contribuez aux projets collaboratifs
+                </div>
+              </div>
+
+              {availableTasks.length === 0 ? (
+                <div className="bg-white rounded-lg shadow p-12 text-center">
+                  <HandHeart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Aucune tâche disponible
+                  </h3>
+                  <p className="text-gray-500">
+                    Il n'y a pas de tâches disponibles pour le volontariat en ce moment.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {availableTasks
+                    .filter(task => {
+                      // Filtrage par recherche
+                      if (searchTerm && !task.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
+                          !task.description?.toLowerCase().includes(searchTerm.toLowerCase())) {
+                        return false;
+                      }
+                      // Filtrage par priorité
+                      if (filterPriority !== 'all' && task.priority !== filterPriority) {
+                        return false;
+                      }
+                      return true;
+                    })
+                    .map(task => (
+                      <TaskCard key={task.id} task={task} isMyTask={false} />
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* MODAL CRÉATION TÂCHE */}
+        {showCreateModal && (
+          <TaskForm
+            isOpen={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            onSubmit={async (taskData) => {
+              try {
+                await addDoc(collection(db, 'tasks'), {
+                  ...taskData,
+                  createdBy: user.uid,
+                  createdAt: serverTimestamp(),
+                  updatedAt: serverTimestamp(),
+                  status: 'pending',
+                  assignedTo: []
+                });
+                setShowCreateModal(false);
+                await loadAllTasks();
+              } catch (error) {
+                console.error('❌ Erreur création tâche:', error);
+                alert('Erreur lors de la création: ' + error.message);
+              }
+            }}
+          />
+        )}
+
+        {/* MODAL SOUMISSION VALIDATION */}
+        {showSubmissionModal && selectedTaskForSubmission && (
+          <TaskSubmissionModal
+            isOpen={showSubmissionModal}
+            task={selectedTaskForSubmission}
+            onClose={() => {
+              setShowSubmissionModal(false);
+              setSelectedTaskForSubmission(null);
+            }}
+            onSubmit={async () => {
+              setShowSubmissionModal(false);
+              setSelectedTaskForSubmission(null);
+              await loadAllTasks();
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default TasksPage;
