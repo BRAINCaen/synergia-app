@@ -126,547 +126,85 @@ class UserService {
   }
 }
 
-// Instance unique du service
+// Instance globale du service utilisateur
 const userService = new UserService();
 
 /**
- * 👤 COMPOSANT AVATAR UTILISATEUR
+ * 📊 MODAL DE DÉTAILS DE TÂCHE
  */
-const UserAvatar = ({ user, size = "sm" }) => {
-  const sizeClasses = {
-    sm: 'w-6 h-6',
-    md: 'w-8 h-8',
-    lg: 'w-10 h-10'
-  };
-
-  const textSizeClasses = {
-    sm: 'text-xs',
-    md: 'text-sm',
-    lg: 'text-base'
-  };
-
-  if (user.photoURL) {
-    return (
-      <img
-        src={user.photoURL}
-        alt={user.displayName}
-        className={`${sizeClasses[size]} rounded-full object-cover`}
-      />
-    );
-  }
-
-  const initials = user.displayName
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .substring(0, 2);
-
-  return (
-    <div className={`${sizeClasses[size]} bg-blue-500 text-white rounded-full flex items-center justify-center ${textSizeClasses[size]} font-medium`}>
-      {initials}
-    </div>
-  );
-};
-
-/**
- * 👥 COMPOSANT LISTE DES UTILISATEURS ASSIGNÉS
- */
-const AssignedUsersList = ({ userIds = [], maxDisplay = 3, task = null }) => {
-  if (!userIds || userIds.length === 0) {
-    return (
-      <div className="text-sm text-gray-500 italic">
-        Aucun utilisateur assigné
-      </div>
-    );
-  }
-
-  const users = userIds.map(id => userService.getUser(id));
-  const displayUsers = users.slice(0, maxDisplay);
-  const remainingCount = users.length - maxDisplay;
-  
-  // Calcul XP avec partage
-  const totalXP = task?.xpReward || 0;
-  const xpPerUser = users.length > 0 ? Math.floor(totalXP / users.length) : 0;
-  const remainingXP = totalXP - (xpPerUser * users.length);
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center -space-x-2">
-        {displayUsers.map((user) => (
-          <div key={user.id} className="relative group">
-            <UserAvatar user={user} size="md" />
-            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-              {user.displayName}
-            </div>
-          </div>
-        ))}
-        {remainingCount > 0 && (
-          <div className="w-8 h-8 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs font-medium">
-            +{remainingCount}
-          </div>
-        )}
-      </div>
-      
-      <div className="text-xs text-gray-500">
-        <span className="font-medium">
-          {users.length} assigné{users.length > 1 ? 's' : ''}
-        </span>
-        <span className="text-xs text-gray-500">
-          {users.length} assigné{users.length > 1 ? 's' : ''} • {xpPerUser} XP chacun
-          {remainingXP > 0 && ` (+${remainingXP} bonus)`}
-        </span>
-      </div>
-    </div>
-  );
-};
-
-/**
- * 🤝 MODAL DE COLLABORATION
- */
-const CollaborationModal = ({ isOpen, task, onClose, onUpdate }) => {
-  const { user } = useAuthStore();
-  const [availableUsers, setAvailableUsers] = useState([]);
-  const [selectedUsers, setSelectedUsers] = useState([]);
-  const [isOpenToVolunteers, setIsOpenToVolunteers] = useState(task?.openToVolunteers || false);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      loadAvailableUsers();
-    }
-  }, [isOpen]);
-
-  const loadAvailableUsers = () => {
-    const allUsers = userService.getAllUsers();
-    const currentAssignees = task?.assignedTo || [];
-    
-    const available = allUsers.filter(u => !currentAssignees.includes(u.id));
-    setAvailableUsers(available);
-  };
-
-  const handleAddCollaborators = async () => {
-    if (selectedUsers.length === 0 && !isOpenToVolunteers) return;
-
-    try {
-      setLoading(true);
-      console.log('🤝 Ajout collaborateurs:', selectedUsers.map(u => u.displayName));
-
-      const taskRef = doc(db, 'tasks', task.id);
-      const currentAssignees = task.assignedTo || [];
-      const newAssignees = [...currentAssignees, ...selectedUsers.map(u => u.id)];
-
-      const updateData = {
-        assignedTo: newAssignees,
-        openToVolunteers: isOpenToVolunteers,
-        updatedAt: serverTimestamp(),
-        collaborationUpdatedBy: user.uid,
-        collaborationUpdatedAt: serverTimestamp()
-      };
-
-      await updateDoc(taskRef, updateData);
-      
-      console.log('✅ Collaboration mise à jour');
-      onUpdate && await onUpdate();
-      onClose();
-      
-    } catch (error) {
-      console.error('❌ Erreur collaboration:', error);
-      alert('Erreur lors de la mise à jour: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">Gérer la Collaboration</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <h4 className="font-medium mb-2">Ajouter des collaborateurs</h4>
-            <div className="max-h-40 overflow-y-auto border rounded-lg">
-              {availableUsers.map(u => (
-                <label key={u.id} className="flex items-center p-2 hover:bg-gray-50">
-                  <input
-                    type="checkbox"
-                    checked={selectedUsers.some(su => su.id === u.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedUsers([...selectedUsers, u]);
-                      } else {
-                        setSelectedUsers(selectedUsers.filter(su => su.id !== u.id));
-                      }
-                    }}
-                    className="mr-2"
-                  />
-                  <UserAvatar user={u} size="sm" />
-                  <span className="ml-2 text-sm">{u.displayName}</span>
-                </label>
-              ))}
-            </div>
-            {selectedUsers.length > 0 && (
-              <div className="mt-2 p-2 bg-blue-50 rounded">
-                <p className="text-sm text-blue-700">
-                  <strong>{selectedUsers.length} personne{selectedUsers.length > 1 ? 's' : ''} sélectionnée{selectedUsers.length > 1 ? 's' : ''}</strong>
-                </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  Nouveau XP par personne: {Math.floor((task?.xpReward || 0) / ((task?.assignedTo || []).length + selectedUsers.length))} XP
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="border-t border-gray-200 pt-4">
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="openToVolunteers"
-                checked={isOpenToVolunteers}
-                onChange={(e) => setIsOpenToVolunteers(e.target.checked)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label htmlFor="openToVolunteers" className="flex-1">
-                <div className="font-medium text-gray-900">Ouvrir aux volontaires</div>
-                <div className="text-sm text-gray-500">
-                  Permettre à d'autres utilisateurs de se porter volontaires pour cette tâche
-                </div>
-              </label>
-              <Share2 className="h-5 w-5 text-gray-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            Annuler
-          </button>
-          <button
-            onClick={handleAddCollaborators}
-            disabled={loading || (selectedUsers.length === 0 && isOpenToVolunteers === (task?.openToVolunteers || false))}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Sauvegarde...
-              </>
-            ) : (
-              <>
-                <UserPlus className="w-4 h-4" />
-                Confirmer
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/**
- * 📤 MODAL DE SOUMISSION DE TÂCHE
- */
-const TaskSubmissionModal = ({ isOpen, task, onClose, onSubmit }) => {
-  const [submissionData, setSubmissionData] = useState({
-    description: '',
-    comments: '',
-    deliverables: [],
-    attachments: [],
-    estimatedCompletionTime: ''
-  });
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!submissionData.description.trim()) {
-      alert('Veuillez ajouter une description de votre travail accompli.');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await onSubmit(submissionData);
-    } catch (error) {
-      console.error('❌ Erreur soumission:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const addDeliverable = () => {
-    const newDeliverable = document.getElementById('newDeliverable').value.trim();
-    if (newDeliverable) {
-      setSubmissionData(prev => ({
-        ...prev,
-        deliverables: [...prev.deliverables, newDeliverable]
-      }));
-      document.getElementById('newDeliverable').value = '';
-    }
-  };
-
-  const removeDeliverable = (index) => {
-    setSubmissionData(prev => ({
-      ...prev,
-      deliverables: prev.deliverables.filter((_, i) => i !== index)
-    }));
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-900">Soumettre la tâche</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Informations de la tâche */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-900 mb-2">{task?.title}</h3>
-            <p className="text-gray-600 text-sm">{task?.description}</p>
-          </div>
-
-          {/* Description du travail accompli */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description du travail accompli *
-            </label>
-            <textarea
-              value={submissionData.description}
-              onChange={(e) => setSubmissionData(prev => ({ ...prev, description: e.target.value }))}
-              rows={4}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Décrivez le travail que vous avez accompli pour cette tâche..."
-              required
-            />
-          </div>
-
-          {/* Livrables */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Livrables
-            </label>
-            <div className="space-y-2">
-              {submissionData.deliverables.map((deliverable, index) => (
-                <div key={index} className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg">
-                  <span className="flex-1 text-sm">{deliverable}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeDeliverable(index)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-              <div className="flex gap-2">
-                <input
-                  id="newDeliverable"
-                  type="text"
-                  placeholder="Ajouter un livrable..."
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addDeliverable())}
-                />
-                <button
-                  type="button"
-                  onClick={addDeliverable}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Ajouter
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Temps estimé */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Temps passé (optionnel)
-            </label>
-            <input
-              type="text"
-              value={submissionData.estimatedCompletionTime}
-              onChange={(e) => setSubmissionData(prev => ({ ...prev, estimatedCompletionTime: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Ex: 2 heures, 1 journée..."
-            />
-          </div>
-
-          {/* Commentaires additionnels */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Commentaires additionnels
-            </label>
-            <textarea
-              value={submissionData.comments}
-              onChange={(e) => setSubmissionData(prev => ({ ...prev, comments: e.target.value }))}
-              rows={3}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Ajoutez des commentaires ou des précisions..."
-            />
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !submissionData.description.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Soumission...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  Soumettre pour validation
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
 const TaskDetailsModal = ({ isOpen, task, onClose }) => {
-  if (!isOpen || !task) return null;
+  if (!task) return null;
 
-  const assignedUsers = (task.assignedTo || []).map(id => userService.getUser(id));
-  const totalXP = task.xpReward || 0;
-  const xpPerUser = assignedUsers.length > 0 ? Math.floor(totalXP / assignedUsers.length) : totalXP;
-
-  const formatDate = (date) => {
-    if (!date) return 'Non définie';
+  const formatDate = (timestamp) => {
+    if (!timestamp) return 'Non défini';
+    
     try {
-      return new Date(date.seconds ? date.seconds * 1000 : date).toLocaleDateString('fr-FR');
-    } catch {
+      let date;
+      if (timestamp.toDate) {
+        date = timestamp.toDate();
+      } else if (timestamp instanceof Date) {
+        date = timestamp;
+      } else {
+        date = new Date(timestamp);
+      }
+      
+      return date.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.warn('Erreur formatage date:', error);
       return 'Date invalide';
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-900">Détails de la tâche</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-6">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">{task.title}</h3>
-            <p className="text-gray-600">{task.description}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Priorité</span>
-              </div>
-              <span className="text-lg font-semibold text-gray-900 capitalize">
-                {task.priority || 'Moyenne'}
-              </span>
-            </div>
-
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Zap className="h-4 w-4 text-yellow-500" />
-                <span className="text-sm font-medium text-gray-700">XP Total / Par personne</span>
-              </div>
-              <div>
-                <span className="text-lg font-bold text-yellow-600">
-                  {totalXP} XP
-                </span>
-                {assignedUsers.length > 1 && (
-                  <div className="text-sm text-yellow-600">
-                    {xpPerUser} XP chacun
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Users className="h-5 w-5 text-gray-500" />
-              <h3 className="text-lg font-semibold text-gray-900">
-                Collaborateurs ({assignedUsers.length})
-              </h3>
-            </div>
-            
-            {assignedUsers.length === 0 ? (
-              <div className="bg-gray-50 rounded-lg p-4 text-center">
-                <p className="text-gray-500">Aucune personne assignée</p>
-              </div>
-            ) : (
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="space-y-3">
-                  {assignedUsers.map((user) => (
-                    <div key={user.id} className="flex items-center gap-3 bg-white px-3 py-2 rounded-lg shadow-sm">
-                      <UserAvatar user={user} size="md" />
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{user.displayName}</p>
-                        <p className="text-sm text-gray-500">{user.email}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-yellow-600">{xpPerUser} XP</p>
-                        <p className="text-xs text-gray-500">
-                          {Math.round((1 / assignedUsers.length) * 100)}% du total
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {task.tags && task.tags.length > 0 && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Tag className="h-5 w-5 text-gray-500" />
-                <h3 className="text-lg font-semibold text-gray-900">Tags</h3>
+              <h3 className="text-2xl font-bold text-gray-900">{task.title}</h3>
+              <div className="flex items-center gap-4 mt-2">
+                <span className={`px-2 py-1 text-xs rounded-full ${
+                  task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                  task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-green-100 text-green-800'
+                }`}>
+                  Priorité {task.priority}
+                </span>
+                <span className={`px-2 py-1 text-xs rounded-full ${
+                  task.status === 'completed' ? 'bg-green-100 text-green-800' :
+                  task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {task.status === 'completed' ? 'Terminée' :
+                   task.status === 'in_progress' ? 'En cours' : 'En attente'}
+                </span>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {task.tags.map((tag, index) => (
-                  <span 
-                    key={index}
-                    className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {task.description && (
+            <div className="mb-6">
+              <h4 className="font-semibold text-gray-900 mb-2">Description</h4>
+              <p className="text-gray-600 whitespace-pre-wrap">{task.description}</p>
             </div>
           )}
 
@@ -694,7 +232,135 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
+    </div>
+  );
+};
+
+/**
+ * 🚀 MODAL DE COLLABORATION
+ */
+const CollaborationModal = ({ isOpen, task, onClose, onUpdate }) => {
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setAvailableUsers(userService.getAllUsers());
+    }
+  }, [isOpen]);
+
+  const handleUserToggle = (userId) => {
+    setSelectedUsers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleAssign = async () => {
+    if (selectedUsers.length === 0) return;
+
+    setLoading(true);
+    try {
+      const taskRef = doc(db, 'tasks', task.id);
+      await updateDoc(taskRef, {
+        assignedTo: arrayUnion(...selectedUsers),
+        updatedAt: serverTimestamp()
+      });
+
+      alert(`Tâche assignée à ${selectedUsers.length} utilisateur(s) !`);
+      onUpdate();
+      onClose();
+    } catch (error) {
+      console.error('❌ Erreur assignation:', error);
+      alert('Erreur lors de l\'assignation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen || !task) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-gray-900">
+              Assigner la tâche
+            </h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          <div className="mb-4">
+            <h4 className="font-medium text-gray-900 mb-2">{task.title}</h4>
+            <p className="text-sm text-gray-600">{task.description}</p>
+          </div>
+
+          <div className="space-y-3 mb-6 max-h-60 overflow-y-auto">
+            {availableUsers.map(user => (
+              <div
+                key={user.id}
+                className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${
+                  selectedUsers.includes(user.id)
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onClick={() => handleUserToggle(user.id)}
+              >
+                <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center mr-3">
+                  <User className="w-4 h-4 text-gray-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">{user.displayName}</p>
+                  <p className="text-sm text-gray-500">{user.email}</p>
+                </div>
+                {selectedUsers.includes(user.id) && (
+                  <UserCheck className="w-5 h-5 text-blue-600" />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleAssign}
+              disabled={loading || selectedUsers.length === 0}
+              className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Attribution...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Assigner ({selectedUsers.length})
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 };
@@ -722,582 +388,307 @@ const TasksPage = () => {
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showCollaborationModal, setShowCollaborationModal] = useState(false);
+  
+  // États pour les tâches sélectionnées
   const [selectedTaskForSubmission, setSelectedTaskForSubmission] = useState(null);
   const [selectedTaskForDetails, setSelectedTaskForDetails] = useState(null);
   const [selectedTaskForCollaboration, setSelectedTaskForCollaboration] = useState(null);
-  
-  // Statistiques réelles
+
+  // Statistiques calculées
   const [taskStats, setTaskStats] = useState({
     myTotal: 0,
     myCompleted: 0,
-    myInProgress: 0,
-    myPending: 0,
-    availableTotal: 0,
-    otherTotal: 0,
     completionRate: 0,
-    totalXpEarned: 0
+    totalXpEarned: 0,
+    availableTotal: 0
   });
 
-  useEffect(() => {
-    if (user?.uid) {
-      initializeData();
-    }
-  }, [user?.uid]);
-
-  useEffect(() => {
-    calculateStats();
-  }, [myTasks, availableTasks, otherTasks]);
-
   /**
-   * 🚀 INITIALISER TOUTES LES DONNÉES
+   * 📊 CALCUL DES STATISTIQUES
    */
-  const initializeData = async () => {
-    await userService.loadAllUsers();
-    await loadAllTasks();
+  const calculateStats = (myTasks, availableTasks) => {
+    const myCompleted = myTasks.filter(task => task.status === 'completed').length;
+    const completionRate = myTasks.length > 0 ? Math.round((myCompleted / myTasks.length) * 100) : 0;
+    const totalXpEarned = myTasks
+      .filter(task => task.status === 'completed')
+      .reduce((total, task) => total + (task.xpReward || 0), 0);
+
+    setTaskStats({
+      myTotal: myTasks.length,
+      myCompleted,
+      completionRate,
+      totalXpEarned,
+      availableTotal: availableTasks.length
+    });
   };
 
   /**
-   * 📊 CHARGER TOUTES LES TÂCHES AVEC LOGIQUE COLLABORATIVE CORRIGÉE
+   * 📥 CHARGEMENT DE TOUTES LES TÂCHES
    */
   const loadAllTasks = async () => {
     if (!user?.uid) return;
-    
-    setLoading(true);
+
     try {
-      console.log('📊 ========== DÉBUT CHARGEMENT TÂCHES ==========');
-      console.log('📊 [1] Chargement pour utilisateur:', user.uid);
+      setLoading(true);
       
-      const allTasksQuery = query(
+      // Charger les utilisateurs si pas encore fait
+      if (userService.getAllUsers().length === 0) {
+        await userService.loadAllUsers();
+      }
+
+      console.log('📥 Chargement des tâches pour:', user.uid);
+
+      // Query pour toutes les tâches
+      const tasksQuery = query(
         collection(db, 'tasks'),
         orderBy('createdAt', 'desc')
       );
       
-      const allTasksSnapshot = await getDocs(allTasksQuery);
+      const tasksSnapshot = await getDocs(tasksQuery);
+      console.log('📊 Tâches trouvées:', tasksSnapshot.size);
+
       const allTasks = [];
-      allTasksSnapshot.forEach(doc => {
+      tasksSnapshot.forEach(doc => {
+        const taskData = doc.data();
         allTasks.push({
           id: doc.id,
-          ...doc.data()
+          ...taskData
         });
       });
-      
-      console.log('📊 [2] Total tâches Firebase:', allTasks.length);
-      
-      // ✅ CORRECTION 1: Mes tâches = SEULEMENT les tâches où je suis ASSIGNÉ
-      const myTasksList = allTasks.filter(task => {
-        const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
-        const result = isAssignedToMe;
-        
-        if (result) {
-          console.log(`📊 [3] MA TÂCHE ASSIGNÉE: "${task.title}" - Assigné: ${isAssignedToMe}`);
-        }
-        
-        return result;
-      });
-      
-      // ✅ CORRECTION 2: Tâches disponibles - PRIORITÉ COLLABORATIVE ABSOLUE
-      const availableTasksList = allTasks.filter(task => {
-        const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
-        const isCreatedByMe = task.createdBy === user.uid;
-        const hasAssignees = (task.assignedTo || []).length > 0;
-        
-        // ✅ PRIORITÉ ABSOLUE: Si openToVolunteers = true → TOUJOURS DISPONIBLE
-        if (task.openToVolunteers === true && !isAssignedToMe) {
-          console.log(`📊 [4] TÂCHE DISPONIBLE (COLLABORATIVE): "${task.title}" - OpenToVolunteers: true`);
-          return true;
-        }
-        
-        // ✅ LOGIQUE NORMALE: Tâches sans assignés + statut ouvert
-        const isAvailableStatus = ['pending', 'open', 'todo'].includes(task.status);
-        const isOpenWithoutAssignees = !hasAssignees && isAvailableStatus && !isCreatedByMe && !isAssignedToMe;
-        
-        if (isOpenWithoutAssignees) {
-          console.log(`📊 [4] TÂCHE DISPONIBLE (NORMALE): "${task.title}" - Status: ${task.status}, Pas d'assignés`);
-          return true;
-        }
-        
-        return false;
+
+      // Répartition des tâches
+      const myTasks = allTasks.filter(task => 
+        task.assignedTo?.includes(user.uid) || task.createdBy === user.uid
+      );
+
+      const availableTasks = allTasks.filter(task => 
+        task.openToVolunteers === true && 
+        !task.assignedTo?.includes(user.uid) &&
+        task.status !== 'completed'
+      );
+
+      const otherTasks = allTasks.filter(task => 
+        !myTasks.some(myTask => myTask.id === task.id) &&
+        !availableTasks.some(availableTask => availableTask.id === task.id)
+      );
+
+      // Mise à jour des états
+      setMyTasks(myTasks);
+      setAvailableTasks(availableTasks);
+      setOtherTasks(otherTasks);
+
+      // Calcul des statistiques
+      calculateStats(myTasks, availableTasks);
+
+      console.log('✅ Répartition des tâches:', {
+        myTasks: myTasks.length,
+        availableTasks: availableTasks.length,
+        otherTasks: otherTasks.length
       });
 
-      // ✅ CORRECTION 3: Tâches des autres - EXCLUSION COLLABORATIVE PRIORITAIRE
-      const otherTasksList = allTasks.filter(task => {
-        const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
-        const isCreatedByMe = task.createdBy === user.uid;
-        const hasAssignees = (task.assignedTo || []).length > 0;
-        
-        // ✅ EXCLUSION PRIORITAIRE: Si openToVolunteers = true → JAMAIS dans "autres"
-        if (task.openToVolunteers === true) {
-          return false; // Ces tâches vont dans "disponibles"
-        }
-        
-        // ✅ LOGIQUE NORMALE: Assignées à d'autres (fermées) OU mes créations non assignées à moi
-        const isAssignedToOthersOnly = hasAssignees && !isAssignedToMe;
-        const isMyCreationNotAssignedToMe = isCreatedByMe && !isAssignedToMe;
-        
-        const result = isAssignedToOthersOnly || isMyCreationNotAssignedToMe;
-        
-        if (result) {
-          console.log(`📊 [5] TÂCHE DES AUTRES: "${task.title}" - Assignés: ${task.assignedTo?.length || 0}, Créé par moi: ${isCreatedByMe}, OpenToVolunteers: ${task.openToVolunteers}`);
-        }
-        
-        return result;
-      });
-      
-      console.log('📊 [6] RÉSULTATS FINAUX:');
-      console.log('📊   - Mes tâches:', myTasksList.length);
-      console.log('📊   - Tâches disponibles:', availableTasksList.length);
-      console.log('📊   - Tâches des autres:', otherTasksList.length);
-      
-      // ✅ MISE À JOUR DES ÉTATS
-      setMyTasks(myTasksList);
-      setAvailableTasks(availableTasksList);
-      setOtherTasks(otherTasksList);
-      
-      console.log('📊 [7] États mis à jour avec succès');
-      console.log('📊 ========== FIN CHARGEMENT TÂCHES ==========');
-      
     } catch (error) {
-      console.error('❌ ========== ERREUR CHARGEMENT ==========');
-      console.error('❌ Erreur chargement tâches:', error);
-      console.error('❌ =====================================');
+      console.error('❌ Erreur lors du chargement des tâches:', error);
     } finally {
       setLoading(false);
     }
   };
 
   /**
-   * 📊 CALCULER LES STATISTIQUES RÉELLES
+   * 🚀 REJOINDRE UNE TÂCHE COMME VOLONTAIRE
    */
-  const calculateStats = () => {
-    const myTotal = myTasks.length;
-    const myCompleted = myTasks.filter(t => t.status === 'completed').length;
-    const myInProgress = myTasks.filter(t => t.status === 'in_progress').length;
-    const myPending = myTasks.filter(t => ['pending', 'todo', 'open'].includes(t.status)).length;
-    const availableTotal = availableTasks.length;
-    const otherTotal = otherTasks.length;
-    const completionRate = myTotal > 0 ? Math.round((myCompleted / myTotal) * 100) : 0;
-    
-    // ✅ CALCUL XP AVEC PARTAGE
-    const totalXpEarned = myTasks
-      .filter(t => t.status === 'completed')
-      .reduce((sum, task) => {
-        const assignedCount = (task.assignedTo || []).length;
-        const taskXP = task.xpReward || 0;
-        const myShare = assignedCount > 0 ? Math.floor(taskXP / assignedCount) : taskXP;
-        return sum + myShare;
-      }, 0);
-
-    setTaskStats({
-      myTotal,
-      myCompleted,
-      myInProgress,
-      myPending,
-      availableTotal,
-      otherTotal,
-      completionRate,
-      totalXpEarned
-    });
-  };
-
-  /**
-   * 🙋 SE PORTER VOLONTAIRE POUR UNE TÂCHE
-   */
-  const handleVolunteerForTask = async (taskId) => {
+  const handleJoinTask = async (taskId) => {
     try {
-      console.log('🙋 Volontariat pour tâche:', taskId);
-      
       const taskRef = doc(db, 'tasks', taskId);
-      const taskDoc = await getDoc(taskRef);
-      
-      if (!taskDoc.exists()) {
-        alert('Tâche non trouvée');
-        return;
-      }
-      
-      const currentTask = taskDoc.data();
-      const currentAssignees = currentTask.assignedTo || [];
-      
-      if (currentAssignees.includes(user.uid)) {
-        alert('Vous êtes déjà assigné à cette tâche');
-        return;
-      }
-      
-      const newAssignees = [...currentAssignees, user.uid];
-      
       await updateDoc(taskRef, {
-        assignedTo: newAssignees,
-        status: currentTask.status === 'pending' ? 'in_progress' : currentTask.status,
-        volunteeredAt: serverTimestamp(),
+        assignedTo: arrayUnion(user.uid),
         updatedAt: serverTimestamp()
       });
-      
-      console.log('✅ Volontariat enregistré');
+
+      alert('Vous avez rejoint cette tâche avec succès !');
       await loadAllTasks();
-      
     } catch (error) {
-      console.error('❌ Erreur volontariat:', error);
-      alert('Erreur lors du volontariat: ' + error.message);
+      console.error('❌ Erreur lors de la participation:', error);
+      alert('Erreur lors de la participation à la tâche');
     }
   };
 
   /**
-   * 🚪 SE RETIRER D'UNE TÂCHE
-   */
-  const handleWithdrawFromTask = async (taskId) => {
-    const confirmed = window.confirm('Êtes-vous sûr de vouloir vous retirer de cette tâche ?');
-    if (!confirmed) return;
-    
-    try {
-      console.log('🚪 ========== DÉBUT RETRAIT DEBUG ==========');
-      console.log('🚪 [1] Task ID:', taskId);
-      console.log('🚪 [2] User ID:', user.uid);
-      
-      const taskRef = doc(db, 'tasks', taskId);
-      
-      // ✅ ÉTAPE 1: Récupérer les données actuelles
-      console.log('🚪 [3] Récupération données tâche...');
-      const taskDoc = await getDoc(taskRef);
-      
-      if (!taskDoc.exists()) {
-        console.error('❌ [ERROR] Tâche introuvable:', taskId);
-        alert('Erreur: Tâche introuvable');
-        return;
-      }
-      
-      const currentTask = taskDoc.data();
-      const currentAssignees = currentTask.assignedTo || [];
-      
-      console.log('🚪 [4] Tâche actuelle:', {
-        title: currentTask.title,
-        status: currentTask.status,
-        assignedTo: currentAssignees
-      });
-      
-      // ✅ ÉTAPE 2: Vérifier présence utilisateur
-      const userIndex = currentAssignees.indexOf(user.uid);
-      const isUserAssigned = userIndex !== -1;
-      
-      console.log('🚪 [5] Vérification assignation:', {
-        userInList: isUserAssigned,
-        userIndex: userIndex,
-        currentAssignees: currentAssignees
-      });
-      
-      if (!isUserAssigned) {
-        console.warn('⚠️ [WARNING] Utilisateur pas dans la liste des assignés');
-        alert('Vous n\'êtes pas assigné à cette tâche');
-        return;
-      }
-      
-      // ✅ ÉTAPE 3: Créer nouvelle liste sans l'utilisateur
-      const newAssignees = currentAssignees.filter(id => id !== user.uid);
-      
-      console.log('🚪 [6] Nouvelle liste assignés:', {
-        ancien: currentAssignees,
-        nouveau: newAssignees,
-        différence: currentAssignees.length - newAssignees.length
-      });
-      
-      // ✅ ÉTAPE 4: Mettre à jour la tâche
-      await updateDoc(taskRef, {
-        assignedTo: newAssignees,
-        status: newAssignees.length === 0 ? 'pending' : currentTask.status,
-        withdrawnAt: serverTimestamp(),
-        withdrawnBy: user.uid,
-        updatedAt: serverTimestamp()
-      });
-      
-      console.log('✅ [SUCCESS] Retrait réussi');
-      console.log('🚪 ========== FIN RETRAIT DEBUG ==========');
-      
-      await loadAllTasks();
-      
-    } catch (error) {
-      console.error('❌ ========== ERREUR RETRAIT ==========');
-      console.error('❌ [ERROR] Erreur complète:', error);
-      console.error('❌ [ERROR] Stack trace:', error.stack);
-      console.error('❌ [ERROR] Message:', error.message);
-      console.error('❌ =======================================');
-      alert('Erreur lors du retrait: ' + error.message);
-    }
-  };
-
-  /**
-   * 📤 SOUMETTRE UNE TÂCHE POUR VALIDATION
-   */
-  const handleSubmitTask = (task) => {
-    setSelectedTaskForSubmission(task);
-    setShowSubmissionModal(true);
-  };
-
-  /**
-   * 📝 VALIDER LA SOUMISSION D'UNE TÂCHE
+   * 📤 SOUMISSION DE TÂCHE POUR VALIDATION
    */
   const handleTaskSubmission = async (taskId, submissionData) => {
     try {
-      console.log('📤 Soumission tâche pour validation:', taskId);
-      
       const taskRef = doc(db, 'tasks', taskId);
       
-      // Mettre à jour la tâche avec les données de soumission
+      const submissionRecord = {
+        taskId: taskId,
+        submittedBy: user.uid,
+        submitterName: user.displayName || user.email,
+        submissionData: submissionData,
+        submittedAt: serverTimestamp(),
+        status: 'validation_pending'
+      };
+
+      // Créer l'enregistrement de soumission
+      await addDoc(collection(db, 'task_submissions'), submissionRecord);
+
+      // Mettre à jour le statut de la tâche
       await updateDoc(taskRef, {
         status: 'validation_pending',
-        submissionData: {
-          submittedBy: user.uid,
-          submittedAt: serverTimestamp(),
-          description: submissionData.description || '',
-          attachments: submissionData.attachments || [],
-          deliverables: submissionData.deliverables || [],
-          comments: submissionData.comments || '',
-          estimatedCompletionTime: submissionData.estimatedCompletionTime || null
-        },
+        lastSubmission: submissionRecord,
         updatedAt: serverTimestamp()
       });
-      
+
       console.log('✅ Tâche soumise pour validation');
       await loadAllTasks();
-      
     } catch (error) {
       console.error('❌ Erreur soumission tâche:', error);
       throw error;
     }
   };
 
-  /**
-   * 👁️ VOIR LES DÉTAILS D'UNE TÂCHE
-   */
-  const handleViewTaskDetails = (task) => {
-    setSelectedTaskForDetails(task);
-    setShowDetailsModal(true);
-  };
-
-  /**
-   * 🤝 GÉRER LA COLLABORATION
-   */
-  const handleManageCollaboration = (task) => {
-    setSelectedTaskForCollaboration(task);
-    setShowCollaborationModal(true);
-  };
-
-  /**
-   * ✅ MARQUER UNE TÂCHE COMME TERMINÉE
-   */
-  const handleCompleteTask = async (taskId) => {
-    try {
-      console.log('✅ Marquer tâche terminée:', taskId);
-      
-      const taskRef = doc(db, 'tasks', taskId);
-      await updateDoc(taskRef, {
-        status: 'completed',
-        completedAt: serverTimestamp(),
-        completedBy: user.uid,
-        updatedAt: serverTimestamp()
-      });
-      
-      console.log('✅ Tâche marquée terminée');
-      await loadAllTasks();
-      
-    } catch (error) {
-      console.error('❌ Erreur completion tâche:', error);
+  // Chargement initial
+  useEffect(() => {
+    if (user?.uid) {
+      loadAllTasks();
     }
-  };
+  }, [user?.uid]);
 
   /**
-   * 🎨 COMPOSANT CARTE DE TÂCHE AMÉLIORÉE AVEC COLLABORATION
+   * 🎨 COMPOSANT CARTE DE TÂCHE
    */
-  const TaskCard = ({ task, isMyTask = false, isOtherTask = false }) => {
-    const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
-    const isCreatedByMe = task.createdBy === user.uid;
-    const canVolunteer = !isAssignedToMe && !isMyTask && !isOtherTask;
-    const canSubmit = isMyTask && ['in_progress', 'todo'].includes(task.status);
-    const canComplete = isMyTask && task.status !== 'completed';
-    const canManageCollaboration = isCreatedByMe || isAssignedToMe;
-
-    const getStatusColor = (status) => {
-      const colors = {
-        'completed': 'bg-green-100 text-green-800',
-        'in_progress': 'bg-blue-100 text-blue-800',
-        'validation_pending': 'bg-yellow-100 text-yellow-800',
-        'pending': 'bg-gray-100 text-gray-800',
-        'todo': 'bg-purple-100 text-purple-800',
-        'open': 'bg-indigo-100 text-indigo-800'
-      };
-      return colors[status] || 'bg-gray-100 text-gray-800';
-    };
-
-    const getPriorityColor = (priority) => {
-      const colors = {
-        'high': 'text-red-600',
-        'medium': 'text-yellow-600',
-        'low': 'text-green-600'
-      };
-      return colors[priority] || 'text-gray-600';
+  const TaskCard = ({ task, isMyTask = true }) => {
+    const formatDate = (timestamp) => {
+      if (!timestamp) return 'Non défini';
+      
+      try {
+        let date;
+        if (timestamp.toDate) {
+          date = timestamp.toDate();
+        } else if (timestamp instanceof Date) {
+          date = timestamp;
+        } else {
+          date = new Date(timestamp);
+        }
+        
+        return date.toLocaleDateString('fr-FR', {
+          day: 'numeric',
+          month: 'short'
+        });
+      } catch (error) {
+        return 'Date invalide';
+      }
     };
 
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg shadow border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-200 border border-gray-200"
       >
-        {/* En-tête */}
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">{task.title}</h3>
-            <p className="text-gray-600 text-sm line-clamp-2">{task.description}</p>
-          </div>
-          <div className="ml-4 flex flex-col items-end gap-2">
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
-              {task.status === 'in_progress' ? 'En cours' :
-               task.status === 'completed' ? 'Terminée' :
-               task.status === 'validation_pending' ? 'En validation' :
-               task.status === 'pending' ? 'En attente' :
-               task.status === 'todo' ? 'À faire' :
-               task.status === 'open' ? 'Ouverte' : task.status}
-            </span>
-            {task.priority && (
-              <span className={`text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                {task.priority === 'high' ? 'Haute' :
-                 task.priority === 'medium' ? 'Moyenne' :
-                 task.priority === 'low' ? 'Basse' : task.priority}
+        <div className="p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{task.title}</h3>
+              {task.description && (
+                <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                  {task.description.length > 100 
+                    ? `${task.description.substring(0, 100)}...` 
+                    : task.description}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col items-end gap-2 ml-4">
+              <span className={`px-2 py-1 text-xs rounded-full ${
+                task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-green-100 text-green-800'
+              }`}>
+                {task.priority}
               </span>
-            )}
-          </div>
-        </div>
-
-        {/* Métadonnées */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4 text-sm text-gray-500">
-            {task.xpReward && (
-              <div className="flex items-center gap-1">
-                <Zap className="w-4 h-4 text-yellow-500" />
-                <span className="font-medium text-yellow-600">
-                  {Math.floor(task.xpReward / Math.max((task.assignedTo || []).length, 1))} XP
-                </span>
-              </div>
-            )}
-            {task.estimatedHours && (
-              <div className="flex items-center gap-1">
-                <Clock className="w-4 h-4" />
-                <span>{task.estimatedHours}h</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Utilisateurs assignés */}
-        {task.assignedTo && task.assignedTo.length > 0 && (
-          <div className="mb-4">
-            <div className="flex items-center text-sm text-gray-500 mb-2">
-              <span className="font-medium">
-                {task.assignedTo.length > 1 ? 'Collaborateurs' : 'Assigné à'} :
+              <span className={`px-2 py-1 text-xs rounded-full ${
+                task.status === 'completed' ? 'bg-green-100 text-green-800' :
+                task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                task.status === 'validation_pending' ? 'bg-purple-100 text-purple-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {task.status === 'completed' ? 'Terminée' :
+                 task.status === 'in_progress' ? 'En cours' :
+                 task.status === 'validation_pending' ? 'En validation' : 'En attente'}
               </span>
             </div>
-            <AssignedUsersList userIds={task.assignedTo} maxDisplay={2} task={task} />
           </div>
-        )}
 
-        {/* Tags */}
-        {task.tags && task.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-4">
-            {task.tags.slice(0, 3).map((tag, index) => (
-              <span 
-                key={index}
-                className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full"
-              >
-                {tag}
+          <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                {formatDate(task.createdAt)}
               </span>
-            ))}
-            {task.tags.length > 3 && (
-              <span className="px-2 py-1 bg-gray-50 text-gray-500 text-xs rounded-full">
-                +{task.tags.length - 3}
-              </span>
-            )}
+              {task.xpReward && (
+                <span className="flex items-center gap-1">
+                  <Zap className="w-4 h-4" />
+                  {task.xpReward} XP
+                </span>
+              )}
+              {task.assignedTo && task.assignedTo.length > 0 && (
+                <span className="flex items-center gap-1">
+                  <Users className="w-4 h-4" />
+                  {task.assignedTo.length}
+                </span>
+              )}
+            </div>
           </div>
-        )}
 
-        {/* Actions */}
-        <div className="flex items-center gap-2 pt-4 border-t border-gray-100 flex-wrap">
-          {/* Actions pour MES TÂCHES */}
-          {isMyTask && (
-            <>
-              {canSubmit && (
+          <div className="flex items-center justify-between">
+            <div className="flex space-x-2">
+              {isMyTask && task.status !== 'completed' && task.status !== 'validation_pending' && (
                 <button
-                  onClick={() => handleSubmitTask(task)}
-                  className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                  onClick={() => {
+                    setSelectedTaskForSubmission(task);
+                    setShowSubmissionModal(true);
+                  }}
+                  className="flex items-center px-3 py-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm"
                 >
-                  <Send className="w-4 h-4" />
+                  <Send className="w-4 h-4 mr-1" />
                   Soumettre
                 </button>
               )}
-              
-              {canComplete && task.status !== 'validation_pending' && (
-                <button
-                  onClick={() => handleCompleteTask(task.id)}
-                  className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
-                >
-                  <CheckSquare className="w-4 h-4" />
-                  Terminer
-                </button>
-              )}
-              
-              {canManageCollaboration && (
-                <button
-                  onClick={() => handleManageCollaboration(task)}
-                  className="flex items-center gap-2 px-3 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors text-sm"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Collaborer
-                </button>
-              )}
-              
-              <button
-                onClick={() => handleWithdrawFromTask(task.id)}
-                className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm"
-              >
-                Se retirer
-              </button>
-            </>
-          )}
 
-          {/* Actions pour TÂCHES DISPONIBLES */}
-          {!isMyTask && !isOtherTask && canVolunteer && (
-            <button
-              onClick={() => handleVolunteerForTask(task.id)}
-              className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
-            >
-              <Heart className="w-4 h-4" />
-              Se porter volontaire
-            </button>
-          )}
-
-          {/* Badge pour les tâches des autres avec option collaboration */}
-          {isOtherTask && (
-            <>
-              <span className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">
-                <Users className="w-4 h-4" />
-                Assignée à d'autres
-              </span>
-              {task.openToVolunteers && (
+              {!isMyTask && task.openToVolunteers && (
                 <button
-                  onClick={() => handleVolunteerForTask(task.id)}
-                  className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm"
+                  onClick={() => handleJoinTask(task.id)}
+                  className="flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm"
                 >
-                  <PlusCircle className="w-4 h-4" />
+                  <UserPlus className="w-4 h-4 mr-1" />
                   Rejoindre
                 </button>
               )}
-            </>
-          )}
-          
-          {/* Bouton détails */}
-          <button 
-            onClick={() => handleViewTaskDetails(task)}
-            className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm ml-auto"
-          >
-            <Eye className="w-4 h-4" />
-            Détails
-          </button>
+
+              {isMyTask && task.createdBy === user.uid && (
+                <button
+                  onClick={() => {
+                    setSelectedTaskForCollaboration(task);
+                    setShowCollaborationModal(true);
+                  }}
+                  className="flex items-center px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm"
+                >
+                  <Share2 className="w-4 h-4 mr-1" />
+                  Assigner
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => {
+                setSelectedTaskForDetails(task);
+                setShowDetailsModal(true);
+              }}
+              className="flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm ml-auto"
+            >
+              <Eye className="w-4 h-4" />
+              Détails
+            </button>
+          </div>
         </div>
       </motion.div>
     );
@@ -1420,46 +811,44 @@ const TasksPage = () => {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Les Autres Tâches ({taskStats.otherTotal})
+                Autres Tâches ({otherTasks.length})
               </button>
             </nav>
           </div>
         </div>
 
         {/* FILTRES ET RECHERCHE */}
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <div className="mb-6 bg-white rounded-lg shadow p-4">
           <div className="flex flex-wrap gap-4 items-center">
             <div className="flex-1 min-w-64">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Rechercher une tâche..."
+                  placeholder="Rechercher des tâches..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
 
-            {activeTab === 'my_tasks' && (
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">Tous les statuts</option>
-                <option value="pending">En attente</option>
-                <option value="in_progress">En cours</option>
-                <option value="completed">Terminées</option>
-                <option value="validation_pending">En validation</option>
-              </select>
-            )}
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">Tous les statuts</option>
+              <option value="pending">En attente</option>
+              <option value="in_progress">En cours</option>
+              <option value="completed">Terminées</option>
+              <option value="validation_pending">En validation</option>
+            </select>
 
             <select
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">Toutes les priorités</option>
               <option value="high">Haute</option>
@@ -1469,7 +858,7 @@ const TasksPage = () => {
           </div>
         </div>
 
-        {/* CONTENU PRINCIPAL SELON L'ONGLET ACTIF */}
+        {/* CONTENU DES ONGLETS */}
         <div className="space-y-6">
           {activeTab === 'my_tasks' && (
             <div>
@@ -1478,7 +867,7 @@ const TasksPage = () => {
                   Mes Tâches ({myTasks.length})
                 </h2>
                 <div className="text-sm text-gray-500">
-                  Tâches qui vous sont assignées
+                  Tâches que vous créez ou auxquelles vous participez
                 </div>
               </div>
 
@@ -1489,15 +878,24 @@ const TasksPage = () => {
                     Aucune tâche assignée
                   </h3>
                   <p className="text-gray-500 mb-4">
-                    Vous n'êtes assigné à aucune tâche pour le moment. Explorez les tâches disponibles pour vous porter volontaire !
+                    Vous n'avez pas encore de tâches assignées. Créez-en une ou rejoignez des tâches disponibles !
                   </p>
-                  <button
-                    onClick={() => setActiveTab('available_tasks')}
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Heart className="h-5 w-5 mr-2" />
-                    Voir les tâches disponibles
-                  </button>
+                  <div className="flex justify-center space-x-3">
+                    <button
+                      onClick={() => setShowCreateModal(true)}
+                      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Créer une tâche
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('available_tasks')}
+                      className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <Heart className="w-4 h-4 mr-2" />
+                      Voir les tâches disponibles
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1530,7 +928,7 @@ const TasksPage = () => {
                   Tâches Disponibles ({availableTasks.length})
                 </h2>
                 <div className="text-sm text-gray-500">
-                  Contribuez aux projets collaboratifs
+                  Tâches ouvertes aux volontaires
                 </div>
               </div>
 
@@ -1603,7 +1001,7 @@ const TasksPage = () => {
                       return true;
                     })
                     .map(task => (
-                      <TaskCard key={task.id} task={task} isMyTask={false} isOtherTask={true} />
+                      <TaskCard key={task.id} task={task} isMyTask={false} />
                     ))}
                 </div>
               )}
@@ -1612,8 +1010,8 @@ const TasksPage = () => {
         </div>
 
         {/* MODALS */}
-        
-        {/* Modal création tâche */}
+
+        {/* Modal création */}
         {showCreateModal && (
           <TaskForm
             isOpen={showCreateModal}
