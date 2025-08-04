@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// TASKS PAGE AVEC NOMS D'UTILISATEURS ET APERÇUS AMÉLIORÉS
+// SYSTÈME COLLABORATIF AVEC PARTAGE XP ET GESTION DES VOLONTAIRES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -47,11 +47,16 @@ import {
   Calendar,
   User,
   Tag,
-  FileText
+  FileText,
+  UserPlus,
+  Settings,
+  Share2,
+  PlusCircle,
+  UserCheck
 } from 'lucide-react';
 
 /**
- * 👥 SERVICE DE GESTION DES UTILISATEURS
+ * 👥 SERVICE DE GESTION DES UTILISATEURS (même que précédemment)
  */
 class UserService {
   constructor() {
@@ -59,7 +64,6 @@ class UserService {
     this.isLoading = false;
   }
 
-  // Récupérer tous les utilisateurs et les mettre en cache
   async loadAllUsers() {
     if (this.isLoading) return;
     
@@ -92,18 +96,13 @@ class UserService {
     }
   }
 
-  // Nettoyer les noms d'affichage
   cleanDisplayName(userData) {
     let cleanName = userData.displayName || userData.email || 'Utilisateur';
     
-    // Nettoyer les URLs Google
     if (cleanName.includes('googleusercontent.com')) {
-      console.log('🧹 Nettoyage URL Google');
-      // Prendre l'email à la place
       cleanName = userData.email || 'Utilisateur';
     }
     
-    // Extraire le nom avant @ pour les emails
     if (cleanName.includes('@')) {
       const emailParts = cleanName.split('@');
       cleanName = emailParts[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -112,7 +111,6 @@ class UserService {
     return cleanName;
   }
 
-  // Obtenir un utilisateur par ID
   getUser(userId) {
     return this.userCache.get(userId) || {
       id: userId,
@@ -122,17 +120,19 @@ class UserService {
     };
   }
 
-  // Obtenir plusieurs utilisateurs
   getUsers(userIds) {
     return userIds.map(id => this.getUser(id));
   }
+
+  getAllUsers() {
+    return Array.from(this.userCache.values());
+  }
 }
 
-// Instance globale du service
 const userService = new UserService();
 
 /**
- * 🎨 COMPOSANT AVATAR UTILISATEUR
+ * 🎨 COMPOSANT AVATAR UTILISATEUR (même que précédemment)
  */
 const UserAvatar = ({ user, size = 'sm' }) => {
   const sizeClasses = {
@@ -152,7 +152,6 @@ const UserAvatar = ({ user, size = 'sm' }) => {
     );
   }
 
-  // Avatar avec initiales
   const initials = user.displayName
     .split(' ')
     .map(word => word[0])
@@ -168,12 +167,17 @@ const UserAvatar = ({ user, size = 'sm' }) => {
 };
 
 /**
- * 🎨 COMPOSANT LISTE D'ASSIGNÉS
+ * 🎨 COMPOSANT LISTE D'ASSIGNÉS AVEC XP PARTAGÉ
  */
-const AssignedUsersList = ({ userIds, maxDisplay = 3 }) => {
+const AssignedUsersList = ({ userIds, maxDisplay = 3, task }) => {
   const users = userService.getUsers(userIds);
   const displayUsers = users.slice(0, maxDisplay);
   const remainingCount = users.length - maxDisplay;
+
+  // ✅ CALCUL XP PARTAGÉ
+  const totalXP = task?.xpReward || 0;
+  const xpPerUser = users.length > 0 ? Math.floor(totalXP / users.length) : 0;
+  const remainingXP = totalXP - (xpPerUser * users.length);
 
   if (users.length === 0) {
     return (
@@ -189,7 +193,7 @@ const AssignedUsersList = ({ userIds, maxDisplay = 3 }) => {
           <div
             key={user.id}
             className="relative"
-            title={user.displayName}
+            title={`${user.displayName} - ${xpPerUser}${index === 0 && remainingXP > 0 ? '+' + remainingXP : ''} XP`}
           >
             <UserAvatar user={user} size="sm" />
           </div>
@@ -201,14 +205,15 @@ const AssignedUsersList = ({ userIds, maxDisplay = 3 }) => {
         )}
       </div>
       
-      {/* Noms */}
+      {/* Noms et XP */}
       <div className="flex flex-col">
         <span className="text-sm font-medium text-gray-900">
           {displayUsers.map(user => user.displayName).join(', ')}
           {remainingCount > 0 && ` et ${remainingCount} autre${remainingCount > 1 ? 's' : ''}`}
         </span>
         <span className="text-xs text-gray-500">
-          {users.length} assigné{users.length > 1 ? 's' : ''}
+          {users.length} assigné{users.length > 1 ? 's' : ''} • {xpPerUser} XP chacun
+          {remainingXP > 0 && ` (+${remainingXP} bonus)`}
         </span>
       </div>
     </div>
@@ -216,7 +221,259 @@ const AssignedUsersList = ({ userIds, maxDisplay = 3 }) => {
 };
 
 /**
- * 🎨 MODAL DÉTAILS DE TÂCHE AMÉLIORÉE
+ * 🤝 MODAL DE COLLABORATION - NOUVEAU
+ */
+const CollaborationModal = ({ isOpen, task, onClose, onUpdate }) => {
+  const { user } = useAuthStore();
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [isOpenToVolunteers, setIsOpenToVolunteers] = useState(task?.openToVolunteers || false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadAvailableUsers();
+    }
+  }, [isOpen]);
+
+  const loadAvailableUsers = () => {
+    const allUsers = userService.getAllUsers();
+    const currentAssignees = task?.assignedTo || [];
+    
+    // Filtrer les utilisateurs déjà assignés
+    const available = allUsers.filter(u => !currentAssignees.includes(u.id));
+    setAvailableUsers(available);
+  };
+
+  const handleAddCollaborators = async () => {
+    if (selectedUsers.length === 0 && !isOpenToVolunteers) return;
+
+    try {
+      setLoading(true);
+      console.log('🤝 Ajout collaborateurs:', selectedUsers.map(u => u.displayName));
+
+      const taskRef = doc(db, 'tasks', task.id);
+      const currentAssignees = task.assignedTo || [];
+      const newAssignees = [...currentAssignees, ...selectedUsers.map(u => u.id)];
+
+      const updateData = {
+        assignedTo: newAssignees,
+        openToVolunteers: isOpenToVolunteers,
+        updatedAt: serverTimestamp(),
+        collaborationUpdatedBy: user.uid,
+        collaborationUpdatedAt: serverTimestamp()
+      };
+
+      // ✅ RECALCULER LES XP AUTOMATIQUEMENT
+      if (newAssignees.length > currentAssignees.length) {
+        const totalXP = task.xpReward || 0;
+        const xpPerUser = Math.floor(totalXP / newAssignees.length);
+        
+        updateData.xpPerUser = xpPerUser;
+        updateData.xpDistribution = newAssignees.reduce((acc, userId) => {
+          acc[userId] = xpPerUser;
+          return acc;
+        }, {});
+        
+        console.log('💰 XP redistribué:', xpPerUser, 'XP par personne');
+      }
+
+      await updateDoc(taskRef, updateData);
+
+      // Créer des notifications pour les nouveaux collaborateurs
+      for (const newUser of selectedUsers) {
+        await addDoc(collection(db, 'notifications'), {
+          userId: newUser.id,
+          type: 'collaboration_invite',
+          title: 'Invitation à collaborer',
+          message: `${user.displayName || user.email} vous a invité à collaborer sur "${task.title}"`,
+          taskId: task.id,
+          taskTitle: task.title,
+          invitedBy: user.uid,
+          createdAt: serverTimestamp(),
+          read: false
+        });
+      }
+
+      console.log('✅ Collaboration mise à jour');
+      onUpdate && onUpdate();
+      onClose();
+
+    } catch (error) {
+      console.error('❌ Erreur ajout collaborateurs:', error);
+      alert('Erreur lors de l\'ajout: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+      >
+        {/* En-tête */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Gérer la collaboration</h2>
+            <p className="text-gray-600 mt-1">{task?.title}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="h-5 w-5 text-gray-400" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          
+          {/* XP actuels */}
+          <div className="bg-yellow-50 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Zap className="h-5 w-5 text-yellow-600" />
+              <h3 className="text-lg font-semibold text-yellow-800">Répartition XP</h3>
+            </div>
+            <p className="text-yellow-700">
+              <strong>{task?.xpReward || 0} XP total</strong> - 
+              {(task?.assignedTo || []).length > 0 && (
+                <span> {Math.floor((task?.xpReward || 0) / (task?.assignedTo || []).length)} XP par personne actuellement</span>
+              )}
+            </p>
+          </div>
+
+          {/* Assignés actuels */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">
+              Collaborateurs actuels ({(task?.assignedTo || []).length})
+            </h3>
+            {(task?.assignedTo || []).length > 0 ? (
+              <div className="space-y-2">
+                {userService.getUsers(task.assignedTo).map(user => (
+                  <div key={user.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <UserAvatar user={user} size="md" />
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{user.displayName}</p>
+                      <p className="text-sm text-gray-500">{user.email}</p>
+                    </div>
+                    <span className="text-sm font-medium text-yellow-600">
+                      {Math.floor((task?.xpReward || 0) / (task?.assignedTo || []).length)} XP
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">Aucun collaborateur</p>
+            )}
+          </div>
+
+          {/* Ajouter des collaborateurs */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Ajouter des collaborateurs</h3>
+            
+            {availableUsers.length > 0 ? (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {availableUsers.map(availableUser => (
+                  <div
+                    key={availableUser.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                      selectedUsers.some(u => u.id === availableUser.id)
+                        ? 'bg-blue-50 border-2 border-blue-200'
+                        : 'bg-gray-50 hover:bg-gray-100'
+                    }`}
+                    onClick={() => {
+                      setSelectedUsers(prev => 
+                        prev.some(u => u.id === availableUser.id)
+                          ? prev.filter(u => u.id !== availableUser.id)
+                          : [...prev, availableUser]
+                      );
+                    }}
+                  >
+                    <UserAvatar user={availableUser} size="md" />
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{availableUser.displayName}</p>
+                      <p className="text-sm text-gray-500">{availableUser.email}</p>
+                    </div>
+                    {selectedUsers.some(u => u.id === availableUser.id) && (
+                      <UserCheck className="h-5 w-5 text-blue-600" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">Tous les utilisateurs sont déjà assignés</p>
+            )}
+
+            {selectedUsers.length > 0 && (
+              <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>{selectedUsers.length} personne{selectedUsers.length > 1 ? 's' : ''} sélectionnée{selectedUsers.length > 1 ? 's' : ''}</strong>
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Nouveau XP par personne: {Math.floor((task?.xpReward || 0) / ((task?.assignedTo || []).length + selectedUsers.length))} XP
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Option volontaires */}
+          <div className="border-t border-gray-200 pt-4">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="openToVolunteers"
+                checked={isOpenToVolunteers}
+                onChange={(e) => setIsOpenToVolunteers(e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="openToVolunteers" className="flex-1">
+                <div className="font-medium text-gray-900">Ouvrir aux volontaires</div>
+                <div className="text-sm text-gray-500">
+                  Permettre à d'autres utilisateurs de se porter volontaires pour cette tâche
+                </div>
+              </label>
+              <Share2 className="h-5 w-5 text-gray-400" />
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleAddCollaborators}
+            disabled={loading || (selectedUsers.length === 0 && isOpenToVolunteers === (task?.openToVolunteers || false))}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Mise à jour...
+              </>
+            ) : (
+              <>
+                <UserPlus className="h-4 w-4" />
+                Mettre à jour
+              </>
+            )}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+/**
+ * 🎨 MODAL DÉTAILS DE TÂCHE AMÉLIORÉE (même que précédemment mais avec XP partagé)
  */
 const TaskDetailsModal = ({ isOpen, task, onClose }) => {
   if (!isOpen || !task) return null;
@@ -233,6 +490,8 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
   };
 
   const assignedUsers = userService.getUsers(task.assignedTo || []);
+  const totalXP = task.xpReward || 0;
+  const xpPerUser = assignedUsers.length > 0 ? Math.floor(totalXP / assignedUsers.length) : totalXP;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -245,13 +504,20 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">{task.title}</h2>
-            <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium border mt-2 ${getStatusColor(task.status)}`}>
-              {task.status === 'completed' && 'Terminé'}
-              {task.status === 'in_progress' && 'En cours'}
-              {task.status === 'validation_pending' && 'En validation'}
-              {task.status === 'pending' && 'En attente'}
-              {task.status === 'open' && 'Ouvert'}
-            </span>
+            <div className="flex items-center gap-2 mt-2">
+              <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
+                {task.status === 'completed' && 'Terminé'}
+                {task.status === 'in_progress' && 'En cours'}
+                {task.status === 'validation_pending' && 'En validation'}
+                {task.status === 'pending' && 'En attente'}
+                {task.status === 'open' && 'Ouvert'}
+              </span>
+              {task.openToVolunteers && (
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                  Ouvert aux volontaires
+                </span>
+              )}
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -275,7 +541,7 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
             </p>
           </div>
 
-          {/* Métadonnées principales */}
+          {/* Métadonnées principales avec XP partagé */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -290,20 +556,27 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Zap className="h-4 w-4 text-yellow-500" />
-                <span className="text-sm font-medium text-gray-700">Récompense</span>
+                <span className="text-sm font-medium text-gray-700">XP Total / Par personne</span>
               </div>
-              <span className="text-lg font-bold text-yellow-600">
-                {task.xpReward || 0} XP
-              </span>
+              <div>
+                <span className="text-lg font-bold text-yellow-600">
+                  {totalXP} XP
+                </span>
+                {assignedUsers.length > 1 && (
+                  <div className="text-sm text-yellow-600">
+                    {xpPerUser} XP chacun
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Assignés - AMÉLIORÉ */}
+          {/* Assignés avec XP détaillé */}
           <div>
             <div className="flex items-center gap-2 mb-3">
               <Users className="h-5 w-5 text-gray-500" />
               <h3 className="text-lg font-semibold text-gray-900">
-                Personnes assignées ({assignedUsers.length})
+                Collaborateurs ({assignedUsers.length})
               </h3>
             </div>
             
@@ -317,9 +590,15 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
                   {assignedUsers.map((user) => (
                     <div key={user.id} className="flex items-center gap-3 bg-white px-3 py-2 rounded-lg shadow-sm">
                       <UserAvatar user={user} size="md" />
-                      <div>
+                      <div className="flex-1">
                         <p className="font-medium text-gray-900">{user.displayName}</p>
                         <p className="text-sm text-gray-500">{user.email}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-yellow-600">{xpPerUser} XP</p>
+                        <p className="text-xs text-gray-500">
+                          {Math.round((1 / assignedUsers.length) * 100)}% du total
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -413,7 +692,7 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
 };
 
 /**
- * ✅ TASKS PAGE PRINCIPALE
+ * ✅ TASKS PAGE PRINCIPALE AVEC SYSTÈME COLLABORATIF
  */
 const TasksPage = () => {
   const { user } = useAuthStore();
@@ -434,8 +713,10 @@ const TasksPage = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showCollaborationModal, setShowCollaborationModal] = useState(false);
   const [selectedTaskForSubmission, setSelectedTaskForSubmission] = useState(null);
   const [selectedTaskForDetails, setSelectedTaskForDetails] = useState(null);
+  const [selectedTaskForCollaboration, setSelectedTaskForCollaboration] = useState(null);
   
   // Statistiques réelles
   const [taskStats, setTaskStats] = useState({
@@ -468,7 +749,7 @@ const TasksPage = () => {
   };
 
   /**
-   * 📊 CHARGER TOUTES LES TÂCHES
+   * 📊 CHARGER TOUTES LES TÂCHES - LOGIQUE CORRIGÉE
    */
   const loadAllTasks = async () => {
     if (!user?.uid) return;
@@ -493,20 +774,30 @@ const TasksPage = () => {
       
       console.log('📊 Total tâches trouvées:', allTasks.length);
       
-      // Séparer les tâches
+      // ✅ CORRECTION 1: Mes tâches (assignées à moi OU créées par moi)
       const myTasksList = allTasks.filter(task => {
         const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
         const isCreatedByMe = task.createdBy === user.uid;
         return isAssignedToMe || isCreatedByMe;
       });
       
+      // ✅ CORRECTION 2: Tâches disponibles (ouvertes aux volontaires ET pas assignées à moi)
       const availableTasksList = allTasks.filter(task => {
         const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
         const isCreatedByMe = task.createdBy === user.uid;
-        const isAvailable = ['pending', 'open'].includes(task.status);
-        return isAvailable && !isAssignedToMe && !isCreatedByMe;
+        const hasAssignees = (task.assignedTo || []).length > 0;
+        
+        // Disponible si :
+        // - Pas assignée à moi ET pas créée par moi
+        // - ET (pas d'assignés OU ouverte aux volontaires)
+        // - ET statut ouvert
+        const isAvailableStatus = ['pending', 'open'].includes(task.status);
+        const isOpenForVolunteers = !hasAssignees || task.openToVolunteers;
+        
+        return !isAssignedToMe && !isCreatedByMe && isAvailableStatus && isOpenForVolunteers;
       });
 
+      // ✅ CORRECTION 3: Tâches des autres (assignées à d'autres ET pas créées par moi)
       const otherTasksList = allTasks.filter(task => {
         const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
         const isCreatedByMe = task.createdBy === user.uid;
@@ -541,9 +832,16 @@ const TasksPage = () => {
     const availableTotal = availableTasks.length;
     const otherTotal = otherTasks.length;
     const completionRate = myTotal > 0 ? Math.round((myCompleted / myTotal) * 100) : 0;
+    
+    // ✅ CALCUL XP AVEC PARTAGE
     const totalXpEarned = myTasks
       .filter(t => t.status === 'completed')
-      .reduce((sum, task) => sum + (task.xpReward || 0), 0);
+      .reduce((sum, task) => {
+        const assignedCount = (task.assignedTo || []).length;
+        const taskXP = task.xpReward || 0;
+        const myShare = assignedCount > 0 ? Math.floor(taskXP / assignedCount) : taskXP;
+        return sum + myShare;
+      }, 0);
 
     setTaskStats({
       myTotal,
@@ -558,22 +856,43 @@ const TasksPage = () => {
   };
 
   /**
-   * 🙋 SE PORTER VOLONTAIRE POUR UNE TÂCHE
+   * 🙋 SE PORTER VOLONTAIRE POUR UNE TÂCHE - AVEC RECALCUL XP
    */
   const handleVolunteerForTask = async (taskId) => {
     try {
       console.log('🙋 Volontariat pour tâche:', taskId);
       
       const taskRef = doc(db, 'tasks', taskId);
+      const taskDoc = await getDoc(taskRef);
       
-      await updateDoc(taskRef, {
-        assignedTo: arrayUnion(user.uid),
+      if (!taskDoc.exists()) {
+        alert('Tâche introuvable');
+        return;
+      }
+      
+      const currentTask = taskDoc.data();
+      const currentAssignees = currentTask.assignedTo || [];
+      const newAssignees = [...currentAssignees, user.uid];
+      
+      // ✅ RECALCUL AUTOMATIQUE DES XP
+      const totalXP = currentTask.xpReward || 0;
+      const xpPerUser = Math.floor(totalXP / newAssignees.length);
+      
+      const updateData = {
+        assignedTo: newAssignees,
         status: 'in_progress',
         volunteerDate: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
+        updatedAt: serverTimestamp(),
+        xpPerUser: xpPerUser,
+        xpDistribution: newAssignees.reduce((acc, userId) => {
+          acc[userId] = xpPerUser;
+          return acc;
+        }, {})
+      };
       
-      console.log('✅ Volontariat enregistré');
+      await updateDoc(taskRef, updateData);
+      
+      console.log('✅ Volontariat enregistré - XP redistribué:', xpPerUser, 'par personne');
       await loadAllTasks();
       
     } catch (error) {
@@ -583,7 +902,7 @@ const TasksPage = () => {
   };
 
   /**
-   * 🚪 SE RETIRER D'UNE TÂCHE - CORRECTION MAJEURE
+   * 🚪 SE RETIRER D'UNE TÂCHE - AVEC RECALCUL XP
    */
   const handleWithdrawFromTask = async (taskId) => {
     try {
@@ -591,62 +910,48 @@ const TasksPage = () => {
       if (!confirmed) return;
       
       console.log('🚪 [DEBUG] Début retrait de tâche:', taskId);
-      console.log('🚪 [DEBUG] User ID:', user.uid);
       
       const taskRef = doc(db, 'tasks', taskId);
-      
-      // ✅ CORRECTION 1: Récupérer d'abord les données actuelles de la tâche
       const taskDoc = await getDoc(taskRef);
+      
       if (!taskDoc.exists()) {
-        console.error('❌ Tâche introuvable:', taskId);
-        alert('Erreur: Tâche introuvable');
+        alert('Tâche introuvable');
         return;
       }
       
       const currentTask = taskDoc.data();
-      const currentAssignedTo = currentTask.assignedTo || [];
+      const currentAssignees = currentTask.assignedTo || [];
+      const newAssignees = currentAssignees.filter(id => id !== user.uid);
       
-      console.log('🚪 [DEBUG] Assignés actuellement:', currentAssignedTo);
-      console.log('🚪 [DEBUG] Utilisateur dans la liste?', currentAssignedTo.includes(user.uid));
+      // ✅ RECALCUL AUTOMATIQUE DES XP
+      const totalXP = currentTask.xpReward || 0;
+      const xpPerUser = newAssignees.length > 0 ? Math.floor(totalXP / newAssignees.length) : totalXP;
       
-      // ✅ CORRECTION 2: Vérifier que l'utilisateur est bien assigné
-      if (!currentAssignedTo.includes(user.uid)) {
-        console.warn('⚠️ Utilisateur pas dans la liste des assignés');
-        alert('Vous n\'êtes pas assigné à cette tâche');
-        return;
-      }
-      
-      // ✅ CORRECTION 3: Filtrer manuellement au lieu d'utiliser arrayRemove
-      const newAssignedTo = currentAssignedTo.filter(id => id !== user.uid);
-      
-      console.log('🚪 [DEBUG] Nouvelle liste assignés:', newAssignedTo);
-      
-      // ✅ CORRECTION 4: Mettre à jour avec la nouvelle liste
       const updateData = {
-        assignedTo: newAssignedTo,
+        assignedTo: newAssignees,
         updatedAt: serverTimestamp(),
         lastWithdrawAt: serverTimestamp(),
-        lastWithdrawBy: user.uid
+        lastWithdrawBy: user.uid,
+        xpPerUser: xpPerUser,
+        xpDistribution: newAssignees.reduce((acc, userId) => {
+          acc[userId] = xpPerUser;
+          return acc;
+        }, {})
       };
       
-      // ✅ CORRECTION 5: Si plus personne n'est assigné, changer le statut
-      if (newAssignedTo.length === 0) {
-        updateData.status = 'open'; // Remettre la tâche disponible
-        console.log('🚪 [DEBUG] Plus d\'assignés - statut changé vers "open"');
+      // Si plus personne n'est assigné, remettre la tâche disponible
+      if (newAssignees.length === 0) {
+        updateData.status = 'open';
+        updateData.openToVolunteers = true;
       }
       
       await updateDoc(taskRef, updateData);
       
-      console.log('✅ [DEBUG] Retrait réussi - rechargement des tâches...');
-      
-      // ✅ CORRECTION 6: Recharger immédiatement les tâches
+      console.log('✅ Retrait réussi - XP redistribué:', xpPerUser, 'par personne restante');
       await loadAllTasks();
       
-      console.log('✅ Retrait enregistré avec succès');
-      
     } catch (error) {
-      console.error('❌ [DEBUG] Erreur complète retrait:', error);
-      console.error('❌ [DEBUG] Stack trace:', error.stack);
+      console.error('❌ Erreur retrait:', error);
       alert('Erreur lors du retrait: ' + error.message);
     }
   };
@@ -665,6 +970,14 @@ const TasksPage = () => {
   const handleViewTaskDetails = (task) => {
     setSelectedTaskForDetails(task);
     setShowDetailsModal(true);
+  };
+
+  /**
+   * 🤝 GÉRER LA COLLABORATION
+   */
+  const handleManageCollaboration = (task) => {
+    setSelectedTaskForCollaboration(task);
+    setShowCollaborationModal(true);
   };
 
   /**
@@ -691,13 +1004,15 @@ const TasksPage = () => {
   };
 
   /**
-   * 🎨 COMPOSANT CARTE DE TÂCHE AMÉLIORÉE
+   * 🎨 COMPOSANT CARTE DE TÂCHE AMÉLIORÉE AVEC COLLABORATION
    */
   const TaskCard = ({ task, isMyTask = false, isOtherTask = false }) => {
     const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
+    const isCreatedByMe = task.createdBy === user.uid;
     const canVolunteer = !isAssignedToMe && !isMyTask && !isOtherTask;
     const canSubmit = isAssignedToMe && task.status === 'in_progress';
     const canComplete = isAssignedToMe && ['in_progress', 'validation_pending'].includes(task.status);
+    const canManageCollaboration = isAssignedToMe || isCreatedByMe;
     
     const getStatusColor = (status) => {
       switch(status) {
@@ -737,13 +1052,20 @@ const TasksPage = () => {
             </p>
           </div>
           
-          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
-            {task.status === 'completed' && 'Terminé'}
-            {task.status === 'in_progress' && 'En cours'}
-            {task.status === 'validation_pending' && 'En validation'}
-            {task.status === 'pending' && 'Disponible'}
-            {task.status === 'open' && 'Ouvert'}
-          </span>
+          <div className="flex flex-col gap-1">
+            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
+              {task.status === 'completed' && 'Terminé'}
+              {task.status === 'in_progress' && 'En cours'}
+              {task.status === 'validation_pending' && 'En validation'}
+              {task.status === 'pending' && 'En attente'}
+              {task.status === 'open' && 'Ouvert'}
+            </span>
+            {task.openToVolunteers && (
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                🤝 Collaboratif
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Métadonnées */}
@@ -755,18 +1077,25 @@ const TasksPage = () => {
           
           <div className="flex items-center gap-1">
             <Zap className="w-4 h-4 text-yellow-500" />
-            <span>{task.xpReward || 0} XP</span>
+            <span>
+              {task.xpReward || 0} XP
+              {(task.assignedTo || []).length > 1 && (
+                <span className="text-xs"> ({Math.floor((task.xpReward || 0) / (task.assignedTo || []).length)} chacun)</span>
+              )}
+            </span>
           </div>
         </div>
 
-        {/* ✅ NOUVEAU: Assignés avec noms dans l'aperçu */}
+        {/* ✅ ASSIGNÉS avec noms dans l'aperçu + XP partagé */}
         {(task.assignedTo || []).length > 0 && (
           <div className="mb-4 p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
               <Users className="w-4 h-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Assigné à :</span>
+              <span className="text-sm font-medium text-gray-700">
+                {(task.assignedTo || []).length > 1 ? 'Collaborateurs' : 'Assigné à'} :
+              </span>
             </div>
-            <AssignedUsersList userIds={task.assignedTo} maxDisplay={2} />
+            <AssignedUsersList userIds={task.assignedTo} maxDisplay={2} task={task} />
           </div>
         )}
 
@@ -790,7 +1119,7 @@ const TasksPage = () => {
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-2 pt-4 border-t border-gray-100">
+        <div className="flex items-center gap-2 pt-4 border-t border-gray-100 flex-wrap">
           {/* Actions pour MES TÂCHES */}
           {isMyTask && (
             <>
@@ -814,6 +1143,16 @@ const TasksPage = () => {
                 </button>
               )}
               
+              {canManageCollaboration && (
+                <button
+                  onClick={() => handleManageCollaboration(task)}
+                  className="flex items-center gap-2 px-3 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors text-sm"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Collaborer
+                </button>
+              )}
+              
               <button
                 onClick={() => handleWithdrawFromTask(task.id)}
                 className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm"
@@ -834,12 +1173,23 @@ const TasksPage = () => {
             </button>
           )}
 
-          {/* Badge pour les tâches des autres */}
+          {/* Badge pour les tâches des autres avec option collaboration */}
           {isOtherTask && (
-            <span className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">
-              <Users className="w-4 h-4" />
-              Assignée à d'autres
-            </span>
+            <>
+              <span className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">
+                <Users className="w-4 h-4" />
+                Assignée à d'autres
+              </span>
+              {task.openToVolunteers && (
+                <button
+                  onClick={() => handleVolunteerForTask(task.id)}
+                  className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  Rejoindre
+                </button>
+              )}
+            </>
           )}
           
           {/* Bouton détails */}
@@ -889,7 +1239,7 @@ const TasksPage = () => {
           </div>
         </div>
 
-        {/* STATISTIQUES GLOBALES */}
+        {/* STATISTIQUES GLOBALES AVEC XP PARTAGÉ */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
@@ -934,7 +1284,7 @@ const TasksPage = () => {
               </div>
               <div className="ml-4">
                 <h3 className="text-2xl font-bold text-gray-900">{taskStats.totalXpEarned}</h3>
-                <p className="text-gray-600">XP gagnés</p>
+                <p className="text-gray-600">XP gagnés (partagés)</p>
               </div>
             </div>
           </div>
@@ -1175,7 +1525,8 @@ const TasksPage = () => {
                   createdAt: serverTimestamp(),
                   updatedAt: serverTimestamp(),
                   status: taskData.assignedTo && taskData.assignedTo.length > 0 ? 'pending' : 'open',
-                  assignedTo: taskData.assignedTo || []
+                  assignedTo: taskData.assignedTo || [],
+                  openToVolunteers: !taskData.assignedTo || taskData.assignedTo.length === 0
                 });
                 setShowCreateModal(false);
                 await loadAllTasks();
@@ -1204,7 +1555,7 @@ const TasksPage = () => {
           />
         )}
 
-        {/* Modal détails améliorée */}
+        {/* Modal détails */}
         <TaskDetailsModal
           isOpen={showDetailsModal}
           task={selectedTaskForDetails}
@@ -1212,6 +1563,17 @@ const TasksPage = () => {
             setShowDetailsModal(false);
             setSelectedTaskForDetails(null);
           }}
+        />
+
+        {/* ✅ NOUVEAU: Modal collaboration */}
+        <CollaborationModal
+          isOpen={showCollaborationModal}
+          task={selectedTaskForCollaboration}
+          onClose={() => {
+            setShowCollaborationModal(false);
+            setSelectedTaskForCollaboration(null);
+          }}
+          onUpdate={loadAllTasks}
         />
       </div>
     </div>
