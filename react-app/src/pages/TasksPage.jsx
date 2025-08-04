@@ -36,7 +36,7 @@ import {
   Award,
   BarChart3,
   Users,
-  HandHeart,
+  Heart,
   Send,
   Eye,
   Star,
@@ -400,7 +400,7 @@ const TasksPage = () => {
               onClick={() => handleVolunteerForTask(task.id)}
               className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
             >
-              <HandHeart className="w-4 h-4" />
+              <Heart className="w-4 h-4" />
               Se porter volontaire
             </button>
           )}
@@ -604,7 +604,7 @@ const TasksPage = () => {
                     onClick={() => setActiveTab('available_tasks')}
                     className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    <HandHeart className="h-5 w-5 mr-2" />
+                    <Heart className="h-5 w-5 mr-2" />
                     Voir les tâches disponibles
                   </button>
                 </div>
@@ -648,7 +648,7 @@ const TasksPage = () => {
 
               {availableTasks.length === 0 ? (
                 <div className="bg-white rounded-lg shadow p-12 text-center">
-                  <HandHeart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <Heart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
                     Aucune tâche disponible
                   </h3>
