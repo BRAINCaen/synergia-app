@@ -1,7 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
 // SYSTÈME COLLABORATIF AVEC PARTAGE XP ET GESTION DES VOLONTAIRES
-// VERSION CORRIGÉE - SANS DUPLICATIONS
+// VERSION CORRIGÉE - PRIORITÉ TÂCHES COLLABORATIVES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -580,7 +580,7 @@ const TasksPage = () => {
   };
 
   /**
-   * 📊 CHARGER TOUTES LES TÂCHES AVEC LOGIQUE CORRIGÉE
+   * 📊 CHARGER TOUTES LES TÂCHES AVEC LOGIQUE COLLABORATIVE CORRIGÉE
    */
   const loadAllTasks = async () => {
     if (!user?.uid) return;
@@ -618,41 +618,43 @@ const TasksPage = () => {
         return result;
       });
       
-      // ✅ CORRECTION 2: Tâches disponibles - NOUVELLE LOGIQUE COLLABORATIVE
+      // ✅ CORRECTION 2: Tâches disponibles - PRIORITÉ COLLABORATIVE ABSOLUE
       const availableTasksList = allTasks.filter(task => {
         const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
         const isCreatedByMe = task.createdBy === user.uid;
         const hasAssignees = (task.assignedTo || []).length > 0;
         
-        // ✅ NOUVELLE LOGIQUE: Disponible si :
-        // 1. Pas assignée à moi ET pas créée par moi
-        // 2. ET statut ouvert (pending, open, todo)
-        // 3. ET (pas d'assignés OU ouverte aux volontaires)
-        const isAvailableStatus = ['pending', 'open', 'todo'].includes(task.status);
-        
-        // ✅ CORRECTION CLÉE: Inclure les tâches collaboratives
-        const isOpenForVolunteers = !hasAssignees || task.openToVolunteers === true;
-        
-        // ✅ CONDITION FINALE SIMPLIFIÉE
-        const result = !isAssignedToMe && !isCreatedByMe && isAvailableStatus && isOpenForVolunteers;
-        
-        if (result) {
-          console.log(`📊 [4] TÂCHE DISPONIBLE: "${task.title}" - Status: ${task.status}, OpenToVolunteers: ${task.openToVolunteers}, HasAssignees: ${hasAssignees}`);
+        // ✅ PRIORITÉ ABSOLUE: Si openToVolunteers = true → TOUJOURS DISPONIBLE
+        if (task.openToVolunteers === true && !isAssignedToMe) {
+          console.log(`📊 [4] TÂCHE DISPONIBLE (COLLABORATIVE): "${task.title}" - OpenToVolunteers: true`);
+          return true;
         }
         
-        return result;
+        // ✅ LOGIQUE NORMALE: Tâches sans assignés + statut ouvert
+        const isAvailableStatus = ['pending', 'open', 'todo'].includes(task.status);
+        const isOpenWithoutAssignees = !hasAssignees && isAvailableStatus && !isCreatedByMe && !isAssignedToMe;
+        
+        if (isOpenWithoutAssignees) {
+          console.log(`📊 [4] TÂCHE DISPONIBLE (NORMALE): "${task.title}" - Status: ${task.status}, Pas d'assignés`);
+          return true;
+        }
+        
+        return false;
       });
 
-      // ✅ CORRECTION 3: Tâches des autres - LOGIQUE MISE À JOUR
+      // ✅ CORRECTION 3: Tâches des autres - EXCLUSION COLLABORATIVE PRIORITAIRE
       const otherTasksList = allTasks.filter(task => {
         const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
         const isCreatedByMe = task.createdBy === user.uid;
         const hasAssignees = (task.assignedTo || []).length > 0;
         
-        // ✅ NOUVELLES CONDITIONS: Autres tâches si :
-        // 1. Assignées à d'autres personnes (pas à moi) ET PAS ouvertes aux volontaires
-        // 2. OU créées par moi mais pas assignées à moi
-        const isAssignedToOthersOnly = hasAssignees && !isAssignedToMe && !task.openToVolunteers;
+        // ✅ EXCLUSION PRIORITAIRE: Si openToVolunteers = true → JAMAIS dans "autres"
+        if (task.openToVolunteers === true) {
+          return false; // Ces tâches vont dans "disponibles"
+        }
+        
+        // ✅ LOGIQUE NORMALE: Assignées à d'autres (fermées) OU mes créations non assignées à moi
+        const isAssignedToOthersOnly = hasAssignees && !isAssignedToMe;
         const isMyCreationNotAssignedToMe = isCreatedByMe && !isAssignedToMe;
         
         const result = isAssignedToOthersOnly || isMyCreationNotAssignedToMe;
