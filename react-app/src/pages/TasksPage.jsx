@@ -130,6 +130,95 @@ class UserService {
 const userService = new UserService();
 
 /**
+ * 👤 COMPOSANT AVATAR UTILISATEUR
+ */
+const UserAvatar = ({ user, size = "sm" }) => {
+  const sizeClasses = {
+    sm: 'w-6 h-6',
+    md: 'w-8 h-8',
+    lg: 'w-10 h-10'
+  };
+
+  const textSizeClasses = {
+    sm: 'text-xs',
+    md: 'text-sm',
+    lg: 'text-base'
+  };
+
+  if (user?.photoURL) {
+    return (
+      <img
+        src={user.photoURL}
+        alt={user.displayName || 'Utilisateur'}
+        className={`${sizeClasses[size]} rounded-full object-cover`}
+      />
+    );
+  }
+
+  const displayName = user?.displayName || 'U';
+  const initials = displayName
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .substring(0, 2);
+
+  return (
+    <div className={`${sizeClasses[size]} bg-blue-500 text-white rounded-full flex items-center justify-center ${textSizeClasses[size]} font-medium`}>
+      {initials}
+    </div>
+  );
+};
+
+/**
+ * 👥 COMPOSANT LISTE DES UTILISATEURS ASSIGNÉS
+ */
+const AssignedUsersList = ({ userIds = [], maxDisplay = 3, task = null }) => {
+  if (!userIds || userIds.length === 0) {
+    return (
+      <div className="text-sm text-gray-500 italic">
+        Aucun utilisateur assigné
+      </div>
+    );
+  }
+
+  const users = userIds.map(id => userService.getUser(id));
+  const displayUsers = users.slice(0, maxDisplay);
+  const remainingCount = users.length - maxDisplay;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center -space-x-2">
+        {displayUsers.map((user) => (
+          <div key={user.id} className="relative group">
+            <UserAvatar user={user} size="md" />
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+              {user.displayName}
+            </div>
+          </div>
+        ))}
+        {remainingCount > 0 && (
+          <div className="w-8 h-8 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs font-medium">
+            +{remainingCount}
+          </div>
+        )}
+      </div>
+      
+      <div className="text-xs text-gray-500">
+        <span className="font-medium">
+          {users.length} assigné{users.length > 1 ? 's' : ''}
+        </span>
+        {task?.xpReward && users.length > 0 && (
+          <span className="ml-2">
+            ({Math.round(task.xpReward / users.length)} XP/personne)
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/**
  * 📊 MODAL DE DÉTAILS DE TÂCHE AVEC INFOS CRÉATEUR/ASSIGNÉS
  */
 const TaskDetailsModal = ({ isOpen, task, onClose }) => {
@@ -161,18 +250,15 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
     }
   };
 
-  // Récupérer les infos du créateur
+  // Récupérer les infos du créateur - PROTECTION AJOUTÉE
   const creator = task.createdBy ? userService.getUser(task.createdBy) : null;
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+      <div
+        className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300"
       >
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
@@ -295,7 +381,7 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };
