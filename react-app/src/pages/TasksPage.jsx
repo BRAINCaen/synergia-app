@@ -130,7 +130,7 @@ class UserService {
 const userService = new UserService();
 
 /**
- * 📊 MODAL DE DÉTAILS DE TÂCHE
+ * 📊 MODAL DE DÉTAILS DE TÂCHE AVEC INFOS CRÉATEUR/ASSIGNÉS
  */
 const TaskDetailsModal = ({ isOpen, task, onClose }) => {
   if (!task) return null;
@@ -160,6 +160,9 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
       return 'Date invalide';
     }
   };
+
+  // Récupérer les infos du créateur
+  const creator = task.createdBy ? userService.getUser(task.createdBy) : null;
 
   if (!isOpen) return null;
 
@@ -201,6 +204,30 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
             </button>
           </div>
 
+          {/* INFORMATIONS SUR LE CRÉATEUR */}
+          {creator && (
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-semibold text-gray-900 mb-3">Créateur de la tâche</h4>
+              <div className="flex items-center gap-3">
+                <UserAvatar user={creator} size="lg" />
+                <div>
+                  <p className="font-medium text-gray-900">{creator.displayName}</p>
+                  <p className="text-sm text-gray-600">{creator.email}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* UTILISATEURS ASSIGNÉS */}
+          {task.assignedTo && task.assignedTo.length > 0 && (
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+              <h4 className="font-semibold text-gray-900 mb-3">
+                Utilisateurs assignés ({task.assignedTo.length})
+              </h4>
+              <AssignedUsersList userIds={task.assignedTo} maxDisplay={5} task={task} />
+            </div>
+          )}
+
           {task.description && (
             <div className="mb-6">
               <h4 className="font-semibold text-gray-900 mb-2">Description</h4>
@@ -228,6 +255,42 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
                 <p className="text-sm text-gray-600">
                   {formatDate(task.updatedAt)}
                 </p>
+              </div>
+            )}
+
+            {task.xpReward && (
+              <div className="bg-yellow-50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="h-4 w-4 text-yellow-500" />
+                  <span className="text-sm font-medium text-gray-700">Récompense XP</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {task.xpReward} XP total
+                  {task.assignedTo && task.assignedTo.length > 1 && (
+                    <span className="block text-xs text-gray-500">
+                      ({Math.round(task.xpReward / task.assignedTo.length)} XP par personne)
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {task.tags && task.tags.length > 0 && (
+              <div className="bg-purple-50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Tag className="h-4 w-4 text-purple-500" />
+                  <span className="text-sm font-medium text-gray-700">Tags</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {task.tags.map((tag, index) => (
+                    <span 
+                      key={index}
+                      className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </div>
