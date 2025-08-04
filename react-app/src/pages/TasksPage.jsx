@@ -81,3 +81,4 @@ const otherTasksList = allTasks.filter(task => {
 // - Tâches fermées → LES AUTRES TACHES ✅
 // - Plus d'erreur de build ✅
 // ==========================================
+export default TasksPage;
