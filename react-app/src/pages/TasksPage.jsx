@@ -16,6 +16,7 @@ import {
   updateDoc, 
   deleteDoc, 
   doc, 
+  getDoc,
   serverTimestamp, 
   orderBy,
   arrayUnion,
@@ -582,27 +583,70 @@ const TasksPage = () => {
   };
 
   /**
-   * 🚪 SE RETIRER D'UNE TÂCHE
+   * 🚪 SE RETIRER D'UNE TÂCHE - CORRECTION MAJEURE
    */
   const handleWithdrawFromTask = async (taskId) => {
     try {
       const confirmed = window.confirm('Êtes-vous sûr de vouloir vous retirer de cette tâche ?');
       if (!confirmed) return;
       
-      console.log('🚪 Retrait de tâche:', taskId);
+      console.log('🚪 [DEBUG] Début retrait de tâche:', taskId);
+      console.log('🚪 [DEBUG] User ID:', user.uid);
       
       const taskRef = doc(db, 'tasks', taskId);
       
-      await updateDoc(taskRef, {
-        assignedTo: arrayRemove(user.uid),
-        updatedAt: serverTimestamp()
-      });
+      // ✅ CORRECTION 1: Récupérer d'abord les données actuelles de la tâche
+      const taskDoc = await getDoc(taskRef);
+      if (!taskDoc.exists()) {
+        console.error('❌ Tâche introuvable:', taskId);
+        alert('Erreur: Tâche introuvable');
+        return;
+      }
       
-      console.log('✅ Retrait enregistré');
+      const currentTask = taskDoc.data();
+      const currentAssignedTo = currentTask.assignedTo || [];
+      
+      console.log('🚪 [DEBUG] Assignés actuellement:', currentAssignedTo);
+      console.log('🚪 [DEBUG] Utilisateur dans la liste?', currentAssignedTo.includes(user.uid));
+      
+      // ✅ CORRECTION 2: Vérifier que l'utilisateur est bien assigné
+      if (!currentAssignedTo.includes(user.uid)) {
+        console.warn('⚠️ Utilisateur pas dans la liste des assignés');
+        alert('Vous n\'êtes pas assigné à cette tâche');
+        return;
+      }
+      
+      // ✅ CORRECTION 3: Filtrer manuellement au lieu d'utiliser arrayRemove
+      const newAssignedTo = currentAssignedTo.filter(id => id !== user.uid);
+      
+      console.log('🚪 [DEBUG] Nouvelle liste assignés:', newAssignedTo);
+      
+      // ✅ CORRECTION 4: Mettre à jour avec la nouvelle liste
+      const updateData = {
+        assignedTo: newAssignedTo,
+        updatedAt: serverTimestamp(),
+        lastWithdrawAt: serverTimestamp(),
+        lastWithdrawBy: user.uid
+      };
+      
+      // ✅ CORRECTION 5: Si plus personne n'est assigné, changer le statut
+      if (newAssignedTo.length === 0) {
+        updateData.status = 'open'; // Remettre la tâche disponible
+        console.log('🚪 [DEBUG] Plus d\'assignés - statut changé vers "open"');
+      }
+      
+      await updateDoc(taskRef, updateData);
+      
+      console.log('✅ [DEBUG] Retrait réussi - rechargement des tâches...');
+      
+      // ✅ CORRECTION 6: Recharger immédiatement les tâches
       await loadAllTasks();
       
+      console.log('✅ Retrait enregistré avec succès');
+      
     } catch (error) {
-      console.error('❌ Erreur retrait:', error);
+      console.error('❌ [DEBUG] Erreur complète retrait:', error);
+      console.error('❌ [DEBUG] Stack trace:', error.stack);
       alert('Erreur lors du retrait: ' + error.message);
     }
   };
