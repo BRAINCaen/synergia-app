@@ -376,8 +376,185 @@ const CollaborationModal = ({ isOpen, task, onClose, onUpdate }) => {
 };
 
 /**
- * 👁️ MODAL DÉTAILS DE TÂCHE
+ * 📤 MODAL DE SOUMISSION DE TÂCHE
  */
+const TaskSubmissionModal = ({ isOpen, task, onClose, onSubmit }) => {
+  const [submissionData, setSubmissionData] = useState({
+    description: '',
+    comments: '',
+    deliverables: [],
+    attachments: [],
+    estimatedCompletionTime: ''
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!submissionData.description.trim()) {
+      alert('Veuillez ajouter une description de votre travail accompli.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await onSubmit(submissionData);
+    } catch (error) {
+      console.error('❌ Erreur soumission:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addDeliverable = () => {
+    const newDeliverable = document.getElementById('newDeliverable').value.trim();
+    if (newDeliverable) {
+      setSubmissionData(prev => ({
+        ...prev,
+        deliverables: [...prev.deliverables, newDeliverable]
+      }));
+      document.getElementById('newDeliverable').value = '';
+    }
+  };
+
+  const removeDeliverable = (index) => {
+    setSubmissionData(prev => ({
+      ...prev,
+      deliverables: prev.deliverables.filter((_, i) => i !== index)
+    }));
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-900">Soumettre la tâche</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Informations de la tâche */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h3 className="font-semibold text-gray-900 mb-2">{task?.title}</h3>
+            <p className="text-gray-600 text-sm">{task?.description}</p>
+          </div>
+
+          {/* Description du travail accompli */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description du travail accompli *
+            </label>
+            <textarea
+              value={submissionData.description}
+              onChange={(e) => setSubmissionData(prev => ({ ...prev, description: e.target.value }))}
+              rows={4}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Décrivez le travail que vous avez accompli pour cette tâche..."
+              required
+            />
+          </div>
+
+          {/* Livrables */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Livrables
+            </label>
+            <div className="space-y-2">
+              {submissionData.deliverables.map((deliverable, index) => (
+                <div key={index} className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg">
+                  <span className="flex-1 text-sm">{deliverable}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeDeliverable(index)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <input
+                  id="newDeliverable"
+                  type="text"
+                  placeholder="Ajouter un livrable..."
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addDeliverable())}
+                />
+                <button
+                  type="button"
+                  onClick={addDeliverable}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Ajouter
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Temps estimé */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Temps passé (optionnel)
+            </label>
+            <input
+              type="text"
+              value={submissionData.estimatedCompletionTime}
+              onChange={(e) => setSubmissionData(prev => ({ ...prev, estimatedCompletionTime: e.target.value }))}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Ex: 2 heures, 1 journée..."
+            />
+          </div>
+
+          {/* Commentaires additionnels */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Commentaires additionnels
+            </label>
+            <textarea
+              value={submissionData.comments}
+              onChange={(e) => setSubmissionData(prev => ({ ...prev, comments: e.target.value }))}
+              rows={3}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Ajoutez des commentaires ou des précisions..."
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={loading || !submissionData.description.trim()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Soumission...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  Soumettre pour validation
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 const TaskDetailsModal = ({ isOpen, task, onClose }) => {
   if (!isOpen || !task) return null;
 
@@ -851,6 +1028,39 @@ const TasksPage = () => {
   const handleSubmitTask = (task) => {
     setSelectedTaskForSubmission(task);
     setShowSubmissionModal(true);
+  };
+
+  /**
+   * 📝 VALIDER LA SOUMISSION D'UNE TÂCHE
+   */
+  const handleTaskSubmission = async (taskId, submissionData) => {
+    try {
+      console.log('📤 Soumission tâche pour validation:', taskId);
+      
+      const taskRef = doc(db, 'tasks', taskId);
+      
+      // Mettre à jour la tâche avec les données de soumission
+      await updateDoc(taskRef, {
+        status: 'validation_pending',
+        submissionData: {
+          submittedBy: user.uid,
+          submittedAt: serverTimestamp(),
+          description: submissionData.description || '',
+          attachments: submissionData.attachments || [],
+          deliverables: submissionData.deliverables || [],
+          comments: submissionData.comments || '',
+          estimatedCompletionTime: submissionData.estimatedCompletionTime || null
+        },
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Tâche soumise pour validation');
+      await loadAllTasks();
+      
+    } catch (error) {
+      console.error('❌ Erreur soumission tâche:', error);
+      throw error;
+    }
   };
 
   /**
@@ -1438,10 +1648,16 @@ const TasksPage = () => {
               setShowSubmissionModal(false);
               setSelectedTaskForSubmission(null);
             }}
-            onSubmit={async () => {
-              setShowSubmissionModal(false);
-              setSelectedTaskForSubmission(null);
-              await loadAllTasks();
+            onSubmit={async (submissionData) => {
+              try {
+                await handleTaskSubmission(selectedTaskForSubmission.id, submissionData);
+                setShowSubmissionModal(false);
+                setSelectedTaskForSubmission(null);
+                alert('Tâche soumise avec succès pour validation !');
+              } catch (error) {
+                console.error('❌ Erreur soumission:', error);
+                alert('Erreur lors de la soumission: ' + error.message);
+              }
             }}
           />
         )}
