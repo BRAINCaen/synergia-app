@@ -775,20 +775,20 @@ const TasksPage = () => {
       
       console.log('📊 [2] Total tâches Firebase:', allTasks.length);
       
-      // ✅ CORRECTION 1: Mes tâches (assignées à moi OU créées par moi)
+      // ✅ CORRECTION 1: Mes tâches = SEULEMENT les tâches où je suis ASSIGNÉ (pas créateur)
       const myTasksList = allTasks.filter(task => {
         const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
-        const isCreatedByMe = task.createdBy === user.uid;
-        const result = isAssignedToMe || isCreatedByMe;
+        // ❌ SUPPRIMÉ: const isCreatedByMe = task.createdBy === user.uid;
+        const result = isAssignedToMe; // SEULEMENT assigné, PAS créateur
         
         if (result) {
-          console.log(`📊 [3] MA TÂCHE: "${task.title}" - Assigné: ${isAssignedToMe}, Créé: ${isCreatedByMe}`);
+          console.log(`📊 [3] MA TÂCHE ASSIGNÉE: "${task.title}" - Assigné: ${isAssignedToMe}`);
         }
         
         return result;
       });
       
-      // ✅ CORRECTION 2: Tâches disponibles (ouvertes aux volontaires ET pas assignées à moi)
+      // ✅ CORRECTION 2: Tâches disponibles (ouvertes aux volontaires ET pas assignées à moi ET pas créées par moi)
       const availableTasksList = allTasks.filter(task => {
         const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
         const isCreatedByMe = task.createdBy === user.uid;
@@ -809,15 +809,19 @@ const TasksPage = () => {
         return result;
       });
 
-      // ✅ CORRECTION 3: Tâches des autres (assignées à d'autres ET pas créées par moi)
+      // ✅ CORRECTION 3: Tâches des autres = assignées à d'autres ET/OU créées par moi mais pas assignées à moi
       const otherTasksList = allTasks.filter(task => {
         const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
         const isCreatedByMe = task.createdBy === user.uid;
         const hasAssignees = (task.assignedTo || []).length > 0;
-        const result = hasAssignees && !isAssignedToMe && !isCreatedByMe;
+        
+        // Autres tâches si :
+        // - Assignées à d'autres personnes (pas à moi)
+        // - OU créées par moi mais pas assignées à moi (mes créations)
+        const result = (hasAssignees && !isAssignedToMe) || (isCreatedByMe && !isAssignedToMe);
         
         if (result) {
-          console.log(`📊 [5] TÂCHE DES AUTRES: "${task.title}" - Assignés: ${task.assignedTo?.length || 0}`);
+          console.log(`📊 [5] TÂCHE DES AUTRES: "${task.title}" - Assignés: ${task.assignedTo?.length || 0}, Créé par moi: ${isCreatedByMe}`);
         }
         
         return result;
@@ -1427,7 +1431,7 @@ const TasksPage = () => {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Les Autres Tâches ({taskStats.otherTotal})
+                Autres Tâches ({taskStats.otherTotal})
               </button>
             </nav>
           </div>
@@ -1479,7 +1483,7 @@ const TasksPage = () => {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Mes Tâches ({myTasks.length})
+                  Mes Tâches Assignées ({myTasks.length})
                 </h2>
                 <div className="text-sm text-gray-500">
                   {taskStats.myInProgress} en cours • {taskStats.myCompleted} terminées
@@ -1493,11 +1497,17 @@ const TasksPage = () => {
                     Aucune tâche assignée
                   </h3>
                   <p className="text-gray-500 mb-4">
-                    Vous n'avez pas encore de tâches assignées. Explorez les tâches disponibles pour commencer !
+                    Vous n'êtes assigné à aucune tâche pour le moment. Explorez les tâches disponibles pour vous porter volontaire !
                   </p>
                   <button
                     onClick={() => setActiveTab('available_tasks')}
                     className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Heart className="h-5 w-5 mr-2" />
+                    Voir les tâches disponibles
+                  </button>
+                </div>
+              ) : (="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     <Heart className="h-5 w-5 mr-2" />
                     Voir les tâches disponibles
@@ -1573,10 +1583,10 @@ const TasksPage = () => {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Les Autres Tâches ({otherTasks.length})
+                  Autres Tâches ({otherTasks.length})
                 </h2>
                 <div className="text-sm text-gray-500">
-                  Tâches assignées à d'autres personnes
+                  Tâches assignées à d'autres + Mes créations
                 </div>
               </div>
 
@@ -1587,7 +1597,7 @@ const TasksPage = () => {
                     Aucune autre tâche
                   </h3>
                   <p className="text-gray-500">
-                    Il n'y a pas de tâches assignées à d'autres personnes en ce moment.
+                    Il n'y a pas d'autres tâches à afficher en ce moment.
                   </p>
                 </div>
               ) : (
