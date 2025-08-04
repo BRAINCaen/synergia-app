@@ -1,14 +1,29 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// TASKS PAGE FIREBASE PUR - ZÉRO DONNÉES MOCK
+// TASKS PAGE COMPLÈTE - SYSTÈME VOLONTARIAT RESTAURÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
-import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy } from 'firebase/firestore';
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  serverTimestamp, 
+  orderBy,
+  arrayUnion,
+  arrayRemove
+} from 'firebase/firestore';
 import { db } from '../core/firebase.js';
-import TaskList from '../modules/tasks/TaskList.jsx';
+import TaskForm from '../modules/tasks/TaskForm.jsx';
+import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
 import { 
   Plus, 
   Filter, 
@@ -19,244 +34,391 @@ import {
   Target,
   TrendingUp,
   Award,
-  BarChart3
+  BarChart3,
+  Users,
+  HandHeart,
+  Send,
+  Eye,
+  Star,
+  Badge,
+  Zap
 } from 'lucide-react';
 
 /**
- * ✅ TASKS PAGE FIREBASE PUR
- * Toutes les tâches proviennent exclusivement de Firebase
+ * ✅ TASKS PAGE COMPLÈTE AVEC SYSTÈME VOLONTARIAT
  */
 const TasksPage = () => {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
   
-  // ✅ DONNÉES FIREBASE RÉELLES UNIQUEMENT
-  const { 
-    gamification,
-    userStats,
-    loading: dataLoading 
-  } = useUnifiedFirebaseData(user?.uid);
+  // États pour les tâches
+  const [myTasks, setMyTasks] = useState([]);
+  const [availableTasks, setAvailableTasks] = useState([]);
+  const [activeTab, setActiveTab] = useState('my_tasks'); // my_tasks | available_tasks
   
-  // ✅ TÂCHES RÉELLES DEPUIS FIREBASE
-  const [realTasks, setRealTasks] = useState([]);
-  const [filteredTasks, setFilteredTasks] = useState([]);
+  // États pour les filtres
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
   
-  // ✅ STATISTIQUES RÉELLES CALCULÉES
-  const [realTaskStats, setRealTaskStats] = useState({
-    total: 0,
-    completed: 0,
-    inProgress: 0,
-    pending: 0,
-    completionRate: 0,
-    totalXpEarned: 0,
-    avgXpPerTask: 0
-  });
-
+  // États pour les modals
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newTask, setNewTask] = useState({
-    title: '',
-    description: '',
-    priority: 'medium',
-    complexity: 'medium',
-    xpReward: 20,
-    tags: []
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [selectedTaskForSubmission, setSelectedTaskForSubmission] = useState(null);
+  
+  // Statistiques réelles
+  const [taskStats, setTaskStats] = useState({
+    myTotal: 0,
+    myCompleted: 0,
+    myInProgress: 0,
+    myPending: 0,
+    availableTotal: 0,
+    completionRate: 0,
+    totalXpEarned: 0
   });
 
   useEffect(() => {
     if (user?.uid) {
-      loadRealTasks();
+      loadAllTasks();
     }
   }, [user?.uid]);
 
   useEffect(() => {
-    applyFilters();
-  }, [realTasks, searchTerm, filterStatus, filterPriority]);
+    calculateStats();
+  }, [myTasks, availableTasks]);
 
   /**
-   * 📊 CHARGER TOUTES LES VRAIES TÂCHES FIREBASE
+   * 📊 CHARGER TOUTES LES TÂCHES (MES TÂCHES + DISPONIBLES)
    */
-  const loadRealTasks = async () => {
+  const loadAllTasks = async () => {
     if (!user?.uid) return;
     
     setLoading(true);
     try {
-      console.log('📊 Chargement tâches Firebase pour:', user.uid);
+      console.log('📊 Chargement de toutes les tâches pour:', user.uid);
       
-      // Récupérer TOUTES les tâches de l'utilisateur (créées + assignées)
-      const [createdTasks, assignedTasks] = await Promise.all([
-        getDocs(query(
-          collection(db, 'tasks'),
-          where('createdBy', '==', user.uid),
-          orderBy('createdAt', 'desc')
-        )),
-        getDocs(query(
-          collection(db, 'tasks'),
-          where('assignedTo', '==', user.uid),
-          orderBy('createdAt', 'desc')
-        ))
-      ]);
-
-      // Combiner et dédupliquer les tâches
-      const allUserTasks = new Map();
+      // 1. Charger MES TÂCHES (assignées à moi)
+      const myTasksQuery = query(
+        collection(db, 'tasks'),
+        where('assignedTo', 'array-contains', user.uid),
+        orderBy('createdAt', 'desc')
+      );
       
-      createdTasks.forEach(doc => {
-        allUserTasks.set(doc.id, { id: doc.id, ...doc.data() });
+      const myTasksSnapshot = await getDocs(myTasksQuery);
+      const loadedMyTasks = [];
+      myTasksSnapshot.forEach(doc => {
+        loadedMyTasks.push({
+          id: doc.id,
+          ...doc.data()
+        });
       });
       
-      assignedTasks.forEach(doc => {
-        allUserTasks.set(doc.id, { id: doc.id, ...doc.data() });
-      });
-
-      const tasksArray = Array.from(allUserTasks.values());
+      console.log('✅ Mes tâches chargées:', loadedMyTasks.length);
+      setMyTasks(loadedMyTasks);
       
-      // 📊 CALCULER LES VRAIES STATISTIQUES
-      const total = tasksArray.length;
-      const completed = tasksArray.filter(task => task.status === 'completed').length;
-      const inProgress = tasksArray.filter(task => task.status === 'in-progress').length;
-      const pending = tasksArray.filter(task => task.status === 'todo').length;
-      const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-      const totalXpEarned = tasksArray
-        .filter(task => task.status === 'completed')
-        .reduce((sum, task) => sum + (task.xpReward || 0), 0);
-      const avgXpPerTask = completed > 0 ? Math.round(totalXpEarned / completed) : 0;
-
-      setRealTasks(tasksArray);
-      setRealTaskStats({
-        total,
-        completed,
-        inProgress,
-        pending,
-        completionRate,
-        totalXpEarned,
-        avgXpPerTask
+      // 2. Charger TÂCHES DISPONIBLES (pas assignées à moi mais disponibles)
+      const availableTasksQuery = query(
+        collection(db, 'tasks'),
+        where('status', 'in', ['pending', 'open']),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const availableTasksSnapshot = await getDocs(availableTasksQuery);
+      const loadedAvailableTasks = [];
+      availableTasksSnapshot.forEach(doc => {
+        const taskData = { id: doc.id, ...doc.data() };
+        
+        // Exclure mes propres tâches et celles déjà assignées à moi
+        const isMyTask = (taskData.assignedTo || []).includes(user.uid);
+        const isCreatedByMe = taskData.createdBy === user.uid;
+        
+        if (!isMyTask && !isCreatedByMe) {
+          loadedAvailableTasks.push(taskData);
+        }
       });
-
-      console.log('✅ Tâches Firebase chargées:', {
-        total: tasksArray.length,
-        stats: realTaskStats
-      });
-
+      
+      console.log('✅ Tâches disponibles chargées:', loadedAvailableTasks.length);
+      setAvailableTasks(loadedAvailableTasks);
+      
     } catch (error) {
-      console.error('❌ Erreur chargement tâches Firebase:', error);
+      console.error('❌ Erreur chargement tâches:', error);
     } finally {
       setLoading(false);
     }
   };
 
   /**
-   * 🔍 APPLIQUER LES FILTRES
+   * 📊 CALCULER LES STATISTIQUES RÉELLES
    */
-  const applyFilters = () => {
-    let filtered = [...realTasks];
+  const calculateStats = () => {
+    const myTotal = myTasks.length;
+    const myCompleted = myTasks.filter(t => t.status === 'completed').length;
+    const myInProgress = myTasks.filter(t => t.status === 'in_progress').length;
+    const myPending = myTasks.filter(t => ['pending', 'todo'].includes(t.status)).length;
+    const availableTotal = availableTasks.length;
+    const completionRate = myTotal > 0 ? Math.round((myCompleted / myTotal) * 100) : 0;
+    const totalXpEarned = myTasks
+      .filter(t => t.status === 'completed')
+      .reduce((sum, task) => sum + (task.xpReward || 0), 0);
 
-    // Filtre par recherche
-    if (searchTerm) {
-      filtered = filtered.filter(task =>
-        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Filtre par statut
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(task => task.status === filterStatus);
-    }
-
-    // Filtre par priorité
-    if (filterPriority !== 'all') {
-      filtered = filtered.filter(task => task.priority === filterPriority);
-    }
-
-    setFilteredTasks(filtered);
+    setTaskStats({
+      myTotal,
+      myCompleted,
+      myInProgress,
+      myPending,
+      availableTotal,
+      completionRate,
+      totalXpEarned
+    });
   };
 
   /**
-   * ✅ CRÉER NOUVELLE TÂCHE FIREBASE
+   * 🙋 SE PORTER VOLONTAIRE POUR UNE TÂCHE
    */
-  const handleCreateTask = async () => {
-    if (!user?.uid || !newTask.title.trim()) return;
-
+  const handleVolunteerForTask = async (taskId) => {
     try {
-      console.log('➕ Création tâche Firebase:', newTask.title);
+      console.log('🙋 Volontariat pour tâche:', taskId);
       
-      const taskData = {
-        ...newTask,
-        createdBy: user.uid,
-        userId: user.uid,
-        assignedTo: user.uid,
-        status: 'todo',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-
-      await addDoc(collection(db, 'tasks'), taskData);
+      const taskRef = doc(db, 'tasks', taskId);
       
-      // Recharger les tâches
-      await loadRealTasks();
-      
-      // Reset form
-      setNewTask({
-        title: '',
-        description: '',
-        priority: 'medium',
-        complexity: 'medium',
-        xpReward: 20,
-        tags: []
-      });
-      setShowCreateModal(false);
-      
-      console.log('✅ Tâche créée avec succès');
-      
-    } catch (error) {
-      console.error('❌ Erreur création tâche:', error);
-    }
-  };
-
-  /**
-   * 🔄 METTRE À JOUR STATUT TÂCHE
-   */
-  const handleUpdateTask = async (taskId, updates) => {
-    try {
-      console.log('🔄 Mise à jour tâche:', taskId, updates);
-      
-      await updateDoc(doc(db, 'tasks', taskId), {
-        ...updates,
+      // Ajouter l'utilisateur aux assignés
+      await updateDoc(taskRef, {
+        assignedTo: arrayUnion(user.uid),
+        status: 'in_progress',
+        volunteerDate: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
       
-      // Recharger les tâches
-      await loadRealTasks();
+      console.log('✅ Volontariat enregistré');
       
-      console.log('✅ Tâche mise à jour');
+      // Recharger les tâches
+      await loadAllTasks();
       
     } catch (error) {
-      console.error('❌ Erreur mise à jour tâche:', error);
+      console.error('❌ Erreur volontariat:', error);
+      alert('Erreur lors du volontariat: ' + error.message);
     }
   };
 
   /**
-   * 🗑️ SUPPRIMER TÂCHE
+   * 🚪 SE RETIRER D'UNE TÂCHE
    */
-  const handleDeleteTask = async (taskId) => {
+  const handleWithdrawFromTask = async (taskId) => {
     try {
-      console.log('🗑️ Suppression tâche:', taskId);
+      const confirmed = window.confirm('Êtes-vous sûr de vouloir vous retirer de cette tâche ?');
+      if (!confirmed) return;
       
-      await deleteDoc(doc(db, 'tasks', taskId));
+      console.log('🚪 Retrait de tâche:', taskId);
+      
+      const taskRef = doc(db, 'tasks', taskId);
+      
+      // Retirer l'utilisateur des assignés
+      await updateDoc(taskRef, {
+        assignedTo: arrayRemove(user.uid),
+        status: 'pending',
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Retrait enregistré');
       
       // Recharger les tâches
-      await loadRealTasks();
-      
-      console.log('✅ Tâche supprimée');
+      await loadAllTasks();
       
     } catch (error) {
-      console.error('❌ Erreur suppression tâche:', error);
+      console.error('❌ Erreur retrait:', error);
+      alert('Erreur lors du retrait: ' + error.message);
     }
   };
 
-  if (loading || dataLoading) {
+  /**
+   * 📤 SOUMETTRE UNE TÂCHE POUR VALIDATION
+   */
+  const handleSubmitTask = (task) => {
+    setSelectedTaskForSubmission(task);
+    setShowSubmissionModal(true);
+  };
+
+  /**
+   * ✅ MARQUER UNE TÂCHE COMME TERMINÉE
+   */
+  const handleCompleteTask = async (taskId) => {
+    try {
+      console.log('✅ Marquer tâche terminée:', taskId);
+      
+      const taskRef = doc(db, 'tasks', taskId);
+      await updateDoc(taskRef, {
+        status: 'completed',
+        completedAt: serverTimestamp(),
+        completedBy: user.uid,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Tâche marquée terminée');
+      await loadAllTasks();
+      
+    } catch (error) {
+      console.error('❌ Erreur completion tâche:', error);
+    }
+  };
+
+  /**
+   * 🎨 COMPOSANT CARTE DE TÂCHE
+   */
+  const TaskCard = ({ task, isMyTask = false }) => {
+    const isAssignedToMe = (task.assignedTo || []).includes(user.uid);
+    const canVolunteer = !isAssignedToMe && !isMyTask;
+    const canSubmit = isAssignedToMe && task.status === 'in_progress';
+    const canComplete = isAssignedToMe && ['in_progress', 'validation_pending'].includes(task.status);
+    
+    // Couleurs selon le statut
+    const getStatusColor = (status) => {
+      switch(status) {
+        case 'completed': return 'bg-green-100 text-green-800 border-green-200';
+        case 'in_progress': return 'bg-blue-100 text-blue-800 border-blue-200';
+        case 'validation_pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        case 'pending': return 'bg-gray-100 text-gray-800 border-gray-200';
+        default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      }
+    };
+
+    const getPriorityIcon = (priority) => {
+      switch(priority) {
+        case 'urgent': return <AlertCircle className="w-4 h-4 text-red-500" />;
+        case 'high': return <TrendingUp className="w-4 h-4 text-orange-500" />;
+        case 'medium': return <Target className="w-4 h-4 text-blue-500" />;
+        case 'low': return <Clock className="w-4 h-4 text-gray-500" />;
+        default: return <Target className="w-4 h-4 text-blue-500" />;
+      }
+    };
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+      >
+        {/* En-tête de la tâche */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              {task.title}
+            </h3>
+            <p className="text-gray-600 text-sm line-clamp-2">
+              {task.description}
+            </p>
+          </div>
+          
+          {/* Badge statut */}
+          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
+            {task.status === 'completed' && 'Terminé'}
+            {task.status === 'in_progress' && 'En cours'}
+            {task.status === 'validation_pending' && 'En validation'}
+            {task.status === 'pending' && 'Disponible'}
+            {task.status === 'open' && 'Ouvert'}
+          </span>
+        </div>
+
+        {/* Métadonnées */}
+        <div className="flex items-center gap-4 mb-4 text-sm text-gray-500">
+          {/* Priorité */}
+          <div className="flex items-center gap-1">
+            {getPriorityIcon(task.priority)}
+            <span className="capitalize">{task.priority || 'medium'}</span>
+          </div>
+          
+          {/* XP */}
+          <div className="flex items-center gap-1">
+            <Zap className="w-4 h-4 text-yellow-500" />
+            <span>{task.xpReward || 0} XP</span>
+          </div>
+          
+          {/* Assignés */}
+          {(task.assignedTo || []).length > 0 && (
+            <div className="flex items-center gap-1">
+              <Users className="w-4 h-4" />
+              <span>{task.assignedTo.length} assigné{task.assignedTo.length > 1 ? 's' : ''}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Tags */}
+        {task.tags && task.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-4">
+            {task.tags.slice(0, 3).map((tag, index) => (
+              <span 
+                key={index}
+                className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full"
+              >
+                {tag}
+              </span>
+            ))}
+            {task.tags.length > 3 && (
+              <span className="px-2 py-1 bg-gray-50 text-gray-500 text-xs rounded-full">
+                +{task.tags.length - 3}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 pt-4 border-t border-gray-100">
+          {/* Actions pour MES TÂCHES */}
+          {isMyTask && (
+            <>
+              {canSubmit && (
+                <button
+                  onClick={() => handleSubmitTask(task)}
+                  className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                >
+                  <Send className="w-4 h-4" />
+                  Soumettre
+                </button>
+              )}
+              
+              {canComplete && task.status !== 'validation_pending' && (
+                <button
+                  onClick={() => handleCompleteTask(task.id)}
+                  className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                >
+                  <CheckSquare className="w-4 h-4" />
+                  Terminer
+                </button>
+              )}
+              
+              <button
+                onClick={() => handleWithdrawFromTask(task.id)}
+                className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm"
+              >
+                Se retirer
+              </button>
+            </>
+          )}
+
+          {/* Actions pour TÂCHES DISPONIBLES */}
+          {!isMyTask && canVolunteer && (
+            <button
+              onClick={() => handleVolunteerForTask(task.id)}
+              className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+            >
+              <HandHeart className="w-4 h-4" />
+              Se porter volontaire
+            </button>
+          )}
+          
+          {/* Bouton voir détails */}
+          <button className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm ml-auto">
+            <Eye className="w-4 h-4" />
+            Détails
+          </button>
+        </div>
+      </motion.div>
+    );
+  };
+
+  /**
+   * 🎨 RENDU PRINCIPAL
+   */
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -270,13 +432,14 @@ const TasksPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
         {/* EN-TÊTE */}
         <div className="mb-8">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Mes Tâches</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Gestion des Tâches</h1>
               <p className="text-lg text-gray-600 mt-1">
-                Gérez vos tâches en temps réel
+                Gérez vos tâches et contribuez aux projets collaboratifs
               </p>
             </div>
             <button
@@ -284,107 +447,123 @@ const TasksPage = () => {
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Plus className="h-5 w-5 mr-2" />
-              Nouvelle Tâche
+              Créer une tâche
             </button>
           </div>
         </div>
 
-        {/* STATISTIQUES RÉELLES */}
+        {/* STATISTIQUES GLOBALES */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Total */}
+          {/* Mes tâches totales */}
           <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total</p>
-                <p className="text-3xl font-bold text-gray-900">{realTaskStats.total}</p>
+            <div className="flex items-center">
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <CheckSquare className="h-6 w-6 text-blue-600" />
               </div>
-              <CheckSquare className="h-12 w-12 text-blue-500" />
+              <div className="ml-4">
+                <h3 className="text-2xl font-bold text-gray-900">{taskStats.myTotal}</h3>
+                <p className="text-gray-600">Mes tâches</p>
+              </div>
             </div>
           </div>
 
-          {/* Terminées */}
+          {/* Tâches terminées */}
           <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Terminées</p>
-                <p className="text-3xl font-bold text-green-600">{realTaskStats.completed}</p>
-                <p className="text-sm text-gray-500">{realTaskStats.completionRate}% réussite</p>
+            <div className="flex items-center">
+              <div className="p-3 bg-green-100 rounded-lg">
+                <Award className="h-6 w-6 text-green-600" />
               </div>
-              <Target className="h-12 w-12 text-green-500" />
+              <div className="ml-4">
+                <h3 className="text-2xl font-bold text-gray-900">{taskStats.myCompleted}</h3>
+                <p className="text-gray-600">Terminées</p>
+              </div>
             </div>
           </div>
 
-          {/* En cours */}
+          {/* Taux de complétion */}
           <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">En Cours</p>
-                <p className="text-3xl font-bold text-orange-600">{realTaskStats.inProgress}</p>
+            <div className="flex items-center">
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <BarChart3 className="h-6 w-6 text-purple-600" />
               </div>
-              <Clock className="h-12 w-12 text-orange-500" />
+              <div className="ml-4">
+                <h3 className="text-2xl font-bold text-gray-900">{taskStats.completionRate}%</h3>
+                <p className="text-gray-600">Taux de réussite</p>
+              </div>
             </div>
           </div>
 
-          {/* XP Gagné */}
+          {/* XP total */}
           <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">XP Total</p>
-                <p className="text-3xl font-bold text-purple-600">{realTaskStats.totalXpEarned}</p>
-                <p className="text-sm text-gray-500">~{realTaskStats.avgXpPerTask} XP/tâche</p>
+            <div className="flex items-center">
+              <div className="p-3 bg-yellow-100 rounded-lg">
+                <Zap className="h-6 w-6 text-yellow-600" />
               </div>
-              <Award className="h-12 w-12 text-purple-500" />
+              <div className="ml-4">
+                <h3 className="text-2xl font-bold text-gray-900">{taskStats.totalXpEarned}</h3>
+                <p className="text-gray-600">XP gagnés</p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* SECTION GAMIFICATION */}
-        {gamification && (
-          <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 mb-8 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Progression</h3>
-                <p className="text-2xl font-bold">Niveau {gamification.level || 1}</p>
-                <p className="text-sm opacity-90">{gamification.totalXp || 0} XP • {gamification.badges?.length || 0} badges</p>
-              </div>
-              <div className="text-right">
-                <BarChart3 className="h-8 w-8 mb-2" />
-                <p className="text-sm">Continuez comme ça !</p>
-              </div>
-            </div>
+        {/* ONGLETS PRINCIPAUX */}
+        <div className="mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('my_tasks')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'my_tasks'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Mes Tâches ({taskStats.myTotal})
+              </button>
+              <button
+                onClick={() => setActiveTab('available_tasks')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'available_tasks'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Tâches Disponibles ({taskStats.availableTotal})
+              </button>
+            </nav>
           </div>
-        )}
+        </div>
 
-        {/* FILTRES */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex flex-wrap gap-4 items-center">
+        {/* FILTRES ET RECHERCHE */}
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4">
             {/* Recherche */}
-            <div className="flex-1 min-w-64">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Rechercher une tâche..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <input
+                type="text"
+                placeholder="Rechercher des tâches..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
 
-            {/* Filtre Statut */}
+            {/* Filtre statut */}
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">Tous les statuts</option>
-              <option value="todo">À faire</option>
-              <option value="in-progress">En cours</option>
-              <option value="completed">Terminées</option>
+              <option value="pending">En attente</option>
+              <option value="in_progress">En cours</option>
+              <option value="validation_pending">En validation</option>
+              <option value="completed">Terminé</option>
             </select>
 
-            {/* Filtre Priorité */}
+            {/* Filtre priorité */}
             <select
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
@@ -399,103 +578,23 @@ const TasksPage = () => {
           </div>
         </div>
 
-        {/* LISTE DES TÂCHES RÉELLES */}
-        <div className="bg-white rounded-lg shadow">
-          <TaskList 
-            tasks={filteredTasks}
-            onUpdateTask={handleUpdateTask}
-            onDeleteTask={handleDeleteTask}
-            loading={loading}
-          />
-        </div>
-
-        {/* MODAL CRÉATION TÂCHE */}
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Nouvelle Tâche</h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Titre *
-                  </label>
-                  <input
-                    type="text"
-                    value={newTask.title}
-                    onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Nom de la tâche"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    value={newTask.description}
-                    onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Description de la tâche"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Priorité
-                    </label>
-                    <select
-                      value={newTask.priority}
-                      onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="low">Basse</option>
-                      <option value="medium">Moyenne</option>
-                      <option value="high">Haute</option>
-                      <option value="urgent">Urgente</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      XP Récompense
-                    </label>
-                    <input
-                      type="number"
-                      value={newTask.xpReward}
-                      onChange={(e) => setNewTask({ ...newTask, xpReward: parseInt(e.target.value) || 20 })}
-                      min="5"
-                      max="100"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+        {/* CONTENU PRINCIPAL SELON L'ONGLET */}
+        <div className="space-y-6">
+          {activeTab === 'my_tasks' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Mes Tâches ({myTasks.length})
+                </h2>
+                <div className="text-sm text-gray-500">
+                  {taskStats.myInProgress} en cours • {taskStats.myCompleted} terminées
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleCreateTask}
-                  disabled={!newTask.title.trim()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Créer
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default TasksPage;
+              {myTasks.length === 0 ? (
+                <div className="bg-white rounded-lg shadow p-12 text-center">
+                  <CheckSquare className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Aucune tâche assignée
+                  </h3>
+                  <p className="text-gray-500 mb-4">
