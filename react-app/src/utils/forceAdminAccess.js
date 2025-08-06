@@ -58,7 +58,7 @@ export const forceAdminAccess = async (userEmail, userId) => {
  * À utiliser dans la console du navigateur :
  * 
  * import { forceAdminAccess } from '/src/utils/forceAdminAccess.js';
- * forceAdminAccess('alain.bochec4@gmail.com', 'YOUR_USER_ID');
+ * forceAdminAccess('alan.boehme61@gmail.com', 'tanguy.caron@gmail.com', 'YOUR_USER_ID');
  */
 export const testAdminAccess = () => {
   console.log('🧪 Test d\'accès admin');
