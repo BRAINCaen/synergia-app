@@ -564,24 +564,21 @@ const TaskCard = ({ task, isMyTask = false }) => {
 /**
  * ✏️ MODAL D'ÉDITION DE TÂCHE
  */
-const TaskEditModal = ({ isOpen, task, onClose, onSave }) => {
+const TaskEditModal = ({ isOpen, task, onClose, onSave, onDelete }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    priority: 'medium',
-    xpReward: 0,
     openToVolunteers: false
   });
 
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (task) {
       setFormData({
         title: task.title || '',
         description: task.description || '',
-        priority: task.priority || 'medium',
-        xpReward: task.xpReward || 0,
         openToVolunteers: task.openToVolunteers || false
       });
     }
@@ -602,6 +599,23 @@ const TaskEditModal = ({ isOpen, task, onClose, onSave }) => {
       console.error('Erreur sauvegarde:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche ? Cette action est irréversible.')) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await onDelete(task.id);
+      onClose();
+    } catch (error) {
+      console.error('Erreur suppression:', error);
+      alert('Erreur lors de la suppression: ' + error.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -634,7 +648,7 @@ const TaskEditModal = ({ isOpen, task, onClose, onSave }) => {
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                disabled={loading}
+                disabled={loading || deleting}
               />
             </div>
 
@@ -648,42 +662,31 @@ const TaskEditModal = ({ isOpen, task, onClose, onSave }) => {
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                disabled={loading}
+                disabled={loading || deleting}
               />
             </div>
 
-            {/* Priorité */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Priorité
-              </label>
-              <select
-                value={formData.priority}
-                onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                disabled={loading}
-              >
-                <option value="low">Basse</option>
-                <option value="medium">Moyenne</option>
-                <option value="high">Haute</option>
-                <option value="urgent">Urgente</option>
-              </select>
-            </div>
-
-            {/* Récompense XP */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Récompense XP
-              </label>
-              <input
-                type="number"
-                value={formData.xpReward}
-                onChange={(e) => setFormData(prev => ({ ...prev, xpReward: parseInt(e.target.value) || 0 }))}
-                min="0"
-                max="1000"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                disabled={loading}
-              />
+            {/* Informations en lecture seule */}
+            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Informations (non modifiables)</h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-600">Priorité:</span>
+                  <span className="ml-2 text-gray-900 capitalize">{task.priority || 'Moyenne'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Récompense XP:</span>
+                  <span className="ml-2 text-gray-900">{task.xpReward || 0} XP</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Statut:</span>
+                  <span className="ml-2 text-gray-900 capitalize">{task.status || 'En attente'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Difficulté:</span>
+                  <span className="ml-2 text-gray-900 capitalize">{task.difficulty || 'Non définie'}</span>
+                </div>
+              </div>
             </div>
 
             {/* Options */}
@@ -694,7 +697,7 @@ const TaskEditModal = ({ isOpen, task, onClose, onSave }) => {
                 checked={formData.openToVolunteers}
                 onChange={(e) => setFormData(prev => ({ ...prev, openToVolunteers: e.target.checked }))}
                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                disabled={loading}
+                disabled={loading || deleting}
               />
               <label htmlFor="openToVolunteers" className="ml-2 text-sm text-gray-700">
                 Ouverte aux volontaires
@@ -702,29 +705,50 @@ const TaskEditModal = ({ isOpen, task, onClose, onSave }) => {
             </div>
 
             {/* Actions */}
-            <div className="flex justify-end gap-3 pt-6">
+            <div className="flex justify-between items-center pt-6 border-t border-gray-200">
               <button
                 type="button"
-                onClick={onClose}
-                disabled={loading}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                onClick={handleDelete}
+                disabled={loading || deleting}
+                className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
               >
-                Annuler
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                {loading ? (
+                {deleting ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Sauvegarde...
+                    Suppression...
                   </>
                 ) : (
-                  'Sauvegarder'
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Supprimer
+                  </>
                 )}
               </button>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={loading || deleting}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || deleting}
+                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Sauvegarde...
+                    </>
+                  ) : (
+                    'Sauvegarder'
+                  )}
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -1459,6 +1483,7 @@ const TasksPage = () => {
               setSelectedTaskForEdit(null);
             }}
             onSave={handleSaveTaskEdit}
+            onDelete={handleDeleteTask}
           />
         )}
 
