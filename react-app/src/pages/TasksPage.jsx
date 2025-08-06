@@ -48,8 +48,7 @@ import { db } from '../core/firebase.js';
 
 // Stores et services
 import { useAuthStore } from '../shared/stores/authStore.js';
-// ❌ SUPPRIMER L'IMPORT EXTERNE qui cause le conflit
-// import userService from '../core/services/userService.js';
+import userService from '../core/services/userService.js';
 
 // Composants
 import TaskForm from '../components/tasks/TaskForm.jsx';
@@ -93,7 +92,7 @@ const UserAvatar = ({ user, size = 'md' }) => {
 };
 
 /**
- * 👥 COMPOSANT LISTE DES UTILISATEURS ASSIGNÉS
+ * 👥 COMPOSANT LISTE DES UTILISATEURS ASSIGNÉS - VERSION COMPLÈTE
  */
 const AssignedUsersList = ({ userIds = [], maxDisplay = 3, task = null }) => {
   if (!userIds || userIds.length === 0) {
@@ -104,7 +103,18 @@ const AssignedUsersList = ({ userIds = [], maxDisplay = 3, task = null }) => {
     );
   }
 
-  const users = userIds.map(id => userService.getUser(id));
+  // Utiliser le service approprié selon la disponibilité
+  const activeUserService = userService.getUser ? userService : localUserService;
+  
+  const users = (Array.isArray(userIds) ? userIds : [userIds]).map(id => 
+    activeUserService.getUser(id) || {
+      id: id,
+      displayName: `User ${id.substring(0, 8)}`,
+      email: '',
+      photoURL: null
+    }
+  );
+  
   const displayUsers = users.slice(0, maxDisplay);
   const remainingCount = users.length - maxDisplay;
 
@@ -757,7 +767,7 @@ const TasksPage = () => {
   };
 
   /**
-   * 📥 CHARGEMENT DE TOUTES LES TÂCHES - VERSION AVEC DEBUG
+   * 📥 CHARGEMENT DE TOUTES LES TÂCHES - VERSION COMPLÈTE RESTAURÉE
    */
   const loadAllTasks = async () => {
     if (!user?.uid) {
@@ -776,11 +786,13 @@ const TasksPage = () => {
         return;
       }
       
-      // 2. Charger les utilisateurs si nécessaire
-      if (userService.getAllUsers().length === 0) {
+      // 2. Charger les utilisateurs - UTILISER LE SERVICE APPROPRIÉ
+      const activeUserService = userService.getAllUsers ? userService : localUserService;
+      
+      if (activeUserService.getAllUsers().length === 0) {
         console.log('🔍 DEBUG - Chargement des utilisateurs...');
-        await userService.loadAllUsers();
-        console.log('✅ Utilisateurs chargés:', userService.getAllUsers().length);
+        await activeUserService.loadAllUsers();
+        console.log('✅ Utilisateurs chargés:', activeUserService.getAllUsers().length);
       }
 
       // 3. Requête Firebase avec debug
@@ -815,10 +827,8 @@ const TasksPage = () => {
       // 4. Filtrage avec debug
       console.log('🔍 DEBUG - Filtrage des tâches pour utilisateur:', user.uid);
       
-      // ✅ RESTAURATION URGENTE : MES TÂCHES = Tâches assignées OU créées par l'utilisateur
-      // ROLLBACK de la modification précédente qui a fait disparaître toutes les tâches
       const myTasks = allTasks.filter(task => {
-        const isAssigned = task.assignedTo?.includes(user.uid);
+        const isAssigned = task.assignedTo?.includes?.(user.uid) || task.assignedTo === user.uid;
         const isCreator = task.createdBy === user.uid;
         const matches = isAssigned || isCreator;
         
@@ -834,16 +844,14 @@ const TasksPage = () => {
         return matches;
       });
 
-      // ✅ TÂCHES DISPONIBLES = Ouvertes aux volontaires, non assignées à l'utilisateur, non complétées
       const availableTasks = allTasks.filter(task => {
         const isOpenToVolunteers = task.openToVolunteers === true;
-        const isNotAssigned = !task.assignedTo?.includes(user.uid);
+        const isNotAssigned = !(task.assignedTo?.includes?.(user.uid) || task.assignedTo === user.uid);
         const isNotCompleted = task.status !== 'completed';
         
         return isOpenToVolunteers && isNotAssigned && isNotCompleted;
       });
 
-      // ✅ AUTRES TÂCHES = Tout le reste
       const otherTasks = allTasks.filter(task => 
         !myTasks.some(myTask => myTask.id === task.id) &&
         !availableTasks.some(availableTask => availableTask.id === task.id)
@@ -862,55 +870,15 @@ const TasksPage = () => {
       setOtherTasks(otherTasks);
       calculateStats(myTasks, availableTasks);
 
-      console.log('✅ Chargement des tâches terminé');
+      console.log('✅ Chargement des tâches terminé avec succès');
 
     } catch (error) {
-      // 🚨 FORCER L'AFFICHAGE DE L'ERREUR - CONTOURNEMENT TOTAL DU SUPPRESSEUR
-      const originalError = console.error;
-      const originalWarn = console.warn;
-      const originalLog = console.log;
+      console.error('❌ ERREUR CRITIQUE - Chargement des tâches:', error);
+      console.error('❌ Message:', error.message);
+      console.error('❌ Stack:', error.stack);
       
-      // Créer un canal d'erreur non supprimable
-      window.CRITICAL_ERROR_CHANNEL = window.CRITICAL_ERROR_CHANNEL || [];
-      window.CRITICAL_ERROR_CHANNEL.push({
-        timestamp: new Date().toISOString(),
-        error: error,
-        message: error.message,
-        code: error.code,
-        stack: error.stack
-      });
-      
-      // Affichage brutal sans filtrage
-      setTimeout(() => {
-        originalError('🚨🚨🚨 ERREUR CRITIQUE NON SUPPRIMABLE 🚨🚨🚨');
-        originalError('❌ ERREUR:', error);
-        originalError('❌ MESSAGE:', error.message);
-        originalError('❌ CODE:', error.code);
-        originalError('❌ STACK:', error.stack);
-        
-        // Test direct du userService
-        originalError('🔍 TEST userService:');
-        originalError('🔍 userService existe:', !!userService);
-        originalError('🔍 userService.getAllUsers existe:', typeof userService?.getAllUsers);
-        originalError('🔍 userService méthodes:', Object.getOwnPropertyNames(userService || {}));
-        
-        // Test direct de Firebase
-        originalError('🔍 TEST Firebase:');
-        originalError('🔍 db existe:', !!db);
-        originalError('🔍 collection existe:', typeof collection);
-        originalError('🔍 getDocs existe:', typeof getDocs);
-        
-      }, 100);
-      
-      // Diagnostic spécifique aux erreurs Firebase
-      if (error.code) {
-        alert('ERREUR FIREBASE: ' + error.code + ' - ' + error.message);
-      } else if (error.message?.includes('is not a function')) {
-        alert('ERREUR DE FONCTION: ' + error.message);
-      } else if (error.message?.includes('orderBy')) {
-        alert('ERREUR INDEX FIRESTORE: ' + error.message);
-        
-        // Mode de récupération sans orderBy
+      // Mode de récupération sans orderBy si erreur d'index
+      if (error.message?.includes('orderBy') || error.message?.includes('index')) {
         console.log('🔧 RÉCUPÉRATION SANS ORDERBY...');
         try {
           const simpleQuery = collection(db, 'tasks');
@@ -921,9 +889,16 @@ const TasksPage = () => {
             allTasks.push({ id: doc.id, ...doc.data() });
           });
           
+          // Tri côté client
+          allTasks.sort((a, b) => {
+            const dateA = a.createdAt?.toDate?.() || new Date(0);
+            const dateB = b.createdAt?.toDate?.() || new Date(0);
+            return dateB - dateA;
+          });
+          
           console.log('✅ RÉCUPÉRATION RÉUSSIE:', allTasks.length, 'tâches');
           
-          // Filtrage simple
+          // Filtrage
           const myTasks = allTasks.filter(task => 
             task.assignedTo?.includes(user.uid) || task.createdBy === user.uid
           );
@@ -933,15 +908,15 @@ const TasksPage = () => {
           setOtherTasks([]);
           calculateStats(myTasks, []);
           
-          alert('RÉCUPÉRATION RÉUSSIE: ' + myTasks.length + ' tâches trouvées');
+          console.log('✅ Récupération de secours réussie:', myTasks.length, 'tâches');
           return;
           
         } catch (fallbackError) {
-          alert('RÉCUPÉRATION ÉCHOUÉE: ' + fallbackError.message);
+          console.error('❌ Échec de la récupération de secours:', fallbackError);
         }
-      } else {
-        alert('ERREUR INCONNUE: ' + error.message);
       }
+      
+      alert('ERREUR: Impossible de charger les tâches. Détails: ' + error.message);
     } finally {
       setLoading(false);
     }
