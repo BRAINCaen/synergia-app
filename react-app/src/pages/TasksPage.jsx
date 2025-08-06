@@ -48,7 +48,8 @@ import { db } from '../core/firebase.js';
 
 // Stores et services
 import { useAuthStore } from '../shared/stores/authStore.js';
-import userService from '../core/services/userService.js';
+// ❌ SUPPRIMER L'IMPORT EXTERNE qui cause le conflit
+// import userService from '../core/services/userService.js';
 
 // Composants
 import TaskForm from '../components/tasks/TaskForm.jsx';
