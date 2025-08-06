@@ -864,55 +864,65 @@ const TasksPage = () => {
       console.log('✅ Chargement des tâches terminé');
 
     } catch (error) {
-      console.error('❌ ERREUR CRITIQUE - Chargement des tâches:', error);
-      console.error('❌ Message:', error.message);
-      console.error('❌ Code:', error.code);
-      console.error('❌ Stack:', error.stack);
+      // 🚨 FORCER L'AFFICHAGE DE L'ERREUR - CONTOURNEMENT TOTAL DU SUPPRESSEUR
+      const originalError = console.error;
+      const originalWarn = console.warn;
+      const originalLog = console.log;
       
-      // Forcer l'affichage même si supprimé par SafeFix
-      window.FORCE_ERROR_DISPLAY = true;
+      // Créer un canal d'erreur non supprimable
+      window.CRITICAL_ERROR_CHANNEL = window.CRITICAL_ERROR_CHANNEL || [];
+      window.CRITICAL_ERROR_CHANNEL.push({
+        timestamp: new Date().toISOString(),
+        error: error,
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
+      
+      // Affichage brutal sans filtrage
+      setTimeout(() => {
+        originalError('🚨🚨🚨 ERREUR CRITIQUE NON SUPPRIMABLE 🚨🚨🚨');
+        originalError('❌ ERREUR:', error);
+        originalError('❌ MESSAGE:', error.message);
+        originalError('❌ CODE:', error.code);
+        originalError('❌ STACK:', error.stack);
+        
+        // Test direct du userService
+        originalError('🔍 TEST userService:');
+        originalError('🔍 userService existe:', !!userService);
+        originalError('🔍 userService.getAllUsers existe:', typeof userService?.getAllUsers);
+        originalError('🔍 userService méthodes:', Object.getOwnPropertyNames(userService || {}));
+        
+        // Test direct de Firebase
+        originalError('🔍 TEST Firebase:');
+        originalError('🔍 db existe:', !!db);
+        originalError('🔍 collection existe:', typeof collection);
+        originalError('🔍 getDocs existe:', typeof getDocs);
+        
+      }, 100);
       
       // Diagnostic spécifique aux erreurs Firebase
       if (error.code) {
-        console.error('🔥 Erreur Firebase détectée:', error.code);
+        alert('ERREUR FIREBASE: ' + error.code + ' - ' + error.message);
+      } else if (error.message?.includes('is not a function')) {
+        alert('ERREUR DE FONCTION: ' + error.message);
+      } else if (error.message?.includes('orderBy')) {
+        alert('ERREUR INDEX FIRESTORE: ' + error.message);
         
-        if (error.code === 'permission-denied') {
-          console.error('🛡️ ERREUR: Permissions Firebase insuffisantes');
-          alert('ERREUR: Permissions Firebase insuffisantes. Vérifiez les règles Firestore.');
-        }
-        
-        if (error.code === 'unavailable') {
-          console.error('📡 ERREUR: Firebase indisponible');
-          alert('ERREUR: Service Firebase temporairement indisponible.');
-        }
-      }
-      
-      // Diagnostic des problèmes de requête
-      if (error.message.includes('orderBy')) {
-        console.error('📑 ERREUR: Problème avec orderBy - index manquant ?');
-        console.log('🔧 Tentative de requête sans orderBy...');
-        
-        // Tentative de récupération sans orderBy
+        // Mode de récupération sans orderBy
+        console.log('🔧 RÉCUPÉRATION SANS ORDERBY...');
         try {
           const simpleQuery = collection(db, 'tasks');
           const simpleSnapshot = await getDocs(simpleQuery);
-          console.log('✅ Requête simple réussie:', simpleSnapshot.size, 'tâches');
           
           const allTasks = [];
           simpleSnapshot.forEach(doc => {
             allTasks.push({ id: doc.id, ...doc.data() });
           });
           
-          // Trier côté client
-          allTasks.sort((a, b) => {
-            const dateA = a.createdAt?.toDate?.() || new Date(0);
-            const dateB = b.createdAt?.toDate?.() || new Date(0);
-            return dateB - dateA;
-          });
+          console.log('✅ RÉCUPÉRATION RÉUSSIE:', allTasks.length, 'tâches');
           
-          console.log('🔄 Tri côté client terminé');
-          
-          // Continuer avec le traitement normal
+          // Filtrage simple
           const myTasks = allTasks.filter(task => 
             task.assignedTo?.includes(user.uid) || task.createdBy === user.uid
           );
@@ -922,16 +932,15 @@ const TasksPage = () => {
           setOtherTasks([]);
           calculateStats(myTasks, []);
           
-          console.log('✅ Récupération de secours réussie:', myTasks.length, 'tâches');
+          alert('RÉCUPÉRATION RÉUSSIE: ' + myTasks.length + ' tâches trouvées');
           return;
           
         } catch (fallbackError) {
-          console.error('❌ Échec de la récupération de secours:', fallbackError);
+          alert('RÉCUPÉRATION ÉCHOUÉE: ' + fallbackError.message);
         }
+      } else {
+        alert('ERREUR INCONNUE: ' + error.message);
       }
-      
-      // Afficher l'erreur à l'utilisateur
-      alert('ERREUR CRITIQUE: ' + error.message + '\n\nVérifiez la console pour plus de détails.');
     } finally {
       setLoading(false);
     }
