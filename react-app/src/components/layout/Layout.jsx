@@ -46,7 +46,8 @@ const isUserAdmin = (user) => {
   
   // Emails admin hardcodés pour test
   const adminEmails = [
-    'alain.bochec4@gmail.com',
+    'alan.boehme61@gmail.com',
+    'tanguy.caron@gmail.com',
     'admin@synergia.com'
   ];
   
