@@ -783,11 +783,10 @@ const TasksPage = () => {
         });
       });
 
-      // ✅ CORRECTION : MES TÂCHES = SEULEMENT celles où l'utilisateur PARTICIPE (assignedTo)
-      // ❌ ANCIEN CODE : task.assignedTo?.includes(user.uid) || task.createdBy === user.uid
-      // ✅ NOUVEAU CODE : Seulement les tâches assignées
+      // ✅ RESTAURATION URGENTE : MES TÂCHES = Tâches assignées OU créées par l'utilisateur
+      // ROLLBACK de la modification précédente qui a fait disparaître toutes les tâches
       const myTasks = allTasks.filter(task => 
-        task.assignedTo?.includes(user.uid)
+        task.assignedTo?.includes(user.uid) || task.createdBy === user.uid
       );
 
       // ✅ TÂCHES DISPONIBLES = Ouvertes aux volontaires, non assignées à l'utilisateur, non complétées
