@@ -53,7 +53,8 @@ import {
   Settings,
   Share2,
   PlusCircle,
-  UserCheck
+  UserCheck,
+  Edit
 } from 'lucide-react';
 
 /**
@@ -387,9 +388,174 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
 };
 
 /**
- * 🚀 MODAL DE COLLABORATION
+ * ✏️ MODAL D'ÉDITION DE TÂCHE
  */
-const CollaborationModal = ({ isOpen, task, onClose, onUpdate }) => {
+const TaskEditModal = ({ isOpen, task, onClose, onSave }) => {
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    priority: 'medium',
+    xpReward: 0,
+    openToVolunteers: false
+  });
+
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (task) {
+      setFormData({
+        title: task.title || '',
+        description: task.description || '',
+        priority: task.priority || 'medium',
+        xpReward: task.xpReward || 0,
+        openToVolunteers: task.openToVolunteers || false
+      });
+    }
+  }, [task]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.title.trim()) {
+      alert('Le titre est obligatoire');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await onSave(task.id, formData);
+    } catch (error) {
+      console.error('Erreur sauvegarde:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen || !task) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-gray-900">
+              Modifier la tâche
+            </h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Titre */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Titre *
+              </label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Titre de la tâche"
+                required
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={4}
+                placeholder="Description détaillée..."
+              />
+            </div>
+
+            {/* Priorité */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Priorité
+              </label>
+              <select
+                value={formData.priority}
+                onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="low">Basse</option>
+                <option value="medium">Moyenne</option>
+                <option value="high">Haute</option>
+              </select>
+            </div>
+
+            {/* XP Reward */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Récompense XP
+              </label>
+              <input
+                type="number"
+                value={formData.xpReward}
+                onChange={(e) => setFormData(prev => ({ ...prev, xpReward: parseInt(e.target.value) || 0 }))}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                min="0"
+              />
+            </div>
+
+            {/* Ouvrir aux volontaires */}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="openToVolunteers"
+                checked={formData.openToVolunteers}
+                onChange={(e) => setFormData(prev => ({ ...prev, openToVolunteers: e.target.checked }))}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="openToVolunteers" className="ml-2 text-sm text-gray-700">
+                Ouvrir cette tâche aux volontaires
+              </label>
+            </div>
+
+            {/* Boutons d'action */}
+            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Sauvegarde...
+                  </>
+                ) : (
+                  <>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Sauvegarder
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
   const [availableUsers, setAvailableUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -537,11 +703,13 @@ const TasksPage = () => {
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showCollaborationModal, setShowCollaborationModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   
   // États pour les tâches sélectionnées
   const [selectedTaskForSubmission, setSelectedTaskForSubmission] = useState(null);
   const [selectedTaskForDetails, setSelectedTaskForDetails] = useState(null);
   const [selectedTaskForCollaboration, setSelectedTaskForCollaboration] = useState(null);
+  const [selectedTaskForEdit, setSelectedTaskForEdit] = useState(null);
 
   // Statistiques calculées
   const [taskStats, setTaskStats] = useState({
@@ -551,6 +719,67 @@ const TasksPage = () => {
     totalXpEarned: 0,
     availableTotal: 0
   });
+
+  /**
+   * 🛡️ VÉRIFIER SI L'UTILISATEUR PEUT MODIFIER UNE TÂCHE
+   */
+  const canEditTask = (task, currentUser) => {
+    if (!task || !currentUser) return false;
+    
+    // Admin peut tout modifier
+    const isAdmin = currentUser.role === 'admin' || 
+                    currentUser.isAdmin === true || 
+                    currentUser.email === 'alain.bochec4@gmail.com';
+    
+    // Créateur peut modifier ses tâches
+    const isCreator = task.createdBy === currentUser.uid;
+    
+    console.log('🔧 Permission édition tâche:', { 
+      taskId: task.id, 
+      isAdmin, 
+      isCreator, 
+      canEdit: isAdmin || isCreator 
+    });
+    
+    return isAdmin || isCreator;
+  };
+
+  /**
+   * ✏️ OUVRIR L'ÉDITEUR DE TÂCHE
+   */
+  const handleEditTask = (task) => {
+    console.log('✏️ Ouverture éditeur pour tâche:', task.id);
+    setSelectedTaskForEdit(task);
+    setShowEditModal(true);
+  };
+
+  /**
+   * 💾 SAUVEGARDER LES MODIFICATIONS DE TÂCHE
+   */
+  const handleSaveTaskEdit = async (taskId, updatedData) => {
+    try {
+      console.log('💾 Sauvegarde modifications tâche:', { taskId, updatedData });
+      
+      const taskRef = doc(db, 'tasks', taskId);
+      await updateDoc(taskRef, {
+        ...updatedData,
+        updatedAt: serverTimestamp(),
+        lastEditedBy: user.uid,
+        lastEditedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Tâche modifiée avec succès');
+      setShowEditModal(false);
+      setSelectedTaskForEdit(null);
+      await loadAllTasks(); // Recharger les tâches
+      
+      alert('Tâche modifiée avec succès !');
+      
+    } catch (error) {
+      console.error('❌ Erreur modification tâche:', error);
+      alert('Erreur lors de la modification: ' + error.message);
+    }
+  };
 
   /**
    * 📊 CALCUL DES STATISTIQUES
@@ -1206,6 +1435,19 @@ const TasksPage = () => {
                 alert('Erreur lors de la soumission: ' + error.message);
               }
             }}
+          />
+        )}
+
+        {/* Modal d'édition */}
+        {showEditModal && selectedTaskForEdit && (
+          <TaskEditModal
+            isOpen={showEditModal}
+            task={selectedTaskForEdit}
+            onClose={() => {
+              setShowEditModal(false);
+              setSelectedTaskForEdit(null);
+            }}
+            onSave={handleSaveTaskEdit}
           />
         )}
 
