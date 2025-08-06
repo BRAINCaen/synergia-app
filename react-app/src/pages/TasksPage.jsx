@@ -1,13 +1,9 @@
 // ==========================================
-// 📁 react-app/src/pages/TasksPage.jsx
-// SYSTÈME COLLABORATIF AVEC PARTAGE XP ET GESTION DES VOLONTAIRES
-// VERSION CORRIGÉE - PRIORITÉ TÂCHES COLLABORATIVES
+// 📁 react-app/src/pages/TasksPage.jsx - VERSION CORRIGÉE
+// CORRECTION ERREUR SYNTAXE LIGNE 681
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { useAuthStore } from '../shared/stores/authStore.js';
-import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
 import { 
   collection, 
   query, 
@@ -26,6 +22,7 @@ import {
 import { db } from '../core/firebase.js';
 import TaskForm from '../modules/tasks/TaskForm.jsx';
 import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
+import { useAuthStore } from '../shared/stores/authStore.js';
 import { 
   Plus, 
   Filter, 
@@ -258,9 +255,7 @@ const TaskDetailsModal = ({ isOpen, task, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div
-        className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300"
-      >
+      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -556,6 +551,11 @@ const TaskEditModal = ({ isOpen, task, onClose, onSave }) => {
     </div>
   );
 };
+
+/**
+ * 🚀 MODAL DE COLLABORATION
+ */
+const CollaborationModal = ({ isOpen, task, onClose, onUpdate }) => {
   const [availableUsers, setAvailableUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -600,12 +600,7 @@ const TaskEditModal = ({ isOpen, task, onClose, onSave }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
-      >
+      <div className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold text-gray-900">
@@ -675,7 +670,7 @@ const TaskEditModal = ({ isOpen, task, onClose, onSave }) => {
             </button>
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };
@@ -734,13 +729,6 @@ const TasksPage = () => {
     // Créateur peut modifier ses tâches
     const isCreator = task.createdBy === currentUser.uid;
     
-    console.log('🔧 Permission édition tâche:', { 
-      taskId: task.id, 
-      isAdmin, 
-      isCreator, 
-      canEdit: isAdmin || isCreator 
-    });
-    
     return isAdmin || isCreator;
   };
 
@@ -771,7 +759,7 @@ const TasksPage = () => {
       console.log('✅ Tâche modifiée avec succès');
       setShowEditModal(false);
       setSelectedTaskForEdit(null);
-      await loadAllTasks(); // Recharger les tâches
+      await loadAllTasks();
       
       alert('Tâche modifiée avec succès !');
       
@@ -809,22 +797,16 @@ const TasksPage = () => {
     try {
       setLoading(true);
       
-      // Charger les utilisateurs si pas encore fait
       if (userService.getAllUsers().length === 0) {
         await userService.loadAllUsers();
       }
 
-      console.log('📥 Chargement des tâches pour:', user.uid);
-
-      // Query pour toutes les tâches
       const tasksQuery = query(
         collection(db, 'tasks'),
         orderBy('createdAt', 'desc')
       );
       
       const tasksSnapshot = await getDocs(tasksQuery);
-      console.log('📊 Tâches trouvées:', tasksSnapshot.size);
-
       const allTasks = [];
       tasksSnapshot.forEach(doc => {
         const taskData = doc.data();
@@ -834,7 +816,6 @@ const TasksPage = () => {
         });
       });
 
-      // Répartition des tâches
       const myTasks = allTasks.filter(task => 
         task.assignedTo?.includes(user.uid) || task.createdBy === user.uid
       );
@@ -850,19 +831,10 @@ const TasksPage = () => {
         !availableTasks.some(availableTask => availableTask.id === task.id)
       );
 
-      // Mise à jour des états
       setMyTasks(myTasks);
       setAvailableTasks(availableTasks);
       setOtherTasks(otherTasks);
-
-      // Calcul des statistiques
       calculateStats(myTasks, availableTasks);
-
-      console.log('✅ Répartition des tâches:', {
-        myTasks: myTasks.length,
-        availableTasks: availableTasks.length,
-        otherTasks: otherTasks.length
-      });
 
     } catch (error) {
       console.error('❌ Erreur lors du chargement des tâches:', error);
@@ -906,10 +878,8 @@ const TasksPage = () => {
         status: 'validation_pending'
       };
 
-      // Créer l'enregistrement de soumission
       await addDoc(collection(db, 'task_submissions'), submissionRecord);
 
-      // Mettre à jour le statut de la tâche
       await updateDoc(taskRef, {
         status: 'validation_pending',
         lastSubmission: submissionRecord,
@@ -932,7 +902,7 @@ const TasksPage = () => {
   }, [user?.uid]);
 
   /**
-   * 🎨 COMPOSANT CARTE DE TÂCHE
+   * 🎨 COMPOSANT CARTE DE TÂCHE AVEC ÉDITION
    */
   const TaskCard = ({ task, isMyTask = true }) => {
     const formatDate = (timestamp) => {
@@ -957,16 +927,26 @@ const TasksPage = () => {
       }
     };
 
+    const creator = task.createdBy ? userService.getUser(task.createdBy) : null;
+    const canEdit = canEditTask(task, user);
+
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-200 border border-gray-200"
-      >
+      <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-200 border border-gray-200 transform transition-transform hover:scale-[1.02]">
         <div className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">{task.title}</h3>
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
+                {canEdit && (
+                  <button
+                    onClick={() => handleEditTask(task)}
+                    className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    title="Modifier cette tâche"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
               {task.description && (
                 <p className="text-gray-600 text-sm mb-3 line-clamp-2">
                   {task.description.length > 100 
@@ -996,6 +976,39 @@ const TasksPage = () => {
             </div>
           </div>
 
+          {/* AFFICHAGE CRÉATEUR */}
+          {creator && (
+            <div className="mb-3 p-2 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-600">Créé par :</span>
+                <UserAvatar user={creator} size="sm" />
+                <span className="text-sm font-medium text-gray-700">{creator.displayName}</span>
+                {canEdit && task.createdBy === user.uid && (
+                  <span className="ml-auto text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                    Vous pouvez modifier
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* AFFICHAGE ASSIGNÉS */}
+          {task.assignedTo && task.assignedTo.length > 0 && (
+            <div className="mb-4 p-2 bg-blue-50 rounded-lg">
+              <div className="flex items-start gap-2">
+                <Users className="w-4 h-4 text-blue-500 mt-1" />
+                <div className="flex-1">
+                  <div className="text-sm text-blue-600 mb-1">
+                    {task.assignedTo.length === 1 ? 'Assigné à :' : 'Assignés :'}
+                  </div>
+                  <AssignedUsersList userIds={task.assignedTo} maxDisplay={2} task={task} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Métadonnées et historique de modification */}
           <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1">
@@ -1008,13 +1021,12 @@ const TasksPage = () => {
                   {task.xpReward} XP
                 </span>
               )}
-              {task.assignedTo && task.assignedTo.length > 0 && (
-                <span className="flex items-center gap-1">
-                  <Users className="w-4 h-4" />
-                  {task.assignedTo.length}
-                </span>
-              )}
             </div>
+            {task.lastEditedAt && (
+              <span className="text-xs text-gray-400">
+                Modifié le {formatDate(task.lastEditedAt)}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center justify-between">
@@ -1068,7 +1080,7 @@ const TasksPage = () => {
             </button>
           </div>
         </div>
-      </motion.div>
+      </div>
     );
   };
 
@@ -1106,7 +1118,7 @@ const TasksPage = () => {
           </div>
         </div>
 
-        {/* STATISTIQUES GLOBALES AVEC XP PARTAGÉ */}
+        {/* STATISTIQUES GLOBALES */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
@@ -1244,9 +1256,6 @@ const TasksPage = () => {
                 <h2 className="text-xl font-semibold text-gray-900">
                   Mes Tâches ({myTasks.length})
                 </h2>
-                <div className="text-sm text-gray-500">
-                  Tâches que vous créez ou auxquelles vous participez
-                </div>
               </div>
 
               {myTasks.length === 0 ? (
@@ -1255,32 +1264,15 @@ const TasksPage = () => {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
                     Aucune tâche assignée
                   </h3>
-                  <p className="text-gray-500 mb-4">
-                    Vous n'avez pas encore de tâches assignées. Créez-en une ou rejoignez des tâches disponibles !
+                  <p className="text-gray-500">
+                    Vous n'avez pas encore de tâches assignées.
                   </p>
-                  <div className="flex justify-center space-x-3">
-                    <button
-                      onClick={() => setShowCreateModal(true)}
-                      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Créer une tâche
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('available_tasks')}
-                      className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                    >
-                      <Heart className="w-4 h-4 mr-2" />
-                      Voir les tâches disponibles
-                    </button>
-                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {myTasks
                     .filter(task => {
-                      if (searchTerm && !task.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
-                          !task.description?.toLowerCase().includes(searchTerm.toLowerCase())) {
+                      if (searchTerm && !task.title.toLowerCase().includes(searchTerm.toLowerCase())) {
                         return false;
                       }
                       if (filterStatus !== 'all' && task.status !== filterStatus) {
@@ -1305,9 +1297,6 @@ const TasksPage = () => {
                 <h2 className="text-xl font-semibold text-gray-900">
                   Tâches Disponibles ({availableTasks.length})
                 </h2>
-                <div className="text-sm text-gray-500">
-                  Tâches ouvertes aux volontaires
-                </div>
               </div>
 
               {availableTasks.length === 0 ? (
@@ -1317,25 +1306,14 @@ const TasksPage = () => {
                     Aucune tâche disponible
                   </h3>
                   <p className="text-gray-500">
-                    Il n'y a pas de tâches disponibles pour le volontariat en ce moment.
+                    Il n'y a pas de tâches disponibles pour le volontariat.
                   </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {availableTasks
-                    .filter(task => {
-                      if (searchTerm && !task.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
-                          !task.description?.toLowerCase().includes(searchTerm.toLowerCase())) {
-                        return false;
-                      }
-                      if (filterPriority !== 'all' && task.priority !== filterPriority) {
-                        return false;
-                      }
-                      return true;
-                    })
-                    .map(task => (
-                      <TaskCard key={task.id} task={task} isMyTask={false} />
-                    ))}
+                  {availableTasks.map(task => (
+                    <TaskCard key={task.id} task={task} isMyTask={false} />
+                  ))}
                 </div>
               )}
             </div>
@@ -1347,9 +1325,6 @@ const TasksPage = () => {
                 <h2 className="text-xl font-semibold text-gray-900">
                   Autres Tâches ({otherTasks.length})
                 </h2>
-                <div className="text-sm text-gray-500">
-                  Tâches assignées à d'autres + Mes créations
-                </div>
               </div>
 
               {otherTasks.length === 0 ? (
@@ -1359,28 +1334,14 @@ const TasksPage = () => {
                     Aucune autre tâche
                   </h3>
                   <p className="text-gray-500">
-                    Il n'y a pas d'autres tâches à afficher en ce moment.
+                    Il n'y a pas d'autres tâches à afficher.
                   </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {otherTasks
-                    .filter(task => {
-                      if (searchTerm && !task.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
-                          !task.description?.toLowerCase().includes(searchTerm.toLowerCase())) {
-                        return false;
-                      }
-                      if (filterStatus !== 'all' && task.status !== filterStatus) {
-                        return false;
-                      }
-                      if (filterPriority !== 'all' && task.priority !== filterPriority) {
-                        return false;
-                      }
-                      return true;
-                    })
-                    .map(task => (
-                      <TaskCard key={task.id} task={task} isMyTask={false} />
-                    ))}
+                  {otherTasks.map(task => (
+                    <TaskCard key={task.id} task={task} isMyTask={false} />
+                  ))}
                 </div>
               )}
             </div>
@@ -1401,9 +1362,9 @@ const TasksPage = () => {
                   createdBy: user.uid,
                   createdAt: serverTimestamp(),
                   updatedAt: serverTimestamp(),
-                  status: taskData.assignedTo && taskData.assignedTo.length > 0 ? 'pending' : 'open',
+                  status: 'pending',
                   assignedTo: taskData.assignedTo || [],
-                  openToVolunteers: !taskData.assignedTo || taskData.assignedTo.length === 0
+                  openToVolunteers: taskData.openToVolunteers || false
                 });
                 setShowCreateModal(false);
                 await loadAllTasks();
@@ -1415,7 +1376,7 @@ const TasksPage = () => {
           />
         )}
 
-        {/* Modal soumission validation */}
+        {/* Modal soumission */}
         {showSubmissionModal && selectedTaskForSubmission && (
           <TaskSubmissionModal
             isOpen={showSubmissionModal}
@@ -1429,7 +1390,7 @@ const TasksPage = () => {
                 await handleTaskSubmission(selectedTaskForSubmission.id, submissionData);
                 setShowSubmissionModal(false);
                 setSelectedTaskForSubmission(null);
-                alert('Tâche soumise avec succès pour validation !');
+                alert('Tâche soumise avec succès !');
               } catch (error) {
                 console.error('❌ Erreur soumission:', error);
                 alert('Erreur lors de la soumission: ' + error.message);
@@ -1476,5 +1437,4 @@ const TasksPage = () => {
   );
 };
 
-// ✅ EXPORT DEFAULT CORRIGÉ
 export default TasksPage;
