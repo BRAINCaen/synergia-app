@@ -1,18 +1,23 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// FORCER L'UTILISATION DU LAYOUT AVEC MENU MOBILE
+// RESTAURÉ AVEC LAYOUT ORIGINAL + MENU MOBILE CORRIGÉ
 // ==========================================
 
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// 🔧 FORCER L'UTILISATION DE MAINLAYOUT AVEC MENU MOBILE
-import MainLayout from './layouts/MainLayout.jsx';
+// 🔧 RETOUR AU LAYOUT ORIGINAL QUI FONCTIONNAIT
+import Layout from './components/layout/Layout.jsx';
 
-// Stores
+// Stores (version stable)
 import { useAuthStore, initializeAuthStore } from './shared/stores/authStore.js';
 
-// Pages
+// Import des correctifs
+import './utils/safeFix.js';
+
+// ==========================================
+// 📄 PAGES PRINCIPALES EXISTANTES
+// ==========================================
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
@@ -28,7 +33,14 @@ import RewardsPage from './pages/RewardsPage.jsx';
 import BadgesPage from './pages/BadgesPage.jsx';
 import TimeTrackPage from './pages/TimeTrackPage.jsx';
 
-// Pages admin
+// ==========================================
+// 🎮 PAGES GAMIFICATION EXISTANTES
+// ==========================================
+import RoleProgressionPage from './pages/RoleProgressionPage.jsx';
+
+// ==========================================
+// 🛡️ PAGES ADMIN EXISTANTES
+// ==========================================
 import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
 import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 
@@ -44,7 +56,7 @@ const ProtectedRoute = ({ children }) => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white">Chargement de Synergia...</p>
-          <p className="text-gray-400 text-sm mt-2">Version v3.5.3</p>
+          <p className="text-gray-400 text-sm mt-2">Version v3.5.3 - Design original restauré</p>
         </div>
       </div>
     );
@@ -62,67 +74,76 @@ const ProtectedRoute = ({ children }) => {
 // ==========================================
 const App = () => {
   useEffect(() => {
-    console.log('🚀 [APP] Initialisation Synergia v3.5.3 avec MainLayout');
+    console.log('🚀 [APP] Synergia v3.5.3 - Layout original avec menu mobile corrigé');
     initializeAuthStore();
   }, []);
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-900">
+      <div className="app">
         <Routes>
           {/* Route de connexion - SANS Layout */}
           <Route path="/login" element={<Login />} />
           
-          {/* Toutes les autres routes - AVEC MainLayout qui a le menu mobile */}
-          <Route path="/*" element={
-            <ProtectedRoute>
-              <MainLayout>
-                <Routes>
-                  {/* Routes principales */}
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/tasks" element={<TasksPage />} />
-                  <Route path="/projects" element={<ProjectsPage />} />
-                  <Route path="/analytics" element={<AnalyticsPage />} />
-                  <Route path="/gamification" element={<GamificationPage />} />
-                  <Route path="/team" element={<TeamPage />} />
-                  
-                  {/* Routes utilisateurs */}
-                  <Route path="/users" element={<UsersPage />} />
-                  <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  
-                  {/* Routes outils */}
-                  <Route path="/onboarding" element={<OnboardingPage />} />
-                  <Route path="/timetrack" element={<TimeTrackPage />} />
-                  <Route path="/rewards" element={<RewardsPage />} />
-                  <Route path="/badges" element={<BadgesPage />} />
-                  
-                  {/* Routes admin */}
-                  <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
-                  <Route path="/admin/complete-test" element={<CompleteAdminTestPage />} />
-                  
-                  {/* Route par défaut */}
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  
-                  {/* Page 404 */}
-                  <Route path="*" element={
-                    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 flex items-center justify-center">
-                      <div className="text-center">
-                        <h1 className="text-6xl font-bold text-white mb-4">404</h1>
-                        <p className="text-gray-400 mb-8">Page non trouvée</p>
-                        <button
-                          onClick={() => window.location.href = '/dashboard'}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
-                        >
-                          🏠 Retour au Dashboard
-                        </button>
+          {/* Toutes les autres routes - AVEC le Layout original */}
+          <Route 
+            path="/*" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Routes>
+                    {/* Routes principales */}
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/tasks" element={<TasksPage />} />
+                    <Route path="/projects" element={<ProjectsPage />} />
+                    <Route path="/analytics" element={<AnalyticsPage />} />
+                    <Route path="/gamification" element={<GamificationPage />} />
+                    <Route path="/team" element={<TeamPage />} />
+                    
+                    {/* Routes utilisateurs et outils */}
+                    <Route path="/users" element={<UsersPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/onboarding" element={<OnboardingPage />} />
+                    <Route path="/timetrack" element={<TimeTrackPage />} />
+                    <Route path="/rewards" element={<RewardsPage />} />
+                    <Route path="/badges" element={<BadgesPage />} />
+                    
+                    {/* Routes gamification */}
+                    <Route path="/leaderboard" element={<GamificationPage />} />
+                    <Route path="/role-progression" element={<RoleProgressionPage />} />
+                    
+                    {/* Routes admin */}
+                    <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
+                    <Route path="/admin/complete-test" element={<CompleteAdminTestPage />} />
+                    <Route path="/admin/role-permissions" element={<AdminTaskValidationPage />} />
+                    <Route path="/admin/users" element={<AdminTaskValidationPage />} />
+                    <Route path="/admin/analytics" element={<AdminTaskValidationPage />} />
+                    <Route path="/admin/settings" element={<AdminTaskValidationPage />} />
+                    
+                    {/* Route par défaut */}
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    
+                    {/* Page 404 avec design original */}
+                    <Route path="*" element={
+                      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 flex items-center justify-center">
+                        <div className="text-center">
+                          <h1 className="text-6xl font-bold text-white mb-4">404</h1>
+                          <p className="text-gray-400 mb-8">Page non trouvée</p>
+                          <button
+                            onClick={() => window.location.href = '/dashboard'}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+                          >
+                            🏠 Retour au Dashboard
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  } />
-                </Routes>
-              </MainLayout>
-            </ProtectedRoute>
-          } />
+                    } />
+                  </Routes>
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
       </div>
     </Router>
@@ -132,6 +153,6 @@ const App = () => {
 export default App;
 
 // Log de confirmation
-console.log('✅ App.jsx configuré pour utiliser MainLayout avec menu mobile');
-console.log('📱 Bouton hamburger disponible sur mobile');
-console.log('🎯 Routes configurées avec navigation complète');
+console.log('✅ App.jsx restauré avec Layout original');
+console.log('🎨 Design PC conservé + menu mobile corrigé');
+console.log('📱 Sidebar fonctionne sur mobile et desktop');
