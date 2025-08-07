@@ -202,6 +202,16 @@ const TaskCard = ({
   onSubmit 
 }) => {
   const { user } = useAuthStore();
+  
+  // ✅ CALCULER UNE SEULE FOIS LES PERMISSIONS
+  const canEdit = canEditTask(task, user);
+  
+  console.log('🔍 TaskCard render - Permissions:', {
+    taskTitle: task.title,
+    canEdit: canEdit,
+    hasOnEdit: !!onEdit,
+    hasOnDelete: !!onDelete
+  });
 
   return (
     <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-200">
@@ -288,7 +298,7 @@ const TaskCard = ({
         </div>
         
         <div className="flex items-center gap-2">
-          {/* Boutons d'action - TOUJOURS AFFICHÉS POUR DEBUG */}
+          {/* ✅ BOUTONS D'ACTION SIMPLIFIÉS ET CORRIGÉS */}
           <button 
             className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
             title="Voir les détails"
@@ -297,50 +307,53 @@ const TaskCard = ({
             <Eye className="w-4 h-4" />
           </button>
           
-          {isMyTask && task.status !== 'completed' && (
+          {isMyTask && task.status !== 'completed' && onSubmit && (
             <button 
               className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
               title="Soumettre pour validation"
-              onClick={() => onSubmit && onSubmit(task)}
+              onClick={() => onSubmit(task)}
             >
               <PlayCircle className="w-4 h-4" />
             </button>
           )}
           
-          {/* ✅ CORRECTION : Affichage conditionnel des boutons avec debug */}
-          {(() => {
-            const canEdit = canEditTask(task, user);
-            console.log('🔍 Boutons édition - canEdit:', canEdit, 'pour tâche:', task.title);
-            return canEdit;
-          })() && (
-            <>
-              <button 
-                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                title="Modifier"
-                onClick={() => {
-                  console.log('✏️ Clic modifier tâche:', task.title);
-                  onEdit && onEdit(task);
-                }}
-              >
-                <Edit className="w-4 h-4" />
-              </button>
-              <button 
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                title="Supprimer"
-                onClick={() => {
-                  console.log('🗑️ Clic supprimer tâche:', task.title);
-                  onDelete && onDelete(task);
-                }}
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </>
+          {/* ✅ BOUTONS MODIFIER/SUPPRIMER CORRIGÉS */}
+          {canEdit && onEdit && (
+            <button 
+              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+              title="Modifier"
+              onClick={() => {
+                console.log('✏️ Clic modifier tâche:', task.title);
+                onEdit(task);
+              }}
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+          )}
+          
+          {canEdit && onDelete && (
+            <button 
+              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+              title="Supprimer"
+              onClick={() => {
+                console.log('🗑️ Clic supprimer tâche:', task.title);
+                onDelete(task.id);
+              }}
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           )}
           
           {/* ✅ DEBUG : Afficher info si pas de boutons */}
-          {!canEditTask(task, user) && (
-            <div className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded">
-              Debug: Pas d'autorisation d'édition
+          {!canEdit && (
+            <div className="text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded" title="Permissions debug">
+              🔒 Pas créateur
+            </div>
+          )}
+          
+          {canEdit && (!onEdit || !onDelete) && (
+            <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded" title="Props debug">
+              ⚠️ Props manquantes
             </div>
           )}
         </div>
