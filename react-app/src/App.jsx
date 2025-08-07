@@ -1,23 +1,18 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// SYNERGIA v3.5 STABLE - IMPORTS CORRIGÉS POUR BUILD
+// FORCER L'UTILISATION DU LAYOUT AVEC MENU MOBILE
 // ==========================================
 
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// 🔧 Layout sophistiqué avec sidebar
-import Layout from './components/layout/Layout.jsx';
+// 🔧 FORCER L'UTILISATION DE MAINLAYOUT AVEC MENU MOBILE
+import MainLayout from './layouts/MainLayout.jsx';
 
-// Stores (version stable)
+// Stores
 import { useAuthStore, initializeAuthStore } from './shared/stores/authStore.js';
 
-// Import des correctifs
-import './utils/safeFix.js';
-
-// ==========================================
-// 📄 PAGES PRINCIPALES EXISTANTES
-// ==========================================
+// Pages
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
@@ -33,14 +28,7 @@ import RewardsPage from './pages/RewardsPage.jsx';
 import BadgesPage from './pages/BadgesPage.jsx';
 import TimeTrackPage from './pages/TimeTrackPage.jsx';
 
-// ==========================================
-// 🎮 PAGES GAMIFICATION EXISTANTES
-// ==========================================
-import RoleProgressionPage from './pages/RoleProgressionPage.jsx';
-
-// ==========================================
-// 🛡️ PAGES ADMIN EXISTANTES
-// ==========================================
+// Pages admin
 import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
 import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 
@@ -55,8 +43,8 @@ const ProtectedRoute = ({ children }) => {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">Chargement de l'application...</p>
-          <p className="text-gray-400 text-sm mt-2">Synergia v3.5 - Version stable</p>
+          <p className="text-white">Chargement de Synergia...</p>
+          <p className="text-gray-400 text-sm mt-2">Version v3.5.3</p>
         </div>
       </div>
     );
@@ -66,378 +54,84 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
   
-  return <Layout>{children}</Layout>;
+  return children;
 };
 
 // ==========================================
-// 🔧 COMPOSANT FALLBACK POUR PAGES MANQUANTES
-// ==========================================
-const PageNotImplemented = ({ pageName }) => (
-  <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-6">
-    <div className="max-w-4xl mx-auto">
-      <div className="bg-white/10 backdrop-blur-md rounded-xl p-8 text-center">
-        <h1 className="text-3xl font-bold text-white mb-4">
-          Page {pageName}
-        </h1>
-        <p className="text-purple-200 mb-6">
-          Cette page sera disponible dans une prochaine version.
-        </p>
-        <div className="flex justify-center space-x-4">
-          <a 
-            href="/dashboard" 
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-          >
-            Retour au Dashboard
-          </a>
-          <a 
-            href="/gamification" 
-            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
-          >
-            Voir Gamification
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-// ==========================================
-// 🚀 COMPOSANT PRINCIPAL APP
+// 🚀 APPLICATION PRINCIPALE
 // ==========================================
 const App = () => {
-  const { user, loading } = useAuthStore();
-
-  // ✅ INITIALISATION UNIQUE DE L'AUTH AU MONTAGE
   useEffect(() => {
-    console.log('🚀 Initialisation App Synergia v3.5');
-    
-    // Initialiser l'auth store une seule fois
+    console.log('🚀 [APP] Initialisation Synergia v3.5.3 avec MainLayout');
     initializeAuthStore();
-
-    // Cleanup au démontage
-    return () => {
-      console.log('🧹 Nettoyage App');
-      const store = useAuthStore.getState();
-      if (store.cleanup) {
-        store.cleanup();
-      }
-    };
-  }, []); // ✅ AUCUNE DÉPENDANCE = UNE SEULE EXÉCUTION
-
-  console.log('🔄 App render - User:', user ? `Connecté: ${user.email}` : 'Déconnecté', 'Loading:', loading);
+  }, []);
 
   return (
     <Router>
-      <div className="App min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-900">
         <Routes>
-          {/* ==========================================
-              🔐 ROUTE DE CONNEXION
-              ========================================== */}
-          <Route 
-            path="/login" 
-            element={
-              user ? <Navigate to="/dashboard" replace /> : <Login />
-            } 
-          />
-
-          {/* ==========================================
-              📊 ROUTES PRINCIPALES PROTÉGÉES
-              ========================================== */}
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } 
-          />
+          {/* Route de connexion - SANS Layout */}
+          <Route path="/login" element={<Login />} />
           
-          <Route 
-            path="/tasks" 
-            element={
-              <ProtectedRoute>
-                <TasksPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/tasks/:taskId" 
-            element={
-              <ProtectedRoute>
-                <TasksPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/projects" 
-            element={
-              <ProtectedRoute>
-                <ProjectsPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/projects/:projectId" 
-            element={
-              <ProtectedRoute>
-                <ProjectsPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/analytics" 
-            element={
-              <ProtectedRoute>
-                <AnalyticsPage />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* ==========================================
-              🎮 ROUTES GAMIFICATION PROTÉGÉES
-              ========================================== */}
-          <Route 
-            path="/gamification" 
-            element={
-              <ProtectedRoute>
-                <GamificationPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/badges" 
-            element={
-              <ProtectedRoute>
-                <BadgesPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/leaderboard" 
-            element={
-              <ProtectedRoute>
-                <PageNotImplemented pageName="Classement" />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/claimant" 
-            element={
-              <ProtectedRoute>
-                <PageNotImplemented pageName="Réclamations" />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/rewards" 
-            element={
-              <ProtectedRoute>
-                <RewardsPage />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* ==========================================
-              📈 ROUTES PROGRESSION RÔLE
-              ========================================== */}
-          <Route 
-            path="/role-progression" 
-            element={
-              <ProtectedRoute>
-                <RoleProgressionPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/role-tasks" 
-            element={
-              <ProtectedRoute>
-                <PageNotImplemented pageName="Tâches par Rôle" />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/role-badges" 
-            element={
-              <ProtectedRoute>
-                <PageNotImplemented pageName="Badges Rôle" />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/escape-progression" 
-            element={
-              <ProtectedRoute>
-                <PageNotImplemented pageName="Escape Progression" />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* ==========================================
-              👥 ROUTES ÉQUIPE & SOCIAL
-              ========================================== */}
-          <Route 
-            path="/team" 
-            element={
-              <ProtectedRoute>
-                <TeamPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/users" 
-            element={
-              <ProtectedRoute>
-                <UsersPage />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* ==========================================
-              🔧 ROUTES OUTILS
-              ========================================== */}
-          <Route 
-            path="/onboarding" 
-            element={
-              <ProtectedRoute>
-                <OnboardingPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/timetrack" 
-            element={
-              <ProtectedRoute>
-                <TimeTrackPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/profile" 
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/settings" 
-            element={
-              <ProtectedRoute>
-                <SettingsPage />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* ==========================================
-              🛡️ ROUTES ADMIN EXISTANTES
-              ========================================== */}
-          <Route 
-            path="/admin/dashboard-tuteur" 
-            element={
-              <ProtectedRoute>
-                <PageNotImplemented pageName="Dashboard Tuteur" />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/admin/task-validation" 
-            element={
-              <ProtectedRoute>
-                <AdminTaskValidationPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/admin/test-complet" 
-            element={
-              <ProtectedRoute>
-                <CompleteAdminTestPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/admin/user-management" 
-            element={
-              <ProtectedRoute>
-                <PageNotImplemented pageName="Gestion Utilisateurs" />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/admin/analytics" 
-            element={
-              <ProtectedRoute>
-                <PageNotImplemented pageName="Analytics Admin" />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/admin/parameters" 
-            element={
-              <ProtectedRoute>
-                <PageNotImplemented pageName="Paramètres Admin" />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/admin/gestion-utilisateurs" 
-            element={
-              <ProtectedRoute>
-                <PageNotImplemented pageName="Gestion Utilisateurs Admin" />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* ==========================================
-              🏠 ROUTE PAR DÉFAUT
-              ========================================== */}
-          <Route 
-            path="/" 
-            element={
-              user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
-            } 
-          />
-          
-          {/* Catch-all pour les routes inexistantes */}
-          <Route 
-            path="*" 
-            element={
-              user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
-            } 
-          />
+          {/* Toutes les autres routes - AVEC MainLayout qui a le menu mobile */}
+          <Route path="/*" element={
+            <ProtectedRoute>
+              <MainLayout>
+                <Routes>
+                  {/* Routes principales */}
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/tasks" element={<TasksPage />} />
+                  <Route path="/projects" element={<ProjectsPage />} />
+                  <Route path="/analytics" element={<AnalyticsPage />} />
+                  <Route path="/gamification" element={<GamificationPage />} />
+                  <Route path="/team" element={<TeamPage />} />
+                  
+                  {/* Routes utilisateurs */}
+                  <Route path="/users" element={<UsersPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  
+                  {/* Routes outils */}
+                  <Route path="/onboarding" element={<OnboardingPage />} />
+                  <Route path="/timetrack" element={<TimeTrackPage />} />
+                  <Route path="/rewards" element={<RewardsPage />} />
+                  <Route path="/badges" element={<BadgesPage />} />
+                  
+                  {/* Routes admin */}
+                  <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
+                  <Route path="/admin/complete-test" element={<CompleteAdminTestPage />} />
+                  
+                  {/* Route par défaut */}
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                  
+                  {/* Page 404 */}
+                  <Route path="*" element={
+                    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 flex items-center justify-center">
+                      <div className="text-center">
+                        <h1 className="text-6xl font-bold text-white mb-4">404</h1>
+                        <p className="text-gray-400 mb-8">Page non trouvée</p>
+                        <button
+                          onClick={() => window.location.href = '/dashboard'}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+                        >
+                          🏠 Retour au Dashboard
+                        </button>
+                      </div>
+                    </div>
+                  } />
+                </Routes>
+              </MainLayout>
+            </ProtectedRoute>
+          } />
         </Routes>
       </div>
     </Router>
   );
 };
 
-// ==========================================
-// 📋 LOGS DE CONFIRMATION
-// ==========================================
-console.log('✅ App Synergia v3.5 stable chargé');
-console.log('🔧 AuthStore stable intégré');
-console.log('🛡️ Imports corrigés pour build Netlify');
-
 export default App;
+
+// Log de confirmation
+console.log('✅ App.jsx configuré pour utiliser MainLayout avec menu mobile');
+console.log('📱 Bouton hamburger disponible sur mobile');
+console.log('🎯 Routes configurées avec navigation complète');
