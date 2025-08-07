@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT ACTUEL CORRIGÉ AVEC PAGES ADMIN
+// CORRECTION DU MENU MOBILE - PROBLÈME SIDEBAR
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -75,6 +75,18 @@ const Layout = ({ children }) => {
     setSidebarOpen(false);
   }, [location.pathname]);
 
+  // AJOUT : Fermer le menu si on redimensionne en desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) { // lg breakpoint
+        setSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const handleLogout = async () => {
     try {
       await signOut();
@@ -146,14 +158,15 @@ const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
-      {/* SIDEBAR */}
+      {/* SIDEBAR - CORRECTION MOBILE */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 transform transition-transform duration-300
+        fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 
+        transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0 lg:static lg:inset-0
+        lg:translate-x-0 lg:static lg:inset-0 lg:transform-none
       `}>
         {/* Header Sidebar */}
-        <div className="flex items-center justify-between h-16 px-4 bg-gray-800">
+        <div className="flex items-center justify-between h-16 px-4 bg-gray-800 flex-shrink-0">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
               <Zap className="w-5 h-5 text-white" />
@@ -165,54 +178,50 @@ const Layout = ({ children }) => {
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-gray-400 hover:text-white"
+            className="lg:hidden text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-700 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Info Utilisateur */}
-        <div className="p-4 bg-gray-800 border-b border-gray-700">
+        <div className="p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">
               {user?.email?.[0]?.toUpperCase() || '?'}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">
-                {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
+                {user?.displayName || user?.email || 'Utilisateur'}
               </p>
-              <p className="text-xs text-gray-400 truncate">{user?.email}</p>
-              {userIsAdmin && (
-                <span className="inline-flex items-center px-2 py-0.5 text-xs bg-red-600 text-white rounded-full mt-1">
-                  <Shield className="w-3 h-3 mr-1" />
-                  Admin
-                </span>
-              )}
+              <p className="text-xs text-gray-400 truncate">
+                {userIsAdmin ? 'Administrateur' : 'Membre'}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="mt-2 px-2 pb-4 overflow-y-auto h-full">
+        {/* Navigation - AJOUT SCROLL */}
+        <nav className="flex-1 px-3 py-4 overflow-y-auto">
           {allSections.map((section, sectionIndex) => (
             <div key={sectionIndex} className="mb-6">
-              <h3 className={`px-3 text-xs font-semibold uppercase tracking-wider mb-2 ${
-                section.title === 'ADMINISTRATION' ? 'text-red-400' : 'text-gray-500'
-              }`}>
+              <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
                 {section.title}
               </h3>
               <div className="space-y-1">
-                {section.items.map((item) => {
-                  const active = isActive(item.path);
+                {section.items.map((item, itemIndex) => {
                   const Icon = item.icon;
+                  const active = isActive(item.path);
                   const isAdminItem = section.title === 'ADMINISTRATION';
-                  
+
                   return (
                     <Link
-                      key={item.path}
+                      key={itemIndex}
                       to={item.path}
-                      className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
-                        active
+                      onClick={() => setSidebarOpen(false)} // Fermer le menu après clic
+                      className={`
+                        group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200
+                        ${active
                           ? isAdminItem
                             ? 'bg-red-900 text-red-100'
                             : 'bg-blue-900 text-blue-100'
@@ -221,14 +230,14 @@ const Layout = ({ children }) => {
                             : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                       }`}
                     >
-                      <Icon className={`mr-3 w-5 h-5 ${
+                      <Icon className={`mr-3 w-5 h-5 flex-shrink-0 ${
                         active
                           ? isAdminItem ? 'text-red-300' : 'text-blue-300'
                           : isAdminItem ? 'text-red-400' : 'text-gray-400'
                       }`} />
-                      {item.label}
+                      <span className="truncate">{item.label}</span>
                       {isAdminItem && (
-                        <Shield className="w-3 h-3 ml-auto text-red-400" />
+                        <Shield className="w-3 h-3 ml-auto text-red-400 flex-shrink-0" />
                       )}
                     </Link>
                   );
@@ -239,21 +248,21 @@ const Layout = ({ children }) => {
         </nav>
 
         {/* Déconnexion */}
-        <div className="absolute bottom-0 w-full p-4 border-t border-gray-700 bg-gray-800">
+        <div className="flex-shrink-0 w-full p-4 border-t border-gray-700 bg-gray-800">
           <button
             onClick={handleLogout}
             className="w-full flex items-center px-2 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors"
           >
             <LogOut className="mr-3 w-5 h-5 text-gray-400" />
-            Déconnexion
+            <span>Déconnexion</span>
           </button>
         </div>
       </div>
 
-      {/* OVERLAY MOBILE */}
+      {/* OVERLAY MOBILE - CORRECTION Z-INDEX */}
       {sidebarOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-gray-600 bg-opacity-50 z-40"
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -261,17 +270,18 @@ const Layout = ({ children }) => {
       {/* CONTENU PRINCIPAL */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header Mobile */}
-        <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-200">
+        <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 text-gray-400 hover:text-gray-600"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <Menu className="w-6 h-6" />
           </button>
-          <h1 className="text-lg font-semibold text-gray-900">
-            Synergia {userIsAdmin && <span className="text-red-500">Admin</span>}
+          <h1 className="text-lg font-semibold text-gray-900 flex items-center">
+            Synergia 
+            {userIsAdmin && <span className="text-red-500 text-sm ml-2">ADMIN</span>}
           </h1>
-          <div className="w-10"></div>
+          <div className="w-10"></div> {/* Spacer pour centrer le titre */}
         </div>
 
         {/* Zone de contenu */}
