@@ -547,7 +547,7 @@ const TasksPage = () => {
                       key={task.id} 
                       task={task} 
                       isMyTask={false}
-                      showVolunteerButton={true}  {/* ✅ CORRECTION APPLIQUÉE */}
+   showVolunteerButton={true}
                       onEdit={(task) => {
                         console.log('📝 Ouverture modal édition pour tâche disponible:', task.title);
                         setSelectedTask(task);
