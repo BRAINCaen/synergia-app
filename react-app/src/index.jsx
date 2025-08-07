@@ -3,6 +3,7 @@
 // INDEX CORRIGÉ - SUPPRESSION IMPORT AUTHSTORE INCORRECT
 // ==========================================
 
+import './core/networkErrorSuppression.js'; 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
