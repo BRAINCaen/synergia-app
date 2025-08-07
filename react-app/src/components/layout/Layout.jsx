@@ -1,4 +1,9 @@
-// ==========================================
+// Mémoriser admin APRÈS l'état sidebar
+  const userIsAdmin = React.useMemo(() => {
+    const result = isUserAdmin(user);
+    console.log('👤 Admin check (ne doit pas déclencher re-render):', result);
+    return result;
+  }, [user?.email]);// ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx  
 // VERSION ULTRA-SIMPLE - CSS PUR POUR MOBILE
 // ==========================================
@@ -53,13 +58,21 @@ const Layout = ({ children }) => {
   const { user, signOut } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Mémoriser admin pour éviter re-renders
-  const userIsAdmin = React.useMemo(() => isUserAdmin(user), [user?.email, user?.role, user?.isAdmin]);
+  // ÉTAT SIDEBAR COMPLÈTEMENT ISOLÉ
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // EMPÊCHER LA FERMETURE AUTOMATIQUE - Ne fermer QUE sur changement de page
   useEffect(() => {
-    console.log('📍 Page changée:', location.pathname);
-    setSidebarOpen(false);
+    console.log('📍 Page changée vers:', location.pathname);
+    // Délai pour éviter la fermeture immédiate
+    const timer = setTimeout(() => {
+      setSidebarOpen(false);
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, [location.pathname]);
+
+  // SUPPRIMER TOUS LES AUTRES USEEFFECTS qui peuvent interférer
 
   const handleLogout = async () => {
     try {
@@ -124,16 +137,16 @@ const Layout = ({ children }) => {
   const allSections = userIsAdmin ? [...navigationSections, adminSection] : navigationSections;
   const isActive = (path) => location.pathname === path;
 
-  // Fonctions simples
-  const openSidebar = () => {
-    console.log('🔴 Ouverture sidebar');
+  // Fonctions de contrôle STABLES
+  const openSidebar = React.useCallback(() => {
+    console.log('🔴 OUVERTURE sidebar - état actuel:', sidebarOpen);
     setSidebarOpen(true);
-  };
+  }, []);
 
-  const closeSidebar = () => {
-    console.log('🔴 Fermeture sidebar');  
+  const closeSidebar = React.useCallback(() => {
+    console.log('🔴 FERMETURE sidebar - état actuel:', sidebarOpen);  
     setSidebarOpen(false);
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
@@ -465,8 +478,8 @@ const Layout = ({ children }) => {
                           key={itemIndex}
                           to={item.path}
                           onClick={() => {
-                            console.log('🔴 Navigation vers:', item.label);
-                            setTimeout(() => setSidebarOpen(false), 150);
+                            console.log('🔴 Navigation vers:', item.label, '- ne PAS fermer immédiatement');
+                            // Navigation sans fermeture immédiate - laisser le useEffect de location.pathname s'en charger
                           }}
                           style={{
                             display: 'flex',
