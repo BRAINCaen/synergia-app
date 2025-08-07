@@ -71,32 +71,57 @@ const Layout = ({ children }) => {
   const { user, signOut } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // CORRECTION : Empêcher la fermeture automatique du menu
   useEffect(() => {
+    // Ne fermer que lors du changement de page, pas à cause des re-renders
+    console.log('📍 Page changée:', location.pathname);
     setSidebarOpen(false);
   }, [location.pathname]);
 
-  // AJOUT : Fermer le menu si on redimensionne en desktop
+  // CORRECTION : Éviter la fermeture sur redimensionnement intempestif
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 1024) { // lg breakpoint
+      if (window.innerWidth >= 1024 && sidebarOpen) {
+        console.log('📱 Redimensionnement vers desktop, fermeture menu');
         setSidebarOpen(false);
       }
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    // Debounce le resize pour éviter les appels multiples
+    let timeoutId;
+    const debouncedResize = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(handleResize, 100);
+    };
 
-  // AJOUT : Empêcher le scroll du body quand menu ouvert
+    window.addEventListener('resize', debouncedResize);
+    return () => {
+      window.removeEventListener('resize', debouncedResize);
+      clearTimeout(timeoutId);
+    };
+  }, [sidebarOpen]);
+
+  // CORRECTION : Empêcher le scroll du body ET la fermeture automatique
   useEffect(() => {
+    console.log('🔴 État sidebar changé:', sidebarOpen);
+    
     if (sidebarOpen) {
+      console.log('🔴 Menu ouvert - Bloquer le scroll');
       document.body.style.overflow = 'hidden';
+      // Empêcher la fermeture automatique sur mobile
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
     } else {
+      console.log('🔴 Menu fermé - Débloquer le scroll');
       document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
     }
 
     return () => {
       document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
     };
   }, [sidebarOpen]);
 
@@ -109,7 +134,8 @@ const Layout = ({ children }) => {
     }
   };
 
-  const userIsAdmin = isUserAdmin(user);
+  // CORRECTION : Mémoriser la valeur admin pour éviter les re-renders
+  const userIsAdmin = React.useMemo(() => isUserAdmin(user), [user?.email, user?.role, user?.isAdmin]);
 
   // NAVIGATION DE BASE - DESIGN ORIGINAL
   const navigationSections = [
