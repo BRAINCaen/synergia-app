@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// CORRECTION DU MENU MOBILE - PROBLÈME SIDEBAR
+// LAYOUT ORIGINAL RESTAURÉ + MENU MOBILE CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -87,6 +87,19 @@ const Layout = ({ children }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // AJOUT : Empêcher le scroll du body quand menu ouvert
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [sidebarOpen]);
+
   const handleLogout = async () => {
     try {
       await signOut();
@@ -98,7 +111,7 @@ const Layout = ({ children }) => {
 
   const userIsAdmin = isUserAdmin(user);
 
-  // NAVIGATION DE BASE
+  // NAVIGATION DE BASE - DESIGN ORIGINAL
   const navigationSections = [
     {
       title: 'PRINCIPAL',
@@ -158,10 +171,9 @@ const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
-      {/* SIDEBAR - CORRECTION MOBILE */}
+      {/* SIDEBAR DESKTOP + MOBILE */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 
-        transform transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:static lg:inset-0 lg:transform-none
       `}>
@@ -201,7 +213,7 @@ const Layout = ({ children }) => {
           </div>
         </div>
 
-        {/* Navigation - AJOUT SCROLL */}
+        {/* Navigation avec scroll */}
         <nav className="flex-1 px-3 py-4 overflow-y-auto">
           {allSections.map((section, sectionIndex) => (
             <div key={sectionIndex} className="mb-6">
@@ -218,7 +230,7 @@ const Layout = ({ children }) => {
                     <Link
                       key={itemIndex}
                       to={item.path}
-                      onClick={() => setSidebarOpen(false)} // Fermer le menu après clic
+                      onClick={() => setSidebarOpen(false)} // Fermer après clic
                       className={`
                         group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200
                         ${active
@@ -228,7 +240,8 @@ const Layout = ({ children }) => {
                           : isAdminItem
                             ? 'text-red-300 hover:bg-red-900 hover:text-red-100'
                             : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                      }`}
+                        }
+                      `}
                     >
                       <Icon className={`mr-3 w-5 h-5 flex-shrink-0 ${
                         active
@@ -264,16 +277,27 @@ const Layout = ({ children }) => {
         <div
           className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={() => setSidebarOpen(false)}
+          onTouchStart={(e) => {
+            // Empêcher le scroll sur mobile
+            if (e.target === e.currentTarget) {
+              e.preventDefault();
+            }
+          }}
         />
       )}
 
       {/* CONTENU PRINCIPAL */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header Mobile */}
+        {/* Header Mobile - VISIBLE SEULEMENT SUR MOBILE */}
         <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30">
           <button
-            onClick={() => setSidebarOpen(true)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setSidebarOpen(true);
+            }}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Ouvrir le menu"
           >
             <Menu className="w-6 h-6" />
           </button>
