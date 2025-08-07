@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// MENU MOBILE CORRIGÉ - Plus de fermeture automatique
+// LAYOUT COMPLET AVEC MENU MOBILE CORRIGÉ
 // ==========================================
 
 import React, { useState } from 'react';
@@ -55,12 +55,16 @@ const Layout = ({ children }) => {
   // ÉTAT SIDEBAR SIMPLE - SANS FERMETURE AUTOMATIQUE
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // 🚫 SUPPRIMÉ : Le useEffect qui fermait automatiquement le menu
-  // Plus de fermeture automatique au bout d'une seconde !
+  // 🎯 FERMETURE EXPLICITE DU MENU - Seulement quand l'utilisateur clique sur un lien
+  const handleNavClick = () => {
+    setSidebarOpen(false);
+  };
 
   // Mémoriser admin
   const userIsAdmin = React.useMemo(() => {
-    return isUserAdmin(user);
+    const result = isUserAdmin(user);
+    console.log('👤 Admin check:', result);
+    return result;
   }, [user?.email]);
 
   const handleLogout = async () => {
@@ -70,11 +74,6 @@ const Layout = ({ children }) => {
     } catch (error) {
       console.error('❌ Erreur déconnexion:', error);
     }
-  };
-
-  // 🎯 FERMETURE EXPLICITE DU MENU - Seulement quand l'utilisateur clique sur un lien
-  const handleNavClick = () => {
-    setSidebarOpen(false);
   };
 
   // Vérification route active
