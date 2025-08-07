@@ -27,7 +27,8 @@ import {
   Calendar,
   FileText,
   Shield,
-  Repeat
+  Repeat,
+  Heart
 } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { storageService } from '../../core/services/storageService.js';
@@ -268,7 +269,12 @@ const TaskForm = ({
     recurrenceType: 'none',
     recurrenceInterval: 1,
     recurrenceEndDate: '',
-    maxOccurrences: null
+    maxOccurrences: null,
+    // ✅ NOUVEAU : Système volontaires
+    isOpenToVolunteers: false,
+    volunteerAcceptanceMode: 'manual', // 'manual', 'auto', 'first_come'
+    maxVolunteers: null,
+    volunteerMessage: ''
   });
 
   // ✅ ÉTATS UI COMPLETS
@@ -492,6 +498,18 @@ const TaskForm = ({
           xpMultiplier: RECURRENCE_OPTIONS[formData.recurrenceType]?.multiplier || 1
         } : null,
         
+        // ✅ NOUVEAU : Configuration système volontaires
+        isOpenToVolunteers: formData.isOpenToVolunteers,
+        volunteerSystem: formData.isOpenToVolunteers ? {
+          acceptanceMode: formData.volunteerAcceptanceMode,
+          maxVolunteers: formData.maxVolunteers,
+          message: formData.volunteerMessage,
+          autoAccept: formData.volunteerAcceptanceMode === 'auto',
+          firstComeFirstServe: formData.volunteerAcceptanceMode === 'first_come'
+        } : null,
+        volunteers: [], // Liste des volontaires potentiels
+        volunteerApplications: [], // Demandes de volontariat
+        
         // Horodatage
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -517,7 +535,12 @@ const TaskForm = ({
         recurrenceType: 'none',
         recurrenceInterval: 1,
         recurrenceEndDate: '',
-        maxOccurrences: null
+        maxOccurrences: null,
+        // ✅ NOUVEAU : Reset système volontaires
+        isOpenToVolunteers: false,
+        volunteerAcceptanceMode: 'manual',
+        maxVolunteers: null,
+        volunteerMessage: ''
       });
       setSelectedFile(null);
       setFileType(null);
@@ -676,6 +699,99 @@ const TaskForm = ({
                       <option value="urgent">🚨 Urgente (×2)</option>
                     </select>
                   </div>
+                </div>
+
+                {/* ✅ NOUVEAU : SYSTÈME VOLONTAIRES */}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-green-600" />
+                      <h3 className="font-medium text-gray-900">Système de volontaires</h3>
+                      <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full">Nouveau</span>
+                    </div>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.isOpenToVolunteers}
+                        onChange={(e) => setFormData(prev => ({ ...prev, isOpenToVolunteers: e.target.checked }))}
+                        className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                        disabled={loading || uploading}
+                      />
+                      <span className="text-sm text-gray-700">Ouverte aux volontaires</span>
+                    </label>
+                  </div>
+
+                  {formData.isOpenToVolunteers && (
+                    <div className="space-y-4">
+                      {/* Options avancées de volontariat */}
+                      <div className="grid grid-cols-1 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Mode d'acceptation des volontaires
+                          </label>
+                          <select
+                            value={formData.volunteerAcceptanceMode}
+                            onChange={(e) => setFormData(prev => ({ ...prev, volunteerAcceptanceMode: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            disabled={loading || uploading}
+                          >
+                            <option value="manual">✋ Manuel - Je valide chaque volontaire</option>
+                            <option value="auto">⚡ Automatique - Acceptation immédiate</option>
+                            <option value="first_come">🏃 Premier arrivé, premier servi</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Nombre maximum de volontaires (optionnel)
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={formData.maxVolunteers || ''}
+                            onChange={(e) => setFormData(prev => ({ ...prev, maxVolunteers: e.target.value ? parseInt(e.target.value) : null }))}
+                            placeholder="Ex: 3 personnes max"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            disabled={loading || uploading}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Message pour les volontaires (optionnel)
+                          </label>
+                          <textarea
+                            value={formData.volunteerMessage || ''}
+                            onChange={(e) => setFormData(prev => ({ ...prev, volunteerMessage: e.target.value }))}
+                            placeholder="Ex: Cette tâche nécessite de bonnes compétences en communication..."
+                            rows={2}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                            disabled={loading || uploading}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Aperçu du système */}
+                      <div className="p-3 bg-green-100 border border-green-200 rounded text-sm text-green-800">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Heart className="w-4 h-4" />
+                          <span className="font-medium">Système de volontaires activé</span>
+                        </div>
+                        <ul className="text-xs space-y-1">
+                          <li>• Les membres de l'équipe pourront se porter volontaires</li>
+                          <li>• Mode: {
+                            formData.volunteerAcceptanceMode === 'manual' ? 'Validation manuelle requise' :
+                            formData.volunteerAcceptanceMode === 'auto' ? 'Acceptation automatique' :
+                            'Premier arrivé, premier servi'
+                          }</li>
+                          {formData.maxVolunteers && (
+                            <li>• Maximum: {formData.maxVolunteers} volontaire{formData.maxVolunteers > 1 ? 's' : ''}</li>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* ✅ RÉCURRENCE */}
