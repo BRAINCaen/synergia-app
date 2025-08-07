@@ -197,12 +197,27 @@ const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
-      {/* SIDEBAR DESKTOP + MOBILE */}
+      {/* SIDEBAR DESKTOP + MOBILE - CORRECTION VISIBILITÉ */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 transform transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 shadow-2xl
+        transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0 lg:static lg:inset-0 lg:transform-none
-      `}>
+        lg:translate-x-0 lg:static lg:inset-0 lg:transform-none lg:shadow-none
+      `}
+      style={{
+        // FORCER L'AFFICHAGE SUR MOBILE
+        ...(sidebarOpen && window.innerWidth < 1024 ? {
+          display: 'block',
+          visibility: 'visible',
+          zIndex: 9999,
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          height: '100vh',
+          width: '256px'
+        } : {})
+      }}
+      >
         {/* Header Sidebar */}
         <div className="flex items-center justify-between h-16 px-4 bg-gray-800 flex-shrink-0">
           <div className="flex items-center space-x-3">
@@ -301,10 +316,18 @@ const Layout = ({ children }) => {
         </div>
       </div>
 
-      {/* OVERLAY MOBILE - CORRECTION COMPLÈTE */}
+      {/* OVERLAY MOBILE - Z-INDEX ULTRA-ÉLEVÉ */}
       {sidebarOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50"
+          style={{
+            zIndex: 9998,
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0
+          }}
           onClick={() => {
             console.log('🔴 Overlay cliqué, fermeture du menu');
             setSidebarOpen(false);
