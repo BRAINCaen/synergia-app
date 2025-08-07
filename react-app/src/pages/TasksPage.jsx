@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE GESTION DES TÂCHES - VERSION COMPLÈTE CORRIGÉE
+// PAGE GESTION DES TÂCHES - VERSION COMPLÈTE AVEC FILTRAGE CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -92,7 +92,7 @@ const UserAvatar = ({ user, size = 'md' }) => {
 };
 
 /**
- * 👥 COMPOSANT LISTE DES UTILISATEURS ASSIGNÉS - VERSION CORRIGÉE
+ * 👥 COMPOSANT LISTE DES UTILISATEURS ASSIGNÉS
  */
 const AssignedUsersList = ({ userIds = [], maxDisplay = 3, task = null }) => {
   if (!userIds || userIds.length === 0) {
@@ -103,123 +103,102 @@ const AssignedUsersList = ({ userIds = [], maxDisplay = 3, task = null }) => {
     );
   }
 
-  // ✅ CORRECTION - Utiliser userService uniquement avec gestion sécurisée
+  // Utiliser userService uniquement avec gestion sécurisée
   const users = (Array.isArray(userIds) ? userIds : [userIds])
-    .map(id => {
+    .map(userId => {
       try {
-        if (userService.getUser && typeof userService.getUser === 'function') {
-          return userService.getUser(id);
+        if (userService && userService.users) {
+          return userService.users.find(u => u.id === userId || u.uid === userId);
         }
-        // Fallback : créer un utilisateur générique si service indisponible
-        return {
-          uid: id,
-          displayName: `User ${id.substring(0, 8)}`,
-          email: `user${id.substring(0, 8)}@example.com`
-        };
+        return null;
       } catch (error) {
-        console.error('❌ Erreur récupération utilisateur:', id, error);
-        return {
-          uid: id,
-          displayName: 'Utilisateur',
-          email: 'unknown@example.com'
-        };
+        console.warn('⚠️ Erreur accès userService:', error);
+        return null;
       }
     })
     .filter(Boolean);
 
-  const displayedUsers = users.slice(0, maxDisplay);
-  const remainingCount = users.length - maxDisplay;
+  const displayUsers = users.slice(0, maxDisplay);
+  const remainingCount = Math.max(0, users.length - maxDisplay);
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex -space-x-2">
-        {displayedUsers.map((user, index) => (
-          <div
-            key={user.uid || index}
-            className="relative"
-            title={user.displayName || user.email || 'Utilisateur'}
-          >
-            <UserAvatar user={user} size="sm" />
-          </div>
-        ))}
-        {remainingCount > 0 && (
-          <div className="w-6 h-6 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs font-medium">
-            +{remainingCount}
-          </div>
-        )}
-      </div>
-      {users.length > 0 && (
-        <span className="text-xs text-gray-500">
-          {users.length} assigné{users.length > 1 ? 's' : ''}
-        </span>
+    <div className="flex items-center gap-1">
+      {displayUsers.map((user, index) => (
+        <UserAvatar key={user?.id || user?.uid || index} user={user} size="sm" />
+      ))}
+      {remainingCount > 0 && (
+        <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs text-gray-600">
+          +{remainingCount}
+        </div>
+      )}
+      {users.length === 0 && userIds.length > 0 && (
+        <div className="text-xs text-gray-500">
+          {userIds.length} utilisateur{userIds.length > 1 ? 's' : ''}
+        </div>
       )}
     </div>
   );
 };
 
 /**
- * 🃏 COMPOSANT CARTE DE TÂCHE - VERSION COMPLÈTE
+ * 🎨 UTILITAIRES D'AFFICHAGE
  */
-const TaskCard = ({ task, isMyTask, onEdit, onDelete, onViewDetails, onSubmit }) => {
+const getStatusColor = (status) => {
+  const colors = {
+    pending: 'bg-yellow-100 text-yellow-800',
+    assigned: 'bg-blue-100 text-blue-800',
+    in_progress: 'bg-purple-100 text-purple-800',
+    completed: 'bg-green-100 text-green-800',
+    cancelled: 'bg-red-100 text-red-800'
+  };
+  return colors[status] || 'bg-gray-100 text-gray-800';
+};
+
+const getPriorityColor = (priority) => {
+  const colors = {
+    low: 'text-green-600',
+    medium: 'text-yellow-600', 
+    high: 'text-red-600',
+    urgent: 'text-red-700 font-bold'
+  };
+  return colors[priority] || 'text-gray-600';
+};
+
+const formatDate = (date) => {
+  if (!date) return '';
+  try {
+    const dateObj = date.toDate ? date.toDate() : new Date(date);
+    return dateObj.toLocaleDateString('fr-FR');
+  } catch (error) {
+    return '';
+  }
+};
+
+const canEditTask = (task, user) => {
+  return task.createdBy === user?.uid || user?.role === 'admin';
+};
+
+/**
+ * 📋 COMPOSANT CARTE DE TÂCHE
+ */
+const TaskCard = ({ 
+  task, 
+  isMyTask = false, 
+  onEdit, 
+  onDelete, 
+  onViewDetails, 
+  onSubmit 
+}) => {
   const { user } = useAuthStore();
-  
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'completed': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'in_progress': return <PlayCircle className="w-4 h-4 text-blue-600" />;
-      case 'pending': return <Clock className="w-4 h-4 text-orange-600" />;
-      case 'assigned': return <UserCheck className="w-4 h-4 text-purple-600" />;
-      default: return <AlertCircle className="w-4 h-4 text-gray-400" />;
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
-      case 'pending': return 'bg-orange-100 text-orange-800';
-      case 'assigned': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'high': return 'text-red-600';
-      case 'medium': return 'text-orange-600';
-      case 'low': return 'text-green-600';
-      default: return 'text-gray-600';
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return null;
-    try {
-      const date = dateString.toDate ? dateString.toDate() : new Date(dateString);
-      return date.toLocaleDateString('fr-FR');
-    } catch {
-      return 'Date invalide';
-    }
-  };
-
-  const canEditTask = (task, user) => {
-    if (!user || !task) return false;
-    return task.createdBy === user.uid || (task.assignedTo && task.assignedTo.includes(user.uid));
-  };
 
   return (
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow ${isMyTask ? 'ring-2 ring-blue-100' : ''}`}>
-      {/* Header */}
+    <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-200">
+      {/* En-tête avec statut */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
-            {getStatusIcon(task.status)}
-            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(task.status)}`}>
-              {task.status === 'completed' && 'Terminée'}
-              {task.status === 'in_progress' && 'En cours'}
-              {task.status === 'pending' && 'En attente'}
-              {task.status === 'assigned' && 'Assignée'}
-              {!['completed', 'in_progress', 'pending', 'assigned'].includes(task.status) && (task.status || 'Non défini')}
+            <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(task.status)}`}>
+              {['completed', 'in_progress', 'pending', 'assigned'].includes(task.status) && (task.status || 'Non défini')}
             </span>
             {task.priority && (
               <span className={`text-xs font-medium ${getPriorityColor(task.priority)}`}>
@@ -340,20 +319,31 @@ const TaskCard = ({ task, isMyTask, onEdit, onDelete, onViewDetails, onSubmit })
 };
 
 /**
- * 📋 COMPOSANT PRINCIPAL TASKSPAGE - VERSION COMPLÈTE CORRIGÉE
+ * 📋 COMPOSANT PRINCIPAL TASKSPAGE - VERSION COMPLÈTE AVEC FILTRAGE CORRIGÉ
  */
 export default function TasksPage() {
   const { user } = useAuthStore();
   
-  // États
+  // États principaux
   const [loading, setLoading] = useState(true);
   const [myTasks, setMyTasks] = useState([]);
   const [availableTasks, setAvailableTasks] = useState([]);
   const [otherTasks, setOtherTasks] = useState([]);
   const [activeTab, setActiveTab] = useState('my_tasks');
+  
+  // États des modals
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showCollaborationModal, setShowCollaborationModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  
+  // États des filtres
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  
+  // États statistiques
   const [taskStats, setTaskStats] = useState({
     myTotal: 0,
     myCompleted: 0,
@@ -362,66 +352,47 @@ export default function TasksPage() {
     availableTotal: 0
   });
 
-  // Modals
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showCollaborationModal, setShowCollaborationModal] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
-
   /**
-   * 📥 CHARGEMENT DE TOUTES LES TÂCHES - VERSION COMPLÈTE CORRIGÉE
+   * 📊 CHARGEMENT ET FILTRAGE CORRIGÉ DES TÂCHES
    */
   const loadAllTasks = async () => {
     if (!user?.uid) {
-      console.error('❌ Aucun utilisateur connecté');
+      console.log('⚠️ Utilisateur non connecté, arrêt du chargement');
+      setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      console.log('🔍 DEBUG - Début du chargement des tâches pour:', user.uid);
-      
-      // 1. Vérifier Firebase
-      console.log('🔍 DEBUG - Vérification de la connexion Firebase...');
-      if (!db) {
-        console.error('❌ Firebase db non initialisé');
-        return;
-      }
-      
-      // ✅ CORRECTION - Charger les utilisateurs avec userService uniquement et gestion sécurisée
-      if (userService.getAllUsers && typeof userService.getAllUsers === 'function') {
-        try {
-          const existingUsers = await userService.getAllUsers();
-          if (!existingUsers || existingUsers.length === 0) {
-            console.log('🔍 DEBUG - Chargement des utilisateurs...');
-            if (userService.loadAllUsers && typeof userService.loadAllUsers === 'function') {
-              await userService.loadAllUsers();
-              const loadedUsers = await userService.getAllUsers();
-              console.log('✅ Utilisateurs chargés:', loadedUsers ? loadedUsers.length : 0);
-            } else {
-              console.log('⚠️ UserService.loadAllUsers non disponible, continuer sans chargement');
+      console.log('📊 [LOAD_TASKS] Début du chargement pour utilisateur:', user.uid);
+
+      // 1. Chargement des utilisateurs (optionnel)
+      try {
+        if (userService && typeof userService.getAllUsers === 'function') {
+          const existingUsers = userService.users || [];
+          if (existingUsers.length === 0) {
+            console.log('👥 Chargement des utilisateurs...');
+            if (typeof userService.loadAllUsers === 'function') {
+              const loadedUsers = await userService.loadAllUsers();
+              console.log('✅ Utilisateurs chargés:', loadedUsers?.length || 0);
             }
           } else {
             console.log('✅ Utilisateurs déjà en cache:', existingUsers.length);
           }
-        } catch (error) {
-          console.error('❌ Erreur chargement utilisateurs:', error);
-          console.log('🔄 Continuer le chargement des tâches sans les utilisateurs');
         }
-      } else {
-        console.log('⚠️ UserService.getAllUsers non disponible, continuer sans utilisateurs');
+      } catch (error) {
+        console.error('❌ Erreur chargement utilisateurs:', error);
       }
 
-      // 3. Requête Firebase avec debug
-      console.log('🔍 DEBUG - Exécution de la requête Firebase...');
+      // 2. Requête Firebase
+      console.log('🔍 Exécution de la requête Firebase...');
       const tasksQuery = query(
         collection(db, 'tasks'),
         orderBy('createdAt', 'desc')
       );
       
       const tasksSnapshot = await getDocs(tasksQuery);
-      console.log('🔍 DEBUG - Nombre de tâches récupérées depuis Firebase:', tasksSnapshot.size);
+      console.log('🔍 Nombre de tâches récupérées depuis Firebase:', tasksSnapshot.size);
       
       const allTasks = [];
       tasksSnapshot.forEach(doc => {
@@ -440,60 +411,76 @@ export default function TasksPage() {
         });
       });
 
-      console.log('🔍 DEBUG - Total tâches récupérées:', allTasks.length);
+      console.log('🔍 Total tâches récupérées:', allTasks.length);
 
-      // 4. Filtrage avec debug
-      console.log('🔍 DEBUG - Filtrage des tâches pour utilisateur:', user.uid);
+      // ✅ 3. NOUVEAU FILTRAGE CORRIGÉ SELON TES SPÉCIFICATIONS
+      console.log('🔍 Filtrage des tâches selon les nouvelles règles...');
       
+      // MES TACHES : uniquement les tâches assignées à l'utilisateur
       const myTasks = allTasks.filter(task => {
-        const isAssigned = task.assignedTo?.includes?.(user.uid) || task.assignedTo === user.uid;
-        const isCreator = task.createdBy === user.uid;
-        const result = isAssigned || isCreator;
+        // Vérifier si l'utilisateur est dans assignedTo (array ou string)
+        const isAssignedToMe = Array.isArray(task.assignedTo) 
+          ? task.assignedTo.includes(user.uid)
+          : task.assignedTo === user.uid;
         
-        if (result) {
-          console.log('✅ Tâche utilisateur trouvée:', task.title);
+        if (isAssignedToMe) {
+          console.log('✅ MA TÂCHE:', task.title);
         }
         
-        return result;
+        return isAssignedToMe;
       });
 
+      // TACHES DISPONIBLES : toutes les tâches NON assignées (peu importe qui les a créées)
       const availableTasks = allTasks.filter(task => {
-        const isAvailable = task.isAvailable === true || (!task.assignedTo || task.assignedTo.length === 0);
-        const isNotMine = task.createdBy !== user.uid;
-        const result = isAvailable && isNotMine;
+        // Tâche non assignée = pas d'assignedTo ou assignedTo vide
+        const isUnassigned = !task.assignedTo || 
+                            (Array.isArray(task.assignedTo) && task.assignedTo.length === 0) ||
+                            (typeof task.assignedTo === 'string' && task.assignedTo.trim() === '');
         
-        if (result) {
-          console.log('✅ Tâche disponible trouvée:', task.title);
+        if (isUnassigned) {
+          console.log('✅ TÂCHE DISPONIBLE:', task.title, '(créée par:', task.createdBy, ')');
         }
         
-        return result;
+        return isUnassigned;
       });
 
+      // AUTRES TACHES : assignées à d'autres utilisateurs (pas à moi)
       const otherTasks = allTasks.filter(task => {
-        const isNotMine = task.createdBy !== user.uid;
-        const isNotAssignedToMe = !task.assignedTo?.includes?.(user.uid) && task.assignedTo !== user.uid;
-        const isNotAvailable = !(task.isAvailable === true || (!task.assignedTo || task.assignedTo.length === 0));
-        const result = isNotMine && isNotAssignedToMe && isNotAvailable;
+        // Tâche assignée mais pas à moi
+        const isAssigned = task.assignedTo && 
+                          ((Array.isArray(task.assignedTo) && task.assignedTo.length > 0) ||
+                           (typeof task.assignedTo === 'string' && task.assignedTo.trim() !== ''));
         
-        return result;
+        const isNotAssignedToMe = Array.isArray(task.assignedTo) 
+          ? !task.assignedTo.includes(user.uid)
+          : task.assignedTo !== user.uid;
+        
+        const isOtherTask = isAssigned && isNotAssignedToMe;
+        
+        if (isOtherTask) {
+          console.log('✅ AUTRE TÂCHE:', task.title, '(assignée à:', task.assignedTo, ')');
+        }
+        
+        return isOtherTask;
       });
 
-      console.log('📊 Résultat filtrage:', {
+      console.log('📊 RÉSULTAT FILTRAGE CORRIGÉ:', {
         myTasks: myTasks.length,
         availableTasks: availableTasks.length,
         otherTasks: otherTasks.length,
-        total: allTasks.length
+        total: allTasks.length,
+        verification: myTasks.length + availableTasks.length + otherTasks.length
       });
 
-      // 5. Mettre à jour les états
+      // 4. Mettre à jour les états
       setMyTasks(myTasks);
       setAvailableTasks(availableTasks);
       setOtherTasks(otherTasks);
       
-      // 6. Calculer les statistiques
+      // 5. Calculer les statistiques
       calculateStats(myTasks, availableTasks);
       
-      console.log('✅ Chargement des tâches terminé avec succès');
+      console.log('✅ Chargement des tâches terminé avec la nouvelle logique');
 
     } catch (error) {
       console.error('❌ ERREUR CRITIQUE - Chargement des tâches:', error);
@@ -726,16 +713,16 @@ export default function TasksPage() {
           </div>
         </div>
 
-        {/* FILTRES ET RECHERCHE */}
+        {/* BARRE DE RECHERCHE ET FILTRES */}
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            {/* Barre de recherche */}
-            <div className="flex-1 max-w-md">
+            {/* Recherche */}
+            <div className="flex-1 max-w-lg">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
                   type="text"
-                  placeholder="Rechercher des tâches..."
+                  placeholder="Rechercher une tâche..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -771,7 +758,7 @@ export default function TasksPage() {
           </div>
         </div>
 
-        {/* ONGLETS */}
+        {/* ONGLETS CORRIGÉS */}
         <div className="bg-white rounded-lg shadow mb-8">
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8 px-6">
@@ -787,6 +774,9 @@ export default function TasksPage() {
                   <User className="h-4 w-4" />
                   Mes Tâches ({myTasks.length})
                 </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  Tâches assignées à moi
+                </div>
               </button>
 
               <button
@@ -800,6 +790,9 @@ export default function TasksPage() {
                 <div className="flex items-center gap-2">
                   <Heart className="h-4 w-4" />
                   Tâches Disponibles ({availableTasks.length})
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  Tâches non assignées
                 </div>
               </button>
 
@@ -815,17 +808,25 @@ export default function TasksPage() {
                   <Users className="h-4 w-4" />
                   Autres Tâches ({otherTasks.length})
                 </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  Assignées à d'autres
+                </div>
               </button>
             </nav>
           </div>
 
-          {/* CONTENU DES ONGLETS */}
+          {/* CONTENU DES ONGLETS AVEC MESSAGES CLARIFIÉS */}
           {activeTab === 'my_tasks' && (
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Mes Tâches ({getFilteredTasks(myTasks).length})
-                </h2>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Mes Tâches ({getFilteredTasks(myTasks).length})
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    Tâches qui vous sont assignées
+                  </p>
+                </div>
                 <button
                   onClick={() => setShowCollaborationModal(true)}
                   className="flex items-center px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
@@ -843,7 +844,7 @@ export default function TasksPage() {
                   </h3>
                   <p className="text-gray-500">
                     {myTasks.length === 0 
-                      ? 'Créez une nouvelle tâche ou prenez une tâche disponible !'
+                      ? 'Prenez une tâche disponible ou demandez une assignation !'
                       : 'Essayez de modifier vos filtres de recherche.'
                     }
                   </p>
@@ -872,9 +873,14 @@ export default function TasksPage() {
           {activeTab === 'available_tasks' && (
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Tâches Disponibles ({getFilteredTasks(availableTasks).length})
-                </h2>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Tâches Disponibles ({getFilteredTasks(availableTasks).length})
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    Tâches non assignées, ouvertes à tous
+                  </p>
+                </div>
                 <span className="text-sm text-gray-500">
                   Cliquez pour vous porter volontaire
                 </span>
@@ -888,7 +894,7 @@ export default function TasksPage() {
                   </h3>
                   <p className="text-gray-500">
                     {availableTasks.length === 0 
-                      ? 'Il n\'y a pas de tâches disponibles pour le volontariat.'
+                      ? 'Toutes les tâches sont assignées ou créez-en une nouvelle !'
                       : 'Essayez de modifier vos filtres de recherche.'
                     }
                   </p>
@@ -911,20 +917,25 @@ export default function TasksPage() {
           {activeTab === 'other_tasks' && (
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Autres Tâches ({getFilteredTasks(otherTasks).length})
-                </h2>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Autres Tâches ({getFilteredTasks(otherTasks).length})
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    Tâches assignées à d'autres membres de l'équipe
+                  </p>
+                </div>
               </div>
 
               {getFilteredTasks(otherTasks).length === 0 ? (
                 <div className="bg-white rounded-lg shadow p-12 text-center">
                   <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    {otherTasks.length === 0 ? 'Aucune autre tâche' : 'Aucune tâche ne correspond aux filtres'}
+                    {otherTasks.length === 0 ? 'Aucune autre tâche assignée' : 'Aucune tâche ne correspond aux filtres'}
                   </h3>
                   <p className="text-gray-500">
                     {otherTasks.length === 0 
-                      ? 'Il n\'y a pas d\'autres tâches à afficher.'
+                      ? 'Toutes les tâches sont soit disponibles, soit vous sont assignées.'
                       : 'Essayez de modifier vos filtres de recherche.'
                     }
                   </p>
