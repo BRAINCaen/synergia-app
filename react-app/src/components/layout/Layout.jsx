@@ -190,13 +190,110 @@ const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
-      {/* SIDEBAR DESKTOP + MOBILE - CORRECTION SIMPLE */}
-      <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 shadow-2xl
-        transform transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0 lg:static lg:inset-0 lg:transform-none lg:shadow-none
-      `}>
+      {/* SIDEBAR MOBILE SÉPARÉE - AFFICHAGE CONDITIONNEL */}
+      {sidebarOpen && (
+        <div className="lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 shadow-2xl">
+          {/* Header Sidebar Mobile */}
+          <div className="flex items-center justify-between h-16 px-4 bg-gray-800 flex-shrink-0">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Zap className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <span className="text-white font-semibold">Synergia</span>
+                {userIsAdmin && <span className="text-red-400 text-xs ml-2">ADMIN</span>}
+              </div>
+            </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Info Utilisateur Mobile */}
+          <div className="p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">
+                {user?.email?.[0]?.toUpperCase() || '?'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">
+                  {user?.displayName || user?.email || 'Utilisateur'}
+                </p>
+                <p className="text-xs text-gray-400 truncate">
+                  {userIsAdmin ? 'Administrateur' : 'Membre'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation Mobile */}
+          <nav className="flex-1 px-3 py-4 overflow-y-auto">
+            {allSections.map((section, sectionIndex) => (
+              <div key={sectionIndex} className="mb-6">
+                <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                  {section.title}
+                </h3>
+                <div className="space-y-1">
+                  {section.items.map((item, itemIndex) => {
+                    const Icon = item.icon;
+                    const active = isActive(item.path);
+                    const isAdminItem = section.title === 'ADMINISTRATION';
+
+                    return (
+                      <Link
+                        key={itemIndex}
+                        to={item.path}
+                        onClick={() => {
+                          console.log('🔴 Lien cliqué:', item.label);
+                          setTimeout(() => setSidebarOpen(false), 100);
+                        }}
+                        className={`
+                          group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200
+                          ${active
+                            ? isAdminItem
+                              ? 'bg-red-900 text-red-100'
+                              : 'bg-blue-900 text-blue-100'
+                            : isAdminItem
+                              ? 'text-red-300 hover:bg-red-900 hover:text-red-100'
+                              : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                          }
+                        `}
+                      >
+                        <Icon className={`mr-3 w-5 h-5 flex-shrink-0 ${
+                          active
+                            ? isAdminItem ? 'text-red-300' : 'text-blue-300'
+                            : isAdminItem ? 'text-red-400' : 'text-gray-400'
+                        }`} />
+                        <span className="truncate">{item.label}</span>
+                        {isAdminItem && (
+                          <Shield className="w-3 h-3 ml-auto text-red-400 flex-shrink-0" />
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
+
+          {/* Déconnexion Mobile */}
+          <div className="flex-shrink-0 w-full p-4 border-t border-gray-700 bg-gray-800">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center px-2 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors"
+            >
+              <LogOut className="mr-3 w-5 h-5 text-gray-400" />
+              <span>Déconnexion</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* SIDEBAR DESKTOP UNIQUEMENT */}
+      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-gray-900">
         {/* Header Sidebar */}
         <div className="flex items-center justify-between h-16 px-4 bg-gray-800 flex-shrink-0">
           <div className="flex items-center space-x-3">
