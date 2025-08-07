@@ -190,9 +190,15 @@ const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
-      {/* SIDEBAR MOBILE SÉPARÉE - AFFICHAGE CONDITIONNEL */}
+      {/* SIDEBAR MOBILE SÉPARÉE - AVEC PROTECTION CLICK */}
       {sidebarOpen && (
-        <div className="lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 shadow-2xl">
+        <div 
+          className="lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 shadow-2xl"
+          onClick={(e) => {
+            // Empêcher la fermeture quand on clique dans la sidebar
+            e.stopPropagation();
+          }}
+        >
           {/* Header Sidebar Mobile */}
           <div className="flex items-center justify-between h-16 px-4 bg-gray-800 flex-shrink-0">
             <div className="flex items-center space-x-3">
@@ -392,13 +398,20 @@ const Layout = ({ children }) => {
         </div>
       </div>
 
-      {/* OVERLAY MOBILE - VERSION SIMPLE */}
+      {/* OVERLAY MOBILE - DÉLAI POUR ÉVITER FERMETURE IMMÉDIATE */}
       {sidebarOpen && (
         <div
           className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
-          onClick={() => {
+          onClick={(e) => {
+            // Éviter la fermeture immédiate
+            e.preventDefault();
+            e.stopPropagation();
             console.log('🔴 Overlay cliqué, fermeture du menu');
             setSidebarOpen(false);
+          }}
+          onMouseDown={(e) => {
+            // Empêcher la propagation sur mousedown aussi
+            e.stopPropagation();
           }}
         />
       )}
@@ -408,11 +421,14 @@ const Layout = ({ children }) => {
         {/* Header Mobile - VISIBLE SEULEMENT SUR MOBILE */}
         <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30">
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
               console.log('🔴 Bouton menu cliqué, état actuel:', sidebarOpen);
               setSidebarOpen(prev => {
-                console.log('🔴 Changement état:', prev, '→', !prev);
-                return !prev;
+                const newValue = !prev;
+                console.log('🔴 Changement état:', prev, '→', newValue);
+                return newValue;
               });
             }}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
