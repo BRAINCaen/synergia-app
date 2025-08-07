@@ -324,12 +324,13 @@ const Layout = ({ children }) => {
           onClick={closeSidebar}
         />
 
-        {/* SIDEBAR MOBILE - VERSION FINALE FONCTIONNELLE */}
+        {/* SIDEBAR MOBILE - COULEURS FORCÉES AVEC CSS INLINE */}
         <div 
-          className={`lg:hidden fixed inset-y-0 left-0 w-64 bg-gray-900 shadow-2xl transform transition-transform duration-300 ease-in-out ${
+          className={`lg:hidden fixed inset-y-0 left-0 w-64 shadow-2xl transform transition-transform duration-300 ease-in-out ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
           style={{
+            backgroundColor: '#1f2937', // Gris foncé forcé
             zIndex: 9999,
             position: 'fixed',
             top: 0,
@@ -339,9 +340,9 @@ const Layout = ({ children }) => {
           }}
         >
           {/* Header Sidebar Mobile */}
-          <div className="flex items-center justify-between h-16 px-4 bg-gray-800">
+          <div className="flex items-center justify-between h-16 px-4" style={{ backgroundColor: '#374151' }}>
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(45deg, #3b82f6, #8b5cf6)' }}>
                 <Zap className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -351,16 +352,19 @@ const Layout = ({ children }) => {
             </div>
             <button 
               onClick={closeSidebar} 
-              className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-700 transition-colors"
+              className="text-gray-400 hover:text-white p-1 rounded-lg transition-colors"
+              style={{ backgroundColor: 'transparent' }}
+              onMouseOver={(e) => e.target.style.backgroundColor = '#4b5563'}
+              onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Info Utilisateur Mobile */}
-          <div className="p-4 bg-gray-800 border-b border-gray-700">
+          <div className="p-4 border-b" style={{ backgroundColor: '#374151', borderBottomColor: '#4b5563' }}>
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">
+              <div className="w-8 h-8 text-white rounded-full flex items-center justify-center text-sm font-medium" style={{ backgroundColor: '#3b82f6' }}>
                 {user?.email?.[0]?.toUpperCase() || '?'}
               </div>
               <div className="flex-1 min-w-0">
@@ -395,13 +399,27 @@ const Layout = ({ children }) => {
                           console.log('🔴 Lien cliqué:', item.label);
                           setTimeout(closeSidebar, 100);
                         }}
-                        className={`
-                          group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
-                          ${active
-                            ? isAdminItem ? 'bg-red-900 text-red-100' : 'bg-blue-900 text-blue-100'
-                            : isAdminItem ? 'text-red-300 hover:bg-red-900 hover:text-red-100' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                        className="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
+                        style={{
+                          backgroundColor: active 
+                            ? (isAdminItem ? '#7f1d1d' : '#1e3a8a')
+                            : 'transparent',
+                          color: active 
+                            ? (isAdminItem ? '#fecaca' : '#bfdbfe')
+                            : (isAdminItem ? '#fca5a5' : '#d1d5db')
+                        }}
+                        onMouseOver={(e) => {
+                          if (!active) {
+                            e.target.style.backgroundColor = isAdminItem ? '#7f1d1d' : '#374151';
+                            e.target.style.color = isAdminItem ? '#fecaca' : '#ffffff';
                           }
-                        `}
+                        }}
+                        onMouseOut={(e) => {
+                          if (!active) {
+                            e.target.style.backgroundColor = 'transparent';
+                            e.target.style.color = isAdminItem ? '#fca5a5' : '#d1d5db';
+                          }
+                        }}
                       >
                         <Icon className={`mr-3 w-5 h-5 ${
                           active
@@ -419,10 +437,19 @@ const Layout = ({ children }) => {
           </nav>
 
           {/* Déconnexion Mobile */}
-          <div className="p-4 border-t border-gray-700 bg-gray-800">
+          <div className="p-4 border-t" style={{ borderTopColor: '#4b5563', backgroundColor: '#374151' }}>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center px-2 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors"
+              className="w-full flex items-center px-2 py-2 text-sm font-medium text-gray-300 rounded-md transition-colors"
+              style={{ backgroundColor: 'transparent' }}
+              onMouseOver={(e) => {
+                e.target.style.backgroundColor = '#4b5563';
+                e.target.style.color = '#ffffff';
+              }}
+              onMouseOut={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#d1d5db';
+              }}
             >
               <LogOut className="mr-3 w-5 h-5 text-gray-400" />
               <span>Déconnexion</span>
