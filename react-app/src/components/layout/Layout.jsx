@@ -101,16 +101,25 @@ const Layout = ({ children }) => {
     };
   }, [sidebarOpen]);
 
-  // CORRECTION SIMPLE : Juste bloquer le scroll sans position fixed
+  // CORRECTION : Gérer le scroll et nettoyer l'état
   useEffect(() => {
     console.log('🔴 État sidebar changé:', sidebarOpen);
     
     if (sidebarOpen) {
       console.log('🔴 Menu ouvert - Bloquer le scroll seulement');
       document.body.style.overflow = 'hidden';
+      // Forcer un re-render pour s'assurer que l'overlay et la sidebar sont synchronisés
+      setTimeout(() => {
+        if (!sidebarOpen) {
+          console.log('🔴 Menu fermé pendant le timeout, nettoyage');
+          document.body.style.overflow = '';
+        }
+      }, 50);
     } else {
-      console.log('🔴 Menu fermé - Débloquer le scroll');
+      console.log('🔴 Menu fermé - Débloquer le scroll et nettoyer');
       document.body.style.overflow = '';
+      // Forcer le nettoyage de l'état
+      document.body.className = document.body.className.replace(/sidebar-open/g, '');
     }
 
     return () => {
@@ -190,14 +199,14 @@ const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
-      {/* SIDEBAR MOBILE SÉPARÉE - AVEC PROTECTION CLICK */}
-      {sidebarOpen && (
+      {/* SIDEBAR MOBILE SÉPARÉE - RENDU CONDITIONNEL STRICT */}
+      {sidebarOpen ? (
         <div 
           className="lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 shadow-2xl"
           onClick={(e) => {
-            // Empêcher la fermeture quand on clique dans la sidebar
             e.stopPropagation();
           }}
+          style={{ display: sidebarOpen ? 'block' : 'none' }}
         >
           {/* Header Sidebar Mobile */}
           <div className="flex items-center justify-between h-16 px-4 bg-gray-800 flex-shrink-0">
@@ -296,7 +305,7 @@ const Layout = ({ children }) => {
             </button>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* SIDEBAR DESKTOP UNIQUEMENT */}
       <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-gray-900">
@@ -398,23 +407,21 @@ const Layout = ({ children }) => {
         </div>
       </div>
 
-      {/* OVERLAY MOBILE - DÉLAI POUR ÉVITER FERMETURE IMMÉDIATE */}
-      {sidebarOpen && (
+      {/* OVERLAY MOBILE - NETTOYAGE FORCÉ */}
+      {sidebarOpen ? (
         <div
           className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={(e) => {
-            // Éviter la fermeture immédiate
             e.preventDefault();
             e.stopPropagation();
             console.log('🔴 Overlay cliqué, fermeture du menu');
             setSidebarOpen(false);
           }}
           onMouseDown={(e) => {
-            // Empêcher la propagation sur mousedown aussi
             e.stopPropagation();
           }}
         />
-      )}
+      ) : null}
 
       {/* CONTENU PRINCIPAL */}
       <div className="flex-1 flex flex-col min-w-0">
