@@ -230,7 +230,10 @@ const Layout = ({ children }) => {
                     <Link
                       key={itemIndex}
                       to={item.path}
-                      onClick={() => setSidebarOpen(false)} // Fermer après clic
+                      onClick={() => {
+                        console.log('🔴 Lien cliqué:', item.label);
+                        setTimeout(() => setSidebarOpen(false), 100);
+                      }}
                       className={`
                         group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200
                         ${active
@@ -272,16 +275,13 @@ const Layout = ({ children }) => {
         </div>
       </div>
 
-      {/* OVERLAY MOBILE - CORRECTION Z-INDEX */}
+      {/* OVERLAY MOBILE - CORRECTION COMPLÈTE */}
       {sidebarOpen && (
         <div
           className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
-          onClick={() => setSidebarOpen(false)}
-          onTouchStart={(e) => {
-            // Empêcher le scroll sur mobile
-            if (e.target === e.currentTarget) {
-              e.preventDefault();
-            }
+          onClick={() => {
+            console.log('🔴 Overlay cliqué, fermeture du menu');
+            setSidebarOpen(false);
           }}
         />
       )}
@@ -291,13 +291,16 @@ const Layout = ({ children }) => {
         {/* Header Mobile - VISIBLE SEULEMENT SUR MOBILE */}
         <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30">
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setSidebarOpen(true);
+            onClick={() => {
+              console.log('🔴 Bouton menu cliqué, état actuel:', sidebarOpen);
+              setSidebarOpen(prev => {
+                console.log('🔴 Changement état:', prev, '→', !prev);
+                return !prev;
+              });
             }}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
             aria-label="Ouvrir le menu"
+            type="button"
           >
             <Menu className="w-6 h-6" />
           </button>
