@@ -324,42 +324,244 @@ const Layout = ({ children }) => {
           onClick={closeSidebar}
         />
 
-        {/* SIDEBAR MOBILE - VERSION MINIMALISTE SANS TRANSITION */}
+        {/* SIDEBAR MOBILE - VERSION FINALE FONCTIONNELLE */}
         {sidebarOpen && (
           <div 
             style={{
               position: 'fixed',
               top: 0,
               left: 0,
-              width: '300px',
+              width: '280px',
               height: '100vh',
-              backgroundColor: '#ff0000',
+              backgroundColor: '#1f2937',
               zIndex: 99999,
               display: 'block',
-              visibility: 'visible'
+              visibility: 'visible',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.5)'
             }}
           >
-            <div style={{ padding: '20px', backgroundColor: '#000000', color: '#ffffff' }}>
-              <h1>MENU MOBILE</h1>
+            {/* Header */}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              height: '64px', 
+              padding: '0 16px', 
+              backgroundColor: '#374151',
+              borderBottom: '1px solid #4b5563'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  background: 'linear-gradient(45deg, #3b82f6, #8b5cf6)',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Zap style={{ width: '20px', height: '20px', color: '#ffffff' }} />
+                </div>
+                <div>
+                  <span style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '18px' }}>Synergia</span>
+                  {userIsAdmin && <span style={{ color: '#f87171', fontSize: '10px', marginLeft: '8px' }}>ADMIN</span>}
+                </div>
+              </div>
               <button 
                 onClick={() => setSidebarOpen(false)}
                 style={{ 
-                  backgroundColor: '#ffffff', 
-                  color: '#000000', 
-                  padding: '10px 20px',
+                  backgroundColor: 'transparent',
                   border: 'none',
-                  marginTop: '10px',
+                  color: '#9ca3af',
+                  padding: '8px',
+                  borderRadius: '6px',
                   cursor: 'pointer'
                 }}
+                onMouseOver={(e) => {
+                  e.target.style.backgroundColor = '#4b5563';
+                  e.target.style.color = '#ffffff';
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.color = '#9ca3af';
+                }}
               >
-                FERMER
+                <X style={{ width: '20px', height: '20px' }} />
               </button>
-              <div style={{ marginTop: '20px' }}>
-                <p style={{ color: '#ffffff' }}>Dashboard</p>
-                <p style={{ color: '#ffffff' }}>Tâches</p>
-                <p style={{ color: '#ffffff' }}>Projets</p>
-                <p style={{ color: '#ffffff' }}>Analytics</p>
+            </div>
+
+            {/* Info Utilisateur */}
+            <div style={{ 
+              padding: '16px', 
+              backgroundColor: '#374151',
+              borderBottom: '1px solid #4b5563'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  backgroundColor: '#3b82f6',
+                  color: '#ffffff',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '14px',
+                  fontWeight: 'bold'
+                }}>
+                  {user?.email?.[0]?.toUpperCase() || '?'}
+                </div>
+                <div>
+                  <p style={{ 
+                    color: '#ffffff', 
+                    fontSize: '14px', 
+                    fontWeight: '500', 
+                    margin: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    maxWidth: '180px'
+                  }}>
+                    {user?.displayName || user?.email || 'Utilisateur'}
+                  </p>
+                  <p style={{ 
+                    color: '#9ca3af', 
+                    fontSize: '12px', 
+                    margin: 0 
+                  }}>
+                    {userIsAdmin ? 'Administrateur' : 'Membre'}
+                  </p>
+                </div>
               </div>
+            </div>
+
+            {/* Navigation */}
+            <div style={{ 
+              flex: 1, 
+              padding: '16px 12px',
+              overflow: 'auto',
+              height: 'calc(100vh - 200px)'
+            }}>
+              {allSections.map((section, sectionIndex) => (
+                <div key={sectionIndex} style={{ marginBottom: '24px' }}>
+                  <h3 style={{
+                    color: '#9ca3af',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    margin: '0 0 12px 12px'
+                  }}>
+                    {section.title}
+                  </h3>
+                  <div>
+                    {section.items.map((item, itemIndex) => {
+                      const Icon = item.icon;
+                      const active = isActive(item.path);
+                      const isAdminItem = section.title === 'ADMINISTRATION';
+
+                      return (
+                        <Link
+                          key={itemIndex}
+                          to={item.path}
+                          onClick={() => {
+                            console.log('🔴 Navigation vers:', item.label);
+                            setTimeout(() => setSidebarOpen(false), 150);
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '10px 12px',
+                            margin: '2px 0',
+                            borderRadius: '8px',
+                            textDecoration: 'none',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            transition: 'all 0.2s ease',
+                            backgroundColor: active 
+                              ? (isAdminItem ? '#7f1d1d' : '#1e3a8a')
+                              : 'transparent',
+                            color: active 
+                              ? '#ffffff'
+                              : (isAdminItem ? '#fca5a5' : '#d1d5db')
+                          }}
+                          onMouseOver={(e) => {
+                            if (!active) {
+                              e.target.style.backgroundColor = isAdminItem ? '#991b1b' : '#374151';
+                              e.target.style.color = '#ffffff';
+                            }
+                          }}
+                          onMouseOut={(e) => {
+                            if (!active) {
+                              e.target.style.backgroundColor = 'transparent';
+                              e.target.style.color = isAdminItem ? '#fca5a5' : '#d1d5db';
+                            }
+                          }}
+                        >
+                          <Icon style={{
+                            width: '18px',
+                            height: '18px',
+                            marginRight: '12px',
+                            color: active
+                              ? (isAdminItem ? '#fca5a5' : '#93c5fd')
+                              : (isAdminItem ? '#f87171' : '#9ca3af')
+                          }} />
+                          <span style={{ flex: 1 }}>{item.label}</span>
+                          {isAdminItem && (
+                            <Shield style={{
+                              width: '14px',
+                              height: '14px',
+                              color: '#f87171',
+                              marginLeft: '8px'
+                            }} />
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Déconnexion */}
+            <div style={{
+              padding: '16px',
+              borderTop: '1px solid #4b5563',
+              backgroundColor: '#374151'
+            }}>
+              <button
+                onClick={handleLogout}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '10px 12px',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#d1d5db',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => {
+                  e.target.style.backgroundColor = '#4b5563';
+                  e.target.style.color = '#ffffff';
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.color = '#d1d5db';
+                }}
+              >
+                <LogOut style={{ 
+                  width: '18px', 
+                  height: '18px', 
+                  marginRight: '12px',
+                  color: '#9ca3af'
+                }} />
+                <span>Déconnexion</span>
+              </button>
             </div>
           </div>
         )}
