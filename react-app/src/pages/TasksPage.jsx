@@ -175,7 +175,19 @@ const formatDate = (date) => {
 };
 
 const canEditTask = (task, user) => {
-  return task.createdBy === user?.uid || user?.role === 'admin';
+  if (!task || !user) return false;
+  
+  // Debug pour voir les valeurs
+  console.log('🔍 Vérification permissions édition:', {
+    taskId: task.id,
+    taskCreatedBy: task.createdBy,
+    userId: user.uid,
+    userRole: user.role,
+    isCreator: task.createdBy === user.uid,
+    isAdmin: user.role === 'admin' || user.isAdmin
+  });
+  
+  return task.createdBy === user.uid || user.role === 'admin' || user.isAdmin;
 };
 
 /**
@@ -276,6 +288,7 @@ const TaskCard = ({
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Boutons d'action - TOUJOURS AFFICHÉS POUR DEBUG */}
           <button 
             className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
             title="Voir les détails"
@@ -294,23 +307,41 @@ const TaskCard = ({
             </button>
           )}
           
-          {canEditTask(task, user) && (
+          {/* ✅ CORRECTION : Affichage conditionnel des boutons avec debug */}
+          {(() => {
+            const canEdit = canEditTask(task, user);
+            console.log('🔍 Boutons édition - canEdit:', canEdit, 'pour tâche:', task.title);
+            return canEdit;
+          })() && (
             <>
               <button 
                 className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                 title="Modifier"
-                onClick={() => onEdit && onEdit(task)}
+                onClick={() => {
+                  console.log('✏️ Clic modifier tâche:', task.title);
+                  onEdit && onEdit(task);
+                }}
               >
                 <Edit className="w-4 h-4" />
               </button>
               <button 
                 className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                 title="Supprimer"
-                onClick={() => onDelete && onDelete(task)}
+                onClick={() => {
+                  console.log('🗑️ Clic supprimer tâche:', task.title);
+                  onDelete && onDelete(task);
+                }}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
             </>
+          )}
+          
+          {/* ✅ DEBUG : Afficher info si pas de boutons */}
+          {!canEditTask(task, user) && (
+            <div className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded">
+              Debug: Pas d'autorisation d'édition
+            </div>
           )}
         </div>
       </div>
@@ -857,10 +888,14 @@ export default function TasksPage() {
                       task={task} 
                       isMyTask={true}
                       onEdit={(task) => {
+                        console.log('📝 Ouverture modal édition pour:', task.title);
                         setSelectedTask(task);
                         setShowCreateModal(true);
                       }}
-                      onDelete={(task) => handleDeleteTask(task.id)}
+                      onDelete={async (taskId) => {
+                        console.log('🗑️ Suppression tâche:', taskId);
+                        await handleDeleteTask(taskId);
+                      }}
                       onViewDetails={handleViewDetails}
                       onSubmit={handleSubmitTask}
                     />
@@ -906,6 +941,15 @@ export default function TasksPage() {
                       key={task.id} 
                       task={task} 
                       isMyTask={false}
+                      onEdit={(task) => {
+                        console.log('📝 Ouverture modal édition pour tâche disponible:', task.title);
+                        setSelectedTask(task);
+                        setShowCreateModal(true);
+                      }}
+                      onDelete={async (taskId) => {
+                        console.log('🗑️ Suppression tâche disponible:', taskId);
+                        await handleDeleteTask(taskId);
+                      }}
                       onViewDetails={handleViewDetails}
                     />
                   ))}
@@ -947,6 +991,15 @@ export default function TasksPage() {
                       key={task.id} 
                       task={task} 
                       isMyTask={false}
+                      onEdit={(task) => {
+                        console.log('📝 Ouverture modal édition pour autre tâche:', task.title);
+                        setSelectedTask(task);
+                        setShowCreateModal(true);
+                      }}
+                      onDelete={async (taskId) => {
+                        console.log('🗑️ Suppression autre tâche:', taskId);
+                        await handleDeleteTask(taskId);
+                      }}
                       onViewDetails={handleViewDetails}
                     />
                   ))}
@@ -961,11 +1014,22 @@ export default function TasksPage() {
           <TaskForm
             isOpen={showCreateModal}
             onClose={() => {
+              console.log('❌ Fermeture modal création/édition');
               setShowCreateModal(false);
               setSelectedTask(null);
             }}
-            onSubmit={handleCreateTask}
-            initialTask={selectedTask}
+            onSubmit={selectedTask ? 
+              // Mode édition
+              async (taskData) => {
+                console.log('✏️ Modification tâche:', selectedTask.id, taskData);
+                await handleEditTask(selectedTask.id, taskData);
+                setShowCreateModal(false);
+                setSelectedTask(null);
+              } :
+              // Mode création
+              handleCreateTask
+            }
+            initialData={selectedTask}
             user={user}
           />
         )}
