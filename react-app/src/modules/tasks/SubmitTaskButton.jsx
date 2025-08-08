@@ -1,15 +1,20 @@
 // ==========================================
-// 📁 react-app/src/modules/tasks/SubmitTaskButton.jsx
-// CORRECTION DE L'EXPRESSION TERNAIRE INCOMPLÈTE
+// 📁 CORRECTION SubmitTaskButton.jsx - Version fonctionnelle
+// CORRIGER LA LOGIQUE DE SOUMISSION ET CHANGEMENT DE STATUT
 // ==========================================
 
-import React from 'react';
+// 🔧 MODIFICATIONS À APPORTER AU FICHIER :
+// react-app/src/modules/tasks/SubmitTaskButton.jsx
+
+import React, { useState } from 'react';
 import { 
   Send, 
   CheckCircle, 
   Clock, 
-  AlertTriangle 
+  AlertTriangle,
+  Loader
 } from 'lucide-react';
+import { taskService } from '../../core/services/taskService.js';
 
 const SubmitTaskButton = ({ 
   task, 
@@ -17,12 +22,25 @@ const SubmitTaskButton = ({
   className = '', 
   size = 'medium' 
 }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // 🛡️ VALIDATION OBLIGATOIRE
+  if (!task || !task.id) {
+    console.warn('⚠️ SubmitTaskButton: tâche manquante');
+    return null;
+  }
+
   // Fonction pour déterminer la configuration du bouton
   const getButtonConfig = () => {
     const status = task.status;
     
-    if (status === 'todo' || status === 'in_progress') {
+    console.log('🔍 SubmitTaskButton - Analyse statut:', {
+      taskId: task.id,
+      status: status,
+      title: task.title
+    });
+    
+    if (status === 'todo' || status === 'pending' || status === 'in_progress' || !status) {
       return {
         text: 'Soumettre',
         icon: Send,
@@ -32,7 +50,7 @@ const SubmitTaskButton = ({
       };
     }
     
-    if (status === 'submitted') {
+    if (status === 'validation_pending') {
       return {
         text: 'En validation',
         icon: Clock,
@@ -54,7 +72,7 @@ const SubmitTaskButton = ({
     
     if (status === 'rejected') {
       return {
-        text: 'Rejetée',
+        text: 'Resoummettre',
         icon: AlertTriangle,
         className: 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200',
         disabled: false,
@@ -78,25 +96,56 @@ const SubmitTaskButton = ({
   // Calculer l'XP attendu
   const expectedXP = task.xpReward || 25;
 
-  // Gestionnaire de clic
-  const handleClick = () => {
-    if (buttonConfig.disabled) {
-      console.log('🔒 [SUBMIT-BTN] Bouton désactivé pour statut:', task.status);
+  // 🎯 GESTIONNAIRE DE CLIC CORRIGÉ
+  const handleClick = async () => {
+    if (buttonConfig.disabled || isSubmitting) {
+      console.log('🔒 Bouton désactivé ou en cours de soumission');
       return;
     }
+
+    setIsSubmitting(true);
     
-    console.log('🎯 [SUBMIT-BTN] Soumission simple pour tâche:', task.id);
-    
-    // Simuler une soumission réussie
-    if (onSubmissionSuccess) {
-      onSubmissionSuccess();
+    try {
+      console.log('📤 Début soumission tâche:', {
+        taskId: task.id,
+        title: task.title,
+        currentStatus: task.status
+      });
+
+      // ✅ CORRECTION PRINCIPALE : Utiliser le service pour soumettre
+      const result = await taskService.submitTaskForValidation(task.id, task.assignedTo?.[0] || task.createdBy, {
+        notes: 'Tâche soumise via l\'interface utilisateur',
+        submissionDate: new Date()
+      });
+
+      if (result.success) {
+        console.log('✅ Soumission réussie - Statut changé vers validation_pending');
+        
+        // Notifier le parent du succès
+        if (onSubmissionSuccess) {
+          onSubmissionSuccess({
+            taskId: task.id,
+            newStatus: 'validation_pending',
+            message: 'Tâche soumise pour validation'
+          });
+        }
+
+        // Notification utilisateur
+        alert(`✅ Tâche "${task.title}" soumise pour validation !`);
+
+      } else {
+        throw new Error('Échec de la soumission');
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur soumission:', error);
+      alert(`❌ Erreur lors de la soumission: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    // Notification simple
-    alert(`Tâche "${task.title}" soumise pour validation !`);
   };
 
-  // 🔧 CORRECTION : Expression ternaire complète pour les tailles d'icônes
+  // 🔧 Fonction pour obtenir la taille d'icône
   const getIconSize = () => {
     if (size === 'small') return 'w-3 h-3';
     if (size === 'large') return 'w-6 h-6';
@@ -107,7 +156,7 @@ const SubmitTaskButton = ({
     <div className="relative group">
       <button
         onClick={handleClick}
-        disabled={buttonConfig.disabled}
+        disabled={buttonConfig.disabled || isSubmitting}
         className={`
           ${buttonConfig.className}
           ${className}
@@ -116,21 +165,35 @@ const SubmitTaskButton = ({
           flex items-center space-x-2
           ${size === 'small' ? 'px-3 py-1.5 text-xs' : ''}
           ${size === 'large' ? 'px-6 py-3 text-base' : ''}
-          ${buttonConfig.disabled 
+          ${(buttonConfig.disabled || isSubmitting)
             ? 'opacity-75 cursor-not-allowed' 
             : 'hover:shadow-md hover:scale-105 transform'
           }
         `}
         title={buttonConfig.tooltip}
       >
-        <IconComponent className={getIconSize()} />
-        <span>{buttonConfig.text}</span>
-        {!buttonConfig.disabled && (
+        {isSubmitting ? (
+          <Loader className={`${getIconSize()} animate-spin`} />
+        ) : (
+          <IconComponent className={getIconSize()} />
+        )}
+        <span>
+          {isSubmitting ? 'Soumission...' : buttonConfig.text}
+        </span>
+        {!buttonConfig.disabled && !isSubmitting && (
           <span className="text-xs opacity-75">
             +{expectedXP} XP
           </span>
         )}
       </button>
+      
+      {/* Tooltip de debug */}
+      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+        {buttonConfig.tooltip}
+        <div className="text-xs text-gray-400 mt-1">
+          Statut: {task.status || 'undefined'}
+        </div>
+      </div>
     </div>
   );
 };
