@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskForm.jsx
-// AJOUT RATTACHEMENT PROJET DANS FORMULAIRE TÂCHE - SÉCURISÉ
+// FORMULAIRE COMPLET AVEC PROJET ET TOUTES FONCTIONNALITÉS
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -29,7 +29,8 @@ import {
   Play,
   FileVideo,
   Loader,
-  FolderPlus
+  FolderPlus,
+  Search
 } from 'lucide-react';
 
 import { useAuthStore } from '../../shared/stores/authStore';
@@ -124,7 +125,7 @@ const calculateXP = (difficulty, priority, recurrence = 'none') => {
 };
 
 /**
- * 📂 NOUVEAU : COMPOSANT SÉLECTEUR DE PROJET INTÉGRÉ
+ * 📂 COMPOSANT SÉLECTEUR DE PROJET INTÉGRÉ
  */
 const TaskProjectSelector = ({ 
   selectedProjectId, 
@@ -231,13 +232,16 @@ const TaskProjectSelector = ({
           
           {/* Barre de recherche */}
           <div className="p-3 border-b border-gray-200">
-            <input
-              type="text"
-              placeholder="Rechercher un projet..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Rechercher un projet..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded text-gray-900 placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
           </div>
 
           {/* Liste des projets */}
@@ -402,7 +406,7 @@ const MediaPreview = ({ file, onRemove }) => {
 };
 
 /**
- * 📝 FORMULAIRE DE CRÉATION/ÉDITION DE TÂCHE AVEC PROJET
+ * 📝 FORMULAIRE PRINCIPAL DE CRÉATION/ÉDITION DE TÂCHE
  */
 const TaskForm = ({ 
   isOpen, 
@@ -425,7 +429,7 @@ const TaskForm = ({
     dueDate: '',
     tags: [],
     notes: '',
-    // ✅ NOUVEAU : Projet rattaché
+    // Projet rattaché
     projectId: null,
     // Récurrence
     isRecurring: false,
@@ -461,7 +465,7 @@ const TaskForm = ({
         ...prev,
         ...initialData,
         tags: initialData.tags || [],
-        // ✅ NOUVEAU : Préserver le projectId en mode édition
+        // Préserver le projectId en mode édition
         projectId: initialData.projectId || null,
         dueDate: initialData.dueDate ? 
           (initialData.dueDate.toDate ? 
@@ -586,7 +590,7 @@ const TaskForm = ({
         hasMedia: !!selectedFile,
         mediaType: fileType,
         xpReward: formData.xpReward,
-        projectId: formData.projectId // ✅ NOUVEAU
+        projectId: formData.projectId
       });
 
       // Upload du média si présent
@@ -605,7 +609,7 @@ const TaskForm = ({
         createdBy: user.uid,
         creatorName: user.displayName || user.email,
         
-        // ✅ NOUVEAU : Projet rattaché
+        // Projet rattaché
         projectId: formData.projectId || null,
         
         // Rôle Synergia
@@ -669,7 +673,7 @@ const TaskForm = ({
         dueDate: '',
         tags: [],
         notes: '',
-        projectId: null, // ✅ NOUVEAU
+        projectId: null,
         isRecurring: false,
         recurrenceType: 'none',
         recurrenceInterval: 1,
@@ -773,7 +777,7 @@ const TaskForm = ({
                 />
               </div>
 
-              {/* ✅ NOUVEAU : SÉLECTEUR DE PROJET */}
+              {/* ✅ SÉLECTEUR DE PROJET */}
               <TaskProjectSelector
                 selectedProjectId={formData.projectId}
                 onProjectSelect={(projectId) => setFormData(prev => ({ ...prev, projectId }))}
@@ -1209,4 +1213,6 @@ const TaskForm = ({
   );
 };
 
+// ✅ EXPORTS POUR BUILD
 export default TaskForm;
+export { TaskForm };
