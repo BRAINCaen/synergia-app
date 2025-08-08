@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES COMPLÈTES AVEC TOUTES LES PAGES ADMIN AJOUTÉES
+// ROUTES COMPLÈTES AVEC NOUVELLE ROUTE DEMO CLEANER
 // ==========================================
 
 import React from 'react'
@@ -35,45 +35,55 @@ import AdminUsersPage from '../pages/AdminUsersPage.jsx'
 import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx'
 import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
 
+// 🧹 NOUVELLE PAGE NETTOYAGE DONNÉES DÉMO
+import DemoDataCleanerPage from '../pages/admin/DemoDataCleanerPage.jsx'
+
 // Components utilisés comme pages (fallback)
 import TaskList from '../modules/tasks/TaskList.jsx'
 import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
 import Leaderboard from '../components/gamification/Leaderboard.jsx'
-import Profile from '../modules/profile/components/Profile.jsx'
-import ProjectDashboard from '../modules/projects/ProjectDashboard.jsx'
+import ProjectDashboard from '../components/projects/ProjectDashboard.jsx'
+import Profile from '../components/profile/Profile.jsx'
 
 /**
- * 🛡️ COMPOSANT DE PROTECTION DES ROUTES
+ * 🔐 COMPOSANT DE PROTECTION DES ROUTES
  */
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuthStore()
-
+  
+  // Affichage du loading
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
-          <p className="text-gray-400">Chargement...</p>
+          <div className="animate-spin text-4xl mb-4">⚙️</div>
+          <p className="text-gray-600">Chargement...</p>
         </div>
       </div>
     )
   }
-
+  
+  // Redirection si non connecté
   if (!user) {
     return <Navigate to="/login" replace />
   }
-
+  
   return children
 }
 
 /**
- * 🎯 COMPOSANT PRINCIPAL DES ROUTES
+ * 🚀 COMPOSANT PRINCIPAL DES ROUTES
  */
-export default function AppRoutes() {
+export const AppRoutes = () => {
+  const { user } = useAuthStore()
+  
   return (
     <Routes>
-      {/* Route publique */}
-      <Route path="/login" element={<Login />} />
+      {/* Route de connexion publique */}
+      <Route 
+        path="/login" 
+        element={user ? <Navigate to={ROUTES.DASHBOARD} replace /> : <Login />} 
+      />
       
       {/* Routes principales protégées */}
       <Route 
@@ -202,7 +212,7 @@ export default function AppRoutes() {
         } 
       />
 
-      {/* ✅ ROUTES ADMIN COMPLÈTES - CORRECTION APPLIQUÉE */}
+      {/* ✅ ROUTES ADMIN COMPLÈTES */}
       <Route 
         path={ROUTES.ADMIN_TASK_VALIDATION} 
         element={
@@ -221,7 +231,6 @@ export default function AppRoutes() {
         } 
       />
 
-      {/* 🔐 NOUVELLES ROUTES ADMIN AJOUTÉES */}
       <Route 
         path={ROUTES.ADMIN_ROLE_PERMISSIONS} 
         element={
@@ -254,6 +263,16 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute>
             <AdminSettingsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 🧹 NOUVELLE ROUTE NETTOYAGE DONNÉES DÉMO */}
+      <Route 
+        path={ROUTES.ADMIN_DEMO_CLEANER} 
+        element={
+          <ProtectedRoute>
+            <DemoDataCleanerPage />
           </ProtectedRoute>
         } 
       />
@@ -301,3 +320,5 @@ export default function AppRoutes() {
     </Routes>
   )
 }
+
+export default AppRoutes
