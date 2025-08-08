@@ -164,8 +164,151 @@ const firebaseRestService = {
     }
   },
   
-  // 🔄 SYNCHRONISATION XP VIA API REST - VERSION CORRIGÉE
-  async syncXpRest(userId, earnedXp, completedTasks) {
+  // 🔄 SYNCHRONISATION XP AVEC TOTAL RÉEL - NOUVELLE MÉTHODE ANTI-FARMING
+  async syncXpWithRealTotal(userId, earnedXpThisTask, completedTasksCount, totalRealXp) {
+    try {
+      console.log(`🔄 [REST] Synchronisation XP avec total réel: ${totalRealXp} XP...`);
+      
+      const token = await this.getAuthToken();
+      
+      // Lire les données actuelles
+      const currentUserUrl = `${this.BASE_URL}/users/${userId}`;
+      const currentResponse = await fetch(currentUserUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      let currentLevel = 1;
+      let currentWeeklyXp = 0;
+      let currentMonthlyXp = 0;
+      
+      if (currentResponse.ok) {
+        const currentData = await currentResponse.json();
+        const gamification = currentData.fields?.gamification?.mapValue?.fields || {};
+        
+        currentLevel = parseInt(gamification?.level?.integerValue || '1');
+        currentWeeklyXp = parseInt(gamification?.weeklyXp?.integerValue || '0');
+        currentMonthlyXp = parseInt(gamification?.monthlyXp?.integerValue || '0');
+      }
+      
+      // 🎯 UTILISER LE TOTAL RÉEL AU LIEU D'ADDITIONNER
+      const newLevel = Math.floor(totalRealXp / 100) + 1;
+      const newWeeklyXp = currentWeeklyXp + earnedXpThisTask; // Ajouter seulement les nouveaux XP
+      const newMonthlyXp = currentMonthlyXp + earnedXpThisTask;
+      const timestamp = new Date().toISOString();
+      
+      // 🔧 STRUCTURE GAMIFICATION AVEC TOTAL RÉEL
+      const gamificationData = {
+        mapValue: {
+          fields: {
+            totalXp: { integerValue: totalRealXp.toString() }, // 🔒 TOTAL RÉEL, PAS ADDITIONNEL
+            weeklyXp: { integerValue: newWeeklyXp.toString() },
+            monthlyXp: { integerValue: newMonthlyXp.toString() },
+            level: { integerValue: newLevel.toString() },
+            tasksCompleted: { integerValue: completedTasksCount.toString() },
+            loginStreak: { integerValue: "1" },
+            currentStreak: { integerValue: "0" },
+            maxStreak: { integerValue: "1" },
+            badgesUnlocked: { integerValue: "0" },
+            lastActivityAt: { stringValue: timestamp },
+            // 🎯 HISTORIQUE XP POUR CETTE TÂCHE
+            xpHistory: {
+              arrayValue: {
+                values: [
+                  {
+                    mapValue: {
+                      fields: {
+                        amount: { integerValue: earnedXpThisTask.toString() },
+                        source: { stringValue: "onboarding_task_completion" },
+                        timestamp: { stringValue: timestamp },
+                        totalAfter: { integerValue: totalRealXp.toString() }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            badges: {
+              arrayValue: {
+                values: []
+              }
+            }
+          }
+        }
+      };
+      
+      // Mettre à jour via API REST
+      const updateDocument = {
+        fields: {
+          gamification: gamificationData,
+          lastXpUpdate: { timestampValue: timestamp },
+          completedOnboardingTasks: { integerValue: completedTasksCount.toString() },
+          // 🔧 METADATA DE SYNCHRONISATION
+          syncMetadata: {
+            mapValue: {
+              fields: {
+                lastDashboardSync: { timestampValue: timestamp },
+                lastSyncSource: { stringValue: "onboarding_anti_farming" },
+                integrationCompleted: { booleanValue: completedTasksCount >= 85 },
+                lastSyncReason: { stringValue: "real_xp_total_sync" },
+                realXpTotal: { integerValue: totalRealXp.toString() }
+              }
+            }
+          },
+          updatedAt: { timestampValue: timestamp }
+        }
+      };
+      
+      const updateResponse = await fetch(currentUserUrl, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateDocument)
+      });
+      
+      if (!updateResponse.ok) {
+        const errorText = await updateResponse.text();
+        throw new Error(`Erreur sync XP total: ${updateResponse.status} - ${errorText}`);
+      }
+      
+      console.log(`✅ [REST] XP total synchronisé: ${totalRealXp} XP (Level ${newLevel})`);
+      console.log(`🎯 [REST] Cette tâche: +${earnedXpThisTask} XP`);
+      console.log(`📋 [REST] Tâches complétées: ${completedTasksCount}`);
+      
+      // 🔔 NOTIFICATION DE SUCCÈS
+      this.showNotification(`+${earnedXpThisTask} XP gagné ! (Total: ${totalRealXp}) 🎉`, 'success');
+      
+      // 🔄 FORCER LE RAFRAÎCHISSEMENT DU DASHBOARD
+      this.notifyDashboardUpdate(userId, {
+        totalXp: totalRealXp, // 🔒 TOTAL RÉEL
+        level: newLevel,
+        weeklyXp: newWeeklyXp,
+        monthlyXp: newMonthlyXp,
+        tasksCompleted: completedTasksCount,
+        lastUpdate: timestamp
+      });
+      
+      return { 
+        success: true, 
+        totalXp: totalRealXp,
+        newLevel, 
+        earnedXpThisTask,
+        weeklyXp: newWeeklyXp,
+        monthlyXp: newMonthlyXp,
+        tasksCompleted: completedTasksCount
+      };
+      
+    } catch (error) {
+      console.error('❌ [REST] Erreur sync XP total:', error);
+      this.showNotification('Erreur de synchronisation XP', 'error');
+      throw error;
+    }
+  },
     try {
       console.log(`🔄 [REST] Synchronisation ${earnedXp} XP via API REST...`);
       
@@ -726,14 +869,21 @@ const OnboardingPage = () => {
       if (isFirstTimeCompleted && user?.uid) {
         // PREMIÈRE FOIS → GAGNER XP
         try {
-          await firebaseRestService.syncXpRest(user.uid, task.xp, newCompleted.size);
-          
-          // 🔒 AJOUTER À L'HISTORIQUE POUR ÉVITER LE DOUBLE COMPTAGE
+          // 🔒 AJOUTER À L'HISTORIQUE AVANT LA SYNC
           const newHistory = new Set(completedTasksHistory);
           newHistory.add(taskId);
           setCompletedTasksHistory(newHistory);
           
-          console.log(`✅ Première completion: ${task.label} → +${task.xp} XP`);
+          // 🔄 CALCULER LE TOTAL D'XP RÉELLEMENT GAGNÉS
+          const totalRealXp = Object.values(formationData)
+            .flatMap(section => section.tasks)
+            .filter(t => newHistory.has(t.id))
+            .reduce((sum, t) => sum + t.xp, 0);
+          
+          // 🎯 SYNCHRONISER AVEC LE TOTAL RÉEL D'XP
+          await firebaseRestService.syncXpWithRealTotal(user.uid, task.xp, newHistory.size, totalRealXp);
+          
+          console.log(`✅ Première completion: ${task.label} → +${task.xp} XP (Total réel: ${totalRealXp})`);
         } catch (error) {
           console.warn('⚠️ Sync XP échoué, progression locale conservée');
         }
