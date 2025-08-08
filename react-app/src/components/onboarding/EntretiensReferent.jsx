@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/onboarding/EntretiensReferent.jsx
-// SYSTÈME ENTRETIENS COMPLET AVEC FIREBASE
+// SYSTÈME ENTRETIENS COMPLET CORRIGÉ - v3.5
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -40,7 +40,12 @@ import {
   Rocket,
   Coffee,
   X,
-  Trash2
+  Trash2,
+  UserCheck,
+  Gamepad2,
+  Crown,
+  Briefcase,
+  ShieldCheck
 } from 'lucide-react';
 
 import { useAuthStore } from '../../shared/stores/authStore.js';
@@ -62,16 +67,19 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
 
-// 🎯 TEMPLATES D'ENTRETIENS COMPLETS
+// 🎯 TEMPLATES D'ENTRETIENS COMPLETS AVEC TYPES GAME MASTER
 const INTERVIEW_TEMPLATES = {
+  // ========== ENTRETIENS D'INTÉGRATION ==========
   initial: {
     id: 'initial',
     name: 'Entretien Initial',
+    category: 'integration',
     icon: User,
     color: 'from-blue-500 to-cyan-500',
     bgColor: 'bg-gradient-to-br from-blue-500 to-cyan-500',
     duration: 60,
     description: 'Premier entretien d\'accueil et présentation',
+    targetAudience: 'nouveaux',
     objectives: [
       'Accueillir le nouvel employé et le mettre à l\'aise',
       'Présenter l\'entreprise, ses valeurs et sa culture',
@@ -93,11 +101,13 @@ const INTERVIEW_TEMPLATES = {
   weekly: {
     id: 'weekly',
     name: 'Suivi Hebdomadaire',
+    category: 'integration',
     icon: CalendarDays,
     color: 'from-green-500 to-emerald-500',
     bgColor: 'bg-gradient-to-br from-green-500 to-emerald-500',
     duration: 30,
     description: 'Point régulier sur les progrès et difficultés',
+    targetAudience: 'nouveaux',
     objectives: [
       'Faire le point sur les apprentissages de la semaine',
       'Identifier et résoudre les difficultés rencontrées',
@@ -108,94 +118,198 @@ const INTERVIEW_TEMPLATES = {
     questions: [
       'Quelles sont les nouvelles compétences que vous avez développées cette semaine ?',
       'Quelles difficultés avez-vous rencontrées et comment les avez-vous surmontées ?',
-      'Comment vous sentez-vous dans votre intégration avec l\'équipe ?',
-      'Y a-t-il des aspects du travail qui vous semblent encore flous ?',
-      'Avez-vous besoin d\'aide ou de formation sur des points spécifiques ?'
+      'Comment vous sentez-vous dans l\'équipe et avec vos collègues ?',
+      'Avez-vous besoin d\'aide ou d\'accompagnement sur des points spécifiques ?',
+      'Votre charge de travail vous semble-t-elle adaptée ?',
+      'Y a-t-il des processus ou outils que vous aimeriez mieux maîtriser ?',
+      'Quels sont vos objectifs pour la semaine prochaine ?'
     ]
   },
-  
+
   milestone: {
     id: 'milestone',
-    name: 'Bilan d\'Étape',
+    name: 'Entretien d\'Étape',
+    category: 'integration',
     icon: Target,
-    color: 'from-purple-500 to-pink-500',
-    bgColor: 'bg-gradient-to-br from-purple-500 to-pink-500',
+    color: 'from-purple-500 to-violet-500',
+    bgColor: 'bg-gradient-to-br from-purple-500 to-violet-500',
     duration: 45,
-    description: 'Validation des compétences acquises',
+    description: 'Validation de fin de phase et passage à l\'étape suivante',
+    targetAudience: 'nouveaux',
     objectives: [
-      'Évaluer les compétences acquises depuis le début',
-      'Valider la maîtrise des objectifs de phase',
-      'Identifier les points d\'amélioration',
-      'Définir les objectifs pour la phase suivante',
-      'Célébrer les réussites et progrès accomplis'
+      'Évaluer l\'atteinte des objectifs de la phase',
+      'Valider les compétences acquises',
+      'Identifier les axes d\'amélioration',
+      'Préparer la transition vers la phase suivante',
+      'Ajuster le parcours si nécessaire'
     ],
     questions: [
-      'Comment évaluez-vous votre progression depuis le début de votre formation ?',
-      'Quelles sont vos plus grandes réussites durant cette période ?',
-      'Sur quels aspects vous sentez-vous maintenant à l\'aise ?',
-      'Quels domaines nécessitent encore du travail selon vous ?',
-      'Vous sentez-vous prêt(e) pour passer à la phase suivante ?'
+      'Comment évaluez-vous votre progression sur cette phase ?',
+      'Quelles sont vos réussites principales ?',
+      'Sur quels points devez-vous encore progresser ?',
+      'Vous sentez-vous prêt(e) pour la phase suivante ?',
+      'Quelles compétences souhaitez-vous développer ensuite ?',
+      'Y a-t-il des défis particuliers que vous anticipez ?'
     ]
   },
-  
+
   final: {
     id: 'final',
-    name: 'Entretien Final',
+    name: 'Entretien de Validation',
+    category: 'integration',
     icon: Award,
     color: 'from-orange-500 to-red-500',
     bgColor: 'bg-gradient-to-br from-orange-500 to-red-500',
     duration: 60,
-    description: 'Bilan complet et certification',
+    description: 'Entretien final de validation de l\'intégration',
+    targetAudience: 'nouveaux',
     objectives: [
-      'Dresser le bilan complet de l\'intégration',
-      'Valider l\'acquisition de toutes les compétences',
-      'Évaluer la satisfaction du parcours de formation',
+      'Valider l\'intégration complète du nouvel employé',
+      'Évaluer l\'autonomie opérationnelle atteinte',
+      'Recueillir les retours sur le parcours d\'onboarding',
       'Définir les perspectives d\'évolution',
-      'Officialiser la fin de la période d\'onboarding'
+      'Planifier le suivi post-intégration'
     ],
     questions: [
-      'Comment jugez-vous votre intégration globale dans l\'entreprise ?',
-      'Quelles compétences vous semblent les mieux maîtrisées maintenant ?',
-      'Quels aspects de votre travail vous passionnent le plus ?',
-      'Y a-t-il encore des domaines que vous aimeriez développer ?',
-      'Comment évaluez-vous la qualité de votre accompagnement ?'
+      'Comment jugez-vous votre intégration globale ?',
+      'Quelles compétences vous semblent les plus développées ?',
+      'Quels aspects aimeriez-vous encore améliorer ?',
+      'Avez-vous des suggestions pour améliorer le parcours ?',
+      'Dans quelles missions vous sentez-vous le plus à l\'aise ?',
+      'Quelles sont vos aspirations pour les prochains mois ?'
     ]
   },
-  
-  support: {
-    id: 'support',
-    name: 'Entretien de Soutien',
-    icon: Heart,
-    color: 'from-pink-500 to-rose-500',
-    bgColor: 'bg-gradient-to-br from-pink-500 to-rose-500',
-    duration: 30,
-    description: 'Accompagnement personnalisé en cas de difficulté',
+
+  // ========== ENTRETIENS GAME MASTER ==========
+  gamemaster_mission: {
+    id: 'gamemaster_mission',
+    name: 'Entretien Mission Game Master',
+    category: 'gamemaster',
+    icon: Gamepad2,
+    color: 'from-cyan-500 to-blue-500',
+    bgColor: 'bg-gradient-to-br from-cyan-500 to-blue-500',
+    duration: 45,
+    description: 'Suivi des missions et projets en tant que Game Master',
+    targetAudience: 'anciens',
     objectives: [
-      'Identifier précisément les difficultés rencontrées',
-      'Apporter un soutien personnalisé et adapté',
-      'Restaurer la confiance et la motivation',
-      'Adapter le plan de formation aux besoins',
-      'Mettre en place un suivi renforcé'
+      'Évaluer la performance sur les missions actuelles',
+      'Identifier les défis et opportunités',
+      'Analyser la gestion d\'équipe et leadership',
+      'Planifier les prochaines missions stratégiques',
+      'Développer les compétences de Game Master'
     ],
     questions: [
-      'Pouvez-vous me décrire précisément les difficultés que vous rencontrez ?',
-      'Depuis quand ressentez-vous ces difficultés ?',
-      'Qu\'avez-vous déjà essayé pour les surmonter ?',
-      'De quel type d\'aide auriez-vous besoin ?',
-      'Comment pouvons-nous adapter votre formation pour mieux vous accompagner ?'
+      'Comment évaluez-vous vos performances sur vos missions actuelles ?',
+      'Quels sont les principaux défis que vous rencontrez en tant que Game Master ?',
+      'Comment gérez-vous votre équipe et les conflits éventuels ?',
+      'Quelles compétences de leadership souhaitez-vous développer ?',
+      'Quels types de missions vous motivent le plus ?',
+      'Comment voyez-vous votre évolution dans Synergia ?',
+      'Avez-vous des idées pour améliorer nos processus ?'
+    ]
+  },
+
+  gamemaster_role: {
+    id: 'gamemaster_role',
+    name: 'Entretien Rôle & Responsabilités',
+    category: 'gamemaster',
+    icon: Crown,
+    color: 'from-yellow-500 to-orange-500',
+    bgColor: 'bg-gradient-to-br from-yellow-500 to-orange-500',
+    duration: 50,
+    description: 'Évaluation du rôle et des responsabilités Game Master',
+    targetAudience: 'anciens',
+    objectives: [
+      'Clarifier les attentes du rôle de Game Master',
+      'Évaluer la prise de responsabilités',
+      'Identifier les besoins en formation avancée',
+      'Développer la vision stratégique',
+      'Préparer l\'évolution de carrière'
+    ],
+    questions: [
+      'Comment définiriez-vous votre rôle actuel dans Synergia ?',
+      'Quelles responsabilités vous motivent le plus ?',
+      'Dans quels domaines vous sentez-vous expert ?',
+      'Quels sont vos objectifs de développement professionnel ?',
+      'Comment envisagez-vous votre contribution à long terme ?',
+      'Quelles nouvelles responsabilités aimeriez-vous prendre ?',
+      'Comment pourrions-nous mieux valoriser votre expertise ?'
+    ]
+  },
+
+  gamemaster_synergia: {
+    id: 'gamemaster_synergia',
+    name: 'Entretien Vision Synergia',
+    category: 'gamemaster',
+    icon: Rocket,
+    color: 'from-purple-500 to-pink-500',
+    bgColor: 'bg-gradient-to-br from-purple-500 to-pink-500',
+    duration: 60,
+    description: 'Discussion stratégique sur l\'avenir de Synergia',
+    targetAudience: 'anciens',
+    objectives: [
+      'Recueillir la vision stratégique du Game Master',
+      'Identifier les opportunités d\'innovation',
+      'Évaluer l\'alignement avec la vision entreprise',
+      'Développer les projets futurs',
+      'Renforcer l\'engagement à long terme'
+    ],
+    questions: [
+      'Comment voyez-vous l\'évolution de Synergia dans les prochaines années ?',
+      'Quelles innovations pourrions-nous mettre en place ?',
+      'Comment améliorer l\'expérience de nos clients ?',
+      'Quels sont les défis majeurs à anticiper ?',
+      'Dans quels domaines devrions-nous investir prioritairement ?',
+      'Comment renforcer la culture d\'équipe ?',
+      'Quel serait votre projet idéal pour Synergia ?'
+    ]
+  },
+
+  gamemaster_skills: {
+    id: 'gamemaster_skills',
+    name: 'Entretien Compétences Avancées',
+    category: 'gamemaster',
+    icon: ShieldCheck,
+    color: 'from-green-500 to-teal-500',
+    bgColor: 'bg-gradient-to-br from-green-500 to-teal-500',
+    duration: 40,
+    description: 'Évaluation et développement des compétences avancées',
+    targetAudience: 'anciens',
+    objectives: [
+      'Cartographier les compétences avancées maîtrisées',
+      'Identifier les domaines d\'excellence',
+      'Planifier la montée en compétences',
+      'Développer l\'expertise métier',
+      'Préparer la transmission de savoir'
+    ],
+    questions: [
+      'Quelles sont vos compétences les plus pointues ?',
+      'Dans quels domaines vous sentez-vous expert reconnu ?',
+      'Quelles compétences techniques souhaitez-vous approfondir ?',
+      'Comment pourriez-vous transmettre votre expertise aux nouveaux ?',
+      'Quels sont vos besoins en formation avancée ?',
+      'Comment mesurer votre progression dans ces domaines ?',
+      'Quelles certifications ou formations vous intéressent ?'
     ]
   }
 };
 
+// 💼 COMPOSANT PRINCIPAL ENTRETIENS
 const EntretiensReferent = () => {
   const { user } = useAuthStore();
   
-  // États
+  // 📊 États principaux
   const [activeView, setActiveView] = useState('dashboard');
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [showInterviewForm, setShowInterviewForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedInterview, setSelectedInterview] = useState(null);
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [submitting, setSubmitting] = useState(false);
+
+  // 📝 Formulaire planification
   const [newInterview, setNewInterview] = useState({
     title: '',
     templateId: '',
@@ -205,104 +319,55 @@ const EntretiensReferent = () => {
     type: 'presentiel',
     referent: '',
     notes: '',
+    targetUser: '',
     status: 'planned'
   });
-  const [submitting, setSubmitting] = useState(false);
 
-  // 📊 Charger les entretiens - VERSION ULTRA ROBUSTE
+  // 📋 Formulaire de passage d'entretien
+  const [interviewForm, setInterviewForm] = useState({
+    responses: {},
+    notes: '',
+    evaluation: '',
+    nextSteps: [],
+    followUpDate: ''
+  });
+
+  // 🔄 Charger les entretiens depuis Firebase
   const loadInterviews = useCallback(async () => {
     if (!user?.uid) return;
-    
+
     try {
       setLoading(true);
-      console.log('📊 Chargement entretiens pour userId:', user.uid);
-      
-      // MÉTHODE 1: Tentative requête simple
-      try {
-        console.log('🔍 Tentative requête Firestore...');
-        const interviewsRef = collection(db, 'onboardingInterviews');
-        const q = query(interviewsRef, where('userId', '==', user.uid));
-        
-        const querySnapshot = await getDocs(q);
-        const interviewsList = [];
-        
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          console.log('📄 Entretien trouvé:', { id: doc.id, data });
-          interviewsList.push({
-            id: doc.id,
-            ...data
-          });
+      console.log('🔄 Chargement des entretiens...');
+
+      // CORRECTION: Utiliser une seule collection cohérente
+      const interviewsRef = collection(db, 'interviews');
+      const q = query(
+        interviewsRef,
+        where('createdBy', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      );
+
+      const querySnapshot = await getDocs(q);
+      const loadedInterviews = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        loadedInterviews.push({
+          id: doc.id,
+          ...data,
+          // Normaliser les dates
+          date: data.date || data.scheduledDate?.split('T')[0] || '',
+          time: data.time || data.scheduledDate?.split('T')[1]?.substring(0, 5) || ''
         });
-        
-        // Trier côté client par date
-        interviewsList.sort((a, b) => {
-          const dateA = new Date(a.date || a.createdAt);
-          const dateB = new Date(b.date || b.createdAt);
-          return dateA - dateB;
-        });
-        
-        setInterviews(interviewsList);
-        console.log('✅ Entretiens chargés avec succès:', interviewsList.length);
-        return;
-        
-      } catch (firestoreError) {
-        console.warn('⚠️ Erreur Firestore normale, tentative alternative...', firestoreError.message);
-        
-        // MÉTHODE 2: Récupération sans filtre puis filtrage côté client
-        try {
-          console.log('🔄 Récupération tous les entretiens puis filtrage...');
-          const allInterviewsRef = collection(db, 'onboardingInterviews');
-          const allSnapshot = await getDocs(allInterviewsRef);
-          
-          const userInterviews = [];
-          allSnapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.userId === user.uid) {
-              userInterviews.push({
-                id: doc.id,
-                ...data
-              });
-            }
-          });
-          
-          userInterviews.sort((a, b) => {
-            const dateA = new Date(a.date || a.createdAt);
-            const dateB = new Date(b.date || b.createdAt);
-            return dateA - dateB;
-          });
-          
-          setInterviews(userInterviews);
-          console.log('✅ Entretiens chargés via méthode alternative:', userInterviews.length);
-          return;
-          
-        } catch (alternativeError) {
-          console.warn('⚠️ Méthode alternative échouée aussi:', alternativeError.message);
-          
-          // MÉTHODE 3: Données factices pour test
-          console.log('🔧 Création données factices pour test...');
-          const mockInterviews = [
-            {
-              id: 'mock-1',
-              userId: user.uid,
-              title: 'Entretien Initial (Test)',
-              templateName: 'Entretien Initial',
-              date: new Date().toISOString().split('T')[0],
-              time: '10:00',
-              location: 'Bureau Brain',
-              referent: 'Référent Test',
-              status: 'planned',
-              createdAt: new Date().toISOString()
-            }
-          ];
-          
-          setInterviews(mockInterviews);
-          console.log('🎯 Données factices chargées pour tests');
-        }
-      }
-      
+      });
+
+      console.log(`✅ ${loadedInterviews.length} entretiens chargés`);
+      setInterviews(loadedInterviews);
+
     } catch (error) {
-      console.error('❌ Erreur complète chargement entretiens:', error);
+      console.error('❌ Erreur chargement entretiens:', error);
+      // Fallback gracieux sans plantage
       setInterviews([]);
     } finally {
       setLoading(false);
@@ -322,79 +387,118 @@ const EntretiensReferent = () => {
       
       const template = INTERVIEW_TEMPLATES[selectedTemplate];
       
-      // CORRECTION: Format de données cohérent
+      // CORRECTION: Structure cohérente pour Firebase
       const interviewData = {
-        // Données utilisateur
+        // Métadonnées utilisateur
         userId: user.uid,
+        createdBy: user.uid,
         userEmail: user.email,
         userName: user.displayName || user.email,
         
         // Données template
         templateId: selectedTemplate,
         templateName: template.name,
-        title: newInterview.title || template.name,
+        category: template.category,
+        targetAudience: template.targetAudience,
         
         // Planification
+        title: newInterview.title || template.name,
+        scheduledDate: `${newInterview.date}T${newInterview.time}:00`,
         date: newInterview.date,
         time: newInterview.time,
         duration: template.duration,
         
-        // Lieu et type
+        // Détails
         location: newInterview.location,
         type: newInterview.type,
-        
-        // Référent
         referent: newInterview.referent,
-        
-        // Notes
+        targetUser: newInterview.targetUser,
         notes: newInterview.notes,
         
-        // Contenu du template
+        // Contenu template
         objectives: template.objectives,
         questions: template.questions,
         description: template.description,
-        color: template.color,
         
-        // Statut
+        // Statut et suivi
         status: 'planned',
+        completed: false,
         
-        // Métadonnées
-        createdAt: new Date().toISOString(),
-        createdBy: user.uid,
-        lastUpdate: new Date().toISOString()
+        // Horodatage
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
       
-      console.log('📝 Données entretien à sauvegarder:', interviewData);
+      console.log('📝 Données entretien:', interviewData);
       
-      const docRef = await addDoc(collection(db, 'onboardingInterviews'), interviewData);
+      const docRef = await addDoc(collection(db, 'interviews'), interviewData);
       console.log('✅ Entretien planifié avec ID:', docRef.id);
       
-      // FORCER la réactualisation immédiate
-      setTimeout(async () => {
-        console.log('🔄 Rechargement forcé des entretiens...');
-        await loadInterviews();
-      }, 1000); // Attendre 1 seconde puis recharger
+      // Réinitialiser et recharger
+      resetScheduleForm();
+      await loadInterviews();
       
-      // Réinitialiser le formulaire
-      setShowScheduleForm(false);
-      setSelectedTemplate(null);
-      setNewInterview({
-        title: '',
-        templateId: '',
-        date: '',
-        time: '',
-        location: 'Bureau Brain',
-        type: 'presentiel',
-        referent: '',
-        notes: '',
-        status: 'planned'
-      });
-      
-      alert('Entretien planifié avec succès ! Rechargement en cours...');
+      alert('✅ Entretien planifié avec succès !');
       
     } catch (error) {
       console.error('❌ Erreur planification:', error);
-      alert('Erreur lors de la planification de l\'entretien: ' + error.message);
+      alert('❌ Erreur: ' + error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // 🎯 Conduire un entretien
+  const conductInterview = async () => {
+    if (!selectedInterview || !interviewForm.evaluation) {
+      alert('Veuillez remplir l\'évaluation');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      
+      const interviewRef = doc(db, 'interviews', selectedInterview.id);
+      
+      const updateData = {
+        // Résultats entretien
+        responses: interviewForm.responses,
+        conductorNotes: interviewForm.notes,
+        evaluation: interviewForm.evaluation,
+        nextSteps: interviewForm.nextSteps,
+        followUpDate: interviewForm.followUpDate,
+        
+        // Statut
+        status: 'completed',
+        completed: true,
+        completedAt: serverTimestamp(),
+        completedBy: user.uid,
+        
+        // Mise à jour
+        updatedAt: serverTimestamp()
+      };
+      
+      await updateDoc(interviewRef, updateData);
+      
+      console.log('✅ Entretien finalisé');
+      
+      // Réinitialiser et recharger
+      setShowInterviewForm(false);
+      setSelectedInterview(null);
+      setInterviewForm({
+        responses: {},
+        notes: '',
+        evaluation: '',
+        nextSteps: [],
+        followUpDate: ''
+      });
+      
+      await loadInterviews();
+      alert('✅ Entretien finalisé avec succès !');
+      
+    } catch (error) {
+      console.error('❌ Erreur finalisation:', error);
+      alert('❌ Erreur: ' + error.message);
     } finally {
       setSubmitting(false);
     }
@@ -405,34 +509,34 @@ const EntretiensReferent = () => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet entretien ?')) return;
     
     try {
-      await deleteDoc(doc(db, 'onboardingInterviews', interviewId));
+      await deleteDoc(doc(db, 'interviews', interviewId));
       console.log('✅ Entretien supprimé');
       await loadInterviews();
     } catch (error) {
       console.error('❌ Erreur suppression:', error);
+      alert('❌ Erreur suppression: ' + error.message);
     }
   };
 
-  // ✅ Marquer comme terminé
-  const markAsCompleted = async (interviewId) => {
-    try {
-      await updateDoc(doc(db, 'onboardingInterviews', interviewId), {
-        status: 'completed',
-        completedAt: new Date().toISOString()
-      });
-      console.log('✅ Entretien marqué comme terminé');
-      await loadInterviews();
-    } catch (error) {
-      console.error('❌ Erreur mise à jour:', error);
-    }
+  // 🔄 Réinitialiser le formulaire
+  const resetScheduleForm = () => {
+    setShowScheduleForm(false);
+    setSelectedTemplate(null);
+    setNewInterview({
+      title: '',
+      templateId: '',
+      date: '',
+      time: '',
+      location: 'Bureau Brain',
+      type: 'presentiel',
+      referent: '',
+      notes: '',
+      targetUser: '',
+      status: 'planned'
+    });
   };
 
-  // 🔄 Charger au montage
-  useEffect(() => {
-    loadInterviews();
-  }, [loadInterviews]);
-
-  // 📅 Sélectionner un template pour planifier
+  // 📅 Sélectionner un template
   const selectTemplate = (templateId) => {
     setSelectedTemplate(templateId);
     const template = INTERVIEW_TEMPLATES[templateId];
@@ -443,6 +547,43 @@ const EntretiensReferent = () => {
       duration: template.duration
     }));
     setShowScheduleForm(true);
+  };
+
+  // 🎯 Démarrer un entretien
+  const startInterview = (interview) => {
+    setSelectedInterview(interview);
+    setInterviewForm({
+      responses: {},
+      notes: '',
+      evaluation: '',
+      nextSteps: [],
+      followUpDate: ''
+    });
+    setShowInterviewForm(true);
+  };
+
+  // 🔄 Charger au montage
+  useEffect(() => {
+    loadInterviews();
+  }, [loadInterviews]);
+
+  // 📊 Filtrer les entretiens
+  const filteredInterviews = interviews.filter(interview => {
+    if (filterCategory === 'all') return true;
+    if (filterCategory === 'integration') return INTERVIEW_TEMPLATES[interview.templateId]?.category === 'integration';
+    if (filterCategory === 'gamemaster') return INTERVIEW_TEMPLATES[interview.templateId]?.category === 'gamemaster';
+    if (filterCategory === 'planned') return interview.status === 'planned';
+    if (filterCategory === 'completed') return interview.status === 'completed';
+    return true;
+  });
+
+  // 📈 Statistiques
+  const stats = {
+    total: interviews.length,
+    planned: interviews.filter(i => i.status === 'planned').length,
+    completed: interviews.filter(i => i.status === 'completed').length,
+    integration: interviews.filter(i => INTERVIEW_TEMPLATES[i.templateId]?.category === 'integration').length,
+    gamemaster: interviews.filter(i => INTERVIEW_TEMPLATES[i.templateId]?.category === 'gamemaster').length
   };
 
   if (loading) {
@@ -462,11 +603,35 @@ const EntretiensReferent = () => {
       <div className="text-center mb-8">
         <MessageSquare className="h-16 w-16 text-blue-400 mx-auto mb-4" />
         <h3 className="text-3xl font-bold text-white mb-4">
-          💬 Entretiens avec Référent
+          💬 Système d'Entretiens Complet
         </h3>
         <p className="text-gray-300 text-lg">
-          Suivi personnalisé de votre intégration
+          Suivi d'intégration et entretiens Game Master
         </p>
+      </div>
+
+      {/* 📊 Statistiques rapides */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="bg-gray-800/50 rounded-xl p-4 text-center">
+          <div className="text-2xl font-bold text-blue-400">{stats.total}</div>
+          <div className="text-sm text-gray-400">Total</div>
+        </div>
+        <div className="bg-gray-800/50 rounded-xl p-4 text-center">
+          <div className="text-2xl font-bold text-orange-400">{stats.planned}</div>
+          <div className="text-sm text-gray-400">Planifiés</div>
+        </div>
+        <div className="bg-gray-800/50 rounded-xl p-4 text-center">
+          <div className="text-2xl font-bold text-green-400">{stats.completed}</div>
+          <div className="text-sm text-gray-400">Terminés</div>
+        </div>
+        <div className="bg-gray-800/50 rounded-xl p-4 text-center">
+          <div className="text-2xl font-bold text-purple-400">{stats.integration}</div>
+          <div className="text-sm text-gray-400">Intégration</div>
+        </div>
+        <div className="bg-gray-800/50 rounded-xl p-4 text-center">
+          <div className="text-2xl font-bold text-cyan-400">{stats.gamemaster}</div>
+          <div className="text-sm text-gray-400">Game Master</div>
+        </div>
       </div>
 
       {/* 📊 Navigation */}
@@ -508,11 +673,36 @@ const EntretiensReferent = () => {
         </div>
       </div>
 
+      {/* 🔍 Filtres */}
+      <div className="flex justify-center mb-6">
+        <div className="flex gap-2 bg-gray-800/30 rounded-xl p-2">
+          {[
+            { id: 'all', name: 'Tous', count: stats.total },
+            { id: 'integration', name: 'Intégration', count: stats.integration },
+            { id: 'gamemaster', name: 'Game Master', count: stats.gamemaster },
+            { id: 'planned', name: 'Planifiés', count: stats.planned },
+            { id: 'completed', name: 'Terminés', count: stats.completed }
+          ].map((filter) => (
+            <button
+              key={filter.id}
+              onClick={() => setFilterCategory(filter.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                filterCategory === filter.id
+                  ? 'bg-purple-500 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+              }`}
+            >
+              {filter.name} ({filter.count})
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* 📋 Contenu selon la vue */}
       {activeView === 'dashboard' && (
         <DashboardView 
-          interviews={interviews} 
-          onMarkCompleted={markAsCompleted}
+          interviews={filteredInterviews}
+          onStartInterview={startInterview}
           onDelete={deleteInterview}
         />
       )}
@@ -521,12 +711,14 @@ const EntretiensReferent = () => {
         <PlanifierView 
           templates={INTERVIEW_TEMPLATES}
           onSelectTemplate={selectTemplate}
+          filterCategory={filterCategory}
         />
       )}
       
       {activeView === 'historique' && (
         <HistoriqueView 
-          interviews={interviews}
+          interviews={filteredInterviews}
+          onStartInterview={startInterview}
           onDelete={deleteInterview}
         />
       )}
@@ -534,132 +726,29 @@ const EntretiensReferent = () => {
       {/* 📝 Modal de planification */}
       <AnimatePresence>
         {showScheduleForm && selectedTemplate && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-gray-800 rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">
-                  📅 Planifier: {INTERVIEW_TEMPLATES[selectedTemplate].name}
-                </h3>
-                <button
-                  onClick={() => setShowScheduleForm(false)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
+          <ScheduleInterviewModal
+            template={INTERVIEW_TEMPLATES[selectedTemplate]}
+            newInterview={newInterview}
+            setNewInterview={setNewInterview}
+            onSchedule={scheduleInterview}
+            onClose={resetScheduleForm}
+            submitting={submitting}
+          />
+        )}
+      </AnimatePresence>
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-white font-medium mb-2">
-                      Date *
-                    </label>
-                    <input
-                      type="date"
-                      value={newInterview.date}
-                      onChange={(e) => setNewInterview(prev => ({ ...prev, date: e.target.value }))}
-                      className="w-full bg-gray-700 text-white rounded-lg p-3"
-                      min={new Date().toISOString().split('T')[0]}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-white font-medium mb-2">
-                      Heure *
-                    </label>
-                    <input
-                      type="time"
-                      value={newInterview.time}
-                      onChange={(e) => setNewInterview(prev => ({ ...prev, time: e.target.value }))}
-                      className="w-full bg-gray-700 text-white rounded-lg p-3"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-white font-medium mb-2">
-                    Référent
-                  </label>
-                  <input
-                    type="text"
-                    value={newInterview.referent}
-                    onChange={(e) => setNewInterview(prev => ({ ...prev, referent: e.target.value }))}
-                    placeholder="Nom du référent..."
-                    className="w-full bg-gray-700 text-white rounded-lg p-3"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-white font-medium mb-2">
-                    Lieu
-                  </label>
-                  <input
-                    type="text"
-                    value={newInterview.location}
-                    onChange={(e) => setNewInterview(prev => ({ ...prev, location: e.target.value }))}
-                    className="w-full bg-gray-700 text-white rounded-lg p-3"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-white font-medium mb-2">
-                    Type d'entretien
-                  </label>
-                  <select
-                    value={newInterview.type}
-                    onChange={(e) => setNewInterview(prev => ({ ...prev, type: e.target.value }))}
-                    className="w-full bg-gray-700 text-white rounded-lg p-3"
-                  >
-                    <option value="presentiel">Présentiel</option>
-                    <option value="visio">Visioconférence</option>
-                    <option value="telephone">Téléphone</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-white font-medium mb-2">
-                    Notes (optionnel)
-                  </label>
-                  <textarea
-                    value={newInterview.notes}
-                    onChange={(e) => setNewInterview(prev => ({ ...prev, notes: e.target.value }))}
-                    className="w-full bg-gray-700 text-white rounded-lg p-3 h-20 resize-none"
-                    placeholder="Notes ou commentaires..."
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={() => setShowScheduleForm(false)}
-                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={scheduleInterview}
-                  disabled={submitting}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium inline-flex items-center"
-                >
-                  {submitting ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Calendar className="h-4 w-4 mr-2" />
-                  )}
-                  Planifier
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
+      {/* 🎯 Modal de conduite d'entretien */}
+      <AnimatePresence>
+        {showInterviewForm && selectedInterview && (
+          <ConductInterviewModal
+            interview={selectedInterview}
+            template={INTERVIEW_TEMPLATES[selectedInterview.templateId]}
+            form={interviewForm}
+            setForm={setInterviewForm}
+            onComplete={conductInterview}
+            onClose={() => setShowInterviewForm(false)}
+            submitting={submitting}
+          />
         )}
       </AnimatePresence>
     </div>
@@ -667,49 +756,17 @@ const EntretiensReferent = () => {
 };
 
 // 📊 COMPOSANT DASHBOARD
-const DashboardView = ({ interviews, onMarkCompleted, onDelete }) => {
-  const upcomingInterviews = interviews.filter(interview => {
-    const interviewDate = new Date(`${interview.date}T${interview.time}`);
-    return interviewDate >= new Date() && interview.status === 'planned';
-  });
-
-  const completedInterviews = interviews.filter(interview => interview.status === 'completed');
+const DashboardView = ({ interviews, onStartInterview, onDelete }) => {
+  const upcomingInterviews = interviews
+    .filter(i => i.status === 'planned')
+    .sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
+  
+  const completedInterviews = interviews
+    .filter(i => i.status === 'completed')
+    .sort((a, b) => new Date(b.completedAt?.seconds * 1000) - new Date(a.completedAt?.seconds * 1000));
 
   return (
     <div className="space-y-6">
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-6">
-          <div className="flex items-center gap-3">
-            <Calendar className="h-8 w-8 text-blue-400" />
-            <div>
-              <div className="text-2xl font-bold text-white">{upcomingInterviews.length}</div>
-              <div className="text-blue-400 text-sm">Entretiens à venir</div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-green-600/20 border border-green-500/30 rounded-lg p-6">
-          <div className="flex items-center gap-3">
-            <CheckCircle className="h-8 w-8 text-green-400" />
-            <div>
-              <div className="text-2xl font-bold text-white">{completedInterviews.length}</div>
-              <div className="text-green-400 text-sm">Entretiens terminés</div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-purple-600/20 border border-purple-500/30 rounded-lg p-6">
-          <div className="flex items-center gap-3">
-            <MessageSquare className="h-8 w-8 text-purple-400" />
-            <div>
-              <div className="text-2xl font-bold text-white">{interviews.length}</div>
-              <div className="text-purple-400 text-sm">Total entretiens</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Prochains entretiens */}
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
         <h4 className="text-xl font-bold text-white mb-4">📅 Prochains Entretiens</h4>
@@ -728,7 +785,7 @@ const DashboardView = ({ interviews, onMarkCompleted, onDelete }) => {
               <InterviewCard
                 key={interview.id}
                 interview={interview}
-                onMarkCompleted={onMarkCompleted}
+                onStartInterview={onStartInterview}
                 onDelete={onDelete}
                 showActions={true}
               />
@@ -742,10 +799,11 @@ const DashboardView = ({ interviews, onMarkCompleted, onDelete }) => {
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
           <h4 className="text-xl font-bold text-white mb-4">✅ Derniers Entretiens Terminés</h4>
           <div className="space-y-3">
-            {completedInterviews.slice(-2).map((interview) => (
+            {completedInterviews.slice(0, 2).map((interview) => (
               <InterviewCard
                 key={interview.id}
                 interview={interview}
+                onStartInterview={onStartInterview}
                 onDelete={onDelete}
                 showActions={false}
               />
@@ -758,59 +816,73 @@ const DashboardView = ({ interviews, onMarkCompleted, onDelete }) => {
 };
 
 // 📅 COMPOSANT PLANIFIER
-const PlanifierView = ({ templates, onSelectTemplate }) => {
+const PlanifierView = ({ templates, onSelectTemplate, filterCategory }) => {
+  // Filtrer les templates selon la catégorie
+  const filteredTemplates = Object.entries(templates).filter(([templateId, template]) => {
+    if (filterCategory === 'all') return true;
+    if (filterCategory === 'integration') return template.category === 'integration';
+    if (filterCategory === 'gamemaster') return template.category === 'gamemaster';
+    return true;
+  });
+
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
         <h4 className="text-xl font-bold text-white mb-2">📝 Choisir un type d'entretien</h4>
-        <p className="text-gray-400">Sélectionnez le template qui correspond à vos besoins</p>
+        <p className="text-gray-400">Sélectionnez le template adapté à votre besoin</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Object.entries(templates).map(([templateId, template]) => {
-          const IconComponent = template.icon;
-          return (
-            <div key={templateId} className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700 hover:border-purple-500/50 transition-all duration-200">
-              <div className="flex items-center mb-4">
-                <div className={`w-12 h-12 rounded-2xl bg-gradient-to-r ${template.color} flex items-center justify-center mr-4`}>
-                  <IconComponent className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-white">{template.name}</h4>
-                  <p className="text-gray-400 text-sm">{template.duration} minutes</p>
-                </div>
-              </div>
-              
-              <p className="text-gray-300 mb-4 text-sm">{template.description}</p>
-              
-              <div className="mb-4">
-                <p className="text-white font-medium text-sm mb-2">Objectifs :</p>
-                <ul className="text-gray-400 text-xs space-y-1">
-                  {template.objectives.slice(0, 3).map((objective, idx) => (
-                    <li key={idx}>• {objective}</li>
-                  ))}
-                  {template.objectives.length > 3 && (
-                    <li className="text-gray-500">... et {template.objectives.length - 3} autres</li>
-                  )}
-                </ul>
-              </div>
-              
-              <button 
-                onClick={() => onSelectTemplate(templateId)}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-2 px-4 rounded-lg font-medium transition-all duration-200"
-              >
-                Planifier cet entretien
-              </button>
+      {/* Templates d'intégration */}
+      <div className="space-y-6">
+        {(filterCategory === 'all' || filterCategory === 'integration') && (
+          <div>
+            <h5 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-blue-400" />
+              Entretiens d'Intégration (Nouveaux employés)
+            </h5>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredTemplates
+                .filter(([_, template]) => template.category === 'integration')
+                .map(([templateId, template]) => (
+                  <TemplateCard 
+                    key={templateId}
+                    templateId={templateId}
+                    template={template}
+                    onSelectTemplate={onSelectTemplate}
+                  />
+                ))}
             </div>
-          );
-        })}
+          </div>
+        )}
+
+        {/* Templates Game Master */}
+        {(filterCategory === 'all' || filterCategory === 'gamemaster') && (
+          <div>
+            <h5 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Crown className="h-5 w-5 text-yellow-400" />
+              Entretiens Game Master (Employés expérimentés)
+            </h5>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredTemplates
+                .filter(([_, template]) => template.category === 'gamemaster')
+                .map(([templateId, template]) => (
+                  <TemplateCard 
+                    key={templateId}
+                    templateId={templateId}
+                    template={template}
+                    onSelectTemplate={onSelectTemplate}
+                  />
+                ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 // 📚 COMPOSANT HISTORIQUE
-const HistoriqueView = ({ interviews, onDelete }) => {
+const HistoriqueView = ({ interviews, onStartInterview, onDelete }) => {
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
@@ -829,6 +901,7 @@ const HistoriqueView = ({ interviews, onDelete }) => {
             <InterviewCard
               key={interview.id}
               interview={interview}
+              onStartInterview={onStartInterview}
               onDelete={onDelete}
               showActions={true}
               detailed={true}
@@ -840,8 +913,59 @@ const HistoriqueView = ({ interviews, onDelete }) => {
   );
 };
 
+// 🃏 COMPOSANT CARTE TEMPLATE
+const TemplateCard = ({ templateId, template, onSelectTemplate }) => {
+  const IconComponent = template.icon;
+  
+  return (
+    <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700 hover:border-purple-500/50 transition-all duration-200">
+      <div className="flex items-center mb-4">
+        <div className={`w-12 h-12 rounded-2xl bg-gradient-to-r ${template.color} flex items-center justify-center mr-4`}>
+          <IconComponent className="w-6 h-6 text-white" />
+        </div>
+        <div>
+          <h4 className="font-semibold text-white">{template.name}</h4>
+          <p className="text-gray-400 text-sm">{template.duration} minutes</p>
+        </div>
+      </div>
+      
+      <p className="text-gray-300 mb-4 text-sm">{template.description}</p>
+      
+      <div className="mb-4">
+        <p className="text-white font-medium text-sm mb-2">Public cible :</p>
+        <span className={`inline-block px-2 py-1 rounded-lg text-xs font-medium ${
+          template.targetAudience === 'nouveaux' 
+            ? 'bg-blue-500/20 text-blue-300' 
+            : 'bg-yellow-500/20 text-yellow-300'
+        }`}>
+          {template.targetAudience === 'nouveaux' ? '👶 Nouveaux employés' : '👑 Game Masters'}
+        </span>
+      </div>
+      
+      <div className="mb-4">
+        <p className="text-white font-medium text-sm mb-2">Objectifs :</p>
+        <ul className="text-gray-400 text-xs space-y-1">
+          {template.objectives.slice(0, 3).map((objective, idx) => (
+            <li key={idx}>• {objective}</li>
+          ))}
+          {template.objectives.length > 3 && (
+            <li className="text-gray-500">... et {template.objectives.length - 3} autres</li>
+          )}
+        </ul>
+      </div>
+      
+      <button 
+        onClick={() => onSelectTemplate(templateId)}
+        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-2 px-4 rounded-lg font-medium transition-all duration-200"
+      >
+        Planifier cet entretien
+      </button>
+    </div>
+  );
+};
+
 // 🎯 COMPOSANT CARTE ENTRETIEN
-const InterviewCard = ({ interview, onMarkCompleted, onDelete, showActions = true, detailed = false }) => {
+const InterviewCard = ({ interview, onStartInterview, onDelete, showActions = true, detailed = false }) => {
   const template = INTERVIEW_TEMPLATES[interview.templateId];
   const IconComponent = template?.icon || MessageSquare;
   
@@ -859,81 +983,409 @@ const InterviewCard = ({ interview, onMarkCompleted, onDelete, showActions = tru
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3">
           <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-            template ? `bg-gradient-to-r ${template.color}` : 'bg-gray-600'
+            template ? template.bgColor : 'bg-gray-600'
           }`}>
             <IconComponent className="w-5 h-5 text-white" />
           </div>
+          
           <div className="flex-1">
-            <h5 className="font-semibold text-white">{interview.title || interview.templateName}</h5>
-            <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
+            <h5 className="font-semibold text-white">{interview.title}</h5>
+            <p className="text-gray-400 text-sm">{template?.description}</p>
+            
+            <div className="flex items-center gap-4 mt-2 text-sm text-gray-400">
               <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                {new Date(interview.date).toLocaleDateString('fr-FR')}
+                <Calendar className="h-4 w-4" />
+                {new Date(`${interview.date}T${interview.time}`).toLocaleDateString('fr-FR')}
               </span>
               <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3" />
+                <Clock className="h-4 w-4" />
                 {interview.time}
               </span>
-              {interview.duration && (
-                <span>{interview.duration} min</span>
-              )}
-            </div>
-            {interview.referent && (
-              <p className="text-sm text-gray-400 mt-1">
-                <User className="w-3 h-3 inline mr-1" />
-                Avec: {interview.referent}
-              </p>
-            )}
-            {interview.location && (
-              <p className="text-sm text-gray-400">
-                <MapPin className="w-3 h-3 inline mr-1" />
+              <span className="flex items-center gap-1">
+                <MapPin className="h-4 w-4" />
                 {interview.location}
-              </p>
+              </span>
+            </div>
+
+            {interview.targetUser && (
+              <div className="mt-2">
+                <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">
+                  👤 {interview.targetUser}
+                </span>
+              </div>
+            )}
+
+            {detailed && interview.notes && (
+              <div className="mt-2 p-2 bg-gray-800/50 rounded text-sm text-gray-300">
+                📝 {interview.notes}
+              </div>
             )}
           </div>
         </div>
-        
+
         {showActions && (
           <div className="flex items-center gap-2">
-            {isUpcoming && onMarkCompleted && (
+            {interview.status === 'planned' && (
               <button
-                onClick={() => onMarkCompleted(interview.id)}
-                className="text-green-400 hover:text-green-300 p-1"
-                title="Marquer comme terminé"
+                onClick={() => onStartInterview(interview)}
+                className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-sm font-medium transition-colors"
               >
-                <CheckCircle className="w-4 h-4" />
+                Démarrer
               </button>
             )}
+            
+            {interview.status === 'completed' && (
+              <span className="px-3 py-1 bg-green-500/20 text-green-300 rounded text-sm font-medium">
+                ✅ Terminé
+              </span>
+            )}
+            
             <button
               onClick={() => onDelete(interview.id)}
-              className="text-red-400 hover:text-red-300 p-1"
+              className="p-1 text-red-400 hover:text-red-300 transition-colors"
               title="Supprimer"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="h-4 w-4" />
             </button>
           </div>
         )}
       </div>
-      
-      <div className="mt-2">
-        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-          isCompleted ? 'bg-green-500/20 text-green-300' :
-          isUpcoming ? 'bg-blue-500/20 text-blue-300' :
-          'bg-orange-500/20 text-orange-300'
-        }`}>
-          {isCompleted ? '✅ Terminé' :
-           isUpcoming ? '📅 À venir' :
-           '⏰ En retard'}
-        </span>
-      </div>
-
-      {detailed && interview.notes && (
-        <div className="mt-3 p-2 bg-gray-600/30 rounded text-sm text-gray-300">
-          <FileText className="w-3 h-3 inline mr-1" />
-          {interview.notes}
-        </div>
-      )}
     </div>
+  );
+};
+
+// 📝 MODAL DE PLANIFICATION
+const ScheduleInterviewModal = ({ template, newInterview, setNewInterview, onSchedule, onClose, submitting }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-gray-800 rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-white">
+            📅 Planifier: {template.name}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-white font-medium mb-2">Date *</label>
+              <input
+                type="date"
+                value={newInterview.date}
+                onChange={(e) => setNewInterview(prev => ({ ...prev, date: e.target.value }))}
+                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-white font-medium mb-2">Heure *</label>
+              <input
+                type="time"
+                value={newInterview.time}
+                onChange={(e) => setNewInterview(prev => ({ ...prev, time: e.target.value }))}
+                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-white font-medium mb-2">Lieu</label>
+              <input
+                type="text"
+                value={newInterview.location}
+                onChange={(e) => setNewInterview(prev => ({ ...prev, location: e.target.value }))}
+                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                placeholder="Bureau Brain"
+              />
+            </div>
+            <div>
+              <label className="block text-white font-medium mb-2">Type</label>
+              <select
+                value={newInterview.type}
+                onChange={(e) => setNewInterview(prev => ({ ...prev, type: e.target.value }))}
+                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              >
+                <option value="presentiel">Présentiel</option>
+                <option value="visio">Visioconférence</option>
+                <option value="phone">Téléphone</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-white font-medium mb-2">Référent/Conducteur</label>
+            <input
+              type="text"
+              value={newInterview.referent}
+              onChange={(e) => setNewInterview(prev => ({ ...prev, referent: e.target.value }))}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              placeholder="Nom du référent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-white font-medium mb-2">Participant cible</label>
+            <input
+              type="text"
+              value={newInterview.targetUser}
+              onChange={(e) => setNewInterview(prev => ({ ...prev, targetUser: e.target.value }))}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              placeholder="Nom ou email du participant"
+            />
+          </div>
+
+          <div>
+            <label className="block text-white font-medium mb-2">Notes</label>
+            <textarea
+              value={newInterview.notes}
+              onChange={(e) => setNewInterview(prev => ({ ...prev, notes: e.target.value }))}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white h-24"
+              placeholder="Notes ou contexte spécifique..."
+            />
+          </div>
+
+          {/* Aperçu du template */}
+          <div className="bg-gray-700/50 rounded-lg p-4">
+            <h4 className="font-semibold text-white mb-2">📋 Aperçu de l'entretien</h4>
+            <p className="text-gray-300 text-sm mb-3">{template.description}</p>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-400">Durée: </span>
+                <span className="text-white">{template.duration} minutes</span>
+              </div>
+              <div>
+                <span className="text-gray-400">Questions: </span>
+                <span className="text-white">{template.questions.length} questions</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={onSchedule}
+              disabled={submitting || !newInterview.date || !newInterview.time}
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+            >
+              {submitting ? (
+                <div className="flex items-center justify-center gap-2">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Planification...
+                </div>
+              ) : (
+                'Planifier l\'entretien'
+              )}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// 🎯 MODAL DE CONDUITE D'ENTRETIEN
+const ConductInterviewModal = ({ interview, template, form, setForm, onComplete, onClose, submitting }) => {
+  const updateResponse = (questionIndex, response) => {
+    setForm(prev => ({
+      ...prev,
+      responses: {
+        ...prev.responses,
+        [questionIndex]: response
+      }
+    }));
+  };
+
+  const addNextStep = () => {
+    const step = prompt('Ajouter une action à suivre:');
+    if (step && step.trim()) {
+      setForm(prev => ({
+        ...prev,
+        nextSteps: [...prev.nextSteps, step.trim()]
+      }));
+    }
+  };
+
+  const removeNextStep = (index) => {
+    setForm(prev => ({
+      ...prev,
+      nextSteps: prev.nextSteps.filter((_, i) => i !== index)
+    }));
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-gray-800 rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-white">
+            🎯 Entretien: {interview.title}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          {/* Informations entretien */}
+          <div className="bg-gray-700/50 rounded-lg p-4">
+            <h4 className="font-semibold text-white mb-2">📋 Informations</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><span className="text-gray-400">Participant:</span> <span className="text-white">{interview.targetUser || 'Non spécifié'}</span></div>
+              <div><span className="text-gray-400">Date:</span> <span className="text-white">{new Date(`${interview.date}T${interview.time}`).toLocaleString('fr-FR')}</span></div>
+              <div><span className="text-gray-400">Durée:</span> <span className="text-white">{template.duration} minutes</span></div>
+              <div><span className="text-gray-400">Lieu:</span> <span className="text-white">{interview.location}</span></div>
+            </div>
+          </div>
+
+          {/* Questions */}
+          <div>
+            <h4 className="font-semibold text-white mb-4">❓ Questions d'entretien</h4>
+            <div className="space-y-4">
+              {template.questions.map((question, index) => (
+                <div key={index} className="bg-gray-700/50 rounded-lg p-4">
+                  <label className="block text-white font-medium mb-2">
+                    {index + 1}. {question}
+                  </label>
+                  <textarea
+                    value={form.responses[index] || ''}
+                    onChange={(e) => updateResponse(index, e.target.value)}
+                    className="w-full p-3 bg-gray-600 border border-gray-500 rounded-lg text-white h-20"
+                    placeholder="Réponse du participant..."
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Notes du conducteur */}
+          <div>
+            <label className="block text-white font-medium mb-2">📝 Notes du conducteur</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) => setForm(prev => ({ ...prev, notes: e.target.value }))}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white h-24"
+              placeholder="Observations, comportement, points remarquables..."
+            />
+          </div>
+
+          {/* Évaluation globale */}
+          <div>
+            <label className="block text-white font-medium mb-2">⭐ Évaluation globale *</label>
+            <select
+              value={form.evaluation}
+              onChange={(e) => setForm(prev => ({ ...prev, evaluation: e.target.value }))}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              required
+            >
+              <option value="">Sélectionner une évaluation</option>
+              <option value="excellent">🌟 Excellent - Dépasse les attentes</option>
+              <option value="good">✅ Bon - Répond aux attentes</option>
+              <option value="satisfactory">🆗 Satisfaisant - Objectifs atteints</option>
+              <option value="needs_improvement">⚠️ À améliorer - Besoin d'accompagnement</option>
+              <option value="unsatisfactory">❌ Insuffisant - Difficultés importantes</option>
+            </select>
+          </div>
+
+          {/* Actions à suivre */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-white font-medium">🎯 Actions à suivre</label>
+              <button
+                onClick={addNextStep}
+                type="button"
+                className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
+              >
+                + Ajouter
+              </button>
+            </div>
+            {form.nextSteps.length > 0 && (
+              <div className="space-y-2">
+                {form.nextSteps.map((step, index) => (
+                  <div key={index} className="flex items-center gap-2 bg-gray-700/50 p-2 rounded">
+                    <span className="flex-1 text-white text-sm">{step}</span>
+                    <button
+                      onClick={() => removeNextStep(index)}
+                      className="text-red-400 hover:text-red-300"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Date de suivi */}
+          <div>
+            <label className="block text-white font-medium mb-2">📅 Prochain suivi (optionnel)</label>
+            <input
+              type="date"
+              value={form.followUpDate}
+              onChange={(e) => setForm(prev => ({ ...prev, followUpDate: e.target.value }))}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={onComplete}
+              disabled={submitting || !form.evaluation}
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+            >
+              {submitting ? (
+                <div className="flex items-center justify-center gap-2">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Finalisation...
+                </div>
+              ) : (
+                'Terminer l\'entretien'
+              )}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
