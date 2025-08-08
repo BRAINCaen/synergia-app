@@ -1,430 +1,326 @@
 // ==========================================
-// 📁 react-app/src/core/services/demoDataCleaner.js
-// SERVICE DE SUPPRESSION DES DONNÉES DE DÉMONSTRATION
+// 📁 react-app/src/pages/admin/DemoDataCleanerPage.jsx
+// PAGE ADMIN POUR NETTOYER LES DONNÉES DE DÉMONSTRATION
 // ==========================================
 
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  deleteDoc, 
-  doc, 
-  writeBatch,
-  serverTimestamp,
-  getDoc,
-  updateDoc 
-} from 'firebase/firestore';
-import { db } from '../firebase.js';
+import React, { useState, useEffect } from 'react';
+import { useAuthStore } from '../../shared/stores/authStore.js';
+import { scanDemoData, cleanAllDemoData, generateDemoReport } from '../../core/services/demoDataCleaner.js';
+import { isAdmin } from '../../core/services/adminService.js';
 
-/**
- * 🧹 SERVICE DE NETTOYAGE DES DONNÉES DÉMO
- * Supprime toutes les données de démonstration pour ne garder que les vraies données utilisateur
- */
-class DemoDataCleaner {
-  constructor() {
-    // Patterns pour identifier les données de démonstration
-    this.demoPatterns = {
-      // Titres de tâches démo
-      taskTitles: [
-        'Gagner votre premier badge',
-        'Compléter votre profil',
-        'Découvrir le tableau de bord',
-        'Bienvenue dans Synergia !',
-        'Découvrir l\'interface de gestion des tâches',
-        'Compléter votre première tâche',
-        'Explorer le système de gamification',
-        'Première tâche',
-        'Tâche d\'exemple',
-        'Test task',
-        'Demo task'
-      ],
-      
-      // Descriptions démo
-      descriptions: [
-        'Complétez des tâches pour débloquer des badges',
-        'Ajoutez vos informations personnelles',
-        'Explorez votre tableau de bord personnalisé',
-        'Explorez votre nouveau tableau de bord',
-        'Explorez toutes les fonctionnalités de la page des tâches',
-        'Changez le statut d\'une tâche et découvrez le système',
-        'Découvrez comment gagner de l\'XP',
-        'Ceci est une tâche d\'exemple',
-        'Description de démonstration'
-      ],
-      
-      // Tags démo
-      tags: [
-        'onboarding',
-        'formation',
-        'gamification',
-        'welcome',
-        'demo',
-        'test',
-        'exemple'
-      ],
-      
-      // Noms d'utilisateurs démo
-      userNames: [
-        'Allan le BOSS',
-        'Utilisateur Test',
-        'Test User',
-        'Demo User',
-        'Example User'
-      ],
-      
-      // Emails démo
-      emails: [
-        'test@example.com',
-        'demo@synergia.com',
-        'admin@synergia.com',
-        'user@exemple.com',
-        'alice@example.com',
-        'bob@example.com'
-      ]
-    };
-    
-    console.log('🧹 DemoDataCleaner initialisé');
-  }
+const DemoDataCleanerPage = () => {
+  const { user } = useAuthStore();
+  const [loading, setLoading] = useState(false);
+  const [scanResults, setScanResults] = useState(null);
+  const [cleaningResults, setCleaningResults] = useState(null);
+  const [report, setReport] = useState(null);
+  const [step, setStep] = useState('scan'); // scan, confirm, clean, done
 
-  /**
-   * 🔍 ANALYSER ET IDENTIFIER TOUTES LES DONNÉES DÉMO
-   */
-  async scanAllDemoData() {
-    try {
-      console.log('🔍 Scan complet des données de démonstration...');
-      
-      const demoData = {
-        tasks: [],
-        projects: [],
-        users: [],
-        badges: [],
-        stats: {}
-      };
-
-      // Analyser les tâches
-      const tasksSnapshot = await getDocs(collection(db, 'tasks'));
-      tasksSnapshot.forEach(doc => {
-        const task = { id: doc.id, ...doc.data() };
-        if (this.isTaskDemo(task)) {
-          demoData.tasks.push(task);
-        }
-      });
-
-      // Analyser les projets
-      const projectsSnapshot = await getDocs(collection(db, 'projects'));
-      projectsSnapshot.forEach(doc => {
-        const project = { id: doc.id, ...doc.data() };
-        if (this.isProjectDemo(project)) {
-          demoData.projects.push(project);
-        }
-      });
-
-      // Analyser les utilisateurs
-      const usersSnapshot = await getDocs(collection(db, 'users'));
-      usersSnapshot.forEach(doc => {
-        const user = { id: doc.id, ...doc.data() };
-        if (this.isUserDemo(user)) {
-          demoData.users.push(user);
-        }
-      });
-
-      // Analyser les badges
-      const badgesSnapshot = await getDocs(collection(db, 'user_badges'));
-      badgesSnapshot.forEach(doc => {
-        const badge = { id: doc.id, ...doc.data() };
-        if (this.isBadgeDemo(badge)) {
-          demoData.badges.push(badge);
-        }
-      });
-
-      demoData.stats = {
-        totalDemoTasks: demoData.tasks.length,
-        totalDemoProjects: demoData.projects.length,
-        totalDemoUsers: demoData.users.length,
-        totalDemoBadges: demoData.badges.length,
-        totalDemoItems: demoData.tasks.length + demoData.projects.length + demoData.users.length + demoData.badges.length
-      };
-
-      console.log('📊 Données démo trouvées:', demoData.stats);
-      return demoData;
-
-    } catch (error) {
-      console.error('❌ Erreur scan données démo:', error);
-      throw error;
+  // Vérifier les permissions admin
+  useEffect(() => {
+    if (!isAdmin(user)) {
+      window.location.href = '/dashboard';
+      return;
     }
-  }
+  }, [user]);
 
   /**
-   * 🗑️ SUPPRIMER TOUTES LES DONNÉES DÉMO
+   * 🔍 SCANNER LES DONNÉES DÉMO
    */
-  async cleanAllDemoData() {
+  const handleScan = async () => {
     try {
-      console.log('🗑️ Début du nettoyage des données démo...');
+      setLoading(true);
+      console.log('🔍 Début du scan des données démo...');
       
-      // Scanner d'abord pour identifier
-      const demoData = await this.scanAllDemoData();
+      const results = await scanDemoData();
+      setScanResults(results);
       
-      if (demoData.stats.totalDemoItems === 0) {
-        console.log('✅ Aucune donnée démo trouvée');
-        return {
+      if (results.stats.totalDemoItems > 0) {
+        setStep('confirm');
+      } else {
+        setStep('done');
+        setCleaningResults({
           success: true,
-          cleaned: 0,
-          message: 'Aucune donnée de démonstration trouvée'
-        };
+          message: 'Aucune donnée de démonstration trouvée. Votre base de données est propre !'
+        });
       }
-
-      // Créer un batch pour les suppressions
-      const batch = writeBatch(db);
-      let deletionCount = 0;
-
-      // Supprimer les tâches démo
-      for (const task of demoData.tasks) {
-        batch.delete(doc(db, 'tasks', task.id));
-        deletionCount++;
-        console.log(`🗑️ Suppression tâche démo: ${task.title}`);
-      }
-
-      // Supprimer les projets démo
-      for (const project of demoData.projects) {
-        batch.delete(doc(db, 'projects', project.id));
-        deletionCount++;
-        console.log(`🗑️ Suppression projet démo: ${project.name}`);
-      }
-
-      // Supprimer les badges démo
-      for (const badge of demoData.badges) {
-        batch.delete(doc(db, 'user_badges', badge.id));
-        deletionCount++;
-        console.log(`🗑️ Suppression badge démo: ${badge.badgeId}`);
-      }
-
-      // Exécuter les suppressions
-      await batch.commit();
-
-      // Nettoyer les données utilisateur (supprimer les références aux données démo)
-      await this.cleanUserReferences();
-
-      console.log(`✅ Nettoyage terminé: ${deletionCount} éléments supprimés`);
       
-      return {
-        success: true,
-        cleaned: deletionCount,
-        details: demoData.stats,
-        message: `${deletionCount} données de démonstration supprimées avec succès`
-      };
-
     } catch (error) {
-      console.error('❌ Erreur nettoyage données démo:', error);
-      throw error;
+      console.error('❌ Erreur scan:', error);
+      setCleaningResults({
+        success: false,
+        message: `Erreur lors du scan: ${error.message}`
+      });
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   /**
-   * 🧹 NETTOYER LES RÉFÉRENCES UTILISATEUR
-   * Supprimer les références aux données démo dans les profils utilisateur
+   * 🧹 NETTOYER LES DONNÉES DÉMO
    */
-  async cleanUserReferences() {
+  const handleClean = async () => {
     try {
-      console.log('🧹 Nettoyage des références utilisateur...');
+      setLoading(true);
+      setStep('clean');
+      console.log('🧹 Début du nettoyage...');
       
-      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const results = await cleanAllDemoData();
+      setCleaningResults(results);
+      setStep('done');
       
-      for (const userDoc of usersSnapshot.docs) {
-        const userData = userDoc.data();
-        const updates = {};
-        let needsUpdate = false;
-
-        // Nettoyer les noms démo
-        if (userData.displayName && this.demoPatterns.userNames.includes(userData.displayName)) {
-          updates.displayName = this.generateCleanDisplayName(userData.email);
-          needsUpdate = true;
-        }
-
-        // Nettoyer les biographies inappropriées
-        if (userData.profile?.bio === 'Prout') {
-          updates['profile.bio'] = 'Bienvenue sur Synergia !';
-          needsUpdate = true;
-        }
-
-        // Réinitialiser les statistiques gonflées artificiellement
-        if (userData.gamification?.tasksCompleted > 100) {
-          updates['gamification.tasksCompleted'] = 0;
-          updates['gamification.totalXp'] = 0;
-          updates['gamification.level'] = 1;
-          needsUpdate = true;
-        }
-
-        // Appliquer les mises à jour si nécessaire
-        if (needsUpdate) {
-          await updateDoc(doc(db, 'users', userDoc.id), {
-            ...updates,
-            updatedAt: serverTimestamp()
-          });
-          console.log(`🧹 Utilisateur nettoyé: ${userDoc.id}`);
-        }
+      // Générer un rapport final
+      try {
+        const finalReport = await generateDemoReport();
+        setReport(finalReport);
+      } catch (reportError) {
+        console.warn('⚠️ Erreur génération rapport final:', reportError);
       }
-
+      
     } catch (error) {
-      console.error('❌ Erreur nettoyage références:', error);
+      console.error('❌ Erreur nettoyage:', error);
+      setCleaningResults({
+        success: false,
+        message: `Erreur lors du nettoyage: ${error.message}`
+      });
+      setStep('done');
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   /**
-   * 🔍 VÉRIFIER SI UNE TÂCHE EST UNE DÉMO
+   * 🔄 RECOMMENCER LE PROCESSUS
    */
-  isTaskDemo(task) {
-    // Vérifier le titre
-    if (this.demoPatterns.taskTitles.some(pattern => 
-      task.title?.toLowerCase().includes(pattern.toLowerCase())
-    )) {
-      return true;
-    }
+  const handleRestart = () => {
+    setScanResults(null);
+    setCleaningResults(null);
+    setReport(null);
+    setStep('scan');
+  };
 
-    // Vérifier la description
-    if (this.demoPatterns.descriptions.some(pattern => 
-      task.description?.toLowerCase().includes(pattern.toLowerCase())
-    )) {
-      return true;
-    }
-
-    // Vérifier les tags
-    if (task.tags?.some(tag => this.demoPatterns.tags.includes(tag.toLowerCase()))) {
-      return true;
-    }
-
-    // Vérifier si assignée à trop d'utilisateurs (signe de données factices)
-    if (task.assignedTo && task.assignedTo.length > 10) {
-      return true;
-    }
-
-    // Vérifier si créée par le système (pas par un utilisateur)
-    if (task.createdBy === 'system' || !task.createdBy) {
-      return true;
-    }
-
-    return false;
-  }
-
-  /**
-   * 🔍 VÉRIFIER SI UN PROJET EST UNE DÉMO
-   */
-  isProjectDemo(project) {
-    const demoProjectNames = [
-      'Projet de démonstration',
-      'Test Project',
-      'Demo Project',
-      'Example Project',
-      'Onboarding Project'
-    ];
-
-    return demoProjectNames.some(name => 
-      project.name?.toLowerCase().includes(name.toLowerCase())
+  // Protection admin
+  if (!isAdmin(user)) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">🚫 Accès refusé</h1>
+          <p className="text-gray-600">Cette page est réservée aux administrateurs.</p>
+        </div>
+      </div>
     );
   }
 
-  /**
-   * 🔍 VÉRIFIER SI UN UTILISATEUR EST UNE DÉMO
-   */
-  isUserDemo(user) {
-    // Vérifier le nom
-    if (this.demoPatterns.userNames.includes(user.displayName)) {
-      return true;
-    }
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-3xl">🧹</span>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Nettoyage des données de démonstration
+            </h1>
+          </div>
+          
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <span className="text-yellow-600 text-xl">⚠️</span>
+              <div>
+                <h3 className="font-semibold text-yellow-800 mb-2">Attention - Opération irréversible</h3>
+                <p className="text-yellow-700 text-sm">
+                  Cet outil va supprimer définitivement toutes les données de démonstration de votre base de données. 
+                  Seules les vraies données créées par les utilisateurs seront conservées.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
 
-    // Vérifier l'email
-    if (this.demoPatterns.emails.includes(user.email)) {
-      return true;
-    }
+        {/* Étape 1: Scanner */}
+        {step === 'scan' && (
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <span>🔍</span> Étape 1 : Scanner les données
+            </h2>
+            
+            <p className="text-gray-600 mb-6">
+              Commençons par identifier toutes les données de démonstration présentes dans votre système.
+            </p>
+            
+            <button
+              onClick={handleScan}
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              {loading ? '🔍 Scan en cours...' : '🔍 Scanner les données démo'}
+            </button>
+          </div>
+        )}
 
-    return false;
-  }
+        {/* Étape 2: Résultats du scan */}
+        {step === 'confirm' && scanResults && (
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <span>📊</span> Résultats du scan
+            </h2>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="text-2xl font-bold text-red-600">{scanResults.stats.totalDemoTasks}</div>
+                <div className="text-sm text-red-800">Tâches démo</div>
+              </div>
+              
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <div className="text-2xl font-bold text-orange-600">{scanResults.stats.totalDemoProjects}</div>
+                <div className="text-sm text-orange-800">Projets démo</div>
+              </div>
+              
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="text-2xl font-bold text-purple-600">{scanResults.stats.totalDemoUsers}</div>
+                <div className="text-sm text-purple-800">Utilisateurs démo</div>
+              </div>
+              
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <div className="text-2xl font-bold text-gray-600">{scanResults.stats.totalDemoBadges}</div>
+                <div className="text-sm text-gray-800">Badges démo</div>
+              </div>
+            </div>
 
-  /**
-   * 🔍 VÉRIFIER SI UN BADGE EST UNE DÉMO
-   */
-  isBadgeDemo(badge) {
-    // Les badges d'onboarding sont souvent des démos
-    if (badge.badgeType === 'onboarding') {
-      return true;
-    }
+            {/* Détails des données trouvées */}
+            {scanResults.tasks.length > 0 && (
+              <div className="mb-6">
+                <h3 className="font-semibold mb-3 text-red-700">📋 Tâches de démonstration à supprimer :</h3>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-h-48 overflow-y-auto">
+                  {scanResults.tasks.slice(0, 10).map(task => (
+                    <div key={task.id} className="text-sm text-red-800 mb-1">
+                      • {task.title} {task.assignedTo && task.assignedTo.length > 1 && (
+                        <span className="text-red-600 font-medium">
+                          (assignée à {task.assignedTo.length} personnes)
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  {scanResults.tasks.length > 10 && (
+                    <div className="text-sm text-red-600 font-medium mt-2">
+                      ... et {scanResults.tasks.length - 10} autres tâches
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
-    // Badges avec des noms démo
-    if (badge.badgeId?.includes('demo_') || badge.badgeId?.includes('test_')) {
-      return true;
-    }
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <h3 className="font-semibold text-yellow-800 mb-2">
+                🗑️ Total à supprimer : {scanResults.stats.totalDemoItems} éléments
+              </h3>
+              <p className="text-yellow-700 text-sm">
+                Ces données seront supprimées définitivement. Les vraies données créées par les utilisateurs seront conservées.
+              </p>
+            </div>
 
-    return false;
-  }
+            <div className="flex gap-4">
+              <button
+                onClick={handleClean}
+                disabled={loading}
+                className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                {loading ? '🧹 Nettoyage...' : '🗑️ Supprimer les données démo'}
+              </button>
+              
+              <button
+                onClick={handleRestart}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                🔄 Annuler
+              </button>
+            </div>
+          </div>
+        )}
 
-  /**
-   * 🎯 GÉNÉRER UN NOM D'AFFICHAGE PROPRE
-   */
-  generateCleanDisplayName(email) {
-    if (!email) return 'Utilisateur';
-    
-    const namePart = email.split('@')[0];
-    return namePart.charAt(0).toUpperCase() + namePart.slice(1);
-  }
+        {/* Étape 3: Nettoyage en cours */}
+        {step === 'clean' && (
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="text-center">
+              <div className="animate-spin text-4xl mb-4">🧹</div>
+              <h2 className="text-xl font-semibold mb-2">Nettoyage en cours...</h2>
+              <p className="text-gray-600">
+                Suppression des données de démonstration. Veuillez patienter.
+              </p>
+            </div>
+          </div>
+        )}
 
-  /**
-   * 📊 GÉNÉRER UN RAPPORT DE NETTOYAGE
-   */
-  async generateCleaningReport() {
-    try {
-      const beforeScan = await this.scanAllDemoData();
-      
-      return {
-        timestamp: new Date().toISOString(),
-        beforeCleaning: beforeScan.stats,
-        demoDataFound: {
-          tasks: beforeScan.tasks.map(t => ({ id: t.id, title: t.title })),
-          projects: beforeScan.projects.map(p => ({ id: p.id, name: p.name })),
-          users: beforeScan.users.map(u => ({ id: u.id, email: u.email })),
-          badges: beforeScan.badges.map(b => ({ id: b.id, badgeId: b.badgeId }))
-        },
-        recommendations: [
-          '✅ Supprimer toutes les données de démonstration identifiées',
-          '✅ Nettoyer les références utilisateur aux données démo',
-          '✅ Réinitialiser les statistiques gonflées artificiellement',
-          '✅ Vérifier que seules les vraies données utilisateur restent'
-        ]
-      };
+        {/* Étape 4: Résultats finaux */}
+        {step === 'done' && cleaningResults && (
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="text-center mb-6">
+              <div className="text-4xl mb-4">
+                {cleaningResults.success ? '✅' : '❌'}
+              </div>
+              <h2 className="text-xl font-semibold mb-2">
+                {cleaningResults.success ? 'Nettoyage terminé !' : 'Erreur lors du nettoyage'}
+              </h2>
+              <p className={`${cleaningResults.success ? 'text-green-600' : 'text-red-600'}`}>
+                {cleaningResults.message}
+              </p>
+            </div>
 
-    } catch (error) {
-      console.error('❌ Erreur génération rapport:', error);
-      throw error;
-    }
-  }
-}
+            {cleaningResults.success && cleaningResults.cleaned > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <h3 className="font-semibold text-green-800 mb-2">
+                  🎉 Nettoyage réussi !
+                </h3>
+                <div className="text-green-700 text-sm">
+                  <p>✅ {cleaningResults.cleaned} éléments de démonstration supprimés</p>
+                  <p>✅ Références utilisateur nettoyées</p>
+                  <p>✅ Statistiques réinitialisées</p>
+                  <p>✅ Base de données propre</p>
+                </div>
+              </div>
+            )}
 
-// ==========================================
-// 🚀 FONCTIONS D'EXPORT POUR UTILISATION
-// ==========================================
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <h3 className="font-semibold text-blue-800 mb-2">📋 Prochaines étapes recommandées :</h3>
+              <div className="text-blue-700 text-sm space-y-1">
+                <p>1. ✅ Vérifier que les vraies tâches utilisateur sont toujours présentes</p>
+                <p>2. ✅ Tester toutes les fonctionnalités de l'application</p>
+                <p>3. ✅ Informer les utilisateurs du nettoyage effectué</p>
+                <p>4. ✅ Surveiller les performances de l'application</p>
+              </div>
+            </div>
 
-/**
- * 🧹 NETTOYER TOUTES LES DONNÉES DÉMO - FONCTION PRINCIPALE
- */
-export const cleanAllDemoData = async () => {
-  const cleaner = new DemoDataCleaner();
-  return await cleaner.cleanAllDemoData();
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={handleRestart}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                🔍 Nouveau scan
+              </button>
+              
+              <button
+                onClick={() => window.location.href = '/dashboard'}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                🏠 Retour au Dashboard
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Loading Spinner Global */}
+        {loading && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 text-center">
+              <div className="animate-spin text-3xl mb-3">⚙️</div>
+              <p className="font-medium">Traitement en cours...</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
-/**
- * 🔍 SCANNER LES DONNÉES DÉMO SANS LES SUPPRIMER
- */
-export const scanDemoData = async () => {
-  const cleaner = new DemoDataCleaner();
-  return await cleaner.scanAllDemoData();
-};
-
-/**
- * 📊 GÉNÉRER UN RAPPORT COMPLET
- */
-export const generateDemoReport = async () => {
-  const cleaner = new DemoDataCleaner();
-  return await cleaner.generateCleaningReport();
-};
-
-// Export de la classe principale
-export default DemoDataCleaner;
+export default DemoDataCleanerPage;
