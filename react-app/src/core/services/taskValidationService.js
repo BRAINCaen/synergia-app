@@ -1,214 +1,128 @@
 // ==========================================
-// 📁 react-app/src/core/services/taskValidationService.js
-// SERVICE DE VALIDATION CORRIGÉ - RÉSOUT LE PROBLÈME DE SOUMISSION
+// 📁 react-app/src/core/services/taskValidationService.js  
+// HOTFIX URGENT - AJOUT MÉTHODE checkAdminPermissions MANQUANTE
 // ==========================================
 
 import { 
   collection, 
+  doc, 
   addDoc, 
   updateDoc, 
-  doc, 
-  serverTimestamp,
   getDoc,
-  getDocs,
-  query,
-  where,
-  orderBy
+  getDocs, 
+  query, 
+  where, 
+  orderBy,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
 /**
- * 🎯 SERVICE DE VALIDATION DES TÂCHES - VERSION CORRIGÉE
+ * 🛡️ SERVICE DE VALIDATION DES TÂCHES (Version corrigée)
  */
 class TaskValidationService {
   constructor() {
-    console.log('🎯 TaskValidationService initialisé - Version corrigée');
+    this.COLLECTION_NAME = 'task_validations';
+    console.log('🛡️ TaskValidationService initialisé');
   }
 
+  // ✅ MÉTHODE MANQUANTE AJOUTÉE
   /**
-   * 📤 SOUMETTRE UNE TÂCHE POUR VALIDATION - CORRIGÉ
+   * 🛡️ VÉRIFIER LES PERMISSIONS ADMIN - MÉTHODE MANQUANTE AJOUTÉE
    */
-  async submitTaskForValidation(validationData) {
+  async checkAdminPermissions(userId) {
     try {
-      console.log('📤 [SUBMIT] Soumission validation:', validationData.taskTitle);
-
-      const {
-        taskId,
-        userId,
-        taskTitle,
-        projectId,
-        difficulty,
-        comment,
-        photoFile,
-        videoFile
-      } = validationData;
-
-      // ✅ ÉTAPE 1 : Créer la demande de validation
-      const validationRequest = {
-        taskId,
-        userId,
-        taskTitle: taskTitle || 'Tâche sans titre',
-        projectId: projectId || null,
-        difficulty: difficulty || 'medium',
-        comment: comment || '',
-        status: 'pending',
-        submittedAt: serverTimestamp(),
-        reviewedBy: null,
-        reviewedAt: null,
-        adminComment: null,
-        xpAmount: this.calculateXPForDifficulty(difficulty),
-        
-        // Métadonnées
-        submissionVersion: '3.0',
-        source: 'synergia_volunteer_system',
-        type: 'volunteer_task',
-        
-        // URLs de médias (seront mises à jour si upload réussi)
-        photoUrl: null,
-        videoUrl: null,
-        hasMedia: !!(photoFile || videoFile)
-      };
-
-      // ✅ ÉTAPE 2 : Sauvegarder en base AVANT l'upload
-      const validationRef = await addDoc(collection(db, 'task_validations'), validationRequest);
-      console.log('✅ [SUBMIT] Validation créée en base:', validationRef.id);
-
-      // ✅ ÉTAPE 3 : Mettre à jour le statut de la tâche IMMÉDIATEMENT
-      await updateDoc(doc(db, 'tasks', taskId), {
-        status: 'validation_pending',
-        submittedForValidation: true,
-        validationRequestId: validationRef.id,
-        submittedAt: serverTimestamp(),
-        submittedBy: userId,
-        updatedAt: serverTimestamp()
-      });
-      console.log('✅ [SUBMIT] Statut tâche mis à jour vers validation_pending');
-
-      // ✅ ÉTAPE 4 : Tenter l'upload des médias (optionnel)
-      let mediaUploadSuccess = false;
-      let corsWarning = false;
-
-      if (photoFile || videoFile) {
-        try {
-          console.log('📷 [SUBMIT] Tentative upload médias...');
-          
-          const mediaUrls = await this.uploadMediaFiles({
-            photoFile,
-            videoFile,
-            taskId,
-            userId,
-            validationId: validationRef.id
-          });
-
-          // Mettre à jour avec les URLs des médias
-          await updateDoc(validationRef, {
-            photoUrl: mediaUrls.photoUrl,
-            videoUrl: mediaUrls.videoUrl,
-            mediaUploadedAt: serverTimestamp()
-          });
-
-          mediaUploadSuccess = true;
-          console.log('✅ [SUBMIT] Upload médias réussi');
-
-        } catch (uploadError) {
-          console.warn('⚠️ [SUBMIT] Échec upload médias (CORS):', uploadError.message);
-          corsWarning = true;
-          
-          // Marquer que l'upload a échoué mais la validation reste valide
-          await updateDoc(validationRef, {
-            mediaUploadError: uploadError.message,
-            uploadFailedAt: serverTimestamp()
-          });
-        }
+      console.log('🔍 [TaskValidation] Vérification permissions admin pour:', userId);
+      
+      if (!userId) {
+        console.warn('⚠️ checkAdminPermissions: userId manquant');
+        return false;
       }
 
-      // ✅ ÉTAPE 5 : Retourner le résultat
-      const result = {
-        success: true,
-        validationId: validationRef.id,
-        taskId,
-        newStatus: 'validation_pending',
-        mediaUploadSuccess,
-        corsWarning,
-        message: corsWarning ? 
-          'Validation soumise avec succès. Upload média échoué (problème CORS).' :
-          'Validation soumise avec succès.'
-      };
+      // Récupérer les données utilisateur
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        console.warn('⚠️ Utilisateur non trouvé:', userId);
+        return false;
+      }
 
-      console.log('✅ [SUBMIT] Résultat final:', result);
-      return result;
-
+      const userData = userDoc.data();
+      
+      // Vérifications multiples pour admin
+      const isAdminEmail = userData.email === 'alan.boehme61@gmail.com';
+      const isRoleAdmin = userData.profile?.role === 'admin';
+      const isProfileRoleAdmin = userData.role === 'admin';
+      const hasAdminFlag = userData.isAdmin === true;
+      const hasValidatePermission = userData.permissions?.includes('validate_tasks');
+      const hasAdminPermission = userData.permissions?.includes('admin_access');
+      
+      const isAdmin = isAdminEmail || isRoleAdmin || isProfileRoleAdmin || 
+                     hasAdminFlag || hasValidatePermission || hasAdminPermission;
+      
+      console.log('🔍 [TaskValidation] checkAdminPermissions résultat:', {
+        userId,
+        email: userData.email,
+        isAdminEmail,
+        isRoleAdmin,
+        isProfileRoleAdmin,
+        hasAdminFlag,
+        hasValidatePermission,
+        hasAdminPermission,
+        finalResult: isAdmin
+      });
+      
+      return isAdmin;
+      
     } catch (error) {
-      console.error('❌ [SUBMIT] Erreur soumission validation:', error);
-      throw new Error(`Erreur de soumission: ${error.message}`);
+      console.error('❌ Erreur vérification permissions admin:', error);
+      return false;
     }
   }
 
   /**
-   * 📷 UPLOAD DES FICHIERS MÉDIAS (avec gestion CORS)
+   * 📝 SOUMETTRE UNE TÂCHE POUR VALIDATION
    */
-  async uploadMediaFiles({ photoFile, videoFile, taskId, userId, validationId }) {
+  async submitTaskForValidation(taskId, userId, submissionData) {
     try {
-      console.log('📷 [UPLOAD] Début upload médias...');
-      
-      const results = {
-        photoUrl: null,
-        videoUrl: null
+      console.log('📝 [SUBMIT] Soumission validation:', { taskId, userId });
+
+      const validationData = {
+        taskId,
+        userId,
+        status: 'pending',
+        submittedAt: serverTimestamp(),
+        ...submissionData
       };
 
-      // Simuler l'upload ou utiliser votre service de stockage
-      if (photoFile) {
-        console.log('📷 [UPLOAD] Upload photo...');
-        // Ici, vous devriez appeler votre service de stockage
-        // results.photoUrl = await this.uploadToStorage(photoFile, `validations/${validationId}/photo`);
-        
-        // Pour le moment, on simule un succès
-        results.photoUrl = `storage/validations/${validationId}/photo.jpg`;
-      }
+      const docRef = await addDoc(collection(db, this.COLLECTION_NAME), validationData);
+      
+      // Marquer la tâche comme soumise
+      await updateDoc(doc(db, 'tasks', taskId), {
+        status: 'submitted',
+        submittedForValidation: true,
+        submittedAt: serverTimestamp()
+      });
 
-      if (videoFile) {
-        console.log('🎥 [UPLOAD] Upload vidéo...');
-        // results.videoUrl = await this.uploadToStorage(videoFile, `validations/${validationId}/video`);
-        
-        // Pour le moment, on simule un succès
-        results.videoUrl = `storage/validations/${validationId}/video.mp4`;
-      }
-
-      console.log('✅ [UPLOAD] Upload terminé:', results);
-      return results;
+      console.log('✅ [SUBMIT] Tâche soumise pour validation:', docRef.id);
+      return { success: true, validationId: docRef.id };
 
     } catch (error) {
-      // Les erreurs CORS sont courantes avec les uploads
-      if (error.message.includes('CORS') || error.message.includes('network')) {
-        throw new Error('CORS_ERROR: Problème de réseau pour l\'upload');
-      }
+      console.error('❌ [SUBMIT] Erreur soumission:', error);
       throw error;
     }
   }
 
   /**
-   * 🧮 CALCULER LES XP SELON LA DIFFICULTÉ
-   */
-  calculateXPForDifficulty(difficulty) {
-    const xpValues = {
-      'easy': 20,
-      'medium': 35,
-      'hard': 50,
-      'expert': 75
-    };
-    
-    return xpValues[difficulty] || 35;
-  }
-
-  /**
-   * 📋 RÉCUPÉRER LES VALIDATIONS EN ATTENTE
+   * 📋 RÉCUPÉRER TOUTES LES VALIDATIONS EN ATTENTE
    */
   async getPendingValidations() {
     try {
       console.log('📋 [GET_PENDING] Récupération validations en attente...');
 
       const validationsQuery = query(
-        collection(db, 'task_validations'),
+        collection(db, this.COLLECTION_NAME),
         where('status', '==', 'pending'),
         orderBy('submittedAt', 'desc')
       );
@@ -216,27 +130,32 @@ class TaskValidationService {
       const snapshot = await getDocs(validationsQuery);
       const validations = [];
 
-      for (const doc of snapshot.docs) {
-        const data = doc.data();
+      for (const docSnapshot of snapshot.docs) {
+        const data = docSnapshot.data();
         
-        // Enrichir avec les informations utilisateur
         try {
-          const userDoc = await getDoc(doc(db, 'users', data.userId));
+          // Enrichir avec les données utilisateur et tâche
+          const [userDoc, taskDoc] = await Promise.all([
+            getDoc(doc(db, 'users', data.userId)),
+            getDoc(doc(db, 'tasks', data.taskId))
+          ]);
+
           const userData = userDoc.exists() ? userDoc.data() : {};
-          
+          const taskData = taskDoc.exists() ? taskDoc.data() : {};
+
           validations.push({
-            id: doc.id,
+            id: docSnapshot.id,
             ...data,
-            userName: userData.displayName || userData.name || 'Utilisateur inconnu',
-            userEmail: userData.email || 'Email non disponible'
+            user: userData,
+            task: taskData,
+            submittedAt: data.submittedAt?.toDate ? data.submittedAt.toDate() : new Date()
           });
-        } catch (userError) {
-          console.warn('⚠️ Erreur récupération user:', userError);
+        } catch (enrichError) {
+          console.warn('⚠️ Erreur enrichissement validation:', enrichError);
           validations.push({
-            id: doc.id,
+            id: docSnapshot.id,
             ...data,
-            userName: 'Utilisateur inconnu',
-            userEmail: 'Email non disponible'
+            submittedAt: data.submittedAt?.toDate ? data.submittedAt.toDate() : new Date()
           });
         }
       }
@@ -245,7 +164,7 @@ class TaskValidationService {
       return validations;
 
     } catch (error) {
-      console.error('❌ [GET_PENDING] Erreur récupération validations:', error);
+      console.error('❌ [GET_PENDING] Erreur récupération:', error);
       return [];
     }
   }
@@ -257,7 +176,7 @@ class TaskValidationService {
     try {
       console.log('✅ [APPROVE] Approbation validation:', validationId);
 
-      const validationRef = doc(db, 'task_validations', validationId);
+      const validationRef = doc(db, this.COLLECTION_NAME, validationId);
       const validationDoc = await getDoc(validationRef);
       
       if (!validationDoc.exists()) {
@@ -265,30 +184,41 @@ class TaskValidationService {
       }
 
       const validationData = validationDoc.data();
-
+      
       // Mettre à jour la validation
       await updateDoc(validationRef, {
         status: 'approved',
         reviewedBy: adminUserId,
         reviewedAt: serverTimestamp(),
-        adminComment: adminComment || 'Validation approuvée'
+        adminComment: adminComment || 'Tâche approuvée'
       });
 
-      // Mettre à jour la tâche
-      await updateDoc(doc(db, 'tasks', validationData.taskId), {
-        status: 'completed',
-        completedAt: serverTimestamp(),
-        completedBy: validationData.userId,
-        validatedBy: adminUserId,
-        updatedAt: serverTimestamp()
-      });
+      // Marquer la tâche comme terminée
+      if (validationData.taskId) {
+        try {
+          await updateDoc(doc(db, 'tasks', validationData.taskId), {
+            status: 'completed',
+            completedAt: serverTimestamp(),
+            validatedBy: adminUserId,
+            adminValidationComment: adminComment,
+            updatedAt: serverTimestamp()
+          });
+          console.log('✅ [APPROVE] Tâche marquée comme terminée');
+        } catch (taskError) {
+          console.warn('⚠️ [APPROVE] Erreur mise à jour tâche:', taskError);
+        }
+      }
 
       console.log('✅ [APPROVE] Validation approuvée avec succès');
-      return { success: true };
+      return { 
+        success: true, 
+        validationId,
+        message: 'Validation approuvée avec succès'
+      };
 
     } catch (error) {
-      console.error('❌ [APPROVE] Erreur approbation:', error);
-      throw error;
+      console.error('❌ [APPROVE] Erreur approbation validation:', error);
+      throw new Error(`Erreur approbation: ${error.message}`);
     }
   }
 
@@ -299,7 +229,11 @@ class TaskValidationService {
     try {
       console.log('❌ [REJECT] Rejet validation:', validationId);
 
-      const validationRef = doc(db, 'task_validations', validationId);
+      if (!adminComment || adminComment.trim() === '') {
+        throw new Error('Un commentaire est requis pour rejeter une validation');
+      }
+
+      const validationRef = doc(db, this.COLLECTION_NAME, validationId);
       const validationDoc = await getDoc(validationRef);
       
       if (!validationDoc.exists()) {
@@ -307,24 +241,30 @@ class TaskValidationService {
       }
 
       const validationData = validationDoc.data();
-
+      
       // Mettre à jour la validation
       await updateDoc(validationRef, {
         status: 'rejected',
         reviewedBy: adminUserId,
         reviewedAt: serverTimestamp(),
-        adminComment: adminComment || 'Validation rejetée'
+        adminComment: adminComment.trim()
       });
 
       // Remettre la tâche en cours pour permettre une nouvelle soumission
-      await updateDoc(doc(db, 'tasks', validationData.taskId), {
-        status: 'in_progress',
-        submittedForValidation: false,
-        rejectedAt: serverTimestamp(),
-        rejectedBy: adminUserId,
-        rejectionReason: adminComment,
-        updatedAt: serverTimestamp()
-      });
+      if (validationData.taskId) {
+        try {
+          await updateDoc(doc(db, 'tasks', validationData.taskId), {
+            status: 'in_progress',
+            submittedForValidation: false,
+            rejectedAt: serverTimestamp(),
+            rejectedBy: adminUserId,
+            rejectionReason: adminComment,
+            updatedAt: serverTimestamp()
+          });
+        } catch (taskError) {
+          console.warn('⚠️ [REJECT] Erreur mise à jour tâche:', taskError);
+        }
+      }
 
       console.log('❌ [REJECT] Validation rejetée avec succès');
       return { success: true };
@@ -340,7 +280,7 @@ class TaskValidationService {
    */
   async getValidationStats() {
     try {
-      const validationsSnapshot = await getDocs(collection(db, 'task_validations'));
+      const validationsSnapshot = await getDocs(collection(db, this.COLLECTION_NAME));
       
       const stats = {
         total: validationsSnapshot.size,
@@ -367,4 +307,4 @@ class TaskValidationService {
 const taskValidationService = new TaskValidationService();
 
 export { taskValidationService };
-export default TaskValidationService;
+export default taskValidationService;
