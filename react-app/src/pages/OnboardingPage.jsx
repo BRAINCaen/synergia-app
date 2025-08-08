@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/OnboardingPage.jsx
-// PAGE INTÉGRATION COMPLÈTE AVEC SAUVEGARDE FIREBASE
+// CORRECTION CONCURRENCE FIREBASE - VERSION STABILISÉE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -27,36 +27,73 @@ import {
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 // 🔥 IMPORTS FIREBASE POUR SAUVEGARDE
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-// 🔧 SERVICE DE SAUVEGARDE ONBOARDING
+// 🔧 SERVICE DE SAUVEGARDE ONBOARDING AVEC GESTION CONCURRENCE
 const onboardingSaveService = {
   COLLECTION: 'onboardingProgress',
+  saveQueue: new Map(), // Queue pour éviter les écritures simultanées
+  isProcessing: false,
   
+  // 🛡️ SAUVEGARDE AVEC PROTECTION CONCURRENCE
   async saveProgress(userId, formationData) {
     if (!userId || !formationData) return { success: false };
+    
+    // Ajouter à la queue si déjà en train de sauvegarder
+    if (this.isProcessing) {
+      this.saveQueue.set(userId, formationData);
+      console.log('⏳ Sauvegarde en queue...');
+      return { success: true, queued: true };
+    }
+    
+    this.isProcessing = true;
     
     try {
       console.log('💾 Sauvegarde progression onboarding...');
       
       const docRef = doc(db, this.COLLECTION, userId);
-      await setDoc(docRef, {
+      
+      // ✅ UTILISER writeBatch POUR ÉVITER LES CONFLITS
+      const batch = writeBatch(db);
+      
+      const dataToSave = {
         userId,
         formationData,
         lastUpdated: new Date().toISOString(),
-        savedAt: serverTimestamp()
-      }, { merge: true });
+        savedAt: serverTimestamp(),
+        version: '3.5.3'
+      };
+      
+      batch.set(docRef, dataToSave, { merge: true });
+      await batch.commit();
       
       console.log('✅ Progression sauvegardée');
       this.showSaveNotification('Progression sauvegardée !');
       
+      // Traiter la queue s'il y a des éléments en attente
+      setTimeout(() => this.processQueue(), 100);
+      
       return { success: true };
+      
     } catch (error) {
       console.error('❌ Erreur sauvegarde:', error);
       this.showSaveNotification('Erreur de sauvegarde', 'error');
       return { success: false, error };
+    } finally {
+      this.isProcessing = false;
     }
+  },
+  
+  // 🔄 TRAITER LA QUEUE DE SAUVEGARDE
+  async processQueue() {
+    if (this.saveQueue.size === 0) return;
+    
+    const [userId, formationData] = this.saveQueue.entries().next().value;
+    this.saveQueue.delete(userId);
+    
+    console.log('🔄 Traitement queue sauvegarde...');
+    await this.saveProgress(userId, formationData);
   },
   
   async loadProgress(userId) {
@@ -72,7 +109,11 @@ const onboardingSaveService = {
         const data = docSnap.data();
         console.log('✅ Progression chargée');
         this.showSaveNotification('Progression rechargée !');
-        return { success: true, data: data.formationData };
+        return { 
+          success: true, 
+          data: data.formationData,
+          lastUpdated: data.lastUpdated 
+        };
       }
       
       return { success: false, error: 'Aucune sauvegarde trouvée' };
@@ -82,37 +123,60 @@ const onboardingSaveService = {
     }
   },
   
+  // 🛡️ SYNCHRONISATION XP AVEC PROTECTION CONCURRENCE
   async syncXpToProfile(userId, earnedXp, completedTasks) {
     if (!userId || !earnedXp) return;
     
+    // Délai aléatoire pour éviter les conflits
+    const delay = Math.random() * 500 + 200;
+    await new Promise(resolve => setTimeout(resolve, delay));
+    
     try {
       const userRef = doc(db, 'users', userId);
+      
+      // ✅ UTILISER writeBatch POUR ÉVITER LES CONFLITS
+      const batch = writeBatch(db);
+      
       const userDoc = await getDoc(userRef);
       
       if (userDoc.exists()) {
         const userData = userDoc.data();
         const currentXp = userData.gamification?.totalXp || 0;
+        const currentTasks = userData.gamification?.tasksCompleted || 0;
         const newTotalXp = currentXp + earnedXp;
         const newLevel = Math.floor(newTotalXp / 100) + 1;
         
-        await setDoc(userRef, {
+        const updates = {
           'gamification.totalXp': newTotalXp,
           'gamification.weeklyXp': (userData.gamification?.weeklyXp || 0) + earnedXp,
+          'gamification.monthlyXp': (userData.gamification?.monthlyXp || 0) + earnedXp,
           'gamification.level': newLevel,
-          'gamification.tasksCompleted': (userData.gamification?.tasksCompleted || 0) + completedTasks,
+          'gamification.tasksCompleted': currentTasks + completedTasks,
           'gamification.lastActivityAt': new Date().toISOString(),
+          'syncMetadata.lastOnboardingSync': serverTimestamp(),
           updatedAt: serverTimestamp()
-        }, { merge: true });
+        };
+        
+        batch.update(userRef, updates);
+        await batch.commit();
         
         console.log(`✅ +${earnedXp} XP synchronisés vers profil`);
       }
     } catch (error) {
       console.error('❌ Erreur sync XP:', error);
+      // Ne pas faire échouer la sauvegarde pour une erreur de sync XP
     }
   },
   
   showSaveNotification(message, type = 'success') {
+    // Éviter les notifications en doublon
+    const existingNotif = document.querySelector('.onboarding-notification');
+    if (existingNotif) {
+      existingNotif.remove();
+    }
+    
     const notification = document.createElement('div');
+    notification.className = 'onboarding-notification';
     notification.style.cssText = `
       position: fixed;
       top: 20px;
@@ -124,13 +188,20 @@ const onboardingSaveService = {
       z-index: 10000;
       font-weight: 500;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transition: all 0.3s ease;
     `;
     notification.textContent = message;
     document.body.appendChild(notification);
     
     setTimeout(() => {
       if (document.body.contains(notification)) {
-        document.body.removeChild(notification);
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+          if (document.body.contains(notification)) {
+            document.body.removeChild(notification);
+          }
+        }, 300);
       }
     }, 3000);
   }
@@ -145,6 +216,7 @@ const OnboardingPage = () => {
   const [loading, setLoading] = useState(true);
   const [expandedPhase, setExpandedPhase] = useState(null);
   const [saveStatus, setSaveStatus] = useState('idle');
+  const [lastSaved, setLastSaved] = useState(null);
   
   // 🗂️ DONNÉES DE FORMATION COMPLÈTES
   const [formationData, setFormationData] = useState({
@@ -412,6 +484,7 @@ const OnboardingPage = () => {
       if (result.success && result.data) {
         console.log('📊 Progression rechargée depuis Firebase');
         setFormationData(result.data);
+        setLastSaved(result.lastUpdated);
       } else {
         console.log('📝 Nouvelle session, données par défaut');
       }
@@ -422,7 +495,7 @@ const OnboardingPage = () => {
     loadSavedProgress();
   }, [user?.uid]);
 
-  // ✅ FONCTION DE TOGGLE AVEC SAUVEGARDE AUTOMATIQUE
+  // ✅ FONCTION DE TOGGLE AVEC SAUVEGARDE SÉCURISÉE
   const toggleTaskCompletion = async (phaseId, taskId, experienceId = null) => {
     setSaveStatus('saving');
     
@@ -453,19 +526,30 @@ const OnboardingPage = () => {
         }
       }
       
-      // Sauvegarder immédiatement
+      // ✅ SAUVEGARDE SÉCURISÉE AVEC DÉLAI POUR ÉVITER CONCURRENCE
       if (user?.uid) {
+        // Délai différent pour chaque action pour éviter les conflits
+        const delay = 500 + Math.random() * 500;
+        
         setTimeout(async () => {
-          await onboardingSaveService.saveProgress(user.uid, newData);
+          const saveResult = await onboardingSaveService.saveProgress(user.uid, newData);
           
-          // Si tâche complétée, synchroniser XP
-          if (taskCompleted && taskXp > 0) {
-            await onboardingSaveService.syncXpToProfile(user.uid, taskXp, 1);
+          if (saveResult.success) {
+            setLastSaved(new Date().toISOString());
+            setSaveStatus('saved');
+            
+            // Si tâche complétée, synchroniser XP (avec délai supplémentaire)
+            if (taskCompleted && taskXp > 0) {
+              setTimeout(async () => {
+                await onboardingSaveService.syncXpToProfile(user.uid, taskXp, 1);
+              }, 1000);
+            }
+          } else {
+            setSaveStatus('error');
           }
           
-          setSaveStatus('saved');
           setTimeout(() => setSaveStatus('idle'), 2000);
-        }, 100);
+        }, delay);
       }
       
       return newData;
@@ -516,26 +600,34 @@ const OnboardingPage = () => {
     };
   };
 
-  // 🎨 INDICATEUR DE SAUVEGARDE
+  // 🎨 INDICATEUR DE SAUVEGARDE AMÉLIORÉ
   const SaveIndicator = () => {
     if (saveStatus === 'idle') return null;
     
+    const statusConfig = {
+      saving: { color: 'bg-blue-500', icon: Loader, text: 'Sauvegarde...', spin: true },
+      saved: { color: 'bg-green-500', icon: CheckCircle, text: 'Sauvegardé !', spin: false },
+      error: { color: 'bg-red-500', icon: AlertCircle, text: 'Erreur', spin: false }
+    };
+    
+    const config = statusConfig[saveStatus];
+    const Icon = config.icon;
+    
     return (
-      <div className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 ${
-        saveStatus === 'saving' ? 'bg-blue-500' : 'bg-green-500'
-      }`}>
-        {saveStatus === 'saving' ? (
-          <>
-            <Loader className="w-4 h-4 animate-spin" />
-            Sauvegarde...
-          </>
-        ) : (
-          <>
-            <CheckCircle className="w-4 h-4" />
-            Sauvegardé !
-          </>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 ${config.color}`}
+      >
+        <Icon className={`w-4 h-4 ${config.spin ? 'animate-spin' : ''}`} />
+        {config.text}
+        {lastSaved && saveStatus === 'saved' && (
+          <span className="text-xs opacity-75 ml-2">
+            {new Date(lastSaved).toLocaleTimeString()}
+          </span>
         )}
-      </div>
+      </motion.div>
     );
   };
 
@@ -826,7 +918,9 @@ const OnboardingPage = () => {
       <div className="max-w-7xl mx-auto">
         
         {/* Indicateur de sauvegarde */}
-        <SaveIndicator />
+        <AnimatePresence>
+          <SaveIndicator />
+        </AnimatePresence>
         
         {/* 🎯 En-tête */}
         <div className="mb-8 text-center">
