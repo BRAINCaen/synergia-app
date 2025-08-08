@@ -625,6 +625,7 @@ const OnboardingPage = () => {
       if (localData) {
         const parsed = JSON.parse(localData);
         setCompletedTasks(new Set(parsed.completedTasks || []));
+        setCompletedTasksHistory(new Set(parsed.completedTasksHistory || [])); // 🔒 CHARGER L'HISTORIQUE
         console.log('📱 Progression chargée depuis localStorage');
       }
       
@@ -633,6 +634,7 @@ const OnboardingPage = () => {
         const result = await firebaseRestService.loadProgressRest(user.uid);
         if (result.success && result.data) {
           setCompletedTasks(new Set(result.data.completedTasks || []));
+          setCompletedTasksHistory(new Set(result.data.completedTasksHistory || [])); // 🔒 CHARGER L'HISTORIQUE FIREBASE
           setLastSaved(new Date(result.lastUpdated));
           setSyncStatus('online');
           console.log('☁️ Progression synchronisée depuis Firebase');
@@ -672,6 +674,7 @@ const OnboardingPage = () => {
     
     const progressData = {
       completedTasks: Array.from(completedTasks),
+      completedTasksHistory: Array.from(completedTasksHistory), // 🔒 SAUVEGARDER L'HISTORIQUE
       lastUpdated: new Date().toISOString(),
       userId: user.uid,
       version: '3.5.3'
@@ -701,7 +704,7 @@ const OnboardingPage = () => {
     }
   };
 
-  // ✅ MARQUER TÂCHE COMME TERMINÉE
+  // ✅ MARQUER TÂCHE COMME TERMINÉE - AVEC PROTECTION ANTI-FARMING XP
   const toggleTask = async (sectionId, taskId) => {
     const task = formationData[sectionId]?.tasks?.find(t => t.id === taskId);
     if (!task) return;
@@ -710,17 +713,37 @@ const OnboardingPage = () => {
     const wasCompleted = newCompleted.has(taskId);
     
     if (wasCompleted) {
+      // DÉCOCHER LA TÂCHE
       newCompleted.delete(taskId);
+      console.log(`🔄 Tâche décochée: ${task.label} (pas de perte d'XP)`);
     } else {
+      // COCHER LA TÂCHE
       newCompleted.add(taskId);
       
-      // 🎯 GAGNER XP POUR NOUVELLE TÂCHE
-      if (user?.uid) {
+      // 🔒 VÉRIFIER SI C'EST LA PREMIÈRE FOIS QUE CETTE TÂCHE EST COMPLÉTÉE
+      const isFirstTimeCompleted = !completedTasksHistory.has(taskId);
+      
+      if (isFirstTimeCompleted && user?.uid) {
+        // PREMIÈRE FOIS → GAGNER XP
         try {
           await firebaseRestService.syncXpRest(user.uid, task.xp, newCompleted.size);
+          
+          // 🔒 AJOUTER À L'HISTORIQUE POUR ÉVITER LE DOUBLE COMPTAGE
+          const newHistory = new Set(completedTasksHistory);
+          newHistory.add(taskId);
+          setCompletedTasksHistory(newHistory);
+          
+          console.log(`✅ Première completion: ${task.label} → +${task.xp} XP`);
         } catch (error) {
           console.warn('⚠️ Sync XP échoué, progression locale conservée');
         }
+      } else if (!isFirstTimeCompleted) {
+        // DÉJÀ COMPLÉTÉE AVANT → PAS D'XP
+        console.log(`🔒 Tâche déjà récompensée: ${task.label} → 0 XP (anti-farming)`);
+        firebaseRestService.showNotification(
+          `✅ ${task.label} - Déjà récompensée (pas de XP supplémentaire)`, 
+          'info'
+        );
       }
     }
     
@@ -731,12 +754,14 @@ const OnboardingPage = () => {
   const totalTasks = Object.values(formationData).reduce((sum, section) => sum + section.tasks.length, 0);
   const completedCount = completedTasks.size;
   const progressPercentage = totalTasks > 0 ? (completedCount / totalTasks) * 100 : 0;
+  
+  // 🔒 XP CALCULÉS UNIQUEMENT SUR LES TÂCHES DANS L'HISTORIQUE (RÉELLEMENT RÉCOMPENSÉES)
   const earnedXp = Object.values(formationData)
     .flatMap(section => section.tasks)
-    .filter(task => completedTasks.has(task.id))
+    .filter(task => completedTasksHistory.has(task.id)) // 🔒 SEULEMENT LES TÂCHES DÉJÀ RÉCOMPENSÉES
     .reduce((sum, task) => sum + task.xp, 0);
 
-  console.log(`📊 Statistiques: ${completedCount}/${totalTasks} tâches (${Math.round(progressPercentage)}%) - ${earnedXp} XP`);
+  console.log(`📊 Statistiques: ${completedCount}/${totalTasks} tâches (${Math.round(progressPercentage)}%) - ${earnedXp} XP (réellement gagnés)`);
 
   // 🎨 ICÔNE STATUT SYNC
   const getSyncIcon = () => {
@@ -940,7 +965,12 @@ const OnboardingPage = () => {
                                   {isCompleted && (
                                     <div className="flex items-center gap-2 mt-2 text-xs text-green-400">
                                       <CheckCircle className="w-3 h-3" />
-                                      <span>Tâche terminée</span>
+                                      <span>
+                                        {completedTasksHistory.has(task.id) 
+                                          ? `Tâche terminée (+${task.xp} XP)` 
+                                          : 'Tâche terminée (déjà récompensée)'
+                                        }
+                                      </span>
                                     </div>
                                   )}
                                 </div>
