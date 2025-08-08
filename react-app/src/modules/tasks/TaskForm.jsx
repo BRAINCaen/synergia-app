@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskForm.jsx
-// FORMULAIRE COMPLET - XP Auto + Récurrence + Rôles Synergia + UPLOAD MÉDIA
+// AJOUT RATTACHEMENT PROJET DANS FORMULAIRE TÂCHE - SÉCURISÉ
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -28,12 +28,13 @@ import {
   Video as VideoIcon,
   Play,
   FileVideo,
-  Loader
+  Loader,
+  FolderPlus
 } from 'lucide-react';
 
 import { useAuthStore } from '../../shared/stores/authStore';
 import { storageService } from '../../core/services/storageService';
-import ProjectSelector, { LinkedProjectDisplay } from '../../components/tasks/TaskProjectLinking';
+import { projectService } from '../../core/services/projectService';
 
 /**
  * 🎭 RÔLES SYNERGIA
@@ -123,97 +124,267 @@ const calculateXP = (difficulty, priority, recurrence = 'none') => {
 };
 
 /**
- * 🎬 COMPOSANT DE PRÉVISUALISATION MÉDIA
+ * 📂 NOUVEAU : COMPOSANT SÉLECTEUR DE PROJET INTÉGRÉ
  */
-const MediaPreview = ({ file, fileType, onRemove }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const videoRef = useRef(null);
+const TaskProjectSelector = ({ 
+  selectedProjectId, 
+  onProjectSelect, 
+  onProjectClear,
+  className = '' 
+}) => {
+  const { user } = useAuthStore();
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const handleVideoPlay = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
+  // Charger les projets disponibles
+  useEffect(() => {
+    loadUserProjects();
+  }, [user?.uid]);
+
+  const loadUserProjects = async () => {
+    try {
+      setLoading(true);
+      if (!user?.uid) return;
+
+      console.log('🔄 Chargement projets pour sélecteur...');
+      const userProjects = await projectService.getUserProjects(user.uid);
+      
+      // Filtrer seulement les projets actifs
+      const activeProjects = (userProjects || []).filter(project => 
+        project.status !== 'completed' && project.status !== 'cancelled'
+      );
+      
+      setProjects(activeProjects);
+      console.log('✅ Projets chargés pour sélecteur:', activeProjects.length);
+    } catch (error) {
+      console.error('❌ Erreur chargement projets:', error);
+      setProjects([]);
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Filtrer les projets selon la recherche
+  const filteredProjects = projects.filter(project =>
+    project.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Projet sélectionné
+  const selectedProject = projects.find(p => p.id === selectedProjectId);
+
+  return (
+    <div className={`relative ${className}`}>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        📂 Rattacher à un projet (optionnel)
+      </label>
+      
+      {/* Bouton de sélection */}
+      <button
+        type="button"
+        onClick={() => setShowDropdown(!showDropdown)}
+        className="w-full flex items-center justify-between px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <div className="flex items-center">
+          {selectedProject ? (
+            <>
+              <Folder className="w-4 h-4 mr-2 text-blue-500" />
+              <span className="truncate">{selectedProject.title}</span>
+              <span className="ml-2 text-xs text-gray-500">
+                ({selectedProject.status})
+              </span>
+            </>
+          ) : (
+            <>
+              <FolderPlus className="w-4 h-4 mr-2 text-gray-400" />
+              <span className="text-gray-500">Sélectionner un projet...</span>
+            </>
+          )}
+        </div>
+        
+        <div className="flex items-center space-x-1">
+          {selectedProject && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onProjectClear();
+                setShowDropdown(false);
+              }}
+              className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
+              title="Retirer le projet"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+          <div className="text-gray-400">
+            {showDropdown ? '▲' : '▼'}
+          </div>
+        </div>
+      </button>
+
+      {/* Dropdown de sélection */}
+      {showDropdown && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-64 overflow-hidden">
+          
+          {/* Barre de recherche */}
+          <div className="p-3 border-b border-gray-200">
+            <input
+              type="text"
+              placeholder="Rechercher un projet..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Liste des projets */}
+          <div className="max-h-48 overflow-y-auto">
+            {loading ? (
+              <div className="p-3 text-center text-gray-500">
+                <Loader className="w-4 h-4 animate-spin mx-auto mb-1" />
+                <div className="text-sm">Chargement...</div>
+              </div>
+            ) : filteredProjects.length === 0 ? (
+              <div className="p-3 text-center text-gray-500">
+                <div className="text-sm">
+                  {searchTerm ? 'Aucun projet trouvé' : 'Aucun projet actif disponible'}
+                </div>
+                {!searchTerm && (
+                  <div className="text-xs text-gray-400 mt-1">
+                    Créez un projet d'abord pour pouvoir y rattacher des tâches
+                  </div>
+                )}
+              </div>
+            ) : (
+              filteredProjects.map((project) => (
+                <button
+                  key={project.id}
+                  type="button"
+                  onClick={() => {
+                    onProjectSelect(project.id);
+                    setShowDropdown(false);
+                    setSearchTerm('');
+                  }}
+                  className="w-full px-3 py-2 text-left hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0"
+                >
+                  <div className="flex items-center">
+                    <Folder className="w-4 h-4 mr-2 text-blue-500" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-900 truncate">
+                        {project.title}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {project.description || 'Pas de description'}
+                        {project.status && (
+                          <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
+                            {project.status}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* Option aucun projet */}
+          <div className="border-t border-gray-200">
+            <button
+              type="button"
+              onClick={() => {
+                onProjectClear();
+                setShowDropdown(false);
+              }}
+              className="w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors text-gray-600"
+            >
+              <div className="flex items-center">
+                <X className="w-4 h-4 mr-2 text-gray-400" />
+                <span className="text-sm">Aucun projet (tâche indépendante)</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Affichage du projet sélectionné */}
+      {selectedProject && (
+        <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center text-sm text-blue-800">
+            <Link className="w-3 h-3 mr-1" />
+            <span>Rattachée au projet : <strong>{selectedProject.title}</strong></span>
+          </div>
+          {selectedProject.description && (
+            <div className="text-xs text-blue-600 mt-1 truncate">
+              {selectedProject.description}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
+ * 🎬 COMPOSANT DE PRÉVISUALISATION MÉDIA
+ */
+const MediaPreview = ({ file, onRemove }) => {
+  const [preview, setPreview] = useState(null);
+
+  useEffect(() => {
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => setPreview(e.target.result);
+      reader.readAsDataURL(file);
+    }
+    return () => setPreview(null);
+  }, [file]);
+
   const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return '0 Bytes';
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  if (fileType === 'video') {
-    return (
-      <div className="relative">
-        <video
-          ref={videoRef}
-          src={URL.createObjectURL(file)}
-          className="w-full h-48 object-cover rounded-lg"
-          onLoadedData={() => console.log('✅ Vidéo chargée pour prévisualisation')}
-          onError={(e) => console.error('❌ Erreur chargement vidéo:', e)}
-        />
-        
-        {/* Overlay de contrôle */}
-        <div className="absolute inset-0 bg-black bg-opacity-30 rounded-lg flex items-center justify-center">
-          <button
-            type="button"
-            onClick={handleVideoPlay}
-            className="bg-white bg-opacity-90 p-3 rounded-full hover:bg-opacity-100 transition-all"
-          >
-            {isPlaying ? (
-              <div className="w-4 h-4 bg-gray-800 rounded-sm" />
-            ) : (
-              <Play className="w-4 h-4 text-gray-800 ml-0.5" />
-            )}
-          </button>
-        </div>
-        
-        {/* Informations du fichier */}
-        <div className="mt-2 text-sm">
-          <div className="flex items-center gap-2 text-blue-400 font-medium">
-            <FileVideo className="w-4 h-4" />
-            <span>Vidéo tutoriel/exemple</span>
-          </div>
-          <div className="text-xs text-gray-400 mt-1">
-            📁 {file.name} • {formatFileSize(file.size)}
-          </div>
-        </div>
-        
-        {/* Bouton supprimer */}
-        <button
-          type="button"
-          onClick={onRemove}
-          className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
-        >
-          <X className="w-3 h-3" />
-        </button>
-      </div>
-    );
-  }
+  if (!file) return null;
 
   return (
-    <div className="relative">
-      <img
-        src={URL.createObjectURL(file)}
-        alt="Prévisualisation"
-        className="w-full h-48 object-cover rounded-lg"
-        onLoad={() => console.log('✅ Image chargée pour prévisualisation')}
-        onError={(e) => console.error('❌ Erreur chargement image:', e)}
-      />
+    <div className="relative bg-gray-100 border border-gray-300 rounded-lg p-4">
+      {/* Prévisualisation image */}
+      {file.type.startsWith('image/') && preview && (
+        <img
+          src={preview}
+          alt="Aperçu"
+          className="w-full h-32 object-cover rounded-lg mb-2"
+        />
+      )}
+      
+      {/* Prévisualisation vidéo */}
+      {file.type.startsWith('video/') && (
+        <div className="flex items-center justify-center w-full h-32 bg-gray-200 rounded-lg mb-2">
+          <div className="text-center">
+            <Play className="w-8 h-8 text-gray-400 mx-auto mb-1" />
+            <div className="text-sm text-gray-600">Fichier vidéo</div>
+          </div>
+        </div>
+      )}
       
       {/* Informations du fichier */}
-      <div className="mt-2 text-sm">
-        <div className="flex items-center gap-2 text-blue-400 font-medium">
-          <ImageIcon className="w-4 h-4" />
-          <span>Image tutoriel/exemple</span>
+      <div className="text-sm">
+        <div className="flex items-center gap-2 text-gray-700 font-medium">
+          {file.type.startsWith('image/') ? (
+            <ImageIcon className="w-4 h-4" />
+          ) : (
+            <VideoIcon className="w-4 h-4" />
+          )}
+          <span>Média joint</span>
         </div>
-        <div className="text-xs text-gray-400 mt-1">
+        <div className="text-xs text-gray-500 mt-1">
           📁 {file.name} • {formatFileSize(file.size)}
         </div>
       </div>
@@ -231,57 +402,88 @@ const MediaPreview = ({ file, fileType, onRemove }) => {
 };
 
 /**
- * 📝 FORMULAIRE DE CRÉATION/ÉDITION DE TÂCHE COMPLET
+ * 📝 FORMULAIRE DE CRÉATION/ÉDITION DE TÂCHE AVEC PROJET
  */
 const TaskForm = ({ 
   isOpen, 
   onClose, 
-  onSubmit, 
+  onSubmit,
   initialData = null,
-  categories = [],
-  teamMembers = []
+  submitting = false 
 }) => {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'admin' || user?.isAdmin;
-
-  // 📊 État du formulaire
+  
+  // ✅ ÉTAT DU FORMULAIRE COMPLET AVEC PROJET
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    difficulty: 'medium',
     priority: 'medium',
-    roleId: '', // ✅ NOUVEAU : Rôle Synergia au lieu de category
+    difficulty: 'medium',
+    roleId: '',
     xpReward: 25,
     estimatedHours: 1,
     dueDate: '',
     tags: [],
-    assignedTo: [],
-    projectId: null,
     notes: '',
-    // ✅ NOUVEAU : Récurrence
+    // ✅ NOUVEAU : Projet rattaché
+    projectId: null,
+    // Récurrence
     isRecurring: false,
     recurrenceType: 'none',
     recurrenceInterval: 1,
     recurrenceEndDate: '',
-    maxOccurrences: null
+    maxOccurrences: null,
+    // Système volontaires
+    isOpenToVolunteers: false,
+    volunteerAcceptanceMode: 'manual',
+    maxVolunteers: null,
+    volunteerMessage: ''
   });
 
-  // 🎨 États UI
+  // ✅ ÉTATS UI COMPLETS
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [newTag, setNewTag] = useState('');
+  const [currentTag, setCurrentTag] = useState('');
   const [manualXP, setManualXP] = useState(false);
-  const [showXPDetails, setShowXPDetails] = useState(false);
-
-  // ✅ NOUVEAUX ÉTATS POUR UPLOAD MÉDIA
+  
+  // ✅ ÉTATS UPLOAD MÉDIA
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileType, setFileType] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
 
-  // Calcul XP automatique avec récurrence
+  // ✅ INITIALISATION AVEC DONNÉES EXISTANTES (MODE ÉDITION)
+  useEffect(() => {
+    if (initialData) {
+      console.log('📝 Mode édition - initialisation avec:', initialData);
+      setFormData(prev => ({
+        ...prev,
+        ...initialData,
+        tags: initialData.tags || [],
+        // ✅ NOUVEAU : Préserver le projectId en mode édition
+        projectId: initialData.projectId || null,
+        dueDate: initialData.dueDate ? 
+          (initialData.dueDate.toDate ? 
+            initialData.dueDate.toDate().toISOString().split('T')[0] : 
+            new Date(initialData.dueDate).toISOString().split('T')[0]
+          ) : '',
+        recurrenceEndDate: initialData.recurrenceEndDate ?
+          (initialData.recurrenceEndDate.toDate ?
+            initialData.recurrenceEndDate.toDate().toISOString().split('T')[0] :
+            new Date(initialData.recurrenceEndDate).toISOString().split('T')[0]
+          ) : ''
+      }));
+      
+      // Activer le mode XP manuel si différent de l'auto
+      const autoXP = calculateXP(initialData.difficulty || 'medium', initialData.priority || 'medium', initialData.recurrenceType || 'none');
+      if (initialData.xpReward && initialData.xpReward !== autoXP) {
+        setManualXP(true);
+      }
+    }
+  }, [initialData]);
+
+  // ✅ CALCUL XP AUTOMATIQUE
   useEffect(() => {
     if (!manualXP) {
       const recurrenceType = formData.isRecurring ? formData.recurrenceType : 'none';
@@ -290,49 +492,7 @@ const TaskForm = ({
     }
   }, [formData.difficulty, formData.priority, formData.isRecurring, formData.recurrenceType, manualXP]);
 
-  // 📥 Initialiser le formulaire
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        title: initialData.title || '',
-        description: initialData.description || '',
-        difficulty: initialData.difficulty || 'medium',
-        priority: initialData.priority || 'medium',
-        roleId: initialData.roleId || initialData.category || '', // ✅ Compatibilité
-        xpReward: initialData.xpReward || 25,
-        estimatedHours: initialData.estimatedHours || 1,
-        dueDate: initialData.dueDate ? formatDateForInput(initialData.dueDate) : '',
-        tags: initialData.tags || [],
-        assignedTo: initialData.assignedTo || [],
-        projectId: initialData.projectId || null,
-        notes: initialData.notes || '',
-        // ✅ NOUVEAU : Récurrence
-        isRecurring: initialData.isRecurring || false,
-        recurrenceType: initialData.recurrenceType || 'none',
-        recurrenceInterval: initialData.recurrenceInterval || 1,
-        recurrenceEndDate: initialData.recurrenceEndDate ? formatDateForInput(initialData.recurrenceEndDate) : '',
-        maxOccurrences: initialData.maxOccurrences || null
-      });
-      
-      // ✅ NOUVEAU : Initialiser média existant
-      if (initialData.mediaUrl) {
-        // Pour l'édition, on garde les infos du média sans le fichier
-        setFileType(initialData.mediaType);
-      }
-    }
-  }, [initialData]);
-
-  const formatDateForInput = (date) => {
-    if (!date) return '';
-    try {
-      const dateObj = date.toDate ? date.toDate() : new Date(date);
-      return dateObj.toISOString().split('T')[0];
-    } catch (error) {
-      return '';
-    }
-  };
-
-  // ✅ NOUVEAU : Gestion des fichiers média
+  // ✅ GESTION FICHIERS MÉDIA
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -340,47 +500,16 @@ const TaskForm = ({
     // Vérifier la taille
     const maxSize = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
     if (file.size > maxSize) {
-      setErrors(prev => ({ 
-        ...prev, 
-        media: `Le fichier ne peut pas dépasser ${file.type.startsWith('video/') ? '100MB' : '10MB'}` 
-      }));
-      return;
-    }
-
-    // Vérifier le type
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    
-    if (!isImage && !isVideo) {
-      setErrors(prev => ({ 
-        ...prev, 
-        media: 'Seules les images et vidéos sont acceptées' 
-      }));
+      setError(`Le fichier ne peut pas dépasser ${file.type.startsWith('video/') ? '100 MB' : '10 MB'}`);
       return;
     }
 
     setSelectedFile(file);
-    setFileType(isVideo ? 'video' : 'image');
-    setErrors(prev => ({ ...prev, media: null }));
-    
-    console.log('📎 Fichier sélectionné pour la tâche:', {
-      name: file.name,
-      type: file.type,
-      size: `${(file.size / 1024 / 1024).toFixed(2)} MB`
-    });
+    setFileType(file.type.startsWith('image/') ? 'image' : 'video');
+    setError('');
   };
 
-  const handleRemoveFile = () => {
-    setSelectedFile(null);
-    setFileType(null);
-    setUploadProgress(0);
-    setUploading(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  // ✅ NOUVEAU : Upload du média
+  // ✅ UPLOAD MÉDIA VERS FIREBASE STORAGE
   const uploadMediaFile = async () => {
     if (!selectedFile) return null;
 
@@ -388,329 +517,485 @@ const TaskForm = ({
       setUploading(true);
       setUploadProgress(0);
 
-      console.log('📤 Upload média pour tâche...');
+      console.log('📤 Upload média:', selectedFile.name);
 
-      // Simuler le progrès d'upload
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 100);
-
-      const uploadResult = await storageService.uploadFile(
+      const uploadResult = await storageService.uploadTaskMedia(
         selectedFile,
-        `tasks/media/${Date.now()}_${selectedFile.name}`
+        user.uid,
+        (progress) => setUploadProgress(progress)
       );
 
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
-      if (uploadResult.success) {
-        console.log('✅ Upload média réussi:', uploadResult.url);
-        return {
-          url: uploadResult.url,
-          type: fileType,
-          filename: selectedFile.name,
-          size: selectedFile.size
-        };
-      } else {
-        throw new Error('Upload failed');
-      }
+      console.log('✅ Média uploadé:', uploadResult);
+      return uploadResult;
 
     } catch (error) {
       console.error('❌ Erreur upload média:', error);
-      
-      if (error.message.includes('CORS')) {
-        setErrors(prev => ({ 
-          ...prev, 
-          media: '⚠️ Problème de connexion détecté. La tâche sera créée sans média.' 
-        }));
-        return null;
-      }
-      
-      throw error;
+      setError('Erreur lors de l\'upload du média');
+      return null;
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.title.trim()) newErrors.title = 'Le titre est requis';
-    if (!formData.description.trim()) newErrors.description = 'La description est requise';
-    if (formData.xpReward < 1 || formData.xpReward > 1000) newErrors.xpReward = 'Les XP doivent être entre 1 et 1000';
-    if (formData.estimatedHours < 0.5 || formData.estimatedHours > 100) newErrors.estimatedHours = 'La durée doit être entre 0.5 et 100 heures';
-    
-    // ✅ NOUVEAU : Validation récurrence
-    if (formData.isRecurring && formData.recurrenceType === 'none') {
-      newErrors.recurrenceType = 'Sélectionner un type de récurrence';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-
-    try {
-      setLoading(true);
-      
-      // ✅ NOUVEAU : Upload du média si présent
-      let mediaData = null;
-      if (selectedFile) {
-        mediaData = await uploadMediaFile();
-      }
-      
-      const taskData = {
-        ...formData,
-        // ✅ NOUVEAU : Rôle au lieu de category
-        category: formData.roleId, // Pour compatibilité avec l'existant
-        roleId: formData.roleId,
-        roleName: SYNERGIA_ROLES[formData.roleId]?.name || null,
-        // Projet
-        projectId: selectedProject?.id || null,
-        projectTitle: selectedProject?.title || null,
-        // Dates
-        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
-        recurrenceEndDate: formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate) : null,
-        // ✅ NOUVEAU : Données média
-        hasMedia: !!mediaData,
-        mediaUrl: mediaData?.url || null,
-        mediaType: mediaData?.type || null,
-        mediaFilename: mediaData?.filename || null,
-        mediaSize: mediaData?.size || null,
-        // Compatibilité ancienne version
-        hasPhoto: !!mediaData && mediaData.type === 'image',
-        photoUrl: mediaData?.type === 'image' ? mediaData.url : null,
-        hasVideo: !!mediaData && mediaData.type === 'video',
-        videoUrl: mediaData?.type === 'video' ? mediaData.url : null,
-        // Métadonnées
-        createdBy: user.uid,
-        updatedAt: new Date(),
-        // ✅ NOUVEAU : Métadonnées récurrence
-        recurrenceConfig: formData.isRecurring ? {
-          type: formData.recurrenceType,
-          interval: formData.recurrenceInterval,
-          endDate: formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate) : null,
-          maxOccurrences: formData.maxOccurrences,
-          xpMultiplier: RECURRENCE_OPTIONS[formData.recurrenceType]?.multiplier || 1
-        } : null
-      };
-
-      await onSubmit(taskData);
-      onClose();
-    } catch (error) {
-      console.error('Erreur création tâche:', error);
-      setErrors({ submit: error.message });
-    } finally {
-      setLoading(false);
+  // ✅ GESTION TAGS
+  const addTag = () => {
+    if (currentTag.trim() && !formData.tags.includes(currentTag.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, currentTag.trim()]
+      }));
+      setCurrentTag('');
     }
   };
 
-  const handleTagAdd = (e) => {
-    if (e.key === 'Enter' && newTag.trim()) {
-      e.preventDefault();
-      const tag = newTag.trim();
-      if (!formData.tags.includes(tag)) {
-        setFormData(prev => ({ ...prev, tags: [...prev.tags, tag] }));
-      }
-      setNewTag('');
-    }
-  };
-
-  const handleTagRemove = (tagToRemove) => {
+  const removeTag = (tagToRemove) => {
     setFormData(prev => ({
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
   };
 
+  // ✅ SOUMISSION DU FORMULAIRE COMPLÈTE
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.title.trim()) {
+      setError('Le titre est obligatoire');
+      return;
+    }
+    
+    if (!formData.description.trim()) {
+      setError('La description est obligatoire');
+      return;
+    }
+    
+    if (!user) {
+      setError('Utilisateur non connecté');
+      return;
+    }
+    
+    try {
+      setError('');
+      setLoading(true);
+      
+      console.log('📝 Soumission tâche avec toutes les fonctionnalités:', {
+        title: formData.title,
+        role: formData.roleId,
+        recurring: formData.isRecurring,
+        hasMedia: !!selectedFile,
+        mediaType: fileType,
+        xpReward: formData.xpReward,
+        projectId: formData.projectId // ✅ NOUVEAU
+      });
+
+      // Upload du média si présent
+      let mediaData = null;
+      if (selectedFile) {
+        mediaData = await uploadMediaFile();
+        if (!mediaData) {
+          console.warn('⚠️ Échec upload média, création tâche sans média');
+        }
+      }
+
+      // ✅ PRÉPARER TOUTES LES DONNÉES DE LA TÂCHE AVEC PROJET
+      const taskData = {
+        ...formData,
+        // Métadonnées de base
+        createdBy: user.uid,
+        creatorName: user.displayName || user.email,
+        
+        // ✅ NOUVEAU : Projet rattaché
+        projectId: formData.projectId || null,
+        
+        // Rôle Synergia
+        category: formData.roleId,
+        roleId: formData.roleId,
+        roleName: SYNERGIA_ROLES[formData.roleId]?.name || null,
+        
+        // Média (si présent)
+        hasMedia: !!mediaData,
+        mediaUrl: mediaData?.url || null,
+        mediaType: mediaData?.type || null,
+        mediaFilename: mediaData?.filename || null,
+        mediaSize: mediaData?.size || null,
+        
+        // Compatibilité avec l'ancien système
+        hasPhoto: !!mediaData && mediaData.type === 'image',
+        photoUrl: mediaData?.type === 'image' ? mediaData.url : null,
+        hasVideo: !!mediaData && mediaData.type === 'video',
+        videoUrl: mediaData?.type === 'video' ? mediaData.url : null,
+        
+        // Dates
+        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
+        recurrenceEndDate: formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate) : null,
+        
+        // Configuration récurrence
+        recurrenceConfig: formData.isRecurring ? {
+          type: formData.recurrenceType,
+          interval: formData.recurrenceInterval,
+          endDate: formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate) : null,
+          maxOccurrences: formData.maxOccurrences,
+          xpMultiplier: RECURRENCE_OPTIONS[formData.recurrenceType]?.multiplier || 1
+        } : null,
+        
+        // Configuration système volontaires
+        isOpenToVolunteers: formData.isOpenToVolunteers,
+        volunteerSystem: formData.isOpenToVolunteers ? {
+          acceptanceMode: formData.volunteerAcceptanceMode,
+          maxVolunteers: formData.maxVolunteers,
+          message: formData.volunteerMessage
+        } : null,
+        
+        // Statut par défaut
+        status: 'todo',
+        assignedTo: []
+      };
+
+      console.log('✅ Données tâche préparées:', taskData);
+
+      // Appeler la fonction de soumission
+      await onSubmit(taskData);
+      
+      // Réinitialiser le formulaire
+      setFormData({
+        title: '',
+        description: '',
+        priority: 'medium',
+        difficulty: 'medium',
+        roleId: '',
+        xpReward: 25,
+        estimatedHours: 1,
+        dueDate: '',
+        tags: [],
+        notes: '',
+        projectId: null, // ✅ NOUVEAU
+        isRecurring: false,
+        recurrenceType: 'none',
+        recurrenceInterval: 1,
+        recurrenceEndDate: '',
+        maxOccurrences: null,
+        isOpenToVolunteers: false,
+        volunteerAcceptanceMode: 'manual',
+        maxVolunteers: null,
+        volunteerMessage: ''
+      });
+      
+      setSelectedFile(null);
+      setFileType(null);
+      setCurrentTag('');
+      setManualXP(false);
+      
+    } catch (error) {
+      console.error('❌ Erreur soumission tâche:', error);
+      setError(`Erreur lors de la création: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Ne pas afficher si pas ouvert
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[95vh] overflow-hidden">
+        
         {/* En-tête */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <h2 className="text-xl font-bold text-white flex items-center space-x-2">
-            <Plus className="w-6 h-6" />
-            <span>{initialData ? 'Modifier la tâche' : 'Créer une nouvelle tâche'}</span>
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Informations de base */}
-          <div className="grid grid-cols-1 gap-6">
-            {/* Titre */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Titre de la tâche *
-              </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Ex: Vérifier les stocks de boissons"
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                required
-              />
-              {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title}</p>}
-            </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Description détaillée *
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Décrivez précisément ce qui doit être fait..."
-                rows={4}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                required
-              />
-              {errors.description && <p className="text-red-400 text-sm mt-1">{errors.description}</p>}
-            </div>
-          </div>
-
-          {/* Rôle Synergia */}
-          <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-4">
-            <div className="flex items-center space-x-3 mb-3">
-              <div className="p-2 bg-purple-500/20 rounded-lg">
-                <Shield className="w-5 h-5 text-purple-400" />
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-500/10 rounded-lg">
+                <Plus className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h3 className="font-medium text-white">Rôle Synergia</h3>
-                <p className="text-gray-400 text-sm">Associer cette tâche à un domaine d'expertise</p>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {initialData ? 'Modifier la tâche' : 'Créer une nouvelle tâche'}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Formulaire complet avec XP auto, récurrence, rôles, projet et upload média
+                </p>
               </div>
             </div>
-
-            <select
-              value={formData.roleId}
-              onChange={(e) => setFormData(prev => ({ ...prev, roleId: e.target.value }))}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            <button
+              onClick={onClose}
+              disabled={loading || uploading}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
             >
-              <option value="">Sélectionner un rôle (optionnel)</option>
-              {Object.values(SYNERGIA_ROLES).map(role => (
-                <option key={role.id} value={role.id}>
-                  {role.icon} {role.name}
-                </option>
-              ))}
-            </select>
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
 
-            {formData.roleId && SYNERGIA_ROLES[formData.roleId] && (
-              <div className="mt-3 p-3 bg-indigo-600/20 border border-indigo-500/30 rounded-lg">
-                <div className="flex items-center gap-2 text-indigo-300">
-                  <span className="text-lg">{SYNERGIA_ROLES[formData.roleId].icon}</span>
-                  <span className="font-medium">{SYNERGIA_ROLES[formData.roleId].name}</span>
+        {/* Formulaire avec scroll */}
+        <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(95vh-140px)]">
+          <div className="p-6 space-y-6">
+            
+            {/* Message d'erreur */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center">
+                  <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
+                  <span className="text-red-800">{error}</span>
                 </div>
               </div>
             )}
-          </div>
 
-          {/* Difficulté et Priorité */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Target className="w-4 h-4 inline mr-1" />
-                Difficulté
-              </label>
-              <select
-                value={formData.difficulty}
-                onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value }))}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="easy">🟢 Facile</option>
-                <option value="medium">🟡 Moyenne</option>
-                <option value="hard">🟠 Difficile</option>
-                <option value="expert">🔴 Expert</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Flag className="w-4 h-4 inline mr-1" />
-                Priorité
-              </label>
-              <select
-                value={formData.priority}
-                onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="low">⬇️ Basse</option>
-                <option value="medium">➡️ Moyenne</option>
-                <option value="high">⬆️ Haute</option>
-                <option value="urgent">🚨 Urgente</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Récurrence */}
-          <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-500/20 rounded-lg">
-                  <Repeat className="w-5 h-5 text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-white">Récurrence</h3>
-                  <p className="text-gray-400 text-sm">Tâche répétitive (ajuste automatiquement les XP)</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
+            {/* ✅ INFORMATIONS DE BASE */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Titre de la tâche *
+                </label>
                 <input
-                  type="checkbox"
-                  id="isRecurring"
-                  checked={formData.isRecurring}
-                  onChange={(e) => setFormData(prev => ({ ...prev, isRecurring: e.target.checked }))}
-                  className="w-4 h-4 text-indigo-600 bg-gray-700 border-gray-600 rounded focus:ring-indigo-500"
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Ex: Vérifier les stocks de boissons"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={loading || uploading}
+                  required
                 />
-                <label htmlFor="isRecurring" className="text-sm text-gray-300">
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description détaillée *
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Décrivez précisément ce qui doit être fait, les étapes, les outils nécessaires..."
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={loading || uploading}
+                  required
+                />
+              </div>
+
+              {/* ✅ NOUVEAU : SÉLECTEUR DE PROJET */}
+              <TaskProjectSelector
+                selectedProjectId={formData.projectId}
+                onProjectSelect={(projectId) => setFormData(prev => ({ ...prev, projectId }))}
+                onProjectClear={() => setFormData(prev => ({ ...prev, projectId: null }))}
+              />
+            </div>
+
+            {/* ✅ PARAMÈTRES ET PRIORITÉ */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Priorité
+                </label>
+                <select
+                  value={formData.priority}
+                  onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={loading || uploading}
+                >
+                  <option value="low">📝 Basse</option>
+                  <option value="medium">📌 Moyenne</option>
+                  <option value="high">⚡ Haute</option>
+                  <option value="urgent">🔥 Urgente</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Difficulté
+                </label>
+                <select
+                  value={formData.difficulty}
+                  onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={loading || uploading}
+                >
+                  <option value="easy">🟢 Facile</option>
+                  <option value="medium">🟡 Moyenne</option>
+                  <option value="hard">🟠 Difficile</option>
+                  <option value="expert">🔴 Expert</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Rôle Synergia
+                </label>
+                <select
+                  value={formData.roleId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, roleId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={loading || uploading}
+                >
+                  <option value="">Aucun rôle spécifique</option>
+                  {Object.values(SYNERGIA_ROLES).map(role => (
+                    <option key={role.id} value={role.id}>
+                      {role.icon} {role.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* ✅ XP ET TEMPS ESTIMÉ */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Récompense XP
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="1000"
+                    value={formData.xpReward}
+                    onChange={(e) => setFormData(prev => ({ ...prev, xpReward: parseInt(e.target.value) || 0 }))}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={!manualXP || loading || uploading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setManualXP(!manualXP)}
+                    className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                      manualXP 
+                        ? 'bg-orange-100 text-orange-800 border border-orange-300' 
+                        : 'bg-green-100 text-green-800 border border-green-300'
+                    }`}
+                    disabled={loading || uploading}
+                  >
+                    {manualXP ? '🔧 Manuel' : '🤖 Auto'}
+                  </button>
+                </div>
+                {!manualXP && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Calculé automatiquement selon la difficulté et priorité
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Temps estimé (heures)
+                </label>
+                <input
+                  type="number"
+                  min="0.5"
+                  max="100"
+                  step="0.5"
+                  value={formData.estimatedHours}
+                  onChange={(e) => setFormData(prev => ({ ...prev, estimatedHours: parseFloat(e.target.value) || 1 }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={loading || uploading}
+                />
+              </div>
+            </div>
+
+            {/* ✅ DATE D'ÉCHÉANCE */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Date d'échéance (optionnelle)
+              </label>
+              <input
+                type="date"
+                value={formData.dueDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={loading || uploading}
+              />
+            </div>
+
+            {/* ✅ TAGS */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tags (optionnels)
+              </label>
+              <div className="flex items-center space-x-2 mb-2">
+                <input
+                  type="text"
+                  value={currentTag}
+                  onChange={(e) => setCurrentTag(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                  placeholder="Ajouter un tag..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={loading || uploading}
+                />
+                <button
+                  type="button"
+                  onClick={addTag}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  disabled={loading || uploading}
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+              
+              {/* Tags actuels */}
+              {formData.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {formData.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => removeTag(tag)}
+                        className="ml-2 text-blue-600 hover:text-blue-800"
+                        disabled={loading || uploading}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ✅ RÉCURRENCE */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-medium text-gray-700">
                   Tâche récurrente
                 </label>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, isRecurring: !prev.isRecurring }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    formData.isRecurring ? 'bg-blue-600' : 'bg-gray-300'
+                  }`}
+                  disabled={loading || uploading}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      formData.isRecurring ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
               </div>
-            </div>
 
-            {formData.isRecurring && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              {formData.isRecurring && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Type de récurrence
                     </label>
                     <select
                       value={formData.recurrenceType}
                       onChange={(e) => setFormData(prev => ({ ...prev, recurrenceType: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={loading || uploading}
                     >
-                      <option value="none">Sélectionner</option>
-                      {Object.entries(RECURRENCE_OPTIONS).map(([key, option]) => {
-                        if (key === 'none') return null;
-                        return (
-                          <option key={key} value={key}>
-                            {option.label} (XP×{option.multiplier})
-                          </option>
-                        );
-                      })}
+                      {Object.entries(RECURRENCE_OPTIONS).filter(([key]) => key !== 'none').map(([key, option]) => (
+                        <option key={key} value={key}>
+                          {option.label}
+                        </option>
+                      ))}
                     </select>
-                    {errors.recurrenceType && <p className="text-red-400 text-sm mt-1">{errors.recurrenceType}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Intervalle
                     </label>
                     <input
@@ -719,370 +1004,201 @@ const TaskForm = ({
                       max="30"
                       value={formData.recurrenceInterval}
                       onChange={(e) => setFormData(prev => ({ ...prev, recurrenceInterval: parseInt(e.target.value) || 1 }))}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={loading || uploading}
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Date de fin (optionnel)
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Date de fin (optionnelle)
                     </label>
                     <input
                       type="date"
                       value={formData.recurrenceEndDate}
                       onChange={(e) => setFormData(prev => ({ ...prev, recurrenceEndDate: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={loading || uploading}
                     />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ✅ UPLOAD MÉDIA */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Joindre un média (optionnel)
+              </label>
+              
+              {!selectedFile ? (
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    disabled={loading || uploading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                    disabled={loading || uploading}
+                  >
+                    <Upload className="w-5 h-5 text-gray-400 mr-2" />
+                    <span className="text-gray-600">
+                      Cliquez pour ajouter une image ou vidéo
+                    </span>
+                  </button>
+                  <p className="text-xs text-gray-500 mt-1 text-center">
+                    Images: max 10 MB • Vidéos: max 100 MB
+                  </p>
+                </div>
+              ) : (
+                <MediaPreview 
+                  file={selectedFile} 
+                  onRemove={() => {
+                    setSelectedFile(null);
+                    setFileType(null);
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = '';
+                    }
+                  }} 
+                />
+              )}
+
+              {uploading && (
+                <div className="mt-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm text-gray-600">Upload en cours...</span>
+                    <span className="text-sm text-gray-600">{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ✅ SYSTÈME VOLONTAIRES */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-medium text-gray-700">
+                  Ouverte aux volontaires
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, isOpenToVolunteers: !prev.isOpenToVolunteers }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    formData.isOpenToVolunteers ? 'bg-green-600' : 'bg-gray-300'
+                  }`}
+                  disabled={loading || uploading}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      formData.isOpenToVolunteers ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {formData.isOpenToVolunteers && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Mode d'acceptation
+                    </label>
+                    <select
+                      value={formData.volunteerAcceptanceMode}
+                      onChange={(e) => setFormData(prev => ({ ...prev, volunteerAcceptanceMode: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={loading || uploading}
+                    >
+                      <option value="manual">Validation manuelle</option>
+                      <option value="auto">Acceptation automatique</option>
+                      <option value="first_come">Premier arrivé, premier servi</option>
+                    </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Nb max occurrences (optionnel)
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nombre max de volontaires (optionnel)
                     </label>
                     <input
                       type="number"
                       min="1"
-                      value={formData.maxOccurrences || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, maxOccurrences: e.target.value ? parseInt(e.target.value) : null }))}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      placeholder="Ex: 10 occurrences"
+                      max="20"
+                      value={formData.maxVolunteers || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, maxVolunteers: e.target.value ? parseInt(e.target.value) : null }))}
+                      placeholder="Illimité"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={loading || uploading}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Message pour les volontaires (optionnel)
+                    </label>
+                    <textarea
+                      value={formData.volunteerMessage}
+                      onChange={(e) => setFormData(prev => ({ ...prev, volunteerMessage: e.target.value }))}
+                      placeholder="Ex: Cette tâche nécessite une formation préalable..."
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={loading || uploading}
                     />
                   </div>
                 </div>
-
-                {formData.recurrenceType !== 'none' && (
-                  <div className="mt-3 p-3 bg-indigo-600/20 border border-indigo-500/30 rounded-lg">
-                    <div className="flex items-center gap-2 text-sm text-indigo-300">
-                      <Info className="w-4 h-4" />
-                      <span>
-                        Cette tâche se répétera {RECURRENCE_OPTIONS[formData.recurrenceType]?.label.toLowerCase()} 
-                        {formData.recurrenceInterval > 1 && ` (tous les ${formData.recurrenceInterval})`}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Récompense XP */}
-          <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-yellow-500/20 rounded-lg">
-                  <Trophy className="w-5 h-5 text-yellow-400" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-white">Récompense XP</h3>
-                  <p className="text-gray-400 text-sm">
-                    {manualXP ? 
-                      'Mode manuel - Définir les XP manuellement' : 
-                      'Mode automatique - XP calculés selon difficulté/priorité/récurrence'
-                    }
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setManualXP(!manualXP)}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                  manualXP 
-                    ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' 
-                    : 'bg-gray-600 text-gray-300 border border-gray-500'
-                }`}
-              >
-                {manualXP ? 'Manuel' : 'Auto'}
-              </button>
+              )}
             </div>
 
-            <div className="flex items-center space-x-4">
-              <div className="flex-1">
-                <input
-                  type="number"
-                  min="1"
-                  max="1000"
-                  value={formData.xpReward}
-                  onChange={(e) => setFormData(prev => ({ ...prev, xpReward: parseInt(e.target.value) || 0 }))}
-                  disabled={!manualXP}
-                  className={`w-full px-3 py-2 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                    manualXP 
-                      ? 'bg-gray-700 border-gray-600' 
-                      : 'bg-gray-800 border-gray-700 text-gray-400 cursor-not-allowed'
-                  }`}
-                />
-                {errors.xpReward && <p className="text-red-400 text-sm mt-1">{errors.xpReward}</p>}
-              </div>
-              
-              <div className="text-yellow-400 font-bold text-lg">
-                {formData.xpReward} XP
-              </div>
-              
-              <button
-                type="button"
-                onClick={() => setShowXPDetails(!showXPDetails)}
-                className="text-gray-400 hover:text-gray-300 transition-colors"
-              >
-                <Info className="w-4 h-4" />
-              </button>
-            </div>
-
-            {showXPDetails && (
-              <div className="mt-3 p-3 bg-gray-800/50 rounded-lg text-sm text-gray-300">
-                <div className="space-y-1">
-                  <div>Base ({formData.difficulty}): {calculateXP('easy', 'low') && (() => {
-                    const bases = { easy: 15, medium: 25, hard: 40, expert: 60 };
-                    return bases[formData.difficulty] || 25;
-                  })()} XP</div>
-                  <div>Priorité ({formData.priority}): ×{
-                    { low: 1, medium: 1.2, high: 1.5, urgent: 2 }[formData.priority] || 1.2
-                  }</div>
-                  {formData.isRecurring && formData.recurrenceType !== 'none' && (
-                    <div>Récurrence ({formData.recurrenceType}): ×{RECURRENCE_OPTIONS[formData.recurrenceType]?.multiplier || 1}</div>
-                  )}
-                  <div className="border-t border-gray-700 pt-1 font-medium">
-                    Total: {formData.xpReward} XP
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ✅ NOUVELLE SECTION : Upload Média */}
-          <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 bg-blue-500/20 rounded-lg">
-                <Upload className="w-5 h-5 text-blue-400" />
-              </div>
-              <div>
-                <h3 className="font-medium text-white">Tutoriel ou exemple (optionnel)</h3>
-                <p className="text-gray-400 text-sm">
-                  Ajoutez une image ou vidéo pour aider à comprendre la tâche
-                </p>
-              </div>
-            </div>
-
-            {!selectedFile ? (
-              <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-gray-500 transition-colors">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  onChange={handleFileChange}
-                  accept="image/*,video/*"
-                  className="hidden"
-                  disabled={loading || uploading}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={loading || uploading}
-                  className="flex flex-col items-center gap-2 text-gray-400 hover:text-gray-300 transition-colors"
-                >
-                  <div className="p-3 bg-gray-600 rounded-full">
-                    <Upload className="w-6 h-6" />
-                  </div>
-                  <span className="text-sm">
-                    Cliquez pour ajouter une photo ou vidéo
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    Images: 10MB max • Vidéos: 100MB max
-                  </span>
-                </button>
-              </div>
-            ) : (
-              <div>
-                <MediaPreview
-                  file={selectedFile}
-                  fileType={fileType}
-                  onRemove={handleRemoveFile}
-                />
-                
-                {uploading && (
-                  <div className="mt-3">
-                    <div className="flex items-center gap-2 text-sm text-blue-400 mb-2">
-                      <Loader className="w-4 h-4 animate-spin" />
-                      <span>Upload en cours... {uploadProgress}%</span>
-                    </div>
-                    <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div 
-                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${uploadProgress}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {errors.media && (
-              <div className="mt-3 p-3 bg-orange-600/20 border border-orange-500/30 rounded-lg">
-                <p className="text-orange-300 text-sm">{errors.media}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Détails supplémentaires */}
-          <div className="grid grid-cols-2 gap-4">
+            {/* ✅ NOTES ADDITIONNELLES */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Clock className="w-4 h-4 inline mr-1" />
-                Durée estimée (heures)
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Notes additionnelles (optionnelles)
               </label>
-              <input
-                type="number"
-                step="0.5"
-                min="0.5"
-                max="100"
-                value={formData.estimatedHours}
-                onChange={(e) => setFormData(prev => ({ ...prev, estimatedHours: parseFloat(e.target.value) || 1 }))}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              {errors.estimatedHours && <p className="text-red-400 text-sm mt-1">{errors.estimatedHours}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Calendar className="w-4 h-4 inline mr-1" />
-                Date d'échéance (optionnel)
-              </label>
-              <input
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Informations complémentaires, liens, références..."
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={loading || uploading}
               />
             </div>
           </div>
 
-          {/* Tags */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Tag className="w-4 h-4 inline mr-1" />
-              Tags
-            </label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {formData.tags.map((tag, index) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center px-2 py-1 bg-indigo-600 text-indigo-100 text-sm rounded-full"
-                >
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => handleTagRemove(tag)}
-                    className="ml-1 text-indigo-300 hover:text-white"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-            <input
-              type="text"
-              value={newTag}
-              onChange={(e) => setNewTag(e.target.value)}
-              onKeyDown={handleTagAdd}
-              placeholder="Tapez un tag et appuyez sur Entrée"
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          {/* Assignation d'équipe (si admin) */}
-          {isAdmin && teamMembers && teamMembers.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Users className="w-4 h-4 inline mr-1" />
-                Assigner à l'équipe
-              </label>
-              <select
-                multiple
-                value={formData.assignedTo}
-                onChange={(e) => {
-                  const values = Array.from(e.target.selectedOptions, option => option.value);
-                  setFormData(prev => ({ ...prev, assignedTo: values }));
-                }}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 h-32"
-              >
-                {teamMembers.map(member => (
-                  <option key={member.id} value={member.id}>
-                    {member.displayName || member.email}
-                  </option>
-                ))}
-              </select>
-              <p className="text-gray-400 text-sm mt-1">
-                Maintenez Ctrl/Cmd pour sélectionner plusieurs membres
-              </p>
-            </div>
-          )}
-
-          {/* Liaison projet */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Folder className="w-4 h-4 inline mr-1" />
-              Projet lié (optionnel)
-            </label>
-            <ProjectSelector
-              selectedProject={selectedProject}
-              onProjectSelect={setSelectedProject}
-            />
-            {selectedProject && (
-              <LinkedProjectDisplay 
-                project={selectedProject}
-                onRemove={() => setSelectedProject(null)}
-              />
-            )}
-          </div>
-
-          {/* Notes supplémentaires */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <FileText className="w-4 h-4 inline mr-1" />
-              Notes supplémentaires
-            </label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-              placeholder="Informations complémentaires, contexte, références..."
-              rows={3}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-            />
-          </div>
-
-          {/* Erreur générale */}
-          {errors.submit && (
-            <div className="bg-red-600/20 border border-red-500/30 rounded-lg p-3">
-              <div className="flex items-center gap-2 text-red-300">
-                <AlertTriangle className="w-4 h-4" />
-                <span>{errors.submit}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Boutons d'action */}
-          <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-700">
+          {/* ✅ BOUTONS D'ACTION */}
+          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
             <button
               type="button"
               onClick={onClose}
-              disabled={loading}
-              className="px-4 py-2 text-gray-300 bg-gray-600 hover:bg-gray-500 rounded-lg font-medium transition-colors disabled:opacity-50"
+              disabled={loading || uploading}
+              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               Annuler
             </button>
+            
             <button
               type="submit"
-              disabled={loading || uploading}
-              className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center space-x-2"
+              disabled={loading || uploading || submitting || !formData.title.trim() || !formData.description.trim()}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center"
             >
-              {loading ? (
+              {(loading || uploading || submitting) ? (
                 <>
-                  <Loader className="w-4 h-4 animate-spin" />
-                  <span>Création...</span>
+                  <Loader className="w-4 h-4 mr-2 animate-spin" />
+                  {uploading ? 'Upload...' : 'Sauvegarde...'}
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4" />
-                  <span>{initialData ? 'Modifier' : 'Créer'} la tâche</span>
+                  <Save className="w-4 h-4 mr-2" />
+                  {initialData ? 'Mettre à jour' : 'Créer la tâche'}
                 </>
               )}
             </button>
