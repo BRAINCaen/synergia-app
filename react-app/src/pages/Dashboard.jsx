@@ -1,432 +1,313 @@
 // ==========================================
 // 📁 react-app/src/pages/Dashboard.jsx
-// DASHBOARD AVEC SYNCHRONISATION XP TEMPS RÉEL - VERSION CORRIGÉE
+// DASHBOARD AVEC BOUTON DE NETTOYAGE DÉMO POUR ADMIN
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useDashboardSync } from '../shared/hooks/useDashboardSync.js';
-import { 
-  BarChart3, 
-  CheckSquare, 
-  FolderOpen, 
-  Users, 
-  TrendingUp,
-  Target,
-  Clock,
-  Award,
-  Zap,
-  Star,
-  Trophy,
-  Flame,
-  RefreshCw,
-  Activity,
-  Calendar,
-  Bell,
-  ChevronRight,
-  Plus
-} from 'lucide-react';
+import { isAdmin } from '../core/services/adminService.js';
+import DemoCleanerButton from '../components/admin/DemoCleanerButton.jsx';
 
-/**
- * 🏠 DASHBOARD AVEC SYNCHRONISATION XP TEMPS RÉEL
- * Garantit que les gains d'XP des utilisateurs s'affichent instantanément
- */
 const Dashboard = () => {
   const { user } = useAuthStore();
-  
-  // ✅ HOOK SPÉCIALISÉ POUR SYNCHRONISATION DASHBOARD
-  const {
-    topUsers,
-    userProgress,
-    teamStats,
-    recentActivities,
-    userRank,
-    loading,
-    error,
-    lastUpdate,
-    forceSync
-  } = useDashboardSync();
+  const [stats, setStats] = useState({
+    totalTasks: 0,
+    completedTasks: 0,
+    pendingTasks: 0,
+    totalProjects: 0
+  });
 
-  const [viewMode, setViewMode] = useState('overview');
-  const [showRefresh, setShowRefresh] = useState(false);
-
-  // Afficher indicateur de rafraîchissement quand les données changent
+  // Données simulées pour la démonstration
   useEffect(() => {
-    if (lastUpdate) {
-      setShowRefresh(true);
-      const timer = setTimeout(() => setShowRefresh(false), 2000);
-      return () => clearTimeout(timer);
+    // Simuler le chargement des statistiques
+    setTimeout(() => {
+      setStats({
+        totalTasks: 12,
+        completedTasks: 8,
+        pendingTasks: 4,
+        totalProjects: 3
+      });
+    }, 1000);
+  }, []);
+
+  const quickActions = [
+    { 
+      title: 'Créer une tâche', 
+      icon: '✅', 
+      action: () => window.location.href = '/tasks',
+      color: 'bg-blue-500 hover:bg-blue-600'
+    },
+    { 
+      title: 'Nouveau projet', 
+      icon: '📁', 
+      action: () => window.location.href = '/projects',
+      color: 'bg-green-500 hover:bg-green-600'
+    },
+    { 
+      title: 'Voir les badges', 
+      icon: '🏆', 
+      action: () => window.location.href = '/badges',
+      color: 'bg-purple-500 hover:bg-purple-600'
+    },
+    { 
+      title: 'Analytics', 
+      icon: '📊', 
+      action: () => window.location.href = '/analytics',
+      color: 'bg-orange-500 hover:bg-orange-600'
     }
-  }, [lastUpdate]);
-
-  /**
-   * 📊 CALCUL DE LA PROGRESSION XP
-   */
-  const getXpProgress = () => {
-    if (!userProgress) {
-      return { current: 0, needed: 100, percentage: 0, xpToNext: 100 };
-    }
-    
-    const level = userProgress.level;
-    const totalXp = userProgress.totalXp;
-    const currentLevelXp = (level - 1) * 100;
-    const nextLevelXp = level * 100;
-    const progressXp = totalXp - currentLevelXp;
-    const xpToNext = nextLevelXp - totalXp;
-    
-    return {
-      current: Math.max(0, progressXp),
-      needed: 100,
-      percentage: Math.min(100, Math.max(0, (progressXp / 100) * 100)),
-      xpToNext: Math.max(0, xpToNext)
-    };
-  };
-
-  /**
-   * 🎨 COMPOSANT CARTE DE STATISTIQUE
-   */
-  const StatCard = ({ title, value, subtitle, icon: Icon, color, trend, onClick }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.02 }}
-      className={`bg-gradient-to-br ${color} p-6 rounded-xl text-white cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300`}
-      onClick={onClick}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <Icon className="w-8 h-8 opacity-80" />
-        {trend && (
-          <div className="flex items-center gap-1 text-sm">
-            <TrendingUp className="w-4 h-4" />
-            <span>+{trend}%</span>
-          </div>
-        )}
-      </div>
-      
-      <div className="space-y-1">
-        <h3 className="text-2xl font-bold">{value}</h3>
-        <p className="text-sm opacity-90">{title}</p>
-        {subtitle && <p className="text-xs opacity-75">{subtitle}</p>}
-      </div>
-    </motion.div>
-  );
-
-  /**
-   * 🏆 COMPOSANT LEADERBOARD MINI
-   */
-  const MiniLeaderboard = () => (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <Trophy className="w-5 h-5 text-yellow-500" />
-          Top Performers
-        </h3>
-        {showRefresh && (
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="flex items-center gap-2 text-sm text-green-600"
-          >
-            <RefreshCw className="w-4 h-4 animate-spin" />
-            Mis à jour
-          </motion.div>
-        )}
-      </div>
-      
-      <div className="space-y-3">
-        {topUsers.slice(0, 5).map((user, index) => (
-          <motion.div
-            key={user.uid}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
-              index === 0 ? 'bg-yellow-100 text-yellow-700' :
-              index === 1 ? 'bg-gray-100 text-gray-700' :
-              index === 2 ? 'bg-orange-100 text-orange-700' :
-              'bg-blue-100 text-blue-700'
-            }`}>
-              {index + 1}
-            </div>
-            
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-900 truncate">{user.displayName}</p>
-              <p className="text-sm text-gray-500">{user.department}</p>
-            </div>
-            
-            <div className="text-right">
-              <p className="font-semibold text-gray-900">{user.totalXp.toLocaleString()}</p>
-              <p className="text-sm text-gray-500">Level {user.level}</p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-      
-      {userRank && userRank > 5 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mt-4 pt-4 border-t border-gray-200"
-        >
-          <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold">
-              {userRank}
-            </div>
-            <div className="flex-1">
-              <p className="font-medium text-blue-900">Votre position</p>
-              <p className="text-sm text-blue-600">{userProgress?.totalXp.toLocaleString()} XP</p>
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </div>
-  );
-
-  /**
-   * 📈 COMPOSANT PROGRESSION UTILISATEUR
-   */
-  const UserProgressCard = () => {
-    const progress = getXpProgress();
-    
-    return (
-      <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl shadow-lg p-6 text-white">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Zap className="w-5 h-5" />
-            Ma Progression
-          </h3>
-          <div className="text-right">
-            <p className="text-2xl font-bold">Level {userProgress?.level || 1}</p>
-            <p className="text-sm opacity-90">{userProgress?.totalXp || 0} XP Total</p>
-          </div>
-        </div>
-        
-        <div className="space-y-4">
-          <div>
-            <div className="flex justify-between text-sm mb-2">
-              <span>Progression vers Level {(userProgress?.level || 1) + 1}</span>
-              <span>{progress.current}/{progress.needed} XP</span>
-            </div>
-            <div className="w-full bg-white/20 rounded-full h-3">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${progress.percentage}%` }}
-                transition={{ duration: 1, ease: "easeOut" }}
-                className="bg-white rounded-full h-3 shadow-lg"
-              />
-            </div>
-            <p className="text-sm mt-2 opacity-90">
-              {progress.xpToNext} XP pour le prochain niveau
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/20">
-            <div>
-              <p className="text-sm opacity-90">Cette semaine</p>
-              <p className="text-lg font-semibold">{userProgress?.weeklyXp || 0} XP</p>
-            </div>
-            <div>
-              <p className="text-sm opacity-90">Tâches complétées</p>
-              <p className="text-lg font-semibold">{userProgress?.tasksCompleted || 0}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  /**
-   * 📅 COMPOSANT ACTIVITÉS RÉCENTES
-   */
-  const RecentActivities = () => (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <Activity className="w-5 h-5 text-green-500" />
-          Activité Récente
-        </h3>
-        <button
-          onClick={forceSync}
-          className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Actualiser
-        </button>
-      </div>
-      
-      <div className="space-y-3">
-        {recentActivities.length > 0 ? (
-          recentActivities.map((activity) => (
-            <motion.div
-              key={activity.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">
-                  {activity.displayName}
-                </p>
-                <p className="text-sm text-gray-600">{activity.message}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-500">
-                  {activity.timestamp.toLocaleTimeString()}
-                </p>
-              </div>
-            </motion.div>
-          ))
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p>Aucune activité récente</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center"
-        >
-          <RefreshCw className="w-8 h-8 text-white mx-auto mb-4 animate-spin" />
-          <p className="text-white">Synchronisation des données...</p>
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center"
-        >
-          <p className="text-red-400 mb-4">Erreur de synchronisation: {error}</p>
-          <button
-            onClick={forceSync}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Réessayer
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         
-        {/* En-tête Dashboard */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-                📊 Dashboard
-              </h1>
-              <p className="text-gray-400 text-lg">
-                Vue d'ensemble - Synchronisation temps réel
-              </p>
-              {lastUpdate && (
-                <p className="text-sm text-gray-500 mt-1">
-                  Dernière mise à jour: {lastUpdate.toLocaleTimeString()}
+        {/* Header avec salutation */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Bonjour, {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'} 👋
+          </h1>
+          <p className="text-gray-600">
+            Voici un aperçu de votre activité sur Synergia
+          </p>
+        </div>
+
+        {/* Section Admin - Nettoyage des données démo */}
+        {isAdmin(user) && (
+          <div className="mb-8">
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <span>🛡️</span> Administration
+              </h2>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                <h3 className="font-medium text-yellow-800 mb-2">
+                  🧹 Nettoyage des données de démonstration
+                </h3>
+                <p className="text-yellow-700 text-sm mb-3">
+                  Des tâches de démonstration ont été détectées dans votre système (tâches assignées à 28 personnes, etc.). 
+                  Utilisez l'outil de nettoyage pour supprimer ces données factices.
                 </p>
-              )}
+                
+                <DemoCleanerButton className="mb-2" />
+              </div>
+
+              {/* Liens admin rapides */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <button
+                  onClick={() => window.location.href = '/admin/task-validation'}
+                  className="p-3 bg-gray-50 hover:bg-gray-100 rounded-lg text-center transition-colors"
+                >
+                  <div className="text-2xl mb-1">🛡️</div>
+                  <div className="text-sm font-medium">Validation</div>
+                </button>
+                
+                <button
+                  onClick={() => window.location.href = '/admin/users'}
+                  className="p-3 bg-gray-50 hover:bg-gray-100 rounded-lg text-center transition-colors"
+                >
+                  <div className="text-2xl mb-1">👥</div>
+                  <div className="text-sm font-medium">Utilisateurs</div>
+                </button>
+                
+                <button
+                  onClick={() => window.location.href = '/admin/analytics'}
+                  className="p-3 bg-gray-50 hover:bg-gray-100 rounded-lg text-center transition-colors"
+                >
+                  <div className="text-2xl mb-1">📈</div>
+                  <div className="text-sm font-medium">Analytics</div>
+                </button>
+                
+                <button
+                  onClick={() => window.location.href = '/admin/settings'}
+                  className="p-3 bg-gray-50 hover:bg-gray-100 rounded-lg text-center transition-colors"
+                >
+                  <div className="text-2xl mb-1">⚙️</div>
+                  <div className="text-sm font-medium">Paramètres</div>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Statistiques principales */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total des tâches</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalTasks}</p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-full">
+                <span className="text-blue-600 text-xl">✅</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Tâches terminées</p>
+                <p className="text-2xl font-bold text-green-600">{stats.completedTasks}</p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-full">
+                <span className="text-green-600 text-xl">🎉</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">En attente</p>
+                <p className="text-2xl font-bold text-orange-600">{stats.pendingTasks}</p>
+              </div>
+              <div className="p-3 bg-orange-100 rounded-full">
+                <span className="text-orange-600 text-xl">⏳</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Projets</p>
+                <p className="text-2xl font-bold text-purple-600">{stats.totalProjects}</p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-full">
+                <span className="text-purple-600 text-xl">📁</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions rapides */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+          <h2 className="text-xl font-semibold mb-4">🚀 Actions rapides</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {quickActions.map((action, index) => (
+              <button
+                key={index}
+                onClick={action.action}
+                className={`${action.color} text-white p-4 rounded-lg transition-colors text-center`}
+              >
+                <div className="text-2xl mb-2">{action.icon}</div>
+                <div className="font-medium">{action.title}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Activité récente */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Tâches récentes */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-xl font-semibold mb-4">📋 Tâches récentes</h2>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <span className="text-green-500">✅</span>
+                <div className="flex-1">
+                  <p className="font-medium">Finaliser le rapport mensuel</p>
+                  <p className="text-sm text-gray-600">Terminée il y a 2 heures</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <span className="text-blue-500">🔄</span>
+                <div className="flex-1">
+                  <p className="font-medium">Révision du code frontend</p>
+                  <p className="text-sm text-gray-600">En cours</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <span className="text-orange-500">⏳</span>
+                <div className="flex-1">
+                  <p className="font-medium">Planifier la réunion équipe</p>
+                  <p className="text-sm text-gray-600">À faire</p>
+                </div>
+              </div>
             </div>
             
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={forceSync}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600/20 text-blue-400 rounded-lg border border-blue-500/30 hover:bg-blue-600/30 transition-all"
+            <button 
+              onClick={() => window.location.href = '/tasks'}
+              className="w-full mt-4 text-blue-600 hover:text-blue-700 font-medium"
             >
-              <RefreshCw className="w-4 h-4" />
-              Actualiser
-            </motion.button>
+              Voir toutes les tâches →
+            </button>
           </div>
-        </motion.div>
 
-        {/* Statistiques Principales */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
-        >
-          <StatCard
-            title="Mon Niveau"
-            value={`Level ${userProgress?.level || 1}`}
-            subtitle={`${userProgress?.totalXp || 0} XP Total`}
-            icon={Star}
-            color="from-yellow-500 to-orange-500"
-            trend={5}
-          />
-          
-          <StatCard
-            title="Ma Position"
-            value={userRank ? `#${userRank}` : '-'}
-            subtitle="Dans le classement"
-            icon={Trophy}
-            color="from-purple-500 to-pink-500"
-          />
-          
-          <StatCard
-            title="Équipe"
-            value={teamStats.totalUsers || 0}
-            subtitle={`${teamStats.totalXp?.toLocaleString() || 0} XP Total`}
-            icon={Users}
-            color="from-blue-500 to-cyan-500"
-          />
-          
-          <StatCard
-            title="Mes Tâches"
-            value={userProgress?.tasksCompleted || 0}
-            subtitle="Tâches complétées"
-            icon={CheckSquare}
-            color="from-green-500 to-emerald-500"
-            trend={12}
-          />
-        </motion.div>
+          {/* Gamification */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-xl font-semibold mb-4">🎮 Progression</h2>
+            
+            {/* Niveau actuel */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium">Niveau 3 - Compétent</span>
+                <span className="text-sm text-gray-600">250 / 500 XP</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-blue-500 h-2 rounded-full w-1/2"></div>
+              </div>
+            </div>
 
-        {/* Contenu Principal */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Colonne Gauche - Progression */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-            className="space-y-6"
-          >
-            <UserProgressCard />
-            <RecentActivities />
-          </motion.div>
-          
-          {/* Colonne Droite - Leaderboard */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.6 }}
-            className="lg:col-span-2"
-          >
-            <MiniLeaderboard />
-          </motion.div>
+            {/* Badges récents */}
+            <div className="mb-4">
+              <h3 className="font-medium mb-2">🏆 Badges récents</h3>
+              <div className="flex gap-2">
+                <div className="p-2 bg-yellow-100 rounded-lg text-center">
+                  <div className="text-2xl">🎯</div>
+                  <div className="text-xs">Productif</div>
+                </div>
+                <div className="p-2 bg-green-100 rounded-lg text-center">
+                  <div className="text-2xl">🤝</div>
+                  <div className="text-xs">Collaboratif</div>
+                </div>
+                <div className="p-2 bg-purple-100 rounded-lg text-center">
+                  <div className="text-2xl">🚀</div>
+                  <div className="text-xs">Innovant</div>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => window.location.href = '/gamification'}
+              className="w-full mt-4 text-purple-600 hover:text-purple-700 font-medium"
+            >
+              Voir ma progression →
+            </button>
+          </div>
+        </div>
+
+        {/* Liens rapides en bas */}
+        <div className="mt-8 text-center">
+          <div className="inline-flex gap-4 text-sm text-gray-600">
+            <button 
+              onClick={() => window.location.href = '/team'}
+              className="hover:text-blue-600"
+            >
+              👥 Mon équipe
+            </button>
+            <button 
+              onClick={() => window.location.href = '/analytics'}
+              className="hover:text-blue-600"
+            >
+              📊 Analytics
+            </button>
+            <button 
+              onClick={() => window.location.href = '/profile'}
+              className="hover:text-blue-600"
+            >
+              👤 Mon profil
+            </button>
+            <button 
+              onClick={() => window.location.href = '/settings'}
+              className="hover:text-blue-600"
+            >
+              ⚙️ Paramètres
+            </button>
+          </div>
         </div>
       </div>
     </div>
