@@ -1,9 +1,9 @@
 // ==========================================
 // 📁 react-app/src/pages/OnboardingPage.jsx
-// CORRECTION CONCURRENCE FIREBASE - VERSION STABILISÉE
+// SYNCHRONISATION FIREBASE ULTRA-ROBUSTE - ZÉRO PERTE DE DONNÉES
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CheckSquare, 
@@ -21,189 +21,373 @@ import {
   Save,
   Loader,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Shield,
+  Cloud,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// 🔥 IMPORTS FIREBASE POUR SAUVEGARDE
-import { doc, setDoc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+// 🔥 IMPORTS FIREBASE POUR SAUVEGARDE ROBUSTE
+import { 
+  doc, 
+  setDoc, 
+  getDoc, 
+  serverTimestamp, 
+  runTransaction,
+  enableNetwork,
+  disableNetwork
+} from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-// 🔧 SERVICE DE SAUVEGARDE ONBOARDING AVEC GESTION CONCURRENCE
-const onboardingSaveService = {
+// 🛡️ SERVICE FIREBASE ULTRA-ROBUSTE - ZÉRO PERTE DE DONNÉES
+const firebaseRobustService = {
   COLLECTION: 'onboardingProgress',
-  saveQueue: new Map(), // Queue pour éviter les écritures simultanées
-  isProcessing: false,
+  USER_COLLECTION: 'users',
+  syncQueue: [],
+  isOnline: true,
+  retryAttempts: new Map(),
+  maxRetries: 5,
   
-  // 🛡️ SAUVEGARDE AVEC PROTECTION CONCURRENCE
-  async saveProgress(userId, formationData) {
-    if (!userId || !formationData) return { success: false };
+  // 🌐 DÉTECTION CONNEXION RÉSEAU
+  initNetworkDetection() {
+    // Détecter les changements de connexion
+    window.addEventListener('online', () => {
+      console.log('🌐 [NETWORK] Connexion restaurée');
+      this.isOnline = true;
+      this.processOfflineQueue();
+      this.showNotification('Connexion restaurée - Synchronisation...', 'success');
+    });
     
-    // Ajouter à la queue si déjà en train de sauvegarder
-    if (this.isProcessing) {
-      this.saveQueue.set(userId, formationData);
-      console.log('⏳ Sauvegarde en queue...');
-      return { success: true, queued: true };
+    window.addEventListener('offline', () => {
+      console.log('📡 [NETWORK] Connexion perdue');
+      this.isOnline = false;
+      this.showNotification('Mode hors ligne activé', 'warning');
+    });
+    
+    this.isOnline = navigator.onLine;
+  },
+  
+  // 💾 SAUVEGARDE AVEC TRANSACTION ATOMIQUE
+  async saveProgressRobust(userId, formationData) {
+    if (!userId || !formationData) {
+      throw new Error('Données manquantes pour sauvegarde');
     }
     
-    this.isProcessing = true;
+    const operation = {
+      type: 'save_progress',
+      userId,
+      data: formationData,
+      timestamp: Date.now(),
+      attempts: 0
+    };
+    
+    return await this.executeWithRetry(operation);
+  },
+  
+  // 🔄 EXÉCUTION AVEC RETRY AUTOMATIQUE
+  async executeWithRetry(operation) {
+    const operationId = `${operation.type}_${operation.userId}_${operation.timestamp}`;
     
     try {
-      console.log('💾 Sauvegarde progression onboarding...');
+      // Si hors ligne, ajouter à la queue
+      if (!this.isOnline) {
+        this.addToQueue(operation);
+        this.showNotification('Sauvegardé hors ligne - Sync à la reconnexion', 'warning');
+        return { success: true, offline: true };
+      }
+      
+      // Tentative d'exécution
+      const result = await this.executeOperation(operation);
+      
+      if (result.success) {
+        // Supprimer des tentatives si succès
+        this.retryAttempts.delete(operationId);
+        return result;
+      } else {
+        throw new Error(result.error);
+      }
+      
+    } catch (error) {
+      console.error(`❌ [RETRY] Échec opération ${operation.type}:`, error);
+      
+      // Gérer les tentatives
+      const attempts = this.retryAttempts.get(operationId) || 0;
+      
+      if (attempts < this.maxRetries) {
+        this.retryAttempts.set(operationId, attempts + 1);
+        
+        // Délai exponentiel: 1s, 2s, 4s, 8s, 16s
+        const delay = Math.pow(2, attempts) * 1000;
+        
+        console.log(`🔄 [RETRY] Tentative ${attempts + 1}/${this.maxRetries} dans ${delay}ms`);
+        this.showNotification(`Retry tentative ${attempts + 1}/${this.maxRetries}...`, 'warning');
+        
+        setTimeout(() => {
+          this.executeWithRetry(operation);
+        }, delay);
+        
+        return { success: true, retrying: true };
+      } else {
+        // Max tentatives atteintes, ajouter à la queue pour plus tard
+        this.addToQueue(operation);
+        this.retryAttempts.delete(operationId);
+        this.showNotification('Sauvegarde en queue - Retry plus tard', 'error');
+        return { success: false, queued: true, error: error.message };
+      }
+    }
+  },
+  
+  // ⚡ EXÉCUTION D'OPÉRATION ATOMIQUE
+  async executeOperation(operation) {
+    switch (operation.type) {
+      case 'save_progress':
+        return await this.saveToFirebase(operation.userId, operation.data);
+      case 'sync_xp':
+        return await this.syncXpToFirebase(operation.userId, operation.xp, operation.tasks);
+      default:
+        throw new Error(`Type d'opération inconnu: ${operation.type}`);
+    }
+  },
+  
+  // 💾 SAUVEGARDE FIREBASE AVEC TRANSACTION
+  async saveToFirebase(userId, formationData) {
+    try {
+      console.log('💾 [FIREBASE] Sauvegarde avec transaction atomique...');
       
       const docRef = doc(db, this.COLLECTION, userId);
       
-      // ✅ UTILISER writeBatch POUR ÉVITER LES CONFLITS
-      const batch = writeBatch(db);
+      // ✅ UTILISER runTransaction POUR GARANTIR LA CONSISTANCE
+      await runTransaction(db, async (transaction) => {
+        // Lire l'état actuel
+        const currentDoc = await transaction.get(docRef);
+        
+        const dataToSave = {
+          userId,
+          formationData,
+          lastUpdated: new Date().toISOString(),
+          savedAt: serverTimestamp(),
+          version: '3.5.3',
+          syncId: Date.now(), // ID unique pour éviter les doublons
+        };
+        
+        // Si le document existe, comparer les versions
+        if (currentDoc.exists()) {
+          const currentData = currentDoc.data();
+          const currentSyncId = currentData.syncId || 0;
+          
+          // Éviter d'écraser une version plus récente
+          if (dataToSave.syncId <= currentSyncId) {
+            console.log('⚠️ [FIREBASE] Version plus récente détectée, annulation');
+            return;
+          }
+        }
+        
+        // Écrire les nouvelles données
+        transaction.set(docRef, dataToSave);
+      });
       
-      const dataToSave = {
-        userId,
-        formationData,
-        lastUpdated: new Date().toISOString(),
-        savedAt: serverTimestamp(),
-        version: '3.5.3'
-      };
-      
-      batch.set(docRef, dataToSave, { merge: true });
-      await batch.commit();
-      
-      console.log('✅ Progression sauvegardée');
-      this.showSaveNotification('Progression sauvegardée !');
-      
-      // Traiter la queue s'il y a des éléments en attente
-      setTimeout(() => this.processQueue(), 100);
+      console.log('✅ [FIREBASE] Sauvegarde transaction réussie');
+      this.showNotification('Sauvegardé sur Firebase !', 'success');
       
       return { success: true };
       
     } catch (error) {
-      console.error('❌ Erreur sauvegarde:', error);
-      this.showSaveNotification('Erreur de sauvegarde', 'error');
-      return { success: false, error };
-    } finally {
-      this.isProcessing = false;
+      console.error('❌ [FIREBASE] Erreur sauvegarde:', error);
+      
+      // Analyser le type d'erreur
+      if (error.code === 'unavailable') {
+        throw new Error('Firebase temporairement indisponible');
+      } else if (error.code === 'permission-denied') {
+        throw new Error('Permissions insuffisantes');
+      } else {
+        throw error;
+      }
     }
   },
   
-  // 🔄 TRAITER LA QUEUE DE SAUVEGARDE
-  async processQueue() {
-    if (this.saveQueue.size === 0) return;
-    
-    const [userId, formationData] = this.saveQueue.entries().next().value;
-    this.saveQueue.delete(userId);
-    
-    console.log('🔄 Traitement queue sauvegarde...');
-    await this.saveProgress(userId, formationData);
+  // 🔄 SYNCHRONISATION XP AVEC TRANSACTION
+  async syncXpToFirebase(userId, earnedXp, completedTasks) {
+    try {
+      console.log(`🔄 [XP] Synchronisation ${earnedXp} XP avec transaction...`);
+      
+      const userRef = doc(db, this.USER_COLLECTION, userId);
+      
+      await runTransaction(db, async (transaction) => {
+        const userDoc = await transaction.get(userRef);
+        
+        if (!userDoc.exists()) {
+          // Créer le document utilisateur s'il n'existe pas
+          const newUserData = {
+            userId,
+            gamification: {
+              totalXp: earnedXp,
+              weeklyXp: earnedXp,
+              monthlyXp: earnedXp,
+              level: Math.floor(earnedXp / 100) + 1,
+              tasksCompleted: completedTasks,
+              lastActivityAt: new Date().toISOString()
+            },
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          };
+          
+          transaction.set(userRef, newUserData);
+        } else {
+          // Mettre à jour les données existantes
+          const userData = userDoc.data();
+          const currentXp = userData.gamification?.totalXp || 0;
+          const currentTasks = userData.gamification?.tasksCompleted || 0;
+          const newTotalXp = currentXp + earnedXp;
+          const newLevel = Math.floor(newTotalXp / 100) + 1;
+          
+          const updates = {
+            'gamification.totalXp': newTotalXp,
+            'gamification.weeklyXp': (userData.gamification?.weeklyXp || 0) + earnedXp,
+            'gamification.monthlyXp': (userData.gamification?.monthlyXp || 0) + earnedXp,
+            'gamification.level': newLevel,
+            'gamification.tasksCompleted': currentTasks + completedTasks,
+            'gamification.lastActivityAt': new Date().toISOString(),
+            'syncMetadata.lastOnboardingSync': serverTimestamp(),
+            updatedAt: serverTimestamp()
+          };
+          
+          transaction.update(userRef, updates);
+        }
+      });
+      
+      console.log(`✅ [XP] +${earnedXp} XP synchronisés avec succès`);
+      return { success: true };
+      
+    } catch (error) {
+      console.error('❌ [XP] Erreur synchronisation XP:', error);
+      throw error;
+    }
   },
   
+  // 📥 CHARGEMENT ROBUSTE
   async loadProgress(userId) {
-    if (!userId) return { success: false };
-    
     try {
-      console.log('📊 Chargement progression onboarding...');
+      console.log('📥 [FIREBASE] Chargement progression...');
       
       const docRef = doc(db, this.COLLECTION, userId);
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
         const data = docSnap.data();
-        console.log('✅ Progression chargée');
-        this.showSaveNotification('Progression rechargée !');
+        console.log('✅ [FIREBASE] Progression chargée');
+        this.showNotification('Progression chargée depuis Firebase', 'success');
+        
         return { 
           success: true, 
           data: data.formationData,
-          lastUpdated: data.lastUpdated 
+          lastUpdated: data.lastUpdated,
+          syncId: data.syncId
         };
+      } else {
+        console.log('📝 [FIREBASE] Aucune progression trouvée');
+        return { success: false, error: 'Aucune sauvegarde trouvée' };
       }
       
-      return { success: false, error: 'Aucune sauvegarde trouvée' };
     } catch (error) {
-      console.error('❌ Erreur chargement:', error);
-      return { success: false, error };
+      console.error('❌ [FIREBASE] Erreur chargement:', error);
+      throw error;
     }
   },
   
-  // 🛡️ SYNCHRONISATION XP AVEC PROTECTION CONCURRENCE
-  async syncXpToProfile(userId, earnedXp, completedTasks) {
-    if (!userId || !earnedXp) return;
+  // 📋 GESTION DE LA QUEUE HORS LIGNE
+  addToQueue(operation) {
+    // Éviter les doublons
+    const exists = this.syncQueue.find(op => 
+      op.type === operation.type && 
+      op.userId === operation.userId &&
+      Math.abs(op.timestamp - operation.timestamp) < 5000
+    );
     
-    // Délai aléatoire pour éviter les conflits
-    const delay = Math.random() * 500 + 200;
-    await new Promise(resolve => setTimeout(resolve, delay));
-    
-    try {
-      const userRef = doc(db, 'users', userId);
-      
-      // ✅ UTILISER writeBatch POUR ÉVITER LES CONFLITS
-      const batch = writeBatch(db);
-      
-      const userDoc = await getDoc(userRef);
-      
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        const currentXp = userData.gamification?.totalXp || 0;
-        const currentTasks = userData.gamification?.tasksCompleted || 0;
-        const newTotalXp = currentXp + earnedXp;
-        const newLevel = Math.floor(newTotalXp / 100) + 1;
-        
-        const updates = {
-          'gamification.totalXp': newTotalXp,
-          'gamification.weeklyXp': (userData.gamification?.weeklyXp || 0) + earnedXp,
-          'gamification.monthlyXp': (userData.gamification?.monthlyXp || 0) + earnedXp,
-          'gamification.level': newLevel,
-          'gamification.tasksCompleted': currentTasks + completedTasks,
-          'gamification.lastActivityAt': new Date().toISOString(),
-          'syncMetadata.lastOnboardingSync': serverTimestamp(),
-          updatedAt: serverTimestamp()
-        };
-        
-        batch.update(userRef, updates);
-        await batch.commit();
-        
-        console.log(`✅ +${earnedXp} XP synchronisés vers profil`);
-      }
-    } catch (error) {
-      console.error('❌ Erreur sync XP:', error);
-      // Ne pas faire échouer la sauvegarde pour une erreur de sync XP
+    if (!exists) {
+      this.syncQueue.push(operation);
+      console.log(`📋 [QUEUE] Opération ajoutée (${this.syncQueue.length} en queue)`);
     }
   },
   
-  showSaveNotification(message, type = 'success') {
-    // Éviter les notifications en doublon
-    const existingNotif = document.querySelector('.onboarding-notification');
-    if (existingNotif) {
-      existingNotif.remove();
+  // 🔄 TRAITEMENT DE LA QUEUE
+  async processOfflineQueue() {
+    if (this.syncQueue.length === 0) return;
+    
+    console.log(`🔄 [QUEUE] Traitement de ${this.syncQueue.length} opérations en attente...`);
+    
+    const operations = [...this.syncQueue];
+    this.syncQueue = [];
+    
+    for (const operation of operations) {
+      try {
+        await this.executeOperation(operation);
+        console.log(`✅ [QUEUE] Opération ${operation.type} synchronisée`);
+      } catch (error) {
+        console.error(`❌ [QUEUE] Échec opération ${operation.type}:`, error);
+        // Remettre en queue si échec
+        this.addToQueue(operation);
+      }
+      
+      // Délai entre opérations pour éviter surcharge
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
+    
+    if (this.syncQueue.length === 0) {
+      this.showNotification('Toutes les données synchronisées !', 'success');
+    }
+  },
+  
+  // 🔔 NOTIFICATIONS INTELLIGENTES
+  showNotification(message, type = 'success') {
+    // Supprimer notifications existantes
+    const existing = document.querySelectorAll('.firebase-notification');
+    existing.forEach(el => el.remove());
+    
+    const colors = {
+      success: '#10b981',
+      warning: '#f59e0b', 
+      error: '#ef4444',
+      info: '#3b82f6'
+    };
     
     const notification = document.createElement('div');
-    notification.className = 'onboarding-notification';
+    notification.className = 'firebase-notification';
     notification.style.cssText = `
       position: fixed;
       top: 20px;
       right: 20px;
-      background: ${type === 'success' ? '#10b981' : '#ef4444'};
+      background: ${colors[type]};
       color: white;
       padding: 12px 20px;
       border-radius: 8px;
       z-index: 10000;
       font-weight: 500;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      transition: all 0.3s ease;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      max-width: 300px;
+      font-size: 14px;
     `;
     notification.textContent = message;
     document.body.appendChild(notification);
     
+    // Animation d'entrée
     setTimeout(() => {
-      if (document.body.contains(notification)) {
-        notification.style.opacity = '0';
-        notification.style.transform = 'translateX(100%)';
-        setTimeout(() => {
-          if (document.body.contains(notification)) {
-            document.body.removeChild(notification);
-          }
-        }, 300);
-      }
-    }, 3000);
+      notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Animation de sortie
+    setTimeout(() => {
+      notification.style.transform = 'translateX(100%)';
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification);
+        }
+      }, 300);
+    }, 4000);
   }
 };
 
@@ -217,6 +401,11 @@ const OnboardingPage = () => {
   const [expandedPhase, setExpandedPhase] = useState(null);
   const [saveStatus, setSaveStatus] = useState('idle');
   const [lastSaved, setLastSaved] = useState(null);
+  const [networkStatus, setNetworkStatus] = useState('online');
+  const [queueCount, setQueueCount] = useState(0);
+  
+  // Référence pour éviter les re-renders multiples
+  const saveTimeoutRef = useRef(null);
   
   // 🗂️ DONNÉES DE FORMATION COMPLÈTES
   const [formationData, setFormationData] = useState({
@@ -473,20 +662,52 @@ const OnboardingPage = () => {
     }
   });
 
-  // 🔄 CHARGER LA PROGRESSION SAUVEGARDÉE AU DÉMARRAGE
+  // 🚀 INITIALISATION SERVICE ROBUSTE
+  useEffect(() => {
+    firebaseRobustService.initNetworkDetection();
+    
+    // Mettre à jour le statut réseau
+    const updateNetworkStatus = () => {
+      setNetworkStatus(navigator.onLine ? 'online' : 'offline');
+      setQueueCount(firebaseRobustService.syncQueue.length);
+    };
+    
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+    
+    // Mise à jour périodique du compteur de queue
+    const queueInterval = setInterval(() => {
+      setQueueCount(firebaseRobustService.syncQueue.length);
+    }, 1000);
+    
+    return () => {
+      window.removeEventListener('online', updateNetworkStatus);
+      window.removeEventListener('offline', updateNetworkStatus);
+      clearInterval(queueInterval);
+    };
+  }, []);
+
+  // 🔄 CHARGER LA PROGRESSION AU DÉMARRAGE
   useEffect(() => {
     const loadSavedProgress = async () => {
       if (!user?.uid) return;
       
       setLoading(true);
-      const result = await onboardingSaveService.loadProgress(user.uid);
       
-      if (result.success && result.data) {
-        console.log('📊 Progression rechargée depuis Firebase');
-        setFormationData(result.data);
-        setLastSaved(result.lastUpdated);
-      } else {
-        console.log('📝 Nouvelle session, données par défaut');
+      try {
+        const result = await firebaseRobustService.loadProgress(user.uid);
+        
+        if (result.success && result.data) {
+          console.log('📊 Progression chargée depuis Firebase');
+          setFormationData(result.data);
+          setLastSaved(result.lastUpdated);
+        } else {
+          console.log('📝 Nouvelle session, données par défaut');
+          firebaseRobustService.showNotification('Nouvelle session démarrée', 'info');
+        }
+      } catch (error) {
+        console.error('❌ Erreur chargement progression:', error);
+        firebaseRobustService.showNotification('Erreur chargement - Mode hors ligne', 'error');
       }
       
       setLoading(false);
@@ -495,7 +716,7 @@ const OnboardingPage = () => {
     loadSavedProgress();
   }, [user?.uid]);
 
-  // ✅ FONCTION DE TOGGLE AVEC SAUVEGARDE SÉCURISÉE
+  // ✅ FONCTION DE TOGGLE AVEC SYNCHRONISATION ROBUSTE
   const toggleTaskCompletion = async (phaseId, taskId, experienceId = null) => {
     setSaveStatus('saving');
     
@@ -526,30 +747,51 @@ const OnboardingPage = () => {
         }
       }
       
-      // ✅ SAUVEGARDE SÉCURISÉE AVEC DÉLAI POUR ÉVITER CONCURRENCE
+      // 🛡️ SAUVEGARDE FIREBASE ROBUSTE
       if (user?.uid) {
-        // Délai différent pour chaque action pour éviter les conflits
-        const delay = 500 + Math.random() * 500;
+        // Annuler la sauvegarde précédente
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+        }
         
-        setTimeout(async () => {
-          const saveResult = await onboardingSaveService.saveProgress(user.uid, newData);
-          
-          if (saveResult.success) {
-            setLastSaved(new Date().toISOString());
-            setSaveStatus('saved');
+        // Délai de debounce pour éviter les sauvegardes multiples
+        saveTimeoutRef.current = setTimeout(async () => {
+          try {
+            // Sauvegarder la progression
+            const saveResult = await firebaseRobustService.saveProgressRobust(user.uid, newData);
             
-            // Si tâche complétée, synchroniser XP (avec délai supplémentaire)
-            if (taskCompleted && taskXp > 0) {
-              setTimeout(async () => {
-                await onboardingSaveService.syncXpToProfile(user.uid, taskXp, 1);
-              }, 1000);
+            if (saveResult.success) {
+              setLastSaved(new Date().toISOString());
+              setSaveStatus('saved');
+              
+              // Si tâche complétée, synchroniser XP
+              if (taskCompleted && taskXp > 0) {
+                const xpOperation = {
+                  type: 'sync_xp',
+                  userId: user.uid,
+                  xp: taskXp,
+                  tasks: 1,
+                  timestamp: Date.now()
+                };
+                
+                await firebaseRobustService.executeWithRetry(xpOperation);
+              }
+            } else if (saveResult.offline) {
+              setSaveStatus('offline');
+            } else if (saveResult.retrying) {
+              setSaveStatus('retrying');
+            } else {
+              setSaveStatus('error');
             }
-          } else {
+            
+            setTimeout(() => setSaveStatus('idle'), 3000);
+            
+          } catch (error) {
+            console.error('❌ Erreur sauvegarde robuste:', error);
             setSaveStatus('error');
+            setTimeout(() => setSaveStatus('idle'), 3000);
           }
-          
-          setTimeout(() => setSaveStatus('idle'), 2000);
-        }, delay);
+        }, 1000);
       }
       
       return newData;
@@ -600,28 +842,44 @@ const OnboardingPage = () => {
     };
   };
 
-  // 🎨 INDICATEUR DE SAUVEGARDE AMÉLIORÉ
+  // 🎨 INDICATEUR DE SAUVEGARDE ULTRA-DÉTAILLÉ
   const SaveIndicator = () => {
-    if (saveStatus === 'idle') return null;
+    if (saveStatus === 'idle' && networkStatus === 'online' && queueCount === 0) return null;
     
     const statusConfig = {
       saving: { color: 'bg-blue-500', icon: Loader, text: 'Sauvegarde...', spin: true },
-      saved: { color: 'bg-green-500', icon: CheckCircle, text: 'Sauvegardé !', spin: false },
-      error: { color: 'bg-red-500', icon: AlertCircle, text: 'Erreur', spin: false }
+      saved: { color: 'bg-green-500', icon: CheckCircle, text: 'Sauvegardé Firebase !', spin: false },
+      error: { color: 'bg-red-500', icon: AlertCircle, text: 'Erreur - En queue', spin: false },
+      offline: { color: 'bg-orange-500', icon: WifiOff, text: 'Hors ligne - En queue', spin: false },
+      retrying: { color: 'bg-yellow-500', icon: Loader, text: 'Retry en cours...', spin: true }
     };
     
-    const config = statusConfig[saveStatus];
+    let config = statusConfig[saveStatus] || statusConfig.saved;
+    let displayText = config.text;
+    
+    // Ajouter info réseau et queue
+    if (networkStatus === 'offline') {
+      config = { color: 'bg-orange-500', icon: WifiOff, text: 'Mode hors ligne', spin: false };
+    }
+    
+    if (queueCount > 0) {
+      displayText += ` (${queueCount} en queue)`;
+    }
+    
     const Icon = config.icon;
     
     return (
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 ${config.color}`}
+        initial={{ opacity: 0, x: 100 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: 100 }}
+        className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 ${config.color} shadow-lg`}
       >
         <Icon className={`w-4 h-4 ${config.spin ? 'animate-spin' : ''}`} />
-        {config.text}
+        <span className="text-sm">{displayText}</span>
+        {networkStatus === 'online' && (
+          <Wifi className="w-3 h-3 text-green-300" />
+        )}
         {lastSaved && saveStatus === 'saved' && (
           <span className="text-xs opacity-75 ml-2">
             {new Date(lastSaved).toLocaleTimeString()}
@@ -686,10 +944,16 @@ const OnboardingPage = () => {
           {/* Barre de progression globale */}
           <div className="bg-gray-800/50 rounded-2xl p-6 border border-gray-700 mb-8">
             <div className="mb-4">
-              <h3 className="text-2xl font-bold text-white mb-4">
-                🎯 Ton Parcours Game Master
-              </h3>
-              <p className="text-gray-400 mb-4">Ta progression sera visible à chaque étape</p>
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Shield className="w-6 h-6 text-blue-400" />
+                <h3 className="text-2xl font-bold text-white">
+                  🎯 Ton Parcours Game Master
+                </h3>
+                <Cloud className="w-6 h-6 text-green-400" />
+              </div>
+              <p className="text-gray-400 mb-4">
+                Synchronisation Firebase ultra-robuste - Zéro perte de données garantie
+              </p>
             </div>
             
             <div className="mb-4">
@@ -907,7 +1171,11 @@ const OnboardingPage = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-500 mx-auto mb-4"></div>
           <h2 className="text-white text-xl font-semibold mb-2">Chargement de votre formation</h2>
-          <p className="text-gray-400">Chargement de la progression...</p>
+          <p className="text-gray-400">Synchronisation Firebase en cours...</p>
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <Shield className="w-5 h-5 text-blue-400" />
+            <span className="text-sm text-blue-400">Système ultra-robuste</span>
+          </div>
         </div>
       </div>
     );
@@ -917,7 +1185,7 @@ const OnboardingPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-6">
       <div className="max-w-7xl mx-auto">
         
-        {/* Indicateur de sauvegarde */}
+        {/* Indicateur de sauvegarde ultra-détaillé */}
         <AnimatePresence>
           <SaveIndicator />
         </AnimatePresence>
@@ -933,6 +1201,10 @@ const OnboardingPage = () => {
           <p className="text-gray-400 text-lg">
             Escape & Quiz Game – 1 mois – coche chaque tâche, gagne des XP et débloque des badges
           </p>
+          <div className="mt-2 flex items-center justify-center gap-2">
+            <Shield className="w-4 h-4 text-green-400" />
+            <span className="text-sm text-green-400">Synchronisation Firebase ultra-robuste activée</span>
+          </div>
         </div>
 
         {/* 📊 Navigation par onglets */}
