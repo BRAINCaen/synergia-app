@@ -61,7 +61,7 @@ class ProfileService {
   }
 
   /**
-   * Mettre à jour les préférences utilisateur
+   * Mettre à jour les préférences utilisateur avec merge intelligent
    */
   async updateUserPreferences(userId, preferences) {
     try {
@@ -74,21 +74,49 @@ class ProfileService {
 
       const userRef = doc(db, 'users', userId);
       
-      // Vérifier si le document existe
+      // Récupérer les préférences existantes d'abord
       const userDoc = await getDoc(userRef);
+      let existingPreferences = {};
       
+      if (userDoc.exists() && userDoc.data().preferences) {
+        existingPreferences = userDoc.data().preferences;
+      }
+      
+      // Merger intelligemment les préférences
+      const mergedPreferences = {
+        ...existingPreferences,
+        ...preferences,
+        // S'assurer que les sous-objets sont aussi mergés
+        notifications: {
+          ...existingPreferences.notifications,
+          ...preferences.notifications
+        },
+        interface: {
+          ...existingPreferences.interface,
+          ...preferences.interface
+        },
+        gamification: {
+          ...existingPreferences.gamification,
+          ...preferences.gamification
+        },
+        privacy: {
+          ...existingPreferences.privacy,
+          ...preferences.privacy
+        }
+      };
+
       if (!userDoc.exists()) {
         // Créer le document avec les préférences
         await setDoc(userRef, {
           uid: userId,
-          preferences: preferences,
+          preferences: mergedPreferences,
           createdAt: new Date(),
           updatedAt: new Date()
         });
       } else {
         // Mettre à jour les préférences
         await updateDoc(userRef, {
-          preferences: preferences,
+          preferences: mergedPreferences,
           updatedAt: new Date()
         });
       }
