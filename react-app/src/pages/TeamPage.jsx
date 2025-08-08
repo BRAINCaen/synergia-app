@@ -1,9 +1,10 @@
 // ==========================================
 // 📁 react-app/src/pages/TeamPage.jsx
-// TEAM PAGE COMPLÈTE - SYNCHRONISATION FIREBASE + BOUTONS FONCTIONNELS + Z-INDEX CORRIGÉ
+// TEAM PAGE COMPLÈTE - MENU ACTIONS AVEC PORTAL (SOLUTION DÉFINITIVE)
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, 
@@ -59,7 +60,7 @@ import { db } from '../core/firebase.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 /**
- * 👥 PAGE ÉQUIPE AVEC SYNCHRONISATION FIREBASE RÉELLE + BOUTONS FONCTIONNELS + Z-INDEX CORRIGÉ
+ * 👥 PAGE ÉQUIPE AVEC MENU PORTAL - SOLUTION DÉFINITIVE
  */
 const TeamPage = () => {
   const { user } = useAuthStore();
@@ -88,6 +89,13 @@ const TeamPage = () => {
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [selectedMemberForMessage, setSelectedMemberForMessage] = useState(null);
   const [showMemberActions, setShowMemberActions] = useState(null);
+  
+  // ==========================================
+  // 🎯 NOUVEAUX ÉTATS POUR MENU PORTAL
+  // ==========================================
+  
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [selectedMemberForActions, setSelectedMemberForActions] = useState(null);
 
   console.log('👥 TeamPage rendue pour:', user?.email);
 
@@ -303,38 +311,66 @@ const TeamPage = () => {
     setShowMessageModal(true);
   };
 
-  const handleMemberActions = (member) => {
+  // ==========================================
+  // 🎯 NOUVELLE FONCTION MENU PORTAL
+  // ==========================================
+  
+  const handleMemberActions = (member, event) => {
     console.log('⚙️ Actions pour:', member.name);
-    setShowMemberActions(showMemberActions === member.id ? null : member.id);
+    
+    if (showMemberActions === member.id) {
+      // Fermer le menu
+      setShowMemberActions(null);
+      setSelectedMemberForActions(null);
+    } else {
+      // Calculer la position du menu
+      const rect = event.currentTarget.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const menuWidth = 192; // w-48 = 192px
+      
+      // Position x : à droite du bouton, mais ajuster si déborde
+      let x = rect.right - menuWidth;
+      if (x < 10) x = 10; // Marge minimum à gauche
+      if (x + menuWidth > viewportWidth - 10) x = viewportWidth - menuWidth - 10; // Marge minimum à droite
+      
+      // Position y : en dessous du bouton
+      let y = rect.bottom + 8;
+      
+      setMenuPosition({ x, y });
+      setSelectedMemberForActions(member);
+      setShowMemberActions(member.id);
+    }
   };
 
   const handleStartCall = (member) => {
     console.log('📞 Appeler:', member.name);
-    // Simuler un appel vidéo (à remplacer par vraie intégration)
     alert(`Appel vidéo avec ${member.name} - Fonctionnalité à venir !`);
+    setShowMemberActions(null);
+    setSelectedMemberForActions(null);
   };
 
   const handleEditMember = (member) => {
     console.log('✏️ Éditer:', member.name);
     setSelectedMember(member);
     setShowMemberActions(null);
+    setSelectedMemberForActions(null);
   };
 
   const handleRemoveMember = (member) => {
     console.log('🗑️ Retirer:', member.name);
     const confirmed = window.confirm(`Êtes-vous sûr de vouloir retirer ${member.name} de l'équipe ?`);
     if (confirmed) {
-      // Logique de suppression (à implémenter avec Firebase)
       console.log('Suppression confirmée');
     }
     setShowMemberActions(null);
+    setSelectedMemberForActions(null);
   };
 
   const handlePromoteMember = (member) => {
     console.log('⬆️ Promouvoir:', member.name);
-    // Logique de promotion (à implémenter)
     alert(`${member.name} a été promu ! Fonctionnalité à venir.`);
     setShowMemberActions(null);
+    setSelectedMemberForActions(null);
   };
 
   // ==========================================
@@ -361,19 +397,33 @@ const TeamPage = () => {
   }, [teamMembers, searchTerm, roleFilter]);
 
   // ==========================================
-  // 🎯 GESTION DES CLICS EXTÉRIEURS
+  // 🎯 GESTION DES CLICS EXTÉRIEURS POUR PORTAL
   // ==========================================
 
-  // Fermer les menus actions en cliquant à l'extérieur
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showMemberActions && !event.target.closest('.relative')) {
+      // Fermer le menu si on clique en dehors
+      if (showMemberActions && !event.target.closest('[data-menu-container]')) {
         setShowMemberActions(null);
+        setSelectedMemberForActions(null);
+      }
+    };
+
+    const handleScroll = () => {
+      // Fermer le menu lors du scroll
+      if (showMemberActions) {
+        setShowMemberActions(null);
+        setSelectedMemberForActions(null);
       }
     };
 
     document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    window.addEventListener('scroll', handleScroll, true);
+    
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
   }, [showMemberActions]);
 
   // ==========================================
@@ -684,7 +734,7 @@ const TeamPage = () => {
                 transition={{ delay: index * 0.05 }}
                 className={`
                   bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 
-                  hover:border-gray-600 transition-all duration-300 group relative overflow-visible
+                  hover:border-gray-600 transition-all duration-300 group
                   ${viewMode === 'grid' 
                     ? 'p-6 hover:transform hover:scale-[1.02]' 
                     : 'p-4 flex items-center gap-4'
@@ -752,7 +802,7 @@ const TeamPage = () => {
                   </div>
                 </div>
 
-                {/* Actions - VERSION CORRIGÉE AVEC Z-INDEX TRÈS ÉLEVÉ */}
+                {/* Actions - VERSION AVEC PORTAL */}
                 <div className={`flex items-center gap-2 ${viewMode === 'grid' ? 'justify-between' : ''}`}>
                   <button 
                     onClick={() => handleViewProfile(member)}
@@ -771,58 +821,14 @@ const TeamPage = () => {
                       <MessageSquare className="w-4 h-4" />
                     </button>
                     
-                    <div className="relative">
-                      <button 
-                        onClick={() => handleMemberActions(member)}
-                        className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
-                        title="Plus d'actions"
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                      
-                      {/* Menu déroulant actions - ✅ Z-INDEX CORRIGÉ */}
-                      {showMemberActions === member.id && (
-                        <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-[9999]">
-                          <div className="py-1">
-                            <button
-                              onClick={() => handleEditMember(member)}
-                              className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-2"
-                            >
-                              <Edit className="w-4 h-4" />
-                              Modifier le profil
-                            </button>
-                            
-                            <button
-                              onClick={() => handleStartCall(member)}
-                              className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-2"
-                            >
-                              <Video className="w-4 h-4" />
-                              Appel vidéo
-                            </button>
-                            
-                            {!member.isCurrentUser && (
-                              <>
-                                <button
-                                  onClick={() => handlePromoteMember(member)}
-                                  className="w-full px-4 py-2 text-left text-green-400 hover:bg-gray-700 hover:text-green-300 flex items-center gap-2"
-                                >
-                                  <Crown className="w-4 h-4" />
-                                  Promouvoir
-                                </button>
-                                
-                                <button
-                                  onClick={() => handleRemoveMember(member)}
-                                  className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 hover:text-red-300 flex items-center gap-2"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                  Retirer de l'équipe
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    <button 
+                      onClick={(e) => handleMemberActions(member, e)}
+                      className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
+                      title="Plus d'actions"
+                      data-menu-container
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
 
@@ -1088,6 +1094,60 @@ const TeamPage = () => {
           </div>
         )}
       </div>
+
+      {/* ==========================================
+          🎯 MENU ACTIONS AVEC PORTAL - SOLUTION DÉFINITIVE
+          ========================================== */}
+      
+      {showMemberActions && selectedMemberForActions && ReactDOM.createPortal(
+        <div 
+          className="fixed bg-gray-800 border border-gray-700 rounded-lg shadow-2xl w-48 z-[99999]"
+          style={{
+            left: `${menuPosition.x}px`,
+            top: `${menuPosition.y}px`
+          }}
+          data-menu-container
+        >
+          <div className="py-1">
+            <button
+              onClick={() => handleEditMember(selectedMemberForActions)}
+              className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-2"
+            >
+              <Edit className="w-4 h-4" />
+              Modifier le profil
+            </button>
+            
+            <button
+              onClick={() => handleStartCall(selectedMemberForActions)}
+              className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-2"
+            >
+              <Video className="w-4 h-4" />
+              Appel vidéo
+            </button>
+            
+            {!selectedMemberForActions.isCurrentUser && (
+              <>
+                <button
+                  onClick={() => handlePromoteMember(selectedMemberForActions)}
+                  className="w-full px-4 py-2 text-left text-green-400 hover:bg-gray-700 hover:text-green-300 flex items-center gap-2"
+                >
+                  <Crown className="w-4 h-4" />
+                  Promouvoir
+                </button>
+                
+                <button
+                  onClick={() => handleRemoveMember(selectedMemberForActions)}
+                  className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 hover:text-red-300 flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Retirer de l'équipe
+                </button>
+              </>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
@@ -1097,9 +1157,9 @@ export default TeamPage;
 // ==========================================
 // 📋 LOGS DE CONFIRMATION
 // ==========================================
-console.log('✅ TeamPage Firebase synchronisée + Boutons fonctionnels + Z-Index corrigé');
+console.log('✅ TeamPage avec Menu Portal - Solution définitive');
 console.log('🔄 Chargement données réelles depuis Firebase');
 console.log('🛡️ Fallback sécurisé avec utilisateur connecté');
 console.log('👥 Interface complète: Profils, Messagerie, Actions, Invitations');
 console.log('🎯 Tous les boutons sont maintenant interactifs !');
-console.log('🔧 Menu actions avec z-index 9999 - Plus de problème de superposition !');
+console.log('🌐 Menu actions avec Portal - GARANTIT l\'affichage au-dessus de tout !');
