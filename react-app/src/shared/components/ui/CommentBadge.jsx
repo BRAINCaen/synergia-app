@@ -3,6 +3,8 @@
 // BADGE DE NOTIFICATION DE COMMENTAIRES
 // ==========================================
 
+// ✅ CRÉER CE FICHIER : react-app/src/components/ui/CommentBadge.jsx
+
 import React from 'react';
 import { MessageCircle } from 'lucide-react';
 import { useCommentCount } from '../../shared/hooks/useCommentCount.js';
