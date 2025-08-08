@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// DESKTOP FORCÉ - CSS INLINE TOTAL
+// DESKTOP STABLE - SANS RE-RENDER KILLER
 // ==========================================
 
 import React, { useState } from 'react';
@@ -91,20 +91,6 @@ const Layout = ({ children }) => {
   const allSections = adminSection ? [...navigationSections, adminSection] : navigationSections;
   const isActive = (path) => location.pathname === path;
 
-  // Détection de la taille d'écran
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  
-  React.useEffect(() => {
-    const handleResize = () => {
-      setWindowWidth(window.innerWidth);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const isDesktop = windowWidth >= 1024; // lg breakpoint
-  const isMobile = windowWidth < 1024;
-
   return (
     <div style={{
       minHeight: '100vh',
@@ -112,325 +98,153 @@ const Layout = ({ children }) => {
       display: 'flex'
     }}>
       
-      {/* ✅ SIDEBAR DESKTOP - FORCÉE AVEC CSS INLINE */}
-      {isDesktop && (
-        <div style={{
-          display: 'flex',
-          width: '256px', // w-64
-          flexDirection: 'column',
-          position: 'fixed',
-          top: 0,
-          bottom: 0,
-          left: 0,
-          backgroundColor: '#111827', // bg-gray-900
-          zIndex: 30,
-          border: '3px solid #ef4444' // Bordure rouge pour debug
-        }}>
-          
-          {/* Header Desktop */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            height: '64px',
-            padding: '0 16px',
-            backgroundColor: '#374151' // bg-gray-800
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              <div style={{
-                width: '32px',
-                height: '32px',
-                background: 'linear-gradient(45deg, #3b82f6, #8b5cf6)',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <Zap style={{ width: '20px', height: '20px', color: '#ffffff' }} />
-              </div>
-              <div>
-                <span style={{ color: '#ffffff', fontWeight: '600', fontSize: '16px' }}>
-                  🖥️ DESKTOP SYNERGIA
-                </span>
-                {userIsAdmin && (
-                  <span style={{ color: '#f87171', fontSize: '10px', marginLeft: '8px' }}>
-                    ADMIN
-                  </span>
-                )}
-              </div>
+      {/* ✅ SIDEBAR DESKTOP - TOUJOURS AFFICHÉE AVEC MEDIA QUERY CSS */}
+      <div style={{
+        display: 'none', // Par défaut caché
+        '@media (min-width: 1024px)': {
+          display: 'flex' // Affiché sur desktop
+        }
+      }} 
+      className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-gray-900 z-30"
+      >
+        {/* Header Desktop */}
+        <div className="flex items-center h-16 px-4 bg-gray-800">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <Zap className="w-5 h-5 text-white" />
             </div>
-          </div>
-
-          {/* Profile Desktop */}
-          <div style={{
-            padding: '16px',
-            backgroundColor: '#374151',
-            borderBottom: '1px solid #4b5563'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              <div style={{
-                width: '32px',
-                height: '32px',
-                backgroundColor: '#3b82f6',
-                color: '#ffffff',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '14px',
-                fontWeight: 'bold'
-              }}>
-                {user?.email?.[0]?.toUpperCase() || '?'}
-              </div>
-              <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-                <p style={{
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#ffffff',
-                  margin: 0,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {user?.displayName || user?.email || 'Utilisateur'}
-                </p>
-                <p style={{
-                  fontSize: '12px',
-                  color: '#9ca3af',
-                  margin: 0
-                }}>
-                  {userIsAdmin ? 'Administrateur' : 'Membre'}
-                </p>
-              </div>
+            <div>
+              <span className="text-white font-semibold">Synergia</span>
+              {userIsAdmin && <span className="text-red-400 text-xs ml-2">ADMIN</span>}
             </div>
-          </div>
-
-          {/* Navigation Desktop */}
-          <nav style={{
-            flex: '1 1 0%',
-            padding: '16px 12px',
-            overflowY: 'auto'
-          }}>
-            {allSections.map((section, sectionIndex) => (
-              <div key={sectionIndex} style={{ marginBottom: '24px' }}>
-                <h3 style={{
-                  padding: '0 12px',
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  color: '#9ca3af',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  marginBottom: '12px',
-                  margin: '0 0 12px 0'
-                }}>
-                  {section.title}
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {section.items.map((item, itemIndex) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.path);
-                    const isAdminItem = section.title === 'ADMINISTRATION';
-
-                    return (
-                      <Link
-                        key={itemIndex}
-                        to={item.path}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          padding: '8px 12px',
-                          fontSize: '14px',
-                          fontWeight: '500',
-                          borderRadius: '6px',
-                          textDecoration: 'none',
-                          transition: 'all 0.2s',
-                          backgroundColor: active
-                            ? (isAdminItem ? '#7c2d12' : '#1e3a8a')
-                            : 'transparent',
-                          color: active
-                            ? (isAdminItem ? '#fef2f2' : '#dbeafe')
-                            : (isAdminItem ? '#fca5a5' : '#d1d5db')
-                        }}
-                      >
-                        <Icon style={{
-                          marginRight: '12px',
-                          width: '20px',
-                          height: '20px',
-                          color: active
-                            ? (isAdminItem ? '#fca5a5' : '#93c5fd')
-                            : (isAdminItem ? '#f87171' : '#9ca3af')
-                        }} />
-                        <span>{item.label}</span>
-                        {isAdminItem && (
-                          <Shield style={{
-                            width: '12px',
-                            height: '12px',
-                            marginLeft: 'auto',
-                            color: '#f87171'
-                          }} />
-                        )}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </nav>
-
-          {/* Déconnexion Desktop */}
-          <div style={{
-            padding: '16px',
-            borderTop: '1px solid #4b5563',
-            backgroundColor: '#374151'
-          }}>
-            <button
-              onClick={handleLogout}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '8px',
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#d1d5db',
-                backgroundColor: 'transparent',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                transition: '0.2s'
-              }}
-            >
-              <LogOut style={{
-                marginRight: '12px',
-                width: '20px',
-                height: '20px',
-                color: '#9ca3af'
-              }} />
-              <span>Déconnexion</span>
-            </button>
           </div>
         </div>
-      )}
 
-      {/* ✅ SIDEBAR MOBILE - SEULEMENT SUR MOBILE */}
-      {isMobile && sidebarOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 999999,
-          pointerEvents: 'auto'
-        }}>
-          {/* Overlay Mobile */}
-          <div
+        {/* Profile Desktop */}
+        <div className="p-4 bg-gray-800 border-b border-gray-700">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">
+              {user?.email?.[0]?.toUpperCase() || '?'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white truncate">
+                {user?.displayName || user?.email || 'Utilisateur'}
+              </p>
+              <p className="text-xs text-gray-400 truncate">
+                {userIsAdmin ? 'Administrateur' : 'Membre'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Desktop */}
+        <nav className="flex-1 px-3 py-4 overflow-y-auto">
+          {allSections.map((section, sectionIndex) => (
+            <div key={sectionIndex} className="mb-6">
+              <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                {section.title}
+              </h3>
+              <div className="space-y-1">
+                {section.items.map((item, itemIndex) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.path);
+                  const isAdminItem = section.title === 'ADMINISTRATION';
+
+                  return (
+                    <Link
+                      key={itemIndex}
+                      to={item.path}
+                      className={`
+                        group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
+                        ${active
+                          ? isAdminItem ? 'bg-red-900 text-red-100' : 'bg-blue-900 text-blue-100'
+                          : isAdminItem ? 'text-red-300 hover:bg-red-900' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                        }
+                      `}
+                    >
+                      <Icon className={`mr-3 w-5 h-5 ${
+                        active
+                          ? isAdminItem ? 'text-red-300' : 'text-blue-300'
+                          : isAdminItem ? 'text-red-400' : 'text-gray-400'
+                      }`} />
+                      <span>{item.label}</span>
+                      {isAdminItem && <Shield className="w-3 h-3 ml-auto text-red-400" />}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {/* Déconnexion Desktop */}
+        <div className="p-4 border-t border-gray-700 bg-gray-800">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center px-2 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors"
+          >
+            <LogOut className="mr-3 w-5 h-5 text-gray-400" />
+            <span>Déconnexion</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ✅ SIDEBAR MOBILE EN PLUS - SIMPLE OVERLAY */}
+      {sidebarOpen && (
+        <>
+          {/* Overlay */}
+          <div 
+            className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
             onClick={() => setSidebarOpen(false)}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              zIndex: 999998
-            }}
           />
           
-          {/* Menu Sidebar Mobile */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '300px',
-            height: '100vh',
-            backgroundColor: '#1f2937',
-            zIndex: 999999,
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-            overflow: 'auto',
-            border: '3px solid #10b981'
-          }}>
+          {/* Menu Mobile */}
+          <div className="lg:hidden fixed inset-y-0 left-0 z-50 w-80 bg-gray-900 transform transition-transform duration-300 ease-in-out">
+            
             {/* Header Mobile */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              height: '64px',
-              padding: '0 20px',
-              backgroundColor: '#374151',
-              borderBottom: '1px solid #4b5563',
-              flexShrink: 0
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  background: 'linear-gradient(45deg, #3b82f6, #8b5cf6)',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  ⚡
+            <div className="flex items-center justify-between h-16 px-4 bg-gray-800 border-b border-gray-700">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <span style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '18px' }}>
-                    📱 MOBILE MENU
-                  </span>
-                  {userIsAdmin && (
-                    <span style={{ color: '#f87171', fontSize: '10px', marginLeft: '8px' }}>
-                      ADMIN
-                    </span>
-                  )}
+                  <span className="text-white font-semibold">📱 Synergia Mobile</span>
+                  {userIsAdmin && <span className="text-red-400 text-xs ml-2">ADMIN</span>}
                 </div>
               </div>
               <button
                 onClick={() => setSidebarOpen(false)}
-                style={{
-                  backgroundColor: '#ef4444',
-                  border: 'none',
-                  color: '#ffffff',
-                  padding: '10px',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '18px',
-                  fontWeight: 'bold'
-                }}
+                className="text-gray-400 hover:text-white p-2 rounded-lg"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Navigation Mobile - Identique à Desktop */}
-            <nav style={{
-              flex: '1 1 0%',
-              padding: '20px',
-              overflow: 'auto'
-            }}>
+            {/* Profile Mobile */}
+            <div className="p-4 bg-gray-800 border-b border-gray-700">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">
+                  {user?.email?.[0]?.toUpperCase() || 'A'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">
+                    {user?.displayName || user?.email || 'Utilisateur'}
+                  </p>
+                  <p className="text-xs text-gray-400 truncate">
+                    {userIsAdmin ? 'Administrateur' : 'Membre'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Navigation Mobile */}
+            <nav className="flex-1 px-3 py-4 overflow-y-auto">
               {allSections.map((section, sectionIndex) => (
-                <div key={sectionIndex} style={{ marginBottom: '25px' }}>
-                  <h3 style={{
-                    color: '#10b981',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.1em',
-                    margin: '0 0 15px 0',
-                    borderBottom: '2px solid #10b981',
-                    paddingBottom: '5px'
-                  }}>
-                    📂 {section.title}
+                <div key={sectionIndex} className="mb-6">
+                  <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                    {section.title}
                   </h3>
-                  <div>
+                  <div className="space-y-1">
                     {section.items.map((item, itemIndex) => {
                       const Icon = item.icon;
                       const active = isActive(item.path);
@@ -441,34 +255,21 @@ const Layout = ({ children }) => {
                           key={itemIndex}
                           to={item.path}
                           onClick={() => setSidebarOpen(false)}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '15px 10px',
-                            margin: '5px 0',
-                            borderRadius: '10px',
-                            textDecoration: 'none',
-                            fontSize: '16px',
-                            fontWeight: '500',
-                            transition: '0.3s',
-                            backgroundColor: active 
-                              ? (isAdminItem ? '#dc2626' : '#2563eb')
-                              : 'rgba(16, 185, 129, 0.1)',
-                            color: active
-                              ? '#ffffff'
-                              : (isAdminItem ? '#fca5a5' : '#ffffff'),
-                            border: active ? '2px solid #10b981' : '1px solid #374151'
-                          }}
+                          className={`
+                            group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
+                            ${active
+                              ? isAdminItem ? 'bg-red-900 text-red-100' : 'bg-blue-900 text-blue-100'
+                              : isAdminItem ? 'text-red-300 hover:bg-red-900' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                            }
+                          `}
                         >
-                          <Icon style={{
-                            width: '20px',
-                            height: '20px',
-                            marginRight: '12px',
-                            color: active
-                              ? '#ffffff'
-                              : (isAdminItem ? '#f87171' : '#10b981')
-                          }} />
-                          <span style={{ flex: '1 1 0%' }}>{item.label}</span>
+                          <Icon className={`mr-3 w-5 h-5 ${
+                            active
+                              ? isAdminItem ? 'text-red-300' : 'text-blue-300'
+                              : isAdminItem ? 'text-red-400' : 'text-gray-400'
+                          }`} />
+                          <span>{item.label}</span>
+                          {isAdminItem && <Shield className="w-3 h-3 ml-auto text-red-400" />}
                         </Link>
                       );
                     })}
@@ -478,131 +279,47 @@ const Layout = ({ children }) => {
             </nav>
 
             {/* Déconnexion Mobile */}
-            <div style={{
-              padding: '20px',
-              borderTop: '2px solid #10b981',
-              backgroundColor: '#374151',
-              flexShrink: 0
-            }}>
+            <div className="p-4 border-t border-gray-700 bg-gray-800">
               <button
                 onClick={handleLogout}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '15px',
-                  backgroundColor: '#dc2626',
-                  border: 'none',
-                  borderRadius: '10px',
-                  color: '#ffffff',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  transition: '0.2s'
-                }}
+                className="w-full flex items-center px-2 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors"
               >
-                <LogOut style={{
-                  width: '20px',
-                  height: '20px',
-                  marginRight: '10px'
-                }} />
-                <span>🚪 DÉCONNEXION</span>
+                <LogOut className="mr-3 w-5 h-5 text-gray-400" />
+                <span>Déconnexion</span>
               </button>
             </div>
           </div>
-        </div>
+        </>
       )}
 
-      {/* ✅ CONTENU PRINCIPAL */}
-      <div style={{
-        flex: '1 1 0%',
-        display: 'flex',
-        flexDirection: 'column',
-        minWidth: 0,
-        marginLeft: isDesktop ? '256px' : 0, // Marge pour sidebar desktop
-        position: 'relative'
-      }}>
+      {/* ✅ CONTENU PRINCIPAL - MARGES TAILWIND SIMPLES */}
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-64 relative">
         
-        {/* HEADER MOBILE SEULEMENT */}
-        {isMobile && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '16px',
-            backgroundColor: '#ffffff',
-            borderBottom: '1px solid #e5e7eb',
-            position: 'sticky',
-            top: 0,
-            zIndex: 30
-          }}>
-            <button
-              onClick={() => setSidebarOpen(true)}
-              style={{
-                padding: '12px',
-                backgroundColor: '#10b981',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '10px',
-                cursor: 'pointer',
-                fontSize: '16px',
-                fontWeight: 'bold'
-              }}
-              aria-label="Ouvrir le menu"
-            >
-              📱 MENU
-            </button>
-            <h1 style={{
-              fontSize: '18px',
-              fontWeight: '600',
-              color: '#111827',
-              display: 'flex',
-              alignItems: 'center',
-              margin: 0
-            }}>
-              Synergia
-              {userIsAdmin && (
-                <span style={{
-                  color: '#ef4444',
-                  fontSize: '14px',
-                  marginLeft: '8px'
-                }}>
-                  ADMIN
-                </span>
-              )}
-            </h1>
-            <div style={{ width: '40px' }} />
-          </div>
-        )}
+        {/* HEADER MOBILE SIMPLE */}
+        <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Ouvrir le menu"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+          <h1 className="text-lg font-semibold text-gray-900 flex items-center">
+            Synergia
+            {userIsAdmin && <span className="text-red-500 text-sm ml-2">ADMIN</span>}
+          </h1>
+          <div className="w-10" />
+        </div>
 
         {/* CONTENU DES PAGES */}
-        <main style={{
-          flex: '1 1 0%',
-          overflow: 'auto'
-        }}>
+        <main className="flex-1 overflow-auto">
           {children}
         </main>
       </div>
       
-      {/* DEBUG ULTRA VISIBLE */}
-      <div style={{
-        position: 'fixed',
-        bottom: '20px',
-        right: '20px',
-        backgroundColor: isDesktop ? '#3b82f6' : (sidebarOpen ? '#10b981' : '#ef4444'),
-        color: '#ffffff',
-        padding: '12px 16px',
-        borderRadius: '10px',
-        fontSize: '14px',
-        fontWeight: 'bold',
-        zIndex: 1000000,
-        border: '2px solid #ffffff',
-        boxShadow: '0 5px 15px rgba(0, 0, 0, 0.3)'
-      }}>
-        {isDesktop ? '🖥️ DESKTOP' : `📱 MOBILE: ${sidebarOpen ? 'OUVERT' : 'FERMÉ'}`}
-        <br />
-        Largeur: {windowWidth}px
+      {/* DEBUG SIMPLE */}
+      <div className="fixed bottom-4 right-4 bg-blue-600 text-white px-3 py-2 text-xs rounded lg:hidden">
+        📱 Mobile: {sidebarOpen ? 'OUVERT' : 'FERMÉ'}
       </div>
     </div>
   );
