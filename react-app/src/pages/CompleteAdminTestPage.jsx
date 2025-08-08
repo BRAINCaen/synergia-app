@@ -31,7 +31,7 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin, checkAdminWithFirebase, diagnoseAdmin } from '../core/services/adminService.js';
 import { adminBadgeService } from '../core/services/adminBadgeService.js';
 import { taskValidationService } from '../core/services/taskValidationService.js';
-import { xpValidationService } from '../core/services/xpValidationService.js';
+import xpValidationService from '../core/services/xpValidationService.js';
 import userService from '../core/services/userService.js';
 import adminSetupService from '../core/services/adminSetupService.js';
 
