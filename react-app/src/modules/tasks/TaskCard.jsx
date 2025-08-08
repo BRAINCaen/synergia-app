@@ -123,11 +123,34 @@ const TaskCard = ({
     task.status !== 'completed' &&
     task.status !== 'validation_pending';
 
-  // État de la soumission
-  const handleSubmissionSuccess = () => {
+  // État de la soumission - VERSION CORRIGÉE
+  const handleSubmissionSuccess = async () => {
     console.log('✅ Soumission réussie pour tâche:', task.id);
-    if (onSubmit) {
-      onSubmit(task.id);
+    
+    try {
+      // ✅ CORRECTION : Forcer la mise à jour du statut
+      await taskService.updateTask(task.id, {
+        status: 'validation_pending',
+        submittedAt: new Date(),
+        submittedBy: user.uid,
+        submissionNotes: 'Tâche soumise pour validation',
+        updatedAt: new Date()
+      });
+      
+      console.log('✅ Statut mis à jour vers validation_pending');
+      
+      // Notifier le parent pour recharger les données
+      if (onTaskUpdate) {
+        onTaskUpdate();
+      }
+      
+      // Callback original
+      if (onSubmit) {
+        onSubmit(task.id);
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur mise à jour statut:', error);
     }
   };
 
@@ -332,11 +355,12 @@ const TaskCard = ({
           </button>
         )}
 
-        {/* Bouton de soumission pour mes tâches */}
-        {isMyTask && (
+        {/* Bouton de soumission pour mes tâches - VERSION CORRIGÉE */}
+        {isMyTask && task.status !== 'completed' && task.status !== 'validation_pending' && (
           <SubmitTaskButton 
             task={task}
             onSuccess={handleSubmissionSuccess}
+            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors"
           />
         )}
       </div>
