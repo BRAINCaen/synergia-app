@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/onboarding/InterviewIntegration.jsx
-// COMPOSANT D'INTÉGRATION POUR L'ONGLET ENTRETIENS
+// COMPOSANT D'INTÉGRATION POUR L'ONGLET ENTRETIENS - MISE À JOUR
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -16,7 +16,8 @@ import {
   Star,
   Crown,
   UserCheck,
-  RefreshCw
+  RefreshCw,
+  User
 } from 'lucide-react';
 
 import EntretiensReferent from './EntretiensReferent.jsx';
@@ -290,6 +291,11 @@ const UpcomingInterviews = ({ interviews, onOpenFullInterface }) => {
               <p className="text-gray-400 text-xs">
                 {new Date(`${interview.date}T${interview.time}`).toLocaleDateString('fr-FR')} à {interview.time}
               </p>
+              {interview.participantIds && interview.participantIds.length > 0 && (
+                <p className="text-gray-500 text-xs">
+                  👥 {interview.participantIds.length} participant(s)
+                </p>
+              )}
             </div>
             
             <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded">
@@ -377,6 +383,9 @@ export const InterviewNotifications = ({ userId }) => {
             {notifications.map(interview => (
               <p key={interview.id} className="text-orange-200 text-sm">
                 • {interview.title} - {new Date(`${interview.date}T${interview.time}`).toLocaleDateString('fr-FR')} à {interview.time}
+                {interview.participantIds && interview.participantIds.length > 0 && (
+                  <span className="text-orange-300"> ({interview.participantIds.length} participant(s))</span>
+                )}
               </p>
             ))}
           </div>
