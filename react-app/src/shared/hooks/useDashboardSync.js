@@ -202,7 +202,23 @@ export const useDashboardSync = () => {
       
       snapshot.forEach(doc => {
         const userData = doc.data();
-        const updatedAt = userData.updatedAt?.toDate() || new Date();
+        
+        // 🛡️ GESTION SÉCURISÉE DES TIMESTAMPS FIREBASE
+        let updatedAt;
+        try {
+          if (userData.updatedAt?.toDate) {
+            updatedAt = userData.updatedAt.toDate();
+          } else if (userData.updatedAt instanceof Date) {
+            updatedAt = userData.updatedAt;
+          } else if (typeof userData.updatedAt === 'string') {
+            updatedAt = new Date(userData.updatedAt);
+          } else {
+            updatedAt = new Date(); // Fallback
+          }
+        } catch (error) {
+          console.warn('⚠️ [DASHBOARD] Erreur timestamp:', error);
+          updatedAt = new Date();
+        }
         
         // Vérifier si c'est une activité récente (moins de 24h)
         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
