@@ -3,6 +3,8 @@
 // HOOK COMPTEUR DE COMMENTAIRES SÉCURISÉ
 // ==========================================
 
+// ✅ CRÉER CE FICHIER : react-app/src/shared/hooks/useCommentCount.js
+
 import { useState, useEffect } from 'react';
 import { collaborationService } from '../../core/services/collaborationService.js';
 
