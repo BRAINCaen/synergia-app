@@ -2,7 +2,7 @@
    🎨 GLOBALS CSS - SYNERGIA v3.5 - VERSION CORRIGÉE
    ==========================================
    Fichier: react-app/src/assets/styles/globals.css
-   CSS global SANS masquage brutal qui cassait l'affichage
+   CSS global COMPLET et sécurisé pour Synergia
    ========================================== */
 
 @import 'tailwindcss/base';
@@ -17,9 +17,23 @@
   --color-warning: #f59e0b;
   --color-error: #ef4444;
   --color-info: #06b6d4;
+  
+  /* Variables pour thème sombre */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+  --border-color: #475569;
+  --accent-blue: #3b82f6;
+  --accent-purple: #8b5cf6;
 }
 
-/* Styles de base */
+/* ==========================================
+   🎯 STYLES DE BASE
+   ========================================== */
+
 * {
   box-sizing: border-box;
 }
@@ -41,7 +55,10 @@ body {
   line-height: 1.6;
 }
 
-/* Scrollbar personnalisée */
+/* ==========================================
+   📜 SCROLLBAR PERSONNALISÉE
+   ========================================== */
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -72,7 +89,7 @@ body {
    🎨 COMPOSANTS STYLISÉS
    ========================================== */
 
-/* Cartes premium */
+/* Cartes premium avec glass morphism */
 .premium-card {
   background: rgba(55, 65, 81, 0.5);
   backdrop-filter: blur(10px);
@@ -352,8 +369,8 @@ video {
   height: auto;
 }
 
-/* Réduction des reprints */
-* {
+/* Réduction des reprints - RÈGLE CORRIGÉE */
+.optimized {
   transform: translateZ(0);
   backface-visibility: hidden;
 }
@@ -362,19 +379,6 @@ video {
    🎨 THÈME SOMBRE COMPLET
    ========================================== */
 
-/* Variables pour le thème sombre */
-:root {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-tertiary: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #64748b;
-  --border-color: #475569;
-  --accent-blue: #3b82f6;
-  --accent-purple: #8b5cf6;
-}
-
 /* Application du thème */
 .dark-theme {
   background-color: var(--bg-primary);
@@ -382,18 +386,83 @@ video {
 }
 
 /* ==========================================
-   ✅ LOG DE CONFIRMATION
+   🌟 TEAM PAGE - CORRECTIONS SPÉCIFIQUES
    ========================================== */
 
-/* Confirmation que le CSS est chargé */
+/* Correction grille membres */
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+@media (max-width: 768px) {
+  .team-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+/* Cartes membres */
+.member-card {
+  background: rgba(31, 41, 55, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(75, 85, 99, 0.3);
+  border-radius: 16px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.member-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Avatar membres */
+.member-avatar {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: white;
+  position: relative;
+}
+
+/* Statut en ligne */
+.status-indicator {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 2px solid #1f2937;
+}
+
+.status-online { background-color: #10b981; }
+.status-away { background-color: #f59e0b; }
+.status-offline { background-color: #6b7280; }
+
+/* ==========================================
+   ✅ VALIDATION CSS
+   ========================================== */
+
+/* Confirmation que le CSS est chargé correctement */
 body::after {
   content: "";
   display: none;
   /* Marqueur CSS chargé */
 }
 
-/* Log de debug - ne s'affiche pas visuellement */
+/* Log de debug - invisible */
 html::before {
-  content: "✅ Globals CSS Synergia v3.5 chargé correctement";
+  content: "✅ Globals CSS Synergia v3.5 - COMPLET ET CORRIGÉ";
   display: none;
 }
