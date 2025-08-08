@@ -105,3 +105,4 @@
     ))}
   </div>
 )}
+export default TasksPage;
