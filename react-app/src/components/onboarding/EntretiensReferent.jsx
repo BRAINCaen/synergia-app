@@ -49,6 +49,7 @@ import {
 } from 'lucide-react';
 
 import { useAuthStore } from '../../shared/stores/authStore.js';
+import { ScheduleInterviewModalWithUsers } from './InterviewFormWithUsers.jsx';
 
 // 🔥 IMPORTS FIREBASE
 import { 
@@ -412,7 +413,11 @@ const EntretiensReferent = () => {
         location: newInterview.location,
         type: newInterview.type,
         referent: newInterview.referent,
+        referentId: newInterview.referentId,
+        referentEmail: newInterview.referentEmail,
         targetUser: newInterview.targetUser,
+        participantIds: newInterview.participantIds || [],
+        participantEmails: newInterview.participantEmails || [],
         notes: newInterview.notes,
         
         // Contenu template
@@ -532,6 +537,10 @@ const EntretiensReferent = () => {
       referent: '',
       notes: '',
       targetUser: '',
+      participantIds: [],
+      participantEmails: [],
+      referentId: '',
+      referentEmail: '',
       status: 'planned'
     });
   };
@@ -726,7 +735,7 @@ const EntretiensReferent = () => {
       {/* 📝 Modal de planification */}
       <AnimatePresence>
         {showScheduleForm && selectedTemplate && (
-          <ScheduleInterviewModal
+          <ScheduleInterviewModalWithUsers
             template={INTERVIEW_TEMPLATES[selectedTemplate]}
             newInterview={newInterview}
             setNewInterview={setNewInterview}
@@ -1007,10 +1016,18 @@ const InterviewCard = ({ interview, onStartInterview, onDelete, showActions = tr
               </span>
             </div>
 
-            {interview.targetUser && (
+            {interview.participantIds && interview.participantIds.length > 0 && (
               <div className="mt-2">
                 <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">
-                  👤 {interview.targetUser}
+                  👥 {interview.participantIds.length} participant(s)
+                </span>
+              </div>
+            )}
+
+            {interview.referentEmail && (
+              <div className="mt-2">
+                <span className="text-xs bg-purple-700/20 text-purple-300 px-2 py-1 rounded">
+                  👤 {interview.referent} ({interview.referentEmail})
                 </span>
               </div>
             )}
@@ -1051,341 +1068,6 @@ const InterviewCard = ({ interview, onStartInterview, onDelete, showActions = tr
         )}
       </div>
     </div>
-  );
-};
-
-// 📝 MODAL DE PLANIFICATION
-const ScheduleInterviewModal = ({ template, newInterview, setNewInterview, onSchedule, onClose, submitting }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-gray-800 rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-white">
-            📅 Planifier: {template.name}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-white font-medium mb-2">Date *</label>
-              <input
-                type="date"
-                value={newInterview.date}
-                onChange={(e) => setNewInterview(prev => ({ ...prev, date: e.target.value }))}
-                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-white font-medium mb-2">Heure *</label>
-              <input
-                type="time"
-                value={newInterview.time}
-                onChange={(e) => setNewInterview(prev => ({ ...prev, time: e.target.value }))}
-                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-white font-medium mb-2">Lieu</label>
-              <input
-                type="text"
-                value={newInterview.location}
-                onChange={(e) => setNewInterview(prev => ({ ...prev, location: e.target.value }))}
-                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                placeholder="Bureau Brain"
-              />
-            </div>
-            <div>
-              <label className="block text-white font-medium mb-2">Type</label>
-              <select
-                value={newInterview.type}
-                onChange={(e) => setNewInterview(prev => ({ ...prev, type: e.target.value }))}
-                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
-              >
-                <option value="presentiel">Présentiel</option>
-                <option value="visio">Visioconférence</option>
-                <option value="phone">Téléphone</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-white font-medium mb-2">Référent/Conducteur</label>
-            <input
-              type="text"
-              value={newInterview.referent}
-              onChange={(e) => setNewInterview(prev => ({ ...prev, referent: e.target.value }))}
-              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
-              placeholder="Nom du référent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-white font-medium mb-2">Participant cible</label>
-            <input
-              type="text"
-              value={newInterview.targetUser}
-              onChange={(e) => setNewInterview(prev => ({ ...prev, targetUser: e.target.value }))}
-              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
-              placeholder="Nom ou email du participant"
-            />
-          </div>
-
-          <div>
-            <label className="block text-white font-medium mb-2">Notes</label>
-            <textarea
-              value={newInterview.notes}
-              onChange={(e) => setNewInterview(prev => ({ ...prev, notes: e.target.value }))}
-              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white h-24"
-              placeholder="Notes ou contexte spécifique..."
-            />
-          </div>
-
-          {/* Aperçu du template */}
-          <div className="bg-gray-700/50 rounded-lg p-4">
-            <h4 className="font-semibold text-white mb-2">📋 Aperçu de l'entretien</h4>
-            <p className="text-gray-300 text-sm mb-3">{template.description}</p>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-400">Durée: </span>
-                <span className="text-white">{template.duration} minutes</span>
-              </div>
-              <div>
-                <span className="text-gray-400">Questions: </span>
-                <span className="text-white">{template.questions.length} questions</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <button
-              onClick={onClose}
-              className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
-            >
-              Annuler
-            </button>
-            <button
-              onClick={onSchedule}
-              disabled={submitting || !newInterview.date || !newInterview.time}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-            >
-              {submitting ? (
-                <div className="flex items-center justify-center gap-2">
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  Planification...
-                </div>
-              ) : (
-                'Planifier l\'entretien'
-              )}
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-};
-
-// 🎯 MODAL DE CONDUITE D'ENTRETIEN
-const ConductInterviewModal = ({ interview, template, form, setForm, onComplete, onClose, submitting }) => {
-  const updateResponse = (questionIndex, response) => {
-    setForm(prev => ({
-      ...prev,
-      responses: {
-        ...prev.responses,
-        [questionIndex]: response
-      }
-    }));
-  };
-
-  const addNextStep = () => {
-    const step = prompt('Ajouter une action à suivre:');
-    if (step && step.trim()) {
-      setForm(prev => ({
-        ...prev,
-        nextSteps: [...prev.nextSteps, step.trim()]
-      }));
-    }
-  };
-
-  const removeNextStep = (index) => {
-    setForm(prev => ({
-      ...prev,
-      nextSteps: prev.nextSteps.filter((_, i) => i !== index)
-    }));
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-gray-800 rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-white">
-            🎯 Entretien: {interview.title}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        <div className="space-y-6">
-          {/* Informations entretien */}
-          <div className="bg-gray-700/50 rounded-lg p-4">
-            <h4 className="font-semibold text-white mb-2">📋 Informations</h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="text-gray-400">Participant:</span> <span className="text-white">{interview.targetUser || 'Non spécifié'}</span></div>
-              <div><span className="text-gray-400">Date:</span> <span className="text-white">{new Date(`${interview.date}T${interview.time}`).toLocaleString('fr-FR')}</span></div>
-              <div><span className="text-gray-400">Durée:</span> <span className="text-white">{template.duration} minutes</span></div>
-              <div><span className="text-gray-400">Lieu:</span> <span className="text-white">{interview.location}</span></div>
-            </div>
-          </div>
-
-          {/* Questions */}
-          <div>
-            <h4 className="font-semibold text-white mb-4">❓ Questions d'entretien</h4>
-            <div className="space-y-4">
-              {template.questions.map((question, index) => (
-                <div key={index} className="bg-gray-700/50 rounded-lg p-4">
-                  <label className="block text-white font-medium mb-2">
-                    {index + 1}. {question}
-                  </label>
-                  <textarea
-                    value={form.responses[index] || ''}
-                    onChange={(e) => updateResponse(index, e.target.value)}
-                    className="w-full p-3 bg-gray-600 border border-gray-500 rounded-lg text-white h-20"
-                    placeholder="Réponse du participant..."
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Notes du conducteur */}
-          <div>
-            <label className="block text-white font-medium mb-2">📝 Notes du conducteur</label>
-            <textarea
-              value={form.notes}
-              onChange={(e) => setForm(prev => ({ ...prev, notes: e.target.value }))}
-              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white h-24"
-              placeholder="Observations, comportement, points remarquables..."
-            />
-          </div>
-
-          {/* Évaluation globale */}
-          <div>
-            <label className="block text-white font-medium mb-2">⭐ Évaluation globale *</label>
-            <select
-              value={form.evaluation}
-              onChange={(e) => setForm(prev => ({ ...prev, evaluation: e.target.value }))}
-              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
-              required
-            >
-              <option value="">Sélectionner une évaluation</option>
-              <option value="excellent">🌟 Excellent - Dépasse les attentes</option>
-              <option value="good">✅ Bon - Répond aux attentes</option>
-              <option value="satisfactory">🆗 Satisfaisant - Objectifs atteints</option>
-              <option value="needs_improvement">⚠️ À améliorer - Besoin d'accompagnement</option>
-              <option value="unsatisfactory">❌ Insuffisant - Difficultés importantes</option>
-            </select>
-          </div>
-
-          {/* Actions à suivre */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-white font-medium">🎯 Actions à suivre</label>
-              <button
-                onClick={addNextStep}
-                type="button"
-                className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
-              >
-                + Ajouter
-              </button>
-            </div>
-            {form.nextSteps.length > 0 && (
-              <div className="space-y-2">
-                {form.nextSteps.map((step, index) => (
-                  <div key={index} className="flex items-center gap-2 bg-gray-700/50 p-2 rounded">
-                    <span className="flex-1 text-white text-sm">{step}</span>
-                    <button
-                      onClick={() => removeNextStep(index)}
-                      className="text-red-400 hover:text-red-300"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Date de suivi */}
-          <div>
-            <label className="block text-white font-medium mb-2">📅 Prochain suivi (optionnel)</label>
-            <input
-              type="date"
-              value={form.followUpDate}
-              onChange={(e) => setForm(prev => ({ ...prev, followUpDate: e.target.value }))}
-              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
-            />
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <button
-              onClick={onClose}
-              className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
-            >
-              Annuler
-            </button>
-            <button
-              onClick={onComplete}
-              disabled={submitting || !form.evaluation}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-            >
-              {submitting ? (
-                <div className="flex items-center justify-center gap-2">
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  Finalisation...
-                </div>
-              ) : (
-                'Terminer l\'entretien'
-              )}
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>
   );
 };
 
