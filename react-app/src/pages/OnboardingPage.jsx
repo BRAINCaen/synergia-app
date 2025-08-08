@@ -34,7 +34,7 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 // 🔥 IMPORT MINIMAL FIREBASE (JUSTE POUR AUTH)
 import { getAuth } from 'firebase/auth';
 
-// 🛡️ SERVICE REST API FIREBASE - CONTOURNEMENT DU BUG SDK
+// 🛡️ SERVICE REST API FIREBASE - CONTOURNEMENT DU BUG SDK + SYNC DASHBOARD
 const firebaseRestService = {
   PROJECT_ID: 'synergia-app-f27e7',
   // 🔧 CORRECTION: URL corrigée avec le bon endpoint
