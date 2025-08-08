@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/onboarding/EntretiensReferent.jsx
-// SYSTÈME ENTRETIENS COMPLET CORRIGÉ - v3.5
+// SYSTÈME ENTRETIENS COMPLET CORRIGÉ - AFFICHAGE FONCTIONNEL
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -321,6 +321,10 @@ const EntretiensReferent = () => {
     referent: '',
     notes: '',
     targetUser: '',
+    participantIds: [],
+    participantEmails: [],
+    referentId: '',
+    referentEmail: '',
     status: 'planned'
   });
 
@@ -333,49 +337,116 @@ const EntretiensReferent = () => {
     followUpDate: ''
   });
 
-  // 🔄 Charger les entretiens depuis Firebase
+  // 🔄 Charger les entretiens depuis Firebase - VERSION CORRIGÉE
   const loadInterviews = useCallback(async () => {
     if (!user?.uid) return;
 
     try {
       setLoading(true);
-      console.log('🔄 Chargement des entretiens...');
+      console.log('🔄 Chargement des entretiens pour utilisateur:', user.uid);
 
-      // CORRECTION: Utiliser une seule collection cohérente
-      const interviewsRef = collection(db, 'interviews');
-      const q = query(
-        interviewsRef,
-        where('createdBy', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
-
-      const querySnapshot = await getDocs(q);
-      const loadedInterviews = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        loadedInterviews.push({
-          id: doc.id,
-          ...data,
-          // Normaliser les dates
-          date: data.date || data.scheduledDate?.split('T')[0] || '',
-          time: data.time || data.scheduledDate?.split('T')[1]?.substring(0, 5) || ''
+      let loadedInterviews = [];
+      
+      // Méthode 1: Collection 'interviews' avec createdBy
+      try {
+        const interviewsRef = collection(db, 'interviews');
+        const q1 = query(
+          interviewsRef,
+          where('createdBy', '==', user.uid),
+          orderBy('createdAt', 'desc')
+        );
+        const querySnapshot1 = await getDocs(q1);
+        querySnapshot1.forEach((doc) => {
+          const data = doc.data();
+          loadedInterviews.push({
+            id: doc.id,
+            ...data,
+            source: 'interviews_createdBy'
+          });
         });
-      });
+        console.log(`✅ Méthode 1 (createdBy): ${loadedInterviews.length} entretiens trouvés`);
+      } catch (error) {
+        console.warn('⚠️ Méthode 1 échouée:', error.message);
+      }
 
-      console.log(`✅ ${loadedInterviews.length} entretiens chargés`);
-      setInterviews(loadedInterviews);
+      // Méthode 2: Collection 'interviews' avec userId
+      if (loadedInterviews.length === 0) {
+        try {
+          const interviewsRef = collection(db, 'interviews');
+          const q2 = query(
+            interviewsRef,
+            where('userId', '==', user.uid),
+            orderBy('createdAt', 'desc')
+          );
+          const querySnapshot2 = await getDocs(q2);
+          querySnapshot2.forEach((doc) => {
+            const data = doc.data();
+            loadedInterviews.push({
+              id: doc.id,
+              ...data,
+              source: 'interviews_userId'
+            });
+          });
+          console.log(`✅ Méthode 2 (userId): ${loadedInterviews.length} entretiens trouvés`);
+        } catch (error) {
+          console.warn('⚠️ Méthode 2 échouée:', error.message);
+        }
+      }
+
+      // Méthode 3: Tous les entretiens récents (pour debug)
+      if (loadedInterviews.length === 0) {
+        try {
+          const interviewsRef = collection(db, 'interviews');
+          const q3 = query(interviewsRef, orderBy('createdAt', 'desc'), limit(20));
+          const querySnapshot3 = await getDocs(q3);
+          console.log('🔍 Recherche dans tous les entretiens récents...');
+          querySnapshot3.forEach((doc) => {
+            const data = doc.data();
+            console.log('📋 Entretien trouvé:', {
+              id: doc.id,
+              createdBy: data.createdBy,
+              userId: data.userId,
+              title: data.title
+            });
+            // Inclure tous les entretiens pour debug
+            loadedInterviews.push({
+              id: doc.id,
+              ...data,
+              source: 'interviews_all_debug'
+            });
+          });
+          console.log(`✅ Méthode 3 (debug): ${loadedInterviews.length} entretiens trouvés`);
+        } catch (error) {
+          console.warn('⚠️ Méthode 3 échouée:', error.message);
+        }
+      }
+
+      // Normaliser les données
+      const normalizedInterviews = loadedInterviews.map(interview => ({
+        ...interview,
+        // Normaliser les dates
+        date: interview.date || interview.scheduledDate?.split('T')[0] || '',
+        time: interview.time || interview.scheduledDate?.split('T')[1]?.substring(0, 5) || '',
+        // Normaliser les timestamps
+        createdAt: interview.createdAt?.toDate?.() || interview.createdAt,
+        updatedAt: interview.updatedAt?.toDate?.() || interview.updatedAt,
+        completedAt: interview.completedAt?.toDate?.() || interview.completedAt
+      }));
+
+      console.log(`✅ ${normalizedInterviews.length} entretiens chargés et normalisés`);
+      console.log('📋 Détail des entretiens:', normalizedInterviews);
+      
+      setInterviews(normalizedInterviews);
 
     } catch (error) {
       console.error('❌ Erreur chargement entretiens:', error);
-      // Fallback gracieux sans plantage
       setInterviews([]);
     } finally {
       setLoading(false);
     }
   }, [user?.uid]);
 
-  // 🚀 Planifier un nouvel entretien
+  // 🚀 Planifier un nouvel entretien - VERSION CORRIGÉE
   const scheduleInterview = async () => {
     if (!selectedTemplate || !newInterview.date || !newInterview.time) {
       alert('Veuillez remplir tous les champs obligatoires');
@@ -388,7 +459,7 @@ const EntretiensReferent = () => {
       
       const template = INTERVIEW_TEMPLATES[selectedTemplate];
       
-      // CORRECTION: Structure cohérente pour Firebase
+      // Structure de données complète et cohérente
       const interviewData = {
         // Métadonnées utilisateur
         userId: user.uid,
@@ -412,13 +483,13 @@ const EntretiensReferent = () => {
         // Détails
         location: newInterview.location,
         type: newInterview.type,
-        referent: newInterview.referent,
-        referentId: newInterview.referentId,
-        referentEmail: newInterview.referentEmail,
-        targetUser: newInterview.targetUser,
+        referent: newInterview.referent || 'Non spécifié',
+        referentId: newInterview.referentId || '',
+        referentEmail: newInterview.referentEmail || '',
+        targetUser: newInterview.targetUser || 'Non spécifié',
         participantIds: newInterview.participantIds || [],
         participantEmails: newInterview.participantEmails || [],
-        notes: newInterview.notes,
+        notes: newInterview.notes || '',
         
         // Contenu template
         objectives: template.objectives,
@@ -434,14 +505,17 @@ const EntretiensReferent = () => {
         updatedAt: serverTimestamp()
       };
       
-      console.log('📝 Données entretien:', interviewData);
+      console.log('📝 Données entretien à sauvegarder:', interviewData);
       
       const docRef = await addDoc(collection(db, 'interviews'), interviewData);
       console.log('✅ Entretien planifié avec ID:', docRef.id);
       
+      // Forcer le rechargement
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await loadInterviews();
+      
       // Réinitialiser et recharger
       resetScheduleForm();
-      await loadInterviews();
       
       alert('✅ Entretien planifié avec succès !');
       
@@ -571,28 +645,81 @@ const EntretiensReferent = () => {
     setShowInterviewForm(true);
   };
 
+  // 🐛 Fonction de debug
+  const debugInfo = () => {
+    console.log('🐛 DEBUG INFO:');
+    console.log('- User ID:', user?.uid);
+    console.log('- Total interviews:', interviews.length);
+    console.log('- Filter category:', filterCategory);
+    console.log('- Raw interviews:', interviews);
+    console.log('- Templates disponibles:', Object.keys(INTERVIEW_TEMPLATES));
+    
+    interviews.forEach((interview, index) => {
+      console.log(`📋 Entretien ${index + 1}:`, {
+        id: interview.id,
+        title: interview.title,
+        status: interview.status,
+        category: interview.category,
+        templateId: interview.templateId,
+        source: interview.source
+      });
+    });
+  };
+
   // 🔄 Charger au montage
   useEffect(() => {
     loadInterviews();
   }, [loadInterviews]);
 
-  // 📊 Filtrer les entretiens
+  // 📊 Filtrer les entretiens - VERSION CORRIGÉE
   const filteredInterviews = interviews.filter(interview => {
+    console.log(`🔍 Filtrage interview ${interview.id}:`, {
+      filterCategory,
+      interviewCategory: interview.category,
+      templateCategory: INTERVIEW_TEMPLATES[interview.templateId]?.category,
+      status: interview.status
+    });
+    
     if (filterCategory === 'all') return true;
-    if (filterCategory === 'integration') return INTERVIEW_TEMPLATES[interview.templateId]?.category === 'integration';
-    if (filterCategory === 'gamemaster') return INTERVIEW_TEMPLATES[interview.templateId]?.category === 'gamemaster';
-    if (filterCategory === 'planned') return interview.status === 'planned';
-    if (filterCategory === 'completed') return interview.status === 'completed';
+    
+    if (filterCategory === 'integration') {
+      const isIntegration = interview.category === 'integration' || 
+                           INTERVIEW_TEMPLATES[interview.templateId]?.category === 'integration';
+      return isIntegration;
+    }
+    
+    if (filterCategory === 'gamemaster') {
+      const isGamemaster = interview.category === 'gamemaster' || 
+                          INTERVIEW_TEMPLATES[interview.templateId]?.category === 'gamemaster';
+      return isGamemaster;
+    }
+    
+    if (filterCategory === 'planned') {
+      return interview.status === 'planned';
+    }
+    
+    if (filterCategory === 'completed') {
+      return interview.status === 'completed';
+    }
+    
     return true;
   });
+
+  console.log(`🔍 Résultat filtrage (${filterCategory}): ${filteredInterviews.length}/${interviews.length} entretiens`);
 
   // 📈 Statistiques
   const stats = {
     total: interviews.length,
     planned: interviews.filter(i => i.status === 'planned').length,
     completed: interviews.filter(i => i.status === 'completed').length,
-    integration: interviews.filter(i => INTERVIEW_TEMPLATES[i.templateId]?.category === 'integration').length,
-    gamemaster: interviews.filter(i => INTERVIEW_TEMPLATES[i.templateId]?.category === 'gamemaster').length
+    integration: interviews.filter(i => 
+      i.category === 'integration' || 
+      INTERVIEW_TEMPLATES[i.templateId]?.category === 'integration'
+    ).length,
+    gamemaster: interviews.filter(i => 
+      i.category === 'gamemaster' || 
+      INTERVIEW_TEMPLATES[i.templateId]?.category === 'gamemaster'
+    ).length
   };
 
   if (loading) {
@@ -641,6 +768,16 @@ const EntretiensReferent = () => {
           <div className="text-2xl font-bold text-cyan-400">{stats.gamemaster}</div>
           <div className="text-sm text-gray-400">Game Master</div>
         </div>
+      </div>
+
+      {/* 🐛 Bouton de debug */}
+      <div className="flex justify-center mb-4">
+        <button
+          onClick={debugInfo}
+          className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
+        >
+          🐛 Debug Info (Console)
+        </button>
       </div>
 
       {/* 📊 Navigation */}
@@ -892,17 +1029,45 @@ const PlanifierView = ({ templates, onSelectTemplate, filterCategory }) => {
 
 // 📚 COMPOSANT HISTORIQUE
 const HistoriqueView = ({ interviews, onStartInterview, onDelete }) => {
+  console.log('📚 HistoriqueView - Entretiens reçus:', interviews.length);
+  
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
         <h4 className="text-xl font-bold text-white mb-2">📚 Historique des Entretiens</h4>
         <p className="text-gray-400">Tous vos entretiens passés et à venir</p>
+        
+        {/* Informations de debug */}
+        <div className="mt-4 p-3 bg-gray-700/50 rounded-lg text-sm">
+          <p className="text-gray-300">
+            📊 {interviews.length} entretien(s) trouvé(s)
+          </p>
+          {interviews.length > 0 && (
+            <p className="text-gray-400 mt-1">
+              Sources: {[...new Set(interviews.map(i => i.source))].join(', ')}
+            </p>
+          )}
+        </div>
       </div>
 
       {interviews.length === 0 ? (
         <div className="text-center py-12">
           <Calendar className="h-16 w-16 text-gray-500 mx-auto mb-4" />
-          <p className="text-gray-400">Aucun entretien enregistré</p>
+          <div className="space-y-2">
+            <p className="text-gray-400">Aucun entretien trouvé</p>
+            <p className="text-gray-500 text-sm">
+              Vérifiez le filtre sélectionné ou créez un nouvel entretien
+            </p>
+            <button
+              onClick={() => {
+                console.log('🔄 Rechargement forcé...');
+                window.location.reload();
+              }}
+              className="mt-4 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
+            >
+              🔄 Recharger la page
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
@@ -1037,6 +1202,14 @@ const InterviewCard = ({ interview, onStartInterview, onDelete, showActions = tr
                 📝 {interview.notes}
               </div>
             )}
+
+            {detailed && interview.source && (
+              <div className="mt-2">
+                <span className="text-xs bg-gray-600/50 text-gray-400 px-2 py-1 rounded">
+                  🔍 Source: {interview.source}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1068,6 +1241,189 @@ const InterviewCard = ({ interview, onStartInterview, onDelete, showActions = tr
         )}
       </div>
     </div>
+  );
+};
+
+// 🎯 MODAL DE CONDUITE D'ENTRETIEN
+const ConductInterviewModal = ({ interview, template, form, setForm, onComplete, onClose, submitting }) => {
+  const updateResponse = (questionIndex, response) => {
+    setForm(prev => ({
+      ...prev,
+      responses: {
+        ...prev.responses,
+        [questionIndex]: response
+      }
+    }));
+  };
+
+  const addNextStep = () => {
+    const step = prompt('Ajouter une action à suivre:');
+    if (step && step.trim()) {
+      setForm(prev => ({
+        ...prev,
+        nextSteps: [...prev.nextSteps, step.trim()]
+      }));
+    }
+  };
+
+  const removeNextStep = (index) => {
+    setForm(prev => ({
+      ...prev,
+      nextSteps: prev.nextSteps.filter((_, i) => i !== index)
+    }));
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-gray-800 rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-white">
+            🎯 Entretien: {interview.title}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          {/* Informations entretien */}
+          <div className="bg-gray-700/50 rounded-lg p-4">
+            <h4 className="font-semibold text-white mb-2">📋 Informations</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><span className="text-gray-400">Participant:</span> <span className="text-white">{interview.targetUser || 'Non spécifié'}</span></div>
+              <div><span className="text-gray-400">Date:</span> <span className="text-white">{new Date(`${interview.date}T${interview.time}`).toLocaleString('fr-FR')}</span></div>
+              <div><span className="text-gray-400">Durée:</span> <span className="text-white">{template.duration} minutes</span></div>
+              <div><span className="text-gray-400">Lieu:</span> <span className="text-white">{interview.location}</span></div>
+            </div>
+          </div>
+
+          {/* Questions */}
+          <div>
+            <h4 className="font-semibold text-white mb-4">❓ Questions d'entretien</h4>
+            <div className="space-y-4">
+              {template.questions.map((question, index) => (
+                <div key={index} className="bg-gray-700/50 rounded-lg p-4">
+                  <label className="block text-white font-medium mb-2">
+                    {index + 1}. {question}
+                  </label>
+                  <textarea
+                    value={form.responses[index] || ''}
+                    onChange={(e) => updateResponse(index, e.target.value)}
+                    className="w-full p-3 bg-gray-600 border border-gray-500 rounded-lg text-white h-20"
+                    placeholder="Réponse du participant..."
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Notes du conducteur */}
+          <div>
+            <label className="block text-white font-medium mb-2">📝 Notes du conducteur</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) => setForm(prev => ({ ...prev, notes: e.target.value }))}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white h-24"
+              placeholder="Observations, comportement, points remarquables..."
+            />
+          </div>
+
+          {/* Évaluation globale */}
+          <div>
+            <label className="block text-white font-medium mb-2">⭐ Évaluation globale *</label>
+            <select
+              value={form.evaluation}
+              onChange={(e) => setForm(prev => ({ ...prev, evaluation: e.target.value }))}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              required
+            >
+              <option value="">Sélectionner une évaluation</option>
+              <option value="excellent">🌟 Excellent - Dépasse les attentes</option>
+              <option value="good">✅ Bon - Répond aux attentes</option>
+              <option value="satisfactory">🆗 Satisfaisant - Objectifs atteints</option>
+              <option value="needs_improvement">⚠️ À améliorer - Besoin d'accompagnement</option>
+              <option value="unsatisfactory">❌ Insuffisant - Difficultés importantes</option>
+            </select>
+          </div>
+
+          {/* Actions à suivre */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-white font-medium">🎯 Actions à suivre</label>
+              <button
+                onClick={addNextStep}
+                type="button"
+                className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
+              >
+                + Ajouter
+              </button>
+            </div>
+            {form.nextSteps.length > 0 && (
+              <div className="space-y-2">
+                {form.nextSteps.map((step, index) => (
+                  <div key={index} className="flex items-center gap-2 bg-gray-700/50 p-2 rounded">
+                    <span className="flex-1 text-white text-sm">{step}</span>
+                    <button
+                      onClick={() => removeNextStep(index)}
+                      className="text-red-400 hover:text-red-300"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Date de suivi */}
+          <div>
+            <label className="block text-white font-medium mb-2">📅 Prochain suivi (optionnel)</label>
+            <input
+              type="date"
+              value={form.followUpDate}
+              onChange={(e) => setForm(prev => ({ ...prev, followUpDate: e.target.value }))}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={onComplete}
+              disabled={submitting || !form.evaluation}
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+            >
+              {submitting ? (
+                <div className="flex items-center justify-center gap-2">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Finalisation...
+                </div>
+              ) : (
+                'Terminer l\'entretien'
+              )}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
