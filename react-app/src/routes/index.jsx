@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES COMPLÈTES AVEC TOUTES LES PAGES RECONNECTÉES
+// ROUTES COMPLÈTES AVEC TOUTES LES PAGES ADMIN AJOUTÉES
 // ==========================================
 
 import React from 'react'
@@ -15,7 +15,7 @@ import NotFound from '../pages/NotFound.jsx'
 import Analytics from '../pages/Analytics.jsx'
 import TeamPage from '../pages/TeamPage.jsx'
 
-// Pages existantes mais pas dans les routes
+// Pages existantes
 import TasksPage from '../pages/TasksPage.jsx'
 import ProjectsPage from '../pages/ProjectsPage.jsx'
 import GamificationPage from '../pages/GamificationPage.jsx'
@@ -27,75 +27,55 @@ import ProfilePage from '../pages/ProfilePage.jsx'
 import SettingsPage from '../pages/SettingsPage.jsx'
 import RewardsPage from '../pages/RewardsPage.jsx'
 
-// Pages admin existantes mais pas routées
+// ✅ PAGES ADMIN COMPLÈTES
 import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx'
 import CompleteAdminTestPage from '../pages/CompleteAdminTestPage.jsx'
+import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx'
+import AdminUsersPage from '../pages/AdminUsersPage.jsx'
+import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx'
+import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
 
-// Components utilisés comme pages (fallback si les vraies pages n'existent pas)
+// Components utilisés comme pages (fallback)
 import TaskList from '../modules/tasks/TaskList.jsx'
 import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
 import Leaderboard from '../components/gamification/Leaderboard.jsx'
 import Profile from '../modules/profile/components/Profile.jsx'
 import ProjectDashboard from '../modules/projects/ProjectDashboard.jsx'
 
-// Protected Route Component
-function ProtectedRoute({ children }) {
+/**
+ * 🛡️ COMPOSANT DE PROTECTION DES ROUTES
+ */
+const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuthStore()
-  
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="text-white">Chargement...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-gray-400">Chargement...</p>
         </div>
       </div>
     )
   }
-  
+
   if (!user) {
-    return <Navigate to={ROUTES.LOGIN} replace />
+    return <Navigate to="/login" replace />
   }
-  
+
   return children
 }
 
-// Public Route Component
-function PublicRoute({ children }) {
-  const { user, loading } = useAuthStore()
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="text-white">Chargement...</p>
-        </div>
-      </div>
-    )
-  }
-  
-  if (user) {
-    return <Navigate to={ROUTES.DASHBOARD} replace />
-  }
-  
-  return children
-}
-
+/**
+ * 🎯 COMPOSANT PRINCIPAL DES ROUTES
+ */
 export default function AppRoutes() {
   return (
     <Routes>
-      {/* Public Routes */}
-      <Route 
-        path={ROUTES.LOGIN} 
-        element={
-          <PublicRoute>
-            <Login />
-          </PublicRoute>
-        } 
-      />
+      {/* Route publique */}
+      <Route path="/login" element={<Login />} />
       
-      {/* Protected Main Routes */}
+      {/* Routes principales protégées */}
       <Route 
         path={ROUTES.DASHBOARD} 
         element={
@@ -105,7 +85,6 @@ export default function AppRoutes() {
         } 
       />
       
-      {/* ROUTES RECONNECTÉES - Utilise les vraies pages */}
       <Route 
         path={ROUTES.TASKS} 
         element={
@@ -223,7 +202,7 @@ export default function AppRoutes() {
         } 
       />
 
-      {/* ROUTES ADMIN RECONNECTÉES */}
+      {/* ✅ ROUTES ADMIN COMPLÈTES - CORRECTION APPLIQUÉE */}
       <Route 
         path={ROUTES.ADMIN_TASK_VALIDATION} 
         element={
@@ -242,7 +221,44 @@ export default function AppRoutes() {
         } 
       />
 
-      {/* ROUTES FALLBACK avec composants existants */}
+      {/* 🔐 NOUVELLES ROUTES ADMIN AJOUTÉES */}
+      <Route 
+        path={ROUTES.ADMIN_ROLE_PERMISSIONS} 
+        element={
+          <ProtectedRoute>
+            <AdminRolePermissionsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path={ROUTES.ADMIN_USERS} 
+        element={
+          <ProtectedRoute>
+            <AdminUsersPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path={ROUTES.ADMIN_ANALYTICS} 
+        element={
+          <ProtectedRoute>
+            <AdminAnalyticsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path={ROUTES.ADMIN_SETTINGS} 
+        element={
+          <ProtectedRoute>
+            <AdminSettingsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* Routes fallback pour compatibilité */}
       <Route 
         path="/tasks-list" 
         element={
@@ -279,7 +295,7 @@ export default function AppRoutes() {
         } 
       />
 
-      {/* Fallback */}
+      {/* Routes par défaut */}
       <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
