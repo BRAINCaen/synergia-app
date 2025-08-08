@@ -164,7 +164,7 @@ const firebaseRestService = {
     }
   },
   
-  // 🔄 SYNCHRONISATION XP VIA API REST
+  // 🔄 SYNCHRONISATION XP VIA API REST - VERSION CORRIGÉE
   async syncXpRest(userId, earnedXp, completedTasks) {
     try {
       console.log(`🔄 [REST] Synchronisation ${earnedXp} XP via API REST...`);
@@ -183,24 +183,87 @@ const firebaseRestService = {
       
       let currentXp = 0;
       let currentLevel = 1;
+      let currentWeeklyXp = 0;
+      let currentMonthlyXp = 0;
+      let currentTasksCompleted = 0;
       
       if (currentResponse.ok) {
         const currentData = await currentResponse.json();
-        currentXp = parseInt(currentData.fields?.xp?.integerValue || '0');
-        currentLevel = parseInt(currentData.fields?.level?.integerValue || '1');
+        const gamification = currentData.fields?.gamification?.mapValue?.fields || {};
+        
+        currentXp = parseInt(gamification?.totalXp?.integerValue || '0');
+        currentLevel = parseInt(gamification?.level?.integerValue || '1');
+        currentWeeklyXp = parseInt(gamification?.weeklyXp?.integerValue || '0');
+        currentMonthlyXp = parseInt(gamification?.monthlyXp?.integerValue || '0');
+        currentTasksCompleted = parseInt(gamification?.tasksCompleted?.integerValue || '0');
       }
       
-      // Calculer le nouveau total
+      // Calculer les nouveaux totaux
       const newXp = currentXp + earnedXp;
       const newLevel = Math.floor(newXp / 100) + 1;
+      const newWeeklyXp = currentWeeklyXp + earnedXp;
+      const newMonthlyXp = currentMonthlyXp + earnedXp;
+      const timestamp = new Date().toISOString();
+      
+      // 🔧 STRUCTURE GAMIFICATION COMPLÈTE
+      const gamificationData = {
+        mapValue: {
+          fields: {
+            totalXp: { integerValue: newXp.toString() },
+            weeklyXp: { integerValue: newWeeklyXp.toString() },
+            monthlyXp: { integerValue: newMonthlyXp.toString() },
+            level: { integerValue: newLevel.toString() },
+            tasksCompleted: { integerValue: completedTasks.toString() },
+            loginStreak: { integerValue: "1" },
+            currentStreak: { integerValue: "0" },
+            maxStreak: { integerValue: "1" },
+            badgesUnlocked: { integerValue: "0" },
+            lastActivityAt: { stringValue: timestamp },
+            // 🎯 AJOUT XP HISTORY POUR TRAÇABILITÉ
+            xpHistory: {
+              arrayValue: {
+                values: [
+                  {
+                    mapValue: {
+                      fields: {
+                        amount: { integerValue: earnedXp.toString() },
+                        source: { stringValue: "onboarding_completion" },
+                        timestamp: { stringValue: timestamp },
+                        totalAfter: { integerValue: newXp.toString() }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            // 🏆 BADGES ARRAY VIDE POUR COMMENCER
+            badges: {
+              arrayValue: {
+                values: []
+              }
+            }
+          }
+        }
+      };
       
       // Mettre à jour via API REST
       const updateDocument = {
         fields: {
-          xp: { integerValue: newXp.toString() },
-          level: { integerValue: newLevel.toString() },
-          lastXpUpdate: { timestampValue: new Date().toISOString() },
-          completedOnboardingTasks: { integerValue: completedTasks.toString() }
+          gamification: gamificationData,
+          lastXpUpdate: { timestampValue: timestamp },
+          completedOnboardingTasks: { integerValue: completedTasks.toString() },
+          // 🔧 METADATA DE SYNCHRONISATION
+          syncMetadata: {
+            mapValue: {
+              fields: {
+                lastDashboardSync: { timestampValue: timestamp },
+                lastSyncSource: { stringValue: "onboarding_api_rest" },
+                integrationCompleted: { booleanValue: true },
+                lastSyncReason: { stringValue: "xp_gain_from_onboarding" }
+              }
+            }
+          },
+          updatedAt: { timestampValue: timestamp }
         }
       };
       
@@ -214,41 +277,112 @@ const firebaseRestService = {
       });
       
       if (!updateResponse.ok) {
-        throw new Error(`Erreur sync XP: ${updateResponse.status}`);
+        const errorText = await updateResponse.text();
+        throw new Error(`Erreur sync XP: ${updateResponse.status} - ${errorText}`);
       }
       
       console.log(`✅ [REST] XP synchronisé: ${currentXp} → ${newXp} (+${earnedXp})`);
-      this.showNotification(`+${earnedXp} XP gagné ! (Total: ${newXp})`, 'success');
+      console.log(`🎯 [REST] Level: ${currentLevel} → ${newLevel}`);
+      console.log(`📋 [REST] Tâches: ${completedTasks} complétées`);
       
-      return { success: true, newXp, newLevel, earnedXp };
+      // 🔔 NOTIFICATION DE SUCCÈS
+      this.showNotification(`+${earnedXp} XP gagné ! (Total: ${newXp}) 🎉`, 'success');
+      
+      // 🔄 FORCER LE RAFRAÎCHISSEMENT DU DASHBOARD
+      this.notifyDashboardUpdate(userId, {
+        totalXp: newXp,
+        level: newLevel,
+        weeklyXp: newWeeklyXp,
+        monthlyXp: newMonthlyXp,
+        tasksCompleted: completedTasks,
+        lastUpdate: timestamp
+      });
+      
+      return { 
+        success: true, 
+        newXp, 
+        newLevel, 
+        earnedXp,
+        weeklyXp: newWeeklyXp,
+        monthlyXp: newMonthlyXp,
+        tasksCompleted: completedTasks
+      };
       
     } catch (error) {
       console.error('❌ [REST] Erreur sync XP:', error);
+      this.showNotification('Erreur de synchronisation XP', 'error');
       throw error;
     }
   },
 
-  // 🔧 CORRECTION: Méthode showNotification ajoutée
+  // 🔔 NOUVELLE MÉTHODE: Notifier le dashboard des changements
+  notifyDashboardUpdate(userId, gamificationData) {
+    // Émettre un événement global pour que le dashboard se mette à jour
+    const updateEvent = new CustomEvent('onboardingXpUpdate', {
+      detail: {
+        userId,
+        gamificationData,
+        source: 'onboarding_completion',
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+    window.dispatchEvent(updateEvent);
+    
+    console.log('📢 [REST] Événement dashboard émis:', {
+      userId,
+      totalXp: gamificationData.totalXp,
+      level: gamificationData.level,
+      tasksCompleted: gamificationData.tasksCompleted
+    });
+    
+    // Également déclencher un refresh forcé des données
+    setTimeout(() => {
+      const refreshEvent = new CustomEvent('forceDashboardRefresh', {
+        detail: { userId, reason: 'onboarding_xp_sync' }
+      });
+      window.dispatchEvent(refreshEvent);
+    }, 1000);
+  },
+
+  // 🔧 CORRECTION: Méthode showNotification avec meilleur design
   showNotification(message, type = 'info') {
     console.log(`📢 [${type.toUpperCase()}] ${message}`);
     
-    // Créer une notification visuelle temporaire
+    // Supprimer les notifications existantes
+    const existing = document.querySelectorAll('.onboarding-notification');
+    existing.forEach(el => el.remove());
+    
+    // Créer une notification visuelle
     const notification = document.createElement('div');
+    notification.className = 'onboarding-notification';
     notification.style.cssText = `
       position: fixed;
       top: 20px;
       right: 20px;
       background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
       color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
+      padding: 16px 24px;
+      border-radius: 12px;
       z-index: 10000;
       font-family: system-ui;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      font-weight: 600;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
       transform: translateX(100%);
       transition: transform 0.3s ease;
+      max-width: 400px;
+      font-size: 14px;
+      border: 1px solid rgba(255,255,255,0.2);
     `;
-    notification.textContent = message;
+    
+    // Ajouter une icône selon le type
+    const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+    notification.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 16px;">${icon}</span>
+        <span>${message}</span>
+      </div>
+    `;
     
     document.body.appendChild(notification);
     
@@ -265,7 +399,7 @@ const firebaseRestService = {
           notification.parentNode.removeChild(notification);
         }
       }, 300);
-    }, 3000);
+    }, type === 'success' ? 4000 : 6000);
   }
 };
 
@@ -449,11 +583,26 @@ const OnboardingPage = () => {
   const saveTimeoutRef = useRef(null);
   const lastSyncRef = useRef(0);
 
-  // 📥 CHARGEMENT INITIAL
+  // 📥 CHARGEMENT INITIAL + ÉCOUTE ÉVÉNEMENTS DASHBOARD
   useEffect(() => {
     if (user?.uid) {
       loadProgress();
     }
+    
+    // 🔄 ÉCOUTER LES ÉVÉNEMENTS DE SYNCHRONISATION DASHBOARD
+    const handleDashboardRefresh = (event) => {
+      console.log('📢 [ONBOARDING] Événement dashboard refresh reçu:', event.detail);
+      // Optionnel: recharger les données locales aussi
+      if (event.detail?.userId === user?.uid) {
+        setTimeout(loadProgress, 1000);
+      }
+    };
+    
+    window.addEventListener('forceDashboardRefresh', handleDashboardRefresh);
+    
+    return () => {
+      window.removeEventListener('forceDashboardRefresh', handleDashboardRefresh);
+    };
   }, [user]);
 
   // 💾 SAUVEGARDE AUTOMATIQUE
