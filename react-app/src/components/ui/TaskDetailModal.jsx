@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import CommentSection from '../collaboration/CommentSection.jsx';
 import UsersList from './UsersList.jsx';
+import { TabCommentBadge } from './TaskCommentBadge.jsx';
 
 /**
  * 🎨 MODAL DÉTAILS DE TÂCHE AVEC UTILISATEURS RÉSOLUS
@@ -219,6 +220,7 @@ const TaskDetailModal = ({
             >
               <MessageCircle className="w-4 h-4 inline mr-2" />
               Commentaires
+              <TabCommentBadge taskId={task.id} />
             </button>
           </div>
 
