@@ -86,12 +86,13 @@ const SettingsPage = () => {
   const { user, logout } = useAuthStore();
   const [activeTab, setActiveTab] = useState('profile');
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
   const [settings, setSettings] = useState({
     // Profil
-    displayName: user?.displayName || '',
-    email: user?.email || '',
+    displayName: '',
+    email: '',
     bio: '',
     
     // Notifications
@@ -119,6 +120,77 @@ const SettingsPage = () => {
     activityVisibility: 'friends',
     analyticsSharing: false
   });
+
+  // Charger les paramètres depuis Firebase au démarrage
+  useEffect(() => {
+    if (user?.uid) {
+      loadUserSettings();
+    }
+  }, [user?.uid]);
+
+  // Fonction pour charger les paramètres depuis Firebase
+  const loadUserSettings = async () => {
+    try {
+      setLoading(true);
+      console.log('📥 Chargement des paramètres depuis Firebase...');
+      
+      const userProfile = await profileService.getUserProfile(user.uid);
+      
+      if (userProfile.success && userProfile.data) {
+        const userData = userProfile.data;
+        console.log('📊 Données utilisateur chargées:', userData);
+        
+        // Mapper les données Firebase vers l'état local
+        setSettings({
+          // Profil
+          displayName: userData.displayName || user.displayName || '',
+          email: userData.email || user.email || '',
+          bio: userData.profile?.bio || '',
+          
+          // Notifications depuis preferences
+          emailNotifications: userData.preferences?.notifications?.email ?? true,
+          pushNotifications: userData.preferences?.notifications?.push ?? true,
+          mentionNotifications: userData.preferences?.notifications?.mentions ?? true,
+          taskReminders: userData.preferences?.notifications?.taskReminders ?? true,
+          weeklyReport: userData.preferences?.notifications?.weeklyReport ?? true,
+          
+          // Interface depuis preferences
+          darkMode: userData.preferences?.interface?.darkMode ?? true,
+          language: userData.preferences?.interface?.language ?? 'fr',
+          soundEffects: userData.preferences?.interface?.soundEffects ?? true,
+          animations: userData.preferences?.interface?.animations ?? true,
+          compactMode: userData.preferences?.interface?.compactMode ?? false,
+          
+          // Gamification depuis preferences
+          showXP: userData.preferences?.gamification?.showXP ?? true,
+          showBadges: userData.preferences?.gamification?.showBadges ?? true,
+          publicProfile: userData.preferences?.gamification?.publicProfile ?? true,
+          leaderboardVisible: userData.preferences?.gamification?.leaderboardVisible ?? true,
+          
+          // Confidentialité depuis preferences
+          profileVisibility: userData.preferences?.privacy?.profileVisibility ?? 'public',
+          activityVisibility: userData.preferences?.privacy?.activityVisibility ?? 'friends',
+          analyticsSharing: userData.preferences?.privacy?.analyticsSharing ?? false
+        });
+        
+        console.log('✅ Paramètres chargés avec succès');
+      } else {
+        console.log('📝 Aucun paramètre existant, utilisation des valeurs par défaut');
+        // Utiliser les valeurs par défaut déjà définies
+        setSettings(prev => ({
+          ...prev,
+          displayName: user.displayName || '',
+          email: user.email || ''
+        }));
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement paramètres:', error);
+      showSuccessNotification('Erreur lors du chargement des paramètres');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const tabs = [
     {
@@ -185,6 +257,7 @@ const SettingsPage = () => {
     setSaving(true);
     try {
       console.log('💾 Sauvegarde des paramètres...');
+      console.log('📋 État actuel des settings:', settings);
       
       // Si le displayName a changé, mettre à jour Firebase Auth ET Firestore
       if (settings.displayName !== user?.displayName) {
@@ -208,46 +281,53 @@ const SettingsPage = () => {
         }
       }
       
-      // Sauvegarder les autres paramètres (notifications, interface, etc.)
+      // Structurer les préférences pour la sauvegarde
+      const preferencesToSave = {
+        notifications: {
+          email: settings.emailNotifications,
+          push: settings.pushNotifications,
+          mentions: settings.mentionNotifications,
+          taskReminders: settings.taskReminders,
+          weeklyReport: settings.weeklyReport
+        },
+        interface: {
+          darkMode: settings.darkMode,
+          language: settings.language,
+          soundEffects: settings.soundEffects,
+          animations: settings.animations,
+          compactMode: settings.compactMode
+        },
+        gamification: {
+          showXP: settings.showXP,
+          showBadges: settings.showBadges,
+          publicProfile: settings.publicProfile,
+          leaderboardVisible: settings.leaderboardVisible
+        },
+        privacy: {
+          profileVisibility: settings.profileVisibility,
+          activityVisibility: settings.activityVisibility,
+          analyticsSharing: settings.analyticsSharing
+        }
+      };
+      
+      console.log('📊 Préférences à sauvegarder:', preferencesToSave);
+      
+      // Sauvegarder les préférences
       if (user?.uid) {
-        await profileService.updateUserPreferences(user.uid, {
-          notifications: {
-            email: settings.emailNotifications,
-            push: settings.pushNotifications,
-            mentions: settings.mentionNotifications,
-            taskReminders: settings.taskReminders,
-            weeklyReport: settings.weeklyReport
-          },
-          interface: {
-            darkMode: settings.darkMode,
-            language: settings.language,
-            soundEffects: settings.soundEffects,
-            animations: settings.animations,
-            compactMode: settings.compactMode
-          },
-          gamification: {
-            showXP: settings.showXP,
-            showBadges: settings.showBadges,
-            publicProfile: settings.publicProfile,
-            leaderboardVisible: settings.leaderboardVisible
-          },
-          privacy: {
-            profileVisibility: settings.profileVisibility,
-            activityVisibility: settings.activityVisibility,
-            analyticsSharing: settings.analyticsSharing
-          }
-        });
+        await profileService.updateUserPreferences(user.uid, preferencesToSave);
         console.log('✅ Préférences sauvegardées dans Firestore');
       }
       
       showSuccessNotification('Paramètres sauvegardés avec succès !');
       
-      // Recharger les données depuis l'authStore pour synchroniser
-      // L'authStore devrait être mis à jour automatiquement via onAuthStateChanged
+      // Recharger les paramètres pour vérifier la sauvegarde
+      setTimeout(() => {
+        loadUserSettings();
+      }, 1000);
       
     } catch (error) {
       console.error('❌ Erreur lors de la sauvegarde:', error);
-      showSuccessNotification('Erreur lors de la sauvegarde');
+      showSuccessNotification('Erreur lors de la sauvegarde: ' + error.message);
     } finally {
       setSaving(false);
     }
@@ -626,6 +706,16 @@ const SettingsPage = () => {
         </div>
       )}
       
+      {/* Loading overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+            <p className="text-white text-lg">Chargement des paramètres...</p>
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-6xl mx-auto space-y-8">
         
         {/* Header */}
@@ -641,24 +731,35 @@ const SettingsPage = () => {
               </p>
             </div>
             
-            {/* Bouton de sauvegarde */}
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl transition-all duration-200 shadow-lg disabled:opacity-50"
-            >
-              {saving ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  <span>Sauvegarde...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-5 h-5" />
-                  <span>Sauvegarder</span>
-                </>
-              )}
-            </button>
+            {/* Boutons d'action */}
+            <div className="flex space-x-3">
+              <button
+                onClick={loadUserSettings}
+                disabled={loading}
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-xl transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span>Recharger</span>
+              </button>
+              
+              <button
+                onClick={handleSave}
+                disabled={saving || loading}
+                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl transition-all duration-200 shadow-lg disabled:opacity-50"
+              >
+                {saving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>Sauvegarde...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5" />
+                    <span>Sauvegarder</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
