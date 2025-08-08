@@ -315,6 +315,7 @@ const OnboardingPage = () => {
   const [syncStatus, setSyncStatus] = useState('offline'); // offline, online, syncing
   const [lastSaved, setLastSaved] = useState(null);
   const [expandedSections, setExpandedSections] = useState(new Set(['decouverte_brain']));
+  const [activeTab, setActiveTab] = useState('formation'); // 🔄 AJOUT ONGLETS
   
   // Références
   const saveTimeoutRef = useRef(null);
@@ -534,6 +535,35 @@ const OnboardingPage = () => {
             </div>
           </div>
 
+          {/* 📊 NAVIGATION PAR ONGLETS */}
+          <div className="flex justify-center mb-8">
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-2">
+              <div className="flex space-x-2">
+                {[
+                  { id: 'formation', name: 'Ma Formation', icon: Book },
+                  { id: 'competences', name: 'Compétences', icon: Target },
+                  { id: 'entretiens', name: 'Entretiens', icon: Users }
+                ].map((tab) => {
+                  const IconComponent = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={'px-6 py-3 rounded-xl font-medium transition-all duration-200 flex items-center gap-2 ' + (
+                        activeTab === tab.id
+                          ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                          : 'text-gray-400 hover:text-white hover:bg-gray-700/30'
+                      )}
+                    >
+                      <IconComponent className="w-5 h-5" />
+                      {tab.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
           {/* BARRE DE PROGRESSION GLOBALE */}
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -566,148 +596,293 @@ const OnboardingPage = () => {
           </div>
         </div>
 
-        {/* SECTIONS DE FORMATION */}
-        <div className="space-y-6">
-          {Object.entries(formationData.sections).map(([sectionId, section]) => {
-            const sectionCompleted = section.tasks.filter(task => completedTasks.has(task.id)).length;
-            const sectionTotal = section.tasks.length;
-            const sectionProgress = sectionTotal > 0 ? (sectionCompleted / sectionTotal) * 100 : 0;
-            const isExpanded = expandedSections.has(sectionId);
+        {/* 📋 CONTENU SELON L'ONGLET ACTIF */}
+        <div className="max-w-6xl mx-auto">
+          {activeTab === 'formation' && (
+            <div className="space-y-6">
+              {Object.entries(formationData.sections).map(([sectionId, section]) => {
+                const sectionCompleted = section.tasks.filter(task => completedTasks.has(task.id)).length;
+                const sectionTotal = section.tasks.length;
+                const sectionProgress = sectionTotal > 0 ? (sectionCompleted / sectionTotal) * 100 : 0;
+                const isExpanded = expandedSections.has(sectionId);
 
-            return (
-              <motion.div
-                key={sectionId}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden"
-              >
-                {/* EN-TÊTE DE SECTION */}
-                <button
-                  onClick={() => toggleSection(sectionId)}
-                  className="w-full p-6 text-left hover:bg-gray-700/30 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-white mb-2">
-                        {section.title}
-                      </h3>
-                      <p className="text-gray-400 mb-3">
-                        {section.description}
-                      </p>
+                return (
+                  <motion.div
+                    key={sectionId}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden"
+                  >
+                    {/* EN-TÊTE DE SECTION */}
+                    <button
+                      onClick={() => toggleSection(sectionId)}
+                      className="w-full p-6 text-left hover:bg-gray-700/30 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-xl font-semibold text-white mb-2">
+                            {section.title}
+                          </h3>
+                          <p className="text-gray-400 mb-3">
+                            {section.description}
+                          </p>
+                          
+                          {/* Barre de progression de section */}
+                          <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+                            <div
+                              className="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: sectionProgress + '%' }}
+                            />
+                          </div>
+                          
+                          <div className="flex justify-between text-sm text-gray-400">
+                            <span>{sectionCompleted}/{sectionTotal} tâches</span>
+                            <span>{sectionProgress.toFixed(0)}%</span>
+                          </div>
+                        </div>
+                        
+                        <div className="ml-4 flex items-center gap-3">
+                          {sectionProgress === 100 && (
+                            <div className="flex items-center gap-1 text-green-400">
+                              <CheckCircle className="w-5 h-5" />
+                              <span className="text-sm font-medium">Terminé</span>
+                            </div>
+                          )}
+                          
+                          {isExpanded ? (
+                            <ChevronDown className="w-5 h-5 text-gray-400" />
+                          ) : (
+                            <ChevronRight className="w-5 h-5 text-gray-400" />
+                          )}
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* CONTENU DE SECTION */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="border-t border-gray-700"
+                        >
+                          <div className="p-6 space-y-4">
+                            {section.tasks.map((task) => {
+                              const isCompleted = completedTasks.has(task.id);
+                              
+                              return (
+                                <motion.div
+                                  key={task.id}
+                                  layout
+                                  className={'p-4 rounded-lg border transition-all cursor-pointer ' + (
+                                    isCompleted
+                                      ? 'bg-green-500/10 border-green-500/30 hover:bg-green-500/20'
+                                      : 'bg-gray-700/30 border-gray-600 hover:bg-gray-700/50'
+                                  )}
+                                  onClick={() => completeTask(task.id)}
+                                >
+                                  <div className="flex items-center gap-4">
+                                    <div className="flex-shrink-0">
+                                      {isCompleted ? (
+                                        <CheckCircle className="w-6 h-6 text-green-400" />
+                                      ) : (
+                                        <Circle className="w-6 h-6 text-gray-400" />
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex-1">
+                                      <h4 className={'font-medium ' + (
+                                        isCompleted ? 'text-green-300' : 'text-white'
+                                      )}>
+                                        {task.label}
+                                      </h4>
+                                      <p className="text-gray-400 text-sm mt-1">
+                                        {task.description}
+                                      </p>
+                                      {/* 🔒 AFFICHAGE STATUT XP */}
+                                      {isCompleted && (
+                                        <div className="flex items-center gap-2 mt-2 text-xs">
+                                          <CheckCircle className="w-3 h-3" />
+                                          <span className={
+                                            completedTasksHistory.has(task.id) 
+                                              ? 'text-green-400' 
+                                              : 'text-blue-400'
+                                          }>
+                                            {completedTasksHistory.has(task.id) 
+                                              ? 'Tâche terminée (+' + task.xp + ' XP)' 
+                                              : 'Tâche terminée (déjà récompensée)'
+                                            }
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="text-right">
+                                      <div className={'text-lg font-bold ' + (
+                                        isCompleted ? 'text-green-400' : 'text-purple-400'
+                                      )}>
+                                        +{task.xp} XP
+                                      </div>
+                                      <div className="text-xs text-gray-500 capitalize">
+                                        {task.category}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+
+          {activeTab === 'competences' && (
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700">
+              <div className="text-center">
+                <Target className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-white mb-4">🎯 Acquisition de Compétences</h2>
+                <p className="text-gray-400 mb-6">
+                  Développe tes compétences spécifiques de Game Master à travers des modules d'apprentissage ciblés.
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+                  {[
+                    { 
+                      title: 'Maîtrise technique', 
+                      icon: '🛠️', 
+                      progress: Math.floor((completedTasksHistory.size / totalTasks) * 100),
+                      description: 'Systèmes, caméras, audio, reset des salles'
+                    },
+                    { 
+                      title: 'Animation client', 
+                      icon: '🎭', 
+                      progress: Math.floor((completedTasksHistory.size / totalTasks) * 70),
+                      description: 'Accueil, briefing, gestion de groupe'
+                    },
+                    { 
+                      title: 'Gestion d\'urgence', 
+                      icon: '🚨', 
+                      progress: Math.floor((completedTasksHistory.size / totalTasks) * 50),
+                      description: 'Protocoles de sécurité et situations critiques'
+                    }
+                  ].map((skill, index) => (
+                    <div key={index} className="bg-gray-700/30 rounded-lg p-6 border border-gray-600">
+                      <div className="text-3xl mb-3">{skill.icon}</div>
+                      <h3 className="text-lg font-semibold text-white mb-2">{skill.title}</h3>
+                      <p className="text-sm text-gray-400 mb-4">{skill.description}</p>
                       
-                      {/* Barre de progression de section */}
-                      <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+                      <div className="w-full bg-gray-600 rounded-full h-2 mb-2">
                         <div
-                          className="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: sectionProgress + '%' }}
+                          className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
+                          style={{ width: skill.progress + '%' }}
                         />
                       </div>
-                      
-                      <div className="flex justify-between text-sm text-gray-400">
-                        <span>{sectionCompleted}/{sectionTotal} tâches</span>
-                        <span>{sectionProgress.toFixed(0)}%</span>
-                      </div>
+                      <div className="text-sm text-gray-400">{skill.progress}% maîtrisé</div>
                     </div>
-                    
-                    <div className="ml-4 flex items-center gap-3">
-                      {sectionProgress === 100 && (
-                        <div className="flex items-center gap-1 text-green-400">
-                          <CheckCircle className="w-5 h-5" />
-                          <span className="text-sm font-medium">Terminé</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'entretiens' && (
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700">
+              <div className="text-center mb-8">
+                <Users className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-white mb-4">🎯 Suivi avec ton Référent</h2>
+                <p className="text-gray-400 mb-6">
+                  Rendez-vous réguliers pour suivre ta progression et t'accompagner dans ton intégration.
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                {[
+                  { 
+                    title: 'Entretien J+1 : Premières impressions', 
+                    date: 'Jour 1', 
+                    status: completedTasksHistory.has('entretien_j1') ? 'completed' : 'pending',
+                    description: 'Bilan du premier jour et ressentis'
+                  },
+                  { 
+                    title: 'Entretien J+3 : Adaptation équipe', 
+                    date: 'Jour 3', 
+                    status: completedTasksHistory.has('entretien_j3') ? 'completed' : 'pending',
+                    description: 'Intégration dans l\'équipe et premiers contacts'
+                  },
+                  { 
+                    title: 'Entretien Semaine 1 : Bilan technique', 
+                    date: 'Semaine 1', 
+                    status: completedTasksHistory.has('entretien_s1') ? 'completed' : 'pending',
+                    description: 'Évaluation des acquis techniques'
+                  },
+                  { 
+                    title: 'Entretien Semaine 2 : Autonomie progressive', 
+                    date: 'Semaine 2', 
+                    status: completedTasksHistory.has('entretien_s2') ? 'completed' : 'pending',
+                    description: 'Développement de l\'autonomie'
+                  },
+                  { 
+                    title: 'Entretien Semaine 3 : Maîtrise client', 
+                    date: 'Semaine 3', 
+                    status: completedTasksHistory.has('entretien_s3') ? 'completed' : 'pending',
+                    description: 'Compétences en relation client'
+                  },
+                  { 
+                    title: 'Entretien Semaine 4 : Bilan final', 
+                    date: 'Semaine 4', 
+                    status: completedTasksHistory.has('entretien_s4') ? 'completed' : 'pending',
+                    description: 'Évaluation complète et perspectives'
+                  }
+                ].map((meeting, index) => (
+                  <div 
+                    key={index} 
+                    className={'p-6 rounded-lg border transition-all ' + (
+                      meeting.status === 'completed' 
+                        ? 'bg-green-500/10 border-green-500/30' 
+                        : 'bg-gray-700/30 border-gray-600'
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={'w-12 h-12 rounded-full flex items-center justify-center ' + (
+                          meeting.status === 'completed' 
+                            ? 'bg-green-500/20 text-green-400' 
+                            : 'bg-purple-500/20 text-purple-400'
+                        )}>
+                          {meeting.status === 'completed' ? (
+                            <CheckCircle className="w-6 h-6" />
+                          ) : (
+                            <Clock className="w-6 h-6" />
+                          )}
                         </div>
-                      )}
+                        
+                        <div>
+                          <h3 className="text-lg font-semibold text-white">{meeting.title}</h3>
+                          <p className="text-gray-400 text-sm">{meeting.description}</p>
+                        </div>
+                      </div>
                       
-                      {isExpanded ? (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronRight className="w-5 h-5 text-gray-400" />
-                      )}
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-purple-400">{meeting.date}</div>
+                        <div className={'text-xs ' + (
+                          meeting.status === 'completed' ? 'text-green-400' : 'text-gray-500'
+                        )}>
+                          {meeting.status === 'completed' ? 'Terminé' : 'À venir'}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </button>
-
-                {/* CONTENU DE SECTION */}
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="border-t border-gray-700"
-                    >
-                      <div className="p-6 space-y-4">
-                        {section.tasks.map((task) => {
-                          const isCompleted = completedTasks.has(task.id);
-                          
-                          return (
-                            <motion.div
-                              key={task.id}
-                              layout
-                              className={'p-4 rounded-lg border transition-all cursor-pointer ' + (
-                                isCompleted
-                                  ? 'bg-green-500/10 border-green-500/30 hover:bg-green-500/20'
-                                  : 'bg-gray-700/30 border-gray-600 hover:bg-gray-700/50'
-                              )}
-                              onClick={() => completeTask(task.id)}
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="flex-shrink-0">
-                                  {isCompleted ? (
-                                    <CheckCircle className="w-6 h-6 text-green-400" />
-                                  ) : (
-                                    <Circle className="w-6 h-6 text-gray-400" />
-                                  )}
-                                </div>
-                                
-                                <div className="flex-1">
-                                  <h4 className={'font-medium ' + (
-                                    isCompleted ? 'text-green-300' : 'text-white'
-                                  )}>
-                                    {task.label}
-                                  </h4>
-                                  <p className="text-gray-400 text-sm mt-1">
-                                    {task.description}
-                                  </p>
-                                  {/* 🔒 AFFICHAGE STATUT XP */}
-                                  {isCompleted && (
-                                    <div className="flex items-center gap-2 mt-2 text-xs">
-                                      <CheckCircle className="w-3 h-3" />
-                                      <span className={
-                                        completedTasksHistory.has(task.id) 
-                                          ? 'text-green-400' 
-                                          : 'text-blue-400'
-                                      }>
-                                        {completedTasksHistory.has(task.id) 
-                                          ? 'Tâche terminée (+' + task.xp + ' XP)' 
-                                          : 'Tâche terminée (déjà récompensée)'
-                                        }
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                                
-                                <div className="text-right">
-                                  <div className={'text-lg font-bold ' + (
-                                    isCompleted ? 'text-green-400' : 'text-purple-400'
-                                  )}>
-                                    +{task.xp} XP
-                                  </div>
-                                  <div className="text-xs text-gray-500 capitalize">
-                                    {task.category}
-                                  </div>
-                                </div>
-                              </div>
-                            </motion.div>
-                          );
-                        })}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            );
-          })}
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* RÉSUMÉ FINAL */}
