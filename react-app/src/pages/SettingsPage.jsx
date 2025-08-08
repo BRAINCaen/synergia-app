@@ -5,6 +5,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../shared/stores/authStore.js';
+import profileService from '../core/services/profileService.js';
+import { updateProfile } from 'firebase/auth';
+import { auth } from '../core/firebase.js';
 import { 
   Settings, 
   User, 
@@ -27,8 +30,57 @@ import {
   EyeOff,
   Globe,
   Award,
-  CheckCircle
+  CheckCircle,
+  ChevronDown
 } from 'lucide-react';
+
+// Composant Select personnalisé pour le thème sombre
+const CustomSelect = ({ value, onChange, options, placeholder = "Sélectionner...", className = "" }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedOption, setSelectedOption] = useState(
+    options.find(opt => opt.value === value) || { label: placeholder, value: '' }
+  );
+
+  useEffect(() => {
+    setSelectedOption(options.find(opt => opt.value === value) || { label: placeholder, value: '' });
+  }, [value, options, placeholder]);
+
+  const handleSelect = (option) => {
+    setSelectedOption(option);
+    onChange(option.value);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-left focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors flex items-center justify-between"
+      >
+        <span>{selectedOption.label}</span>
+        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-xl shadow-xl z-50 overflow-hidden">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => handleSelect(option)}
+              className={`w-full px-4 py-3 text-left hover:bg-gray-700 transition-colors ${
+                option.value === value ? 'bg-gray-700 text-blue-400' : 'text-white'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const SettingsPage = () => {
   const { user, logout } = useAuthStore();
@@ -107,6 +159,18 @@ const SettingsPage = () => {
     }
   ];
 
+  // Synchroniser les paramètres avec les données utilisateur
+  useEffect(() => {
+    if (user) {
+      setSettings(prev => ({
+        ...prev,
+        displayName: user.displayName || '',
+        email: user.email || '',
+        // Les autres paramètres restent tels qu'ils sont jusqu'à ce qu'on les charge depuis Firebase
+      }));
+    }
+  }, [user]);
+
   const handleSettingChange = (key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
@@ -120,16 +184,69 @@ const SettingsPage = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Simuler la sauvegarde
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Paramètres sauvegardés:', settings);
+      console.log('💾 Sauvegarde des paramètres...');
+      
+      // Si le displayName a changé, mettre à jour Firebase Auth ET Firestore
+      if (settings.displayName !== user?.displayName) {
+        console.log('🔄 Mise à jour du displayName:', settings.displayName);
+        
+        // Mettre à jour Firebase Auth
+        if (auth.currentUser) {
+          await updateProfile(auth.currentUser, {
+            displayName: settings.displayName
+          });
+          console.log('✅ DisplayName mis à jour dans Firebase Auth');
+        }
+        
+        // Mettre à jour Firestore
+        if (user?.uid) {
+          await profileService.updateUserProfile(user.uid, {
+            displayName: settings.displayName,
+            bio: settings.bio
+          });
+          console.log('✅ Profil mis à jour dans Firestore');
+        }
+      }
+      
+      // Sauvegarder les autres paramètres (notifications, interface, etc.)
+      if (user?.uid) {
+        await profileService.updateUserPreferences(user.uid, {
+          notifications: {
+            email: settings.emailNotifications,
+            push: settings.pushNotifications,
+            mentions: settings.mentionNotifications,
+            taskReminders: settings.taskReminders,
+            weeklyReport: settings.weeklyReport
+          },
+          interface: {
+            darkMode: settings.darkMode,
+            language: settings.language,
+            soundEffects: settings.soundEffects,
+            animations: settings.animations,
+            compactMode: settings.compactMode
+          },
+          gamification: {
+            showXP: settings.showXP,
+            showBadges: settings.showBadges,
+            publicProfile: settings.publicProfile,
+            leaderboardVisible: settings.leaderboardVisible
+          },
+          privacy: {
+            profileVisibility: settings.profileVisibility,
+            activityVisibility: settings.activityVisibility,
+            analyticsSharing: settings.analyticsSharing
+          }
+        });
+        console.log('✅ Préférences sauvegardées dans Firestore');
+      }
+      
       showSuccessNotification('Paramètres sauvegardés avec succès !');
       
-      // Ici vous pouvez ajouter la logique de sauvegarde Firebase
-      // await updateUserSettings(user.uid, settings);
+      // Recharger les données depuis l'authStore pour synchroniser
+      // L'authStore devrait être mis à jour automatiquement via onAuthStateChanged
       
     } catch (error) {
-      console.error('Erreur sauvegarde:', error);
+      console.error('❌ Erreur lors de la sauvegarde:', error);
       showSuccessNotification('Erreur lors de la sauvegarde');
     } finally {
       setSaving(false);
@@ -386,30 +503,30 @@ const SettingsPage = () => {
             <label className="block text-sm font-medium text-white/80 mb-3">
               Visibilité du profil
             </label>
-            <select
+            <CustomSelect
               value={settings.profileVisibility}
-              onChange={(e) => handleSettingChange('profileVisibility', e.target.value)}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-            >
-              <option value="public">Public</option>
-              <option value="friends">Amis seulement</option>
-              <option value="private">Privé</option>
-            </select>
+              onChange={(value) => handleSettingChange('profileVisibility', value)}
+              options={[
+                { value: 'public', label: 'Public' },
+                { value: 'friends', label: 'Amis seulement' },
+                { value: 'private', label: 'Privé' }
+              ]}
+            />
           </div>
           
           <div className="p-4 bg-white/5 rounded-xl border border-white/10">
             <label className="block text-sm font-medium text-white/80 mb-3">
               Visibilité de l'activité
             </label>
-            <select
+            <CustomSelect
               value={settings.activityVisibility}
-              onChange={(e) => handleSettingChange('activityVisibility', e.target.value)}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-            >
-              <option value="public">Public</option>
-              <option value="friends">Amis seulement</option>
-              <option value="private">Privé</option>
-            </select>
+              onChange={(value) => handleSettingChange('activityVisibility', value)}
+              options={[
+                { value: 'public', label: 'Public' },
+                { value: 'friends', label: 'Amis seulement' },
+                { value: 'private', label: 'Privé' }
+              ]}
+            />
           </div>
           
           <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
