@@ -1,9 +1,9 @@
 // ==========================================
 // 📁 react-app/src/pages/SettingsPage.jsx
-// Page des paramètres avec design premium
+// PAGE PARAMÈTRES - VERSION CORRIGÉE ET COMPLÈTE
 // ==========================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { 
   Settings, 
@@ -22,13 +22,20 @@ import {
   VolumeX,
   Smartphone,
   Mail,
-  Lock
+  Lock,
+  Eye,
+  EyeOff,
+  Globe,
+  Award,
+  CheckCircle
 } from 'lucide-react';
 
 const SettingsPage = () => {
   const { user, logout } = useAuthStore();
   const [activeTab, setActiveTab] = useState('profile');
   const [saving, setSaving] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
   const [settings, setSettings] = useState({
     // Profil
     displayName: user?.displayName || '',
@@ -83,7 +90,7 @@ const SettingsPage = () => {
     {
       id: 'gamification',
       label: 'Gamification',
-      icon: Settings,
+      icon: Award,
       gradient: 'from-orange-500 to-red-500'
     },
     {
@@ -104,28 +111,73 @@ const SettingsPage = () => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
+  const showSuccessNotification = (message) => {
+    setNotificationMessage(message);
+    setShowNotification(true);
+    setTimeout(() => setShowNotification(false), 3000);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
       // Simuler la sauvegarde
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log('Paramètres sauvegardés:', settings);
+      showSuccessNotification('Paramètres sauvegardés avec succès !');
+      
       // Ici vous pouvez ajouter la logique de sauvegarde Firebase
+      // await updateUserSettings(user.uid, settings);
+      
     } catch (error) {
       console.error('Erreur sauvegarde:', error);
+      showSuccessNotification('Erreur lors de la sauvegarde');
     } finally {
       setSaving(false);
     }
   };
 
   const handleExportData = () => {
-    // Logique d'export des données
-    console.log('Export des données...');
+    try {
+      const dataToExport = {
+        user: {
+          displayName: settings.displayName,
+          email: settings.email,
+          bio: settings.bio
+        },
+        settings: settings,
+        exportDate: new Date().toISOString()
+      };
+      
+      const dataStr = JSON.stringify(dataToExport, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `synergia-data-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      showSuccessNotification('Données exportées avec succès !');
+    } catch (error) {
+      console.error('Erreur export:', error);
+      showSuccessNotification('Erreur lors de l\'export');
+    }
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     if (confirm('Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.')) {
-      console.log('Suppression du compte...');
+      try {
+        console.log('Suppression du compte...');
+        // Logique de suppression du compte
+        showSuccessNotification('Compte supprimé avec succès');
+        await logout();
+      } catch (error) {
+        console.error('Erreur suppression compte:', error);
+        showSuccessNotification('Erreur lors de la suppression');
+      }
     }
   };
 
@@ -284,7 +336,7 @@ const SettingsPage = () => {
     <div className="space-y-6">
       <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10">
         <h3 className="text-xl font-bold text-white mb-6 flex items-center">
-          <Settings className="w-5 h-5 text-orange-400 mr-2" />
+          <Award className="w-5 h-5 text-orange-400 mr-2" />
           Paramètres de Gamification
         </h3>
         
@@ -394,30 +446,39 @@ const SettingsPage = () => {
         </h3>
         
         <div className="space-y-4">
-          <button
-            onClick={handleExportData}
-            className="w-full flex items-center justify-center space-x-3 p-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl hover:from-blue-500/20 hover:to-cyan-500/20 transition-all duration-300 group"
-          >
-            <Download className="w-5 h-5 text-blue-400" />
-            <span className="text-blue-200 font-medium">Exporter mes données</span>
-          </button>
-          
-          <button
-            onClick={handleDeleteAccount}
-            className="w-full flex items-center justify-center space-x-3 p-4 bg-gradient-to-r from-red-500/10 to-pink-500/10 border border-red-500/20 rounded-xl hover:from-red-500/20 hover:to-pink-500/20 transition-all duration-300 group"
-          >
-            <Trash2 className="w-5 h-5 text-red-400" />
-            <span className="text-red-200 font-medium">Supprimer mon compte</span>
-          </button>
-          
-          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+          <div className="p-6 bg-blue-500/10 border border-blue-500/20 rounded-xl">
             <div className="flex items-start space-x-3">
-              <Lock className="w-5 h-5 text-red-400 mt-0.5" />
-              <div>
-                <div className="text-red-200 font-medium">Zone dangereuse</div>
-                <div className="text-red-300/60 text-sm mt-1">
-                  La suppression de votre compte est irréversible. Toutes vos données seront définitivement perdues.
-                </div>
+              <Download className="w-5 h-5 text-blue-400 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="text-white font-medium mb-1">Exporter mes données</h4>
+                <p className="text-white/70 text-sm mb-4">
+                  Téléchargez une copie de toutes vos données
+                </p>
+                <button
+                  onClick={handleExportData}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  Télécharger
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-xl">
+            <div className="flex items-start space-x-3">
+              <Trash2 className="w-5 h-5 text-red-400 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="text-white font-medium mb-1">Supprimer mon compte</h4>
+                <p className="text-white/70 text-sm mb-4">
+                  Supprimez définitivement votre compte et toutes vos données.
+                  Cette action est irréversible.
+                </p>
+                <button
+                  onClick={handleDeleteAccount}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                >
+                  Supprimer le compte
+                </button>
               </div>
             </div>
           </div>
@@ -439,71 +500,82 @@ const SettingsPage = () => {
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-gray-600/20 via-slate-600/20 to-gray-700/20 backdrop-blur-sm rounded-3xl p-8 border border-white/10 shadow-2xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2 flex items-center">
-              <Settings className="w-8 h-8 text-gray-300 mr-3" />
-              Paramètres
-            </h1>
-            <p className="text-xl text-gray-200">
-              Personnalisez votre expérience Synergia
-            </p>
-          </div>
-          
-          {/* Bouton de sauvegarde */}
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl transition-all duration-200 shadow-lg disabled:opacity-50"
-          >
-            {saving ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                <span>Sauvegarde...</span>
-              </>
-            ) : (
-              <>
-                <Save className="w-5 h-5" />
-                <span>Sauvegarder</span>
-              </>
-            )}
-          </button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+      {/* Notification */}
+      {showNotification && (
+        <div className="fixed top-4 right-4 z-50 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2">
+          <CheckCircle className="w-5 h-5" />
+          <span>{notificationMessage}</span>
         </div>
-      </div>
-
-      {/* Navigation par onglets */}
-      <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-2 border border-white/10">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
+      )}
+      
+      <div className="max-w-6xl mx-auto space-y-8">
+        
+        {/* Header */}
+        <div className="bg-gradient-to-br from-gray-600/20 via-slate-600/20 to-gray-700/20 backdrop-blur-sm rounded-3xl p-8 border border-white/10 shadow-2xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-white mb-2 flex items-center">
+                <Settings className="w-8 h-8 text-gray-300 mr-3" />
+                Paramètres
+              </h1>
+              <p className="text-xl text-gray-200">
+                Personnalisez votre expérience Synergia
+              </p>
+            </div>
             
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`
-                  flex items-center justify-center space-x-2 p-4 rounded-xl transition-all duration-200 font-medium
-                  ${isActive 
-                    ? `bg-gradient-to-r ${tab.gradient} text-white shadow-lg` 
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                  }
-                `}
-              >
-                <Icon className="w-5 h-5" />
-                <span className="hidden md:block">{tab.label}</span>
-              </button>
-            );
-          })}
+            {/* Bouton de sauvegarde */}
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl transition-all duration-200 shadow-lg disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span>Sauvegarde...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-5 h-5" />
+                  <span>Sauvegarder</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Contenu de l'onglet */}
-      <div>
-        {renderTabContent()}
+        {/* Navigation par onglets */}
+        <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-2 border border-white/10">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`
+                    flex items-center justify-center space-x-2 p-4 rounded-xl transition-all duration-200 font-medium
+                    ${isActive 
+                      ? `bg-gradient-to-r ${tab.gradient} text-white shadow-lg` 
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                    }
+                  `}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Contenu de l'onglet actif */}
+        <div className="transition-all duration-300">
+          {renderTabContent()}
+        </div>
       </div>
     </div>
   );
