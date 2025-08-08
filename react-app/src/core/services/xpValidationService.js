@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/xpValidationService.js
-// SERVICE DE VALIDATION XP - CHEMIN FIREBASE CORRIGÉ
+// SERVICE DE VALIDATION XP - CORRECTIONS MÉTHODE checkAdminPermissions
 // ==========================================
 
 import { 
@@ -17,9 +17,7 @@ import {
   limit,
   onSnapshot 
 } from 'firebase/firestore';
-// 🔥 CORRECTION : Bon chemin vers Firebase
 import { db } from '../firebase.js';
-import { gamificationService } from './gamificationService.js';
 
 const COLLECTIONS = {
   XP_REQUESTS: 'xpRequests',
@@ -28,7 +26,63 @@ const COLLECTIONS = {
   NOTIFICATIONS: 'notifications'
 };
 
-export const xpValidationService = {
+const xpValidationService = {
+
+  /**
+   * 🛡️ VÉRIFIER LES PERMISSIONS ADMIN - MÉTHODE CORRIGÉE
+   */
+  async checkAdminPermissions(userId) {
+    try {
+      console.log('🔍 [XPValidation] Vérification permissions admin pour:', userId);
+      
+      if (!userId) {
+        console.warn('⚠️ checkAdminPermissions: userId manquant');
+        return false;
+      }
+
+      // Récupérer les données utilisateur
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        console.warn('⚠️ Utilisateur non trouvé:', userId);
+        return false;
+      }
+
+      const userData = userDoc.data();
+      
+      // Vérifications multiples pour admin
+      const isAdminEmail = userData.email === 'alan.boehme61@gmail.com';
+      const isRoleAdmin = userData.profile?.role === 'admin';
+      const isProfileRoleAdmin = userData.role === 'admin';
+      const hasAdminFlag = userData.isAdmin === true;
+      const hasValidatePermission = userData.permissions?.includes('validate_xp');
+      const hasAdminPermission = userData.permissions?.includes('admin_access');
+      const hasManageTeamPermission = userData.permissions?.includes('manage_team');
+      
+      const isAdmin = isAdminEmail || isRoleAdmin || isProfileRoleAdmin || 
+                     hasAdminFlag || hasValidatePermission || hasAdminPermission || hasManageTeamPermission;
+      
+      console.log('🔍 [XPValidation] checkAdminPermissions résultat:', {
+        userId,
+        email: userData.email,
+        isAdminEmail,
+        isRoleAdmin,
+        isProfileRoleAdmin,
+        hasAdminFlag,
+        hasValidatePermission,
+        hasAdminPermission,
+        hasManageTeamPermission,
+        finalResult: isAdmin
+      });
+      
+      return isAdmin;
+      
+    } catch (error) {
+      console.error('❌ Erreur vérification permissions admin:', error);
+      return false;
+    }
+  },
 
   /**
    * 📝 CRÉER UNE DEMANDE DE VALIDATION XP
@@ -112,179 +166,13 @@ export const xpValidationService = {
           processedAt: data.processedAt?.toDate ? data.processedAt.toDate() : null
         });
       });
-      
+
       console.log(`📊 ${requests.length} demandes XP récupérées`);
       return requests;
-      
+
     } catch (error) {
       console.error('❌ Erreur récupération demandes XP:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * 📊 OBTENIR LES DEMANDES EN ATTENTE
-   */
-  async getPendingRequests() {
-    return await this.getAllXPRequests({ status: 'pending' });
-  },
-
-  /**
-   * 📊 OBTENIR LES DEMANDES D'UN UTILISATEUR
-   */
-  async getUserRequests(userId) {
-    return await this.getAllXPRequests({ userId });
-  },
-
-  /**
-   * 📈 OBTENIR LES STATISTIQUES DE VALIDATION
-   */
-  async getValidationStats() {
-    try {
-      const [pendingRequests, approvedRequests, rejectedRequests] = await Promise.all([
-        this.getAllXPRequests({ status: 'pending' }),
-        this.getAllXPRequests({ status: 'approved' }),
-        this.getAllXPRequests({ status: 'rejected' })
-      ]);
-
-      const totalRequests = pendingRequests.length + approvedRequests.length + rejectedRequests.length;
-      
-      // Calculer le temps de traitement moyen
-      const processedRequests = [...approvedRequests, ...rejectedRequests];
-      const averageProcessingTime = this.calculateAverageProcessingTime(processedRequests);
-      
-      return {
-        pending: pendingRequests.length,
-        approved: approvedRequests.length,
-        rejected: rejectedRequests.length,
-        total: totalRequests,
-        approvalRate: totalRequests > 0 ? Math.round((approvedRequests.length / totalRequests) * 100) : 0,
-        averageProcessingHours: averageProcessingTime
-      };
-      
-    } catch (error) {
-      console.error('❌ Erreur statistiques validation:', error);
-      return {
-        pending: 0,
-        approved: 0,
-        rejected: 0,
-        total: 0,
-        approvalRate: 0,
-        averageProcessingHours: 0
-      };
-    }
-  },
-
-  /**
-   * ⏱️ CALCULER LE TEMPS DE TRAITEMENT MOYEN
-   */
-  calculateAverageProcessingTime(processedRequests) {
-    if (processedRequests.length === 0) return 0;
-    
-    const totalTime = processedRequests.reduce((sum, request) => {
-      const createdAt = request.createdAt?.toDate ? 
-        request.createdAt.toDate() : new Date(request.createdAt);
-      const processedAt = request.processedAt?.toDate ? request.processedAt.toDate() : new Date(request.processedAt);
-      
-      if (processedAt && createdAt) {
-        return sum + (processedAt - createdAt);
-      }
-      return sum;
-    }, 0);
-
-    // Convertir en heures
-    return Math.round((totalTime / processedRequests.length) / (1000 * 60 * 60));
-  },
-
-  /**
-   * 👑 VÉRIFIER LES PERMISSIONS ADMIN
-   */
-  async checkAdminPermissions(userId) {
-    try {
-      const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, userId));
-      
-      if (!userDoc.exists()) {
-        return false;
-      }
-
-      const userData = userDoc.data();
-      
-      // Vérifier si admin ou a permission de valider XP
-      return userData.role === 'admin' || 
-             userData.permissions?.includes('validate_xp') ||
-             userData.permissions?.includes('manage_team');
-
-    } catch (error) {
-      console.error('❌ Erreur vérification permissions:', error);
-      return false;
-    }
-  },
-
-  /**
-   * 🔔 NOTIFIER LES ADMINS D'UNE NOUVELLE DEMANDE
-   */
-  async notifyAdmins(requestId, userId, description, xpAmount) {
-    try {
-      // Récupérer tous les admins
-      const adminsQuery = query(
-        collection(db, COLLECTIONS.USERS),
-        where('role', '==', 'admin')
-      );
-      
-      const adminsSnapshot = await getDocs(adminsQuery);
-      
-      // Créer une notification pour chaque admin
-      const notifications = adminsSnapshot.docs.map(adminDoc => ({
-        userId: adminDoc.id,
-        type: 'xp_request',
-        title: 'Nouvelle demande XP à valider',
-        message: `${description} (+${xpAmount} XP)`,
-        data: {
-          requestId,
-          requesterId: userId,
-          xpAmount,
-          description
-        },
-        read: false,
-        createdAt: new Date()
-      }));
-
-      // Enregistrer toutes les notifications
-      await Promise.all(
-        notifications.map(notif => 
-          addDoc(collection(db, COLLECTIONS.NOTIFICATIONS), notif)
-        )
-      );
-
-      console.log(`🔔 ${notifications.length} admins notifiés pour demande XP ${requestId}`);
-
-    } catch (error) {
-      console.error('❌ Erreur notification admins:', error);
-    }
-  },
-
-  /**
-   * 👤 NOTIFIER L'UTILISATEUR DU RÉSULTAT
-   */
-  async notifyUser(userId, type, data) {
-    try {
-      const notificationData = {
-        userId,
-        type,
-        title: type === 'xp_approved' ? '🎉 XP Validés !' : '❌ Demande XP Rejetée',
-        message: type === 'xp_approved' 
-          ? `+${data.xpAmount} XP attribués pour: ${data.description}`
-          : `Demande XP rejetée: ${data.description}. Raison: ${data.reason}`,
-        data,
-        read: false,
-        createdAt: new Date()
-      };
-
-      await addDoc(collection(db, COLLECTIONS.NOTIFICATIONS), notificationData);
-      console.log(`🔔 Utilisateur ${userId} notifié: ${type}`);
-
-    } catch (error) {
-      console.error('❌ Erreur notification utilisateur:', error);
+      return [];
     }
   },
 
@@ -324,8 +212,8 @@ export const xpValidationService = {
       });
 
       // Attribuer automatiquement les XP si demandé
-      if (autoAwardXP) {
-        await gamificationService.addExperience(
+      if (autoAwardXP && window.gamificationService) {
+        await window.gamificationService.addExperience(
           requestData.userId, 
           requestData.xpAmount, 
           `XP validés par admin: ${requestData.description}`,
@@ -414,65 +302,102 @@ export const xpValidationService = {
   },
 
   /**
-   * 📱 ÉCOUTER LES DEMANDES EN TEMPS RÉEL
+   * 🔔 NOTIFIER LES ADMINS D'UNE NOUVELLE DEMANDE
    */
-  onXPRequestsChange(callback, filters = {}) {
-    const { status = null, userId = null } = filters;
-    
-    let q = collection(db, COLLECTIONS.XP_REQUESTS);
-    
-    // Appliquer les filtres
-    const queryConstraints = [orderBy('createdAt', 'desc')];
-    
-    if (status) {
-      queryConstraints.push(where('status', '==', status));
-    }
-    
-    if (userId) {
-      queryConstraints.push(where('userId', '==', userId));
-    }
-    
-    q = query(q, ...queryConstraints);
-    
-    return onSnapshot(q, (querySnapshot) => {
-      const requests = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        requests.push({
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
-          processedAt: data.processedAt?.toDate ? data.processedAt.toDate() : null
-        });
-      });
+  async notifyAdmins(requestId, userId, description, xpAmount) {
+    try {
+      // Récupérer tous les admins
+      const adminsQuery = query(
+        collection(db, COLLECTIONS.USERS),
+        where('role', '==', 'admin')
+      );
       
-      callback(requests);
-    });
+      const adminsSnapshot = await getDocs(adminsQuery);
+      
+      // Créer une notification pour chaque admin
+      const notifications = adminsSnapshot.docs.map(adminDoc => ({
+        userId: adminDoc.id,
+        type: 'xp_request',
+        title: 'Nouvelle demande XP à valider',
+        message: `${description} (+${xpAmount} XP)`,
+        data: {
+          requestId,
+          requesterId: userId,
+          xpAmount,
+          description
+        },
+        read: false,
+        createdAt: new Date()
+      }));
+
+      // Enregistrer toutes les notifications
+      await Promise.all(
+        notifications.map(notif => 
+          addDoc(collection(db, COLLECTIONS.NOTIFICATIONS), notif)
+        )
+      );
+
+      console.log(`🔔 ${notifications.length} admins notifiés pour demande XP ${requestId}`);
+
+    } catch (error) {
+      console.error('❌ Erreur notification admins:', error);
+    }
   },
 
   /**
-   * 🗑️ SUPPRIMER UNE DEMANDE XP
+   * 👤 NOTIFIER L'UTILISATEUR DU RÉSULTAT
    */
-  async deleteXPRequest(requestId, adminId) {
+  async notifyUser(userId, type, data) {
     try {
-      // Vérifier les permissions admin
-      const isAdmin = await this.checkAdminPermissions(adminId);
-      if (!isAdmin) {
-        throw new Error('Permissions insuffisantes pour supprimer');
-      }
-
-      await deleteDoc(doc(db, COLLECTIONS.XP_REQUESTS, requestId));
-      
-      console.log(`🗑️ Demande XP ${requestId} supprimée par admin ${adminId}`);
-      
-      return {
-        success: true,
-        message: 'Demande XP supprimée avec succès'
+      const notificationData = {
+        userId,
+        type,
+        title: type === 'xp_approved' ? '🎉 XP Validés !' : '❌ Demande XP Rejetée',
+        message: type === 'xp_approved' 
+          ? `+${data.xpAmount} XP attribués pour: ${data.description}`
+          : `Demande XP rejetée: ${data.description}. Raison: ${data.reason}`,
+        data,
+        read: false,
+        createdAt: new Date()
       };
 
+      await addDoc(collection(db, COLLECTIONS.NOTIFICATIONS), notificationData);
+      console.log(`🔔 Utilisateur ${userId} notifié: ${type}`);
+
     } catch (error) {
-      console.error('❌ Erreur suppression demande XP:', error);
-      throw error;
+      console.error('❌ Erreur notification utilisateur:', error);
+    }
+  },
+
+  /**
+   * 📊 OBTENIR LES STATISTIQUES DE VALIDATION XP
+   */
+  async getXPValidationStats() {
+    try {
+      const requestsSnapshot = await getDocs(collection(db, COLLECTIONS.XP_REQUESTS));
+      
+      const stats = {
+        total: requestsSnapshot.size,
+        pending: 0,
+        approved: 0,
+        rejected: 0,
+        totalXPAwarded: 0
+      };
+
+      requestsSnapshot.forEach(doc => {
+        const data = doc.data();
+        stats[data.status] = (stats[data.status] || 0) + 1;
+        
+        if (data.status === 'approved') {
+          stats.totalXPAwarded += data.xpAmount || 0;
+        }
+      });
+
+      return stats;
+
+    } catch (error) {
+      console.error('❌ Erreur stats validation XP:', error);
+      return { total: 0, pending: 0, approved: 0, rejected: 0, totalXPAwarded: 0 };
     }
   }
 };
