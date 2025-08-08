@@ -21,7 +21,8 @@ import {
   CheckCircle,
   AlertCircle,
   Star,
-  ExternalLink
+  ExternalLink,
+  MessageCircle
 } from 'lucide-react';
 import CommentSection from '../collaboration/CommentSection.jsx';
 import UsersList from './UsersList.jsx';
