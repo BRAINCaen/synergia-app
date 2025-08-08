@@ -1,13 +1,12 @@
 // ==========================================
 // 📁 react-app/src/pages/Dashboard.jsx
-// DASHBOARD FIREBASE PUR - ZÉRO DONNÉES MOCK
+// DASHBOARD AVEC SYNCHRONISATION XP TEMPS RÉEL - VERSION CORRIGÉE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '../core/firebase.js';
+import { useDashboardSync } from '../shared/hooks/useDashboardSync.js';
 import { 
   BarChart3, 
   CheckSquare, 
@@ -20,376 +19,414 @@ import {
   Zap,
   Star,
   Trophy,
-  Flame
+  Flame,
+  RefreshCw,
+  Activity,
+  Calendar,
+  Bell,
+  ChevronRight,
+  Plus
 } from 'lucide-react';
 
 /**
- * 🏠 DASHBOARD FIREBASE PUR
- * Toutes les données proviennent exclusivement de Firebase
+ * 🏠 DASHBOARD AVEC SYNCHRONISATION XP TEMPS RÉEL
+ * Garantit que les gains d'XP des utilisateurs s'affichent instantanément
  */
 const Dashboard = () => {
   const { user } = useAuthStore();
-  const [loading, setLoading] = useState(true);
   
-  // ✅ DONNÉES FIREBASE RÉELLES UNIQUEMENT
-  const { 
-    gamification,
-    userStats,
-    loading: dataLoading,
-    error: dataError 
-  } = useUnifiedFirebaseData(user?.uid);
-  
-  // ✅ STATISTIQUES RÉELLES CALCULÉES DEPUIS FIREBASE
-  const [realStats, setRealStats] = useState({
-    totalTasks: 0,
-    completedTasks: 0,
-    totalProjects: 0,
-    teamMembers: 0,
-    completionRate: 0,
-    weeklyProgress: 0
-  });
-  
-  const [recentActivity, setRecentActivity] = useState([]);
-  const [performanceData, setPerformanceData] = useState([]);
+  // ✅ HOOK SPÉCIALISÉ POUR SYNCHRONISATION DASHBOARD
+  const {
+    topUsers,
+    userProgress,
+    teamStats,
+    recentActivities,
+    userRank,
+    loading,
+    error,
+    lastUpdate,
+    forceSync
+  } = useDashboardSync();
 
+  const [viewMode, setViewMode] = useState('overview');
+  const [showRefresh, setShowRefresh] = useState(false);
+
+  // Afficher indicateur de rafraîchissement quand les données changent
   useEffect(() => {
-    if (user?.uid) {
-      loadRealDashboardData();
+    if (lastUpdate) {
+      setShowRefresh(true);
+      const timer = setTimeout(() => setShowRefresh(false), 2000);
+      return () => clearTimeout(timer);
     }
-  }, [user?.uid]);
+  }, [lastUpdate]);
 
   /**
-   * 📊 CHARGER TOUTES LES VRAIES DONNÉES DASHBOARD
+   * 📊 CALCUL DE LA PROGRESSION XP
    */
-  const loadRealDashboardData = async () => {
-    if (!user?.uid) return;
-    
-    setLoading(true);
-    try {
-      console.log('📊 Chargement données Dashboard Firebase pour:', user.uid);
-      
-      // Paralléliser toutes les requêtes Firebase
-      const [
-        userTasksSnapshot,
-        allTasksSnapshot,
-        userProjectsSnapshot,
-        allUsersSnapshot,
-        userStatsDoc
-      ] = await Promise.all([
-        // Tâches de l'utilisateur (créées + assignées)
-        getDocs(query(
-          collection(db, 'tasks'),
-          where('userId', '==', user.uid)
-        )),
-        // Toutes les tâches pour calculs globaux
-        getDocs(query(
-          collection(db, 'tasks'),
-          where('createdBy', '==', user.uid)
-        )),
-        // Projets de l'utilisateur
-        getDocs(query(
-          collection(db, 'projects'),
-          where('createdBy', '==', user.uid)
-        )),
-        // Nombre total d'utilisateurs
-        getDocs(collection(db, 'users')),
-        // Stats détaillées utilisateur
-        getDoc(doc(db, 'userStats', user.uid))
-      ]);
-
-      // 🔥 CALCULER LES VRAIES STATISTIQUES
-      const userTasks = [];
-      userTasksSnapshot.forEach(doc => {
-        userTasks.push({ id: doc.id, ...doc.data() });
-      });
-
-      const allTasks = [];
-      allTasksSnapshot.forEach(doc => {
-        allTasks.push({ id: doc.id, ...doc.data() });
-      });
-
-      const userProjects = [];
-      userProjectsSnapshot.forEach(doc => {
-        userProjects.push({ id: doc.id, ...doc.data() });
-      });
-
-      const totalUsers = allUsersSnapshot.size;
-      const completedTasks = userTasks.filter(task => task.status === 'completed').length;
-      const totalTasks = userTasks.length;
-      const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-      // 📈 CALCULER PROGRESSION HEBDOMADAIRE RÉELLE
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      
-      const weeklyCompletedTasks = userTasks.filter(task => 
-        task.status === 'completed' && 
-        task.updatedAt && 
-        task.updatedAt.toDate() > oneWeekAgo
-      ).length;
-      
-      const weeklyProgress = Math.min(100, (weeklyCompletedTasks / Math.max(1, totalTasks)) * 100);
-
-      // ✅ METTRE À JOUR LES STATS RÉELLES
-      setRealStats({
-        totalTasks,
-        completedTasks,
-        totalProjects: userProjects.length,
-        teamMembers: totalUsers,
-        completionRate,
-        weeklyProgress: Math.round(weeklyProgress)
-      });
-
-      // 📊 GÉNÉRER ACTIVITÉ RÉCENTE RÉELLE
-      const sortedTasks = userTasks
-        .filter(task => task.updatedAt)
-        .sort((a, b) => b.updatedAt.toDate() - a.updatedAt.toDate())
-        .slice(0, 5);
-
-      const realRecentActivity = sortedTasks.map(task => ({
-        id: task.id,
-        type: task.status === 'completed' ? 'task_completed' : 'task_updated',
-        title: task.title,
-        description: `Tâche ${task.status === 'completed' ? 'terminée' : 'mise à jour'}`,
-        time: task.updatedAt.toDate().toLocaleString(),
-        xp: task.xpReward || 0
-      }));
-
-      setRecentActivity(realRecentActivity);
-
-      // 📈 GÉNÉRER DONNÉES DE PERFORMANCE RÉELLES
-      const last7Days = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        const dayTasks = userTasks.filter(task => {
-          if (!task.updatedAt) return false;
-          const taskDate = task.updatedAt.toDate();
-          return taskDate.toDateString() === date.toDateString() && task.status === 'completed';
-        });
-        
-        last7Days.push({
-          name: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
-          tasks: dayTasks.length,
-          xp: dayTasks.reduce((sum, task) => sum + (task.xpReward || 0), 0)
-        });
-      }
-
-      setPerformanceData(last7Days);
-
-      console.log('✅ Données Dashboard Firebase chargées:', {
-        stats: realStats,
-        activity: realRecentActivity.length,
-        performance: last7Days.length
-      });
-
-    } catch (error) {
-      console.error('❌ Erreur chargement Dashboard Firebase:', error);
-    } finally {
-      setLoading(false);
+  const getXpProgress = () => {
+    if (!userProgress) {
+      return { current: 0, needed: 100, percentage: 0, xpToNext: 100 };
     }
+    
+    const level = userProgress.level;
+    const totalXp = userProgress.totalXp;
+    const currentLevelXp = (level - 1) * 100;
+    const nextLevelXp = level * 100;
+    const progressXp = totalXp - currentLevelXp;
+    const xpToNext = nextLevelXp - totalXp;
+    
+    return {
+      current: Math.max(0, progressXp),
+      needed: 100,
+      percentage: Math.min(100, Math.max(0, (progressXp / 100) * 100)),
+      xpToNext: Math.max(0, xpToNext)
+    };
   };
 
-  if (loading || dataLoading) {
+  /**
+   * 🎨 COMPOSANT CARTE DE STATISTIQUE
+   */
+  const StatCard = ({ title, value, subtitle, icon: Icon, color, trend, onClick }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ scale: 1.02 }}
+      className={`bg-gradient-to-br ${color} p-6 rounded-xl text-white cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300`}
+      onClick={onClick}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <Icon className="w-8 h-8 opacity-80" />
+        {trend && (
+          <div className="flex items-center gap-1 text-sm">
+            <TrendingUp className="w-4 h-4" />
+            <span>+{trend}%</span>
+          </div>
+        )}
+      </div>
+      
+      <div className="space-y-1">
+        <h3 className="text-2xl font-bold">{value}</h3>
+        <p className="text-sm opacity-90">{title}</p>
+        {subtitle && <p className="text-xs opacity-75">{subtitle}</p>}
+      </div>
+    </motion.div>
+  );
+
+  /**
+   * 🏆 COMPOSANT LEADERBOARD MINI
+   */
+  const MiniLeaderboard = () => (
+    <div className="bg-white rounded-xl shadow-lg p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <Trophy className="w-5 h-5 text-yellow-500" />
+          Top Performers
+        </h3>
+        {showRefresh && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="flex items-center gap-2 text-sm text-green-600"
+          >
+            <RefreshCw className="w-4 h-4 animate-spin" />
+            Mis à jour
+          </motion.div>
+        )}
+      </div>
+      
+      <div className="space-y-3">
+        {topUsers.slice(0, 5).map((user, index) => (
+          <motion.div
+            key={user.uid}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
+              index === 0 ? 'bg-yellow-100 text-yellow-700' :
+              index === 1 ? 'bg-gray-100 text-gray-700' :
+              index === 2 ? 'bg-orange-100 text-orange-700' :
+              'bg-blue-100 text-blue-700'
+            }`}>
+              {index + 1}
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-gray-900 truncate">{user.displayName}</p>
+              <p className="text-sm text-gray-500">{user.department}</p>
+            </div>
+            
+            <div className="text-right">
+              <p className="font-semibold text-gray-900">{user.totalXp.toLocaleString()}</p>
+              <p className="text-sm text-gray-500">Level {user.level}</p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+      
+      {userRank && userRank > 5 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mt-4 pt-4 border-t border-gray-200"
+        >
+          <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold">
+              {userRank}
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-blue-900">Votre position</p>
+              <p className="text-sm text-blue-600">{userProgress?.totalXp.toLocaleString()} XP</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+
+  /**
+   * 📈 COMPOSANT PROGRESSION UTILISATEUR
+   */
+  const UserProgressCard = () => {
+    const progress = getXpProgress();
+    
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Chargement de votre tableau de bord...</p>
+      <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Zap className="w-5 h-5" />
+            Ma Progression
+          </h3>
+          <div className="text-right">
+            <p className="text-2xl font-bold">Level {userProgress?.level || 1}</p>
+            <p className="text-sm opacity-90">{userProgress?.totalXp || 0} XP Total</p>
+          </div>
         </div>
+        
+        <div className="space-y-4">
+          <div>
+            <div className="flex justify-between text-sm mb-2">
+              <span>Progression vers Level {(userProgress?.level || 1) + 1}</span>
+              <span>{progress.current}/{progress.needed} XP</span>
+            </div>
+            <div className="w-full bg-white/20 rounded-full h-3">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progress.percentage}%` }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className="bg-white rounded-full h-3 shadow-lg"
+              />
+            </div>
+            <p className="text-sm mt-2 opacity-90">
+              {progress.xpToNext} XP pour le prochain niveau
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/20">
+            <div>
+              <p className="text-sm opacity-90">Cette semaine</p>
+              <p className="text-lg font-semibold">{userProgress?.weeklyXp || 0} XP</p>
+            </div>
+            <div>
+              <p className="text-sm opacity-90">Tâches complétées</p>
+              <p className="text-lg font-semibold">{userProgress?.tasksCompleted || 0}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /**
+   * 📅 COMPOSANT ACTIVITÉS RÉCENTES
+   */
+  const RecentActivities = () => (
+    <div className="bg-white rounded-xl shadow-lg p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <Activity className="w-5 h-5 text-green-500" />
+          Activité Récente
+        </h3>
+        <button
+          onClick={forceSync}
+          className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Actualiser
+        </button>
+      </div>
+      
+      <div className="space-y-3">
+        {recentActivities.length > 0 ? (
+          recentActivities.map((activity) => (
+            <motion.div
+              key={activity.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900">
+                  {activity.displayName}
+                </p>
+                <p className="text-sm text-gray-600">{activity.message}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-500">
+                  {activity.timestamp.toLocaleTimeString()}
+                </p>
+              </div>
+            </motion.div>
+          ))
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <p>Aucune activité récente</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center"
+        >
+          <RefreshCw className="w-8 h-8 text-white mx-auto mb-4 animate-spin" />
+          <p className="text-white">Synchronisation des données...</p>
+        </motion.div>
       </div>
     );
   }
 
-  if (dataError) {
+  if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-lg text-red-600">❌ Erreur de chargement des données</p>
-          <button 
-            onClick={loadRealDashboardData}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center"
+        >
+          <p className="text-red-400 mb-4">Erreur de synchronisation: {error}</p>
+          <button
+            onClick={forceSync}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Réessayer
           </button>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* EN-TÊTE AVEC VRAIES DONNÉES UTILISATEUR */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Bonjour {user?.displayName || user?.email?.split('@')[0]} ! 👋
-          </h1>
-          <p className="text-lg text-gray-600">
-            Voici votre activité en temps réel
-          </p>
-        </div>
-
-        {/* CARTES STATISTIQUES RÉELLES */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Total Tâches */}
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Tâches</p>
-                <p className="text-3xl font-bold text-gray-900">{realStats.totalTasks}</p>
-              </div>
-              <CheckSquare className="h-12 w-12 text-blue-500" />
-            </div>
-          </div>
-
-          {/* Tâches Terminées */}
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Terminées</p>
-                <p className="text-3xl font-bold text-gray-900">{realStats.completedTasks}</p>
-                <p className="text-sm text-green-600">+{realStats.completionRate}% de réussite</p>
-              </div>
-              <Target className="h-12 w-12 text-green-500" />
-            </div>
-          </div>
-
-          {/* Projets */}
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Projets</p>
-                <p className="text-3xl font-bold text-gray-900">{realStats.totalProjects}</p>
-              </div>
-              <FolderOpen className="h-12 w-12 text-purple-500" />
-            </div>
-          </div>
-
-          {/* Équipe */}
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Membres</p>
-                <p className="text-3xl font-bold text-gray-900">{realStats.teamMembers}</p>
-              </div>
-              <Users className="h-12 w-12 text-orange-500" />
-            </div>
-          </div>
-        </div>
-
-        {/* SECTION GAMIFICATION RÉELLE */}
-        {gamification && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            {/* Niveau & XP */}
-            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-xl shadow-lg p-6 text-white">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Niveau & XP</h3>
-                <Star className="h-6 w-6" />
-              </div>
-              <div className="space-y-2">
-                <p className="text-2xl font-bold">Niveau {gamification.level || 1}</p>
-                <p className="text-sm opacity-90">{gamification.totalXp || 0} XP au total</p>
-                <div className="w-full bg-white/20 rounded-full h-2">
-                  <div 
-                    className="bg-white rounded-full h-2 transition-all duration-300"
-                    style={{ width: `${((gamification.totalXp || 0) % 100)}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Badges */}
-            <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl shadow-lg p-6 text-white">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Badges</h3>
-                <Trophy className="h-6 w-6" />
-              </div>
-              <div className="space-y-2">
-                <p className="text-2xl font-bold">{gamification.badges?.length || 0}</p>
-                <p className="text-sm opacity-90">Badges débloqués</p>
-              </div>
-            </div>
-
-            {/* Progression */}
-            <div className="bg-gradient-to-r from-green-500 to-teal-500 rounded-xl shadow-lg p-6 text-white">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Progression</h3>
-                <TrendingUp className="h-6 w-6" />
-              </div>
-              <div className="space-y-2">
-                <p className="text-2xl font-bold">{realStats.weeklyProgress}%</p>
-                <p className="text-sm opacity-90">Cette semaine</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* SECTION ACTIVITÉ & PERFORMANCE */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Activité Récente RÉELLE */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <Clock className="h-5 w-5 mr-2 text-blue-500" />
-              Activité Récente
-            </h3>
-            <div className="space-y-3">
-              {recentActivity.length > 0 ? (
-                recentActivity.map((activity, index) => (
-                  <div key={activity.id || index} className="flex items-center p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-shrink-0">
-                      {activity.type === 'task_completed' ? (
-                        <CheckSquare className="h-5 w-5 text-green-500" />
-                      ) : (
-                        <Clock className="h-5 w-5 text-blue-500" />
-                      )}
-                    </div>
-                    <div className="ml-3 flex-1">
-                      <p className="font-medium text-gray-900">{activity.title}</p>
-                      <p className="text-sm text-gray-600">{activity.description}</p>
-                      <p className="text-xs text-gray-400">{activity.time}</p>
-                    </div>
-                    {activity.xp > 0 && (
-                      <div className="text-right">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          +{activity.xp} XP
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p className="text-gray-500 text-center py-4">
-                  Aucune activité récente
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* En-tête Dashboard */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+                📊 Dashboard
+              </h1>
+              <p className="text-gray-400 text-lg">
+                Vue d'ensemble - Synchronisation temps réel
+              </p>
+              {lastUpdate && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Dernière mise à jour: {lastUpdate.toLocaleTimeString()}
                 </p>
               )}
             </div>
+            
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={forceSync}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600/20 text-blue-400 rounded-lg border border-blue-500/30 hover:bg-blue-600/30 transition-all"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Actualiser
+            </motion.button>
           </div>
+        </motion.div>
 
-          {/* Performance 7 Jours RÉELLE */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <BarChart3 className="h-5 w-5 mr-2 text-green-500" />
-              Performance (7 jours)
-            </h3>
-            <div className="space-y-2">
-              {performanceData.map((day, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">{day.name}</span>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-24 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min(100, (day.tasks / Math.max(1, Math.max(...performanceData.map(d => d.tasks)))) * 100)}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900 w-8">{day.tasks}</span>
-                    <span className="text-xs text-yellow-600">+{day.xp}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Statistiques Principales */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+        >
+          <StatCard
+            title="Mon Niveau"
+            value={`Level ${userProgress?.level || 1}`}
+            subtitle={`${userProgress?.totalXp || 0} XP Total`}
+            icon={Star}
+            color="from-yellow-500 to-orange-500"
+            trend={5}
+          />
+          
+          <StatCard
+            title="Ma Position"
+            value={userRank ? `#${userRank}` : '-'}
+            subtitle="Dans le classement"
+            icon={Trophy}
+            color="from-purple-500 to-pink-500"
+          />
+          
+          <StatCard
+            title="Équipe"
+            value={teamStats.totalUsers || 0}
+            subtitle={`${teamStats.totalXp?.toLocaleString() || 0} XP Total`}
+            icon={Users}
+            color="from-blue-500 to-cyan-500"
+          />
+          
+          <StatCard
+            title="Mes Tâches"
+            value={userProgress?.tasksCompleted || 0}
+            subtitle="Tâches complétées"
+            icon={CheckSquare}
+            color="from-green-500 to-emerald-500"
+            trend={12}
+          />
+        </motion.div>
+
+        {/* Contenu Principal */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* Colonne Gauche - Progression */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+            className="space-y-6"
+          >
+            <UserProgressCard />
+            <RecentActivities />
+          </motion.div>
+          
+          {/* Colonne Droite - Leaderboard */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6 }}
+            className="lg:col-span-2"
+          >
+            <MiniLeaderboard />
+          </motion.div>
         </div>
       </div>
     </div>
