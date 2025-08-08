@@ -3,6 +3,7 @@
 // VERSION CORRIGÉE POUR LE BUILD - SYNTAXE JAVASCRIPT VALIDE
 // ==========================================
 
+import InterviewIntegration from '../components/onboarding/InterviewIntegration.jsx';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -792,98 +793,9 @@ const OnboardingPage = () => {
             </div>
           )}
 
-          {activeTab === 'entretiens' && (
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700">
-              <div className="text-center mb-8">
-                <Users className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold text-white mb-4">🎯 Suivi avec ton Référent</h2>
-                <p className="text-gray-400 mb-6">
-                  Rendez-vous réguliers pour suivre ta progression et t'accompagner dans ton intégration.
-                </p>
-              </div>
-
-              <div className="space-y-6">
-                {[
-                  { 
-                    title: 'Entretien J+1 : Premières impressions', 
-                    date: 'Jour 1', 
-                    status: completedTasksHistory.has('entretien_j1') ? 'completed' : 'pending',
-                    description: 'Bilan du premier jour et ressentis'
-                  },
-                  { 
-                    title: 'Entretien J+3 : Adaptation équipe', 
-                    date: 'Jour 3', 
-                    status: completedTasksHistory.has('entretien_j3') ? 'completed' : 'pending',
-                    description: 'Intégration dans l\'équipe et premiers contacts'
-                  },
-                  { 
-                    title: 'Entretien Semaine 1 : Bilan technique', 
-                    date: 'Semaine 1', 
-                    status: completedTasksHistory.has('entretien_s1') ? 'completed' : 'pending',
-                    description: 'Évaluation des acquis techniques'
-                  },
-                  { 
-                    title: 'Entretien Semaine 2 : Autonomie progressive', 
-                    date: 'Semaine 2', 
-                    status: completedTasksHistory.has('entretien_s2') ? 'completed' : 'pending',
-                    description: 'Développement de l\'autonomie'
-                  },
-                  { 
-                    title: 'Entretien Semaine 3 : Maîtrise client', 
-                    date: 'Semaine 3', 
-                    status: completedTasksHistory.has('entretien_s3') ? 'completed' : 'pending',
-                    description: 'Compétences en relation client'
-                  },
-                  { 
-                    title: 'Entretien Semaine 4 : Bilan final', 
-                    date: 'Semaine 4', 
-                    status: completedTasksHistory.has('entretien_s4') ? 'completed' : 'pending',
-                    description: 'Évaluation complète et perspectives'
-                  }
-                ].map((meeting, index) => (
-                  <div 
-                    key={index} 
-                    className={'p-6 rounded-lg border transition-all ' + (
-                      meeting.status === 'completed' 
-                        ? 'bg-green-500/10 border-green-500/30' 
-                        : 'bg-gray-700/30 border-gray-600'
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className={'w-12 h-12 rounded-full flex items-center justify-center ' + (
-                          meeting.status === 'completed' 
-                            ? 'bg-green-500/20 text-green-400' 
-                            : 'bg-purple-500/20 text-purple-400'
-                        )}>
-                          {meeting.status === 'completed' ? (
-                            <CheckCircle className="w-6 h-6" />
-                          ) : (
-                            <Clock className="w-6 h-6" />
-                          )}
-                        </div>
-                        
-                        <div>
-                          <h3 className="text-lg font-semibold text-white">{meeting.title}</h3>
-                          <p className="text-gray-400 text-sm">{meeting.description}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-purple-400">{meeting.date}</div>
-                        <div className={'text-xs ' + (
-                          meeting.status === 'completed' ? 'text-green-400' : 'text-gray-500'
-                        )}>
-                          {meeting.status === 'completed' ? 'Terminé' : 'À venir'}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+         {activeTab === 'entretiens' && (
+  <InterviewIntegration />
+)}
 
         {/* RÉSUMÉ FINAL */}
         {progressPercentage === 100 && (
