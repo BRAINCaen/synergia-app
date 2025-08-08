@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx  
-// CORRECTION AJOUT BOUTON VOLONTAIRE - SANS MODIFIER L'EXISTANT
+// AJOUT RESTRICTION MODIFICATION PAR PROPRIÉTAIRE UNIQUEMENT
 // ==========================================
 
 import React, { useState } from 'react';
@@ -32,7 +32,7 @@ const formatDate = (date) => {
 };
 
 /**
- * 🎯 COMPOSANT TASKCARD AVEC BOUTON VOLONTAIRE AJOUTÉ
+ * 🎯 COMPOSANT TASKCARD AVEC RESTRICTION MODIFICATION PAR PROPRIÉTAIRE
  */
 const TaskCard = ({ 
   task, 
@@ -41,10 +41,13 @@ const TaskCard = ({
   onViewDetails, 
   onSubmit,
   isMyTask = false,
-  showVolunteerButton = false  // NOUVEAU: Prop pour afficher le bouton volontaire
+  showVolunteerButton = false
 }) => {
   const { user } = useAuthStore();
   const [isVolunteering, setIsVolunteering] = useState(false);
+
+  // ✅ NOUVEAU: Vérifier si l'utilisateur actuel est le créateur de la tâche
+  const isTaskOwner = user && task && task.createdBy === user.uid;
 
   // État de la soumission
   const handleSubmissionSuccess = () => {
@@ -54,7 +57,7 @@ const TaskCard = ({
     }
   };
 
-  // NOUVEAU: Fonction pour se porter volontaire
+  // Fonction pour se porter volontaire
   const handleVolunteer = async () => {
     try {
       setIsVolunteering(true);
@@ -73,20 +76,15 @@ const TaskCard = ({
 
       await taskService.updateTask(task.id, {
         assignedTo: updatedAssigned,
-        status: task.status === 'pending' ? 'in_progress' : task.status,
-        volunteerDate: new Date()
+        status: task.status === 'pending' ? 'todo' : task.status,
+        updatedAt: new Date()
       });
 
       console.log('✅ Volontariat enregistré avec succès');
       
-      // Optionnel: Callback pour recharger les données
-      if (onViewDetails) {
-        onViewDetails(task);
-      }
-
     } catch (error) {
       console.error('❌ Erreur lors du volontariat:', error);
-      alert('Erreur lors du volontariat: ' + error.message);
+      alert('Erreur lors de l\'inscription en tant que volontaire');
     } finally {
       setIsVolunteering(false);
     }
@@ -94,90 +92,111 @@ const TaskCard = ({
 
   // Vérifier si l'utilisateur peut se porter volontaire
   const canVolunteer = showVolunteerButton && 
-                      user && 
-                      !isMyTask &&
-                      task.status !== 'completed' && 
-                      task.status !== 'validation_pending' &&
-                      (!task.assignedTo || !task.assignedTo.includes(user.uid));
+    user && 
+    task && 
+    (!task.assignedTo || !Array.isArray(task.assignedTo) || !task.assignedTo.includes(user.uid)) &&
+    task.status !== 'completed' &&
+    task.status !== 'cancelled';
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-gray-600 transition-colors">
+    <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:border-gray-600 transition-all duration-200">
       
-      {/* En-tête avec titre et priorité */}
+      {/* En-tête avec priorité et statut */}
       <div className="flex justify-between items-start mb-4">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-white truncate mb-2">
-            {task.title}
-          </h3>
+        <div className="flex space-x-2">
+          {/* Badge de priorité */}
+          <span className={`
+            px-2 py-1 rounded-full text-xs font-medium
+            ${task.priority === 'urgent' ? 'bg-red-100 text-red-800' : ''}
+            ${task.priority === 'high' ? 'bg-orange-100 text-orange-800' : ''}
+            ${task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' : ''}
+            ${task.priority === 'low' ? 'bg-green-100 text-green-800' : ''}
+          `}>
+            {task.priority || 'medium'}
+          </span>
           
-          {/* Statut et XP */}
-          <div className="flex items-center gap-3 text-sm">
-            <span className={`px-2 py-1 rounded text-xs font-medium ${
-              task.status === 'completed' ? 'bg-green-600 text-green-100' :
-              task.status === 'in_progress' ? 'bg-blue-600 text-blue-100' :
-              task.status === 'validation_pending' ? 'bg-orange-600 text-orange-100' :
-              'bg-gray-600 text-gray-100'
-            }`}>
-              {task.status === 'completed' ? 'Terminée' :
-               task.status === 'in_progress' ? 'En cours' :
-               task.status === 'validation_pending' ? 'En validation' :
-               'En attente'}
-            </span>
-            
-            {task.xpReward && (
-              <span className="text-yellow-400 text-xs">
-                +{task.xpReward} XP
-              </span>
-            )}
-          </div>
+          {/* Badge de statut */}
+          <span className={`
+            px-2 py-1 rounded-full text-xs font-medium
+            ${task.status === 'completed' ? 'bg-green-100 text-green-800' : ''}
+            ${task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' : ''}
+            ${task.status === 'todo' ? 'bg-gray-100 text-gray-800' : ''}
+            ${task.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}
+          `}>
+            {task.status || 'todo'}
+          </span>
         </div>
         
-        {/* Priorité */}
-        <div className={`px-2 py-1 rounded text-xs font-medium ${
-          task.priority === 'urgent' ? 'bg-red-600 text-red-100' :
-          task.priority === 'haute' ? 'bg-orange-600 text-orange-100' :
-          task.priority === 'moyenne' ? 'bg-yellow-600 text-yellow-100' :
-          'bg-green-600 text-green-100'
-        }`}>
-          Priorité {task.priority || 'moyenne'}
-        </div>
+        {/* Badge "Ma tâche" */}
+        {isMyTask && (
+          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+            Ma tâche
+          </span>
+        )}
       </div>
 
-      {/* Description */}
-      {task.description && (
-        <p className="text-gray-300 text-sm mb-4 line-clamp-3">
-          {task.description}
-        </p>
-      )}
-
-      {/* Assignation et échéance */}
-      <div className="flex items-center justify-between text-sm text-gray-400 mb-4">
-        <div className="flex items-center gap-4">
-          {task.assignedTo && task.assignedTo.length > 0 && (
-            <div className="flex items-center gap-1">
-              <User size={14} />
-              <span>{task.assignedTo.length} assigné{task.assignedTo.length > 1 ? 's' : ''}</span>
-            </div>
-          )}
-          
-          {task.dueDate && (
-            <div className="flex items-center gap-1">
-              <Clock size={14} />
-              <span>Échéance: {formatDate(task.dueDate)}</span>
-            </div>
-          )}
-        </div>
+      {/* Titre et description */}
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2">
+          {task.title || 'Titre non défini'}
+        </h3>
         
-        {/* Date de création/modification */}
-        <div className="text-xs text-gray-500">
-          {task.updatedAt ? (
-            `Modifiée le ${formatDate(task.updatedAt)}`
-          ) : task.createdAt ? (
-            `Créée le ${formatDate(task.createdAt)}`
-          ) : (
-            'Date inconnue'
-          )}
-        </div>
+        {task.description && (
+          <p className="text-gray-300 text-sm line-clamp-3 mb-3">
+            {task.description}
+          </p>
+        )}
+        
+        {/* Tags */}
+        {task.tags && task.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {task.tags.map((tag, index) => (
+              <span 
+                key={index}
+                className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Informations supplémentaires */}
+      <div className="space-y-2 text-sm text-gray-400 mb-4">
+        {/* Récompense XP */}
+        {task.xpReward && (
+          <div className="flex items-center gap-1">
+            <span className="text-yellow-400">⭐</span>
+            <span>{task.xpReward} XP</span>
+          </div>
+        )}
+        
+        {/* Assignés */}
+        {task.assignedTo && Array.isArray(task.assignedTo) && task.assignedTo.length > 0 && (
+          <div className="flex items-center gap-1">
+            <User size={14} />
+            <span>{task.assignedTo.length} assigné{task.assignedTo.length > 1 ? 's' : ''}</span>
+          </div>
+        )}
+        
+        {task.dueDate && (
+          <div className="flex items-center gap-1">
+            <Clock size={14} />
+            <span>Échéance: {formatDate(task.dueDate)}</span>
+          </div>
+        )}
+      </div>
+      
+      {/* Date de création/modification */}
+      <div className="text-xs text-gray-500">
+        {task.updatedAt ? (
+          `Modifiée le ${formatDate(task.updatedAt)}`
+        ) : task.createdAt ? (
+          `Créée le ${formatDate(task.createdAt)}`
+        ) : (
+          'Date inconnue'
+        )}
       </div>
 
       {/* Actions */}
@@ -185,27 +204,37 @@ const TaskCard = ({
         
         {/* Boutons d'action à gauche */}
         <div className="flex space-x-2">
-          {onEdit && (
+          
+          {/* ✅ NOUVEAU: Bouton Edit avec restriction par propriétaire */}
+          {onEdit && isTaskOwner && (
             <button
               onClick={() => onEdit(task)}
               className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition-colors"
-              title="Modifier la tâche"
+              title="Modifier la tâche (réservé au créateur)"
             >
               <Edit size={16} />
             </button>
           )}
           
-          {onDelete && (
+          {/* ✅ NOUVEAU: Message d'info si pas propriétaire (optionnel pour debug) */}
+          {onEdit && !isTaskOwner && user && (
+            <div className="p-2 text-gray-500" title="Seul le créateur peut modifier cette tâche">
+              <Edit size={16} className="opacity-30" />
+            </div>
+          )}
+          
+          {/* Bouton Delete - aussi restreint au propriétaire */}
+          {onDelete && isTaskOwner && (
             <button
               onClick={() => onDelete(task)}
               className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg transition-colors"
-              title="Supprimer la tâche"
+              title="Supprimer la tâche (réservé au créateur)"
             >
               <Trash2 size={16} />
             </button>
           )}
 
-          {/* NOUVEAU: Bouton Se porter volontaire */}
+          {/* Bouton Se porter volontaire */}
           {canVolunteer && (
             <button
               onClick={handleVolunteer}
