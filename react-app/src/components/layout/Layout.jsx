@@ -1,9 +1,9 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// RESTAURATION - VERSION QUI FONCTIONNAIT AVANT
+// MENU HAMBURGER BULLETPROOF - GARANTI FONCTIONNEL
 // ==========================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Home, CheckSquare, FolderOpen, BarChart3, Trophy, Users, Settings, 
@@ -23,7 +23,8 @@ const Layout = ({ children }) => {
   const navigate = useNavigate();
   const { user, signOut } = useAuthStore();
   
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // ✅ ÉTAT MENU SIMPLE
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const userIsAdmin = React.useMemo(() => {
     return isUserAdmin(user);
@@ -31,7 +32,7 @@ const Layout = ({ children }) => {
 
   const handleLogout = async () => {
     try {
-      setSidebarOpen(false);
+      setMenuOpen(false);
       await signOut();
       navigate('/login');
     } catch (error) {
@@ -39,272 +40,440 @@ const Layout = ({ children }) => {
     }
   };
 
-  const navigationSections = [
-    {
-      title: 'PRINCIPAL',
-      items: [
-        { path: '/dashboard', label: 'Dashboard', icon: Home },
-        { path: '/tasks', label: 'Tâches', icon: CheckSquare },
-        { path: '/projects', label: 'Projets', icon: FolderOpen },
-        { path: '/analytics', label: 'Analytics', icon: BarChart3 }
-      ]
-    },
-    {
-      title: 'GAMIFICATION',
-      items: [
-        { path: '/gamification', label: 'Gamification', icon: Gamepad2 },
-        { path: '/badges', label: 'Badges', icon: Award },
-        { path: '/leaderboard', label: 'Classement', icon: Trophy },
-        { path: '/rewards', label: 'Récompenses', icon: Gift }
-      ]
-    },
-    {
-      title: 'ÉQUIPE & SOCIAL',
-      items: [
-        { path: '/team', label: 'Équipe', icon: Users },
-        { path: '/users', label: 'Utilisateurs', icon: UserCheck }
-      ]
-    },
-    {
-      title: 'OUTILS',
-      items: [
-        { path: '/onboarding', label: 'Intégration', icon: BookOpen },
-        { path: '/timetrack', label: 'Pointeuse', icon: Clock },
-        { path: '/profile', label: 'Mon Profil', icon: User },
-        { path: '/settings', label: 'Paramètres', icon: Settings }
-      ]
-    }
+  // ✅ FERMETURE SUR ESCAPE
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
+
+  // ✅ MENU ITEMS COMPLETS
+  const menuItems = [
+    { section: 'PRINCIPAL', items: [
+      { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
+      { path: '/tasks', label: 'Tâches', icon: '✅' },
+      { path: '/projects', label: 'Projets', icon: '📁' },
+      { path: '/analytics', label: 'Analytics', icon: '📊' }
+    ]},
+    { section: 'GAMIFICATION', items: [
+      { path: '/gamification', label: 'Gamification', icon: '🎮' },
+      { path: '/badges', label: 'Badges', icon: '🏆' },
+      { path: '/leaderboard', label: 'Classement', icon: '🥇' },
+      { path: '/rewards', label: 'Récompenses', icon: '🎁' }
+    ]},
+    { section: 'ÉQUIPE', items: [
+      { path: '/team', label: 'Équipe', icon: '👥' },
+      { path: '/users', label: 'Utilisateurs', icon: '👤' }
+    ]},
+    { section: 'OUTILS', items: [
+      { path: '/onboarding', label: 'Intégration', icon: '📚' },
+      { path: '/timetrack', label: 'Pointeuse', icon: '⏰' },
+      { path: '/profile', label: 'Mon Profil', icon: '👨‍💼' },
+      { path: '/settings', label: 'Paramètres', icon: '⚙️' }
+    ]}
   ];
 
-  const adminSection = userIsAdmin ? {
-    title: 'ADMINISTRATION',
-    items: [
-      { path: '/admin/task-validation', label: 'Validation Tâches', icon: Shield },
-      { path: '/admin/complete-test', label: 'Test Admin', icon: TestTube },
-      { path: '/admin/role-permissions', label: 'Permissions', icon: Lock },
-      { path: '/admin/users', label: 'Admin Utilisateurs', icon: Crown },
-      { path: '/admin/analytics', label: 'Admin Analytics', icon: PieChart },
-      { path: '/admin/settings', label: 'Admin Config', icon: Settings }
-    ]
-  } : null;
+  // ✅ ADMIN ITEMS
+  if (userIsAdmin) {
+    menuItems.push({
+      section: 'ADMINISTRATION',
+      items: [
+        { path: '/admin/task-validation', label: 'Validation Tâches', icon: '🛡️' },
+        { path: '/admin/complete-test', label: 'Test Admin', icon: '🧪' },
+        { path: '/admin/role-permissions', label: 'Permissions', icon: '🔐' },
+        { path: '/admin/users', label: 'Admin Utilisateurs', icon: '👑' },
+        { path: '/admin/analytics', label: 'Admin Analytics', icon: '📈' },
+        { path: '/admin/settings', label: 'Admin Config', icon: '🔧' }
+      ]
+    });
+  }
 
-  const allSections = adminSection ? [...navigationSections, adminSection] : navigationSections;
-  const isActive = (path) => location.pathname === path;
+  // ✅ FERMETURE MENU SUR NAVIGATION
+  const handleNavClick = () => {
+    setMenuOpen(false);
+  };
+
+  // ✅ CRÉATION DU MENU AVEC DOM MANIPULATION
+  useEffect(() => {
+    if (menuOpen) {
+      // Créer le menu directement dans le body
+      const menuOverlay = document.createElement('div');
+      menuOverlay.id = 'hamburger-menu-overlay';
+      menuOverlay.style.cssText = `
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        background-color: rgba(0, 0, 0, 0.8) !important;
+        z-index: 999999 !important;
+        display: flex !important;
+        animation: fadeIn 0.3s ease !important;
+      `;
+
+      const menuContainer = document.createElement('div');
+      menuContainer.style.cssText = `
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 350px !important;
+        height: 100vh !important;
+        background: linear-gradient(135deg, #1e293b, #0f172a) !important;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5) !important;
+        z-index: 999999 !important;
+        overflow-y: auto !important;
+        transform: translateX(-100%) !important;
+        transition: transform 0.3s ease !important;
+        font-family: Inter, system-ui, sans-serif !important;
+      `;
+
+      // Header du menu
+      const header = document.createElement('div');
+      header.style.cssText = `
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 20px !important;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6) !important;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.1) !important;
+      `;
+      header.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <div style="font-size: 24px;">⚡</div>
+          <div>
+            <div style="color: white; font-size: 20px; font-weight: bold;">
+              SYNERGIA MENU
+            </div>
+            <div style="color: rgba(255,255,255,0.8); font-size: 12px;">
+              ${userIsAdmin ? '🛡️ ADMIN' : '👤 MEMBRE'}
+            </div>
+          </div>
+        </div>
+        <button id="close-menu-btn" style="
+          background: rgba(255,255,255,0.2) !important;
+          border: none !important;
+          color: white !important;
+          padding: 10px !important;
+          border-radius: 8px !important;
+          cursor: pointer !important;
+          font-size: 18px !important;
+          font-weight: bold !important;
+        ">✕</button>
+      `;
+
+      // Profile
+      const profile = document.createElement('div');
+      profile.style.cssText = `
+        padding: 20px !important;
+        border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+        background: rgba(255,255,255,0.05) !important;
+      `;
+      profile.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <div style="
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+          ">${user?.email?.[0]?.toUpperCase() || 'U'}</div>
+          <div>
+            <div style="color: white; font-size: 16px; font-weight: 600;">
+              ${user?.displayName || user?.email || 'Utilisateur'}
+            </div>
+            <div style="color: #94a3b8; font-size: 14px;">
+              ${userIsAdmin ? 'Administrateur' : 'Membre de l\'équipe'}
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Navigation
+      const nav = document.createElement('div');
+      nav.style.cssText = `
+        padding: 20px 0 !important;
+        flex: 1 !important;
+      `;
+
+      let navHTML = '';
+      menuItems.forEach(section => {
+        const isAdminSection = section.section === 'ADMINISTRATION';
+        navHTML += `
+          <div style="margin-bottom: 25px;">
+            <h3 style="
+              color: ${isAdminSection ? '#f87171' : '#94a3b8'};
+              font-size: 12px;
+              font-weight: bold;
+              text-transform: uppercase;
+              letter-spacing: 0.1em;
+              margin: 0 0 15px 20px;
+              padding-bottom: 5px;
+              border-bottom: 2px solid ${isAdminSection ? '#f87171' : '#334155'};
+            ">${section.section}</h3>
+            <div style="padding: 0 15px;">
+        `;
+        
+        section.items.forEach(item => {
+          const isActive = location.pathname === item.path;
+          navHTML += `
+            <a href="${item.path}" class="menu-item" style="
+              display: flex !important;
+              align-items: center !important;
+              padding: 15px 10px !important;
+              margin: 5px 0 !important;
+              border-radius: 10px !important;
+              text-decoration: none !important;
+              font-size: 16px !important;
+              font-weight: 500 !important;
+              transition: all 0.3s ease !important;
+              background: ${isActive 
+                ? (isAdminSection ? '#dc2626' : '#3b82f6') 
+                : 'rgba(255,255,255,0.05)'} !important;
+              color: ${isActive ? 'white' : (isAdminSection ? '#fca5a5' : '#e2e8f0')} !important;
+              border: 2px solid ${isActive 
+                ? 'rgba(255,255,255,0.3)' 
+                : 'transparent'} !important;
+            " onmouseover="this.style.background='${isAdminSection ? '#dc2626' : '#3b82f6'}'; this.style.color='white';" 
+               onmouseout="this.style.background='${isActive 
+                 ? (isAdminSection ? '#dc2626' : '#3b82f6') 
+                 : 'rgba(255,255,255,0.05)'}'; this.style.color='${isActive ? 'white' : (isAdminSection ? '#fca5a5' : '#e2e8f0')}';">
+              <span style="font-size: 20px; margin-right: 15px;">${item.icon}</span>
+              <span>${item.label}</span>
+              ${isActive ? '<span style="margin-left: auto; font-size: 16px;">●</span>' : ''}
+            </a>
+          `;
+        });
+        
+        navHTML += '</div></div>';
+      });
+      nav.innerHTML = navHTML;
+
+      // Footer avec déconnexion
+      const footer = document.createElement('div');
+      footer.style.cssText = `
+        padding: 20px !important;
+        border-top: 2px solid rgba(255,255,255,0.1) !important;
+        background: rgba(0,0,0,0.2) !important;
+      `;
+      footer.innerHTML = `
+        <button id="logout-btn" style="
+          width: 100% !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          padding: 15px !important;
+          background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+          border: none !important;
+          border-radius: 10px !important;
+          color: white !important;
+          font-size: 16px !important;
+          font-weight: bold !important;
+          cursor: pointer !important;
+          transition: all 0.3s ease !important;
+        " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+          <span style="margin-right: 10px; font-size: 20px;">🚪</span>
+          DÉCONNEXION
+        </button>
+      `;
+
+      // Assemblage
+      menuContainer.appendChild(header);
+      menuContainer.appendChild(profile);
+      menuContainer.appendChild(nav);
+      menuContainer.appendChild(footer);
+      menuOverlay.appendChild(menuContainer);
+
+      // Ajout au DOM
+      document.body.appendChild(menuOverlay);
+
+      // Animation d'entrée
+      setTimeout(() => {
+        menuContainer.style.transform = 'translateX(0)';
+      }, 10);
+
+      // Event listeners
+      const closeBtn = document.getElementById('close-menu-btn');
+      const logoutBtn = document.getElementById('logout-btn');
+      
+      closeBtn?.addEventListener('click', () => setMenuOpen(false));
+      logoutBtn?.addEventListener('click', handleLogout);
+      
+      // Fermeture sur overlay
+      menuOverlay.addEventListener('click', (e) => {
+        if (e.target === menuOverlay) {
+          setMenuOpen(false);
+        }
+      });
+
+      // Gestion des liens
+      const menuLinks = menuOverlay.querySelectorAll('.menu-item');
+      menuLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          navigate(link.getAttribute('href'));
+          setMenuOpen(false);
+        });
+      });
+
+    } else {
+      // Supprimer le menu
+      const existingMenu = document.getElementById('hamburger-menu-overlay');
+      if (existingMenu) {
+        existingMenu.remove();
+      }
+    }
+
+    // Cleanup
+    return () => {
+      const menuToRemove = document.getElementById('hamburger-menu-overlay');
+      if (menuToRemove) {
+        menuToRemove.remove();
+      }
+    };
+  }, [menuOpen, location.pathname, user, userIsAdmin, navigate]);
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
       
-      {/* ✅ SIDEBAR DESKTOP - DESIGN ORIGINAL */}
-      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-gray-900 z-30">
-        
-        {/* Header Desktop */}
-        <div className="flex items-center h-16 px-4 bg-gray-800">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white" />
-            </div>
+      {/* ✅ HEADER UNIVERSEL - PC ET MOBILE */}
+      <header style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 1000,
+        backgroundColor: '#ffffff',
+        borderBottom: '1px solid #e5e7eb',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '15px 20px'
+        }}>
+          
+          {/* Bouton Hamburger + Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <button
+              onClick={() => setMenuOpen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '50px',
+                height: '50px',
+                background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                border: 'none',
+                borderRadius: '12px',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '20px',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)'
+              }}
+              onMouseOver={(e) => {
+                e.target.style.transform = 'scale(1.1)';
+                e.target.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)';
+              }}
+              onMouseOut={(e) => {
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = '0 4px 15px rgba(59, 130, 246, 0.3)';
+              }}
+              title="Ouvrir le menu"
+            >
+              <Menu style={{ width: '24px', height: '24px' }} />
+            </button>
+            
             <div>
-              <span className="text-white font-semibold">Synergia</span>
-              {userIsAdmin && <span className="text-red-400 text-xs ml-2">ADMIN</span>}
+              <h1 style={{
+                margin: 0,
+                fontSize: '24px',
+                fontWeight: 'bold',
+                background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}>
+                ⚡ Synergia
+              </h1>
+              <div style={{
+                fontSize: '12px',
+                color: '#6b7280',
+                fontWeight: '500'
+              }}>
+                v3.5 {userIsAdmin && '• ADMIN'}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Profile Desktop */}
-        <div className="p-4 bg-gray-800 border-b border-gray-700">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">
+          {/* Indicateur utilisateur */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '8px 15px',
+            backgroundColor: '#f8fafc',
+            borderRadius: '25px',
+            border: '1px solid #e2e8f0'
+          }}>
+            <div style={{
+              width: '30px',
+              height: '30px',
+              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontSize: '12px',
+              fontWeight: 'bold'
+            }}>
               {user?.email?.[0]?.toUpperCase() || '?'}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">
-                {user?.displayName || user?.email || 'Utilisateur'}
-              </p>
-              <p className="text-xs text-gray-400 truncate">
-                {userIsAdmin ? 'Administrateur' : 'Membre'}
-              </p>
+            <div style={{
+              fontSize: '14px',
+              color: '#374151',
+              fontWeight: '500',
+              maxWidth: '150px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}>
+              {user?.displayName || user?.email || 'Utilisateur'}
             </div>
           </div>
         </div>
+      </header>
 
-        {/* Navigation Desktop */}
-        <nav className="flex-1 px-3 py-4 overflow-y-auto">
-          {allSections.map((section, sectionIndex) => (
-            <div key={sectionIndex} className="mb-6">
-              <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                {section.title}
-              </h3>
-              <div className="space-y-1">
-                {section.items.map((item, itemIndex) => {
-                  const Icon = item.icon;
-                  const active = isActive(item.path);
-                  const isAdminItem = section.title === 'ADMINISTRATION';
+      {/* ✅ CONTENU PRINCIPAL */}
+      <main style={{ padding: '0' }}>
+        {children}
+      </main>
 
-                  return (
-                    <Link
-                      key={itemIndex}
-                      to={item.path}
-                      className={`
-                        group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
-                        ${active
-                          ? isAdminItem ? 'bg-red-900 text-red-100' : 'bg-blue-900 text-blue-100'
-                          : isAdminItem ? 'text-red-300 hover:bg-red-900' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                        }
-                      `}
-                    >
-                      <Icon className={`mr-3 w-5 h-5 ${
-                        active
-                          ? isAdminItem ? 'text-red-300' : 'text-blue-300'
-                          : isAdminItem ? 'text-red-400' : 'text-gray-400'
-                      }`} />
-                      <span>{item.label}</span>
-                      {isAdminItem && <Shield className="w-3 h-3 ml-auto text-red-400" />}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </nav>
-
-        {/* Déconnexion Desktop */}
-        <div className="p-4 border-t border-gray-700 bg-gray-800">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center px-2 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors"
-          >
-            <LogOut className="mr-3 w-5 h-5 text-gray-400" />
-            <span>Déconnexion</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ✅ SIDEBAR MOBILE - DESIGN COMPLET RESTAURÉ */}
-      {sidebarOpen && (
-        <>
-          {/* Overlay */}
-          <div 
-            className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
-            onClick={() => setSidebarOpen(false)}
-          />
-          
-          {/* Menu Mobile */}
-          <div className="lg:hidden fixed inset-y-0 left-0 z-50 w-80 bg-gray-900 transform transition-transform duration-300 ease-in-out">
-            
-            {/* Header Mobile */}
-            <div className="flex items-center justify-between h-16 px-4 bg-gray-800 border-b border-gray-700">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <span className="text-white font-semibold">Synergia</span>
-                  {userIsAdmin && <span className="text-red-400 text-xs ml-2">ADMIN</span>}
-                </div>
-              </div>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="text-gray-400 hover:text-white p-2 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Profile Mobile */}
-            <div className="p-4 bg-gray-800 border-b border-gray-700">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">
-                  {user?.email?.[0]?.toUpperCase() || 'A'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">
-                    {user?.displayName || user?.email || 'Utilisateur'}
-                  </p>
-                  <p className="text-xs text-gray-400 truncate">
-                    {userIsAdmin ? 'Administrateur' : 'Membre'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Navigation Mobile COMPLÈTE */}
-            <nav className="flex-1 px-3 py-4 overflow-y-auto">
-              {allSections.map((section, sectionIndex) => (
-                <div key={sectionIndex} className="mb-6">
-                  <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                    {section.title}
-                  </h3>
-                  <div className="space-y-1">
-                    {section.items.map((item, itemIndex) => {
-                      const Icon = item.icon;
-                      const active = isActive(item.path);
-                      const isAdminItem = section.title === 'ADMINISTRATION';
-
-                      return (
-                        <Link
-                          key={itemIndex}
-                          to={item.path}
-                          onClick={() => setSidebarOpen(false)}
-                          className={`
-                            group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
-                            ${active
-                              ? isAdminItem ? 'bg-red-900 text-red-100' : 'bg-blue-900 text-blue-100'
-                              : isAdminItem ? 'text-red-300 hover:bg-red-900' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                            }
-                          `}
-                        >
-                          <Icon className={`mr-3 w-5 h-5 ${
-                            active
-                              ? isAdminItem ? 'text-red-300' : 'text-blue-300'
-                              : isAdminItem ? 'text-red-400' : 'text-gray-400'
-                          }`} />
-                          <span>{item.label}</span>
-                          {isAdminItem && <Shield className="w-3 h-3 ml-auto text-red-400" />}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </nav>
-
-            {/* Déconnexion Mobile */}
-            <div className="p-4 border-t border-gray-700 bg-gray-800">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center px-2 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors"
-              >
-                <LogOut className="mr-3 w-5 h-5 text-gray-400" />
-                <span>Déconnexion</span>
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* ✅ CONTENU PRINCIPAL - DESIGN ORIGINAL */}
-      <div className="flex-1 flex flex-col min-w-0 lg:ml-64 relative">
-        
-        {/* HEADER MOBILE ORIGINAL */}
-        <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            aria-label="Ouvrir le menu"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-          <h1 className="text-lg font-semibold text-gray-900 flex items-center">
-            Synergia
-            {userIsAdmin && <span className="text-red-500 text-sm ml-2">ADMIN</span>}
-          </h1>
-          <div className="w-10" />
-        </div>
-
-        {/* CONTENU DES PAGES */}
-        <main className="flex-1 overflow-auto">
-          {children}
-        </main>
+      {/* ✅ DEBUG VISIBLE */}
+      <div style={{
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        padding: '10px 15px',
+        backgroundColor: menuOpen ? '#10b981' : '#ef4444',
+        color: 'white',
+        borderRadius: '8px',
+        fontSize: '12px',
+        fontWeight: 'bold',
+        zIndex: 1000000,
+        border: '2px solid white',
+        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)'
+      }}>
+        🍔 MENU: {menuOpen ? '✅ OUVERT' : '❌ FERMÉ'}
       </div>
     </div>
   );
