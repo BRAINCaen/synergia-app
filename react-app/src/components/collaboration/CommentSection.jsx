@@ -1,17 +1,17 @@
 // ==========================================
 // 📁 react-app/src/components/collaboration/CommentSection.jsx
-// SECTION COMMENTAIRES AVEC RÉSOLUTION DES NOMS UTILISATEURS
+// SECTION COMMENTAIRES AVEC NOMS COMPLETS ET NOTIFICATIONS
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, MessageCircle, Edit, Trash2, X } from 'lucide-react';
+import { Send, MessageCircle, Edit, Trash2, X, Bell } from 'lucide-react';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { collaborationService } from '../../core/services/collaborationService.js';
 
 /**
- * 👤 HOOK POUR RÉSOUDRE LES NOMS UTILISATEURS
+ * 👤 HOOK POUR RÉSOUDRE LES NOMS COMPLETS UTILISATEURS
  */
 const useUserResolver = () => {
   const [usersCache, setUsersCache] = useState(new Map());
@@ -21,6 +21,7 @@ const useUserResolver = () => {
       return {
         uid: 'unknown',
         displayName: 'Utilisateur inconnu',
+        fullName: 'Utilisateur inconnu',
         email: 'Non défini',
         initials: '??',
         photoURL: null
@@ -39,25 +40,53 @@ const useUserResolver = () => {
       if (userDoc.exists()) {
         const userData = userDoc.data();
         
-        // Nettoyer le nom d'affichage
-        let cleanDisplayName = userData.displayName || userData.email?.split('@')[0] || 'Utilisateur';
+        // 🎯 CONSTRUIRE LE NOM COMPLET DEPUIS LE PROFIL
+        let fullName = '';
+        let displayName = '';
         
-        // Nettoyer les noms inappropriés
-        if (cleanDisplayName === 'Allan le BOSS') {
-          cleanDisplayName = userData.email?.split('@')[0] || 'Utilisateur';
+        // Priorité 1: firstName + lastName du profil
+        if (userData.profile?.firstName && userData.profile?.lastName) {
+          fullName = `${userData.profile.firstName} ${userData.profile.lastName}`;
+          displayName = fullName;
+        }
+        // Priorité 2: displayName personnalisé
+        else if (userData.displayName && userData.displayName !== 'Allan le BOSS') {
+          displayName = userData.displayName;
+          fullName = displayName;
+        }
+        // Priorité 3: firstName seul
+        else if (userData.profile?.firstName) {
+          fullName = userData.profile.firstName;
+          displayName = fullName;
+        }
+        // Priorité 4: email sans domaine
+        else if (userData.email) {
+          const emailName = userData.email.split('@')[0];
+          displayName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
+          fullName = displayName;
+        }
+        // Fallback
+        else {
+          displayName = 'Utilisateur';
+          fullName = 'Utilisateur';
         }
         
         // Nettoyer les URLs Google si présentes
-        if (cleanDisplayName.includes('googleusercontent.com')) {
-          cleanDisplayName = userData.email?.split('@')[0] || 'Utilisateur';
+        if (displayName.includes('googleusercontent.com')) {
+          const emailName = userData.email?.split('@')[0] || 'Utilisateur';
+          displayName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
+          fullName = displayName;
         }
         
         const user = {
           uid: userId,
-          displayName: cleanDisplayName,
+          displayName: displayName,
+          fullName: fullName,
           email: userData.email || 'Non défini',
           photoURL: userData.photoURL || null,
-          initials: cleanDisplayName
+          department: userData.profile?.department || userData.department || null,
+          role: userData.role || userData.profile?.role || 'Membre',
+          initials: fullName
             .split(' ')
             .map(n => n[0])
             .join('')
@@ -74,6 +103,7 @@ const useUserResolver = () => {
         const fallbackUser = {
           uid: userId,
           displayName: `Utilisateur ${userId.substring(0, 8)}`,
+          fullName: `Utilisateur ${userId.substring(0, 8)}`,
           email: 'Utilisateur supprimé',
           photoURL: null,
           initials: userId.substring(0, 2).toUpperCase(),
@@ -90,6 +120,7 @@ const useUserResolver = () => {
       const errorUser = {
         uid: userId,
         displayName: `Erreur ${userId.substring(0, 6)}`,
+        fullName: `Erreur ${userId.substring(0, 6)}`,
         email: 'Erreur de chargement',
         photoURL: null,
         initials: 'ER',
@@ -105,13 +136,14 @@ const useUserResolver = () => {
 };
 
 /**
- * 🎨 AVATAR UTILISATEUR
+ * 🎨 AVATAR UTILISATEUR AMÉLIORÉ
  */
-const UserAvatar = ({ user, size = 'md' }) => {
+const UserAvatar = ({ user, size = 'md', showTooltip = false }) => {
   const sizeClasses = {
     sm: 'w-6 h-6 text-xs',
     md: 'w-8 h-8 text-sm',
-    lg: 'w-10 h-10 text-base'
+    lg: 'w-10 h-10 text-base',
+    xl: 'w-12 h-12 text-lg'
   };
 
   const getAvatarColor = (name) => {
@@ -120,7 +152,7 @@ const UserAvatar = ({ user, size = 'md' }) => {
     const colors = [
       'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500',
       'bg-pink-500', 'bg-indigo-500', 'bg-red-500', 'bg-yellow-500',
-      'bg-teal-500', 'bg-cyan-500'
+      'bg-teal-500', 'bg-cyan-500', 'bg-emerald-500', 'bg-violet-500'
     ];
     
     const index = name.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -135,12 +167,12 @@ const UserAvatar = ({ user, size = 'md' }) => {
     );
   }
 
-  return (
-    <div className={`${sizeClasses[size]} ${getAvatarColor(user.displayName)} rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0`}>
+  const avatarElement = (
+    <div className={`${sizeClasses[size]} ${getAvatarColor(user.fullName)} rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 relative`}>
       {user.photoURL ? (
         <img 
           src={user.photoURL} 
-          alt={user.displayName}
+          alt={user.fullName}
           className={`${sizeClasses[size]} rounded-full object-cover`}
           onError={(e) => {
             e.target.style.display = 'none';
@@ -150,12 +182,38 @@ const UserAvatar = ({ user, size = 'md' }) => {
       ) : (
         user.initials
       )}
+      
+      {/* Indicateurs de statut */}
+      {user.isDeleted && (
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white"></div>
+      )}
+      {user.hasError && (
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full border border-white"></div>
+      )}
     </div>
   );
+
+  if (showTooltip) {
+    return (
+      <div className="relative group">
+        {avatarElement}
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+          {user.fullName}
+          {user.department && (
+            <div className="text-gray-300">
+              {user.department}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return avatarElement;
 };
 
 /**
- * 💬 COMPOSANT COMMENTAIRE INDIVIDUEL
+ * 💬 COMPOSANT COMMENTAIRE INDIVIDUEL AMÉLIORÉ
  */
 const CommentItem = ({ comment, currentUser, onDelete }) => {
   const { resolveUser } = useUserResolver();
@@ -173,6 +231,7 @@ const CommentItem = ({ comment, currentUser, onDelete }) => {
         setUser({
           uid: comment.userId,
           displayName: `Utilisateur ${comment.userId?.substring(0, 8)}`,
+          fullName: `Utilisateur ${comment.userId?.substring(0, 8)}`,
           email: 'Erreur',
           initials: 'ER',
           hasError: true
@@ -189,7 +248,7 @@ const CommentItem = ({ comment, currentUser, onDelete }) => {
     }
   }, [comment.userId, resolveUser]);
 
-  // Formater la date
+  // Formater la date avec plus de précision
   const formatDate = (timestamp) => {
     if (!timestamp) return 'Date inconnue';
     
@@ -197,17 +256,25 @@ const CommentItem = ({ comment, currentUser, onDelete }) => {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       const now = new Date();
       const diffMs = now - date;
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMinutes / 60);
       const diffDays = Math.floor(diffHours / 24);
       
-      if (diffHours < 1) {
+      if (diffMinutes < 1) {
         return 'À l\'instant';
+      } else if (diffMinutes < 60) {
+        return `Il y a ${diffMinutes}min`;
       } else if (diffHours < 24) {
         return `Il y a ${diffHours}h`;
       } else if (diffDays < 7) {
         return `Il y a ${diffDays}j`;
       } else {
-        return date.toLocaleDateString('fr-FR');
+        return date.toLocaleDateString('fr-FR', {
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
       }
     } catch (error) {
       return 'Date invalide';
@@ -233,7 +300,7 @@ const CommentItem = ({ comment, currentUser, onDelete }) => {
     <div className={`flex gap-3 p-3 rounded-lg transition-colors ${
       isDeleted ? 'bg-red-500/5 border border-red-500/20' : 'hover:bg-gray-700/30'
     }`}>
-      <UserAvatar user={user} size="md" />
+      <UserAvatar user={user} size="md" showTooltip={true} />
       
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
@@ -242,8 +309,15 @@ const CommentItem = ({ comment, currentUser, onDelete }) => {
             user?.hasError ? 'text-yellow-300' :
             'text-gray-200'
           }`}>
-            {user?.displayName || 'Utilisateur inconnu'}
+            {user?.fullName || 'Utilisateur inconnu'}
           </span>
+          
+          {/* Badge rôle/département */}
+          {user?.department && !user?.isDeleted && (
+            <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">
+              {user.department}
+            </span>
+          )}
           
           <span className="text-xs text-gray-400">
             {formatDate(comment.createdAt)}
@@ -292,9 +366,34 @@ const CommentItem = ({ comment, currentUser, onDelete }) => {
 };
 
 /**
- * 💬 COMPOSANT PRINCIPAL - SECTION COMMENTAIRES
+ * 🔔 HOOK POUR COMPTEUR DE COMMENTAIRES (pour notifications)
  */
-const CommentSection = ({ entityType, entityId, className = '' }) => {
+const useCommentCount = (entityType, entityId) => {
+  const [count, setCount] = useState(0);
+  
+  useEffect(() => {
+    const loadCount = async () => {
+      try {
+        if (entityType && entityId) {
+          const comments = await collaborationService.getComments(entityType, entityId);
+          setCount(comments?.length || 0);
+        }
+      } catch (error) {
+        console.warn('Erreur comptage commentaires:', error);
+        setCount(0);
+      }
+    };
+    
+    loadCount();
+  }, [entityType, entityId]);
+  
+  return count;
+};
+
+/**
+ * 💬 COMPOSANT PRINCIPAL - SECTION COMMENTAIRES AMÉLIORÉE
+ */
+const CommentSection = ({ entityType, entityId, className = '', showNotificationBadge = false }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
@@ -419,11 +518,23 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
   return (
     <div className={`bg-gray-800 rounded-lg border border-gray-600 ${className}`}>
       
-      {/* En-tête */}
+      {/* En-tête avec notification badge */}
       <div className="p-4 border-b border-gray-600">
         <h3 className="font-semibold text-white flex items-center gap-2">
           <MessageCircle className="w-4 h-4" />
-          Commentaires ({comments.length})
+          Commentaires 
+          {comments.length > 0 && (
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+              showNotificationBadge && comments.length > 0 
+                ? 'bg-red-500 text-white animate-pulse' 
+                : 'bg-gray-600 text-gray-300'
+            }`}>
+              {comments.length}
+            </span>
+          )}
+          {showNotificationBadge && comments.length > 0 && (
+            <Bell className="w-3 h-3 text-red-400" />
+          )}
         </h3>
       </div>
 
@@ -472,13 +583,14 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
               <div className="flex-shrink-0">
                 <UserAvatar 
                   user={{
-                    displayName: user.displayName || user.email?.split('@')[0] || 'Vous',
+                    fullName: user.displayName || user.email?.split('@')[0] || 'Vous',
                     initials: (user.displayName || user.email?.split('@')[0] || 'U')
                       .split(' ')
                       .map(n => n[0])
                       .join('')
                       .toUpperCase()
-                      .substring(0, 2)
+                      .substring(0, 2),
+                    photoURL: user.photoURL
                   }} 
                   size="md" 
                 />
@@ -532,4 +644,6 @@ const CommentSection = ({ entityType, entityId, className = '' }) => {
   );
 };
 
+// Export du hook pour utilisation externe
+export { useCommentCount };
 export default CommentSection;
