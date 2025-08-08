@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TeamPage.jsx
-// TEAM PAGE COMPLÈTE - SYNCHRONISATION FIREBASE + BOUTONS FONCTIONNELS
+// TEAM PAGE COMPLÈTE - SYNCHRONISATION FIREBASE + BOUTONS FONCTIONNELS + Z-INDEX CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -59,7 +59,7 @@ import { db } from '../core/firebase.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 /**
- * 👥 PAGE ÉQUIPE AVEC SYNCHRONISATION FIREBASE RÉELLE + BOUTONS FONCTIONNELS
+ * 👥 PAGE ÉQUIPE AVEC SYNCHRONISATION FIREBASE RÉELLE + BOUTONS FONCTIONNELS + Z-INDEX CORRIGÉ
  */
 const TeamPage = () => {
   const { user } = useAuthStore();
@@ -684,7 +684,7 @@ const TeamPage = () => {
                 transition={{ delay: index * 0.05 }}
                 className={`
                   bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 
-                  hover:border-gray-600 transition-all duration-300 group
+                  hover:border-gray-600 transition-all duration-300 group relative overflow-visible
                   ${viewMode === 'grid' 
                     ? 'p-6 hover:transform hover:scale-[1.02]' 
                     : 'p-4 flex items-center gap-4'
@@ -752,7 +752,7 @@ const TeamPage = () => {
                   </div>
                 </div>
 
-                {/* Actions - VERSION CORRIGÉE AVEC BOUTONS FONCTIONNELS */}
+                {/* Actions - VERSION CORRIGÉE AVEC Z-INDEX TRÈS ÉLEVÉ */}
                 <div className={`flex items-center gap-2 ${viewMode === 'grid' ? 'justify-between' : ''}`}>
                   <button 
                     onClick={() => handleViewProfile(member)}
@@ -780,9 +780,9 @@ const TeamPage = () => {
                         <MoreHorizontal className="w-4 h-4" />
                       </button>
                       
-                      {/* Menu déroulant actions */}
+                      {/* Menu déroulant actions - ✅ Z-INDEX CORRIGÉ */}
                       {showMemberActions === member.id && (
-                        <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20">
+                        <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-[9999]">
                           <div className="py-1">
                             <button
                               onClick={() => handleEditMember(member)}
@@ -1097,8 +1097,9 @@ export default TeamPage;
 // ==========================================
 // 📋 LOGS DE CONFIRMATION
 // ==========================================
-console.log('✅ TeamPage Firebase synchronisée + Boutons fonctionnels');
+console.log('✅ TeamPage Firebase synchronisée + Boutons fonctionnels + Z-Index corrigé');
 console.log('🔄 Chargement données réelles depuis Firebase');
 console.log('🛡️ Fallback sécurisé avec utilisateur connecté');
 console.log('👥 Interface complète: Profils, Messagerie, Actions, Invitations');
 console.log('🎯 Tous les boutons sont maintenant interactifs !');
+console.log('🔧 Menu actions avec z-index 9999 - Plus de problème de superposition !');
