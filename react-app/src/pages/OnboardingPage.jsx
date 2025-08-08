@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/OnboardingPage.jsx
-// SYNCHRONISATION FIREBASE ULTRA-ROBUSTE - ZÉRO PERTE DE DONNÉES
+// SOLUTION API REST FIREBASE - CONTOURNEMENT COMPLET DU BUG
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -25,325 +25,246 @@ import {
   Shield,
   Cloud,
   Wifi,
-  WifiOff
+  WifiOff,
+  Database
 } from 'lucide-react';
 
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// 🔥 IMPORTS FIREBASE POUR SAUVEGARDE ROBUSTE
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  serverTimestamp, 
-  runTransaction,
-  enableNetwork,
-  disableNetwork
-} from 'firebase/firestore';
-import { db } from '../core/firebase.js';
+// 🔥 IMPORT MINIMAL FIREBASE (JUSTE POUR AUTH)
+import { getAuth } from 'firebase/auth';
 
-// 🛡️ SERVICE FIREBASE ULTRA-ROBUSTE - ZÉRO PERTE DE DONNÉES
-const firebaseRobustService = {
-  COLLECTION: 'onboardingProgress',
-  USER_COLLECTION: 'users',
-  syncQueue: [],
-  isOnline: true,
-  retryAttempts: new Map(),
-  maxRetries: 5,
+// 🛡️ SERVICE REST API FIREBASE - CONTOURNEMENT DU BUG SDK
+const firebaseRestService = {
+  PROJECT_ID: 'synergia-app-f27e7',
+  BASE_URL: `https://firestore.googleapis.com/v1/projects/synergia-app-f27e7/databases/(default)/documents`,
   
-  // 🌐 DÉTECTION CONNEXION RÉSEAU
-  initNetworkDetection() {
-    // Détecter les changements de connexion
-    window.addEventListener('online', () => {
-      console.log('🌐 [NETWORK] Connexion restaurée');
-      this.isOnline = true;
-      this.processOfflineQueue();
-      this.showNotification('Connexion restaurée - Synchronisation...', 'success');
-    });
-    
-    window.addEventListener('offline', () => {
-      console.log('📡 [NETWORK] Connexion perdue');
-      this.isOnline = false;
-      this.showNotification('Mode hors ligne activé', 'warning');
-    });
-    
-    this.isOnline = navigator.onLine;
-  },
-  
-  // 💾 SAUVEGARDE AVEC TRANSACTION ATOMIQUE
-  async saveProgressRobust(userId, formationData) {
-    if (!userId || !formationData) {
-      throw new Error('Données manquantes pour sauvegarde');
-    }
-    
-    const operation = {
-      type: 'save_progress',
-      userId,
-      data: formationData,
-      timestamp: Date.now(),
-      attempts: 0
-    };
-    
-    return await this.executeWithRetry(operation);
-  },
-  
-  // 🔄 EXÉCUTION AVEC RETRY AUTOMATIQUE
-  async executeWithRetry(operation) {
-    const operationId = `${operation.type}_${operation.userId}_${operation.timestamp}`;
-    
+  // 🔑 OBTENIR TOKEN D'AUTHENTIFICATION
+  async getAuthToken() {
     try {
-      // Si hors ligne, ajouter à la queue
-      if (!this.isOnline) {
-        this.addToQueue(operation);
-        this.showNotification('Sauvegardé hors ligne - Sync à la reconnexion', 'warning');
-        return { success: true, offline: true };
-      }
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) throw new Error('Utilisateur non authentifié');
       
-      // Tentative d'exécution
-      const result = await this.executeOperation(operation);
-      
-      if (result.success) {
-        // Supprimer des tentatives si succès
-        this.retryAttempts.delete(operationId);
-        return result;
-      } else {
-        throw new Error(result.error);
-      }
-      
+      const token = await user.getIdToken();
+      return token;
     } catch (error) {
-      console.error(`❌ [RETRY] Échec opération ${operation.type}:`, error);
-      
-      // Gérer les tentatives
-      const attempts = this.retryAttempts.get(operationId) || 0;
-      
-      if (attempts < this.maxRetries) {
-        this.retryAttempts.set(operationId, attempts + 1);
-        
-        // Délai exponentiel: 1s, 2s, 4s, 8s, 16s
-        const delay = Math.pow(2, attempts) * 1000;
-        
-        console.log(`🔄 [RETRY] Tentative ${attempts + 1}/${this.maxRetries} dans ${delay}ms`);
-        this.showNotification(`Retry tentative ${attempts + 1}/${this.maxRetries}...`, 'warning');
-        
-        setTimeout(() => {
-          this.executeWithRetry(operation);
-        }, delay);
-        
-        return { success: true, retrying: true };
-      } else {
-        // Max tentatives atteintes, ajouter à la queue pour plus tard
-        this.addToQueue(operation);
-        this.retryAttempts.delete(operationId);
-        this.showNotification('Sauvegarde en queue - Retry plus tard', 'error');
-        return { success: false, queued: true, error: error.message };
-      }
+      console.error('❌ [REST] Erreur récupération token:', error);
+      throw error;
     }
   },
   
-  // ⚡ EXÉCUTION D'OPÉRATION ATOMIQUE
-  async executeOperation(operation) {
-    switch (operation.type) {
-      case 'save_progress':
-        return await this.saveToFirebase(operation.userId, operation.data);
-      case 'sync_xp':
-        return await this.syncXpToFirebase(operation.userId, operation.xp, operation.tasks);
-      default:
-        throw new Error(`Type d'opération inconnu: ${operation.type}`);
-    }
-  },
-  
-  // 💾 SAUVEGARDE FIREBASE AVEC TRANSACTION
-  async saveToFirebase(userId, formationData) {
+  // 💾 SAUVEGARDE VIA API REST
+  async saveProgressRest(userId, formationData) {
     try {
-      console.log('💾 [FIREBASE] Sauvegarde avec transaction atomique...');
+      console.log('💾 [REST] Sauvegarde via API REST Firebase...');
       
-      const docRef = doc(db, this.COLLECTION, userId);
+      const token = await this.getAuthToken();
+      const timestamp = new Date().toISOString();
       
-      // ✅ UTILISER runTransaction POUR GARANTIR LA CONSISTANCE
-      await runTransaction(db, async (transaction) => {
-        // Lire l'état actuel
-        const currentDoc = await transaction.get(docRef);
-        
-        const dataToSave = {
-          userId,
-          formationData,
-          lastUpdated: new Date().toISOString(),
-          savedAt: serverTimestamp(),
-          version: '3.5.3',
-          syncId: Date.now(), // ID unique pour éviter les doublons
-        };
-        
-        // Si le document existe, comparer les versions
-        if (currentDoc.exists()) {
-          const currentData = currentDoc.data();
-          const currentSyncId = currentData.syncId || 0;
-          
-          // Éviter d'écraser une version plus récente
-          if (dataToSave.syncId <= currentSyncId) {
-            console.log('⚠️ [FIREBASE] Version plus récente détectée, annulation');
-            return;
-          }
+      const document = {
+        fields: {
+          userId: { stringValue: userId },
+          formationData: { stringValue: JSON.stringify(formationData) },
+          lastUpdated: { stringValue: timestamp },
+          savedAt: { timestampValue: timestamp },
+          version: { stringValue: '3.5.3' },
+          syncId: { integerValue: Date.now().toString() }
         }
-        
-        // Écrire les nouvelles données
-        transaction.set(docRef, dataToSave);
+      };
+      
+      const url = `${this.BASE_URL}/onboardingProgress/${userId}`;
+      
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(document)
       });
       
-      console.log('✅ [FIREBASE] Sauvegarde transaction réussie');
-      this.showNotification('Sauvegardé sur Firebase !', 'success');
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorData}`);
+      }
       
+      const result = await response.json();
+      console.log('✅ [REST] Sauvegarde API REST réussie');
+      this.showNotification('Sauvegardé via API REST !', 'success');
+      
+      return { success: true, data: result };
+      
+    } catch (error) {
+      console.error('❌ [REST] Erreur sauvegarde API REST:', error);
+      throw error;
+    }
+  },
+  
+  // 📥 CHARGEMENT VIA API REST
+  async loadProgressRest(userId) {
+    try {
+      console.log('📥 [REST] Chargement via API REST Firebase...');
+      
+      const token = await this.getAuthToken();
+      const url = `${this.BASE_URL}/onboardingProgress/${userId}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.status === 404) {
+        console.log('📝 [REST] Aucune progression trouvée');
+        return { success: false, error: 'Document non trouvé' };
+      }
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorData}`);
+      }
+      
+      const result = await response.json();
+      
+      // Extraire les données du format Firestore REST
+      const formationData = JSON.parse(result.fields.formationData.stringValue);
+      const lastUpdated = result.fields.lastUpdated.stringValue;
+      
+      console.log('✅ [REST] Chargement API REST réussi');
+      this.showNotification('Progression chargée via API REST', 'success');
+      
+      return { 
+        success: true, 
+        data: formationData,
+        lastUpdated: lastUpdated
+      };
+      
+    } catch (error) {
+      console.error('❌ [REST] Erreur chargement API REST:', error);
+      throw error;
+    }
+  },
+  
+  // 🔄 SYNCHRONISATION XP VIA API REST
+  async syncXpRest(userId, earnedXp, completedTasks) {
+    try {
+      console.log(`🔄 [REST] Synchronisation ${earnedXp} XP via API REST...`);
+      
+      const token = await this.getAuthToken();
+      
+      // D'abord lire les données actuelles
+      const readUrl = `${this.BASE_URL}/users/${userId}`;
+      const readResponse = await fetch(readUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      let currentXp = 0;
+      let currentTasks = 0;
+      let currentWeeklyXp = 0;
+      let currentMonthlyXp = 0;
+      
+      if (readResponse.ok) {
+        const userData = await readResponse.json();
+        if (userData.fields?.gamification?.mapValue?.fields) {
+          const gamification = userData.fields.gamification.mapValue.fields;
+          currentXp = parseInt(gamification.totalXp?.integerValue || '0');
+          currentTasks = parseInt(gamification.tasksCompleted?.integerValue || '0');
+          currentWeeklyXp = parseInt(gamification.weeklyXp?.integerValue || '0');
+          currentMonthlyXp = parseInt(gamification.monthlyXp?.integerValue || '0');
+        }
+      }
+      
+      // Calculer nouvelles valeurs
+      const newTotalXp = currentXp + earnedXp;
+      const newLevel = Math.floor(newTotalXp / 100) + 1;
+      const newTasks = currentTasks + completedTasks;
+      const newWeeklyXp = currentWeeklyXp + earnedXp;
+      const newMonthlyXp = currentMonthlyXp + earnedXp;
+      
+      // Préparer document de mise à jour
+      const updateDocument = {
+        fields: {
+          gamification: {
+            mapValue: {
+              fields: {
+                totalXp: { integerValue: newTotalXp.toString() },
+                weeklyXp: { integerValue: newWeeklyXp.toString() },
+                monthlyXp: { integerValue: newMonthlyXp.toString() },
+                level: { integerValue: newLevel.toString() },
+                tasksCompleted: { integerValue: newTasks.toString() },
+                lastActivityAt: { stringValue: new Date().toISOString() }
+              }
+            }
+          },
+          updatedAt: { timestampValue: new Date().toISOString() }
+        }
+      };
+      
+      // Écrire via API REST
+      const writeUrl = `${this.BASE_URL}/users/${userId}`;
+      const writeResponse = await fetch(writeUrl, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateDocument)
+      });
+      
+      if (!writeResponse.ok) {
+        const errorData = await writeResponse.text();
+        throw new Error(`HTTP ${writeResponse.status}: ${errorData}`);
+      }
+      
+      console.log(`✅ [REST] +${earnedXp} XP synchronisés via API REST`);
       return { success: true };
       
     } catch (error) {
-      console.error('❌ [FIREBASE] Erreur sauvegarde:', error);
+      console.error('❌ [REST] Erreur sync XP via API REST:', error);
+      throw error;
+    }
+  },
+  
+  // 🔄 SERVICE PRINCIPAL AVEC RETRY
+  retryAttempts: new Map(),
+  maxRetries: 3,
+  
+  async executeWithRetry(operation, ...args) {
+    const operationKey = `${operation.name}_${args[0]}_${Date.now()}`;
+    
+    try {
+      const result = await operation.apply(this, args);
+      this.retryAttempts.delete(operationKey);
+      return result;
+    } catch (error) {
+      const attempts = this.retryAttempts.get(operationKey) || 0;
       
-      // Analyser le type d'erreur
-      if (error.code === 'unavailable') {
-        throw new Error('Firebase temporairement indisponible');
-      } else if (error.code === 'permission-denied') {
-        throw new Error('Permissions insuffisantes');
+      if (attempts < this.maxRetries) {
+        this.retryAttempts.set(operationKey, attempts + 1);
+        const delay = Math.pow(2, attempts) * 1000; // 1s, 2s, 4s
+        
+        console.log(`🔄 [REST] Retry ${attempts + 1}/${this.maxRetries} dans ${delay}ms`);
+        this.showNotification(`Retry API REST ${attempts + 1}/${this.maxRetries}...`, 'warning');
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.executeWithRetry(operation, ...args);
       } else {
+        this.retryAttempts.delete(operationKey);
         throw error;
       }
     }
   },
   
-  // 🔄 SYNCHRONISATION XP AVEC TRANSACTION
-  async syncXpToFirebase(userId, earnedXp, completedTasks) {
-    try {
-      console.log(`🔄 [XP] Synchronisation ${earnedXp} XP avec transaction...`);
-      
-      const userRef = doc(db, this.USER_COLLECTION, userId);
-      
-      await runTransaction(db, async (transaction) => {
-        const userDoc = await transaction.get(userRef);
-        
-        if (!userDoc.exists()) {
-          // Créer le document utilisateur s'il n'existe pas
-          const newUserData = {
-            userId,
-            gamification: {
-              totalXp: earnedXp,
-              weeklyXp: earnedXp,
-              monthlyXp: earnedXp,
-              level: Math.floor(earnedXp / 100) + 1,
-              tasksCompleted: completedTasks,
-              lastActivityAt: new Date().toISOString()
-            },
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-          };
-          
-          transaction.set(userRef, newUserData);
-        } else {
-          // Mettre à jour les données existantes
-          const userData = userDoc.data();
-          const currentXp = userData.gamification?.totalXp || 0;
-          const currentTasks = userData.gamification?.tasksCompleted || 0;
-          const newTotalXp = currentXp + earnedXp;
-          const newLevel = Math.floor(newTotalXp / 100) + 1;
-          
-          const updates = {
-            'gamification.totalXp': newTotalXp,
-            'gamification.weeklyXp': (userData.gamification?.weeklyXp || 0) + earnedXp,
-            'gamification.monthlyXp': (userData.gamification?.monthlyXp || 0) + earnedXp,
-            'gamification.level': newLevel,
-            'gamification.tasksCompleted': currentTasks + completedTasks,
-            'gamification.lastActivityAt': new Date().toISOString(),
-            'syncMetadata.lastOnboardingSync': serverTimestamp(),
-            updatedAt: serverTimestamp()
-          };
-          
-          transaction.update(userRef, updates);
-        }
-      });
-      
-      console.log(`✅ [XP] +${earnedXp} XP synchronisés avec succès`);
-      return { success: true };
-      
-    } catch (error) {
-      console.error('❌ [XP] Erreur synchronisation XP:', error);
-      throw error;
-    }
-  },
-  
-  // 📥 CHARGEMENT ROBUSTE
-  async loadProgress(userId) {
-    try {
-      console.log('📥 [FIREBASE] Chargement progression...');
-      
-      const docRef = doc(db, this.COLLECTION, userId);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        console.log('✅ [FIREBASE] Progression chargée');
-        this.showNotification('Progression chargée depuis Firebase', 'success');
-        
-        return { 
-          success: true, 
-          data: data.formationData,
-          lastUpdated: data.lastUpdated,
-          syncId: data.syncId
-        };
-      } else {
-        console.log('📝 [FIREBASE] Aucune progression trouvée');
-        return { success: false, error: 'Aucune sauvegarde trouvée' };
-      }
-      
-    } catch (error) {
-      console.error('❌ [FIREBASE] Erreur chargement:', error);
-      throw error;
-    }
-  },
-  
-  // 📋 GESTION DE LA QUEUE HORS LIGNE
-  addToQueue(operation) {
-    // Éviter les doublons
-    const exists = this.syncQueue.find(op => 
-      op.type === operation.type && 
-      op.userId === operation.userId &&
-      Math.abs(op.timestamp - operation.timestamp) < 5000
-    );
-    
-    if (!exists) {
-      this.syncQueue.push(operation);
-      console.log(`📋 [QUEUE] Opération ajoutée (${this.syncQueue.length} en queue)`);
-    }
-  },
-  
-  // 🔄 TRAITEMENT DE LA QUEUE
-  async processOfflineQueue() {
-    if (this.syncQueue.length === 0) return;
-    
-    console.log(`🔄 [QUEUE] Traitement de ${this.syncQueue.length} opérations en attente...`);
-    
-    const operations = [...this.syncQueue];
-    this.syncQueue = [];
-    
-    for (const operation of operations) {
-      try {
-        await this.executeOperation(operation);
-        console.log(`✅ [QUEUE] Opération ${operation.type} synchronisée`);
-      } catch (error) {
-        console.error(`❌ [QUEUE] Échec opération ${operation.type}:`, error);
-        // Remettre en queue si échec
-        this.addToQueue(operation);
-      }
-      
-      // Délai entre opérations pour éviter surcharge
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-    
-    if (this.syncQueue.length === 0) {
-      this.showNotification('Toutes les données synchronisées !', 'success');
-    }
-  },
-  
-  // 🔔 NOTIFICATIONS INTELLIGENTES
+  // 🔔 NOTIFICATIONS
   showNotification(message, type = 'success') {
-    // Supprimer notifications existantes
-    const existing = document.querySelectorAll('.firebase-notification');
+    const existing = document.querySelectorAll('.rest-notification');
     existing.forEach(el => el.remove());
     
     const colors = {
@@ -354,7 +275,7 @@ const firebaseRobustService = {
     };
     
     const notification = document.createElement('div');
-    notification.className = 'firebase-notification';
+    notification.className = 'rest-notification';
     notification.style.cssText = `
       position: fixed;
       top: 20px;
@@ -368,18 +289,16 @@ const firebaseRobustService = {
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       transform: translateX(100%);
       transition: transform 0.3s ease;
-      max-width: 300px;
+      max-width: 350px;
       font-size: 14px;
     `;
     notification.textContent = message;
     document.body.appendChild(notification);
     
-    // Animation d'entrée
     setTimeout(() => {
       notification.style.transform = 'translateX(0)';
     }, 100);
     
-    // Animation de sortie
     setTimeout(() => {
       notification.style.transform = 'translateX(100%)';
       setTimeout(() => {
@@ -401,8 +320,6 @@ const OnboardingPage = () => {
   const [expandedPhase, setExpandedPhase] = useState(null);
   const [saveStatus, setSaveStatus] = useState('idle');
   const [lastSaved, setLastSaved] = useState(null);
-  const [networkStatus, setNetworkStatus] = useState('online');
-  const [queueCount, setQueueCount] = useState(0);
   
   // Référence pour éviter les re-renders multiples
   const saveTimeoutRef = useRef(null);
@@ -662,31 +579,6 @@ const OnboardingPage = () => {
     }
   });
 
-  // 🚀 INITIALISATION SERVICE ROBUSTE
-  useEffect(() => {
-    firebaseRobustService.initNetworkDetection();
-    
-    // Mettre à jour le statut réseau
-    const updateNetworkStatus = () => {
-      setNetworkStatus(navigator.onLine ? 'online' : 'offline');
-      setQueueCount(firebaseRobustService.syncQueue.length);
-    };
-    
-    window.addEventListener('online', updateNetworkStatus);
-    window.addEventListener('offline', updateNetworkStatus);
-    
-    // Mise à jour périodique du compteur de queue
-    const queueInterval = setInterval(() => {
-      setQueueCount(firebaseRobustService.syncQueue.length);
-    }, 1000);
-    
-    return () => {
-      window.removeEventListener('online', updateNetworkStatus);
-      window.removeEventListener('offline', updateNetworkStatus);
-      clearInterval(queueInterval);
-    };
-  }, []);
-
   // 🔄 CHARGER LA PROGRESSION AU DÉMARRAGE
   useEffect(() => {
     const loadSavedProgress = async () => {
@@ -695,19 +587,22 @@ const OnboardingPage = () => {
       setLoading(true);
       
       try {
-        const result = await firebaseRobustService.loadProgress(user.uid);
+        const result = await firebaseRestService.executeWithRetry(
+          firebaseRestService.loadProgressRest, 
+          user.uid
+        );
         
         if (result.success && result.data) {
-          console.log('📊 Progression chargée depuis Firebase');
+          console.log('📊 Progression chargée via API REST');
           setFormationData(result.data);
           setLastSaved(result.lastUpdated);
         } else {
           console.log('📝 Nouvelle session, données par défaut');
-          firebaseRobustService.showNotification('Nouvelle session démarrée', 'info');
+          firebaseRestService.showNotification('Nouvelle session démarrée', 'info');
         }
       } catch (error) {
         console.error('❌ Erreur chargement progression:', error);
-        firebaseRobustService.showNotification('Erreur chargement - Mode hors ligne', 'error');
+        firebaseRestService.showNotification('Erreur chargement - Mode local', 'error');
       }
       
       setLoading(false);
@@ -716,7 +611,7 @@ const OnboardingPage = () => {
     loadSavedProgress();
   }, [user?.uid]);
 
-  // ✅ FONCTION DE TOGGLE AVEC SYNCHRONISATION ROBUSTE
+  // ✅ FONCTION DE TOGGLE AVEC API REST
   const toggleTaskCompletion = async (phaseId, taskId, experienceId = null) => {
     setSaveStatus('saving');
     
@@ -747,51 +642,50 @@ const OnboardingPage = () => {
         }
       }
       
-      // 🛡️ SAUVEGARDE FIREBASE ROBUSTE
+      // 🛡️ SAUVEGARDE VIA API REST
       if (user?.uid) {
         // Annuler la sauvegarde précédente
         if (saveTimeoutRef.current) {
           clearTimeout(saveTimeoutRef.current);
         }
         
-        // Délai de debounce pour éviter les sauvegardes multiples
+        // Délai de debounce
         saveTimeoutRef.current = setTimeout(async () => {
           try {
             // Sauvegarder la progression
-            const saveResult = await firebaseRobustService.saveProgressRobust(user.uid, newData);
+            await firebaseRestService.executeWithRetry(
+              firebaseRestService.saveProgressRest, 
+              user.uid, 
+              newData
+            );
             
-            if (saveResult.success) {
-              setLastSaved(new Date().toISOString());
-              setSaveStatus('saved');
-              
-              // Si tâche complétée, synchroniser XP
-              if (taskCompleted && taskXp > 0) {
-                const xpOperation = {
-                  type: 'sync_xp',
-                  userId: user.uid,
-                  xp: taskXp,
-                  tasks: 1,
-                  timestamp: Date.now()
-                };
-                
-                await firebaseRobustService.executeWithRetry(xpOperation);
-              }
-            } else if (saveResult.offline) {
-              setSaveStatus('offline');
-            } else if (saveResult.retrying) {
-              setSaveStatus('retrying');
-            } else {
-              setSaveStatus('error');
+            setLastSaved(new Date().toISOString());
+            setSaveStatus('saved');
+            
+            // Si tâche complétée, synchroniser XP
+            if (taskCompleted && taskXp > 0) {
+              setTimeout(async () => {
+                try {
+                  await firebaseRestService.executeWithRetry(
+                    firebaseRestService.syncXpRest,
+                    user.uid,
+                    taskXp,
+                    1
+                  );
+                } catch (error) {
+                  console.error('❌ Erreur sync XP:', error);
+                }
+              }, 2000);
             }
             
             setTimeout(() => setSaveStatus('idle'), 3000);
             
           } catch (error) {
-            console.error('❌ Erreur sauvegarde robuste:', error);
+            console.error('❌ Erreur sauvegarde API REST:', error);
             setSaveStatus('error');
             setTimeout(() => setSaveStatus('idle'), 3000);
           }
-        }, 1000);
+        }, 1500);
       }
       
       return newData;
@@ -842,30 +736,17 @@ const OnboardingPage = () => {
     };
   };
 
-  // 🎨 INDICATEUR DE SAUVEGARDE ULTRA-DÉTAILLÉ
+  // 🎨 INDICATEUR DE SAUVEGARDE API REST
   const SaveIndicator = () => {
-    if (saveStatus === 'idle' && networkStatus === 'online' && queueCount === 0) return null;
+    if (saveStatus === 'idle') return null;
     
     const statusConfig = {
-      saving: { color: 'bg-blue-500', icon: Loader, text: 'Sauvegarde...', spin: true },
-      saved: { color: 'bg-green-500', icon: CheckCircle, text: 'Sauvegardé Firebase !', spin: false },
-      error: { color: 'bg-red-500', icon: AlertCircle, text: 'Erreur - En queue', spin: false },
-      offline: { color: 'bg-orange-500', icon: WifiOff, text: 'Hors ligne - En queue', spin: false },
-      retrying: { color: 'bg-yellow-500', icon: Loader, text: 'Retry en cours...', spin: true }
+      saving: { color: 'bg-blue-500', icon: Database, text: 'Sauvegarde API REST...', spin: true },
+      saved: { color: 'bg-green-500', icon: CheckCircle, text: 'Sauvegardé API REST !', spin: false },
+      error: { color: 'bg-red-500', icon: AlertCircle, text: 'Erreur API REST', spin: false }
     };
     
-    let config = statusConfig[saveStatus] || statusConfig.saved;
-    let displayText = config.text;
-    
-    // Ajouter info réseau et queue
-    if (networkStatus === 'offline') {
-      config = { color: 'bg-orange-500', icon: WifiOff, text: 'Mode hors ligne', spin: false };
-    }
-    
-    if (queueCount > 0) {
-      displayText += ` (${queueCount} en queue)`;
-    }
-    
+    const config = statusConfig[saveStatus];
     const Icon = config.icon;
     
     return (
@@ -876,10 +757,8 @@ const OnboardingPage = () => {
         className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 ${config.color} shadow-lg`}
       >
         <Icon className={`w-4 h-4 ${config.spin ? 'animate-spin' : ''}`} />
-        <span className="text-sm">{displayText}</span>
-        {networkStatus === 'online' && (
-          <Wifi className="w-3 h-3 text-green-300" />
-        )}
+        <span className="text-sm">{config.text}</span>
+        <Database className="w-3 h-3 text-blue-300" />
         {lastSaved && saveStatus === 'saved' && (
           <span className="text-xs opacity-75 ml-2">
             {new Date(lastSaved).toLocaleTimeString()}
@@ -945,14 +824,14 @@ const OnboardingPage = () => {
           <div className="bg-gray-800/50 rounded-2xl p-6 border border-gray-700 mb-8">
             <div className="mb-4">
               <div className="flex items-center justify-center gap-2 mb-4">
-                <Shield className="w-6 h-6 text-blue-400" />
+                <Database className="w-6 h-6 text-green-400" />
                 <h3 className="text-2xl font-bold text-white">
                   🎯 Ton Parcours Game Master
                 </h3>
-                <Cloud className="w-6 h-6 text-green-400" />
+                <Shield className="w-6 h-6 text-blue-400" />
               </div>
               <p className="text-gray-400 mb-4">
-                Synchronisation Firebase ultra-robuste - Zéro perte de données garantie
+                ✅ API REST Firebase - Contournement complet du bug SDK
               </p>
             </div>
             
@@ -1171,10 +1050,10 @@ const OnboardingPage = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-500 mx-auto mb-4"></div>
           <h2 className="text-white text-xl font-semibold mb-2">Chargement de votre formation</h2>
-          <p className="text-gray-400">Synchronisation Firebase en cours...</p>
+          <p className="text-gray-400">Initialisation API REST Firebase...</p>
           <div className="mt-4 flex items-center justify-center gap-2">
-            <Shield className="w-5 h-5 text-blue-400" />
-            <span className="text-sm text-blue-400">Système ultra-robuste</span>
+            <Database className="w-5 h-5 text-green-400" />
+            <span className="text-sm text-green-400">Contournement du bug SDK</span>
           </div>
         </div>
       </div>
@@ -1185,7 +1064,7 @@ const OnboardingPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-6">
       <div className="max-w-7xl mx-auto">
         
-        {/* Indicateur de sauvegarde ultra-détaillé */}
+        {/* Indicateur de sauvegarde API REST */}
         <AnimatePresence>
           <SaveIndicator />
         </AnimatePresence>
@@ -1202,8 +1081,8 @@ const OnboardingPage = () => {
             Escape & Quiz Game – 1 mois – coche chaque tâche, gagne des XP et débloque des badges
           </p>
           <div className="mt-2 flex items-center justify-center gap-2">
-            <Shield className="w-4 h-4 text-green-400" />
-            <span className="text-sm text-green-400">Synchronisation Firebase ultra-robuste activée</span>
+            <Database className="w-4 h-4 text-green-400" />
+            <span className="text-sm text-green-400">API REST Firebase - Bug SDK contourné</span>
           </div>
         </div>
 
