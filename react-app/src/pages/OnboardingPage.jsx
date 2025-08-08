@@ -269,92 +269,131 @@ const firebaseRestService = {
   }
 };
 
-// 📚 DONNÉES DE FORMATION BRAIN
+// 📚 DONNÉES DE FORMATION BRAIN COMPLÈTES - 78 TÂCHES
 const BRAIN_FORMATION_DATA = {
-  welcome: {
-    id: 'welcome',
-    title: '🧠 Bienvenue chez Brain !',
-    description: 'Voici tes premières étapes pour te sentir chez toi et découvrir l\'esprit Brain.',
+  // Phase 1: Découverte de Brain & de l'équipe (20 tâches)
+  decouverte_brain: {
+    id: 'decouverte_brain',
+    title: '🧠 Découverte de Brain & de l\'équipe',
+    description: 'Bienvenue ! Voici tes premières étapes pour te sentir chez toi et découvrir l\'esprit Brain.',
     category: 'introduction',
     order: 1,
-    estimatedTime: '2 minutes',
+    estimatedTime: '3 jours',
     tasks: [
-      {
-        id: 'tour_bureaux',
-        label: 'Tour des bureaux avec ton référent',
-        description: 'Découverte physique des espaces, présentation équipes',
-        xp: 20,
-        category: 'discovery'
-      },
-      {
-        id: 'presentation_equipe',
-        label: 'Présentation à l\'équipe',
-        description: 'Rencontrer les futurs collègues et te présenter',
-        xp: 25,
-        category: 'social'
-      }
+      { id: 'visite_bureau', label: 'Tour des bureaux avec ton référent', description: 'Découverte physique des espaces, présentation équipes', xp: 20, category: 'discovery' },
+      { id: 'presentation_equipe', label: 'Présentation à l\'équipe', description: 'Rencontrer tes futurs collègues et te présenter', xp: 25, category: 'social' },
+      { id: 'acces_outils', label: 'Accès aux outils Brain (PC, badgeuse, etc.)', description: 'Configuration de ton poste de travail', xp: 30, category: 'tools' },
+      { id: 'presentation_culture', label: 'Présentation de la culture et des valeurs Brain', description: 'Découvrir l\'ADN de l\'entreprise', xp: 25, category: 'culture' },
+      { id: 'questions_generales', label: 'Temps pour poser tes questions générales', description: 'Moment d\'échange libre avec ton référent', xp: 20, category: 'social' },
+      { id: 'visite_locaux_complete', label: 'Visite complète des locaux Brain', description: 'Tour détaillé de tous les espaces', xp: 15, category: 'discovery' },
+      { id: 'rencontre_direction', label: 'Rencontre avec la direction', description: 'Présentation officielle à l\'équipe dirigeante', xp: 20, category: 'social' },
+      { id: 'comprendre_missions', label: 'Comprendre les missions de Brain', description: 'Vue d\'ensemble des activités et projets', xp: 25, category: 'knowledge' },
+      { id: 'decouverte_clients', label: 'Découverte des principaux clients', description: 'Présentation du portefeuille client', xp: 20, category: 'business' },
+      { id: 'formation_securite', label: 'Formation sécurité et procédures d\'urgence', description: 'Règles de sécurité et évacuation', xp: 15, category: 'safety' },
+      { id: 'reglement_interieur', label: 'Lecture du règlement intérieur', description: 'Prise de connaissance des règles internes', xp: 10, category: 'legal' },
+      { id: 'horaires_pauses', label: 'Informations horaires et pauses', description: 'Organisation du temps de travail', xp: 10, category: 'organization' },
+      { id: 'materiel_fourni', label: 'Remise du matériel et équipements', description: 'Attribution des outils de travail', xp: 15, category: 'tools' },
+      { id: 'badge_acces', label: 'Création du badge d\'accès', description: 'Configuration des droits d\'accès', xp: 10, category: 'security' },
+      { id: 'comptes_numeriques', label: 'Création des comptes numériques', description: 'Accès aux plateformes et outils', xp: 20, category: 'digital' },
+      { id: 'formation_synergia', label: 'Formation à Synergia', description: 'Maîtrise de la plateforme principale', xp: 30, category: 'platform' },
+      { id: 'test_connexions', label: 'Test de toutes les connexions', description: 'Vérification des accès systèmes', xp: 15, category: 'technical' },
+      { id: 'premier_pointage', label: 'Premier pointage badgeuse', description: 'Test du système de pointage', xp: 10, category: 'routine' },
+      { id: 'photo_trombi', label: 'Photo pour le trombinoscope', description: 'Photo officielle pour les documents', xp: 5, category: 'admin' },
+      { id: 'contact_urgence', label: 'Coordonnées de contact d\'urgence', description: 'Information des contacts en cas d\'urgence', xp: 5, category: 'safety' }
     ]
   },
-  setup: {
-    id: 'setup',
-    title: '⚙️ Accès aux outils Brain (PC, badgeuse, etc.)',
-    description: 'Configuration de ton poste de travail',
-    category: 'setup',
+
+  // Phase 2: Formation technique escape game (25 tâches)
+  formation_technique: {
+    id: 'formation_technique',
+    title: '🎮 Formation technique escape game',
+    description: 'Maîtrise les aspects techniques de nos escape games : mécaniques, énigmes, scénarios.',
+    category: 'technical',
     order: 2,
-    estimatedTime: '30 minutes',
+    estimatedTime: '1 semaine',
     tasks: [
-      {
-        id: 'config_pc',
-        label: 'Configuration PC et accès réseau',
-        description: 'Installation logiciels, comptes, mots de passe',
-        xp: 30,
-        category: 'technical'
-      },
-      {
-        id: 'test_badgeuse',
-        label: 'Test de la badgeuse et pointage',
-        description: 'Premier test du système de pointage',
-        xp: 15,
-        category: 'tools'
-      },
-      {
-        id: 'acces_synergia',
-        label: 'Première connexion à Synergia',
-        description: 'Découverte de la plateforme collaborative',
-        xp: 25,
-        category: 'platform'
-      }
+      { id: 'mecaniques_jeu', label: 'Comprendre les mécaniques de jeu de chaque escape', description: 'Étude détaillée de chaque salle et ses mécanismes', xp: 35, category: 'gameplay' },
+      { id: 'scenarios_enigmes', label: 'Mémoriser les scénarios et énigmes', description: 'Apprentissage des histoires et solutions', xp: 40, category: 'content' },
+      { id: 'manipulation_objets', label: 'Savoir manipuler et réinitialiser les objets/mécanismes', description: 'Formation pratique sur la réinitialisation', xp: 35, category: 'technical' },
+      { id: 'troubleshooting', label: 'Troubleshooting : que faire si quelque chose ne marche pas', description: 'Procédures de dépannage et contact support', xp: 40, category: 'support' },
+      { id: 'salle_pirate', label: 'Maîtrise de la salle Pirate', description: 'Connaissance complète du scénario pirate', xp: 25, category: 'room' },
+      { id: 'salle_horreur', label: 'Maîtrise de la salle Horreur', description: 'Connaissance complète du scénario horreur', xp: 25, category: 'room' },
+      { id: 'salle_mystere', label: 'Maîtrise de la salle Mystère', description: 'Connaissance complète du scénario mystère', xp: 25, category: 'room' },
+      { id: 'salle_aventure', label: 'Maîtrise de la salle Aventure', description: 'Connaissance complète du scénario aventure', xp: 25, category: 'room' },
+      { id: 'indices_progressifs', label: 'Système d\'indices progressifs', description: 'Comment donner des indices adaptés', xp: 30, category: 'guidance' },
+      { id: 'gestion_temps', label: 'Gestion du temps de jeu', description: 'Optimisation des sessions selon le temps', xp: 20, category: 'timing' },
+      { id: 'surveillance_cameras', label: 'Surveillance par caméras', description: 'Utilisation du système de monitoring', xp: 20, category: 'monitoring' },
+      { id: 'audio_ambiance', label: 'Gestion audio et ambiance', description: 'Contrôle des effets sonores et lumières', xp: 20, category: 'atmosphere' },
+      { id: 'reset_rapide', label: 'Procédure de reset rapide', description: 'Remise en état entre les sessions', xp: 25, category: 'operations' },
+      { id: 'maintenance_preventive', label: 'Maintenance préventive quotidienne', description: 'Vérifications et entretien régulier', xp: 20, category: 'maintenance' },
+      { id: 'gestion_pannes', label: 'Gestion des pannes courantes', description: 'Résolution des problèmes fréquents', xp: 30, category: 'troubleshooting' },
+      { id: 'communication_technique', label: 'Communication avec l\'équipe technique', description: 'Remontée des incidents et demandes', xp: 15, category: 'communication' },
+      { id: 'documentation_technique', label: 'Lecture documentation technique', description: 'Maîtrise des guides et procédures', xp: 20, category: 'documentation' },
+      { id: 'outils_diagnostic', label: 'Utilisation des outils de diagnostic', description: 'Test et vérification des équipements', xp: 25, category: 'tools' },
+      { id: 'backup_scenarios', label: 'Scénarios de backup', description: 'Solutions alternatives en cas de panne', xp: 20, category: 'contingency' },
+      { id: 'test_tous_mecanismes', label: 'Test de tous les mécanismes', description: 'Vérification complète avant ouverture', xp: 25, category: 'testing' },
+      { id: 'protocole_securite_technique', label: 'Protocoles de sécurité technique', description: 'Règles de sécurité pour les équipements', xp: 20, category: 'safety' },
+      { id: 'mise_jour_systemes', label: 'Mise à jour des systèmes', description: 'Procédures de mise à jour logicielle', xp: 15, category: 'updates' },
+      { id: 'gestion_eclairage', label: 'Gestion de l\'éclairage dramatique', description: 'Contrôle des ambiances lumineuses', xp: 15, category: 'lighting' },
+      { id: 'effets_speciaux', label: 'Déclenchement des effets spéciaux', description: 'Timing et contrôle des effets', xp: 20, category: 'effects' },
+      { id: 'integration_complete', label: 'Intégration technique complète', description: 'Maîtrise globale de tous les systèmes', xp: 35, category: 'mastery' }
     ]
   },
-  culture: {
-    id: 'culture',
-    title: '🏢 Présentation de la culture et des valeurs Brain',
-    description: 'Découvrir l\'ADN de l\'entreprise',
-    category: 'culture',
+
+  // Phase 3: Accueil et gestion client (18 tâches)
+  accueil_client: {
+    id: 'accueil_client',
+    title: '👥 Accueil et gestion client',
+    description: 'Apprends à créer une expérience client exceptionnelle du premier contact à la sortie.',
+    category: 'customer',
     order: 3,
-    estimatedTime: '15 minutes',
+    estimatedTime: '3 jours',
     tasks: [
-      {
-        id: 'valeurs_brain',
-        label: 'Découvrir les valeurs Brain',
-        description: 'Comprendre notre philosophie et nos principes',
-        xp: 20,
-        category: 'culture'
-      },
-      {
-        id: 'histoire_entreprise',
-        label: 'Histoire et évolution de Brain',
-        description: 'Connaître le parcours et les ambitions',
-        xp: 15,
-        category: 'knowledge'
-      },
-      {
-        id: 'organigramme',
-        label: 'Structure organisationnelle',
-        description: 'Comprendre l\'organisation et les rôles',
-        xp: 20,
-        category: 'organization'
-      }
+      { id: 'accueil_telephonique', label: 'Maîtriser l\'accueil téléphonique', description: 'Techniques de réception et information client', xp: 25, category: 'phone' },
+      { id: 'presentation_activites', label: 'Présenter les activités Brain', description: 'Pitch commercial des différentes offres', xp: 30, category: 'presentation' },
+      { id: 'gestion_reservations', label: 'Gérer les réservations et plannings', description: 'Système de booking et disponibilités', xp: 35, category: 'booking' },
+      { id: 'briefing_equipes', label: 'Briefing des équipes avant le jeu', description: 'Explication des règles et immersion', xp: 40, category: 'briefing' },
+      { id: 'gestion_conflits', label: 'Gérer les conflits et réclamations', description: 'Résolution diplomatique des problèmes', xp: 35, category: 'conflict' },
+      { id: 'animations_attente', label: 'Animer les temps d\'attente', description: 'Divertir les clients en cas de retard', xp: 20, category: 'entertainment' },
+      { id: 'debriefing_post_jeu', label: 'Debriefing post-jeu', description: 'Retour d\'expérience avec les participants', xp: 30, category: 'debrief' },
+      { id: 'vente_additionnelle', label: 'Techniques de vente additionnelle', description: 'Proposition de services complémentaires', xp: 25, category: 'sales' },
+      { id: 'photos_souvenirs', label: 'Gestion photos souvenirs', description: 'Prise de photos et proposition d\'achat', xp: 15, category: 'memories' },
+      { id: 'accueil_groupes_enfants', label: 'Accueil spécifique groupes d\'enfants', description: 'Adaptation pour le jeune public', xp: 25, category: 'children' },
+      { id: 'accueil_entreprises', label: 'Accueil des groupes d\'entreprises', description: 'Team building et événements corporate', xp: 30, category: 'corporate' },
+      { id: 'gestion_celebrations', label: 'Gestion des célébrations (anniversaires, etc.)', description: 'Événements spéciaux et animations', xp: 20, category: 'events' },
+      { id: 'protocole_urgence_client', label: 'Protocoles d\'urgence avec clients', description: 'Gestion des situations d\'urgence', xp: 30, category: 'emergency' },
+      { id: 'satisfaction_client', label: 'Mesure de la satisfaction client', description: 'Collecte des avis et amélioration continue', xp: 20, category: 'feedback' },
+      { id: 'fidelisation', label: 'Programme de fidélisation', description: 'Outils pour fidéliser la clientèle', xp: 25, category: 'loyalty' },
+      { id: 'communication_digitale', label: 'Communication digitale et réseaux sociaux', description: 'Présence en ligne et e-reputation', xp: 20, category: 'digital' },
+      { id: 'partenariats_locaux', label: 'Partenariats et réseaux locaux', description: 'Développement des partenariats', xp: 15, category: 'partnerships' },
+      { id: 'excellence_service', label: 'Standards d\'excellence du service', description: 'Qualité et dépassement des attentes', xp: 35, category: 'excellence' }
+    ]
+  },
+
+  // Phase 4: Entretiens avec le référent (15 tâches)
+  entretiens_referent: {
+    id: 'entretiens_referent',
+    title: '🎯 Entretiens avec le référent',
+    description: 'Suivi personnalisé de ta progression avec ton référent tout au long du mois.',
+    category: 'mentoring',
+    order: 4,
+    estimatedTime: '1 mois',
+    tasks: [
+      { id: 'entretien_j1', label: 'Entretien J+1 : Premières impressions', description: 'Bilan du premier jour et ressentis', xp: 20, category: 'feedback' },
+      { id: 'entretien_j3', label: 'Entretien J+3 : Adaptation équipe', description: 'Intégration dans l\'équipe et premiers contacts', xp: 20, category: 'integration' },
+      { id: 'entretien_s1', label: 'Entretien Semaine 1 : Bilan technique', description: 'Évaluation des acquis techniques', xp: 25, category: 'technical' },
+      { id: 'entretien_s2', label: 'Entretien Semaine 2 : Autonomie progressive', description: 'Développement de l\'autonomie', xp: 25, category: 'autonomy' },
+      { id: 'entretien_s3', label: 'Entretien Semaine 3 : Maîtrise client', description: 'Compétences en relation client', xp: 30, category: 'customer' },
+      { id: 'entretien_s4', label: 'Entretien Semaine 4 : Bilan final', description: 'Évaluation complète et perspectives', xp: 35, category: 'evaluation' },
+      { id: 'objectifs_personnalises', label: 'Définition d\'objectifs personnalisés', description: 'Objectifs adaptés à ton profil', xp: 20, category: 'goals' },
+      { id: 'plan_developpement', label: 'Plan de développement personnel', description: 'Axes d\'amélioration et formation', xp: 25, category: 'development' },
+      { id: 'feedback_360', label: 'Feedback 360° équipe', description: 'Retours de tous les membres de l\'équipe', xp: 30, category: 'feedback' },
+      { id: 'auto_evaluation', label: 'Auto-évaluation des compétences', description: 'Analyse personnelle de ta progression', xp: 20, category: 'self-assessment' },
+      { id: 'points_forts', label: 'Identification des points forts', description: 'Reconnaissance de tes talents naturels', xp: 15, category: 'strengths' },
+      { id: 'axes_amelioration', label: 'Axes d\'amélioration', description: 'Zones de développement prioritaires', xp: 20, category: 'improvement' },
+      { id: 'projection_carriere', label: 'Projection de carrière chez Brain', description: 'Évolution possible et ambitions', xp: 25, category: 'career' },
+      { id: 'validation_competences', label: 'Validation finale des compétences', description: 'Certification de tes acquis', xp: 30, category: 'certification' },
+      { id: 'integration_reussie', label: 'Validation intégration réussie', description: 'Confirmation de la réussite du parcours', xp: 40, category: 'success' }
     ]
   }
 };
