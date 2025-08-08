@@ -247,11 +247,26 @@ class XpSyncService {
     const gamification = userData.gamification || {};
     const syncMetadata = userData.syncMetadata || {};
     
-    // Vérifier si lastXpSync est récent (moins de 10 secondes)
+    // 🛡️ GESTION SÉCURISÉE DES TIMESTAMPS
     if (syncMetadata.lastXpSync) {
-      const lastSync = syncMetadata.lastXpSync.toDate();
-      const tenSecondsAgo = new Date(Date.now() - 10000);
-      return lastSync > tenSecondsAgo;
+      try {
+        let lastSync;
+        if (syncMetadata.lastXpSync.toDate) {
+          lastSync = syncMetadata.lastXpSync.toDate();
+        } else if (syncMetadata.lastXpSync instanceof Date) {
+          lastSync = syncMetadata.lastXpSync;
+        } else if (typeof syncMetadata.lastXpSync === 'string') {
+          lastSync = new Date(syncMetadata.lastXpSync);
+        } else {
+          return false; // Pas de timestamp valide
+        }
+        
+        const tenSecondsAgo = new Date(Date.now() - 10000);
+        return lastSync > tenSecondsAgo;
+      } catch (error) {
+        console.warn('⚠️ [XP-SYNC] Erreur vérification timestamp:', error);
+        return false;
+      }
     }
     
     return false;
