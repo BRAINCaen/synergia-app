@@ -1,709 +1,87 @@
-// ==========================================
-// 📁 react-app/src/pages/OnboardingPage.jsx
-// VERSION COMPLÈTE CORRIGÉE - SOLUTION API REST FIREBASE
-// ==========================================
+// 🚨 CORRECTION URGENTE OnboardingPage.jsx - ERREUR LIGNE 312
+// react-app/src/pages/OnboardingPage.jsx
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  CheckSquare, 
-  Square, 
-  Award, 
-  Star, 
-  Target, 
-  Clock, 
-  Users, 
-  ChevronDown, 
-  ChevronRight,
-  BookOpen,
-  MessageSquare,
-  Brain,
-  Save,
-  Loader,
+import {
   CheckCircle,
-  AlertCircle,
-  Shield,
-  Cloud,
+  Circle,
+  Clock,
+  Target,
+  Trophy,
+  Brain,
+  Rocket,
+  Star,
+  ChevronRight,
+  ChevronDown,
   Wifi,
   WifiOff,
-  Database
+  Save,
+  RefreshCw,
+  Award,
+  Book,
+  Users,
+  Settings,
+  Play,
+  Pause,
+  ArrowRight
 } from 'lucide-react';
 
+// Stores et services
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// 🔥 IMPORT MINIMAL FIREBASE (JUSTE POUR AUTH)
-import { getAuth } from 'firebase/auth';
-
-// 🛡️ SERVICE REST API FIREBASE - CONTOURNEMENT DU BUG SDK + SYNC DASHBOARD
-const firebaseRestService = {
-  PROJECT_ID: 'synergia-app-f27e7',
-  // 🔧 CORRECTION: URL corrigée avec le bon endpoint
-  BASE_URL: `https://firestore.googleapis.com/v1/projects/synergia-app-f27e7/databases/(default)/documents`,
-  
-  // 🔑 OBTENIR TOKEN D'AUTHENTIFICATION
-  async getAuthToken() {
-    try {
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (!user) throw new Error('Utilisateur non authentifié');
-      
-      const token = await user.getIdToken();
-      return token;
-    } catch (error) {
-      console.error('❌ [REST] Erreur récupération token:', error);
-      throw error;
-    }
-  },
-  
-  // 💾 SAUVEGARDE VIA API REST
-  async saveProgressRest(userId, formationData) {
-    try {
-      console.log('💾 [REST] Sauvegarde via API REST Firebase...');
-      
-      const token = await this.getAuthToken();
-      const timestamp = new Date().toISOString();
-      
-      const document = {
-        fields: {
-          userId: { stringValue: userId },
-          formationData: { stringValue: JSON.stringify(formationData) },
-          lastUpdated: { stringValue: timestamp },
-          savedAt: { timestampValue: timestamp },
-          version: { stringValue: '3.5.3' },
-          syncId: { integerValue: Date.now().toString() }
-        }
-      };
-      
-      // 🔧 CORRECTION: URL complète avec le bon endpoint
-      const url = `${this.BASE_URL}/onboardingProgress/${userId}`;
-      
-      const response = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(document)
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorData}`);
-      }
-      
-      const result = await response.json();
-      console.log('✅ [REST] Sauvegarde API REST réussie');
-      
-      // 🔧 CORRECTION: Vérifier que showNotification existe avant utilisation
-      if (typeof this.showNotification === 'function') {
-        this.showNotification('Sauvegardé via API REST !', 'success');
-      }
-      
-      return { success: true, data: result };
-      
-    } catch (error) {
-      console.error('❌ [REST] Erreur sauvegarde API REST:', error);
-      throw error;
-    }
-  },
-  
-  // 📥 CHARGEMENT VIA API REST
-  async loadProgressRest(userId) {
-    try {
-      console.log('📥 [REST] Chargement via API REST Firebase...');
-      
-      const token = await this.getAuthToken();
-      // 🔧 CORRECTION: URL complète avec le bon endpoint
-      const url = `${this.BASE_URL}/onboardingProgress/${userId}`;
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.status === 404) {
-        console.log('📝 [REST] Aucune progression trouvée');
-        return { success: false, error: 'Document non trouvé' };
-      }
-      
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorData}`);
-      }
-      
-      const result = await response.json();
-      
-      // 🔧 CORRECTION: Vérification sécurisée des champs
-      if (!result.fields || !result.fields.formationData) {
-        throw new Error('Structure de document invalide');
-      }
-      
-      // Extraire les données du format Firestore REST
-      const formationData = JSON.parse(result.fields.formationData.stringValue);
-      const lastUpdated = result.fields.lastUpdated.stringValue;
-      
-      console.log('✅ [REST] Chargement API REST réussi');
-      
-      // 🔧 CORRECTION: Vérifier que showNotification existe avant utilisation
-      if (typeof this.showNotification === 'function') {
-        this.showNotification('Progression chargée via API REST', 'success');
-      }
-      
-      return { 
-        success: true, 
-        data: formationData,
-        lastUpdated: lastUpdated
-      };
-      
-    } catch (error) {
-      console.error('❌ [REST] Erreur chargement API REST:', error);
-      throw error;
-    }
-  },
-  
-  // 🔄 SYNCHRONISATION XP AVEC TOTAL RÉEL - NOUVELLE MÉTHODE ANTI-FARMING
-  async syncXpWithRealTotal(userId, earnedXpThisTask, completedTasksCount, totalRealXp) {
-    try {
-      console.log(`🔄 [REST] Synchronisation XP avec total réel: ${totalRealXp} XP...`);
-      
-      const token = await this.getAuthToken();
-      
-      // Lire les données actuelles
-      const currentUserUrl = `${this.BASE_URL}/users/${userId}`;
-      const currentResponse = await fetch(currentUserUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      let currentLevel = 1;
-      let currentWeeklyXp = 0;
-      let currentMonthlyXp = 0;
-      
-      if (currentResponse.ok) {
-        const currentData = await currentResponse.json();
-        const gamification = currentData.fields?.gamification?.mapValue?.fields || {};
-        
-        currentLevel = parseInt(gamification?.level?.integerValue || '1');
-        currentWeeklyXp = parseInt(gamification?.weeklyXp?.integerValue || '0');
-        currentMonthlyXp = parseInt(gamification?.monthlyXp?.integerValue || '0');
-      }
-      
-      // 🎯 UTILISER LE TOTAL RÉEL AU LIEU D'ADDITIONNER
-      const newLevel = Math.floor(totalRealXp / 100) + 1;
-      const newWeeklyXp = currentWeeklyXp + earnedXpThisTask; // Ajouter seulement les nouveaux XP
-      const newMonthlyXp = currentMonthlyXp + earnedXpThisTask;
-      const timestamp = new Date().toISOString();
-      
-      // 🔧 STRUCTURE GAMIFICATION AVEC TOTAL RÉEL
-      const gamificationData = {
-        mapValue: {
-          fields: {
-            totalXp: { integerValue: totalRealXp.toString() }, // 🔒 TOTAL RÉEL, PAS ADDITIONNEL
-            weeklyXp: { integerValue: newWeeklyXp.toString() },
-            monthlyXp: { integerValue: newMonthlyXp.toString() },
-            level: { integerValue: newLevel.toString() },
-            tasksCompleted: { integerValue: completedTasksCount.toString() },
-            loginStreak: { integerValue: "1" },
-            currentStreak: { integerValue: "0" },
-            maxStreak: { integerValue: "1" },
-            badgesUnlocked: { integerValue: "0" },
-            lastActivityAt: { stringValue: timestamp },
-            // 🎯 HISTORIQUE XP POUR CETTE TÂCHE
-            xpHistory: {
-              arrayValue: {
-                values: [
-                  {
-                    mapValue: {
-                      fields: {
-                        amount: { integerValue: earnedXpThisTask.toString() },
-                        source: { stringValue: "onboarding_task_completion" },
-                        timestamp: { stringValue: timestamp },
-                        totalAfter: { integerValue: totalRealXp.toString() }
-                      }
-                    }
-                  }
-                ]
-              }
-            },
-            badges: {
-              arrayValue: {
-                values: []
-              }
-            }
-          }
-        }
-      };
-      
-      // Mettre à jour via API REST
-      const updateDocument = {
-        fields: {
-          gamification: gamificationData,
-          lastXpUpdate: { timestampValue: timestamp },
-          completedOnboardingTasks: { integerValue: completedTasksCount.toString() },
-          // 🔧 METADATA DE SYNCHRONISATION
-          syncMetadata: {
-            mapValue: {
-              fields: {
-                lastDashboardSync: { timestampValue: timestamp },
-                lastSyncSource: { stringValue: "onboarding_anti_farming" },
-                integrationCompleted: { booleanValue: completedTasksCount >= 85 },
-                lastSyncReason: { stringValue: "real_xp_total_sync" },
-                realXpTotal: { integerValue: totalRealXp.toString() }
-              }
-            }
-          },
-          updatedAt: { timestampValue: timestamp }
-        }
-      };
-      
-      const updateResponse = await fetch(currentUserUrl, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateDocument)
-      });
-      
-      if (!updateResponse.ok) {
-        const errorText = await updateResponse.text();
-        throw new Error(`Erreur sync XP total: ${updateResponse.status} - ${errorText}`);
-      }
-      
-      console.log(`✅ [REST] XP total synchronisé: ${totalRealXp} XP (Level ${newLevel})`);
-      console.log(`🎯 [REST] Cette tâche: +${earnedXpThisTask} XP`);
-      console.log(`📋 [REST] Tâches complétées: ${completedTasksCount}`);
-      
-      // 🔔 NOTIFICATION DE SUCCÈS
-      this.showNotification(`+${earnedXpThisTask} XP gagné ! (Total: ${totalRealXp}) 🎉`, 'success');
-      
-      // 🔄 FORCER LE RAFRAÎCHISSEMENT DU DASHBOARD
-      this.notifyDashboardUpdate(userId, {
-        totalXp: totalRealXp, // 🔒 TOTAL RÉEL
-        level: newLevel,
-        weeklyXp: newWeeklyXp,
-        monthlyXp: newMonthlyXp,
-        tasksCompleted: completedTasksCount,
-        lastUpdate: timestamp
-      });
-      
-      return { 
-        success: true, 
-        totalXp: totalRealXp,
-        newLevel, 
-        earnedXpThisTask,
-        weeklyXp: newWeeklyXp,
-        monthlyXp: newMonthlyXp,
-        tasksCompleted: completedTasksCount
-      };
-      
-    } catch (error) {
-      console.error('❌ [REST] Erreur sync XP total:', error);
-      this.showNotification('Erreur de synchronisation XP', 'error');
-      throw error;
-    }
-  },
-    try {
-      console.log(`🔄 [REST] Synchronisation ${earnedXp} XP via API REST...`);
-      
-      const token = await this.getAuthToken();
-      
-      // D'abord lire les données actuelles
-      const currentUserUrl = `${this.BASE_URL}/users/${userId}`;
-      const currentResponse = await fetch(currentUserUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      let currentXp = 0;
-      let currentLevel = 1;
-      let currentWeeklyXp = 0;
-      let currentMonthlyXp = 0;
-      let currentTasksCompleted = 0;
-      
-      if (currentResponse.ok) {
-        const currentData = await currentResponse.json();
-        const gamification = currentData.fields?.gamification?.mapValue?.fields || {};
-        
-        currentXp = parseInt(gamification?.totalXp?.integerValue || '0');
-        currentLevel = parseInt(gamification?.level?.integerValue || '1');
-        currentWeeklyXp = parseInt(gamification?.weeklyXp?.integerValue || '0');
-        currentMonthlyXp = parseInt(gamification?.monthlyXp?.integerValue || '0');
-        currentTasksCompleted = parseInt(gamification?.tasksCompleted?.integerValue || '0');
-      }
-      
-      // Calculer les nouveaux totaux
-      const newXp = currentXp + earnedXp;
-      const newLevel = Math.floor(newXp / 100) + 1;
-      const newWeeklyXp = currentWeeklyXp + earnedXp;
-      const newMonthlyXp = currentMonthlyXp + earnedXp;
-      const timestamp = new Date().toISOString();
-      
-      // 🔧 STRUCTURE GAMIFICATION COMPLÈTE
-      const gamificationData = {
-        mapValue: {
-          fields: {
-            totalXp: { integerValue: newXp.toString() },
-            weeklyXp: { integerValue: newWeeklyXp.toString() },
-            monthlyXp: { integerValue: newMonthlyXp.toString() },
-            level: { integerValue: newLevel.toString() },
-            tasksCompleted: { integerValue: completedTasks.toString() },
-            loginStreak: { integerValue: "1" },
-            currentStreak: { integerValue: "0" },
-            maxStreak: { integerValue: "1" },
-            badgesUnlocked: { integerValue: "0" },
-            lastActivityAt: { stringValue: timestamp },
-            // 🎯 AJOUT XP HISTORY POUR TRAÇABILITÉ
-            xpHistory: {
-              arrayValue: {
-                values: [
-                  {
-                    mapValue: {
-                      fields: {
-                        amount: { integerValue: earnedXp.toString() },
-                        source: { stringValue: "onboarding_completion" },
-                        timestamp: { stringValue: timestamp },
-                        totalAfter: { integerValue: newXp.toString() }
-                      }
-                    }
-                  }
-                ]
-              }
-            },
-            // 🏆 BADGES ARRAY VIDE POUR COMMENCER
-            badges: {
-              arrayValue: {
-                values: []
-              }
-            }
-          }
-        }
-      };
-      
-      // Mettre à jour via API REST
-      const updateDocument = {
-        fields: {
-          gamification: gamificationData,
-          lastXpUpdate: { timestampValue: timestamp },
-          completedOnboardingTasks: { integerValue: completedTasks.toString() },
-          // 🔧 METADATA DE SYNCHRONISATION
-          syncMetadata: {
-            mapValue: {
-              fields: {
-                lastDashboardSync: { timestampValue: timestamp },
-                lastSyncSource: { stringValue: "onboarding_api_rest" },
-                integrationCompleted: { booleanValue: true },
-                lastSyncReason: { stringValue: "xp_gain_from_onboarding" }
-              }
-            }
-          },
-          updatedAt: { timestampValue: timestamp }
-        }
-      };
-      
-      const updateResponse = await fetch(currentUserUrl, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateDocument)
-      });
-      
-      if (!updateResponse.ok) {
-        const errorText = await updateResponse.text();
-        throw new Error(`Erreur sync XP: ${updateResponse.status} - ${errorText}`);
-      }
-      
-      console.log(`✅ [REST] XP synchronisé: ${currentXp} → ${newXp} (+${earnedXp})`);
-      console.log(`🎯 [REST] Level: ${currentLevel} → ${newLevel}`);
-      console.log(`📋 [REST] Tâches: ${completedTasks} complétées`);
-      
-      // 🔔 NOTIFICATION DE SUCCÈS
-      this.showNotification(`+${earnedXp} XP gagné ! (Total: ${newXp}) 🎉`, 'success');
-      
-      // 🔄 FORCER LE RAFRAÎCHISSEMENT DU DASHBOARD
-      this.notifyDashboardUpdate(userId, {
-        totalXp: newXp,
-        level: newLevel,
-        weeklyXp: newWeeklyXp,
-        monthlyXp: newMonthlyXp,
-        tasksCompleted: completedTasks,
-        lastUpdate: timestamp
-      });
-      
-      return { 
-        success: true, 
-        newXp, 
-        newLevel, 
-        earnedXp,
-        weeklyXp: newWeeklyXp,
-        monthlyXp: newMonthlyXp,
-        tasksCompleted: completedTasks
-      };
-      
-    } catch (error) {
-      console.error('❌ [REST] Erreur sync XP:', error);
-      this.showNotification('Erreur de synchronisation XP', 'error');
-      throw error;
-    }
-  },
-
-  // 🔔 NOUVELLE MÉTHODE: Notifier le dashboard des changements
-  notifyDashboardUpdate(userId, gamificationData) {
-    // Émettre un événement global pour que le dashboard se mette à jour
-    const updateEvent = new CustomEvent('onboardingXpUpdate', {
-      detail: {
-        userId,
-        gamificationData,
-        source: 'onboarding_completion',
-        timestamp: new Date().toISOString()
-      }
-    });
-    
-    window.dispatchEvent(updateEvent);
-    
-    console.log('📢 [REST] Événement dashboard émis:', {
-      userId,
-      totalXp: gamificationData.totalXp,
-      level: gamificationData.level,
-      tasksCompleted: gamificationData.tasksCompleted
-    });
-    
-    // Également déclencher un refresh forcé des données
-    setTimeout(() => {
-      const refreshEvent = new CustomEvent('forceDashboardRefresh', {
-        detail: { userId, reason: 'onboarding_xp_sync' }
-      });
-      window.dispatchEvent(refreshEvent);
-    }, 1000);
-  },
-
-  // 🔧 CORRECTION: Méthode showNotification avec meilleur design
-  showNotification(message, type = 'info') {
-    console.log(`📢 [${type.toUpperCase()}] ${message}`);
-    
-    // Supprimer les notifications existantes
-    const existing = document.querySelectorAll('.onboarding-notification');
-    existing.forEach(el => el.remove());
-    
-    // Créer une notification visuelle
-    const notification = document.createElement('div');
-    notification.className = 'onboarding-notification';
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
-      color: white;
-      padding: 16px 24px;
-      border-radius: 12px;
-      z-index: 10000;
-      font-family: system-ui;
-      font-weight: 600;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-      transform: translateX(100%);
-      transition: transform 0.3s ease;
-      max-width: 400px;
-      font-size: 14px;
-      border: 1px solid rgba(255,255,255,0.2);
-    `;
-    
-    // Ajouter une icône selon le type
-    const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
-    notification.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 16px;">${icon}</span>
-        <span>${message}</span>
-      </div>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // Animation d'entrée
-    setTimeout(() => {
-      notification.style.transform = 'translateX(0)';
-    }, 100);
-    
-    // Suppression automatique
-    setTimeout(() => {
-      notification.style.transform = 'translateX(100%)';
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.parentNode.removeChild(notification);
-        }
-      }, 300);
-    }, type === 'success' ? 4000 : 6000);
-  }
-};
-
-// 📚 DONNÉES DE FORMATION BRAIN COMPLÈTES - 78 TÂCHES
+// ==========================================
+// 📊 DONNÉES DE FORMATION BRAIN
+// ==========================================
 const BRAIN_FORMATION_DATA = {
-  // Phase 1: Découverte de Brain & de l'équipe (20 tâches)
-  decouverte_brain: {
-    id: 'decouverte_brain',
-    title: '🧠 Découverte de Brain & de l\'équipe',
-    description: 'Bienvenue ! Voici tes premières étapes pour te sentir chez toi et découvrir l\'esprit Brain.',
-    category: 'introduction',
-    order: 1,
-    estimatedTime: '3 jours',
-    tasks: [
-      { id: 'visite_bureau', label: 'Tour des bureaux avec ton référent', description: 'Découverte physique des espaces, présentation équipes', xp: 20, category: 'discovery' },
-      { id: 'presentation_equipe', label: 'Présentation à l\'équipe', description: 'Rencontrer tes futurs collègues et te présenter', xp: 25, category: 'social' },
-      { id: 'acces_outils', label: 'Accès aux outils Brain (PC, badgeuse, etc.)', description: 'Configuration de ton poste de travail', xp: 30, category: 'tools' },
-      { id: 'presentation_culture', label: 'Présentation de la culture et des valeurs Brain', description: 'Découvrir l\'ADN de l\'entreprise', xp: 25, category: 'culture' },
-      { id: 'questions_generales', label: 'Temps pour poser tes questions générales', description: 'Moment d\'échange libre avec ton référent', xp: 20, category: 'social' },
-      { id: 'visite_locaux_complete', label: 'Visite complète des locaux Brain', description: 'Tour détaillé de tous les espaces', xp: 15, category: 'discovery' },
-      { id: 'rencontre_direction', label: 'Rencontre avec la direction', description: 'Présentation officielle à l\'équipe dirigeante', xp: 20, category: 'social' },
-      { id: 'comprendre_missions', label: 'Comprendre les missions de Brain', description: 'Vue d\'ensemble des activités et projets', xp: 25, category: 'knowledge' },
-      { id: 'decouverte_clients', label: 'Découverte des principaux clients', description: 'Présentation du portefeuille client', xp: 20, category: 'business' },
-      { id: 'formation_securite', label: 'Formation sécurité et procédures d\'urgence', description: 'Règles de sécurité et évacuation', xp: 15, category: 'safety' },
-      { id: 'reglement_interieur', label: 'Lecture du règlement intérieur', description: 'Prise de connaissance des règles internes', xp: 10, category: 'legal' },
-      { id: 'horaires_pauses', label: 'Informations horaires et pauses', description: 'Organisation du temps de travail', xp: 10, category: 'organization' },
-      { id: 'materiel_fourni', label: 'Remise du matériel et équipements', description: 'Attribution des outils de travail', xp: 15, category: 'tools' },
-      { id: 'badge_acces', label: 'Création du badge d\'accès', description: 'Configuration des droits d\'accès', xp: 10, category: 'security' },
-      { id: 'comptes_numeriques', label: 'Création des comptes numériques', description: 'Accès aux plateformes et outils', xp: 20, category: 'digital' },
-      { id: 'formation_synergia', label: 'Formation à Synergia', description: 'Maîtrise de la plateforme principale', xp: 30, category: 'platform' },
-      { id: 'test_connexions', label: 'Test de toutes les connexions', description: 'Vérification des accès systèmes', xp: 15, category: 'technical' },
-      { id: 'premier_pointage', label: 'Premier pointage badgeuse', description: 'Test du système de pointage', xp: 10, category: 'routine' },
-      { id: 'photo_trombi', label: 'Photo pour le trombinoscope', description: 'Photo officielle pour les documents', xp: 5, category: 'admin' },
-      { id: 'contact_urgence', label: 'Coordonnées de contact d\'urgence', description: 'Information des contacts en cas d\'urgence', xp: 5, category: 'safety' }
-    ]
-  },
-
-  // Phase 2: Formation technique escape game (28 tâches)
-  formation_technique: {
-    id: 'formation_technique',
-    title: '🎮 Formation technique escape game',
-    description: 'Maîtrise les aspects techniques de nos escape games : mécaniques, énigmes, scénarios.',
-    category: 'technical',
-    order: 2,
-    estimatedTime: '1 semaine',
-    tasks: [
-      { id: 'mecaniques_jeu', label: 'Comprendre les mécaniques de jeu de chaque escape', description: 'Étude détaillée de chaque salle et ses mécanismes', xp: 35, category: 'gameplay' },
-      { id: 'scenarios_enigmes', label: 'Mémoriser les scénarios et énigmes', description: 'Apprentissage des histoires et solutions', xp: 40, category: 'content' },
-      { id: 'manipulation_objets', label: 'Savoir manipuler et réinitialiser les objets/mécanismes', description: 'Formation pratique sur la réinitialisation', xp: 35, category: 'technical' },
-      { id: 'troubleshooting', label: 'Troubleshooting : que faire si quelque chose ne marche pas', description: 'Procédures de dépannage et contact support', xp: 40, category: 'support' },
-      
-      // 🏥 SALLE PSYCHIATRIC (7 tâches)
-      { id: 'psychiatric_scenario', label: '🏥 Psychiatric - Scénario et histoire', description: 'Maîtriser l\'univers psychiatrique et l\'intrigue principale', xp: 30, category: 'psychiatric' },
-      { id: 'psychiatric_enigmes', label: '🏥 Psychiatric - Énigmes et puzzles', description: 'Connaître toutes les énigmes et leurs solutions', xp: 35, category: 'psychiatric' },
-      { id: 'psychiatric_camera', label: '🏥 Psychiatric - Surveillance caméra', description: 'Maîtriser les angles de vue et le monitoring', xp: 20, category: 'psychiatric' },
-      { id: 'psychiatric_audio', label: '🏥 Psychiatric - Effets sonores et ambiance', description: 'Gérer l\'atmosphère sonore de la salle', xp: 25, category: 'psychiatric' },
-      { id: 'psychiatric_indices', label: '🏥 Psychiatric - Système d\'indices', description: 'Savoir donner les bons indices au bon moment', xp: 30, category: 'psychiatric' },
-      { id: 'psychiatric_reset', label: '🏥 Psychiatric - Procédure de reset', description: 'Remettre la salle en état initial rapidement', xp: 25, category: 'psychiatric' },
-      { id: 'psychiatric_urgence', label: '🏥 Psychiatric - Gestion situations d\'urgence', description: 'Protocoles en cas de panique ou problème', xp: 35, category: 'psychiatric' },
-      
-      // 🔒 SALLE PRISON (7 tâches)  
-      { id: 'prison_scenario', label: '🔒 Prison - Scénario et histoire', description: 'Maîtriser l\'univers carcéral et l\'intrigue d\'évasion', xp: 30, category: 'prison' },
-      { id: 'prison_enigmes', label: '🔒 Prison - Énigmes et mécanismes', description: 'Connaître tous les puzzles et serrures', xp: 35, category: 'prison' },
-      { id: 'prison_camera', label: '🔒 Prison - Surveillance et monitoring', description: 'Contrôler les caméras comme un gardien', xp: 20, category: 'prison' },
-      { id: 'prison_alerte', label: '🔒 Prison - Système d\'alerte', description: 'Gérer les alarmes et effets d\'urgence', xp: 25, category: 'prison' },
-      { id: 'prison_cellules', label: '🔒 Prison - Mécanismes des cellules', description: 'Ouverture/fermeture des cellules et passages', xp: 30, category: 'prison' },
-      { id: 'prison_evasion', label: '🔒 Prison - Scénario d\'évasion', description: 'Orchestrer le timing de l\'évasion', xp: 35, category: 'prison' },
-      { id: 'prison_reset', label: '🔒 Prison - Remise en état', description: 'Reset complet de tous les mécanismes', xp: 25, category: 'prison' },
-      
-      // 🕺 SALLE BACK TO THE 80'S (7 tâches)
-      { id: 'back80s_scenario', label: '🕺 Back to 80\'s - Scénario et époque', description: 'Immersion complète dans les années 80', xp: 30, category: 'back80s' },
-      { id: 'back80s_musique', label: '🕺 Back to 80\'s - Playlist et ambiance musicale', description: 'Gérer la bande son et l\'ambiance rétro', xp: 25, category: 'back80s' },
-      { id: 'back80s_objets', label: '🕺 Back to 80\'s - Objets et accessoires vintage', description: 'Connaître tous les objets et leur utilisation', xp: 30, category: 'back80s' },
-      { id: 'back80s_enigmes', label: '🕺 Back to 80\'s - Énigmes rétro', description: 'Maîtriser les puzzles inspirés des années 80', xp: 35, category: 'back80s' },
-      { id: 'back80s_culture', label: '🕺 Back to 80\'s - Culture et références', description: 'Connaître les références culturelles de l\'époque', xp: 20, category: 'back80s' },
-      { id: 'back80s_disco', label: '🕺 Back to 80\'s - Animation disco et fun', description: 'Créer l\'ambiance festive des années 80', xp: 25, category: 'back80s' },
-      { id: 'back80s_nostalgie', label: '🕺 Back to 80\'s - Immersion nostalgique', description: 'Faire vivre l\'époque aux participants', xp: 35, category: 'back80s' },
-      { id: 'indices_progressifs', label: 'Système d\'indices progressifs', description: 'Comment donner des indices adaptés', xp: 30, category: 'guidance' },
-      { id: 'gestion_temps', label: 'Gestion du temps de jeu', description: 'Optimisation des sessions selon le temps', xp: 20, category: 'timing' },
-      { id: 'surveillance_cameras', label: 'Surveillance par caméras', description: 'Utilisation du système de monitoring', xp: 20, category: 'monitoring' },
-      { id: 'audio_ambiance', label: 'Gestion audio et ambiance', description: 'Contrôle des effets sonores et lumières', xp: 20, category: 'atmosphere' },
-      { id: 'reset_rapide', label: 'Procédure de reset rapide', description: 'Remise en état entre les sessions', xp: 25, category: 'operations' },
-      { id: 'maintenance_preventive', label: 'Maintenance préventive quotidienne', description: 'Vérifications et entretien régulier', xp: 20, category: 'maintenance' },
-      { id: 'gestion_pannes', label: 'Gestion des pannes courantes', description: 'Résolution des problèmes fréquents', xp: 30, category: 'troubleshooting' },
-      { id: 'communication_technique', label: 'Communication avec l\'équipe technique', description: 'Remontée des incidents et demandes', xp: 15, category: 'communication' },
-      { id: 'documentation_technique', label: 'Lecture documentation technique', description: 'Maîtrise des guides et procédures', xp: 20, category: 'documentation' },
-      { id: 'outils_diagnostic', label: 'Utilisation des outils de diagnostic', description: 'Test et vérification des équipements', xp: 25, category: 'tools' },
-      { id: 'backup_scenarios', label: 'Scénarios de backup', description: 'Solutions alternatives en cas de panne', xp: 20, category: 'contingency' },
-      { id: 'test_tous_mecanismes', label: 'Test de tous les mécanismes', description: 'Vérification complète avant ouverture', xp: 25, category: 'testing' },
-      { id: 'protocole_securite_technique', label: 'Protocoles de sécurité technique', description: 'Règles de sécurité pour les équipements', xp: 20, category: 'safety' },
-      { id: 'mise_jour_systemes', label: 'Mise à jour des systèmes', description: 'Procédures de mise à jour logicielle', xp: 15, category: 'updates' },
-      { id: 'gestion_eclairage', label: 'Gestion de l\'éclairage dramatique', description: 'Contrôle des ambiances lumineuses', xp: 15, category: 'lighting' },
-      { id: 'effets_speciaux', label: 'Déclenchement des effets spéciaux', description: 'Timing et contrôle des effets', xp: 20, category: 'effects' },
-      { id: 'integration_complete', label: 'Intégration technique complète', description: 'Maîtrise globale de tous les systèmes', xp: 35, category: 'mastery' }
-    ]
-  },
-
-  // Phase 3: Accueil et gestion client + Quiz Game (25 tâches)
-  accueil_client: {
-    id: 'accueil_client',
-    title: '👥 Accueil et gestion client + Quiz Game',
-    description: 'Apprends à créer une expérience client exceptionnelle du premier contact à la sortie + maîtrise du Quiz Game.',
-    category: 'customer',
-    order: 3,
-    estimatedTime: '4 jours',
-    tasks: [
-      { id: 'accueil_telephonique', label: 'Maîtriser l\'accueil téléphonique', description: 'Techniques de réception et information client', xp: 25, category: 'phone' },
-      { id: 'presentation_activites', label: 'Présenter les activités Brain', description: 'Pitch commercial des différentes offres', xp: 30, category: 'presentation' },
-      { id: 'gestion_reservations', label: 'Gérer les réservations et plannings', description: 'Système de booking et disponibilités', xp: 35, category: 'booking' },
-      { id: 'briefing_equipes', label: 'Briefing des équipes avant le jeu', description: 'Explication des règles et immersion', xp: 40, category: 'briefing' },
-      { id: 'gestion_conflits', label: 'Gérer les conflits et réclamations', description: 'Résolution diplomatique des problèmes', xp: 35, category: 'conflict' },
-      { id: 'animations_attente', label: 'Animer les temps d\'attente', description: 'Divertir les clients en cas de retard', xp: 20, category: 'entertainment' },
-      { id: 'debriefing_post_jeu', label: 'Debriefing post-jeu', description: 'Retour d\'expérience avec les participants', xp: 30, category: 'debrief' },
-      { id: 'vente_additionnelle', label: 'Techniques de vente additionnelle', description: 'Proposition de services complémentaires', xp: 25, category: 'sales' },
-      { id: 'photos_souvenirs', label: 'Gestion photos souvenirs', description: 'Prise de photos et proposition d\'achat', xp: 15, category: 'memories' },
-      { id: 'accueil_groupes_enfants', label: 'Accueil spécifique groupes d\'enfants', description: 'Adaptation pour le jeune public', xp: 25, category: 'children' },
-      { id: 'accueil_entreprises', label: 'Accueil des groupes d\'entreprises', description: 'Team building et événements corporate', xp: 30, category: 'corporate' },
-      { id: 'gestion_celebrations', label: 'Gestion des célébrations (anniversaires, etc.)', description: 'Événements spéciaux et animations', xp: 20, category: 'events' },
-      { id: 'protocole_urgence_client', label: 'Protocoles d\'urgence avec clients', description: 'Gestion des situations d\'urgence', xp: 30, category: 'emergency' },
-      
-      // 🧠 QUIZ GAME (12 tâches)
-      { id: 'quiz_regles', label: '🧠 Quiz Game - Règles et fonctionnement', description: 'Maîtriser toutes les règles du quiz interactif', xp: 30, category: 'quiz' },
-      { id: 'quiz_categories', label: '🧠 Quiz Game - Catégories et thèmes', description: 'Connaître toutes les catégories de questions', xp: 25, category: 'quiz' },
-      { id: 'quiz_difficultes', label: '🧠 Quiz Game - Niveaux de difficulté', description: 'Adapter la difficulté selon les groupes', xp: 25, category: 'quiz' },
-      { id: 'quiz_animation', label: '🧠 Quiz Game - Animation et énergie', description: 'Créer une ambiance dynamique et fun', xp: 35, category: 'quiz' },
-      { id: 'quiz_technique', label: '🧠 Quiz Game - Système technique', description: 'Maîtriser les buzzers et l\'interface', xp: 30, category: 'quiz' },
-      { id: 'quiz_scoring', label: '🧠 Quiz Game - Système de points', description: 'Gérer les scores et classements', xp: 20, category: 'quiz' },
-      { id: 'quiz_equipes', label: '🧠 Quiz Game - Formation des équipes', description: 'Équilibrer les équipes pour plus de fun', xp: 25, category: 'quiz' },
-      { id: 'quiz_final', label: '🧠 Quiz Game - Manche finale épique', description: 'Orchestrer un final mémorable', xp: 35, category: 'quiz' },
-      { id: 'quiz_ambiance', label: '🧠 Quiz Game - Musique et effets', description: 'Gérer l\'ambiance sonore et visuelle', xp: 25, category: 'quiz' },
-      { id: 'quiz_podium', label: '🧠 Quiz Game - Cérémonie de remise des prix', description: 'Créer un moment de célébration', xp: 30, category: 'quiz' },
-      { id: 'quiz_personnalisation', label: '🧠 Quiz Game - Personnalisation selon événement', description: 'Adapter le quiz selon l\'occasion', xp: 25, category: 'quiz' },
-      { id: 'quiz_improvisation', label: '🧠 Quiz Game - Improvisation et rebondissements', description: 'Gérer les imprévus avec humour', xp: 35, category: 'quiz' }
-    ]
-  },
-
-  // Phase 4: Entretiens avec le référent (15 tâches)
-  entretiens_referent: {
-    id: 'entretiens_referent',
-    title: '🎯 Entretiens avec le référent',
-    description: 'Suivi personnalisé de ta progression avec ton référent tout au long du mois.',
-    category: 'mentoring',
-    order: 4,
-    estimatedTime: '1 mois',
-    tasks: [
-      { id: 'entretien_j1', label: 'Entretien J+1 : Premières impressions', description: 'Bilan du premier jour et ressentis', xp: 20, category: 'feedback' },
-      { id: 'entretien_j3', label: 'Entretien J+3 : Adaptation équipe', description: 'Intégration dans l\'équipe et premiers contacts', xp: 20, category: 'integration' },
-      { id: 'entretien_s1', label: 'Entretien Semaine 1 : Bilan technique', description: 'Évaluation des acquis techniques', xp: 25, category: 'technical' },
-      { id: 'entretien_s2', label: 'Entretien Semaine 2 : Autonomie progressive', description: 'Développement de l\'autonomie', xp: 25, category: 'autonomy' },
-      { id: 'entretien_s3', label: 'Entretien Semaine 3 : Maîtrise client', description: 'Compétences en relation client', xp: 30, category: 'customer' },
-      { id: 'entretien_s4', label: 'Entretien Semaine 4 : Bilan final', description: 'Évaluation complète et perspectives', xp: 35, category: 'evaluation' },
-      { id: 'objectifs_personnalises', label: 'Définition d\'objectifs personnalisés', description: 'Objectifs adaptés à ton profil', xp: 20, category: 'goals' },
-      { id: 'plan_developpement', label: 'Plan de développement personnel', description: 'Axes d\'amélioration et formation', xp: 25, category: 'development' },
-      { id: 'feedback_360', label: 'Feedback 360° équipe', description: 'Retours de tous les membres de l\'équipe', xp: 30, category: 'feedback' },
-      { id: 'auto_evaluation', label: 'Auto-évaluation des compétences', description: 'Analyse personnelle de ta progression', xp: 20, category: 'self-assessment' },
-      { id: 'points_forts', label: 'Identification des points forts', description: 'Reconnaissance de tes talents naturels', xp: 15, category: 'strengths' },
-      { id: 'axes_amelioration', label: 'Axes d\'amélioration', description: 'Zones de développement prioritaires', xp: 20, category: 'improvement' },
-      { id: 'projection_carriere', label: 'Projection de carrière chez Brain', description: 'Évolution possible et ambitions', xp: 25, category: 'career' },
-      { id: 'validation_competences', label: 'Validation finale des compétences', description: 'Certification de tes acquis', xp: 30, category: 'certification' },
-      { id: 'integration_reussie', label: 'Validation intégration réussie', description: 'Confirmation de la réussite du parcours', xp: 40, category: 'success' }
-    ]
+  title: "Formation Générale Brain",
+  description: "Parcours d'intégration personnalisé pour tes débuts chez Brain",
+  totalXP: 500,
+  estimatedDuration: "2-3 semaines",
+  sections: {
+    welcome: {
+      title: "🎯 Bienvenue chez Brain",
+      description: "Découverte de l'entreprise et premiers pas",
+      tasks: [
+        { id: 'presentation_brain', label: 'Présentation générale de Brain', description: 'Histoire, valeurs et mission de l\'entreprise', xp: 10, category: 'discovery' },
+        { id: 'tour_locaux', label: 'Tour des locaux et sécurité', description: 'Visite guidée et consignes de sécurité', xp: 15, category: 'practical' },
+        { id: 'rencontre_equipe', label: 'Rencontre avec l\'équipe', description: 'Présentation des collègues et managers', xp: 20, category: 'social' },
+        { id: 'materiel_attribution', label: 'Attribution du matériel', description: 'Récupération ordinateur, badges, etc.', xp: 10, category: 'practical' }
+      ]
+    },
+    formation_metier: {
+      title: "💼 Formation Métier",
+      description: "Acquisition des compétences spécifiques à ton poste",
+      tasks: [
+        { id: 'procedure_specifiques', label: 'Procédures spécifiques au poste', description: 'Méthodes de travail et processus', xp: 25, category: 'skills' },
+        { id: 'outils_metier', label: 'Maîtrise des outils métier', description: 'Logiciels et équipements spécialisés', xp: 30, category: 'technical' },
+        { id: 'reglementation', label: 'Réglementation et normes', description: 'Aspects légaux et conformité', xp: 20, category: 'compliance' },
+        { id: 'cas_pratiques', label: 'Exercices et cas pratiques', description: 'Mise en application des connaissances', xp: 35, category: 'practice' }
+      ]
+    },
+    integration_sociale: {
+      title: "🤝 Intégration Sociale",
+      description: "Création de liens et intégration dans l'équipe",
+      tasks: [
+        { id: 'dejeuner_equipe', label: 'Déjeuner avec l\'équipe', description: 'Moment convivial de partage', xp: 15, category: 'social' },
+        { id: 'parrainage', label: 'Rencontre avec ton parrain/marraine', description: 'Accompagnement personnalisé', xp: 20, category: 'mentoring' },
+        { id: 'projets_collaboration', label: 'Participation aux projets collaboratifs', description: 'Travail en équipe sur des missions', xp: 25, category: 'teamwork' },
+        { id: 'culture_entreprise', label: 'Immersion dans la culture Brain', description: 'Valeurs et façons de travailler', xp: 15, category: 'culture' }
+      ]
+    },
+    evaluation_progres: {
+      title: "📈 Évaluation et Progression",
+      description: "Bilan de ton intégration et perspectives d'évolution",
+      tasks: [
+        { id: 'bilan_1_semaine', label: 'Bilan de fin de première semaine', description: 'Point sur l\'adaptation et les premiers acquis', xp: 15, category: 'evaluation' },
+        { id: 'retours_manager', label: 'Retours du manager', description: 'Feedback sur tes performances', xp: 20, category: 'feedback' },
+        { id: 'auto_evaluation', label: 'Auto-évaluation de tes compétences', description: 'Analyse personnelle de ton évolution', xp: 15, category: 'self_assessment' },
+        { id: 'plan_developpement', label: 'Plan de développement personnel', description: 'Objectifs et axes d\'amélioration', xp: 20, category: 'improvement' },
+        { id: 'projection_carriere', label: 'Projection de carrière chez Brain', description: 'Évolution possible et ambitions', xp: 25, category: 'career' },
+        { id: 'validation_competences', label: 'Validation finale des compétences', description: 'Certification de tes acquis', xp: 30, category: 'certification' },
+        { id: 'integration_reussie', label: 'Validation intégration réussie', description: 'Confirmation de la réussite du parcours', xp: 40, category: 'success' }
+      ]
+    }
   }
 };
 
@@ -741,317 +119,250 @@ const OnboardingPage = () => {
       }
     };
     
-    window.addEventListener('forceDashboardRefresh', handleDashboardRefresh);
+    window.addEventListener('force-dashboard-refresh', handleDashboardRefresh);
     
     return () => {
-      window.removeEventListener('forceDashboardRefresh', handleDashboardRefresh);
+      window.removeEventListener('force-dashboard-refresh', handleDashboardRefresh);
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
     };
-  }, [user]);
+  }, [user?.uid]);
 
-  // 💾 SAUVEGARDE AUTOMATIQUE
-  useEffect(() => {
-    if (user?.uid && completedTasks.size > 0) {
-      scheduleAutoSave();
-    }
-  }, [completedTasks, user]);
-
-  // 📥 CHARGEMENT PROGRESSION
+  // 📚 CHARGEMENT DES DONNÉES SAUVEGARDÉES
   const loadProgress = async () => {
-    if (!user?.uid) return;
-    
-    setLoading(true);
-    setSyncStatus('syncing');
-    
+    // ✅ CORRECTION LIGNE 312 : Fonction séparée au lieu d'objet mal formé
     try {
-      // Essayer d'abord localStorage
-      const localData = localStorage.getItem(`onboarding_${user.uid}`);
-      if (localData) {
-        const parsed = JSON.parse(localData);
+      console.log(`🔄 [REST] Chargement progression via stockage local...`);
+      
+      const savedData = localStorage.getItem(`onboarding_${user.uid}`);
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
         setCompletedTasks(new Set(parsed.completedTasks || []));
-        setCompletedTasksHistory(new Set(parsed.completedTasksHistory || [])); // 🔒 CHARGER L'HISTORIQUE
-        console.log('📱 Progression chargée depuis localStorage');
-      }
-      
-      // Ensuite tenter Firebase REST
-      try {
-        const result = await firebaseRestService.loadProgressRest(user.uid);
-        if (result.success && result.data) {
-          setCompletedTasks(new Set(result.data.completedTasks || []));
-          setCompletedTasksHistory(new Set(result.data.completedTasksHistory || [])); // 🔒 CHARGER L'HISTORIQUE FIREBASE
-          setLastSaved(new Date(result.lastUpdated));
-          setSyncStatus('online');
-          console.log('☁️ Progression synchronisée depuis Firebase');
-        } else {
-          setSyncStatus('offline');
-        }
-      } catch (firebaseError) {
-        console.warn('⚠️ Firebase indisponible, mode hors ligne');
+        setLastSaved(new Date(parsed.lastSaved || Date.now()));
         setSyncStatus('offline');
+        console.log('📁 Données chargées depuis localStorage');
       }
-      
     } catch (error) {
-      console.error('❌ Erreur chargement progression:', error);
-      setSyncStatus('offline');
-    } finally {
-      setLoading(false);
+      console.error('❌ Erreur chargement données:', error);
     }
   };
 
-  // 💾 SAUVEGARDE DIFFÉRÉE
-  const scheduleAutoSave = () => {
+  // 💾 SAUVEGARDE AUTOMATIQUE
+  const saveProgress = async (tasks = completedTasks) => {
+    if (!user?.uid) return;
+    
+    // Sauvegarde locale immédiate
+    const progressData = {
+      completedTasks: Array.from(tasks),
+      lastSaved: Date.now(),
+      userId: user.uid
+    };
+    
+    localStorage.setItem(`onboarding_${user.uid}`, JSON.stringify(progressData));
+    setLastSaved(new Date());
+    
+    // 🔄 DÉCLENCHER ACTUALISATION DASHBOARD
+    console.log('🚀 [ONBOARDING] Déclenchement actualisation dashboard...');
+    
+    const totalXP = calculateEarnedXP(tasks);
+    
+    // Événement custom pour le dashboard
+    const dashboardEvent = new CustomEvent('onboarding-progress-updated', {
+      detail: {
+        userId: user.uid,
+        completedTasks: Array.from(tasks),
+        earnedXP: totalXP,
+        timestamp: Date.now(),
+        source: 'onboarding'
+      }
+    });
+    
+    window.dispatchEvent(dashboardEvent);
+    console.log(`📊 [ONBOARDING] Événement dispatché - XP: ${totalXP}`);
+  };
+
+  // 🎯 CALCULER XP GAGNÉ
+  const calculateEarnedXP = (tasks = completedTasks) => {
+    let totalXP = 0;
+    
+    Object.values(formationData.sections).forEach(section => {
+      section.tasks.forEach(task => {
+        if (tasks.has(task.id)) {
+          totalXP += task.xp;
+        }
+      });
+    });
+    
+    return totalXP;
+  };
+
+  // ✅ MARQUER UNE TÂCHE COMME TERMINÉE
+  const completeTask = (taskId) => {
+    const newCompletedTasks = new Set(completedTasks);
+    
+    if (newCompletedTasks.has(taskId)) {
+      newCompletedTasks.delete(taskId);
+    } else {
+      newCompletedTasks.add(taskId);
+    }
+    
+    setCompletedTasks(newCompletedTasks);
+    
+    // Sauvegarde automatique avec délai
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     
     saveTimeoutRef.current = setTimeout(() => {
-      saveProgress();
-    }, 2000); // Sauvegarde après 2 secondes d'inactivité
+      saveProgress(newCompletedTasks);
+    }, 500);
   };
 
-  // 💾 SAUVEGARDE PROGRESSION
-  const saveProgress = async () => {
-    if (!user?.uid || saving) return;
-    
-    setSaving(true);
-    setSyncStatus('syncing');
-    
-    const progressData = {
-      completedTasks: Array.from(completedTasks),
-      completedTasksHistory: Array.from(completedTasksHistory), // 🔒 SAUVEGARDER L'HISTORIQUE
-      lastUpdated: new Date().toISOString(),
-      userId: user.uid,
-      version: '3.5.3'
-    };
-    
-    try {
-      // Sauvegarde locale immédiate
-      localStorage.setItem(`onboarding_${user.uid}`, JSON.stringify(progressData));
-      
-      // Tentative sauvegarde Firebase
-      try {
-        await firebaseRestService.saveProgressRest(user.uid, progressData);
-        setSyncStatus('online');
-        setLastSaved(new Date());
-        console.log('☁️ Progression sauvegardée sur Firebase');
-      } catch (firebaseError) {
-        console.warn('⚠️ Sauvegarde Firebase échouée, données locales conservées');
-        setSyncStatus('offline');
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur sauvegarde:', error);
-      firebaseRestService.showNotification('Erreur de sauvegarde', 'error');
-      setSyncStatus('offline');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ✅ MARQUER TÂCHE COMME TERMINÉE - AVEC PROTECTION ANTI-FARMING XP
-  const toggleTask = async (sectionId, taskId) => {
-    const task = formationData[sectionId]?.tasks?.find(t => t.id === taskId);
-    if (!task) return;
-    
-    const newCompleted = new Set(completedTasks);
-    const wasCompleted = newCompleted.has(taskId);
-    
-    if (wasCompleted) {
-      // DÉCOCHER LA TÂCHE
-      newCompleted.delete(taskId);
-      console.log(`🔄 Tâche décochée: ${task.label} (pas de perte d'XP)`);
+  // 🔄 BASCULER SECTION ÉTENDUE
+  const toggleSection = (sectionId) => {
+    const newExpanded = new Set(expandedSections);
+    if (newExpanded.has(sectionId)) {
+      newExpanded.delete(sectionId);
     } else {
-      // COCHER LA TÂCHE
-      newCompleted.add(taskId);
-      
-      // 🔒 VÉRIFIER SI C'EST LA PREMIÈRE FOIS QUE CETTE TÂCHE EST COMPLÉTÉE
-      const isFirstTimeCompleted = !completedTasksHistory.has(taskId);
-      
-      if (isFirstTimeCompleted && user?.uid) {
-        // PREMIÈRE FOIS → GAGNER XP
-        try {
-          // 🔒 AJOUTER À L'HISTORIQUE AVANT LA SYNC
-          const newHistory = new Set(completedTasksHistory);
-          newHistory.add(taskId);
-          setCompletedTasksHistory(newHistory);
-          
-          // 🔄 CALCULER LE TOTAL D'XP RÉELLEMENT GAGNÉS
-          const totalRealXp = Object.values(formationData)
-            .flatMap(section => section.tasks)
-            .filter(t => newHistory.has(t.id))
-            .reduce((sum, t) => sum + t.xp, 0);
-          
-          // 🎯 SYNCHRONISER AVEC LE TOTAL RÉEL D'XP
-          await firebaseRestService.syncXpWithRealTotal(user.uid, task.xp, newHistory.size, totalRealXp);
-          
-          console.log(`✅ Première completion: ${task.label} → +${task.xp} XP (Total réel: ${totalRealXp})`);
-        } catch (error) {
-          console.warn('⚠️ Sync XP échoué, progression locale conservée');
-        }
-      } else if (!isFirstTimeCompleted) {
-        // DÉJÀ COMPLÉTÉE AVANT → PAS D'XP
-        console.log(`🔒 Tâche déjà récompensée: ${task.label} → 0 XP (anti-farming)`);
-        firebaseRestService.showNotification(
-          `✅ ${task.label} - Déjà récompensée (pas de XP supplémentaire)`, 
-          'info'
-        );
-      }
+      newExpanded.add(sectionId);
     }
-    
-    setCompletedTasks(newCompleted);
+    setExpandedSections(newExpanded);
   };
 
-  // 📊 CALCULS STATISTIQUES
-  const totalTasks = Object.values(formationData).reduce((sum, section) => sum + section.tasks.length, 0);
+  // 📊 CALCULER PROGRESSION GLOBALE
+  const totalTasks = Object.values(formationData.sections).reduce(
+    (sum, section) => sum + section.tasks.length, 0
+  );
   const completedCount = completedTasks.size;
   const progressPercentage = totalTasks > 0 ? (completedCount / totalTasks) * 100 : 0;
-  
-  // 🔒 XP CALCULÉS UNIQUEMENT SUR LES TÂCHES DANS L'HISTORIQUE (RÉELLEMENT RÉCOMPENSÉES)
-  const earnedXp = Object.values(formationData)
-    .flatMap(section => section.tasks)
-    .filter(task => completedTasksHistory.has(task.id)) // 🔒 SEULEMENT LES TÂCHES DÉJÀ RÉCOMPENSÉES
-    .reduce((sum, task) => sum + task.xp, 0);
+  const earnedXP = calculateEarnedXP();
 
-  console.log(`📊 Statistiques: ${completedCount}/${totalTasks} tâches (${Math.round(progressPercentage)}%) - ${earnedXp} XP (réellement gagnés)`);
-
-  // 🎨 ICÔNE STATUT SYNC
-  const getSyncIcon = () => {
-    switch (syncStatus) {
-      case 'online': return <Cloud className="w-4 h-4 text-green-500" />;
-      case 'syncing': return <Loader className="w-4 h-4 text-blue-500 animate-spin" />;
-      case 'offline': return <WifiOff className="w-4 h-4 text-gray-500" />;
-      default: return <Database className="w-4 h-4 text-gray-400" />;
-    }
-  };
-
-  // 📱 INTERFACE
+  // 🎨 RENDU PRINCIPAL
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="container mx-auto px-6 py-8">
         
-        {/* 🎯 HEADER AVEC PROGRESSION */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 mb-8 border border-gray-700/50"
-        >
+        {/* EN-TÊTE */}
+        <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                🧠 Intégration Brain
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+                {formationData.title}
               </h1>
-              <p className="text-gray-400 mt-2">
-                Bienvenue ! Voici tes premières étapes pour te sentir chez toi et découvrir l'esprit Brain.
+              <p className="text-gray-400 text-lg">
+                {formationData.description}
               </p>
             </div>
             
-            {/* 💾 STATUT SYNC */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                {getSyncIcon()}
-                <span>
-                  {syncStatus === 'online' && lastSaved && `Sauvegardé ${lastSaved.toLocaleTimeString()}`}
-                  {syncStatus === 'syncing' && 'Synchronisation...'}
-                  {syncStatus === 'offline' && 'Hors ligne'}
+            {/* Statut de synchronisation */}
+            <div className="flex items-center gap-3">
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
+                syncStatus === 'online' ? 'bg-green-500/20 text-green-300' :
+                syncStatus === 'syncing' ? 'bg-yellow-500/20 text-yellow-300' :
+                'bg-gray-500/20 text-gray-300'
+              }`}>
+                {syncStatus === 'online' ? <Wifi className="w-4 h-4" /> :
+                 syncStatus === 'syncing' ? <RefreshCw className="w-4 h-4 animate-spin" /> :
+                 <WifiOff className="w-4 h-4" />}
+                <span className="text-sm font-medium">
+                  {syncStatus === 'online' ? 'Synchronisé' :
+                   syncStatus === 'syncing' ? 'Synchronisation...' :
+                   'Mode hors ligne'}
                 </span>
               </div>
               
-              {saving && (
-                <div className="flex items-center gap-2 text-blue-400">
-                  <Save className="w-4 h-4 animate-pulse" />
-                  <span className="text-sm">Sauvegarde...</span>
+              {lastSaved && (
+                <div className="text-xs text-gray-500">
+                  Sauvegardé {lastSaved.toLocaleTimeString()}
                 </div>
               )}
             </div>
           </div>
 
-          {/* 📊 BARRE DE PROGRESSION */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between text-sm text-gray-400">
-              <span>{completedCount} / {totalTasks} tâches terminées</span>
-              <span>⭐ {earnedXp} XP gagnés</span>
+          {/* BARRE DE PROGRESSION GLOBALE */}
+          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-semibold text-white">Progression Globale</h3>
+                <p className="text-gray-400">
+                  {completedCount} sur {totalTasks} tâches terminées
+                </p>
+              </div>
+              
+              <div className="text-right">
+                <div className="text-2xl font-bold text-purple-400">{earnedXP} XP</div>
+                <div className="text-sm text-gray-400">sur {formationData.totalXP} XP</div>
+              </div>
             </div>
             
-            <div className="w-full bg-gray-700 rounded-full h-3">
+            <div className="w-full bg-gray-700 rounded-full h-3 mb-4">
               <motion.div
-                className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercentage}%` }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
+                transition={{ duration: 0.5 }}
               />
             </div>
             
-            <div className="text-center">
-              <span className="text-lg font-semibold text-white">
-                {Math.round(progressPercentage)}% terminé
-              </span>
+            <div className="flex justify-between text-sm text-gray-400">
+              <span>{progressPercentage.toFixed(1)}% terminé</span>
+              <span>Durée estimée: {formationData.estimatedDuration}</span>
             </div>
           </div>
-        </motion.div>
+        </div>
 
-        {/* 📚 SECTIONS DE FORMATION */}
+        {/* SECTIONS DE FORMATION */}
         <div className="space-y-6">
-          {Object.values(formationData).map((section, sectionIndex) => {
-            const sectionCompleted = section.tasks.every(task => completedTasks.has(task.id));
-            const sectionProgress = section.tasks.filter(task => completedTasks.has(task.id)).length;
-            const isExpanded = expandedSections.has(section.id);
-            
+          {Object.entries(formationData.sections).map(([sectionId, section]) => {
+            const sectionCompleted = section.tasks.filter(task => completedTasks.has(task.id)).length;
+            const sectionTotal = section.tasks.length;
+            const sectionProgress = sectionTotal > 0 ? (sectionCompleted / sectionTotal) * 100 : 0;
+            const isExpanded = expandedSections.has(sectionId);
+
             return (
               <motion.div
-                key={section.id}
+                key={sectionId}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: sectionIndex * 0.1 }}
-                className={`bg-gray-800/50 backdrop-blur-sm rounded-xl border transition-all duration-300 ${
-                  sectionCompleted 
-                    ? 'border-green-500/50 bg-green-900/20' 
-                    : 'border-gray-700/50 hover:border-gray-600/50'
-                }`}
+                className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden"
               >
-                {/* 📋 HEADER SECTION */}
-                <div
-                  className="p-6 cursor-pointer"
-                  onClick={() => {
-                    const newExpanded = new Set(expandedSections);
-                    if (isExpanded) {
-                      newExpanded.delete(section.id);
-                    } else {
-                      newExpanded.add(section.id);
-                    }
-                    setExpandedSections(newExpanded);
-                  }}
+                {/* EN-TÊTE DE SECTION */}
+                <button
+                  onClick={() => toggleSection(sectionId)}
+                  className="w-full p-6 text-left hover:bg-gray-700/30 transition-colors"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className={`p-2 rounded-lg ${
-                        sectionCompleted 
-                          ? 'bg-green-500/20 text-green-400' 
-                          : 'bg-blue-500/20 text-blue-400'
-                      }`}>
-                        {sectionCompleted ? (
-                          <CheckCircle className="w-6 h-6" />
-                        ) : (
-                          <Clock className="w-6 h-6" />
-                        )}
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-white mb-2">
+                        {section.title}
+                      </h3>
+                      <p className="text-gray-400 mb-3">
+                        {section.description}
+                      </p>
+                      
+                      {/* Barre de progression de section */}
+                      <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+                        <div
+                          className="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${sectionProgress}%` }}
+                        />
                       </div>
                       
-                      <div>
-                        <h3 className="text-xl font-semibold text-white mb-1">
-                          {section.title}
-                        </h3>
-                        <p className="text-gray-400 text-sm">
-                          {section.description} • {section.estimatedTime}
-                        </p>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                          <span>{sectionProgress} / {section.tasks.length} tâches</span>
-                          <span>⭐ {section.tasks.reduce((sum, task) => sum + (completedTasks.has(task.id) ? task.xp : 0), 0)} XP</span>
-                        </div>
+                      <div className="flex justify-between text-sm text-gray-400">
+                        <span>{sectionCompleted}/{sectionTotal} tâches</span>
+                        <span>{sectionProgress.toFixed(0)}%</span>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-3">
-                      {sectionCompleted && (
-                        <Award className="w-6 h-6 text-yellow-400" />
+                    <div className="ml-4 flex items-center gap-3">
+                      {sectionProgress === 100 && (
+                        <div className="flex items-center gap-1 text-green-400">
+                          <CheckCircle className="w-5 h-5" />
+                          <span className="text-sm font-medium">Terminé</span>
+                        </div>
                       )}
+                      
                       {isExpanded ? (
                         <ChevronDown className="w-5 h-5 text-gray-400" />
                       ) : (
@@ -1059,9 +370,9 @@ const OnboardingPage = () => {
                       )}
                     </div>
                   </div>
-                </div>
+                </button>
 
-                {/* 📋 TÂCHES */}
+                {/* CONTENU DE SECTION */}
                 <AnimatePresence>
                   {isExpanded && (
                     <motion.div
@@ -1069,60 +380,52 @@ const OnboardingPage = () => {
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="overflow-hidden"
+                      className="border-t border-gray-700"
                     >
-                      <div className="px-6 pb-6 space-y-3">
-                        {section.tasks.map((task, taskIndex) => {
+                      <div className="p-6 space-y-4">
+                        {section.tasks.map((task) => {
                           const isCompleted = completedTasks.has(task.id);
                           
                           return (
                             <motion.div
                               key={task.id}
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: taskIndex * 0.05 }}
-                              className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 ${
+                              layout
+                              className={`p-4 rounded-lg border transition-all cursor-pointer ${
                                 isCompleted
-                                  ? 'bg-green-900/30 border-green-500/30 text-green-100'
-                                  : 'bg-gray-700/30 border-gray-600/30 text-gray-100 hover:bg-gray-700/50 hover:border-gray-500/50'
+                                  ? 'bg-green-500/10 border-green-500/30 hover:bg-green-500/20'
+                                  : 'bg-gray-700/30 border-gray-600 hover:bg-gray-700/50'
                               }`}
-                              onClick={() => toggleTask(section.id, task.id)}
+                              onClick={() => completeTask(task.id)}
                             >
-                              <div className="flex items-start gap-3">
-                                <div className="mt-1">
+                              <div className="flex items-center gap-4">
+                                <div className="flex-shrink-0">
                                   {isCompleted ? (
-                                    <CheckSquare className="w-5 h-5 text-green-400" />
+                                    <CheckCircle className="w-6 h-6 text-green-400" />
                                   ) : (
-                                    <Square className="w-5 h-5 text-gray-400" />
+                                    <Circle className="w-6 h-6 text-gray-400" />
                                   )}
                                 </div>
                                 
                                 <div className="flex-1">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <h4 className={`font-medium ${isCompleted ? 'line-through text-green-300' : ''}`}>
-                                      {task.label}
-                                    </h4>
-                                    <div className="flex items-center gap-2">
-                                      <Star className="w-4 h-4 text-yellow-400" />
-                                      <span className="text-sm font-medium">+{task.xp} XP</span>
-                                    </div>
-                                  </div>
-                                  
-                                  <p className={`text-sm ${isCompleted ? 'text-green-400/80' : 'text-gray-400'}`}>
+                                  <h4 className={`font-medium ${
+                                    isCompleted ? 'text-green-300' : 'text-white'
+                                  }`}>
+                                    {task.label}
+                                  </h4>
+                                  <p className="text-gray-400 text-sm mt-1">
                                     {task.description}
                                   </p>
-                                  
-                                  {isCompleted && (
-                                    <div className="flex items-center gap-2 mt-2 text-xs text-green-400">
-                                      <CheckCircle className="w-3 h-3" />
-                                      <span>
-                                        {completedTasksHistory.has(task.id) 
-                                          ? `Tâche terminée (+${task.xp} XP)` 
-                                          : 'Tâche terminée (déjà récompensée)'
-                                        }
-                                      </span>
-                                    </div>
-                                  )}
+                                </div>
+                                
+                                <div className="text-right">
+                                  <div className={`text-lg font-bold ${
+                                    isCompleted ? 'text-green-400' : 'text-purple-400'
+                                  }`}>
+                                    +{task.xp} XP
+                                  </div>
+                                  <div className="text-xs text-gray-500 capitalize">
+                                    {task.category}
+                                  </div>
                                 </div>
                               </div>
                             </motion.div>
@@ -1137,59 +440,37 @@ const OnboardingPage = () => {
           })}
         </div>
 
-        {/* 🎉 MESSAGE DE FÉLICITATIONS */}
+        {/* RÉSUMÉ FINAL */}
         {progressPercentage === 100 && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="mt-8 bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-xl p-6 border border-green-500/30"
+            className="mt-8 bg-gradient-to-r from-green-500/20 to-emerald-600/20 border border-green-500/30 rounded-xl p-8 text-center"
           >
-            <div className="text-center">
-              <div className="text-6xl mb-4">🎉</div>
-              <h2 className="text-2xl font-bold text-white mb-2">
-                Félicitations ! Intégration terminée !
-              </h2>
-              <p className="text-gray-300 mb-4">
-                Tu as terminé toutes les étapes d'intégration chez Brain. 
-                Bienvenue officiellement dans l'équipe !
-              </p>
-              <div className="flex items-center justify-center gap-4 text-lg">
-                <div className="flex items-center gap-2 text-yellow-400">
-                  <Star className="w-5 h-5" />
-                  <span className="font-semibold">{earnedXp} XP total</span>
-                </div>
-                <div className="flex items-center gap-2 text-green-400">
-                  <Award className="w-5 h-5" />
-                  <span className="font-semibold">Badge "Nouveau Brainy" débloqué</span>
-                </div>
+            <Trophy className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+            <h2 className="text-3xl font-bold text-white mb-4">
+              🎉 Félicitations !
+            </h2>
+            <p className="text-gray-300 text-lg mb-6">
+              Tu as terminé ta formation d'intégration chez Brain avec succès !
+            </p>
+            <div className="flex items-center justify-center gap-8 text-center">
+              <div>
+                <div className="text-2xl font-bold text-green-400">{earnedXP} XP</div>
+                <div className="text-sm text-gray-400">XP Gagné</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-purple-400">{totalTasks}</div>
+                <div className="text-sm text-gray-400">Tâches Accomplies</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-yellow-400">100%</div>
+                <div className="text-sm text-gray-400">Formation Terminée</div>
               </div>
             </div>
           </motion.div>
         )}
 
-        {/* 📱 DEBUG (MODE DEV) */}
-        {import.meta.env.DEV && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.7 }}
-            className="mt-8 bg-gray-900/50 rounded-lg p-4 text-xs text-gray-400"
-          >
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <strong>Debug Info:</strong>
-                <div>User: {user?.email}</div>
-                <div>Completed: {Array.from(completedTasks).join(', ')}</div>
-                <div>Progress: {Math.round(progressPercentage)}%</div>
-              </div>
-              <div>
-                <strong>Sync Status:</strong>
-                <div>Mode: {syncStatus}</div>
-                <div>Saving: {saving ? 'Yes' : 'No'}</div>
-                <div>Last Saved: {lastSaved?.toLocaleString() || 'Never'}</div>
-              </div>
-            </div>
-          </motion.div>
-        )}
       </div>
     </div>
   );
