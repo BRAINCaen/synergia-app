@@ -1,4 +1,4 @@
-// 📬 INTERFACE DE CONSULTATION DES MESSAGES
+// 📬 INTERFACE DE CONSULTATION DES MESSAGES - AVEC NOMS UTILISATEURS
 // react-app/src/components/MessagingInterface.jsx
 
 import React, { useState, useEffect } from 'react';
@@ -22,8 +22,179 @@ import {
   X,
   CheckCircle
 } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../core/firebase';
 import { messagingService } from '../core/services/messagingService';
 import { useAuthStore } from '../shared/stores/authStore';
+
+// ==========================================
+// 👤 HOOK POUR RÉSOUDRE LES NOMS UTILISATEURS
+// ==========================================
+
+const useUserResolver = () => {
+  const [usersCache, setUsersCache] = useState(new Map());
+  
+  const resolveUser = async (userId) => {
+    if (!userId) {
+      return {
+        uid: 'unknown',
+        displayName: 'Utilisateur inconnu',
+        email: 'Non défini',
+        initials: '??'
+      };
+    }
+    
+    // Vérifier le cache d'abord
+    if (usersCache.has(userId)) {
+      return usersCache.get(userId);
+    }
+    
+    try {
+      console.log('🔍 Résolution utilisateur:', userId);
+      
+      // Récupérer depuis Firebase
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const user = {
+          uid: userId,
+          displayName: userData.displayName || userData.email?.split('@')[0] || `User_${userId.substring(0, 6)}`,
+          email: userData.email || 'Non défini',
+          photoURL: userData.photoURL || null,
+          initials: (userData.displayName || userData.email?.split('@')[0] || 'U')
+            .split(' ')
+            .map(n => n[0])
+            .join('')
+            .toUpperCase()
+            .substring(0, 2)
+        };
+        
+        console.log('✅ Utilisateur résolu:', user);
+        
+        // Mettre en cache
+        setUsersCache(prev => new Map(prev).set(userId, user));
+        return user;
+      } else {
+        console.warn('⚠️ Utilisateur non trouvé dans Firestore:', userId);
+        
+        // Utilisateur non trouvé - créer un fallback
+        const fallbackUser = {
+          uid: userId,
+          displayName: `User_${userId.substring(0, 8)}`,
+          email: 'Utilisateur supprimé',
+          photoURL: null,
+          initials: userId.substring(0, 2).toUpperCase()
+        };
+        
+        setUsersCache(prev => new Map(prev).set(userId, fallbackUser));
+        return fallbackUser;
+      }
+    } catch (error) {
+      console.error('❌ Erreur récupération utilisateur:', userId, error);
+      
+      // Fallback d'erreur
+      const errorUser = {
+        uid: userId,
+        displayName: `Utilisateur ${userId.substring(0, 6)}`,
+        email: 'Erreur chargement',
+        photoURL: null,
+        initials: 'ER'
+      };
+      
+      setUsersCache(prev => new Map(prev).set(userId, errorUser));
+      return errorUser;
+    }
+  };
+  
+  const resolveMultipleUsers = async (userIds) => {
+    if (!userIds || userIds.length === 0) return [];
+    
+    const promises = userIds.map(id => resolveUser(id));
+    return await Promise.all(promises);
+  };
+  
+  return { resolveUser, resolveMultipleUsers, usersCache };
+};
+
+// ==========================================
+// 🎨 COMPOSANT AVATAR UTILISATEUR
+// ==========================================
+
+const UserAvatar = ({ userId, user, size = 'md', showName = false, showEmail = false }) => {
+  const [resolvedUser, setResolvedUser] = useState(user);
+  const [loading, setLoading] = useState(!user && !!userId);
+  const { resolveUser } = useUserResolver();
+
+  const sizeClasses = {
+    sm: 'w-6 h-6 text-xs',
+    md: 'w-10 h-10 text-sm',
+    lg: 'w-12 h-12 text-base'
+  };
+
+  // Résoudre l'utilisateur si pas fourni
+  useEffect(() => {
+    if (!user && userId) {
+      setLoading(true);
+      resolveUser(userId).then(resolved => {
+        setResolvedUser(resolved);
+        setLoading(false);
+      });
+    }
+  }, [userId, user, resolveUser]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-3">
+        <div className={`${sizeClasses[size]} bg-gray-600 rounded-full animate-pulse`} />
+        {showName && <div className="h-4 bg-gray-600 rounded w-20 animate-pulse"></div>}
+      </div>
+    );
+  }
+
+  if (!resolvedUser) {
+    return (
+      <div className="flex items-center gap-3">
+        <div className={`${sizeClasses[size]} bg-gray-600 rounded-full flex items-center justify-center`}>
+          <span className="text-gray-400">?</span>
+        </div>
+        {showName && <span className="text-gray-400">Utilisateur inconnu</span>}
+      </div>
+    );
+  }
+
+  const displayName = resolvedUser.displayName || 'Utilisateur';
+  const initials = resolvedUser.initials || displayName
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .substring(0, 2);
+
+  return (
+    <div className="flex items-center gap-3">
+      <div 
+        className={`${sizeClasses[size]} bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-full flex items-center justify-center font-medium shadow-sm`}
+        title={`${displayName}${resolvedUser.email && resolvedUser.email !== 'Non défini' ? ` (${resolvedUser.email})` : ''}`}
+      >
+        {initials}
+      </div>
+      
+      {showName && (
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-white truncate">{displayName}</div>
+          {showEmail && resolvedUser.email && resolvedUser.email !== 'Non défini' && (
+            <div className="text-xs text-gray-400 truncate">{resolvedUser.email}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==========================================
+// 📧 COMPOSANT PRINCIPAL MESSAGERIE
+// ==========================================
 
 export const MessagingInterface = ({ isOpen, onClose, initialTab = 'received' }) => {
   const { user } = useAuthStore();
@@ -36,6 +207,9 @@ export const MessagingInterface = ({ isOpen, onClose, initialTab = 'received' })
   const [messagingStats, setMessagingStats] = useState({});
   const [actionLoading, setActionLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+
+  // Hook pour résoudre les utilisateurs
+  const { resolveUser, resolveMultipleUsers } = useUserResolver();
 
   // ==========================================
   // 📨 CHARGEMENT DES MESSAGES
@@ -53,6 +227,8 @@ export const MessagingInterface = ({ isOpen, onClose, initialTab = 'received' })
     
     setLoading(true);
     try {
+      console.log('📬 Chargement des messages pour onglet:', activeTab);
+      
       let loadedMessages = [];
       
       switch (activeTab) {
@@ -78,7 +254,42 @@ export const MessagingInterface = ({ isOpen, onClose, initialTab = 'received' })
           loadedMessages = await messagingService.getReceivedMessages(user.uid);
       }
       
-      setMessages(loadedMessages);
+      console.log('📬 Messages chargés:', loadedMessages.length);
+      
+      // Résoudre les noms des expéditeurs/destinataires
+      const messagesWithUsers = await Promise.all(
+        loadedMessages.map(async (message) => {
+          try {
+            // Résoudre l'expéditeur et le destinataire
+            const [fromUser, toUser] = await Promise.all([
+              resolveUser(message.fromUserId),
+              resolveUser(message.toUserId)
+            ]);
+            
+            return {
+              ...message,
+              fromUser,
+              toUser,
+              // Déterminer qui afficher selon l'onglet
+              displayUser: activeTab === 'sent' ? toUser : fromUser,
+              displayUserLabel: activeTab === 'sent' ? 'À :' : 'De :'
+            };
+          } catch (error) {
+            console.error('❌ Erreur résolution utilisateurs pour message:', message.id, error);
+            return {
+              ...message,
+              fromUser: { displayName: 'Erreur', initials: 'ER' },
+              toUser: { displayName: 'Erreur', initials: 'ER' },
+              displayUser: { displayName: 'Erreur', initials: 'ER' },
+              displayUserLabel: 'Erreur :'
+            };
+          }
+        })
+      );
+      
+      setMessages(messagesWithUsers);
+      console.log('✅ Messages avec utilisateurs résolus:', messagesWithUsers.length);
+      
     } catch (error) {
       console.error('❌ Erreur chargement messages:', error);
     } finally {
@@ -107,7 +318,8 @@ export const MessagingInterface = ({ isOpen, onClose, initialTab = 'received' })
     const searchLower = searchTerm.toLowerCase();
     return (
       message.subject?.toLowerCase().includes(searchLower) ||
-      message.content?.toLowerCase().includes(searchLower)
+      message.content?.toLowerCase().includes(searchLower) ||
+      message.displayUser?.displayName?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -206,28 +418,47 @@ export const MessagingInterface = ({ isOpen, onClose, initialTab = 'received' })
       }`}
     >
       <div className="flex items-start gap-3">
-        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-          <User className="w-5 h-5 text-white" />
-        </div>
+        {/* Avatar utilisateur */}
+        <UserAvatar 
+          user={message.displayUser}
+          size="md"
+          showName={false}
+        />
         
         <div className="flex-1 min-w-0">
+          {/* En-tête avec nom et statut */}
           <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs text-gray-500">{message.displayUserLabel}</span>
             <h3 className={`font-medium truncate ${
               !message.read ? 'text-white' : 'text-gray-300'
             }`}>
-              {message.subject || 'Sans sujet'}
+              {message.displayUser?.displayName || 'Utilisateur inconnu'}
             </h3>
             {message.starred && <Star className="w-4 h-4 text-yellow-400 fill-current" />}
             {!message.read && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
           </div>
           
+          {/* Sujet */}
+          <h4 className={`font-medium truncate mb-1 ${
+            !message.read ? 'text-white' : 'text-gray-300'
+          }`}>
+            {message.subject || 'Sans sujet'}
+          </h4>
+          
+          {/* Contenu aperçu */}
           <p className="text-sm text-gray-400 truncate mb-2">
             {message.content}
           </p>
           
+          {/* Date */}
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <Clock className="w-3 h-3" />
-            {message.timestamp?.toDate?.()?.toLocaleDateString() || 'Date inconnue'}
+            {message.timestamp?.toDate?.()?.toLocaleDateString('fr-FR', {
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit'
+            }) || 'Date inconnue'}
           </div>
         </div>
         
@@ -283,14 +514,34 @@ export const MessagingInterface = ({ isOpen, onClose, initialTab = 'received' })
           </div>
         </div>
         
-        <div className="text-sm text-gray-400">
-          <div className="flex items-center gap-2 mb-1">
-            <User className="w-4 h-4" />
-            <span>De : {message.fromUserId}</span>
+        {/* Informations expéditeur/destinataire */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-400 w-12">De :</span>
+            <UserAvatar 
+              user={message.fromUser}
+              size="sm"
+              showName={true}
+              showEmail={true}
+            />
           </div>
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            <span>{message.timestamp?.toDate?.()?.toLocaleString() || 'Date inconnue'}</span>
+          
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-400 w-12">À :</span>
+            <UserAvatar 
+              user={message.toUser}
+              size="sm"
+              showName={true}
+              showEmail={true}
+            />
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-400 w-12">Date :</span>
+            <div className="flex items-center gap-2 text-sm text-gray-300">
+              <Clock className="w-4 h-4" />
+              <span>{message.timestamp?.toDate?.()?.toLocaleString('fr-FR') || 'Date inconnue'}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -298,7 +549,7 @@ export const MessagingInterface = ({ isOpen, onClose, initialTab = 'received' })
       {/* Contenu */}
       <div className="flex-1 p-6">
         <div className="prose prose-invert max-w-none">
-          <p className="text-gray-300 whitespace-pre-wrap">
+          <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">
             {message.content}
           </p>
         </div>
@@ -440,6 +691,7 @@ export const MessagingInterface = ({ isOpen, onClose, initialTab = 'received' })
             <div className="flex-1 overflow-y-auto">
               {loading ? (
                 <div className="p-8 text-center text-gray-400">
+                  <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
                   Chargement des messages...
                 </div>
               ) : filteredMessages.length === 0 ? (
