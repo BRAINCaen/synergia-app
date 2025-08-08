@@ -11,7 +11,22 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { rolesConfig } from '../../shared/config/rolesConfig.js';
-import { calculateXP } from '../../shared/utils/xpCalculator.js';
+// ✅ FONCTION CALCULATEXP INTERNE - ÉVITE L'ERREUR D'IMPORT
+const calculateXP = (difficulty = 'medium', priority = 'medium', recurrence = 'none') => {
+  const baseXP = {
+    easy: 15, normal: 20, medium: 25, hard: 40, expert: 60
+  }[difficulty] || 25;
+  
+  const priorityMult = {
+    low: 1.0, medium: 1.2, high: 1.5, urgent: 2.0
+  }[priority] || 1.2;
+  
+  const recurrenceMult = {
+    none: 1.0, daily: 0.8, weekly: 1.0, monthly: 1.5, yearly: 3.0, custom: 1.2
+  }[recurrence] || 1.0;
+  
+  return Math.max(5, Math.round(baseXP * priorityMult * recurrenceMult));
+};
 import { storageService } from '../../core/services/storageService.js';
 import { projectService } from '../../core/services/projectService.js';
 
