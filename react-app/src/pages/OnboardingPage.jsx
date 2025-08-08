@@ -303,7 +303,7 @@ const BRAIN_FORMATION_DATA = {
     ]
   },
 
-  // Phase 2: Formation technique escape game (25 tâches)
+  // Phase 2: Formation technique escape game (28 tâches)
   formation_technique: {
     id: 'formation_technique',
     title: '🎮 Formation technique escape game',
@@ -316,10 +316,33 @@ const BRAIN_FORMATION_DATA = {
       { id: 'scenarios_enigmes', label: 'Mémoriser les scénarios et énigmes', description: 'Apprentissage des histoires et solutions', xp: 40, category: 'content' },
       { id: 'manipulation_objets', label: 'Savoir manipuler et réinitialiser les objets/mécanismes', description: 'Formation pratique sur la réinitialisation', xp: 35, category: 'technical' },
       { id: 'troubleshooting', label: 'Troubleshooting : que faire si quelque chose ne marche pas', description: 'Procédures de dépannage et contact support', xp: 40, category: 'support' },
-      { id: 'salle_pirate', label: 'Maîtrise de la salle Pirate', description: 'Connaissance complète du scénario pirate', xp: 25, category: 'room' },
-      { id: 'salle_horreur', label: 'Maîtrise de la salle Horreur', description: 'Connaissance complète du scénario horreur', xp: 25, category: 'room' },
-      { id: 'salle_mystere', label: 'Maîtrise de la salle Mystère', description: 'Connaissance complète du scénario mystère', xp: 25, category: 'room' },
-      { id: 'salle_aventure', label: 'Maîtrise de la salle Aventure', description: 'Connaissance complète du scénario aventure', xp: 25, category: 'room' },
+      
+      // 🏥 SALLE PSYCHIATRIC (7 tâches)
+      { id: 'psychiatric_scenario', label: '🏥 Psychiatric - Scénario et histoire', description: 'Maîtriser l\'univers psychiatrique et l\'intrigue principale', xp: 30, category: 'psychiatric' },
+      { id: 'psychiatric_enigmes', label: '🏥 Psychiatric - Énigmes et puzzles', description: 'Connaître toutes les énigmes et leurs solutions', xp: 35, category: 'psychiatric' },
+      { id: 'psychiatric_camera', label: '🏥 Psychiatric - Surveillance caméra', description: 'Maîtriser les angles de vue et le monitoring', xp: 20, category: 'psychiatric' },
+      { id: 'psychiatric_audio', label: '🏥 Psychiatric - Effets sonores et ambiance', description: 'Gérer l\'atmosphère sonore de la salle', xp: 25, category: 'psychiatric' },
+      { id: 'psychiatric_indices', label: '🏥 Psychiatric - Système d\'indices', description: 'Savoir donner les bons indices au bon moment', xp: 30, category: 'psychiatric' },
+      { id: 'psychiatric_reset', label: '🏥 Psychiatric - Procédure de reset', description: 'Remettre la salle en état initial rapidement', xp: 25, category: 'psychiatric' },
+      { id: 'psychiatric_urgence', label: '🏥 Psychiatric - Gestion situations d\'urgence', description: 'Protocoles en cas de panique ou problème', xp: 35, category: 'psychiatric' },
+      
+      // 🔒 SALLE PRISON (7 tâches)  
+      { id: 'prison_scenario', label: '🔒 Prison - Scénario et histoire', description: 'Maîtriser l\'univers carcéral et l\'intrigue d\'évasion', xp: 30, category: 'prison' },
+      { id: 'prison_enigmes', label: '🔒 Prison - Énigmes et mécanismes', description: 'Connaître tous les puzzles et serrures', xp: 35, category: 'prison' },
+      { id: 'prison_camera', label: '🔒 Prison - Surveillance et monitoring', description: 'Contrôler les caméras comme un gardien', xp: 20, category: 'prison' },
+      { id: 'prison_alerte', label: '🔒 Prison - Système d\'alerte', description: 'Gérer les alarmes et effets d\'urgence', xp: 25, category: 'prison' },
+      { id: 'prison_cellules', label: '🔒 Prison - Mécanismes des cellules', description: 'Ouverture/fermeture des cellules et passages', xp: 30, category: 'prison' },
+      { id: 'prison_evasion', label: '🔒 Prison - Scénario d\'évasion', description: 'Orchestrer le timing de l\'évasion', xp: 35, category: 'prison' },
+      { id: 'prison_reset', label: '🔒 Prison - Remise en état', description: 'Reset complet de tous les mécanismes', xp: 25, category: 'prison' },
+      
+      // 🕺 SALLE BACK TO THE 80'S (7 tâches)
+      { id: 'back80s_scenario', label: '🕺 Back to 80\'s - Scénario et époque', description: 'Immersion complète dans les années 80', xp: 30, category: 'back80s' },
+      { id: 'back80s_musique', label: '🕺 Back to 80\'s - Playlist et ambiance musicale', description: 'Gérer la bande son et l\'ambiance rétro', xp: 25, category: 'back80s' },
+      { id: 'back80s_objets', label: '🕺 Back to 80\'s - Objets et accessoires vintage', description: 'Connaître tous les objets et leur utilisation', xp: 30, category: 'back80s' },
+      { id: 'back80s_enigmes', label: '🕺 Back to 80\'s - Énigmes rétro', description: 'Maîtriser les puzzles inspirés des années 80', xp: 35, category: 'back80s' },
+      { id: 'back80s_culture', label: '🕺 Back to 80\'s - Culture et références', description: 'Connaître les références culturelles de l\'époque', xp: 20, category: 'back80s' },
+      { id: 'back80s_disco', label: '🕺 Back to 80\'s - Animation disco et fun', description: 'Créer l\'ambiance festive des années 80', xp: 25, category: 'back80s' },
+      { id: 'back80s_nostalgie', label: '🕺 Back to 80\'s - Immersion nostalgique', description: 'Faire vivre l\'époque aux participants', xp: 35, category: 'back80s' },
       { id: 'indices_progressifs', label: 'Système d\'indices progressifs', description: 'Comment donner des indices adaptés', xp: 30, category: 'guidance' },
       { id: 'gestion_temps', label: 'Gestion du temps de jeu', description: 'Optimisation des sessions selon le temps', xp: 20, category: 'timing' },
       { id: 'surveillance_cameras', label: 'Surveillance par caméras', description: 'Utilisation du système de monitoring', xp: 20, category: 'monitoring' },
@@ -340,14 +363,14 @@ const BRAIN_FORMATION_DATA = {
     ]
   },
 
-  // Phase 3: Accueil et gestion client (18 tâches)
+  // Phase 3: Accueil et gestion client + Quiz Game (25 tâches)
   accueil_client: {
     id: 'accueil_client',
-    title: '👥 Accueil et gestion client',
-    description: 'Apprends à créer une expérience client exceptionnelle du premier contact à la sortie.',
+    title: '👥 Accueil et gestion client + Quiz Game',
+    description: 'Apprends à créer une expérience client exceptionnelle du premier contact à la sortie + maîtrise du Quiz Game.',
     category: 'customer',
     order: 3,
-    estimatedTime: '3 jours',
+    estimatedTime: '4 jours',
     tasks: [
       { id: 'accueil_telephonique', label: 'Maîtriser l\'accueil téléphonique', description: 'Techniques de réception et information client', xp: 25, category: 'phone' },
       { id: 'presentation_activites', label: 'Présenter les activités Brain', description: 'Pitch commercial des différentes offres', xp: 30, category: 'presentation' },
@@ -362,11 +385,20 @@ const BRAIN_FORMATION_DATA = {
       { id: 'accueil_entreprises', label: 'Accueil des groupes d\'entreprises', description: 'Team building et événements corporate', xp: 30, category: 'corporate' },
       { id: 'gestion_celebrations', label: 'Gestion des célébrations (anniversaires, etc.)', description: 'Événements spéciaux et animations', xp: 20, category: 'events' },
       { id: 'protocole_urgence_client', label: 'Protocoles d\'urgence avec clients', description: 'Gestion des situations d\'urgence', xp: 30, category: 'emergency' },
-      { id: 'satisfaction_client', label: 'Mesure de la satisfaction client', description: 'Collecte des avis et amélioration continue', xp: 20, category: 'feedback' },
-      { id: 'fidelisation', label: 'Programme de fidélisation', description: 'Outils pour fidéliser la clientèle', xp: 25, category: 'loyalty' },
-      { id: 'communication_digitale', label: 'Communication digitale et réseaux sociaux', description: 'Présence en ligne et e-reputation', xp: 20, category: 'digital' },
-      { id: 'partenariats_locaux', label: 'Partenariats et réseaux locaux', description: 'Développement des partenariats', xp: 15, category: 'partnerships' },
-      { id: 'excellence_service', label: 'Standards d\'excellence du service', description: 'Qualité et dépassement des attentes', xp: 35, category: 'excellence' }
+      
+      // 🧠 QUIZ GAME (12 tâches)
+      { id: 'quiz_regles', label: '🧠 Quiz Game - Règles et fonctionnement', description: 'Maîtriser toutes les règles du quiz interactif', xp: 30, category: 'quiz' },
+      { id: 'quiz_categories', label: '🧠 Quiz Game - Catégories et thèmes', description: 'Connaître toutes les catégories de questions', xp: 25, category: 'quiz' },
+      { id: 'quiz_difficultes', label: '🧠 Quiz Game - Niveaux de difficulté', description: 'Adapter la difficulté selon les groupes', xp: 25, category: 'quiz' },
+      { id: 'quiz_animation', label: '🧠 Quiz Game - Animation et énergie', description: 'Créer une ambiance dynamique et fun', xp: 35, category: 'quiz' },
+      { id: 'quiz_technique', label: '🧠 Quiz Game - Système technique', description: 'Maîtriser les buzzers et l\'interface', xp: 30, category: 'quiz' },
+      { id: 'quiz_scoring', label: '🧠 Quiz Game - Système de points', description: 'Gérer les scores et classements', xp: 20, category: 'quiz' },
+      { id: 'quiz_equipes', label: '🧠 Quiz Game - Formation des équipes', description: 'Équilibrer les équipes pour plus de fun', xp: 25, category: 'quiz' },
+      { id: 'quiz_final', label: '🧠 Quiz Game - Manche finale épique', description: 'Orchestrer un final mémorable', xp: 35, category: 'quiz' },
+      { id: 'quiz_ambiance', label: '🧠 Quiz Game - Musique et effets', description: 'Gérer l\'ambiance sonore et visuelle', xp: 25, category: 'quiz' },
+      { id: 'quiz_podium', label: '🧠 Quiz Game - Cérémonie de remise des prix', description: 'Créer un moment de célébration', xp: 30, category: 'quiz' },
+      { id: 'quiz_personnalisation', label: '🧠 Quiz Game - Personnalisation selon événement', description: 'Adapter le quiz selon l\'occasion', xp: 25, category: 'quiz' },
+      { id: 'quiz_improvisation', label: '🧠 Quiz Game - Improvisation et rebondissements', description: 'Gérer les imprévus avec humour', xp: 35, category: 'quiz' }
     ]
   },
 
@@ -554,6 +586,8 @@ const OnboardingPage = () => {
     .flatMap(section => section.tasks)
     .filter(task => completedTasks.has(task.id))
     .reduce((sum, task) => sum + task.xp, 0);
+
+  console.log(`📊 Statistiques: ${completedCount}/${totalTasks} tâches (${Math.round(progressPercentage)}%) - ${earnedXp} XP`);
 
   // 🎨 ICÔNE STATUT SYNC
   const getSyncIcon = () => {
