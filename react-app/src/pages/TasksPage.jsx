@@ -23,7 +23,7 @@ import taskService from '../core/services/taskService.js';
 
 // Composants
 import TaskCard from '../modules/tasks/TaskCard.jsx';
-import TaskForm from '../components/forms/TaskForm.jsx';
+import TaskForm from '../modules/tasks/TaskForm.jsx';
 import TaskDetailModal from '../components/ui/TaskDetailModal.jsx';
 
 // Constants
