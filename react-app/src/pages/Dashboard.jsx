@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/Dashboard.jsx
-// DASHBOARD AVEC SYNCHRONISATION XP UNIFIÉE
+// DASHBOARD SANS ACTIONS RAPIDES ARTIFICIELLES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -48,7 +48,6 @@ const Dashboard = () => {
     isReady,
     syncStatus,
     lastUpdate,
-    quickActions,
     forceSync
   } = useUnifiedXP();
 
@@ -119,144 +118,95 @@ const Dashboard = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl animate-pulse flex items-center justify-center">
-            <BarChart3 className="w-8 h-8 text-white" />
-          </div>
-          <p className="text-white text-lg">Chargement du tableau de bord...</p>
-          <p className="text-gray-400 text-sm mt-2">Synchronisation: {syncStatus}</p>
+          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full animate-pulse"></div>
+          <h2 className="text-2xl font-bold text-white mb-2">Synergia</h2>
+          <p className="text-gray-400">Chargement du dashboard...</p>
+          {syncStatus && (
+            <p className="text-purple-400 text-sm mt-2">
+              {syncStatus === 'syncing' ? '⏳ Synchronisation...' : 
+               syncStatus === 'synced' ? '✅ Synchronisé' : 
+               syncStatus === 'error' ? '❌ Erreur de sync' : syncStatus}
+            </p>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
-      <div className="max-w-7xl mx-auto p-6">
-        
-        {/* 🎉 MESSAGE DE BIENVENUE */}
-        {showWelcome && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="bg-gradient-to-r from-blue-500/20 to-purple-600/20 border border-blue-500/30 rounded-xl p-4 mb-6 backdrop-blur-sm"
-          >
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Header */}
+      <div className="bg-white/5 backdrop-blur-sm border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Star className="w-5 h-5 text-white" />
+                <BarChart3 className="w-6 h-6 text-white" />
               </div>
-              <div className="flex-1">
-                <h3 className="text-white font-semibold">Bienvenue sur Synergia v3.5 !</h3>
-                <p className="text-gray-300 text-sm">
-                  Vos données XP sont maintenant synchronisées en temps réel. 
-                  Niveau {level} • {totalXp.toLocaleString()} XP total
-                </p>
+              <div>
+                <h1 className="text-xl font-bold text-white">Dashboard</h1>
+                <p className="text-gray-400 text-sm">Vue d'ensemble de votre activité</p>
               </div>
-              <button
-                onClick={() => setShowWelcome(false)}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* 📊 EN-TÊTE PRINCIPAL */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2">
-                Tableau de Bord
-              </h1>
-              <p className="text-gray-400">
-                Vue d'ensemble de votre progression et activités
-              </p>
-              <p className="text-gray-500 text-sm mt-1">
-                Dernière synchronisation: {lastUpdate ? lastUpdate.toLocaleTimeString('fr-FR') : 'En cours...'}
-              </p>
             </div>
             
             <div className="flex items-center gap-3">
               <button
                 onClick={forceSync}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg px-4 py-2 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
               >
-                <RefreshCw className={`w-4 h-4 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
-                <span className="text-sm">Actualiser</span>
+                <RefreshCw className="w-4 h-4" />
+                <span className="hidden sm:inline">Synchroniser</span>
               </button>
-              
-              <div className="flex items-center gap-2 bg-green-500/20 border border-green-500/30 rounded-lg px-3 py-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-green-400 text-sm">Synchronisé</span>
-              </div>
             </div>
           </div>
-        </motion.div>
+        </div>
+      </div>
 
-        {/* 🎯 CARTE GAMIFICATION MISE EN AVANT */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 }}
-          className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 backdrop-blur-sm border border-purple-500/30 rounded-xl p-6 mb-8"
-        >
-          <div className="flex flex-col lg:flex-row items-center gap-6">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-4">
-                <Trophy className="w-8 h-8 text-yellow-400" />
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Niveau {level}</h2>
-                  <p className="text-gray-300">{totalXp.toLocaleString()} XP total</p>
-                </div>
-              </div>
-              
-              <div className="mb-4">
-                <div className="flex justify-between text-sm text-gray-300 mb-2">
-                  <span>Progression vers niveau {level + 1}</span>
-                  <span>{xpToNextLevel} XP restants</span>
-                </div>
-                <div className="w-full h-3 bg-gray-700 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${levelProgress}%` }}
-                    transition={{ duration: 1 }}
-                    className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
-                  ></motion.div>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-6 text-sm">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-yellow-400" />
-                  <span className="text-gray-300">+{weeklyXp} XP cette semaine</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-orange-400" />
-                  <span className="text-gray-300">{loginStreak} jours consécutifs</span>
-                </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Message de bienvenue */}
+        {showWelcome && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-lg p-4 mb-8"
+          >
+            <div className="flex items-center gap-3">
+              <Star className="w-5 h-5 text-yellow-400" />
+              <div>
+                <h3 className="text-white font-medium">Bienvenue sur Synergia !</h3>
+                <p className="text-gray-300 text-sm">Voici votre tableau de bord personnalisé</p>
               </div>
             </div>
-            
-            <div className="grid grid-cols-3 gap-4">
-              {badges.slice(0, 3).map((badge, index) => (
-                <div 
-                  key={index}
-                  className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center"
-                >
-                  <span className="text-2xl">{badge.icon || '🏆'}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        )}
 
-        {/* 📈 STATISTIQUES PRINCIPALES */}
+        {/* Statistiques XP principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Niveau & XP */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 hover:bg-white/15 transition-colors"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-3 rounded-lg">
+                <Trophy className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-yellow-400 text-sm font-medium">Niveau {level}</span>
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-1">{totalXp.toLocaleString()}</h3>
+            <p className="text-gray-400 text-sm">Points d'expérience</p>
+            <div className="mt-3 w-full h-2 bg-gray-700 rounded-full">
+              <div 
+                className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-500"
+                style={{ width: `${levelProgress}%` }}
+              ></div>
+            </div>
+            <p className="text-gray-500 text-xs mt-1">{xpToNextLevel} XP pour le niveau suivant</p>
+          </motion.div>
+
           {/* Tâches */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -265,10 +215,10 @@ const Dashboard = () => {
             className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 hover:bg-white/15 transition-colors"
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="bg-blue-500 p-3 rounded-lg">
+              <div className="bg-green-500 p-3 rounded-lg">
                 <CheckSquare className="w-6 h-6 text-white" />
               </div>
-              <span className="text-green-400 text-sm font-medium">+{stats?.completionRate || 0}%</span>
+              <span className="text-green-400 text-sm font-medium">Terminées</span>
             </div>
             <h3 className="text-2xl font-bold text-white mb-1">{dashboardStats.tasks.completed}</h3>
             <p className="text-gray-400 text-sm">Tâches complétées</p>
@@ -310,51 +260,80 @@ const Dashboard = () => {
             <p className="text-gray-400 text-sm">Membres actifs</p>
             <p className="text-gray-500 text-xs mt-1">sur {dashboardStats.team.members} total</p>
           </motion.div>
-
-          {/* Productivité */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 hover:bg-white/15 transition-colors"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-orange-500 p-3 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-orange-400 text-sm font-medium">Score</span>
-            </div>
-            <h3 className="text-2xl font-bold text-white mb-1">{stats?.productivityScore || 0}</h3>
-            <p className="text-gray-400 text-sm">Productivité</p>
-            <p className="text-gray-500 text-xs mt-1">sur 100</p>
-          </motion.div>
         </div>
 
-        {/* 📊 CONTENU PRINCIPAL */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Activités Récentes */}
+        {/* Contenu principal en 2 colonnes */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Progression et badges */}
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.6 }}
-            className="lg:col-span-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6"
+            transition={{ delay: 0.5 }}
+            className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6"
           >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-                <Activity className="w-5 h-5 text-blue-400" />
-                Activités Récentes
-              </h3>
-              <button className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
-                Voir tout
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+              <Flame className="w-5 h-5 text-orange-400" />
+              Progression
+            </h3>
             
-            <div className="space-y-4">
+            {/* Streak */}
+            <div className="mb-6 p-4 bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-lg border border-orange-500/30">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-white font-medium">Série de connexions</h4>
+                  <p className="text-gray-300 text-sm">{loginStreak} jours consécutifs</p>
+                </div>
+                <div className="text-orange-400">
+                  <Flame className="w-8 h-8" />
+                </div>
+              </div>
+            </div>
+
+            {/* Badges */}
+            <div>
+              <h4 className="text-white font-medium mb-3">Badges récents</h4>
+              <div className="grid grid-cols-3 gap-3">
+                {badges.slice(0, 6).map((badge, index) => (
+                  <motion.div
+                    key={badge.id || index}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.6 + index * 0.1 }}
+                    className="bg-gradient-to-br from-yellow-400/20 to-orange-500/20 p-3 rounded-lg border border-yellow-500/30 text-center"
+                  >
+                    <Award className="w-6 h-6 text-yellow-400 mx-auto mb-1" />
+                    <p className="text-white text-xs font-medium truncate">{badge.name || badge.title || 'Badge'}</p>
+                  </motion.div>
+                ))}
+              </div>
+              
+              {badges.length === 0 && (
+                <div className="text-center py-8 text-gray-400">
+                  <Award className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>Aucun badge débloqué pour le moment</p>
+                  <p className="text-sm">Continuez à utiliser Synergia !</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Activité récente */}
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6 }}
+            className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6"
+          >
+            <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+              <Activity className="w-5 h-5 text-green-400" />
+              Activité récente
+            </h3>
+            
+            <div className="space-y-3">
               {recentActivities.map((activity, index) => (
-                <motion.div 
+                <motion.div
                   key={activity.id}
-                  initial={{ opacity: 0, x: -10 }}
+                  initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.7 + index * 0.1 }}
                   className="flex items-center gap-4 p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
@@ -374,67 +353,39 @@ const Dashboard = () => {
               ))}
             </div>
           </motion.div>
-
-          {/* Actions Rapides */}
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.8 }}
-            className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6"
-          >
-            <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-              <Target className="w-5 h-5 text-purple-400" />
-              Actions Rapides
-            </h3>
-            
-            <div className="space-y-3">
-              <button
-                onClick={() => quickActions.completeTask('medium', 'Tâche rapide')}
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white p-3 rounded-lg transition-all flex items-center gap-3"
-              >
-                <CheckCircle className="w-5 h-5" />
-                <div className="text-left">
-                  <p className="font-medium">Terminer une tâche</p>
-                  <p className="text-xs opacity-80">+20 XP</p>
-                </div>
-              </button>
-              
-              <button
-                onClick={() => quickActions.createProject('Nouveau projet')}
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white p-3 rounded-lg transition-all flex items-center gap-3"
-              >
-                <Plus className="w-5 h-5" />
-                <div className="text-left">
-                  <p className="font-medium">Créer un projet</p>
-                  <p className="text-xs opacity-80">+25 XP</p>
-                </div>
-              </button>
-              
-              <button
-                onClick={() => quickActions.profileUpdate()}
-                className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white p-3 rounded-lg transition-all flex items-center gap-3"
-              >
-                <Award className="w-5 h-5" />
-                <div className="text-left">
-                  <p className="font-medium">Mettre à jour profil</p>
-                  <p className="text-xs opacity-80">+10 XP</p>
-                </div>
-              </button>
-            </div>
-            
-            <div className="mt-6 p-4 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-lg border border-purple-500/30">
-              <h4 className="text-white font-medium mb-2">🎯 Objectif du jour</h4>
-              <p className="text-gray-300 text-sm">Gagner 100 XP supplémentaires</p>
-              <div className="mt-2 w-full h-2 bg-gray-700 rounded-full">
-                <div 
-                  className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
-                  style={{ width: `${Math.min(100, (weeklyXp / 100) * 100)}%` }}
-                ></div>
-              </div>
-              <p className="text-gray-400 text-xs mt-1">{Math.min(weeklyXp, 100)}/100 XP</p>
-            </div>
-          </motion.div>
         </div>
+
+        {/* Objectif du jour */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="mt-8 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+              <Target className="w-5 h-5 text-purple-400" />
+              Objectif du jour
+            </h3>
+            <span className="text-purple-400 text-sm">
+              {Math.min(weeklyXp, 100)}/100 XP
+            </span>
+          </div>
+          
+          <p className="text-gray-300 mb-4">Gagner 100 XP supplémentaires aujourd'hui</p>
+          
+          <div className="w-full h-3 bg-gray-700 rounded-full">
+            <div 
+              className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(100, (weeklyXp / 100) * 100)}%` }}
+            ></div>
+          </div>
+          
+          <div className="mt-4 flex justify-between text-sm text-gray-400">
+            <span>Progression journalière</span>
+            <span>{Math.round((weeklyXp / 100) * 100)}% complété</span>
+          </div>
+        </motion.div>
       </div>
     </div>
   );
