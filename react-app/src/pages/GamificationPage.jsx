@@ -19,8 +19,8 @@ import {
   Zap
 } from 'lucide-react';
 
-// Import du layout
-import LayoutComponent from '../layouts/LayoutComponent.jsx';
+// Import du layout correct
+// Note: Pas de layout wrapper nécessaire - géré par App.jsx
 
 // Hooks et contextes existants
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -133,25 +133,22 @@ const GamificationPage = () => {
 
   if (isLoading) {
     return (
-      <LayoutComponent>
-        <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-6">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex items-center justify-center h-64">
-              <div className="text-white text-xl">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
-                <p className="mt-4">Chargement de votre progression...</p>
-              </div>
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-white text-xl">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
+              <p className="mt-4">Chargement de votre progression...</p>
             </div>
           </div>
         </div>
-      </LayoutComponent>
+      </div>
     );
   }
 
   return (
-    <LayoutComponent>
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-6">
-        <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-6">
+      <div className="max-w-7xl mx-auto">
           
           {/* 🎉 NOTIFICATION DE RÉCLAMATION */}
           {showNotification && (
@@ -309,7 +306,7 @@ const GamificationPage = () => {
 
         </div>
       </div>
-    </LayoutComponent>
+    </div>
   );
 };
 
