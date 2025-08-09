@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES AVEC BOUTON "CRÉER UNE TÂCHE" FONCTIONNEL
+// PAGE TÂCHES AVEC CORRECTION LOGIQUE COMPLÈTE
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -88,21 +88,24 @@ const TasksPage = () => {
         if (isAssignedToMe && !isFinished) {
           // 🟢 MES TÂCHES = Je suis assigné ET pas terminée/validée
           myTasksArray.push(task);
+          console.log(`➡️ "${task.title}" ajoutée à MES TÂCHES (status: ${task.status})`);
           
         } else if (isAvailable && !isFinished) {
           // 🟡 TÂCHES DISPONIBLES = Pas assignées ET pas terminées
           availableTasksArray.push(task);
+          console.log(`➡️ "${task.title}" ajoutée aux DISPONIBLES (status: ${task.status})`);
           
         } else {
           // 🔵 AUTRES TÂCHES = Tout le reste (assignées à d'autres, terminées, validées, etc.)
           otherTasksArray.push(task);
+          console.log(`➡️ "${task.title}" ajoutée aux AUTRES (status: ${task.status}, assignedToMe: ${isAssignedToMe}, finished: ${isFinished})`);
         }
       });
 
       console.log('📊 RÉPARTITION FINALE:');
-      console.log(`  🟢 MES TÂCHES: ${myTasksArray.length}`);
-      console.log(`  🔵 TÂCHES DISPONIBLES: ${availableTasksArray.length}`);
-      console.log(`  🟡 AUTRES TÂCHES: ${otherTasksArray.length}`);
+      console.log(`  🟢 MES TÂCHES (assignées à moi, non terminées): ${myTasksArray.length}`);
+      console.log(`  🔵 TÂCHES DISPONIBLES (sans assignation, non terminées): ${availableTasksArray.length}`);
+      console.log(`  🟡 AUTRES TÂCHES (assignées ailleurs ou terminées): ${otherTasksArray.length}`);
 
       // Mettre à jour les états
       setMyTasks(myTasksArray);
@@ -200,15 +203,10 @@ const TasksPage = () => {
   const handleCreateTask = async (taskData) => {
     try {
       setSubmitting(true);
-      console.log('📝 Création de tâche:', taskData);
-      
       await taskService.createTask(taskData, user.uid);
       console.log('✅ Tâche créée avec succès');
-      
       await loadTasks(); // Recharger les tâches
       setShowCreateModal(false);
-      setSelectedTask(null);
-      
     } catch (error) {
       console.error('❌ Erreur création tâche:', error);
       setError('Erreur lors de la création de la tâche');
@@ -223,28 +221,44 @@ const TasksPage = () => {
       
       // 🛡️ PRÉSERVER LES DONNÉES CRITIQUES
       const preservedData = {
+        // Préserver l'assignation existante
         assignedTo: selectedTask.assignedTo || [],
+        
+        // Préserver le créateur
         createdBy: selectedTask.createdBy,
+        
+        // Préserver les dates importantes
         createdAt: selectedTask.createdAt,
         completedAt: selectedTask.completedAt,
+        
+        // Préserver l'historique de validation
         validationRequestId: selectedTask.validationRequestId,
         validatedAt: selectedTask.validatedAt,
         validatedBy: selectedTask.validatedBy,
+        
+        // Ajouter la date de modification
         updatedAt: new Date()
       };
 
+      // Combiner les nouvelles données avec les données préservées
       const finalData = {
-        ...taskData,
-        ...preservedData
+        ...taskData,  // Nouvelles données du formulaire
+        ...preservedData  // Données préservées (priorité)
       };
 
+      console.log('🔧 Données finales pour mise à jour:', {
+        preservedAssignedTo: preservedData.assignedTo,
+        preservedCreatedBy: preservedData.createdBy,
+        newTitle: taskData.title,
+        newStatus: taskData.status
+      });
+
       await taskService.updateTask(selectedTask.id, finalData);
-      console.log('✅ Tâche mise à jour avec succès');
+      console.log('✅ Tâche mise à jour avec préservation des assignations');
       
-      await loadTasks();
+      await loadTasks(); // Recharger les tâches
       setShowCreateModal(false);
       setSelectedTask(null);
-      
     } catch (error) {
       console.error('❌ Erreur mise à jour tâche:', error);
       setError('Erreur lors de la mise à jour de la tâche');
@@ -255,11 +269,9 @@ const TasksPage = () => {
 
   const handleDeleteTask = async (taskId) => {
     try {
-      if (window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
-        await taskService.deleteTask(taskId);
-        console.log('✅ Tâche supprimée avec succès');
-        await loadTasks();
-      }
+      await taskService.deleteTask(taskId);
+      console.log('✅ Tâche supprimée avec succès');
+      await loadTasks(); // Recharger les tâches
     } catch (error) {
       console.error('❌ Erreur suppression tâche:', error);
       setError('Erreur lors de la suppression de la tâche');
@@ -273,8 +285,9 @@ const TasksPage = () => {
 
   const handleSubmitTask = async (taskId) => {
     try {
+      // Logique de soumission de tâche
       console.log('📤 Soumission tâche:', taskId);
-      await loadTasks();
+      await loadTasks(); // Recharger après soumission
     } catch (error) {
       console.error('❌ Erreur soumission tâche:', error);
       setError('Erreur lors de la soumission de la tâche');
@@ -285,13 +298,6 @@ const TasksPage = () => {
     console.log('🔄 Mise à jour détectée - rechargement des tâches');
     await forceReload();
   }, [forceReload]);
-
-  // ✅ GESTIONNAIRE POUR OUVRIR LE MODAL DE CRÉATION
-  const handleCreateNewTask = () => {
-    console.log('📝 Ouverture modal création de tâche');
-    setSelectedTask(null); // Pas de tâche sélectionnée = mode création
-    setShowCreateModal(true);
-  };
 
   // Obtenir les tâches filtrées selon l'onglet actif
   const getCurrentTasks = () => {
@@ -310,7 +316,7 @@ const TasksPage = () => {
   const currentTasks = getCurrentTasks();
 
   // Affichage de chargement
-  if (loading && myTasks.length === 0 && availableTasks.length === 0 && otherTasks.length === 0) {
+  if (loading && myTasks.length === 0) {
     return (
       <div className="p-6">
         <div className="flex items-center justify-center py-12">
@@ -346,13 +352,15 @@ const TasksPage = () => {
             Actualiser
           </button>
           
-          {/* ✅ BOUTON CRÉER UNE TÂCHE FONCTIONNEL */}
           <button
-            onClick={handleCreateNewTask}
+            onClick={() => {
+              setSelectedTask(null);
+              setShowCreateModal(true);
+            }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
-            Créer une tâche
+            Collaborer
           </button>
         </div>
       </div>
@@ -457,25 +465,17 @@ const TasksPage = () => {
                'Aucune autre tâche'}
             </h3>
             <p className="text-gray-600 mb-6">
-              {activeTab === 'my' ? 'Vous pouvez vous porter volontaire pour des tâches disponibles ou créer une nouvelle tâche' :
+              {activeTab === 'my' ? 'Vous pouvez vous porter volontaire pour des tâches disponibles' :
                activeTab === 'available' ? 'Toutes les tâches sont assignées ou terminées' :
                'Toutes les tâches sont dans vos onglets actifs'}
             </p>
             {activeTab === 'my' && (
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={() => setActiveTab('available')}
-                  className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-                >
-                  Voir les tâches disponibles
-                </button>
-                <button
-                  onClick={handleCreateNewTask}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-                >
-                  Créer une tâche
-                </button>
-              </div>
+              <button
+                onClick={() => setActiveTab('available')}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              >
+                Voir les tâches disponibles
+              </button>
             )}
           </div>
         ) : (
@@ -483,10 +483,7 @@ const TasksPage = () => {
             <TaskCard
               key={task.id}
               task={task}
-              onEdit={(task) => {
-                setSelectedTask(task);
-                setShowCreateModal(true);
-              }}
+              onEdit={handleEditTask}
               onDelete={handleDeleteTask}
               onViewDetails={handleViewDetails}
               onSubmit={handleSubmitTask}
@@ -498,7 +495,7 @@ const TasksPage = () => {
         )}
       </div>
 
-      {/* ✅ MODAL DE CRÉATION/ÉDITION FONCTIONNEL */}
+      {/* Modal de création/édition */}
       {showCreateModal && (
         <TaskForm
           task={selectedTask}
