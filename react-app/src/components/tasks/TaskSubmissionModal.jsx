@@ -25,7 +25,7 @@ import {
   MessageSquare,
   Star
 } from 'lucide-react';
-import { taskValidationService } from '../../core/services/taskValidationService.js';
+import taskValidationService from '../../core/services/taskValidationService.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 
 /**
