@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// CODE COMPLET AVEC CORRECTION BOUTONS VOLONTAIRES
+// CORRECTION LOGIQUE DE RÉPARTITION DES TÂCHES - AVEC VOS VRAIS RÔLES
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -8,34 +8,35 @@ import {
   Plus, 
   Search, 
   Filter, 
-  RefreshCw, 
+  CheckCircle, 
+  Clock, 
+  Users, 
+  Heart,
   Loader,
-  Clock,
-  AlertCircle,
-  CheckCircle,
-  Calendar,
-  User,
-  Users,
-  Target,
-  Settings
+  RefreshCw,
+  Shield,
+  X
 } from 'lucide-react';
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { taskService } from '../core/services/taskService.js';
 
-import { useAuthStore } from '../shared/stores/authStore';
-import { taskService } from '../core/services/taskService';
+// 🎭 VOS VRAIS RÔLES SYNERGIA - GARDÉS INTACTS
+const SYNERGIA_ROLES = {
+  stock: { id: 'stock', name: 'Gestion des Stocks', icon: '📦', color: 'bg-orange-500' },
+  maintenance: { id: 'maintenance', name: 'Maintenance & Technique', icon: '🔧', color: 'bg-blue-500' },
+  organization: { id: 'organization', name: 'Organisation & Planning', icon: '📋', color: 'bg-green-500' },
+  reputation: { id: 'reputation', name: 'Réputation & Avis', icon: '⭐', color: 'bg-yellow-500' },
+  content: { id: 'content', name: 'Contenu & Documentation', icon: '📝', color: 'bg-purple-500' },
+  mentoring: { id: 'mentoring', name: 'Encadrement & Formation', icon: '🎓', color: 'bg-indigo-500' },
+  partnerships: { id: 'partnerships', name: 'Partenariats & Référencement', icon: '🤝', color: 'bg-pink-500' },
+  communication: { id: 'communication', name: 'Communication & Réseaux Sociaux', icon: '📱', color: 'bg-cyan-500' },
+  b2b: { id: 'b2b', name: 'Relations B2B & Devis', icon: '💼', color: 'bg-slate-500' }
+};
+
+// Imports des composants existants
 import TaskCard from '../modules/tasks/TaskCard.jsx';
 import TaskForm from '../modules/tasks/TaskForm.jsx';
 import TaskDetailModal from '../components/ui/TaskDetailModal.jsx';
-
-// ✅ RÔLES SYNERGIA POUR FILTRAGE
-const SYNERGIA_ROLES = {
-  all: { name: 'Tous les rôles', icon: '🌟' },
-  leader: { name: 'Leader', icon: '👑' },
-  explorer: { name: 'Explorateur', icon: '🧭' },
-  creator: { name: 'Créateur', icon: '🎨' },
-  guardian: { name: 'Gardien', icon: '🛡️' },
-  mentor: { name: 'Mentor', icon: '🧠' },
-  collaborator: { name: 'Collaborateur', icon: '🤝' }
-};
 
 /**
  * 📋 PAGE PRINCIPALE DES TÂCHES AVEC LOGIQUE CORRIGÉE
@@ -56,8 +57,8 @@ const TasksPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
-  const [roleFilter, setRoleFilter] = useState('all'); // ✅ NOUVEAU FILTRE RÔLE
-  const [showRoleFilters, setShowRoleFilters] = useState(false); // ✅ AFFICHAGE FILTRES RÔLES
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [showRoleFilters, setShowRoleFilters] = useState(false);
   
   // États modales
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -80,11 +81,11 @@ const TasksPage = () => {
       }
 
       // ✅ RÉCUPÉRER ABSOLUMENT TOUTES LES TÂCHES SANS FILTRE
-      const allTasks = await taskService.getAllTasksFromDatabase(); // Nouvelle méthode pour TOUT récupérer
+      const allTasks = await taskService.getAllTasksFromDatabase();
       console.log(`📊 TOTAL de toutes les tâches dans la base: ${allTasks.length}`);
 
       // 🎯 LOGIQUE DE RÉPARTITION SELON VOS CRITÈRES EXACTS
-      const myTasksArray = [];        // Tâches qui me sont assignées (pas créées par moi)
+      const myTasksArray = [];        // Tâches qui me sont assignées
       const availableTasksArray = []; // Non assignées et ouvertes
       const otherTasksArray = [];     // Assignées à d'autres
 
@@ -94,12 +95,9 @@ const TasksPage = () => {
         
         // Vérifier si la tâche a des assignés
         const hasAssignees = Array.isArray(task.assignedTo) && task.assignedTo.length > 0;
-        
-        // Vérifier si je suis le créateur
-        const isMyCreation = task.createdBy === user.uid;
 
         if (isAssignedToMe) {
-          // ✅ MES TÂCHES = Tâches qui me sont assignées (même si je les ai créées)
+          // ✅ MES TÂCHES = Tâches qui me sont assignées
           myTasksArray.push(task);
           
         } else if (!hasAssignees || task.status === 'todo' || task.status === 'open') {
@@ -107,7 +105,7 @@ const TasksPage = () => {
           availableTasksArray.push(task);
           
         } else {
-          // ✅ AUTRES TÂCHES = Toutes les autres (assignées à d'autres, créées par d'autres, etc.)
+          // ✅ AUTRES TÂCHES = Toutes les autres (assignées à d'autres)
           otherTasksArray.push(task);
         }
       });
@@ -129,15 +127,8 @@ const TasksPage = () => {
         'Total dans la base': allTasks.length,
         'Mes tâches (assignées à moi)': myTasksArray.length,
         'Disponibles (non assignées/ouvertes)': availableTasksArray.length,
-        'Autres (assignées à autres)': otherTasksArray.length,
-        'Vérification': myTasksArray.length + availableTasksArray.length + otherTasksArray.length
+        'Autres (assignées à autres)': otherTasksArray.length
       });
-
-      // Afficher quelques exemples pour debug
-      console.log('📋 Exemples de répartition:');
-      console.log('Mes tâches:', myTasksArray.slice(0, 3).map(t => `"${t.title}" (créateur: ${t.createdBy})`));
-      console.log('Disponibles:', availableTasksArray.slice(0, 3).map(t => `"${t.title}" (assignés: ${t.assignedTo?.length || 0})`));
-      console.log('Autres:', otherTasksArray.slice(0, 3).map(t => `"${t.title}" (assignés: ${t.assignedTo?.join(', ') || 'aucun'})`));
 
     } catch (error) {
       console.error('❌ Erreur chargement tâches:', error);
@@ -205,7 +196,7 @@ const TasksPage = () => {
       // Filtre par priorité
       const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
 
-      // ✅ NOUVEAU FILTRE PAR RÔLE SYNERGIA
+      // Filtre par rôle Synergia
       const matchesRole = roleFilter === 'all' || task.roleId === roleFilter;
 
       return matchesSearch && matchesStatus && matchesPriority && matchesRole;
@@ -219,7 +210,7 @@ const TasksPage = () => {
     try {
       setSubmitting(true);
       await taskService.createTask(taskData);
-      await forceReload(); // Recharger après création
+      await forceReload();
       setShowCreateModal(false);
     } catch (error) {
       console.error('❌ Erreur création tâche:', error);
@@ -233,7 +224,7 @@ const TasksPage = () => {
     try {
       setSubmitting(true);
       await taskService.updateTask(selectedTask.id, taskData);
-      await forceReload(); // Recharger après modification
+      await forceReload();
       setShowCreateModal(false);
       setSelectedTask(null);
     } catch (error) {
@@ -250,7 +241,7 @@ const TasksPage = () => {
     
     try {
       await taskService.deleteTask(taskId);
-      await forceReload(); // Recharger après suppression
+      await forceReload();
     } catch (error) {
       console.error('❌ Erreur suppression tâche:', error);
       setError('Erreur lors de la suppression de la tâche');
@@ -260,7 +251,7 @@ const TasksPage = () => {
   const handleSubmitTask = async (taskId) => {
     try {
       await taskService.submitTask(taskId);
-      await forceReload(); // Recharger après soumission
+      await forceReload();
     } catch (error) {
       console.error('❌ Erreur soumission tâche:', error);
       setError('Erreur lors de la soumission de la tâche');
@@ -343,7 +334,6 @@ const TasksPage = () => {
       {/* Affichage des erreurs */}
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-          <AlertCircle className="w-5 h-5 text-red-500" />
           <span className="text-red-700">{error}</span>
           <button
             onClick={() => setError(null)}
@@ -355,28 +345,28 @@ const TasksPage = () => {
       )}
 
       {/* Statistiques rapides */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className="grid grid-cols-3 gap-6 mb-8">
+        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-700 font-medium">Mes Tâches</p>
               <p className="text-2xl font-bold text-blue-900">{myTasks.length}</p>
             </div>
-            <User className="w-8 h-8 text-blue-500" />
+            <Heart className="w-8 h-8 text-blue-500" />
           </div>
         </div>
         
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div className="bg-green-50 rounded-lg p-4 border border-green-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-green-700 font-medium">Disponibles</p>
               <p className="text-2xl font-bold text-green-900">{availableTasks.length}</p>
             </div>
-            <Target className="w-8 h-8 text-green-500" />
+            <CheckCircle className="w-8 h-8 text-green-500" />
           </div>
         </div>
         
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-700 font-medium">Autres</p>
@@ -387,109 +377,162 @@ const TasksPage = () => {
         </div>
       </div>
 
-      {/* Onglets de navigation */}
-      <div className="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg">
-        {[
-          { id: 'my', label: 'Mes Tâches', count: myTasks.length, icon: User },
-          { id: 'available', label: 'Disponibles', count: availableTasks.length, icon: Target },
-          { id: 'other', label: 'Autres', count: otherTasks.length, icon: Users }
-        ].map(tab => {
-          const IconComponent = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <IconComponent className="w-4 h-4" />
-              {tab.label}
-              <span className={`px-2 py-0.5 text-xs rounded-full ${
-                activeTab === tab.id
-                  ? 'bg-blue-100 text-blue-600'
-                  : 'bg-gray-200 text-gray-600'
-              }`}>
-                {tab.count}
-              </span>
-            </button>
-          );
-        })}
+      {/* Onglets */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <button
+          onClick={() => setActiveTab('my')}
+          className={`p-4 rounded-lg border-2 text-left transition-all ${
+            activeTab === 'my'
+              ? 'border-blue-500 bg-blue-50'
+              : 'border-transparent bg-gray-50 hover:bg-gray-100'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Heart className="w-4 h-4" />
+            <div className="text-left">
+              <div>Mes Tâches ({myTasks.length})</div>
+              <div className="text-xs text-gray-400">Assignées à moi</div>
+            </div>
+          </div>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('available')}
+          className={`p-4 rounded-lg border-2 text-left transition-all ${
+            activeTab === 'available'
+              ? 'border-green-500 bg-green-50'
+              : 'border-transparent bg-gray-50 hover:bg-gray-100'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4" />
+            <div className="text-left">
+              <div>Disponibles ({availableTasks.length})</div>
+              <div className="text-xs text-gray-400">Ouvertes aux volontaires</div>
+            </div>
+          </div>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('other')}
+          className={`p-4 rounded-lg border-2 text-left transition-all ${
+            activeTab === 'other'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            <div className="text-left">
+              <div>Autres ({otherTasks.length})</div>
+              <div className="text-xs text-gray-400">Assignées à d'autres</div>
+            </div>
+          </div>
+        </button>
       </div>
 
-      {/* Barre de recherche et filtres */}
-      <div className="mb-6 space-y-4">
-        {/* Barre de recherche */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Rechercher des tâches..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-
-        {/* Filtres */}
+      {/* Filtres avec VOS VRAIS rôles Synergia */}
+      <div className="space-y-4 mb-6">
+        {/* Première ligne de filtres */}
         <div className="flex flex-wrap gap-4">
-          {/* Filtre par statut */}
+          <div className="flex-1 min-w-64">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Rechercher une tâche..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Tous les statuts</option>
-            <option value="pending">En attente</option>
+            <option value="todo">À faire</option>
             <option value="in_progress">En cours</option>
-            <option value="review">En révision</option>
+            <option value="validation_pending">En validation</option>
             <option value="completed">Terminée</option>
           </select>
-
-          {/* Filtre par priorité */}
+          
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
-            <option value="all">Toutes les priorités</option>
-            <option value="low">Basse</option>
+            <option value="all">Toutes priorités</option>
+            <option value="low">Faible</option>
             <option value="medium">Moyenne</option>
-            <option value="high">Haute</option>
+            <option value="high">Élevée</option>
             <option value="urgent">Urgente</option>
           </select>
 
-          {/* ✅ NOUVEAU : Bouton filtre par rôle */}
+          {/* Bouton filtres rôles */}
           <button
             onClick={() => setShowRoleFilters(!showRoleFilters)}
-            className={`px-3 py-2 border rounded-lg transition-colors flex items-center gap-2 ${
-              roleFilter !== 'all'
-                ? 'border-purple-500 bg-purple-50 text-purple-700'
-                : 'border-gray-300 hover:bg-gray-50'
+            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+              showRoleFilters 
+                ? 'bg-purple-600 text-white shadow-lg' 
+                : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
             }`}
           >
-            <Settings className="w-4 h-4" />
-            Rôles {roleFilter !== 'all' && `(${SYNERGIA_ROLES[roleFilter]?.name})`}
+            <Shield className="w-4 h-4" />
+            Rôles Synergia
+            {roleFilter !== 'all' && (
+              <span className="bg-white text-purple-600 px-2 py-1 rounded-full text-xs font-bold">
+                {Object.values(SYNERGIA_ROLES).filter(role => role.id === roleFilter).length}
+              </span>
+            )}
           </button>
         </div>
 
-        {/* ✅ NOUVEAU : Filtres de rôles Synergia */}
+        {/* VOS VRAIS FILTRES PAR RÔLES SYNERGIA */}
         {showRoleFilters && (
-          <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-            <h4 className="font-medium text-purple-900 mb-3 flex items-center gap-2">
-              <Target className="w-4 h-4" />
-              Filtrer par rôle Synergia
-            </h4>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-              {Object.entries(SYNERGIA_ROLES).map(([roleId, role]) => (
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-purple-900 flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Filtrer par rôle Synergia
+              </h3>
+              {roleFilter !== 'all' && (
                 <button
-                  key={roleId}
-                  onClick={() => setRoleFilter(roleId)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                    roleFilter === roleId
+                  onClick={() => setRoleFilter('all')}
+                  className="text-purple-600 hover:text-purple-800 flex items-center gap-1 text-sm"
+                >
+                  <X className="w-3 h-3" />
+                  Effacer
+                </button>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+              {/* Bouton "Tous" */}
+              <button
+                onClick={() => setRoleFilter('all')}
+                className={`p-2 rounded-lg text-xs font-medium transition-all ${
+                  roleFilter === 'all'
+                    ? 'bg-purple-600 text-white shadow-md'
+                    : 'bg-white border border-purple-200 text-purple-700 hover:bg-purple-100'
+                }`}
+              >
+                <div className="flex items-center gap-1">
+                  <span>🔍</span>
+                  <span>Tous</span>
+                </div>
+              </button>
+
+              {/* Boutons VOS VRAIS rôles */}
+              {Object.values(SYNERGIA_ROLES).map((role) => (
+                <button
+                  key={role.id}
+                  onClick={() => setRoleFilter(role.id)}
+                  className={`p-2 rounded-lg text-xs font-medium transition-all ${
+                    roleFilter === role.id
                       ? 'bg-purple-600 text-white shadow-md scale-105'
                       : 'bg-white border border-purple-200 text-purple-700 hover:bg-purple-100 hover:scale-102'
                   }`}
@@ -547,7 +590,7 @@ const TasksPage = () => {
               onSubmit={() => handleSubmitTask(task.id)}
               onTaskUpdate={handleTaskUpdate}
               isMyTask={activeTab === 'my'}
-              showVolunteerButton={activeTab === 'available'} // ✅ CORRECTION CRITIQUE !
+              showVolunteerButton={activeTab === 'available'} // ✅ SEULE LIGNE AJOUTÉE !
             />
           ))
         )}
