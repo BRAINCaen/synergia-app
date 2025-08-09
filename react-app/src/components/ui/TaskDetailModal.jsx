@@ -31,6 +31,9 @@ import {
   Info
 } from 'lucide-react';
 
+// Import du service de résolution des noms
+import { userResolverService } from '../../core/services/userResolverService.js';
+
 // Import des rôles Synergia pour l'affichage
 const SYNERGIA_ROLES = {
   stock: { id: 'stock', name: 'Gestion des Stocks', icon: '📦', color: 'bg-orange-500' },
@@ -63,6 +66,44 @@ const TaskDetailModal = ({
   onTaskUpdate 
 }) => {
   const [activeTab, setActiveTab] = useState('details');
+  const [creatorName, setCreatorName] = useState('Chargement...');
+  const [assigneeNames, setAssigneeNames] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+
+  // ✅ RÉSOUDRE LES NOMS DES UTILISATEURS
+  useEffect(() => {
+    const resolveUserNames = async () => {
+      if (!task) return;
+      
+      setLoadingUsers(true);
+      
+      try {
+        // Résoudre le créateur
+        if (task.createdBy) {
+          const creator = await userResolverService.resolveUser(task.createdBy);
+          setCreatorName(creator.displayName);
+        }
+        
+        // Résoudre les assignés
+        if (task.assignedTo && Array.isArray(task.assignedTo)) {
+          const assignees = await userResolverService.resolveUsers(task.assignedTo);
+          setAssigneeNames(assignees.map(user => user.displayName));
+        } else {
+          setAssigneeNames([]);
+        }
+      } catch (error) {
+        console.error('❌ Erreur résolution noms utilisateurs:', error);
+        setCreatorName('Erreur chargement');
+        setAssigneeNames([]);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    if (isOpen && task) {
+      resolveUserNames();
+    }
+  }, [isOpen, task]);
 
   // Fermer avec Escape
   useEffect(() => {
@@ -260,15 +301,24 @@ const TaskDetailModal = ({
                     <div className="space-y-2">
                       <div>
                         <span className="text-sm text-gray-600">Créée par :</span>
-                        <span className="ml-2 text-sm font-medium">{task.createdBy || 'Inconnu'}</span>
+                        <span className="ml-2 text-sm font-medium">
+                          {loadingUsers ? (
+                            <span className="text-gray-400">Chargement...</span>
+                          ) : (
+                            creatorName
+                          )}
+                        </span>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600">Assignée à :</span>
                         <span className="ml-2 text-sm font-medium">
-                          {task.assignedTo && task.assignedTo.length > 0 
-                            ? task.assignedTo.join(', ') 
-                            : 'Personne (disponible)'
-                          }
+                          {loadingUsers ? (
+                            <span className="text-gray-400">Chargement...</span>
+                          ) : assigneeNames.length > 0 ? (
+                            assigneeNames.join(', ')
+                          ) : (
+                            <span className="text-green-600">Personne (disponible)</span>
+                          )}
                         </span>
                       </div>
                     </div>
