@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// MENU HAMBURGER BULLETPROOF - GARANTI FONCTIONNEL
+// MENU HAMBURGER BULLETPROOF - RESTAURÉ EXACTEMENT
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -71,7 +71,7 @@ const Layout = ({ children }) => {
     ]},
     { section: 'OUTILS', items: [
       { path: '/onboarding', label: 'Intégration', icon: '📚' },
-      { path: '/timetrack', label: 'Pointeuse', icon: '⏰' },
+      { path: '/time-track', label: 'Pointeuse', icon: '⏰' },
       { path: '/profile', label: 'Mon Profil', icon: '👨‍💼' },
       { path: '/settings', label: 'Paramètres', icon: '⚙️' }
     ]}
@@ -83,8 +83,8 @@ const Layout = ({ children }) => {
       section: 'ADMINISTRATION',
       items: [
         { path: '/admin/task-validation', label: 'Validation Tâches', icon: '🛡️' },
-        { path: '/admin/complete-test', label: 'Test Admin', icon: '🧪' },
-        { path: '/admin/role-permissions', label: 'Permissions', icon: '🔐' },
+        { path: '/admin/test', label: 'Test Admin', icon: '🧪' },
+        { path: '/admin/roles', label: 'Permissions', icon: '🔐' },
         { path: '/admin/users', label: 'Admin Utilisateurs', icon: '👑' },
         { path: '/admin/analytics', label: 'Admin Analytics', icon: '📈' },
         { path: '/admin/settings', label: 'Admin Config', icon: '🔧' }
@@ -149,7 +149,7 @@ const Layout = ({ children }) => {
               SYNERGIA MENU
             </div>
             <div style="color: rgba(255,255,255,0.8); font-size: 12px;">
-              ${userIsAdmin ? '🛡️ ADMIN' : '👤 MEMBRE'}
+              ${userIsAdmin ? 'MODE ADMINISTRATEUR' : 'NAVIGATION PRINCIPALE'}
             </div>
           </div>
         </div>
@@ -160,66 +160,90 @@ const Layout = ({ children }) => {
           padding: 10px !important;
           border-radius: 8px !important;
           cursor: pointer !important;
-          font-size: 18px !important;
-          font-weight: bold !important;
-        ">✕</button>
+          font-size: 20px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          transition: all 0.2s !important;
+        " onmouseover="this.style.background='rgba(255,255,255,0.3)'" 
+           onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+          ✕
+        </button>
       `;
 
-      // Profile
-      const profile = document.createElement('div');
-      profile.style.cssText = `
+      // Info utilisateur
+      const userInfo = document.createElement('div');
+      userInfo.style.cssText = `
         padding: 20px !important;
-        border-bottom: 1px solid rgba(255,255,255,0.1) !important;
-        background: rgba(255,255,255,0.05) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background: rgba(255, 255, 255, 0.05) !important;
       `;
-      profile.innerHTML = `
+      userInfo.innerHTML = `
         <div style="display: flex; align-items: center; gap: 15px;">
           <div style="
             width: 50px;
             height: 50px;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            background: linear-gradient(135deg, #10b981, #059669);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 20px;
             font-weight: bold;
-          ">${user?.email?.[0]?.toUpperCase() || 'U'}</div>
+            font-size: 20px;
+          ">
+            ${user?.email?.[0]?.toUpperCase() || '?'}
+          </div>
           <div>
-            <div style="color: white; font-size: 16px; font-weight: 600;">
-              ${user?.displayName || user?.email || 'Utilisateur'}
+            <div style="color: white; font-weight: 600; font-size: 16px;">
+              ${user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
             </div>
-            <div style="color: #94a3b8; font-size: 14px;">
-              ${userIsAdmin ? 'Administrateur' : 'Membre de l\'équipe'}
+            <div style="color: rgba(255,255,255,0.7); font-size: 14px;">
+              ${user?.email || 'Pas d\'email'}
             </div>
+            ${userIsAdmin ? `
+              <div style="
+                background: linear-gradient(135deg, #dc2626, #b91c1c);
+                color: white;
+                padding: 2px 8px;
+                border-radius: 12px;
+                font-size: 10px;
+                font-weight: bold;
+                display: inline-block;
+                margin-top: 5px;
+              ">
+                🛡️ ADMINISTRATEUR
+              </div>
+            ` : ''}
           </div>
         </div>
       `;
 
-      // Navigation
-      const nav = document.createElement('div');
-      nav.style.cssText = `
-        padding: 20px 0 !important;
+      // Menu de navigation
+      const navigation = document.createElement('div');
+      navigation.style.cssText = `
         flex: 1 !important;
+        padding: 20px 0 !important;
+        overflow-y: auto !important;
       `;
 
       let navHTML = '';
       menuItems.forEach(section => {
         const isAdminSection = section.section === 'ADMINISTRATION';
         navHTML += `
-          <div style="margin-bottom: 25px;">
-            <h3 style="
-              color: ${isAdminSection ? '#f87171' : '#94a3b8'};
+          <div style="margin-bottom: 30px;">
+            <div style="
+              padding: 0 20px 10px 20px;
+              color: ${isAdminSection ? '#fca5a5' : 'rgba(255,255,255,0.6)'};
               font-size: 12px;
               font-weight: bold;
+              letter-spacing: 1px;
               text-transform: uppercase;
-              letter-spacing: 0.1em;
-              margin: 0 0 15px 20px;
-              padding-bottom: 5px;
-              border-bottom: 2px solid ${isAdminSection ? '#f87171' : '#334155'};
-            ">${section.section}</h3>
-            <div style="padding: 0 15px;">
+              border-bottom: 1px solid ${isAdminSection ? 'rgba(252, 165, 165, 0.3)' : 'rgba(255,255,255,0.1)'};
+            ">
+              ${isAdminSection ? '🛡️ ' : ''}${section.section}
+            </div>
+            <div style="margin-top: 10px;">
         `;
         
         section.items.forEach(item => {
@@ -228,71 +252,78 @@ const Layout = ({ children }) => {
             <a href="${item.path}" class="menu-item" style="
               display: flex !important;
               align-items: center !important;
-              padding: 15px 10px !important;
-              margin: 5px 0 !important;
-              border-radius: 10px !important;
+              gap: 15px !important;
+              padding: 12px 20px !important;
+              color: ${isActive ? (isAdminSection ? '#fef2f2' : 'white') : 'rgba(255,255,255,0.8)'} !important;
               text-decoration: none !important;
-              font-size: 16px !important;
-              font-weight: 500 !important;
-              transition: all 0.3s ease !important;
-              background: ${isActive 
-                ? (isAdminSection ? '#dc2626' : '#3b82f6') 
-                : 'rgba(255,255,255,0.05)'} !important;
-              color: ${isActive ? 'white' : (isAdminSection ? '#fca5a5' : '#e2e8f0')} !important;
-              border: 2px solid ${isActive 
-                ? 'rgba(255,255,255,0.3)' 
-                : 'transparent'} !important;
-            " onmouseover="this.style.background='${isAdminSection ? '#dc2626' : '#3b82f6'}'; this.style.color='white';" 
-               onmouseout="this.style.background='${isActive 
-                 ? (isAdminSection ? '#dc2626' : '#3b82f6') 
-                 : 'rgba(255,255,255,0.05)'}'; this.style.color='${isActive ? 'white' : (isAdminSection ? '#fca5a5' : '#e2e8f0')}';">
-              <span style="font-size: 20px; margin-right: 15px;">${item.icon}</span>
-              <span>${item.label}</span>
-              ${isActive ? '<span style="margin-left: auto; font-size: 16px;">●</span>' : ''}
+              font-weight: ${isActive ? '600' : '500'} !important;
+              background: ${isActive ? (isAdminSection ? 'linear-gradient(135deg, #dc2626, #b91c1c)' : 'linear-gradient(135deg, #3b82f6, #2563eb)') : 'transparent'} !important;
+              border-left: 4px solid ${isActive ? (isAdminSection ? '#dc2626' : '#3b82f6') : 'transparent'} !important;
+              transition: all 0.2s !important;
+              margin: 2px 0 !important;
+            " onmouseover="
+              if (!this.style.background.includes('gradient')) {
+                this.style.background = '${isAdminSection ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)'}';
+                this.style.borderLeft = '4px solid ${isAdminSection ? '#ef4444' : '#60a5fa'}';
+              }
+            " onmouseout="
+              if (!this.style.background.includes('gradient')) {
+                this.style.background = 'transparent';
+                this.style.borderLeft = '4px solid transparent';
+              }
+            ">
+              <span style="font-size: 18px;">${item.icon}</span>
+              <span style="flex: 1;">${item.label}</span>
+              ${isAdminSection ? '<span style="color: #fca5a5; font-size: 12px;">🛡️</span>' : ''}
             </a>
           `;
         });
         
-        navHTML += '</div></div>';
+        navHTML += `
+            </div>
+          </div>
+        `;
       });
-      nav.innerHTML = navHTML;
+      navigation.innerHTML = navHTML;
 
-      // Footer avec déconnexion
-      const footer = document.createElement('div');
-      footer.style.cssText = `
+      // Bouton de déconnexion
+      const logoutSection = document.createElement('div');
+      logoutSection.style.cssText = `
         padding: 20px !important;
-        border-top: 2px solid rgba(255,255,255,0.1) !important;
-        background: rgba(0,0,0,0.2) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background: rgba(0, 0, 0, 0.2) !important;
       `;
-      footer.innerHTML = `
+      logoutSection.innerHTML = `
         <button id="logout-btn" style="
           width: 100% !important;
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
+          gap: 10px !important;
           padding: 15px !important;
           background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+          color: white !important;
           border: none !important;
           border-radius: 10px !important;
-          color: white !important;
-          font-size: 16px !important;
-          font-weight: bold !important;
+          font-weight: 600 !important;
           cursor: pointer !important;
-          transition: all 0.3s ease !important;
-        " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-          <span style="margin-right: 10px; font-size: 20px;">🚪</span>
-          DÉCONNEXION
+          transition: all 0.2s !important;
+          font-size: 16px !important;
+        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 25px rgba(220, 38, 38, 0.3)'" 
+           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+          <span style="font-size: 18px;">🚪</span>
+          <span>DÉCONNEXION</span>
         </button>
       `;
 
-      // Assemblage
+      // Assembler le menu
       menuContainer.appendChild(header);
-      menuContainer.appendChild(profile);
-      menuContainer.appendChild(nav);
-      menuContainer.appendChild(footer);
+      menuContainer.appendChild(userInfo);
+      menuContainer.appendChild(navigation);
+      menuContainer.appendChild(logoutSection);
       menuOverlay.appendChild(menuContainer);
 
-      // Ajout au DOM
+      // Ajouter au DOM
       document.body.appendChild(menuOverlay);
 
       // Animation d'entrée
@@ -349,19 +380,25 @@ const Layout = ({ children }) => {
         position: 'sticky',
         top: 0,
         zIndex: 1000,
-        backgroundColor: '#ffffff',
+        backgroundColor: 'white',
         borderBottom: '1px solid #e5e7eb',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+        padding: '0'
       }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '15px 20px'
+          padding: '15px 20px',
+          maxWidth: '100%'
         }}>
-          
-          {/* Bouton Hamburger + Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          {/* Section gauche avec hamburger */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px'
+          }}>
+            {/* BOUTON HAMBURGER ÉNORME */}
             <button
               onClick={() => setMenuOpen(true)}
               style={{
@@ -371,20 +408,23 @@ const Layout = ({ children }) => {
                 width: '50px',
                 height: '50px',
                 background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                color: 'white',
                 border: 'none',
                 borderRadius: '12px',
-                color: 'white',
                 cursor: 'pointer',
-                fontSize: '20px',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)'
+                fontSize: '24px',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
+                transition: 'all 0.2s ease',
+                position: 'relative',
+                overflow: 'hidden'
               }}
               onMouseOver={(e) => {
-                e.target.style.transform = 'scale(1.1)';
-                e.target.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.4)';
               }}
               onMouseOut={(e) => {
-                e.target.style.transform = 'scale(1)';
+                e.target.style.transform = 'translateY(0)';
                 e.target.style.boxShadow = '0 4px 15px rgba(59, 130, 246, 0.3)';
               }}
               title="Ouvrir le menu"
