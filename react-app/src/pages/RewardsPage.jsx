@@ -7,8 +7,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Gift, Star, Zap, Crown, Award, ShoppingBag, 
-  Coffee, Gamepad2, Palette, Clock, CheckCircle,  // ← Clock ajouté ici
-  Lock, Unlock, Filter, Search, Tag 
+  Coffee, Gamepad2, Palette, Clock, CheckCircle,
+  Lock, Unlock, Filter, Search, Tag, Trophy,
+  Target, Calendar, Users, Coins, RefreshCw  // ← Coins ajouté
 } from 'lucide-react';
 import { useUnifiedXP } from '../shared/hooks/useUnifiedXP.js';
 
