@@ -13,10 +13,25 @@ import {
   Users, 
   Heart,
   Loader,
-  RefreshCw
+  RefreshCw,
+  Shield,
+  X
 } from 'lucide-react';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { taskService } from '../core/services/taskService.js';
+
+// 🎭 RÔLES SYNERGIA POUR FILTRAGE
+const SYNERGIA_ROLES = {
+  stock: { id: 'stock', name: 'Gestion des Stocks', icon: '📦', color: 'bg-orange-500' },
+  maintenance: { id: 'maintenance', name: 'Maintenance & Technique', icon: '🔧', color: 'bg-blue-500' },
+  organization: { id: 'organization', name: 'Organisation & Planning', icon: '📋', color: 'bg-green-500' },
+  reputation: { id: 'reputation', name: 'Réputation & Avis', icon: '⭐', color: 'bg-yellow-500' },
+  content: { id: 'content', name: 'Contenu & Documentation', icon: '📝', color: 'bg-purple-500' },
+  mentoring: { id: 'mentoring', name: 'Encadrement & Formation', icon: '🎓', color: 'bg-indigo-500' },
+  partnerships: { id: 'partnerships', name: 'Partenariats & Référencement', icon: '🤝', color: 'bg-pink-500' },
+  communication: { id: 'communication', name: 'Communication & Réseaux Sociaux', icon: '📱', color: 'bg-cyan-500' },
+  b2b: { id: 'b2b', name: 'Relations B2B & Devis', icon: '💼', color: 'bg-slate-500' }
+};
 
 // Imports des composants existants seulement
 import TaskCard from '../modules/tasks/TaskCard.jsx';
@@ -37,11 +52,13 @@ const TasksPage = () => {
   const [error, setError] = useState(null);
   const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
   
-  // États UI
+  // États UI avec filtrage par rôle
   const [activeTab, setActiveTab] = useState('my');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all'); // ✅ NOUVEAU FILTRE RÔLE
+  const [showRoleFilters, setShowRoleFilters] = useState(false); // ✅ AFFICHAGE FILTRES RÔLES
   
   // États modales
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -174,7 +191,7 @@ const TasksPage = () => {
   }, [user?.uid, loadTasks]);
 
   /**
-   * 🔍 FILTRER LES TÂCHES SELON LES CRITÈRES DE RECHERCHE
+   * 🔍 FILTRER LES TÂCHES SELON LES CRITÈRES DE RECHERCHE ET RÔLE
    */
   const getFilteredTasks = (tasks) => {
     return tasks.filter(task => {
@@ -189,7 +206,10 @@ const TasksPage = () => {
       // Filtre par priorité
       const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
 
-      return matchesSearch && matchesStatus && matchesPriority;
+      // ✅ NOUVEAU FILTRE PAR RÔLE SYNERGIA
+      const matchesRole = roleFilter === 'all' || task.roleId === roleFilter;
+
+      return matchesSearch && matchesStatus && matchesPriority && matchesRole;
     });
   };
 
@@ -381,44 +401,132 @@ const TasksPage = () => {
         </button>
       </div>
 
-      {/* Filtres */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <div className="flex-1 min-w-64">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Rechercher une tâche..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
+      {/* Filtres avec rôles Synergia */}
+      <div className="space-y-4 mb-6">
+        {/* Première ligne de filtres */}
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-64">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Rechercher une tâche..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
           </div>
+          
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">Tous les statuts</option>
+            <option value="todo">À faire</option>
+            <option value="in_progress">En cours</option>
+            <option value="validation_pending">En validation</option>
+            <option value="completed">Terminée</option>
+          </select>
+          
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">Toutes priorités</option>
+            <option value="low">Faible</option>
+            <option value="medium">Moyenne</option>
+            <option value="high">Élevée</option>
+            <option value="urgent">Urgente</option>
+          </select>
+
+          {/* ✅ BOUTON FILTRES RÔLES */}
+          <button
+            onClick={() => setShowRoleFilters(!showRoleFilters)}
+            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+              showRoleFilters 
+                ? 'bg-purple-600 text-white shadow-lg' 
+                : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+            }`}
+          >
+            <Shield className="w-4 h-4" />
+            Rôles Synergia
+            {roleFilter !== 'all' && (
+              <span className="bg-white text-purple-600 px-2 py-1 rounded-full text-xs font-bold">
+                {Object.values(SYNERGIA_ROLES).filter(role => role.id === roleFilter).length}
+              </span>
+            )}
+          </button>
         </div>
-        
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">Tous les statuts</option>
-          <option value="todo">À faire</option>
-          <option value="in_progress">En cours</option>
-          <option value="validation_pending">En validation</option>
-          <option value="completed">Terminée</option>
-        </select>
-        
-        <select
-          value={priorityFilter}
-          onChange={(e) => setPriorityFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">Toutes priorités</option>
-          <option value="low">Faible</option>
-          <option value="medium">Moyenne</option>
-          <option value="high">Élevée</option>
-          <option value="urgent">Urgente</option>
-        </select>
+
+        {/* ✅ FILTRES PAR RÔLES SYNERGIA */}
+        {showRoleFilters && (
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-purple-900 flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Filtrer par rôle Synergia
+              </h3>
+              {roleFilter !== 'all' && (
+                <button
+                  onClick={() => setRoleFilter('all')}
+                  className="text-purple-600 hover:text-purple-800 flex items-center gap-1 text-sm"
+                >
+                  <X className="w-3 h-3" />
+                  Effacer
+                </button>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+              {/* Bouton "Tous" */}
+              <button
+                onClick={() => setRoleFilter('all')}
+                className={`p-2 rounded-lg text-xs font-medium transition-all ${
+                  roleFilter === 'all'
+                    ? 'bg-purple-600 text-white shadow-md'
+                    : 'bg-white border border-purple-200 text-purple-700 hover:bg-purple-100'
+                }`}
+              >
+                <div className="flex items-center gap-1">
+                  <span>🔍</span>
+                  <span>Tous</span>
+                </div>
+              </button>
+
+              {/* Boutons des rôles */}
+              {Object.values(SYNERGIA_ROLES).map((role) => (
+                <button
+                  key={role.id}
+                  onClick={() => setRoleFilter(role.id)}
+                  className={`p-2 rounded-lg text-xs font-medium transition-all ${
+                    roleFilter === role.id
+                      ? 'bg-purple-600 text-white shadow-md scale-105'
+                      : 'bg-white border border-purple-200 text-purple-700 hover:bg-purple-100 hover:scale-102'
+                  }`}
+                  title={role.name}
+                >
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-sm">{role.icon}</span>
+                    <span className="leading-tight">{role.name.split(' ')[0]}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Indicateur de filtre actif */}
+            {roleFilter !== 'all' && (
+              <div className="mt-3 p-2 bg-purple-100 rounded flex items-center gap-2">
+                <span className="text-lg">{SYNERGIA_ROLES[roleFilter]?.icon}</span>
+                <span className="text-purple-700 font-medium text-sm">
+                  Filtrage par : {SYNERGIA_ROLES[roleFilter]?.name}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Liste des tâches */}
