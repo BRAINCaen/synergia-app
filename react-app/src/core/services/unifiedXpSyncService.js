@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/unifiedXpSyncService.js
-// SERVICE DE SYNCHRONISATION XP UNIFIÉ - SOLUTION COMPLÈTE
+// SERVICE DE SYNCHRONISATION XP UNIFIÉ - CODE COMPLET
 // ==========================================
 
 import { 
@@ -17,7 +17,7 @@ import {
 import { db } from '../firebase.js';
 
 /**
- * 🚀 SERVICE DE SYNCHRONISATION XP UNIFIÉ
+ * 🚀 SERVICE DE SYNCHRONISATION XP UNIFIÉ - VERSION COMPLÈTE
  * Garantit que TOUTES les pages affichent les mêmes données XP en temps réel
  */
 class UnifiedXpSyncService {
@@ -27,6 +27,7 @@ class UnifiedXpSyncService {
     this.subscribers = new Map();
     this.syncQueue = new Set();
     this.isInitialized = false;
+    this.globalUnsubscribe = null;
   }
 
   /**
@@ -37,14 +38,20 @@ class UnifiedXpSyncService {
     
     console.log('🚀 [XP-SYNC] Initialisation service synchronisation unifié');
     
-    // Démarrer la surveillance globale
-    this.startGlobalMonitoring();
-    
-    // Programmer les vérifications périodiques
-    this.scheduleHealthChecks();
-    
-    this.isInitialized = true;
-    console.log('✅ [XP-SYNC] Service initialisé avec succès');
+    try {
+      // Démarrer la surveillance globale
+      this.startGlobalMonitoring();
+      
+      // Programmer les vérifications périodiques
+      this.scheduleHealthChecks();
+      
+      this.isInitialized = true;
+      console.log('✅ [XP-SYNC] Service initialisé avec succès');
+      
+    } catch (error) {
+      console.error('❌ [XP-SYNC] Erreur initialisation:', error);
+      throw error;
+    }
   }
 
   /**
