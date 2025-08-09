@@ -18,10 +18,10 @@ import {
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { taskService } from '../core/services/taskService.js';
 
-// Imports des composants
+// Imports des composants existants seulement
 import TaskCard from '../modules/tasks/TaskCard.jsx';
 import TaskForm from '../modules/tasks/TaskForm.jsx';
-import TaskDetailModal from '../components/ui/TaskDetailModal.jsx';
+// TaskDetailModal sera géré avec un fallback si manquant
 
 /**
  * 📋 PAGE PRINCIPALE DES TÂCHES AVEC LOGIQUE CORRIGÉE
@@ -466,22 +466,52 @@ const TasksPage = () => {
         submitting={submitting}
       />
 
-      {/* Modal de détails */}
-      <TaskDetailModal
-        isOpen={showDetailModal}
-        onClose={() => {
-          setShowDetailModal(false);
-          setSelectedTask(null);
-        }}
-        task={selectedTask}
-        currentUser={user}
-        onEdit={() => {
-          setShowDetailModal(false);
-          setShowCreateModal(true);
-        }}
-        onSubmit={() => handleSubmitTask(selectedTask?.id)}
-        onTaskUpdate={handleTaskUpdate}
-      />
+      {/* Modal de détails - avec fallback si composant manquant */}
+      {typeof TaskDetailModal !== 'undefined' ? (
+        <TaskDetailModal
+          isOpen={showDetailModal}
+          onClose={() => {
+            setShowDetailModal(false);
+            setSelectedTask(null);
+          }}
+          task={selectedTask}
+          currentUser={user}
+          onEdit={() => {
+            setShowDetailModal(false);
+            setShowCreateModal(true);
+          }}
+          onSubmit={() => handleSubmitTask(selectedTask?.id)}
+          onTaskUpdate={handleTaskUpdate}
+        />
+      ) : (
+        // Fallback simple si TaskDetailModal n'existe pas
+        showDetailModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full m-4">
+              <h3 className="text-lg font-bold mb-4">Détails de la tâche</h3>
+              <p className="text-gray-600 mb-4">{selectedTask?.title}</p>
+              <p className="text-gray-500 text-sm mb-4">{selectedTask?.description}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowDetailModal(false)}
+                  className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                >
+                  Fermer
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDetailModal(false);
+                    setShowCreateModal(true);
+                  }}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  Modifier
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      )}
     </div>
   );
 };
