@@ -25,7 +25,7 @@ import {
   MessageSquare,
   Star
 } from 'lucide-react';
-import { taskValidationService } from '../../core/services/taskValidationServiceEnhanced.js';
+import { taskValidationService } from '../../core/services/taskValidationQuickFix.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 
 /**
