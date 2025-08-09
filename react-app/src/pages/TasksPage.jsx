@@ -559,6 +559,7 @@ const TasksPage = () => {
               onUnvolunteer={() => handleUnvolunteer(task.id)}
               onTaskUpdate={handleTaskUpdate}
               isMyTask={activeTab === 'my'}
+              showVolunteerButton={activeTab === 'available'}
             />
           ))
         )}
