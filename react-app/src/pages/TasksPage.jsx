@@ -218,41 +218,75 @@ const TasksPage = () => {
     try {
       setSubmitting(true);
       
-      // ✅ NETTOYER LES DONNÉES AVANT ENVOI À FIREBASE
-      const cleanTaskData = {
-        title: taskData.title || '',
-        description: taskData.description || '',
-        priority: taskData.priority || 'medium',
-        difficulty: taskData.difficulty || 'medium',
-        xpReward: taskData.xpReward || 25,
-        createdBy: user.uid,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        status: 'pending',
-        assignedTo: [], // Vide par défaut
-        tags: Array.isArray(taskData.tags) ? taskData.tags : [],
-        category: taskData.roleId || 'general'
-      };
-
-      // Ajouter les champs optionnels seulement s'ils sont définis
-      if (taskData.dueDate) {
+      // ✅ NETTOYER LES DONNÉES - SUPPRIMER TOUS LES NULL/UNDEFINED
+      const cleanTaskData = {};
+      
+      // Champs obligatoires avec valeurs par défaut
+      cleanTaskData.title = taskData.title || '';
+      cleanTaskData.description = taskData.description || '';
+      cleanTaskData.priority = taskData.priority || 'medium';
+      cleanTaskData.difficulty = taskData.difficulty || 'medium';
+      cleanTaskData.xpReward = taskData.xpReward || 25;
+      cleanTaskData.createdBy = user.uid;
+      cleanTaskData.createdAt = new Date();
+      cleanTaskData.updatedAt = new Date();
+      cleanTaskData.status = 'pending';
+      cleanTaskData.assignedTo = [];
+      cleanTaskData.tags = Array.isArray(taskData.tags) ? taskData.tags : [];
+      
+      // Champs optionnels - AJOUTER SEULEMENT S'ILS EXISTENT ET NE SONT PAS NULL
+      if (taskData.roleId && taskData.roleId !== '') {
+        cleanTaskData.roleId = taskData.roleId;
+        cleanTaskData.category = taskData.roleId;
+      }
+      
+      if (taskData.notes && taskData.notes.trim() !== '') {
+        cleanTaskData.notes = taskData.notes.trim();
+      }
+      
+      if (taskData.dueDate && taskData.dueDate !== '') {
         cleanTaskData.dueDate = new Date(taskData.dueDate);
       }
-      if (taskData.notes) {
-        cleanTaskData.notes = taskData.notes;
+      
+      if (taskData.estimatedTime && taskData.estimatedTime > 0) {
+        cleanTaskData.estimatedTime = taskData.estimatedTime;
       }
-      if (taskData.roleId) {
-        cleanTaskData.roleId = taskData.roleId;
+      
+      if (taskData.projectId && taskData.projectId !== '') {
+        cleanTaskData.projectId = taskData.projectId;
+      }
+      
+      // Récurrence - SEULEMENT si activée
+      if (taskData.isRecurring === true) {
+        cleanTaskData.isRecurring = true;
+        cleanTaskData.recurrenceType = taskData.recurrenceType || 'none';
+        cleanTaskData.recurrenceInterval = taskData.recurrenceInterval || 1;
+        
+        if (taskData.recurrenceEndDate && taskData.recurrenceEndDate !== '') {
+          cleanTaskData.recurrenceEndDate = new Date(taskData.recurrenceEndDate);
+        }
+        
+        if (Array.isArray(taskData.recurrenceDays) && taskData.recurrenceDays.length > 0) {
+          cleanTaskData.recurrenceDays = taskData.recurrenceDays;
+        }
+      }
+      
+      // Média - SEULEMENT si présent
+      if (taskData.mediaAttachment) {
+        cleanTaskData.hasMedia = true;
+        cleanTaskData.mediaUrl = taskData.mediaAttachment.url;
+        cleanTaskData.mediaType = taskData.mediaAttachment.type;
+        cleanTaskData.mediaFilename = taskData.mediaAttachment.filename;
       }
 
-      console.log('✅ Données nettoyées pour Firebase:', cleanTaskData);
+      console.log('✅ Données parfaitement nettoyées pour Firebase:', cleanTaskData);
       
       await taskService.createTask(cleanTaskData);
       await forceReload();
       setShowCreateModal(false);
     } catch (error) {
       console.error('❌ Erreur création tâche:', error);
-      setError('Erreur lors de la création de la tâche');
+      setError('Erreur lors de la création de la tâche: ' + error.message);
     } finally {
       setSubmitting(false);
     }
