@@ -22,7 +22,7 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 import taskService from '../core/services/taskService.js';
 
 // Composants
-import TaskCard from '../components/tasks/TaskCard.jsx';
+import TaskCard from '../modules/tasks/TaskCard.jsx';
 import TaskForm from '../components/forms/TaskForm.jsx';
 import TaskDetailModal from '../components/ui/TaskDetailModal.jsx';
 
@@ -267,6 +267,33 @@ const TasksPage = () => {
     console.log('🔄 Mise à jour détectée - rechargement des tâches');
     await forceReload();
   }, [forceReload]);
+
+  /**
+   * 🚫 SE RETIRER D'UNE TÂCHE (NOUVEAU)
+   */
+  const handleUnvolunteer = async (taskId) => {
+    if (!confirm('Êtes-vous sûr de vouloir vous retirer de cette tâche ?')) return;
+    
+    try {
+      const task = [...myTasks, ...availableTasks, ...otherTasks].find(t => t.id === taskId);
+      if (!task) return;
+
+      // Retirer l'utilisateur de la liste des assignés
+      const updatedAssigned = (task.assignedTo || []).filter(userId => userId !== user.uid);
+      
+      await taskService.updateTask(taskId, {
+        assignedTo: updatedAssigned,
+        status: updatedAssigned.length === 0 ? 'pending' : task.status, // Redevient pending si plus personne
+        updatedAt: new Date()
+      });
+
+      await forceReload(); // Recharger les tâches
+      console.log('✅ Retrait de volontariat réussi');
+    } catch (error) {
+      console.error('❌ Erreur retrait volontariat:', error);
+      setError('Erreur lors du retrait de volontariat');
+    }
+  };
 
   // Obtenir les tâches filtrées selon l'onglet actif
   const getCurrentTasks = () => {
@@ -522,7 +549,9 @@ const TasksPage = () => {
               onDelete={() => handleDeleteTask(task.id)}
               onViewDetails={() => handleViewDetails(task)}
               onSubmit={() => handleSubmitTask(task.id)}
+              onUnvolunteer={() => handleUnvolunteer(task.id)}
               onTaskUpdate={handleTaskUpdate}
+              isMyTask={activeTab === 'my'}
             />
           ))
         )}
