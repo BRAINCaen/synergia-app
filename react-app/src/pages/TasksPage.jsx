@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx  
-// RESTAURATION COMPLÈTE - TOUTES FONCTIONNALITÉS OPÉRATIONNELLES
+// SUPPRESSION FAUSSES NOTIFICATIONS COMMENTAIRES
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -18,7 +18,9 @@ import {
   Send,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  MessageCircle,
+  Info
 } from 'lucide-react';
 
 // Stores et services
@@ -31,7 +33,7 @@ import TaskDetailModal from '../components/ui/TaskDetailModal.jsx';
 import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
 
 /**
- * 🎯 COMPOSANT TASKCARD INTÉGRÉ FONCTIONNEL
+ * 🎯 COMPOSANT TASKCARD SANS FAUSSES NOTIFICATIONS
  */
 const TaskCard = ({ 
   task, 
@@ -70,20 +72,6 @@ const TaskCard = ({
     }
   };
 
-  // Badge de commentaires cliquable
-  const CommentBadge = () => (
-    <button
-      onClick={() => onViewDetails && onViewDetails(task, 'comments')}
-      className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors"
-      title="Voir les commentaires"
-    >
-      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
-      </svg>
-      <span>5</span>
-    </button>
-  );
-
   // Badge de priorité
   const PriorityBadge = ({ priority }) => {
     const colors = {
@@ -105,15 +93,13 @@ const TaskCard = ({
   return (
     <div className="bg-gray-800 border border-gray-600 rounded-lg p-4 hover:border-gray-500 transition-all duration-200 shadow-lg relative">
       
-      {/* Badge commentaires en haut à droite */}
-      <div className="absolute top-2 right-2 z-10">
-        <CommentBadge />
-      </div>
+      {/* ✅ SUPPRESSION DU BADGE COMMENTAIRES FACTICE */}
+      {/* Pas de badge commentaires en haut à droite pour éviter les fausses notifications */}
 
       {/* En-tête avec titre et statut */}
       <div className="mb-3">
         <div className="flex items-start justify-between mb-2">
-          <h3 className="text-white font-semibold text-lg leading-tight pr-16">
+          <h3 className="text-white font-semibold text-lg leading-tight">
             {task.title}
           </h3>
         </div>
@@ -167,13 +153,15 @@ const TaskCard = ({
       {/* Actions */}
       <div className="flex items-center gap-2 pt-3 border-t border-gray-600 flex-wrap">
         
-        {/* Bouton voir détails - TOUJOURS VISIBLE */}
+        {/* ✅ BOUTON DÉTAILS AVEC INDICATION COMMENTAIRES */}
         <button
           onClick={() => onViewDetails && onViewDetails(task)}
           className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm transition-colors"
+          title="Voir les détails et écrire des commentaires"
         >
           <Eye className="w-4 h-4" />
           Détails
+          <MessageCircle className="w-3 h-3 opacity-60" />
         </button>
 
         {/* Actions propriétaire */}
@@ -222,7 +210,7 @@ const TaskCard = ({
           </button>
         )}
 
-        {/* ✅ BOUTON SOUMETTRE POUR MES TÂCHES - TOUJOURS VISIBLE SI CONDITIONS REMPLIES */}
+        {/* BOUTON SOUMETTRE POUR MES TÂCHES */}
         {isMyTask && isAssignedToMe && task.status !== 'completed' && task.status !== 'validation_pending' && (
           <button
             onClick={() => onSubmit && onSubmit(task)}
@@ -238,7 +226,7 @@ const TaskCard = ({
 };
 
 /**
- * 📋 PAGE PRINCIPALE DES TÂCHES - VERSION RESTAURÉE
+ * 📋 PAGE PRINCIPALE DES TÂCHES AVEC GUIDE COMMENTAIRES
  */
 const TasksPage = () => {
   const { user } = useAuthStore();
@@ -249,6 +237,7 @@ const TasksPage = () => {
   const [otherTasks, setOtherTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showCommentGuide, setShowCommentGuide] = useState(false);
   
   // États UI
   const [activeTab, setActiveTab] = useState('my');
@@ -275,7 +264,6 @@ const TasksPage = () => {
     try {
       console.log('🔄 Chargement de TOUTES les tâches...');
       
-      // ✅ UTILISER UNE MÉTHODE QUI MARCHE - getAllTasks
       const allTasks = await taskService.getAllTasks();
       console.log(`📊 TOTAL tâches récupérées: ${allTasks.length}`);
 
@@ -283,7 +271,7 @@ const TasksPage = () => {
         console.warn('⚠️ Aucune tâche trouvée dans la base');
       }
 
-      // ✅ RÉPARTITION CORRECTE DES TÂCHES
+      // RÉPARTITION CORRECTE DES TÂCHES
       const myTasksArray = [];
       const availableTasksArray = [];
       const otherTasksArray = [];
@@ -294,13 +282,10 @@ const TasksPage = () => {
         const isOpenStatus = !task.status || task.status === 'pending' || task.status === 'todo';
 
         if (isAssignedToMe) {
-          // MES TÂCHES = assignées à moi
           myTasksArray.push(task);
         } else if (!hasAssignees && isOpenStatus) {
-          // DISPONIBLES = non assignées + statut ouvert
           availableTasksArray.push(task);
         } else {
-          // AUTRES = assignées à d'autres
           otherTasksArray.push(task);
         }
       });
@@ -334,22 +319,16 @@ const TasksPage = () => {
    */
   const getFilteredTasks = (tasks) => {
     return tasks.filter(task => {
-      // Filtre de recherche
       if (searchTerm && !task.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
           !task.description?.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
-      
-      // Filtre de statut
       if (statusFilter !== 'all' && task.status !== statusFilter) {
         return false;
       }
-      
-      // Filtre de priorité
       if (priorityFilter !== 'all' && task.priority !== priorityFilter) {
         return false;
       }
-      
       return true;
     });
   };
@@ -422,21 +401,21 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ GESTIONNAIRE BOUTON DÉTAILS - FONCTIONNEL
-  const handleViewDetails = (task, tab = 'info') => {
+  // GESTIONNAIRE BOUTON DÉTAILS - FONCTIONNEL
+  const handleViewDetails = (task, tab = 'details') => {
     console.log('👁️ Ouverture détails pour:', task.title, 'onglet:', tab);
     setSelectedTask(task);
     setShowDetailModal(true);
   };
 
-  // ✅ GESTIONNAIRE BOUTON SOUMETTRE - FONCTIONNEL  
+  // GESTIONNAIRE BOUTON SOUMETTRE - FONCTIONNEL  
   const handleSubmitTask = (task) => {
     console.log('📤 Ouverture modal soumission pour:', task.title);
     setSelectedTask(task);
     setShowSubmissionModal(true);
   };
 
-  // ✅ SUCCÈS DE SOUMISSION
+  // SUCCÈS DE SOUMISSION
   const handleSubmissionSuccess = async (result) => {
     try {
       console.log('✅ Soumission réussie:', result);
@@ -495,6 +474,16 @@ const TasksPage = () => {
             </div>
             
             <div className="flex items-center gap-3">
+              {/* ✅ BOUTON GUIDE COMMENTAIRES */}
+              <button
+                onClick={() => setShowCommentGuide(true)}
+                className="flex items-center gap-2 px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 rounded-lg transition-colors"
+                title="Comment écrire des commentaires ?"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <Info className="w-4 h-4" />
+              </button>
+
               <button
                 onClick={loadTasks}
                 disabled={loading}
@@ -531,7 +520,34 @@ const TasksPage = () => {
           </div>
         )}
 
-        {/* ✅ ONGLETS AVEC COMPTEURS CORRECTS */}
+        {/* ✅ GUIDE COMMENTAIRES */}
+        {showCommentGuide && (
+          <div className="mb-6 bg-blue-500/20 border border-blue-500/30 rounded-lg p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-blue-300 font-medium text-lg mb-2 flex items-center gap-2">
+                  <MessageCircle className="w-5 h-5" />
+                  Comment écrire des commentaires ?
+                </h3>
+                <div className="text-blue-200 space-y-2 text-sm">
+                  <p><strong>1.</strong> Cliquez sur le bouton "Détails" d'une tâche 👁️</p>
+                  <p><strong>2.</strong> Dans le modal qui s'ouvre, cliquez sur l'onglet "Messages"</p>
+                  <p><strong>3.</strong> Écrivez votre commentaire dans la zone de texte en bas</p>
+                  <p><strong>4.</strong> Cliquez sur "Envoyer" pour publier votre commentaire</p>
+                  <p className="italic mt-3">💡 Les commentaires permettent de discuter et collaborer sur les tâches !</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCommentGuide(false)}
+                className="text-blue-300 hover:text-blue-100 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ONGLETS AVEC COMPTEURS CORRECTS */}
         <div className="mb-6">
           <div className="flex space-x-1 bg-white/10 p-1 rounded-lg w-fit">
             <button
@@ -613,7 +629,7 @@ const TasksPage = () => {
           </select>
         </div>
 
-        {/* ✅ LISTE DES TÂCHES AVEC TOUTES LES FONCTIONNALITÉS */}
+        {/* LISTE DES TÂCHES SANS FAUSSES NOTIFICATIONS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {currentTasks.length === 0 ? (
             <div className="col-span-full text-center py-12">
@@ -647,7 +663,7 @@ const TasksPage = () => {
         </div>
       </div>
 
-      {/* ✅ MODALS FONCTIONNELS */}
+      {/* MODALS FONCTIONNELS */}
       
       {/* Modal de création/édition */}
       {showCreateModal && (
@@ -663,11 +679,12 @@ const TasksPage = () => {
         />
       )}
 
-      {/* ✅ Modal de détails FONCTIONNEL */}
+      {/* Modal de détails FONCTIONNEL */}
       {showDetailModal && selectedTask && (
         <TaskDetailModal
           isOpen={showDetailModal}
           task={selectedTask}
+          currentUser={user}
           onClose={() => {
             setShowDetailModal(false);
             setSelectedTask(null);
@@ -687,7 +704,7 @@ const TasksPage = () => {
         />
       )}
 
-      {/* ✅ Modal de soumission FONCTIONNEL */}
+      {/* Modal de soumission FONCTIONNEL */}
       {showSubmissionModal && selectedTask && (
         <TaskSubmissionModal
           isOpen={showSubmissionModal}
