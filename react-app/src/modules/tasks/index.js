@@ -1,11 +1,14 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/index.js
-// EXPORTS CORRIGÉS - Sans conflits
+// EXPORTS SÉCURISÉS SANS CONFLITS
 // ==========================================
 
-// ✅ Export default seulement pour éviter les conflits
+// ✅ Exports par défaut uniques
 export { default as TaskForm } from './TaskForm.jsx';
 export { default as TaskCard } from './TaskCard.jsx';
 
-// ✅ Pas d'exports nommés supplémentaires
-console.log('✅ Modules tasks - Exports propres sans conflits');
+// ✅ Exports nommés alternatifs pour compatibilité
+export TaskForm from './TaskForm.jsx';
+export TaskCard from './TaskCard.jsx';
+
+console.log('✅ Modules tasks - Exports sécurisés sans conflits');
