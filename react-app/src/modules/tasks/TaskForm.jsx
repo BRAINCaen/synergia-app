@@ -19,12 +19,80 @@ import {
   Loader,
   Info,
   Upload,
-  Paperclip
+  Paperclip,
+  Shield
 } from 'lucide-react';
 
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { projectService } from '../../core/services/projectService.js';
 import { mediaUploadService } from '../../core/services/mediaUploadService.js';
+
+// 🎭 IMPORT DES RÔLES SYNERGIA
+const SYNERGIA_ROLES = {
+  stock: {
+    id: 'stock',
+    name: 'Gestion des Stocks',
+    icon: '📦',
+    color: 'bg-orange-500',
+    description: 'Gestion des inventaires et stocks'
+  },
+  maintenance: {
+    id: 'maintenance',
+    name: 'Maintenance & Technique',
+    icon: '🔧',
+    color: 'bg-blue-500',
+    description: 'Maintenance et support technique'
+  },
+  organization: {
+    id: 'organization',
+    name: 'Organisation & Planning',
+    icon: '📋',
+    color: 'bg-green-500',
+    description: 'Organisation et planification'
+  },
+  reputation: {
+    id: 'reputation',
+    name: 'Réputation & Avis',
+    icon: '⭐',
+    color: 'bg-yellow-500',
+    description: 'Gestion de la réputation et avis clients'
+  },
+  content: {
+    id: 'content',
+    name: 'Contenu & Documentation',
+    icon: '📝',
+    color: 'bg-purple-500',
+    description: 'Création et gestion de contenu'
+  },
+  mentoring: {
+    id: 'mentoring',
+    name: 'Encadrement & Formation',
+    icon: '🎓',
+    color: 'bg-indigo-500',
+    description: 'Formation et encadrement équipe'
+  },
+  partnerships: {
+    id: 'partnerships',
+    name: 'Partenariats & Référencement',
+    icon: '🤝',
+    color: 'bg-pink-500',
+    description: 'Développement des partenariats'
+  },
+  communication: {
+    id: 'communication',
+    name: 'Communication & Réseaux Sociaux',
+    icon: '📱',
+    color: 'bg-cyan-500',
+    description: 'Gestion des réseaux sociaux'
+  },
+  b2b: {
+    id: 'b2b',
+    name: 'Relations B2B & Devis',
+    icon: '💼',
+    color: 'bg-slate-500',
+    description: 'Relations professionnelles et devis'
+  }
+};
 
 // Configuration des difficultés avec XP AUTOMATIQUE
 const DIFFICULTY_OPTIONS = [
@@ -62,6 +130,7 @@ const TaskForm = ({ isOpen, onClose, onSubmit, initialData, submitting = false }
     dueDate: '',
     assignedTo: [],
     projectId: '',
+    roleId: '', // ✅ AJOUT RÔLE SYNERGIA
     isRecurring: false,
     recurrenceType: 'none',
     recurrenceInterval: 1,
@@ -96,6 +165,7 @@ const TaskForm = ({ isOpen, onClose, onSubmit, initialData, submitting = false }
         estimatedTime: initialData.estimatedTime || 1,
         assignedTo: initialData.assignedTo || [],
         projectId: initialData.projectId || '',
+        roleId: initialData.roleId || '', // ✅ AJOUT RÔLE SYNERGIA
         isRecurring: initialData.isRecurring || false,
         recurrenceType: initialData.recurrenceType || 'none',
         recurrenceInterval: initialData.recurrenceInterval || 1,
@@ -361,12 +431,49 @@ const TaskForm = ({ isOpen, onClose, onSubmit, initialData, submitting = false }
               </div>
             </div>
 
-            {/* Configuration */}
+            {/* Configuration avec rôle */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
                 <Target className="w-5 h-5 text-blue-600" />
                 Configuration
               </h3>
+              
+              {/* ✅ RÔLE SYNERGIA */}
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Shield className="w-5 h-5 text-purple-600" />
+                  <h4 className="font-medium text-gray-900">Rôle Synergia</h4>
+                  <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full">Spécialisation</span>
+                </div>
+                
+                <select
+                  value={formData.roleId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, roleId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  disabled={loading || uploading}
+                >
+                  <option value="">Sélectionner un rôle (optionnel)</option>
+                  {Object.values(SYNERGIA_ROLES).map(role => (
+                    <option key={role.id} value={role.id}>
+                      {role.icon} {role.name}
+                    </option>
+                  ))}
+                </select>
+
+                {formData.roleId && SYNERGIA_ROLES[formData.roleId] && (
+                  <div className="mt-2 p-2 bg-white border border-purple-200 rounded flex items-center gap-2">
+                    <span className="text-lg">{SYNERGIA_ROLES[formData.roleId].icon}</span>
+                    <div>
+                      <span className="text-sm text-purple-700 font-medium block">
+                        {SYNERGIA_ROLES[formData.roleId].name}
+                      </span>
+                      <span className="text-xs text-purple-600">
+                        {SYNERGIA_ROLES[formData.roleId].description}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Difficulté */}
