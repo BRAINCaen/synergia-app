@@ -1,313 +1,439 @@
 // ==========================================
 // 📁 react-app/src/pages/Dashboard.jsx
-// DASHBOARD AVEC BOUTON DE NETTOYAGE DÉMO POUR ADMIN
+// DASHBOARD AVEC SYNCHRONISATION XP UNIFIÉE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { useAuthStore } from '../shared/stores/authStore.js';
-import { isAdmin } from '../core/services/adminService.js';
-import DemoCleanerButton from '../components/admin/DemoCleanerButton.jsx';
+import { motion } from 'framer-motion';
+import { 
+  BarChart3, 
+  CheckSquare, 
+  FolderOpen, 
+  Users, 
+  TrendingUp,
+  Target,
+  Clock,
+  Award,
+  Zap,
+  Star,
+  Trophy,
+  Flame,
+  RefreshCw,
+  Activity,
+  Calendar,
+  Bell,
+  ChevronRight,
+  Plus,
+  AlertCircle,
+  CheckCircle
+} from 'lucide-react';
+import { useUnifiedXP } from '../shared/hooks/useUnifiedXP.js';
 
+/**
+ * 🏠 DASHBOARD PRINCIPAL AVEC SYNCHRONISATION XP GARANTIE
+ */
 const Dashboard = () => {
-  const { user } = useAuthStore();
-  const [stats, setStats] = useState({
-    totalTasks: 0,
-    completedTasks: 0,
-    pendingTasks: 0,
-    totalProjects: 0
-  });
+  // ✅ DONNÉES XP UNIFIÉES
+  const {
+    gamificationData,
+    level,
+    totalXp,
+    weeklyXp,
+    badges,
+    loginStreak,
+    levelProgress,
+    xpToNextLevel,
+    stats,
+    loading,
+    isReady,
+    syncStatus,
+    lastUpdate,
+    quickActions,
+    forceSync
+  } = useUnifiedXP();
 
-  // Données simulées pour la démonstration
+  // États locaux pour l'interface
+  const [selectedTimeRange, setSelectedTimeRange] = useState('week');
+  const [showWelcome, setShowWelcome] = useState(true);
+
+  // Masquer le message de bienvenue après 5 secondes
   useEffect(() => {
-    // Simuler le chargement des statistiques
-    setTimeout(() => {
-      setStats({
-        totalTasks: 12,
-        completedTasks: 8,
-        pendingTasks: 4,
-        totalProjects: 3
-      });
-    }, 1000);
+    const timer = setTimeout(() => setShowWelcome(false), 5000);
+    return () => clearTimeout(timer);
   }, []);
 
-  const quickActions = [
-    { 
-      title: 'Créer une tâche', 
-      icon: '✅', 
-      action: () => window.location.href = '/tasks',
-      color: 'bg-blue-500 hover:bg-blue-600'
+  /**
+   * 📊 DONNÉES SIMULÉES POUR LE DASHBOARD (À remplacer par vraies données)
+   */
+  const dashboardStats = {
+    tasks: {
+      total: gamificationData?.tasksCompleted || 0,
+      completed: gamificationData?.tasksCompleted || 0,
+      pending: Math.max(0, (gamificationData?.tasksCreated || 0) - (gamificationData?.tasksCompleted || 0))
     },
-    { 
-      title: 'Nouveau projet', 
-      icon: '📁', 
-      action: () => window.location.href = '/projects',
-      color: 'bg-green-500 hover:bg-green-600'
+    projects: {
+      active: gamificationData?.projectsCreated || 0,
+      completed: gamificationData?.projectsCompleted || 0
     },
-    { 
-      title: 'Voir les badges', 
-      icon: '🏆', 
-      action: () => window.location.href = '/badges',
-      color: 'bg-purple-500 hover:bg-purple-600'
+    team: {
+      members: 12,
+      active: 8
+    }
+  };
+
+  const recentActivities = [
+    {
+      id: 1,
+      type: 'task_completed',
+      title: 'Tâche terminée',
+      description: 'Révision du code frontend',
+      time: '2 min',
+      xp: 20,
+      icon: CheckCircle,
+      color: 'bg-green-500'
     },
-    { 
-      title: 'Analytics', 
-      icon: '📊', 
-      action: () => window.location.href = '/analytics',
-      color: 'bg-orange-500 hover:bg-orange-600'
+    {
+      id: 2,
+      type: 'project_created',
+      title: 'Nouveau projet',
+      description: 'Système de notifications',
+      time: '1h',
+      xp: 25,
+      icon: FolderOpen,
+      color: 'bg-blue-500'
+    },
+    {
+      id: 3,
+      type: 'badge_earned',
+      title: 'Badge débloqué',
+      description: 'Développeur Productif',
+      time: '2h',
+      xp: 50,
+      icon: Award,
+      color: 'bg-yellow-500'
     }
   ];
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        
-        {/* Header avec salutation */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Bonjour, {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'} 👋
-          </h1>
-          <p className="text-gray-600">
-            Voici un aperçu de votre activité sur Synergia
-          </p>
-        </div>
-
-        {/* Section Admin - Nettoyage des données démo */}
-        {isAdmin(user) && (
-          <div className="mb-8">
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <span>🛡️</span> Administration
-              </h2>
-              
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                <h3 className="font-medium text-yellow-800 mb-2">
-                  🧹 Nettoyage des données de démonstration
-                </h3>
-                <p className="text-yellow-700 text-sm mb-3">
-                  Des tâches de démonstration ont été détectées dans votre système (tâches assignées à 28 personnes, etc.). 
-                  Utilisez l'outil de nettoyage pour supprimer ces données factices.
-                </p>
-                
-                <DemoCleanerButton className="mb-2" />
-              </div>
-
-              {/* Liens admin rapides */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <button
-                  onClick={() => window.location.href = '/admin/task-validation'}
-                  className="p-3 bg-gray-50 hover:bg-gray-100 rounded-lg text-center transition-colors"
-                >
-                  <div className="text-2xl mb-1">🛡️</div>
-                  <div className="text-sm font-medium">Validation</div>
-                </button>
-                
-                <button
-                  onClick={() => window.location.href = '/admin/users'}
-                  className="p-3 bg-gray-50 hover:bg-gray-100 rounded-lg text-center transition-colors"
-                >
-                  <div className="text-2xl mb-1">👥</div>
-                  <div className="text-sm font-medium">Utilisateurs</div>
-                </button>
-                
-                <button
-                  onClick={() => window.location.href = '/admin/analytics'}
-                  className="p-3 bg-gray-50 hover:bg-gray-100 rounded-lg text-center transition-colors"
-                >
-                  <div className="text-2xl mb-1">📈</div>
-                  <div className="text-sm font-medium">Analytics</div>
-                </button>
-                
-                <button
-                  onClick={() => window.location.href = '/admin/settings'}
-                  className="p-3 bg-gray-50 hover:bg-gray-100 rounded-lg text-center transition-colors"
-                >
-                  <div className="text-2xl mb-1">⚙️</div>
-                  <div className="text-sm font-medium">Paramètres</div>
-                </button>
-              </div>
-            </div>
+  // ⏳ CHARGEMENT
+  if (loading || !isReady) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl animate-pulse flex items-center justify-center">
+            <BarChart3 className="w-8 h-8 text-white" />
           </div>
+          <p className="text-white text-lg">Chargement du tableau de bord...</p>
+          <p className="text-gray-400 text-sm mt-2">Synchronisation: {syncStatus}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+      <div className="max-w-7xl mx-auto p-6">
+        
+        {/* 🎉 MESSAGE DE BIENVENUE */}
+        {showWelcome && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-gradient-to-r from-blue-500/20 to-purple-600/20 border border-blue-500/30 rounded-xl p-4 mb-6 backdrop-blur-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Star className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-white font-semibold">Bienvenue sur Synergia v3.5 !</h3>
+                <p className="text-gray-300 text-sm">
+                  Vos données XP sont maintenant synchronisées en temps réel. 
+                  Niveau {level} • {totalXp.toLocaleString()} XP total
+                </p>
+              </div>
+              <button
+                onClick={() => setShowWelcome(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+          </motion.div>
         )}
 
-        {/* Statistiques principales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total des tâches</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalTasks}</p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-full">
-                <span className="text-blue-600 text-xl">✅</span>
-              </div>
+        {/* 📊 EN-TÊTE PRINCIPAL */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-4xl font-bold text-white mb-2">
+                Tableau de Bord
+              </h1>
+              <p className="text-gray-400">
+                Vue d'ensemble de votre progression et activités
+              </p>
+              <p className="text-gray-500 text-sm mt-1">
+                Dernière synchronisation: {lastUpdate ? lastUpdate.toLocaleTimeString('fr-FR') : 'En cours...'}
+              </p>
             </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Tâches terminées</p>
-                <p className="text-2xl font-bold text-green-600">{stats.completedTasks}</p>
-              </div>
-              <div className="p-3 bg-green-100 rounded-full">
-                <span className="text-green-600 text-xl">🎉</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">En attente</p>
-                <p className="text-2xl font-bold text-orange-600">{stats.pendingTasks}</p>
-              </div>
-              <div className="p-3 bg-orange-100 rounded-full">
-                <span className="text-orange-600 text-xl">⏳</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Projets</p>
-                <p className="text-2xl font-bold text-purple-600">{stats.totalProjects}</p>
-              </div>
-              <div className="p-3 bg-purple-100 rounded-full">
-                <span className="text-purple-600 text-xl">📁</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions rapides */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">🚀 Actions rapides</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {quickActions.map((action, index) => (
+            
+            <div className="flex items-center gap-3">
               <button
-                key={index}
-                onClick={action.action}
-                className={`${action.color} text-white p-4 rounded-lg transition-colors text-center`}
+                onClick={forceSync}
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg px-4 py-2 transition-colors"
               >
-                <div className="text-2xl mb-2">{action.icon}</div>
-                <div className="font-medium">{action.title}</div>
+                <RefreshCw className={`w-4 h-4 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
+                <span className="text-sm">Actualiser</span>
               </button>
-            ))}
+              
+              <div className="flex items-center gap-2 bg-green-500/20 border border-green-500/30 rounded-lg px-3 py-2">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-green-400 text-sm">Synchronisé</span>
+              </div>
+            </div>
           </div>
+        </motion.div>
+
+        {/* 🎯 CARTE GAMIFICATION MISE EN AVANT */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+          className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 backdrop-blur-sm border border-purple-500/30 rounded-xl p-6 mb-8"
+        >
+          <div className="flex flex-col lg:flex-row items-center gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-4">
+                <Trophy className="w-8 h-8 text-yellow-400" />
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Niveau {level}</h2>
+                  <p className="text-gray-300">{totalXp.toLocaleString()} XP total</p>
+                </div>
+              </div>
+              
+              <div className="mb-4">
+                <div className="flex justify-between text-sm text-gray-300 mb-2">
+                  <span>Progression vers niveau {level + 1}</span>
+                  <span>{xpToNextLevel} XP restants</span>
+                </div>
+                <div className="w-full h-3 bg-gray-700 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${levelProgress}%` }}
+                    transition={{ duration: 1 }}
+                    className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+                  ></motion.div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-yellow-400" />
+                  <span className="text-gray-300">+{weeklyXp} XP cette semaine</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Flame className="w-4 h-4 text-orange-400" />
+                  <span className="text-gray-300">{loginStreak} jours consécutifs</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-4">
+              {badges.slice(0, 3).map((badge, index) => (
+                <div 
+                  key={index}
+                  className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center"
+                >
+                  <span className="text-2xl">{badge.icon || '🏆'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* 📈 STATISTIQUES PRINCIPALES */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Tâches */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 hover:bg-white/15 transition-colors"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-blue-500 p-3 rounded-lg">
+                <CheckSquare className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-green-400 text-sm font-medium">+{stats?.completionRate || 0}%</span>
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-1">{dashboardStats.tasks.completed}</h3>
+            <p className="text-gray-400 text-sm">Tâches complétées</p>
+            <p className="text-gray-500 text-xs mt-1">{dashboardStats.tasks.pending} en attente</p>
+          </motion.div>
+
+          {/* Projets */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 hover:bg-white/15 transition-colors"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-purple-500 p-3 rounded-lg">
+                <FolderOpen className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-blue-400 text-sm font-medium">Actifs</span>
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-1">{dashboardStats.projects.active}</h3>
+            <p className="text-gray-400 text-sm">Projets en cours</p>
+            <p className="text-gray-500 text-xs mt-1">{dashboardStats.projects.completed} terminés</p>
+          </motion.div>
+
+          {/* Équipe */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 hover:bg-white/15 transition-colors"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-green-500 p-3 rounded-lg">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-green-400 text-sm font-medium">En ligne</span>
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-1">{dashboardStats.team.active}</h3>
+            <p className="text-gray-400 text-sm">Membres actifs</p>
+            <p className="text-gray-500 text-xs mt-1">sur {dashboardStats.team.members} total</p>
+          </motion.div>
+
+          {/* Productivité */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 hover:bg-white/15 transition-colors"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-orange-500 p-3 rounded-lg">
+                <TrendingUp className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-orange-400 text-sm font-medium">Score</span>
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-1">{stats?.productivityScore || 0}</h3>
+            <p className="text-gray-400 text-sm">Productivité</p>
+            <p className="text-gray-500 text-xs mt-1">sur 100</p>
+          </motion.div>
         </div>
 
-        {/* Activité récente */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
-          {/* Tâches récentes */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold mb-4">📋 Tâches récentes</h2>
+        {/* 📊 CONTENU PRINCIPAL */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Activités Récentes */}
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6 }}
+            className="lg:col-span-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                <Activity className="w-5 h-5 text-blue-400" />
+                Activités Récentes
+              </h3>
+              <button className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
+                Voir tout
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {recentActivities.map((activity, index) => (
+                <motion.div 
+                  key={activity.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.7 + index * 0.1 }}
+                  className="flex items-center gap-4 p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  <div className={`p-2 rounded-lg ${activity.color}`}>
+                    <activity.icon className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-white font-medium">{activity.title}</h4>
+                    <p className="text-gray-400 text-sm">{activity.description}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-green-400 font-medium">+{activity.xp} XP</p>
+                    <p className="text-gray-500 text-xs">{activity.time}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Actions Rapides */}
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.8 }}
+            className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6"
+          >
+            <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+              <Target className="w-5 h-5 text-purple-400" />
+              Actions Rapides
+            </h3>
+            
             <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <span className="text-green-500">✅</span>
-                <div className="flex-1">
-                  <p className="font-medium">Finaliser le rapport mensuel</p>
-                  <p className="text-sm text-gray-600">Terminée il y a 2 heures</p>
+              <button
+                onClick={() => quickActions.completeTask('medium', 'Tâche rapide')}
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white p-3 rounded-lg transition-all flex items-center gap-3"
+              >
+                <CheckCircle className="w-5 h-5" />
+                <div className="text-left">
+                  <p className="font-medium">Terminer une tâche</p>
+                  <p className="text-xs opacity-80">+20 XP</p>
                 </div>
-              </div>
+              </button>
               
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <span className="text-blue-500">🔄</span>
-                <div className="flex-1">
-                  <p className="font-medium">Révision du code frontend</p>
-                  <p className="text-sm text-gray-600">En cours</p>
+              <button
+                onClick={() => quickActions.createProject('Nouveau projet')}
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white p-3 rounded-lg transition-all flex items-center gap-3"
+              >
+                <Plus className="w-5 h-5" />
+                <div className="text-left">
+                  <p className="font-medium">Créer un projet</p>
+                  <p className="text-xs opacity-80">+25 XP</p>
                 </div>
-              </div>
+              </button>
               
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <span className="text-orange-500">⏳</span>
-                <div className="flex-1">
-                  <p className="font-medium">Planifier la réunion équipe</p>
-                  <p className="text-sm text-gray-600">À faire</p>
+              <button
+                onClick={() => quickActions.profileUpdate()}
+                className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white p-3 rounded-lg transition-all flex items-center gap-3"
+              >
+                <Award className="w-5 h-5" />
+                <div className="text-left">
+                  <p className="font-medium">Mettre à jour profil</p>
+                  <p className="text-xs opacity-80">+10 XP</p>
                 </div>
-              </div>
+              </button>
             </div>
             
-            <button 
-              onClick={() => window.location.href = '/tasks'}
-              className="w-full mt-4 text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Voir toutes les tâches →
-            </button>
-          </div>
-
-          {/* Gamification */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold mb-4">🎮 Progression</h2>
-            
-            {/* Niveau actuel */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium">Niveau 3 - Compétent</span>
-                <span className="text-sm text-gray-600">250 / 500 XP</span>
+            <div className="mt-6 p-4 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-lg border border-purple-500/30">
+              <h4 className="text-white font-medium mb-2">🎯 Objectif du jour</h4>
+              <p className="text-gray-300 text-sm">Gagner 100 XP supplémentaires</p>
+              <div className="mt-2 w-full h-2 bg-gray-700 rounded-full">
+                <div 
+                  className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+                  style={{ width: `${Math.min(100, (weeklyXp / 100) * 100)}%` }}
+                ></div>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-blue-500 h-2 rounded-full w-1/2"></div>
-              </div>
+              <p className="text-gray-400 text-xs mt-1">{Math.min(weeklyXp, 100)}/100 XP</p>
             </div>
-
-            {/* Badges récents */}
-            <div className="mb-4">
-              <h3 className="font-medium mb-2">🏆 Badges récents</h3>
-              <div className="flex gap-2">
-                <div className="p-2 bg-yellow-100 rounded-lg text-center">
-                  <div className="text-2xl">🎯</div>
-                  <div className="text-xs">Productif</div>
-                </div>
-                <div className="p-2 bg-green-100 rounded-lg text-center">
-                  <div className="text-2xl">🤝</div>
-                  <div className="text-xs">Collaboratif</div>
-                </div>
-                <div className="p-2 bg-purple-100 rounded-lg text-center">
-                  <div className="text-2xl">🚀</div>
-                  <div className="text-xs">Innovant</div>
-                </div>
-              </div>
-            </div>
-
-            <button 
-              onClick={() => window.location.href = '/gamification'}
-              className="w-full mt-4 text-purple-600 hover:text-purple-700 font-medium"
-            >
-              Voir ma progression →
-            </button>
-          </div>
-        </div>
-
-        {/* Liens rapides en bas */}
-        <div className="mt-8 text-center">
-          <div className="inline-flex gap-4 text-sm text-gray-600">
-            <button 
-              onClick={() => window.location.href = '/team'}
-              className="hover:text-blue-600"
-            >
-              👥 Mon équipe
-            </button>
-            <button 
-              onClick={() => window.location.href = '/analytics'}
-              className="hover:text-blue-600"
-            >
-              📊 Analytics
-            </button>
-            <button 
-              onClick={() => window.location.href = '/profile'}
-              className="hover:text-blue-600"
-            >
-              👤 Mon profil
-            </button>
-            <button 
-              onClick={() => window.location.href = '/settings'}
-              className="hover:text-blue-600"
-            >
-              ⚙️ Paramètres
-            </button>
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>
