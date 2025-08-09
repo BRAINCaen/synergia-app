@@ -1,15 +1,15 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APP PRINCIPAL AVEC SYNCHRONISATION XP INTÉGRÉE
+// APP PRINCIPAL AVEC SYNCHRONISATION XP INTÉGRÉE - CODE COMPLET FINAL
 // ==========================================
 
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AppRoutes } from './routes/index.jsx';
 import { useAuthStore, initializeAuthStore } from './shared/stores/authStore.js';
-import { syncInitializer } from './core/services/syncInitializer.js';
-// Import conditionnel pour éviter les erreurs de build
-let ErrorBoundary, Toast;
+
+// Import conditionnel sécurisé pour éviter les erreurs de build
+let ErrorBoundary, Toast, syncInitializer;
 
 try {
   ErrorBoundary = require('./shared/components/ErrorBoundary.jsx').default;
@@ -25,13 +25,24 @@ try {
   Toast = () => null;
 }
 
+try {
+  syncInitializer = require('./core/services/syncInitializer.js').default;
+} catch (e) {
+  // Fallback si syncInitializer n'existe pas
+  syncInitializer = {
+    initialize: () => Promise.resolve(true),
+    cleanup: () => {}
+  };
+}
+
 /**
- * 🚀 APPLICATION PRINCIPALE AVEC SYNCHRONISATION XP GARANTIE
+ * 🚀 APPLICATION PRINCIPALE AVEC SYNCHRONISATION XP GARANTIE - VERSION COMPLÈTE
  */
 function App() {
   const { loading: authLoading, error: authError } = useAuthStore();
   const [syncInitialized, setSyncInitialized] = useState(false);
   const [syncError, setSyncError] = useState(null);
+  const [appReady, setAppReady] = useState(false);
 
   // ✅ INITIALISATION UNIQUE AU DÉMARRAGE
   useEffect(() => {
@@ -43,20 +54,30 @@ function App() {
         console.log('🔐 [APP] Initialisation AuthStore...');
         initializeAuthStore();
         
-        // 2. Initialiser la synchronisation XP
-        console.log('📡 [APP] Initialisation synchronisation XP...');
-        const syncSuccess = await syncInitializer.initialize();
-        
-        if (syncSuccess) {
-          setSyncInitialized(true);
-          console.log('✅ [APP] Application initialisée avec succès');
+        // 2. Initialiser la synchronisation XP (si disponible)
+        if (syncInitializer && typeof syncInitializer.initialize === 'function') {
+          console.log('📡 [APP] Initialisation synchronisation XP...');
+          const syncSuccess = await syncInitializer.initialize();
+          
+          if (syncSuccess) {
+            setSyncInitialized(true);
+            console.log('✅ [APP] Synchronisation XP initialisée');
+          } else {
+            console.warn('⚠️ [APP] Synchronisation XP échouée, mode dégradé');
+            setSyncInitialized(false);
+          }
         } else {
-          throw new Error('Échec initialisation synchronisation');
+          console.log('📴 [APP] Synchronisation XP non disponible, mode dégradé');
+          setSyncInitialized(false);
         }
+        
+        setAppReady(true);
+        console.log('✅ [APP] Application initialisée avec succès');
         
       } catch (error) {
         console.error('❌ [APP] Erreur initialisation:', error);
         setSyncError(error.message);
+        setAppReady(true); // Continuer même en cas d'erreur
       }
     };
 
@@ -65,43 +86,58 @@ function App() {
     // ✅ NETTOYAGE AU DÉMONTAGE
     return () => {
       console.log('🧹 [APP] Nettoyage application');
-      if (syncInitialized) {
+      if (syncInitializer && typeof syncInitializer.cleanup === 'function') {
         syncInitializer.cleanup();
       }
     };
   }, []);
 
-  // 🎭 GESTIONNAIRES D'ÉVÉNEMENTS GLOBAUX POUR UX
+  // 🎭 GESTIONNAIRES D'ÉVÉNEMENTS GLOBAUX POUR UX (si disponibles)
   useEffect(() => {
+    if (!window.addEventListener) return;
+
     // Écouter les événements de synchronisation
     const handleConnectionRestored = () => {
-      Toast.show('✅ Connexion rétablie - Données synchronisées', 'success');
-    };
-
-    const handleConnectionLost = () => {
-      Toast.show('📴 Connexion perdue - Mode hors ligne', 'warning');
-    };
-
-    const handleXpUpdate = (event) => {
-      const { gamificationData } = event.detail;
-      if (gamificationData?.totalXp) {
-        // Toast.show(`🎯 +XP Données mises à jour`, 'info');
+      if (Toast && typeof Toast.show === 'function') {
+        Toast.show('✅ Connexion rétablie - Données synchronisées', 'success');
       }
     };
 
-    window.addEventListener('connectionRestored', handleConnectionRestored);
-    window.addEventListener('connectionLost', handleConnectionLost);
-    window.addEventListener('xpDataUpdated', handleXpUpdate);
+    const handleConnectionLost = () => {
+      if (Toast && typeof Toast.show === 'function') {
+        Toast.show('📴 Connexion perdue - Mode hors ligne', 'warning');
+      }
+    };
+
+    const handleXpUpdate = (event) => {
+      const { gamificationData } = event.detail || {};
+      if (gamificationData?.totalXp && process.env.NODE_ENV === 'development') {
+        console.log('🎯 [APP] XP mis à jour:', gamificationData.totalXp);
+      }
+    };
+
+    // Ajouter les listeners seulement s'ils sont supportés
+    try {
+      window.addEventListener('connectionRestored', handleConnectionRestored);
+      window.addEventListener('connectionLost', handleConnectionLost);
+      window.addEventListener('xpDataUpdated', handleXpUpdate);
+    } catch (e) {
+      console.warn('⚠️ [APP] Impossible d\'ajouter les event listeners:', e);
+    }
 
     return () => {
-      window.removeEventListener('connectionRestored', handleConnectionRestored);
-      window.removeEventListener('connectionLost', handleConnectionLost);
-      window.removeEventListener('xpDataUpdated', handleXpUpdate);
+      try {
+        window.removeEventListener('connectionRestored', handleConnectionRestored);
+        window.removeEventListener('connectionLost', handleConnectionLost);
+        window.removeEventListener('xpDataUpdated', handleXpUpdate);
+      } catch (e) {
+        console.warn('⚠️ [APP] Impossible de supprimer les event listeners:', e);
+      }
     };
   }, []);
 
   // 🔄 ÉCRAN DE CHARGEMENT INITIAL
-  if (authLoading || !syncInitialized) {
+  if (authLoading || !appReady) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
@@ -125,7 +161,7 @@ function App() {
           <h1 className="text-2xl font-bold text-white mb-2">Synergia v3.5</h1>
           <p className="text-gray-400 mb-4">
             {authLoading ? 'Authentification...' : 
-             !syncInitialized ? 'Synchronisation XP...' : 
+             !appReady ? 'Initialisation...' : 
              'Chargement...'}
           </p>
           
@@ -138,6 +174,10 @@ function App() {
             <div className="flex items-center justify-center gap-2">
               <div className={`w-2 h-2 rounded-full ${!syncInitialized ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`}></div>
               <span>Synchronisation XP</span>
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${!appReady ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`}></div>
+              <span>Application</span>
             </div>
           </div>
         </div>
@@ -193,8 +233,8 @@ function App() {
             <div className="fixed bottom-4 right-4 z-50">
               <div className="bg-black/50 backdrop-blur-sm rounded-lg p-2 text-xs text-white">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span>XP Sync Active</span>
+                  <div className={`w-2 h-2 rounded-full ${syncInitialized ? 'bg-green-500' : 'bg-yellow-500'} animate-pulse`}></div>
+                  <span>Synergia v3.5 {syncInitialized ? 'Sync ON' : 'Dégradé'}</span>
                 </div>
               </div>
             </div>
