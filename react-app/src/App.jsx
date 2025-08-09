@@ -9,7 +9,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 // Layout principal
 import Layout from './components/layout/Layout.jsx';
 
-// Store d'authentification
+// Store d'authentification (utilisé dans le projet)
 import { useAuthStore, initializeAuthStore } from './shared/stores/authStore.js';
 
 // ==========================================
