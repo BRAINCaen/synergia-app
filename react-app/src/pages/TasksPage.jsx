@@ -218,75 +218,66 @@ const TasksPage = () => {
     try {
       setSubmitting(true);
       
-      // ✅ NETTOYER LES DONNÉES - SUPPRIMER TOUS LES NULL/UNDEFINED
-      const cleanTaskData = {};
+      // ✅ NETTOYAGE ULTRA-STRICT - ZÉRO UNDEFINED/NULL
+      const strictCleanData = {};
       
-      // Champs obligatoires avec valeurs par défaut
-      cleanTaskData.title = taskData.title || '';
-      cleanTaskData.description = taskData.description || '';
-      cleanTaskData.priority = taskData.priority || 'medium';
-      cleanTaskData.difficulty = taskData.difficulty || 'medium';
-      cleanTaskData.xpReward = taskData.xpReward || 25;
-      cleanTaskData.createdBy = user.uid;
-      cleanTaskData.createdAt = new Date();
-      cleanTaskData.updatedAt = new Date();
-      cleanTaskData.status = 'pending';
-      cleanTaskData.assignedTo = [];
-      cleanTaskData.tags = Array.isArray(taskData.tags) ? taskData.tags : [];
-      
-      // Champs optionnels - AJOUTER SEULEMENT S'ILS EXISTENT ET NE SONT PAS NULL
-      if (taskData.roleId && taskData.roleId !== '') {
-        cleanTaskData.roleId = taskData.roleId;
-        cleanTaskData.category = taskData.roleId;
-      }
-      
-      if (taskData.notes && taskData.notes.trim() !== '') {
-        cleanTaskData.notes = taskData.notes.trim();
-      }
-      
-      if (taskData.dueDate && taskData.dueDate !== '') {
-        cleanTaskData.dueDate = new Date(taskData.dueDate);
-      }
-      
-      if (taskData.estimatedTime && taskData.estimatedTime > 0) {
-        cleanTaskData.estimatedTime = taskData.estimatedTime;
-      }
-      
-      if (taskData.projectId && taskData.projectId !== '') {
-        cleanTaskData.projectId = taskData.projectId;
-      }
-      
-      // Récurrence - SEULEMENT si activée
-      if (taskData.isRecurring === true) {
-        cleanTaskData.isRecurring = true;
-        cleanTaskData.recurrenceType = taskData.recurrenceType || 'none';
-        cleanTaskData.recurrenceInterval = taskData.recurrenceInterval || 1;
+      // Parcourir chaque propriété et l'ajouter SEULEMENT si elle est valide
+      Object.keys(taskData).forEach(key => {
+        const value = taskData[key];
         
-        if (taskData.recurrenceEndDate && taskData.recurrenceEndDate !== '') {
-          cleanTaskData.recurrenceEndDate = new Date(taskData.recurrenceEndDate);
+        // Ignorer les valeurs null/undefined/vides
+        if (value !== null && value !== undefined && value !== '') {
+          // Pour les chaînes, vérifier qu'elles ne sont pas vides après trim
+          if (typeof value === 'string' && value.trim() === '') {
+            return; // Ne pas ajouter
+          }
+          
+          // Pour les arrays, vérifier qu'ils ne sont pas vides
+          if (Array.isArray(value) && value.length === 0) {
+            return; // Ne pas ajouter (ou ajouter un array vide si nécessaire)
+          }
+          
+          // Pour les dates invalides
+          if (value instanceof Date && isNaN(value.getTime())) {
+            return; // Ne pas ajouter
+          }
+          
+          // Ajouter la valeur valide
+          strictCleanData[key] = value;
         }
-        
-        if (Array.isArray(taskData.recurrenceDays) && taskData.recurrenceDays.length > 0) {
-          cleanTaskData.recurrenceDays = taskData.recurrenceDays;
-        }
-      }
+      });
       
-      // Média - SEULEMENT si présent
-      if (taskData.mediaAttachment) {
-        cleanTaskData.hasMedia = true;
-        cleanTaskData.mediaUrl = taskData.mediaAttachment.url;
-        cleanTaskData.mediaType = taskData.mediaAttachment.type;
-        cleanTaskData.mediaFilename = taskData.mediaAttachment.filename;
-      }
+      // Forcer les champs obligatoires Firebase
+      strictCleanData.title = (taskData.title || '').trim() || 'Tâche sans titre';
+      strictCleanData.description = (taskData.description || '').trim() || 'Pas de description';
+      strictCleanData.createdBy = user.uid;
+      strictCleanData.createdAt = new Date();
+      strictCleanData.updatedAt = new Date();
+      strictCleanData.status = 'pending';
+      strictCleanData.assignedTo = [];
+      strictCleanData.tags = [];
+      strictCleanData.priority = taskData.priority || 'medium';
+      strictCleanData.difficulty = taskData.difficulty || 'medium';
+      strictCleanData.xpReward = taskData.xpReward || 25;
 
-      console.log('✅ Données parfaitement nettoyées pour Firebase:', cleanTaskData);
+      console.log('🧹 Données ultra-nettoyées:', strictCleanData);
+      console.log('🔍 Aucun champ undefined/null dans:', Object.keys(strictCleanData));
       
-      await taskService.createTask(cleanTaskData);
+      // Vérification finale - aucun undefined/null
+      const hasUndefined = Object.values(strictCleanData).some(val => val === undefined || val === null);
+      if (hasUndefined) {
+        console.error('❌ ERREUR: Des champs undefined/null détectés après nettoyage!');
+        console.log('Données problématiques:', strictCleanData);
+        setError('Erreur de validation des données');
+        return;
+      }
+      
+      await taskService.createTask(strictCleanData);
       await forceReload();
       setShowCreateModal(false);
     } catch (error) {
       console.error('❌ Erreur création tâche:', error);
-      setError('Erreur lors de la création de la tâche: ' + error.message);
+      setError('Erreur lors de la création: ' + error.message);
     } finally {
       setSubmitting(false);
     }
