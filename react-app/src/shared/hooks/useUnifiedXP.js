@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/hooks/useUnifiedXP.js
-// HOOK UNIFIÉ POUR TOUTES LES DONNÉES XP - REMPLACE TOUS LES AUTRES
+// HOOK UNIFIÉ POUR TOUTES LES DONNÉES XP - CODE COMPLET
 // ==========================================
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -8,7 +8,7 @@ import { useAuthStore } from '../stores/authStore.js';
 import { unifiedXpSyncService } from '../../core/services/unifiedXpSyncService.js';
 
 /**
- * 🎯 HOOK UNIFIÉ POUR TOUTES LES DONNÉES XP
+ * 🎯 HOOK UNIFIÉ POUR TOUTES LES DONNÉES XP - VERSION COMPLÈTE
  * À utiliser dans TOUTES les pages : Dashboard, Analytics, Gamification, Boutique
  * Garantit la synchronisation parfaite entre toutes les pages
  */
