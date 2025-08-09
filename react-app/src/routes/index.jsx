@@ -1,119 +1,90 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES 100% SÉCURISÉES POUR BUILD NETLIFY
+// ROUTES COMPLÈTES AVEC IMPORTS CORRIGÉS
 // ==========================================
 
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from '../shared/stores/authStore.js';
+import React from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuthStore } from '../shared/stores/authStore.js'
 
-/**
- * 🛡️ FONCTION D'IMPORT SÉCURISÉ
- */
-const safeImport = (path, fallbackName = 'Page') => {
-  try {
-    return require(path).default;
-  } catch (e) {
-    console.warn(`⚠️ Import manqué: ${path}, utilisation du fallback`);
-    return () => (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center text-white">
-        <div className="text-center max-w-md mx-auto p-8">
-          <div className="w-16 h-16 mx-auto mb-6 bg-blue-500 rounded-full flex items-center justify-center">
-            <span className="text-white text-2xl">📄</span>
-          </div>
-          <h1 className="text-4xl font-bold mb-4">{fallbackName}</h1>
-          <p className="text-gray-400 mb-6">Cette page est en cours de développement.</p>
-          <button
-            onClick={() => window.history.back()}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition-colors"
-          >
-            Retour
-          </button>
-        </div>
-      </div>
-    );
-  }
-};
+// Pages principales
+import Login from '../pages/Login.jsx'
+import Dashboard from '../pages/Dashboard.jsx'
+import NotFound from '../pages/NotFound.jsx'
+import AnalyticsPage from '../pages/AnalyticsPage.jsx'  // ✅ CORRIGÉ : AnalyticsPage au lieu d'Analytics
+import TeamPage from '../pages/TeamPage.jsx'
 
-// ✅ IMPORTS SÉCURISÉS DE TOUTES LES PAGES
-const Dashboard = safeImport('../pages/Dashboard.jsx', 'Dashboard');
-const Login = safeImport('../pages/Login.jsx', 'Connexion');
-const NotFound = safeImport('../pages/NotFound.jsx', '404');
+// Pages existantes
+import TasksPage from '../pages/TasksPage.jsx'
+import ProjectsPage from '../pages/ProjectsPage.jsx'
+import GamificationPage from '../pages/GamificationPage.jsx'
+import BadgesPage from '../pages/BadgesPage.jsx'
+import UsersPage from '../pages/UsersPage.jsx'
+import OnboardingPage from '../pages/OnboardingPage.jsx'
+import TimeTrackPage from '../pages/TimeTrackPage.jsx'
+import ProfilePage from '../pages/ProfilePage.jsx'
+import SettingsPage from '../pages/SettingsPage.jsx'
+import RewardsPage from '../pages/RewardsPage.jsx'
 
-// Pages secondaires avec fallbacks
-const Analytics = safeImport('../pages/Analytics.jsx', 'Analytics') || 
-                 safeImport('../pages/AnalyticsPage.jsx', 'Analytics');
-const TeamPage = safeImport('../pages/TeamPage.jsx', 'Équipe');
-const TasksPage = safeImport('../pages/TasksPage.jsx', 'Tâches');
-const ProjectsPage = safeImport('../pages/ProjectsPage.jsx', 'Projets');
-const GamificationPage = safeImport('../pages/GamificationPage.jsx', 'Gamification');
-const BadgesPage = safeImport('../pages/BadgesPage.jsx', 'Badges');
-const UsersPage = safeImport('../pages/UsersPage.jsx', 'Utilisateurs');
-const OnboardingPage = safeImport('../pages/OnboardingPage.jsx', 'Intégration');
-const TimeTrackPage = safeImport('../pages/TimeTrackPage.jsx', 'Temps');
-const ProfilePage = safeImport('../pages/ProfilePage.jsx', 'Profil');
-const SettingsPage = safeImport('../pages/SettingsPage.jsx', 'Paramètres');
-const RewardsPage = safeImport('../pages/RewardsPage.jsx', 'Récompenses');
+// ✅ PAGES ADMIN COMPLÈTES
+import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx'
+import CompleteAdminTestPage from '../pages/CompleteAdminTestPage.jsx'
+import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx'
+import AdminUsersPage from '../pages/AdminUsersPage.jsx'
+import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx'
+import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
 
-// Pages admin avec fallbacks
-const AdminTaskValidationPage = safeImport('../pages/AdminTaskValidationPage.jsx', 'Admin - Validation');
-const CompleteAdminTestPage = safeImport('../pages/CompleteAdminTestPage.jsx', 'Admin - Test');
-const AdminRolePermissionsPage = safeImport('../pages/AdminRolePermissionsPage.jsx', 'Admin - Rôles');
-const AdminUsersPage = safeImport('../pages/AdminUsersPage.jsx', 'Admin - Utilisateurs');
-const AdminAnalyticsPage = safeImport('../pages/AdminAnalyticsPage.jsx', 'Admin - Analytics');
-const AdminSettingsPage = safeImport('../pages/AdminSettingsPage.jsx', 'Admin - Paramètres');
-
-// Pages admin spéciales
-const DemoDataCleanerPage = safeImport('../pages/admin/DemoDataCleanerPage.jsx', 'Nettoyage Démo');
+// 🧹 NOUVELLE PAGE NETTOYAGE DONNÉES DÉMO
+import DemoDataCleanerPage from '../pages/admin/DemoDataCleanerPage.jsx'
 
 // Components utilisés comme pages (fallback)
-const TaskList = safeImport('../modules/tasks/TaskList.jsx', 'Liste Tâches');
-const BadgeCollection = safeImport('../components/gamification/BadgeCollection.jsx', 'Collection Badges');
-const Leaderboard = safeImport('../components/gamification/Leaderboard.jsx', 'Classement');
-const ProjectDashboard = safeImport('../components/projects/ProjectDashboard.jsx', 'Dashboard Projet');
-const Profile = safeImport('../components/profile/Profile.jsx', 'Profil');
+import TaskList from '../modules/tasks/TaskList.jsx'
+import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
+import Leaderboard from '../components/gamification/Leaderboard.jsx'
+import ProjectDashboard from '../components/projects/ProjectDashboard.jsx'
+import Profile from '../components/profile/Profile.jsx'
 
 /**
  * 🔐 COMPOSANT DE PROTECTION DES ROUTES
  */
 const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuthStore();
+  const { user, loading } = useAuthStore()
   
   // Affichage du loading
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin text-4xl mb-4">⚙️</div>
-          <p className="text-white">Chargement...</p>
+          <p className="text-gray-600">Chargement...</p>
         </div>
       </div>
-    );
+    )
   }
   
   // Redirection si non connecté
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace />
   }
   
-  return children;
-};
+  return children
+}
 
 /**
- * 🚀 COMPOSANT PRINCIPAL DES ROUTES - VERSION SÉCURISÉE COMPLÈTE
+ * 🚀 COMPOSANT PRINCIPAL DES ROUTES
  */
 export const AppRoutes = () => {
-  const { user } = useAuthStore();
+  const { user } = useAuthStore()
   
   return (
     <Routes>
-      {/* ===== ROUTES PUBLIQUES ===== */}
+      {/* Route de connexion publique */}
       <Route 
         path="/login" 
         element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
       />
       
-      {/* ===== ROUTES PRINCIPALES PROTÉGÉES ===== */}
+      {/* Routes principales protégées */}
       <Route 
         path="/dashboard" 
         element={
@@ -127,7 +98,7 @@ export const AppRoutes = () => {
         path="/analytics" 
         element={
           <ProtectedRoute>
-            <Analytics />
+            <AnalyticsPage />
           </ProtectedRoute>
         } 
       />
@@ -141,7 +112,7 @@ export const AppRoutes = () => {
         } 
       />
       
-      {/* ===== ROUTES DE GESTION ===== */}
+      {/* Routes de gestion */}
       <Route 
         path="/tasks" 
         element={
@@ -160,7 +131,7 @@ export const AppRoutes = () => {
         } 
       />
       
-      {/* ===== ROUTES GAMIFICATION ===== */}
+      {/* Routes gamification */}
       <Route 
         path="/gamification" 
         element={
@@ -197,7 +168,7 @@ export const AppRoutes = () => {
         } 
       />
       
-      {/* ===== ROUTES UTILISATEUR ===== */}
+      {/* Routes utilisateur */}
       <Route 
         path="/users" 
         element={
@@ -234,7 +205,7 @@ export const AppRoutes = () => {
         } 
       />
       
-      {/* ===== ROUTES OUTILS ===== */}
+      {/* Routes outils */}
       <Route 
         path="/time-track" 
         element={
@@ -253,7 +224,7 @@ export const AppRoutes = () => {
         } 
       />
       
-      {/* ===== ROUTES ADMIN ===== */}
+      {/* Routes admin */}
       <Route 
         path="/admin/task-validation" 
         element={
@@ -317,7 +288,7 @@ export const AppRoutes = () => {
         } 
       />
       
-      {/* ===== ROUTES COMPOSANTS (FALLBACK) ===== */}
+      {/* Routes composants (fallback) */}
       <Route 
         path="/tasks-list" 
         element={
@@ -345,19 +316,19 @@ export const AppRoutes = () => {
         } 
       />
       
-      {/* ===== ROUTE RACINE ===== */}
+      {/* Route racine */}
       <Route 
         path="/" 
         element={<Navigate to="/dashboard" replace />} 
       />
       
-      {/* ===== ROUTE 404 ===== */}
+      {/* Route 404 */}
       <Route 
         path="*" 
         element={<NotFound />} 
       />
     </Routes>
-  );
-};
+  )
+}
 
-export default AppRoutes;
+export default AppRoutes
