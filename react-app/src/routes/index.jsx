@@ -37,12 +37,20 @@ import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
 // 🧹 NOUVELLE PAGE NETTOYAGE DONNÉES DÉMO
 import DemoDataCleanerPage from '../pages/admin/DemoDataCleanerPage.jsx'
 
-// Components utilisés comme pages (fallback)
-import TaskList from '../modules/tasks/TaskList.jsx'
-import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
-import Leaderboard from '../components/gamification/Leaderboard.jsx'
-import ProjectDashboard from '../components/projects/ProjectDashboard.jsx'
-import Profile from '../components/profile/Profile.jsx'
+// Components utilisés comme pages (fallback) - IMPORTS SÉCURISÉS
+// SUPPRESSION DES IMPORTS QUI N'EXISTENT PAS POUR CORRIGER LE BUILD
+// import TaskList from '../modules/tasks/TaskList.jsx'
+// import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
+// import Leaderboard from '../components/gamification/Leaderboard.jsx'
+// import ProjectDashboard from '../components/projects/ProjectDashboard.jsx'
+// import Profile from '../components/profile/Profile.jsx'
+
+// Composants fallback temporaires pour éviter les erreurs de build
+const TaskList = () => <div className="p-8 text-center">TaskList - En cours de développement</div>
+const BadgeCollection = () => <div className="p-8 text-center">BadgeCollection - En cours de développement</div>
+const Leaderboard = () => <div className="p-8 text-center">Leaderboard - En cours de développement</div>
+const ProjectDashboard = () => <div className="p-8 text-center">ProjectDashboard - En cours de développement</div>
+const Profile = () => <div className="p-8 text-center">Profile - En cours de développement</div>
 
 /**
  * 🔐 COMPOSANT DE PROTECTION DES ROUTES
