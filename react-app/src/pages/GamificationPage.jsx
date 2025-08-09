@@ -19,15 +19,15 @@ import {
   Zap
 } from 'lucide-react';
 
-// Hooks et contextes existants
-import { useAuth } from '../contexts/AuthContext.jsx';
+// Hooks et stores existants
+import { useAuthStore } from '../shared/stores/authStore.js';
 import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
 
 /**
  * 🎮 PAGE GAMIFICATION - VERSION STABLE ET CORRIGÉE
  */
 const GamificationPage = () => {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const { gamification, isLoading } = useUnifiedFirebaseData();
 
   // États locaux
