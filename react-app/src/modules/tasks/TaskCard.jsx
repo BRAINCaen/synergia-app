@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx
-// TASKCARD AVEC NOTIFICATION DE COMMENTAIRES - VERSION SÉCURISÉE
+// CODE COMPLET AVEC BOUTON "NE PLUS ÊTRE VOLONTAIRE"
 // ==========================================
 
 import React, { useState } from 'react';
@@ -14,12 +14,14 @@ import {
   Trash2,
   Eye,
   UserPlus,
+  UserMinus,
   Trophy,
   Star
 } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { taskService } from '../../core/services/taskService.js';
 import SubmitTaskButton from './SubmitTaskButton.jsx';
+
 // ✅ COMPOSANT TEMPORAIRE EN ATTENDANT LE FICHIER CommentBadge.jsx
 const CommentBadgeTemp = ({ entityType, entityId, onClick, className = '' }) => {
   const [commentCount, setCommentCount] = React.useState(0);
@@ -98,7 +100,7 @@ const PriorityBadge = ({ priority }) => {
 };
 
 /**
- * 🎯 COMPOSANT TASKCARD AVEC NOTIFICATION DE COMMENTAIRES
+ * 🎯 COMPOSANT TASKCARD AVEC BOUTON "NE PLUS ÊTRE VOLONTAIRE"
  */
 const TaskCard = ({ 
   task, 
@@ -106,6 +108,7 @@ const TaskCard = ({
   onDelete, 
   onViewDetails, 
   onSubmit,
+  onUnvolunteer,
   onTaskUpdate,
   isMyTask = false,
   showVolunteerButton = false
@@ -219,61 +222,88 @@ const TaskCard = ({
           entityType="task"
           entityId={task.id}
           onClick={handleCommentsClick}
-          className="hover:scale-110 transition-transform"
         />
       </div>
 
       {/* En-tête avec titre et statut */}
-      <div className="flex items-start justify-between mb-3 pr-8"> {/* ✅ AJOUT pr-8 pour espace badge */}
-        <div className="flex-1">
-          <h3 className="text-lg font-semibold text-white mb-2 leading-tight">
+      <div className="mb-3">
+        <div className="flex items-start justify-between mb-2">
+          <h3 className="text-white font-semibold text-lg leading-tight pr-16">
             {task.title}
           </h3>
-          
-          {/* Badges priorité et difficulté */}
-          <div className="flex items-center gap-2 mb-2">
-            <PriorityBadge priority={task.priority || 'medium'} />
-            
-            {task.difficulty && (
-              <span className="px-2 py-1 bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-full text-xs font-medium flex items-center gap-1">
-                <Star className="w-3 h-3" />
-                {task.difficulty}
-              </span>
-            )}
-          </div>
+        </div>
+
+        {/* Badge de statut */}
+        <div className="flex items-center gap-2 mb-2">
+          <span className={`px-2 py-1 rounded text-xs font-medium ${
+            task.status === 'completed' ? 'bg-green-100 text-green-700' :
+            task.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+            task.status === 'validation_pending' ? 'bg-orange-100 text-orange-700' :
+            'bg-gray-100 text-gray-700'
+          }`}>
+            {task.status === 'completed' ? 'Terminée' :
+             task.status === 'in_progress' ? 'En cours' :
+             task.status === 'validation_pending' ? 'En validation' :
+             'À faire'}
+          </span>
+
+          {/* Badge de priorité */}
+          {task.priority && <PriorityBadge priority={task.priority} />}
         </div>
       </div>
 
       {/* Description */}
       {task.description && (
-        <p className="text-gray-300 text-sm mb-4 line-clamp-2">
+        <p className="text-gray-300 text-sm mb-3 line-clamp-2">
           {task.description}
         </p>
       )}
 
       {/* Métadonnées */}
-      <div className="space-y-2 mb-4">
+      <div className="space-y-2 mb-4 text-sm text-gray-400">
         
-        {/* XP et deadline */}
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-1 text-yellow-400">
-            <Trophy className="w-4 h-4" />
-            <span>{task.xpReward || 0} XP</span>
-          </div>
-          
-          {task.deadline && (
-            <div className="flex items-center gap-1 text-blue-400">
-              <Calendar className="w-4 h-4" />
-              <span>{new Date(task.deadline).toLocaleDateString('fr-FR')}</span>
-            </div>
-          )}
+        {/* Créateur */}
+        <div className="flex items-center gap-2">
+          <User className="w-4 h-4" />
+          <span>Créé par: {task.creatorName || 'Utilisateur'}</span>
         </div>
 
-        {/* Assignation */}
+        {/* Assignés */}
         {task.assignedTo && task.assignedTo.length > 0 && (
-          <div className="flex items-center gap-1 text-green-400 text-sm">
-            <User className="w-4 h-4" />
-            <span>Assignée à {task.assignedTo.length} personne{task.assignedTo.length > 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            <span>
+              Assigné à {task.assignedTo.length} personne{task.assignedTo.length > 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+
+        {/* Date de création */}
+        {task.createdAt && (
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4" />
+            <span>
+              {task.createdAt.toDate ? 
+                task.createdAt.toDate().toLocaleDateString('fr-FR') : 
+                new Date(task.createdAt).toLocaleDateString('fr-FR')
+              }
+            </span>
+          </div>
+        )}
+
+        {/* Difficulté */}
+        {task.difficulty && (
+          <div className="flex items-center gap-2">
+            <Star className="w-4 h-4" />
+            <span>Difficulté: {task.difficulty}</span>
+          </div>
+        )}
+
+        {/* XP Reward */}
+        {task.xpReward && (
+          <div className="flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-yellow-400" />
+            <span className="text-yellow-400">+{task.xpReward} XP</span>
           </div>
         )}
 
@@ -352,6 +382,18 @@ const TaskCard = ({
                 Volontaire
               </>
             )}
+          </button>
+        )}
+
+        {/* ✅ NOUVEAU - Bouton se retirer (UNIQUEMENT pour mes tâches) */}
+        {isMyTask && isAssignedToMe && (
+          <button
+            onClick={() => onUnvolunteer && onUnvolunteer()}
+            className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm transition-colors"
+            title="Ne plus être volontaire"
+          >
+            <UserMinus className="w-4 h-4" />
+            Ne plus être volontaire
           </button>
         )}
 
