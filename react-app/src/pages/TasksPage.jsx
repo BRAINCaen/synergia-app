@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// CODE COMPLET ET CORRIGÉ - REMPLACE TON FICHIER ENTIER
+// CORRECTION IMPORT TASKSUBMISSIONMODAL 
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -25,6 +25,8 @@ import taskService from '../core/services/taskService.js';
 import TaskCard from '../modules/tasks/TaskCard.jsx';
 import TaskForm from '../modules/tasks/TaskForm.jsx';
 import TaskDetailModal from '../components/ui/TaskDetailModal.jsx';
+// ✅ CORRECTION: Import correct du modal de soumission
+import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
 
 // 🎭 RÔLES SYNERGIA POUR FILTRAGE (définis localement)
 const SYNERGIA_ROLES = {
@@ -35,606 +37,409 @@ const SYNERGIA_ROLES = {
   content: { id: 'content', name: 'Contenu & Documentation', icon: '📝', color: 'bg-purple-500' },
   mentoring: { id: 'mentoring', name: 'Encadrement & Formation', icon: '🎓', color: 'bg-indigo-500' },
   partnerships: { id: 'partnerships', name: 'Partenariats & Référencement', icon: '🤝', color: 'bg-pink-500' },
-  communication: { id: 'communication', name: 'Communication & Réseaux Sociaux', icon: '📱', color: 'bg-cyan-500' },
-  b2b: { id: 'b2b', name: 'Relations B2B & Devis', icon: '💼', color: 'bg-slate-500' }
+  communication: { id: 'communication', name: 'Communication & Relations', icon: '📢', color: 'bg-teal-500' }
 };
 
 /**
- * 📋 PAGE PRINCIPALE DES TÂCHES AVEC LOGIQUE CORRIGÉE
+ * 📋 PAGE PRINCIPALE DE GESTION DES TÂCHES
  */
 const TasksPage = () => {
   const { user } = useAuthStore();
   
-  // États principaux - répartition selon vos critères
-  const [myTasks, setMyTasks] = useState([]);
-  const [availableTasks, setAvailableTasks] = useState([]);
-  const [otherTasks, setOtherTasks] = useState([]);
+  // États principaux
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
   
-  // États UI avec filtrage par rôle
-  const [activeTab, setActiveTab] = useState('my');
+  // États des filtres
+  const [activeTab, setActiveTab] = useState('mine');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
-  const [roleFilter, setRoleFilter] = useState('all');
-  const [showRoleFilters, setShowRoleFilters] = useState(false);
+  const [selectedRole, setSelectedRole] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedPriority, setSelectedPriority] = useState('all');
   
-  // États modales
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showDetailModal, setShowDetailModal] = useState(false);
+  // États des modals
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [showTaskDetail, setShowTaskDetail] = useState(false);
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [taskToSubmit, setTaskToSubmit] = useState(null);
 
   /**
-   * 🔄 CHARGER ET RÉPARTIR TOUTES LES TÂCHES (ABSOLUMENT TOUTES)
+   * 🔄 CHARGER LES TÂCHES
    */
   const loadTasks = useCallback(async () => {
+    if (!user) return;
+    
+    setLoading(true);
     try {
-      setLoading(true);
-      setError(null);
-      console.log('🔄 Chargement de TOUTES les tâches de la base de données...');
-
-      if (!user?.uid) {
-        console.warn('⚠️ Utilisateur non connecté');
-        return;
+      console.log('📥 Chargement des tâches...');
+      
+      let tasksData = [];
+      
+      if (activeTab === 'mine') {
+        tasksData = await taskService.getUserTasks(user.uid);
+      } else if (activeTab === 'available') {
+        tasksData = await taskService.getAvailableTasks();
+      } else {
+        tasksData = await taskService.getAllTasks();
       }
-
-      // ✅ RÉCUPÉRER ABSOLUMENT TOUTES LES TÂCHES SANS FILTRE
-      const allTasks = await taskService.getAllTasks();
-      console.log(`📊 TOTAL de toutes les tâches dans la base: ${allTasks.length}`);
-
-      // 🎯 LOGIQUE DE RÉPARTITION SELON VOS CRITÈRES EXACTS
-      const myTasksArray = [];
-      const availableTasksArray = [];
-      const otherTasksArray = [];
-
-      allTasks.forEach(task => {
-        // Vérifier si je suis assigné à cette tâche
-        const isAssignedToMe = Array.isArray(task.assignedTo) && task.assignedTo.includes(user.uid);
-        
-        // Vérifier si la tâche a des assignés
-        const hasAssignees = Array.isArray(task.assignedTo) && task.assignedTo.length > 0;
-
-        if (isAssignedToMe) {
-          // ✅ MES TÂCHES = Tâches qui me sont assignées
-          myTasksArray.push(task);
-          
-        } else if (!hasAssignees && (task.status === 'pending' || task.status === 'todo' || !task.status)) {
-          // ✅ TÂCHES DISPONIBLES = Non assignées ET statut ouvert
-          availableTasksArray.push(task);
-          
-        } else if (hasAssignees && !isAssignedToMe) {
-          // ✅ AUTRES TÂCHES = Assignées à d'autres personnes
-          otherTasksArray.push(task);
-        }
-      });
-
-      // Trier par date de création (plus récentes d'abord)
-      const sortByDate = (a, b) => {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || Date.now());
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || Date.now());
-        return dateB - dateA;
-      };
-
-      setMyTasks(myTasksArray.sort(sortByDate));
-      setAvailableTasks(availableTasksArray.sort(sortByDate));
-      setOtherTasks(otherTasksArray.sort(sortByDate));
       
-      setLastUpdateTime(Date.now());
+      console.log(`✅ ${tasksData.length} tâches chargées`);
+      setTasks(tasksData);
+      setError(null);
       
-      console.log('✅ Répartition complète des tâches:', {
-        'Total dans la base': allTasks.length,
-        'Mes tâches (assignées à moi)': myTasksArray.length,
-        'Disponibles (non assignées/ouvertes)': availableTasksArray.length,
-        'Autres (assignées à autres)': otherTasksArray.length,
-        'Vérification': myTasksArray.length + availableTasksArray.length + otherTasksArray.length
-      });
-
-      // Afficher quelques exemples pour debug
-      console.log('📋 Exemples de répartition:');
-      console.log('Mes tâches:', myTasksArray.slice(0, 3).map(t => `"${t.title}" (créateur: ${t.createdBy})`));
-      console.log('Disponibles:', availableTasksArray.slice(0, 3).map(t => `"${t.title}" (assignés: ${t.assignedTo?.length || 0})`));
-      console.log('Autres:', otherTasksArray.slice(0, 3).map(t => `"${t.title}" (assignés: ${t.assignedTo?.join(', ') || 'aucun'})`));
-
-    } catch (error) {
-      console.error('❌ Erreur chargement tâches:', error);
-      setError('Erreur lors du chargement des tâches');
+    } catch (err) {
+      console.error('❌ Erreur chargement tâches:', err);
+      setError(err.message);
+      setTasks([]);
     } finally {
       setLoading(false);
     }
-  }, [user?.uid]);
+  }, [user, activeTab]);
 
-  /**
-   * 🔄 FONCTION DE RECHARGEMENT FORCÉ
-   */
-  const forceReload = useCallback(async () => {
-    console.log('🔄 Rechargement forcé des tâches...');
-    await loadTasks();
+  // Charger les tâches au montage et quand les filtres changent
+  useEffect(() => {
+    loadTasks();
   }, [loadTasks]);
 
   /**
-   * 🔄 CHARGEMENT INITIAL ET ÉVÉNEMENTS
+   * 🎯 FILTRER LES TÂCHES
    */
-  useEffect(() => {
-    if (user?.uid) {
-      loadTasks();
+  const filteredTasks = tasks.filter(task => {
+    // Filtre de recherche
+    if (searchTerm && !task.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !task.description?.toLowerCase().includes(searchTerm.toLowerCase())) {
+      return false;
     }
-  }, [user?.uid, loadTasks]);
-
-  // Recharger quand la page redevient visible
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && user?.uid) {
-        console.log('🔄 Page redevenue visible - rechargement');
-        loadTasks();
-      }
-    };
-
-    const handleFocus = () => {
-      if (user?.uid) {
-        console.log('🔄 Fenêtre focus - rechargement');
-        loadTasks();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [user?.uid, loadTasks]);
+    
+    // Filtre de rôle
+    if (selectedRole !== 'all' && task.role !== selectedRole) {
+      return false;
+    }
+    
+    // Filtre de statut
+    if (selectedStatus !== 'all' && task.status !== selectedStatus) {
+      return false;
+    }
+    
+    // Filtre de priorité
+    if (selectedPriority !== 'all' && task.priority !== selectedPriority) {
+      return false;
+    }
+    
+    return true;
+  });
 
   /**
-   * 🔍 FILTRER LES TÂCHES SELON LES CRITÈRES DE RECHERCHE ET RÔLE
-   */
-  const getFilteredTasks = (tasks) => {
-    return tasks.filter(task => {
-      // Filtre par recherche
-      const matchesSearch = !searchTerm || 
-        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.description?.toLowerCase().includes(searchTerm.toLowerCase());
-
-      // Filtre par statut
-      const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
-
-      // Filtre par priorité
-      const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
-
-      // ✅ NOUVEAU FILTRE PAR RÔLE SYNERGIA
-      const matchesRole = roleFilter === 'all' || task.roleId === roleFilter;
-
-      return matchesSearch && matchesStatus && matchesPriority && matchesRole;
-    });
-  };
-
-  /**
-   * 📋 FONCTIONS DE GESTION DES TÂCHES
+   * 📝 GESTION CRÉATION DE TÂCHE
    */
   const handleCreateTask = async (taskData) => {
     try {
-      setSubmitting(true);
-      
-      // ✅ BYPASS COMPLET DU TASKSERVICE - CRÉATION DIRECTE FIREBASE
-      const { addDoc, collection, serverTimestamp } = await import('firebase/firestore');
-      const { db } = await import('../core/firebase.js');
-      
-      // Données minimales et sûres
-      const safeData = {
-        title: (taskData.title || '').trim() || 'Tâche sans titre',
-        description: (taskData.description || '').trim() || 'Pas de description',
-        priority: taskData.priority || 'medium',
-        difficulty: taskData.difficulty || 'medium',
-        xpReward: Number(taskData.xpReward) || 25,
-        status: 'pending',
+      console.log('📝 Création nouvelle tâche:', taskData);
+      await taskService.createTask({
+        ...taskData,
         createdBy: user.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        assignedTo: [],
-        tags: []
-      };
+        status: 'pending',
+        createdAt: new Date()
+      });
       
-      // Ajouter SEULEMENT les champs avec des valeurs valides
-      if (taskData.roleId && taskData.roleId.trim()) {
-        safeData.roleId = taskData.roleId.trim();
-        safeData.category = taskData.roleId.trim();
-      }
+      setShowCreateForm(false);
+      await loadTasks();
       
-      if (taskData.notes && taskData.notes.trim()) {
-        safeData.notes = taskData.notes.trim();
-      }
-
-      console.log('🔥 CRÉATION DIRECTE FIREBASE - BYPASS TASKSERVICE:', safeData);
-      
-      // Vérification finale - absolument aucun undefined
-      for (const [key, value] of Object.entries(safeData)) {
-        if (value === undefined || value === null) {
-          console.error(`❌ FIELD ${key} IS ${value} - REMOVING`);
-          delete safeData[key];
-        }
-      }
-      
-      // CRÉATION DIRECTE SANS PASSER PAR LE SERVICE
-      const docRef = await addDoc(collection(db, 'tasks'), safeData);
-      console.log('✅ TÂCHE CRÉÉE DIRECTEMENT:', docRef.id);
-      
-      await forceReload();
-      setShowCreateModal(false);
-    } catch (error) {
-      console.error('❌ Erreur création directe:', error);
-      setError('Erreur lors de la création: ' + error.message);
-    } finally {
-      setSubmitting(false);
+    } catch (err) {
+      console.error('❌ Erreur création tâche:', err);
+      alert('Erreur lors de la création: ' + err.message);
     }
   };
 
-  const handleEditTask = async (taskData) => {
-    try {
-      setSubmitting(true);
-      await taskService.updateTask(selectedTask.id, taskData);
-      await forceReload();
-      setShowCreateModal(false);
-      setSelectedTask(null);
-    } catch (error) {
-      console.error('❌ Erreur modification tâche:', error);
-      setError('Erreur lors de la modification de la tâche');
-    } finally {
-      setSubmitting(false);
-    }
+  /**
+   * ✏️ GESTION ÉDITION DE TÂCHE
+   */
+  const handleEditTask = (task) => {
+    setSelectedTask(task);
+    setShowCreateForm(true);
   };
 
+  /**
+   * 🗑️ GESTION SUPPRESSION DE TÂCHE
+   */
   const handleDeleteTask = async (taskId) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) return;
     
     try {
       await taskService.deleteTask(taskId);
-      await forceReload();
-    } catch (error) {
-      console.error('❌ Erreur suppression tâche:', error);
-      setError('Erreur lors de la suppression de la tâche');
+      await loadTasks();
+    } catch (err) {
+      console.error('❌ Erreur suppression:', err);
+      alert('Erreur lors de la suppression: ' + err.message);
     }
   };
-
-  const handleSubmitTask = async (taskId) => {
-    try {
-      await taskService.submitTask(taskId);
-      await forceReload();
-    } catch (error) {
-      console.error('❌ Erreur soumission tâche:', error);
-      setError('Erreur lors de la soumission de la tâche');
-    }
-  };
-
-  const handleViewDetails = (task) => {
-    setSelectedTask(task);
-    setShowDetailModal(true);
-  };
-
-  const handleTaskUpdate = useCallback(async () => {
-    console.log('🔄 Mise à jour détectée - rechargement des tâches');
-    await forceReload();
-  }, [forceReload]);
 
   /**
-   * 🚫 SE RETIRER D'UNE TÂCHE (NOUVEAU)
+   * 📤 GESTION SOUMISSION POUR VALIDATION
    */
-  const handleUnvolunteer = async (taskId) => {
-    if (!confirm('Êtes-vous sûr de vouloir vous retirer de cette tâche ?')) return;
-    
+  const handleSubmitTask = (task) => {
+    console.log('📤 Ouverture modal soumission pour:', task.title);
+    setTaskToSubmit(task);
+    setShowSubmissionModal(true);
+  };
+
+  /**
+   * ✅ SUCCÈS DE SOUMISSION
+   */
+  const handleSubmissionSuccess = async (result) => {
     try {
-      const task = [...myTasks, ...availableTasks, ...otherTasks].find(t => t.id === taskId);
-      if (!task) return;
-
-      // Retirer l'utilisateur de la liste des assignés
-      const updatedAssigned = (task.assignedTo || []).filter(userId => userId !== user.uid);
+      console.log('✅ Soumission réussie:', result);
       
-      await taskService.updateTask(taskId, {
-        assignedTo: updatedAssigned,
-        status: updatedAssigned.length === 0 ? 'pending' : task.status, // Redevient pending si plus personne
-        updatedAt: new Date()
-      });
-
-      await forceReload(); // Recharger les tâches
-      console.log('✅ Retrait de volontariat réussi');
+      // Fermer le modal
+      setShowSubmissionModal(false);
+      setTaskToSubmit(null);
+      
+      // Recharger les tâches
+      await loadTasks();
+      
+      // Notification utilisateur
+      alert(`✅ Tâche "${result.taskTitle || 'sans nom'}" soumise pour validation !`);
+      
     } catch (error) {
-      console.error('❌ Erreur retrait volontariat:', error);
-      setError('Erreur lors du retrait de volontariat');
+      console.error('❌ Erreur après soumission:', error);
     }
   };
 
-  // Obtenir les tâches filtrées selon l'onglet actif
-  const getCurrentTasks = () => {
-    switch (activeTab) {
-      case 'my':
-        return getFilteredTasks(myTasks);
-      case 'available':
-        return getFilteredTasks(availableTasks);
-      case 'other':
-        return getFilteredTasks(otherTasks);
-      default:
-        return [];
-    }
+  /**
+   * 👁️ AFFICHER DÉTAILS TÂCHE
+   */
+  const handleViewTask = (task) => {
+    setSelectedTask(task);
+    setShowTaskDetail(true);
   };
 
-  const currentTasks = getCurrentTasks();
+  /**
+   * 🔄 ACTUALISER
+   */
+  const handleRefresh = () => {
+    loadTasks();
+  };
 
-  // Affichage de chargement
-  if (loading && myTasks.length === 0) {
+  // ⏳ ÉTAT DE CHARGEMENT
+  if (loading) {
     return (
-      <div className="p-6">
-        <div className="flex items-center justify-center py-12">
-          <Loader className="w-8 h-8 animate-spin text-blue-500" />
-          <span className="ml-2 text-gray-600">Chargement des tâches...</span>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="w-8 h-8 text-purple-400 animate-spin mx-auto mb-4" />
+          <p className="text-white">Chargement des tâches...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* En-tête */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestion des Tâches</h1>
-          <p className="text-gray-600 mt-1">
-            Gérez vos tâches assignées et participez aux projets collaboratifs
-          </p>
-          <p className="text-gray-500 text-xs mt-1">
-            Dernière mise à jour : {new Date(lastUpdateTime).toLocaleTimeString('fr-FR')}
-          </p>
-        </div>
-        
-        <div className="flex gap-3">
-          <button
-            onClick={forceReload}
-            disabled={loading}
-            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
-            title="Recharger les tâches"
-          >
-            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser
-          </button>
-          
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Nouvelle tâche
-          </button>
-        </div>
-      </div>
-
-      {/* Message d'erreur */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
-          {error}
-        </div>
-      )}
-
-      {/* Onglets avec description claire */}
-      <div className="flex border-b border-gray-200 mb-6">
-        <button
-          onClick={() => setActiveTab('my')}
-          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
-            activeTab === 'my'
-              ? 'border-blue-500 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <CheckCircle className="w-4 h-4" />
-            <div className="text-left">
-              <div>Mes tâches ({myTasks.length})</div>
-              <div className="text-xs text-gray-400">Assignées à moi</div>
+      <div className="bg-white/5 backdrop-blur-sm border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Gestion des Tâches</h1>
+              <p className="text-gray-400 text-sm">Gérez vos tâches assignées et participez aux projets collaboratifs</p>
             </div>
-          </div>
-        </button>
-        
-        <button
-          onClick={() => setActiveTab('available')}
-          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
-            activeTab === 'available'
-              ? 'border-blue-500 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Heart className="w-4 h-4" />
-            <div className="text-left">
-              <div>Disponibles ({availableTasks.length})</div>
-              <div className="text-xs text-gray-400">Non assignées</div>
-            </div>
-          </div>
-        </button>
-        
-        <button
-          onClick={() => setActiveTab('other')}
-          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
-            activeTab === 'other'
-              ? 'border-blue-500 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            <div className="text-left">
-              <div>Autres ({otherTasks.length})</div>
-              <div className="text-xs text-gray-400">Assignées à d'autres</div>
-            </div>
-          </div>
-        </button>
-      </div>
-
-      {/* Barre de recherche et filtres */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        {/* Recherche */}
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Rechercher une tâche..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-
-        {/* Filtres */}
-        <div className="flex gap-2">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-          >
-            <option value="all">Tous les statuts</option>
-            <option value="todo">À faire</option>
-            <option value="in_progress">En cours</option>
-            <option value="completed">Terminées</option>
-            <option value="validation_pending">En validation</option>
-          </select>
-
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-          >
-            <option value="all">Toutes priorités</option>
-            <option value="low">Basse</option>
-            <option value="medium">Moyenne</option>
-            <option value="high">Haute</option>
-            <option value="urgent">Urgente</option>
-          </select>
-
-          {/* Bouton Rôles Synergia */}
-          <button
-            onClick={() => setShowRoleFilters(!showRoleFilters)}
-            className="px-3 py-2 border border-purple-300 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors flex items-center gap-2 text-sm"
-          >
-            <Filter className="w-4 h-4" />
-            Rôles Synergia
-            <ChevronDown className={`w-4 h-4 transition-transform ${showRoleFilters ? 'rotate-180' : ''}`} />
-          </button>
-        </div>
-      </div>
-
-      {/* Filtres par rôles Synergia */}
-      <div className={`transition-all duration-300 overflow-hidden ${showRoleFilters ? 'max-h-96 mb-6' : 'max-h-0'}`}>
-        <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-          <div className="mb-3">
-            <h3 className="text-sm font-medium text-purple-900 mb-2">Filtrer par rôle Synergia</h3>
-            <button
-              onClick={() => setRoleFilter('all')}
-              className={`mr-2 mb-2 px-3 py-1 rounded-full text-xs transition-all ${
-                roleFilter === 'all'
-                  ? 'bg-purple-600 text-white shadow-md scale-105'
-                  : 'bg-white border border-purple-200 text-purple-700 hover:bg-purple-100'
-              }`}
-            >
-              Tous les rôles
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-            {Object.entries(SYNERGIA_ROLES).map(([roleId, role]) => (
+            
+            <div className="flex items-center gap-3">
               <button
-                key={roleId}
-                onClick={() => setRoleFilter(roleId)}
-                className={`p-2 rounded-lg text-xs transition-all ${
-                  roleFilter === roleId
-                    ? 'bg-purple-600 text-white shadow-md scale-105'
-                    : 'bg-white border border-purple-200 text-purple-700 hover:bg-purple-100 hover:scale-102'
-                }`}
-                title={role.name}
+                onClick={handleRefresh}
+                className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
               >
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-sm">{role.icon}</span>
-                  <span className="leading-tight">{role.name.split(' ')[0]}</span>
-                </div>
+                <RefreshCw className="w-4 h-4" />
+                Actualiser
+              </button>
+              
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Nouvelle tâche
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Message d'erreur */}
+        {error && (
+          <div className="mb-6 bg-red-500/20 border border-red-500/30 rounded-lg p-4">
+            <p className="text-red-200">❌ {error}</p>
+          </div>
+        )}
+
+        {/* Onglets principaux */}
+        <div className="mb-6">
+          <div className="flex space-x-1 bg-white/10 p-1 rounded-lg w-fit">
+            {[
+              { id: 'mine', label: 'Mes tâches', count: tasks.filter(t => t.assignedTo?.includes(user?.uid)).length },
+              { id: 'available', label: 'Disponibles', count: tasks.filter(t => !t.assignedTo?.length).length },
+              { id: 'all', label: 'Toutes', count: tasks.length }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                  activeTab === tab.id
+                    ? 'bg-white text-gray-900'
+                    : 'text-gray-300 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                {tab.id === 'mine' && <CheckCircle className="w-4 h-4" />}
+                {tab.id === 'available' && <Heart className="w-4 h-4" />}
+                {tab.id === 'all' && <Users className="w-4 h-4" />}
+                {tab.label} ({tab.count})
               </button>
             ))}
           </div>
+        </div>
 
-          {/* Indicateur de filtre actif */}
-          {roleFilter !== 'all' && (
-            <div className="mt-3 p-2 bg-purple-100 rounded flex items-center gap-2">
-              <span className="text-lg">{SYNERGIA_ROLES[roleFilter]?.icon}</span>
-              <span className="text-purple-700 font-medium text-sm">
-                Filtrage par : {SYNERGIA_ROLES[roleFilter]?.name}
-              </span>
+        {/* Filtres */}
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Recherche */}
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Rechercher une tâche..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Filtre par rôle */}
+          <select
+            value={selectedRole}
+            onChange={(e) => setSelectedRole(e.target.value)}
+            className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">Tous les rôles</option>
+            {Object.values(SYNERGIA_ROLES).map(role => (
+              <option key={role.id} value={role.id} className="text-gray-900">
+                {role.icon} {role.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Filtre par statut */}
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">Tous les statuts</option>
+            <option value="pending" className="text-gray-900">En attente</option>
+            <option value="in_progress" className="text-gray-900">En cours</option>
+            <option value="validation_pending" className="text-gray-900">En validation</option>
+            <option value="completed" className="text-gray-900">Terminées</option>
+          </select>
+
+          {/* Filtre par priorité */}
+          <select
+            value={selectedPriority}
+            onChange={(e) => setSelectedPriority(e.target.value)}
+            className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">Toutes les priorités</option>
+            <option value="low" className="text-gray-900">Basse</option>
+            <option value="medium" className="text-gray-900">Moyenne</option>
+            <option value="high" className="text-gray-900">Haute</option>
+            <option value="urgent" className="text-gray-900">Urgente</option>
+          </select>
+        </div>
+
+        {/* Liste des tâches */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTasks.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-white text-lg font-medium mb-2">Aucune tâche trouvée</h3>
+              <p className="text-gray-400">
+                {searchTerm || selectedRole !== 'all' || selectedStatus !== 'all' || selectedPriority !== 'all'
+                  ? 'Essayez de modifier vos filtres'
+                  : activeTab === 'mine' 
+                    ? 'Vous n\'avez pas encore de tâches assignées'
+                    : 'Aucune tâche disponible pour le moment'
+                }
+              </p>
             </div>
+          ) : (
+            filteredTasks.map(task => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                currentUser={user}
+                onView={() => handleViewTask(task)}
+                onEdit={() => handleEditTask(task)}
+                onDelete={() => handleDeleteTask(task.id)}
+                onSubmit={() => handleSubmitTask(task)}
+                roles={SYNERGIA_ROLES}
+              />
+            ))
           )}
         </div>
       </div>
 
-      {/* Liste des tâches */}
-      <div className="space-y-4">
-        {currentTasks.length === 0 ? (
-          <div className="text-center py-12">
-            <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-600 mb-2">
-              {activeTab === 'my' && 'Aucune tâche assignée'}
-              {activeTab === 'available' && 'Aucune tâche disponible'}
-              {activeTab === 'other' && 'Aucune autre tâche'}
-            </h3>
-            <p className="text-gray-500">
-              {activeTab === 'my' && 'Aucune tâche ne vous est actuellement assignée. Consultez les tâches disponibles pour vous porter volontaire.'}
-              {activeTab === 'available' && 'Toutes les tâches disponibles ont été prises ou il n\'y en a pas encore.'}
-              {activeTab === 'other' && 'Aucune tâche assignée à d\'autres utilisateurs pour le moment.'}
-            </p>
-          </div>
-        ) : (
-          currentTasks.map(task => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              currentUser={user}
-              onEdit={() => {
-                setSelectedTask(task);
-                setShowCreateModal(true);
-              }}
-              onDelete={() => handleDeleteTask(task.id)}
-              onViewDetails={() => handleViewDetails(task)}
-              onSubmit={() => handleSubmitTask(task.id)}
-              onUnvolunteer={() => handleUnvolunteer(task.id)}
-              onTaskUpdate={handleTaskUpdate}
-              isMyTask={activeTab === 'my'}
-              showVolunteerButton={activeTab === 'available'}
-            />
-          ))
-        )}
-      </div>
-
+      {/* Modals */}
+      
       {/* Modal de création/édition */}
-      <TaskForm
-        isOpen={showCreateModal}
-        onClose={() => {
-          setShowCreateModal(false);
-          setSelectedTask(null);
-        }}
-        onSubmit={selectedTask ? handleEditTask : handleCreateTask}
-        initialData={selectedTask}
-        submitting={submitting}
-      />
+      {showCreateForm && (
+        <TaskForm
+          isOpen={showCreateForm}
+          task={selectedTask}
+          onClose={() => {
+            setShowCreateForm(false);
+            setSelectedTask(null);
+          }}
+          onSubmit={handleCreateTask}
+          roles={SYNERGIA_ROLES}
+        />
+      )}
 
       {/* Modal de détails */}
-      <TaskDetailModal
-        isOpen={showDetailModal}
-        onClose={() => {
-          setShowDetailModal(false);
-          setSelectedTask(null);
-        }}
-        task={selectedTask}
-        onEdit={() => {
-          setShowDetailModal(false);
-          setShowCreateModal(true);
-        }}
-        onSubmit={handleSubmitTask}
-        onTaskUpdate={handleTaskUpdate}
-      />
+      {showTaskDetail && selectedTask && (
+        <TaskDetailModal
+          isOpen={showTaskDetail}
+          task={selectedTask}
+          onClose={() => {
+            setShowTaskDetail(false);
+            setSelectedTask(null);
+          }}
+          onEdit={() => {
+            setShowTaskDetail(false);
+            handleEditTask(selectedTask);
+          }}
+          onDelete={() => {
+            setShowTaskDetail(false);
+            handleDeleteTask(selectedTask.id);
+          }}
+          onSubmit={() => {
+            setShowTaskDetail(false);
+            handleSubmitTask(selectedTask);
+          }}
+        />
+      )}
+
+      {/* ✅ CORRECTION: Modal de soumission correctement intégré */}
+      {showSubmissionModal && taskToSubmit && (
+        <TaskSubmissionModal
+          isOpen={showSubmissionModal}
+          task={taskToSubmit}
+          onClose={() => {
+            setShowSubmissionModal(false);
+            setTaskToSubmit(null);
+          }}
+          onSubmit={handleSubmissionSuccess}
+        />
+      )}
     </div>
   );
 };
