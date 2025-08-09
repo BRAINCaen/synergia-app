@@ -116,6 +116,17 @@ const RECURRENCE_OPTIONS = {
   monthly: { label: 'Mensuelle', value: 'monthly' }
 };
 
+// ✅ JOURS DE LA SEMAINE POUR RÉCURRENCE SPÉCIFIQUE
+const WEEKDAYS = [
+  { id: 0, name: 'Dimanche', short: 'Dim', value: 'sunday' },
+  { id: 1, name: 'Lundi', short: 'Lun', value: 'monday' },
+  { id: 2, name: 'Mardi', short: 'Mar', value: 'tuesday' },
+  { id: 3, name: 'Mercredi', short: 'Mer', value: 'wednesday' },
+  { id: 4, name: 'Jeudi', short: 'Jeu', value: 'thursday' },
+  { id: 5, name: 'Vendredi', short: 'Ven', value: 'friday' },
+  { id: 6, name: 'Samedi', short: 'Sam', value: 'saturday' }
+];
+
 const TaskForm = ({ isOpen, onClose, onSubmit, initialData, submitting = false }) => {
   const { user } = useAuthStore();
   
@@ -135,6 +146,7 @@ const TaskForm = ({ isOpen, onClose, onSubmit, initialData, submitting = false }
     recurrenceType: 'none',
     recurrenceInterval: 1,
     recurrenceEndDate: '',
+    recurrenceDays: [], // ✅ NOUVEAU: Jours spécifiques (lundi, mardi, etc.)
     notes: ''
   });
 
@@ -169,6 +181,7 @@ const TaskForm = ({ isOpen, onClose, onSubmit, initialData, submitting = false }
         isRecurring: initialData.isRecurring || false,
         recurrenceType: initialData.recurrenceType || 'none',
         recurrenceInterval: initialData.recurrenceInterval || 1,
+        recurrenceDays: initialData.recurrenceDays || [], // ✅ NOUVEAU: Jours spécifiques
         notes: initialData.notes || '',
         dueDate: initialData.dueDate ? 
           (initialData.dueDate.toDate ? 
@@ -204,6 +217,16 @@ const TaskForm = ({ isOpen, onClose, onSubmit, initialData, submitting = false }
     } catch (error) {
       console.error('❌ Erreur chargement projets:', error);
     }
+  };
+
+  // ✅ FONCTION POUR GÉRER LA SÉLECTION DES JOURS
+  const handleDayToggle = (dayValue) => {
+    setFormData(prev => ({
+      ...prev,
+      recurrenceDays: prev.recurrenceDays.includes(dayValue)
+        ? prev.recurrenceDays.filter(day => day !== dayValue)
+        : [...prev.recurrenceDays, dayValue]
+    }));
   };
 
   // Upload de fichier média
@@ -610,7 +633,8 @@ const TaskForm = ({ isOpen, onClose, onSubmit, initialData, submitting = false }
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
                       isRecurring: e.target.checked,
-                      recurrenceType: e.target.checked ? 'weekly' : 'none'
+                      recurrenceType: e.target.checked ? 'weekly' : 'none',
+                      recurrenceDays: e.target.checked ? prev.recurrenceDays : [] // Garder les jours sélectionnés
                     }))}
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     disabled={loading || uploading}
@@ -658,11 +682,58 @@ const TaskForm = ({ isOpen, onClose, onSubmit, initialData, submitting = false }
                       </div>
                     </div>
 
+                    {/* ✅ NOUVEAU: SÉLECTION DES JOURS SPÉCIFIQUES */}
+                    {formData.recurrenceType === 'weekly' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-3">
+                          Jours de la semaine
+                        </label>
+                        <div className="grid grid-cols-7 gap-2">
+                          {WEEKDAYS.map((day) => (
+                            <button
+                              key={day.id}
+                              type="button"
+                              onClick={() => handleDayToggle(day.value)}
+                              className={`p-2 text-xs font-medium rounded-lg transition-all ${
+                                formData.recurrenceDays.includes(day.value)
+                                  ? 'bg-blue-600 text-white shadow-md'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                              disabled={loading || uploading}
+                            >
+                              <div className="text-center">
+                                <div className="font-bold">{day.short}</div>
+                                <div className="text-xs">{day.name.slice(0, 3)}</div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                        {formData.recurrenceDays.length === 0 && (
+                          <p className="text-amber-600 text-xs mt-2 flex items-center gap-1">
+                            <Info className="w-3 h-3" />
+                            Sélectionnez au moins un jour de la semaine
+                          </p>
+                        )}
+                        {formData.recurrenceDays.length > 0 && (
+                          <p className="text-blue-600 text-xs mt-2">
+                            Récurrence : {formData.recurrenceDays.map(day => 
+                              WEEKDAYS.find(d => d.value === day)?.name
+                            ).join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {formData.recurrenceType !== 'none' && (
                       <div className="p-3 bg-blue-100 border border-blue-200 rounded text-sm text-blue-800">
                         <Info className="w-4 h-4 inline mr-1" />
                         Cette tâche se répétera {RECURRENCE_OPTIONS[formData.recurrenceType]?.label.toLowerCase()}
                         {formData.recurrenceInterval > 1 && ` (tous les ${formData.recurrenceInterval})`}
+                        {formData.recurrenceType === 'weekly' && formData.recurrenceDays.length > 0 && 
+                          ` les ${formData.recurrenceDays.map(day => 
+                            WEEKDAYS.find(d => d.value === day)?.name
+                          ).join(', ')}`
+                        }
                       </div>
                     )}
                   </div>
