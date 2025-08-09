@@ -218,65 +218,53 @@ const TasksPage = () => {
     try {
       setSubmitting(true);
       
-      // ✅ NETTOYAGE ULTRA-STRICT - ZÉRO UNDEFINED/NULL
-      const strictCleanData = {};
+      // ✅ BYPASS COMPLET DU TASKSERVICE - CRÉATION DIRECTE FIREBASE
+      const { addDoc, collection, serverTimestamp } = await import('firebase/firestore');
+      const { db } = await import('../core/firebase.js');
       
-      // Parcourir chaque propriété et l'ajouter SEULEMENT si elle est valide
-      Object.keys(taskData).forEach(key => {
-        const value = taskData[key];
-        
-        // Ignorer les valeurs null/undefined/vides
-        if (value !== null && value !== undefined && value !== '') {
-          // Pour les chaînes, vérifier qu'elles ne sont pas vides après trim
-          if (typeof value === 'string' && value.trim() === '') {
-            return; // Ne pas ajouter
-          }
-          
-          // Pour les arrays, vérifier qu'ils ne sont pas vides
-          if (Array.isArray(value) && value.length === 0) {
-            return; // Ne pas ajouter (ou ajouter un array vide si nécessaire)
-          }
-          
-          // Pour les dates invalides
-          if (value instanceof Date && isNaN(value.getTime())) {
-            return; // Ne pas ajouter
-          }
-          
-          // Ajouter la valeur valide
-          strictCleanData[key] = value;
-        }
-      });
+      // Données minimales et sûres
+      const safeData = {
+        title: (taskData.title || '').trim() || 'Tâche sans titre',
+        description: (taskData.description || '').trim() || 'Pas de description',
+        priority: taskData.priority || 'medium',
+        difficulty: taskData.difficulty || 'medium',
+        xpReward: Number(taskData.xpReward) || 25,
+        status: 'pending',
+        createdBy: user.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        assignedTo: [],
+        tags: []
+      };
       
-      // Forcer les champs obligatoires Firebase
-      strictCleanData.title = (taskData.title || '').trim() || 'Tâche sans titre';
-      strictCleanData.description = (taskData.description || '').trim() || 'Pas de description';
-      strictCleanData.createdBy = user.uid;
-      strictCleanData.createdAt = new Date();
-      strictCleanData.updatedAt = new Date();
-      strictCleanData.status = 'pending';
-      strictCleanData.assignedTo = [];
-      strictCleanData.tags = [];
-      strictCleanData.priority = taskData.priority || 'medium';
-      strictCleanData.difficulty = taskData.difficulty || 'medium';
-      strictCleanData.xpReward = taskData.xpReward || 25;
-
-      console.log('🧹 Données ultra-nettoyées:', strictCleanData);
-      console.log('🔍 Aucun champ undefined/null dans:', Object.keys(strictCleanData));
-      
-      // Vérification finale - aucun undefined/null
-      const hasUndefined = Object.values(strictCleanData).some(val => val === undefined || val === null);
-      if (hasUndefined) {
-        console.error('❌ ERREUR: Des champs undefined/null détectés après nettoyage!');
-        console.log('Données problématiques:', strictCleanData);
-        setError('Erreur de validation des données');
-        return;
+      // Ajouter SEULEMENT les champs avec des valeurs valides
+      if (taskData.roleId && taskData.roleId.trim()) {
+        safeData.roleId = taskData.roleId.trim();
+        safeData.category = taskData.roleId.trim();
       }
       
-      await taskService.createTask(strictCleanData);
+      if (taskData.notes && taskData.notes.trim()) {
+        safeData.notes = taskData.notes.trim();
+      }
+
+      console.log('🔥 CRÉATION DIRECTE FIREBASE - BYPASS TASKSERVICE:', safeData);
+      
+      // Vérification finale - absolument aucun undefined
+      for (const [key, value] of Object.entries(safeData)) {
+        if (value === undefined || value === null) {
+          console.error(`❌ FIELD ${key} IS ${value} - REMOVING`);
+          delete safeData[key];
+        }
+      }
+      
+      // CRÉATION DIRECTE SANS PASSER PAR LE SERVICE
+      const docRef = await addDoc(collection(db, 'tasks'), safeData);
+      console.log('✅ TÂCHE CRÉÉE DIRECTEMENT:', docRef.id);
+      
       await forceReload();
       setShowCreateModal(false);
     } catch (error) {
-      console.error('❌ Erreur création tâche:', error);
+      console.error('❌ Erreur création directe:', error);
       setError('Erreur lors de la création: ' + error.message);
     } finally {
       setSubmitting(false);
