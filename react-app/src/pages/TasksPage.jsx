@@ -82,7 +82,7 @@ const TasksPage = () => {
       }
 
       // ✅ RÉCUPÉRER ABSOLUMENT TOUTES LES TÂCHES SANS FILTRE
-      const allTasks = await taskService.getAllTasksFromDatabase();
+      const allTasks = await taskService.getAllTasks();
       console.log(`📊 TOTAL de toutes les tâches dans la base: ${allTasks.length}`);
 
       // 🎯 LOGIQUE DE RÉPARTITION SELON VOS CRITÈRES EXACTS
@@ -96,20 +96,17 @@ const TasksPage = () => {
         
         // Vérifier si la tâche a des assignés
         const hasAssignees = Array.isArray(task.assignedTo) && task.assignedTo.length > 0;
-        
-        // Vérifier si je suis le créateur
-        const isMyCreation = task.createdBy === user.uid;
 
         if (isAssignedToMe) {
-          // ✅ MES TÂCHES = Tâches qui me sont assignées (même si je les ai créées)
+          // ✅ MES TÂCHES = Tâches qui me sont assignées
           myTasksArray.push(task);
           
-        } else if (!hasAssignees || task.status === 'todo' || task.status === 'open') {
-          // ✅ TÂCHES DISPONIBLES = Non assignées OU ouvertes à participation
+        } else if (!hasAssignees && (task.status === 'pending' || task.status === 'todo' || !task.status)) {
+          // ✅ TÂCHES DISPONIBLES = Non assignées ET statut ouvert
           availableTasksArray.push(task);
           
-        } else {
-          // ✅ AUTRES TÂCHES = Toutes les autres (assignées à d'autres, créées par d'autres, etc.)
+        } else if (hasAssignees && !isAssignedToMe) {
+          // ✅ AUTRES TÂCHES = Assignées à d'autres personnes
           otherTasksArray.push(task);
         }
       });
