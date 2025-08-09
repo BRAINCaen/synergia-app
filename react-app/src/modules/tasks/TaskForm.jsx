@@ -165,9 +165,11 @@ const TaskForm = ({ isOpen, onClose, onSubmit, initialData, submitting = false }
     }
   }, [formData.difficulty]);
 
-  // Initialisation des données lors de l'édition
+  // ✅ INITIALISATION COMPLÈTE DES DONNÉES LORS DE L'ÉDITION
   useEffect(() => {
     if (initialData) {
+      console.log('📝 Initialisation données pour modification:', initialData);
+      
       setFormData(prev => ({
         ...prev,
         title: initialData.title || '',
@@ -177,11 +179,11 @@ const TaskForm = ({ isOpen, onClose, onSubmit, initialData, submitting = false }
         estimatedTime: initialData.estimatedTime || 1,
         assignedTo: initialData.assignedTo || [],
         projectId: initialData.projectId || '',
-        roleId: initialData.roleId || '', // ✅ AJOUT RÔLE SYNERGIA
+        roleId: initialData.roleId || '', // ✅ RÔLE SYNERGIA
         isRecurring: initialData.isRecurring || false,
         recurrenceType: initialData.recurrenceType || 'none',
         recurrenceInterval: initialData.recurrenceInterval || 1,
-        recurrenceDays: initialData.recurrenceDays || [], // ✅ NOUVEAU: Jours spécifiques
+        recurrenceDays: initialData.recurrenceDays || [], // ✅ JOURS SPÉCIFIQUES
         notes: initialData.notes || '',
         dueDate: initialData.dueDate ? 
           (initialData.dueDate.toDate ? 
@@ -195,11 +197,33 @@ const TaskForm = ({ isOpen, onClose, onSubmit, initialData, submitting = false }
           ) : ''
       }));
       
-      // ✅ FORCER LE RECALCUL XP SELON LA DIFFICULTÉ
+      // ✅ FORCER LE RECALCUL XP SELON LA DIFFICULTÉ (même en modification)
       const difficultyOption = DIFFICULTY_OPTIONS.find(d => d.value === (initialData.difficulty || 'medium'));
       if (difficultyOption) {
         setFormData(prev => ({ ...prev, xpReward: difficultyOption.xp }));
       }
+      
+      console.log('✅ Données initialisées pour modification');
+    } else {
+      // Réinitialiser pour création
+      console.log('📝 Réinitialisation pour nouvelle tâche');
+      setFormData({
+        title: '',
+        description: '',
+        difficulty: 'medium',
+        priority: 'medium',
+        xpReward: 25,
+        estimatedTime: 1,
+        dueDate: '',
+        assignedTo: [],
+        projectId: '',
+        roleId: '',
+        isRecurring: false,
+        recurrenceType: 'none',
+        recurrenceInterval: 1,
+        recurrenceDays: [],
+        notes: ''
+      });
     }
   }, [initialData]);
 
@@ -622,28 +646,27 @@ const TaskForm = ({ isOpen, onClose, onSubmit, initialData, submitting = false }
               </div>
             </div>
 
-            {/* Récurrence */}
-            {!initialData && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="isRecurring"
-                    checked={formData.isRecurring}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      isRecurring: e.target.checked,
-                      recurrenceType: e.target.checked ? 'weekly' : 'none',
-                      recurrenceDays: e.target.checked ? prev.recurrenceDays : [] // Garder les jours sélectionnés
-                    }))}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    disabled={loading || uploading}
-                  />
-                  <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
-                    <Repeat className="w-4 h-4 inline mr-1" />
-                    Tâche récurrente
-                  </label>
-                </div>
+            {/* Récurrence - Disponible en création ET modification */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isRecurring"
+                  checked={formData.isRecurring}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    isRecurring: e.target.checked,
+                    recurrenceType: e.target.checked ? 'weekly' : 'none',
+                    recurrenceDays: e.target.checked ? prev.recurrenceDays : [] // Garder les jours sélectionnés
+                  }))}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  disabled={loading || uploading}
+                />
+                <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
+                  <Repeat className="w-4 h-4 inline mr-1" />
+                  Tâche récurrente
+                </label>
+              </div>
 
                 {formData.isRecurring && (
                   <div className="bg-gray-50 p-4 rounded-lg space-y-4">
