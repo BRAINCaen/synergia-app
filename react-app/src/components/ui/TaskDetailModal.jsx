@@ -52,7 +52,66 @@ const TaskDetailModal = ({
   const [creatorName, setCreatorName] = useState('Chargement...');
   const [assigneeNames, setAssigneeNames] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
 
+  // ✅ CHARGER LES COMMENTAIRES
+  const loadComments = async () => {
+    if (!task?.id) return;
+    
+    try {
+      setLoadingComments(true);
+      // Simuler les commentaires pour l'instant
+      const mockComments = [
+        {
+          id: '1',
+          userId: 'user1',
+          userName: 'Alice Martin',
+          message: 'Tâche en cours, j\'ai commencé les réparations.',
+          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2h ago
+        },
+        {
+          id: '2',
+          userId: 'user2',
+          userName: 'Bob Dupont',
+          message: 'Parfait ! Avez-vous les outils nécessaires ?',
+          createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1h ago
+        }
+      ];
+      setComments(mockComments);
+    } catch (error) {
+      console.error('❌ Erreur chargement commentaires:', error);
+      setComments([]);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  // ✅ AJOUTER UN COMMENTAIRE
+  const addComment = async () => {
+    if (!newComment.trim()) return;
+    
+    try {
+      setSubmittingComment(true);
+      
+      const comment = {
+        id: Date.now().toString(),
+        userId: currentUser.uid,
+        userName: currentUser.displayName || currentUser.email || 'Utilisateur',
+        message: newComment.trim(),
+        createdAt: new Date()
+      };
+      
+      setComments(prev => [...prev, comment]);
+      setNewComment('');
+    } catch (error) {
+      console.error('❌ Erreur ajout commentaire:', error);
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
   // ✅ RÉSOUDRE LES NOMS DES UTILISATEURS DIRECTEMENT AVEC FIREBASE
   useEffect(() => {
     const resolveUserNames = async () => {
@@ -110,6 +169,7 @@ const TaskDetailModal = ({
 
     if (isOpen && task) {
       resolveUserNames();
+      loadComments(); // ✅ CHARGER COMMENTAIRES
     }
   }, [isOpen, task]);
 
@@ -225,37 +285,64 @@ const TaskDetailModal = ({
         {/* Modal Content */}
         <div className="relative w-full max-w-4xl bg-white rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
           
-          {/* Header */}
+          {/* Header avec onglets */}
           <div className="flex items-center justify-between p-6 border-b bg-gray-50">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${getStatusColor(task.status)}`}>
-                {task.status === 'completed' ? (
-                  <CheckCircle className="w-5 h-5" />
-                ) : task.status === 'in_progress' ? (
-                  <Clock className="w-5 h-5" />
-                ) : task.status === 'validation_pending' ? (
-                  <AlertCircle className="w-5 h-5" />
-                ) : (
-                  <FileText className="w-5 h-5" />
-                )}
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">{task.title}</h2>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(task.status)}`}>
-                    {translateStatus(task.status)}
-                  </span>
-                  {task.priority && (
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      task.priority === 'urgent' ? 'bg-red-100 text-red-700' :
-                      task.priority === 'high' ? 'bg-orange-100 text-orange-700' :
-                      task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-green-100 text-green-700'
-                    }`}>
-                      {translatePriority(task.priority)}
-                    </span>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${getStatusColor(task.status)}`}>
+                  {task.status === 'completed' ? (
+                    <CheckCircle className="w-5 h-5" />
+                  ) : task.status === 'in_progress' ? (
+                    <Clock className="w-5 h-5" />
+                  ) : task.status === 'validation_pending' ? (
+                    <AlertCircle className="w-5 h-5" />
+                  ) : (
+                    <FileText className="w-5 h-5" />
                   )}
                 </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">{task.title}</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(task.status)}`}>
+                      {translateStatus(task.status)}
+                    </span>
+                    {task.priority && (
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        task.priority === 'urgent' ? 'bg-red-100 text-red-700' :
+                        task.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                        task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-green-100 text-green-700'
+                      }`}>
+                        {translatePriority(task.priority)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Onglets */}
+              <div className="flex border-b-0">
+                <button
+                  onClick={() => setActiveTab('details')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'details'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Détails
+                </button>
+                <button
+                  onClick={() => setActiveTab('comments')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1 ${
+                    activeTab === 'comments'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Messages ({comments.length})
+                </button>
               </div>
             </div>
             
@@ -267,176 +354,269 @@ const TaskDetailModal = ({
             </button>
           </div>
 
-          {/* Contenu */}
+          {/* Contenu avec onglets */}
           <div className="flex-1 overflow-y-auto p-6">
             
-            {/* Description */}
-            {task.description && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
-                <p className="text-gray-600 bg-gray-50 p-4 rounded-lg whitespace-pre-wrap">
-                  {task.description}
-                </p>
-              </div>
-            )}
-
-            {/* Informations principales */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* Colonne gauche */}
-              <div className="space-y-4">
-                
-                {/* Assignation */}
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Users className="w-4 h-4 text-blue-600" />
-                    <h4 className="font-medium text-gray-900">Assignation</h4>
+            {activeTab === 'details' && (
+              <>
+                {/* Description */}
+                {task.description && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
+                    <p className="text-gray-600 bg-gray-50 p-4 rounded-lg whitespace-pre-wrap">
+                      {task.description}
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    <div>
-                      <span className="text-sm text-gray-600">Créée par :</span>
-                      <span className="ml-2 text-sm font-medium">
-                        {loadingUsers ? (
-                          <span className="text-gray-400">Chargement...</span>
-                        ) : (
-                          creatorName
+                )}
+
+                {/* Informations principales */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  {/* Colonne gauche */}
+                  <div className="space-y-4">
+                    
+                    {/* Assignation */}
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Users className="w-4 h-4 text-blue-600" />
+                        <h4 className="font-medium text-gray-900">Assignation</h4>
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <span className="text-sm text-gray-600">Créée par :</span>
+                          <span className="ml-2 text-sm font-medium">
+                            {loadingUsers ? (
+                              <span className="text-gray-400">Chargement...</span>
+                            ) : (
+                              creatorName
+                            )}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-sm text-gray-600">Assignée à :</span>
+                          <span className="ml-2 text-sm font-medium">
+                            {loadingUsers ? (
+                              <span className="text-gray-400">Chargement...</span>
+                            ) : assigneeNames.length > 0 ? (
+                              assigneeNames.join(', ')
+                            ) : (
+                              <span className="text-green-600">Personne (disponible)</span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Planification */}
+                    <div className="bg-green-50 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Calendar className="w-4 h-4 text-green-600" />
+                        <h4 className="font-medium text-gray-900">Planification</h4>
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <span className="text-sm text-gray-600">Créée le :</span>
+                          <span className="ml-2 text-sm font-medium">{formatDate(task.createdAt)}</span>
+                        </div>
+                        {task.dueDate && (
+                          <div>
+                            <span className="text-sm text-gray-600">Échéance :</span>
+                            <span className="ml-2 text-sm font-medium">{formatDate(task.dueDate)}</span>
+                          </div>
                         )}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-600">Assignée à :</span>
-                      <span className="ml-2 text-sm font-medium">
-                        {loadingUsers ? (
-                          <span className="text-gray-400">Chargement...</span>
-                        ) : assigneeNames.length > 0 ? (
-                          assigneeNames.join(', ')
-                        ) : (
-                          <span className="text-green-600">Personne (disponible)</span>
+                        {task.updatedAt && (
+                          <div>
+                            <span className="text-sm text-gray-600">Modifiée le :</span>
+                            <span className="ml-2 text-sm font-medium">{formatDate(task.updatedAt)}</span>
+                          </div>
                         )}
-                      </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Planification */}
-                <div className="bg-green-50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Calendar className="w-4 h-4 text-green-600" />
-                    <h4 className="font-medium text-gray-900">Planification</h4>
-                  </div>
-                  <div className="space-y-2">
-                    <div>
-                      <span className="text-sm text-gray-600">Créée le :</span>
-                      <span className="ml-2 text-sm font-medium">{formatDate(task.createdAt)}</span>
+                  {/* Colonne droite */}
+                  <div className="space-y-4">
+                    
+                    {/* Métadonnées */}
+                    <div className="bg-purple-50 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Target className="w-4 h-4 text-purple-600" />
+                        <h4 className="font-medium text-gray-900">Métadonnées</h4>
+                      </div>
+                      <div className="space-y-2">
+                        {task.difficulty && (
+                          <div>
+                            <span className="text-sm text-gray-600">Difficulté :</span>
+                            <span className="ml-2 text-sm font-medium">{translateDifficulty(task.difficulty)}</span>
+                          </div>
+                        )}
+                        {task.xpReward && (
+                          <div>
+                            <span className="text-sm text-gray-600">Récompense XP :</span>
+                            <span className="ml-2 text-sm font-medium text-yellow-600">+{task.xpReward} XP</span>
+                          </div>
+                        )}
+                        {task.category && (
+                          <div>
+                            <span className="text-sm text-gray-600">Catégorie :</span>
+                            <span className="ml-2 text-sm font-medium">{task.category}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {task.dueDate && (
-                      <div>
-                        <span className="text-sm text-gray-600">Échéance :</span>
-                        <span className="ml-2 text-sm font-medium">{formatDate(task.dueDate)}</span>
-                      </div>
-                    )}
-                    {task.updatedAt && (
-                      <div>
-                        <span className="text-sm text-gray-600">Modifiée le :</span>
-                        <span className="ml-2 text-sm font-medium">{formatDate(task.updatedAt)}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
 
-              {/* Colonne droite */}
-              <div className="space-y-4">
-                
-                {/* Métadonnées */}
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Target className="w-4 h-4 text-purple-600" />
-                    <h4 className="font-medium text-gray-900">Métadonnées</h4>
-                  </div>
-                  <div className="space-y-2">
-                    {task.difficulty && (
-                      <div>
-                        <span className="text-sm text-gray-600">Difficulté :</span>
-                        <span className="ml-2 text-sm font-medium">{translateDifficulty(task.difficulty)}</span>
-                      </div>
-                    )}
-                    {task.xpReward && (
-                      <div>
-                        <span className="text-sm text-gray-600">Récompense XP :</span>
-                        <span className="ml-2 text-sm font-medium text-yellow-600">+{task.xpReward} XP</span>
-                      </div>
-                    )}
-                    {task.category && (
-                      <div>
-                        <span className="text-sm text-gray-600">Catégorie :</span>
-                        <span className="ml-2 text-sm font-medium">{task.category}</span>
+                    {/* Tags */}
+                    {task.tags && task.tags.length > 0 && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Tag className="w-4 h-4 text-gray-600" />
+                          <h4 className="font-medium text-gray-900">Tags</h4>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {task.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Tags */}
-                {task.tags && task.tags.length > 0 && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Tag className="w-4 h-4 text-gray-600" />
-                      <h4 className="font-medium text-gray-900">Tags</h4>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {task.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded"
-                        >
-                          #{tag}
-                        </span>
+                {/* Notes */}
+                {task.notes && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Notes</h3>
+                    <p className="text-gray-600 bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">
+                      {task.notes}
+                    </p>
+                  </div>
+                )}
+
+                {/* Fichiers attachés */}
+                {task.attachments && task.attachments.length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Fichiers attachés</h3>
+                    <div className="space-y-2">
+                      {task.attachments.map((file, index) => (
+                        <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                          <Paperclip className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm text-gray-700">{file.name}</span>
+                          <a 
+                            href={file.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </div>
                       ))}
                     </div>
                   </div>
                 )}
-              </div>
-            </div>
 
-            {/* Notes */}
-            {task.notes && (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Notes</h3>
-                <p className="text-gray-600 bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">
-                  {task.notes}
-                </p>
-              </div>
+                {/* Informations système */}
+                <div className="mt-6 text-xs text-gray-500 bg-gray-50 p-3 rounded">
+                  <div>ID: {task.id}</div>
+                  {task.projectId && <div>Projet: {task.projectId}</div>}
+                  <div>Version: {task.version || '1.0'}</div>
+                </div>
+              </>
             )}
 
-            {/* Fichiers attachés */}
-            {task.attachments && task.attachments.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Fichiers attachés</h3>
-                <div className="space-y-2">
-                  {task.attachments.map((file, index) => (
-                    <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
-                      <Paperclip className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm text-gray-700">{file.name}</span>
-                      <a 
-                        href={file.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
+            {activeTab === 'comments' && (
+              <div className="space-y-4">
+                {/* Section commentaires */}
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4" />
+                    Messages et commentaires
+                  </h3>
+                  
+                  {/* Liste des commentaires */}
+                  <div className="space-y-3 mb-4 max-h-80 overflow-y-auto">
+                    {loadingComments ? (
+                      <div className="text-center py-4">
+                        <div className="inline-flex items-center gap-2 text-gray-500">
+                          <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                          Chargement des messages...
+                        </div>
+                      </div>
+                    ) : comments.length > 0 ? (
+                      comments.map((comment, index) => (
+                        <div key={comment.id} className="bg-white p-3 rounded border">
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <User className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium text-gray-900 text-sm">
+                                  {comment.userName}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {comment.createdAt.toLocaleString('fr-FR')}
+                                </span>
+                              </div>
+                              <p className="text-gray-700 text-sm">{comment.message}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-6 text-gray-500">
+                        <MessageCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                        <p>Aucun message pour cette tâche</p>
+                        <p className="text-sm">Soyez le premier à commenter !</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Formulaire nouveau commentaire */}
+                  <div className="border-t pt-4">
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-gray-600" />
+                      </div>
+                      <div className="flex-1">
+                        <textarea
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          placeholder="Ajouter un commentaire..."
+                          className="w-full p-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          rows={3}
+                          disabled={submittingComment}
+                        />
+                        <div className="flex justify-end mt-2">
+                          <button
+                            onClick={addComment}
+                            disabled={!newComment.trim() || submittingComment}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors flex items-center gap-2"
+                          >
+                            {submittingComment ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                Envoi...
+                              </>
+                            ) : (
+                              <>
+                                <Send className="w-4 h-4" />
+                                Envoyer
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
             )}
-
-            {/* Informations système */}
-            <div className="mt-6 text-xs text-gray-500 bg-gray-50 p-3 rounded">
-              <div>ID: {task.id}</div>
-              {task.projectId && <div>Projet: {task.projectId}</div>}
-              <div>Version: {task.version || '1.0'}</div>
-            </div>
           </div>
 
           {/* Footer avec actions */}
