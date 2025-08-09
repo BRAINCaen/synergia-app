@@ -217,7 +217,37 @@ const TasksPage = () => {
   const handleCreateTask = async (taskData) => {
     try {
       setSubmitting(true);
-      await taskService.createTask(taskData);
+      
+      // ✅ NETTOYER LES DONNÉES AVANT ENVOI À FIREBASE
+      const cleanTaskData = {
+        title: taskData.title || '',
+        description: taskData.description || '',
+        priority: taskData.priority || 'medium',
+        difficulty: taskData.difficulty || 'medium',
+        xpReward: taskData.xpReward || 25,
+        createdBy: user.uid,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        status: 'pending',
+        assignedTo: [], // Vide par défaut
+        tags: Array.isArray(taskData.tags) ? taskData.tags : [],
+        category: taskData.roleId || 'general'
+      };
+
+      // Ajouter les champs optionnels seulement s'ils sont définis
+      if (taskData.dueDate) {
+        cleanTaskData.dueDate = new Date(taskData.dueDate);
+      }
+      if (taskData.notes) {
+        cleanTaskData.notes = taskData.notes;
+      }
+      if (taskData.roleId) {
+        cleanTaskData.roleId = taskData.roleId;
+      }
+
+      console.log('✅ Données nettoyées pour Firebase:', cleanTaskData);
+      
+      await taskService.createTask(cleanTaskData);
       await forceReload();
       setShowCreateModal(false);
     } catch (error) {
