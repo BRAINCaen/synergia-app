@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES AVEC CORRECTION IMPORTS COMPLÈTE
+// CORRECTION LOGIQUE DE RÉPARTITION DES TÂCHES
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -18,21 +18,21 @@ import {
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { taskService } from '../core/services/taskService.js';
 
-// ✅ IMPORTS DIRECTS POUR ÉVITER CONFLITS
+// Imports des composants
 import TaskCard from '../modules/tasks/TaskCard.jsx';
 import TaskForm from '../modules/tasks/TaskForm.jsx';
 import TaskDetailModal from '../components/ui/TaskDetailModal.jsx';
 
 /**
- * 📋 PAGE PRINCIPALE DES TÂCHES
+ * 📋 PAGE PRINCIPALE DES TÂCHES AVEC LOGIQUE CORRIGÉE
  */
 const TasksPage = () => {
   const { user } = useAuthStore();
   
-  // États principaux
-  const [myTasks, setMyTasks] = useState([]);
-  const [availableTasks, setAvailableTasks] = useState([]);
-  const [otherTasks, setOtherTasks] = useState([]);
+  // États principaux - répartition selon vos critères
+  const [myTasks, setMyTasks] = useState([]); // Tâches QUI ME SONT ASSIGNÉES (pas créées par moi)
+  const [availableTasks, setAvailableTasks] = useState([]); // Non assignées et ouvertes
+  const [otherTasks, setOtherTasks] = useState([]); // Assignées à d'autres
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
@@ -50,13 +50,13 @@ const TasksPage = () => {
   const [submitting, setSubmitting] = useState(false);
 
   /**
-   * 🔄 CHARGER TOUTES LES TÂCHES AVEC LOGIQUE CORRIGÉE
+   * 🔄 CHARGER ET RÉPARTIR LES TÂCHES SELON VOS CRITÈRES EXACTS
    */
   const loadTasks = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔄 Chargement des tâches...');
+      console.log('🔄 Chargement et répartition des tâches...');
 
       if (!user?.uid) {
         console.warn('⚠️ Utilisateur non connecté');
@@ -67,31 +67,36 @@ const TasksPage = () => {
       const allTasks = await taskService.getAllTasks();
       console.log(`📊 Total tâches récupérées: ${allTasks.length}`);
 
-      // 🔧 LOGIQUE MÉTIER CORRECTE
-      const myTasksArray = [];
-      const availableTasksArray = [];
-      const otherTasksArray = [];
+      // 🎯 LOGIQUE DE RÉPARTITION SELON VOS CRITÈRES EXACTS
+      const myTasksArray = [];        // Tâches qui me sont assignées (pas créées par moi)
+      const availableTasksArray = []; // Non assignées et ouvertes
+      const otherTasksArray = [];     // Assignées à d'autres
 
       allTasks.forEach(task => {
         // Vérifier si je suis assigné à cette tâche
         const isAssignedToMe = Array.isArray(task.assignedTo) && task.assignedTo.includes(user.uid);
         
-        // Vérifier si je suis le créateur
-        const isMyCreation = task.createdBy === user.uid;
+        // Vérifier si la tâche a des assignés
+        const hasAssignees = Array.isArray(task.assignedTo) && task.assignedTo.length > 0;
         
-        // Vérifier si la tâche est ouverte aux volontaires
-        const isOpenToVolunteers = task.isOpenToVolunteers === true;
+        // Vérifier si je suis le créateur (pour exclure de "mes tâches")
+        const isMyCreation = task.createdBy === user.uid;
 
-        if (isAssignedToMe || isMyCreation) {
-          // Mes tâches = tâches assignées à moi OU créées par moi
+        if (isAssignedToMe && !isMyCreation) {
+          // ✅ MES TÂCHES = Tâches qui me sont assignées (PAS celles que j'ai créées)
           myTasksArray.push(task);
-        } else if (isOpenToVolunteers && task.status === 'todo') {
-          // Tâches disponibles = ouvertes aux volontaires et pas encore prises
+          
+        } else if (!hasAssignees && (task.status === 'todo' || task.status === 'open')) {
+          // ✅ TÂCHES DISPONIBLES = Non assignées et ouvertes à la participation
           availableTasksArray.push(task);
-        } else {
-          // Autres tâches = toutes les autres (pour supervision/visibilité)
+          
+        } else if (hasAssignees && !isAssignedToMe) {
+          // ✅ AUTRES TÂCHES = Assignées à d'autres utilisateurs
           otherTasksArray.push(task);
         }
+        
+        // Les tâches que j'ai créées mais qui ne me sont pas assignées vont dans "disponibles" ou "autres"
+        // selon qu'elles sont assignées ou non
       });
 
       // Trier par date de création (plus récentes d'abord)
@@ -107,10 +112,13 @@ const TasksPage = () => {
       
       setLastUpdateTime(Date.now());
       
-      console.log('✅ Tâches chargées:', {
-        mes: myTasksArray.length,
-        disponibles: availableTasksArray.length,
-        autres: otherTasksArray.length
+      console.log('✅ Répartition des tâches terminée:', {
+        'Mes tâches (assignées à moi)': myTasksArray.length,
+        'Disponibles (non assignées)': availableTasksArray.length,
+        'Autres (assignées à autres)': otherTasksArray.length,
+        'Détail mes tâches': myTasksArray.map(t => `${t.title} (créé par: ${t.createdBy}, assigné: ${t.assignedTo})`),
+        'Détail disponibles': availableTasksArray.map(t => `${t.title} (status: ${t.status}, assignés: ${t.assignedTo?.length || 0})`),
+        'Détail autres': otherTasksArray.map(t => `${t.title} (assigné à: ${t.assignedTo})`),
       });
 
     } catch (error) {
@@ -120,6 +128,14 @@ const TasksPage = () => {
       setLoading(false);
     }
   }, [user?.uid]);
+
+  /**
+   * 🔄 FONCTION DE RECHARGEMENT FORCÉ
+   */
+  const forceReload = useCallback(async () => {
+    console.log('🔄 Rechargement forcé des tâches...');
+    await loadTasks();
+  }, [loadTasks]);
 
   /**
    * 🔄 CHARGEMENT INITIAL ET ÉVÉNEMENTS
@@ -134,14 +150,14 @@ const TasksPage = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && user?.uid) {
-        console.log('🔄 Page redevenue visible');
+        console.log('🔄 Page redevenue visible - rechargement');
         loadTasks();
       }
     };
 
     const handleFocus = () => {
       if (user?.uid) {
-        console.log('🔄 Fenêtre focus');
+        console.log('🔄 Fenêtre focus - rechargement');
         loadTasks();
       }
     };
@@ -156,7 +172,7 @@ const TasksPage = () => {
   }, [user?.uid, loadTasks]);
 
   /**
-   * 🔍 FILTRER LES TÂCHES SELON LES CRITÈRES
+   * 🔍 FILTRER LES TÂCHES SELON LES CRITÈRES DE RECHERCHE
    */
   const getFilteredTasks = (tasks) => {
     return tasks.filter(task => {
@@ -176,22 +192,13 @@ const TasksPage = () => {
   };
 
   /**
-   * 🔄 FORCER LE RECHARGEMENT
-   */
-  const forceReload = useCallback(async () => {
-    console.log('🔄 Rechargement forcé des tâches...');
-    await loadTasks();
-  }, [loadTasks]);
-
-  /**
-   * 📝 GESTIONNAIRES D'ÉVÉNEMENTS
+   * 📋 FONCTIONS DE GESTION DES TÂCHES
    */
   const handleCreateTask = async (taskData) => {
     try {
       setSubmitting(true);
-      await taskService.createTask(taskData, user.uid);
-      console.log('✅ Tâche créée avec succès');
-      await loadTasks(); // Recharger les tâches
+      await taskService.createTask(taskData);
+      await forceReload(); // Recharger après création
       setShowCreateModal(false);
     } catch (error) {
       console.error('❌ Erreur création tâche:', error);
@@ -204,80 +211,43 @@ const TasksPage = () => {
   const handleEditTask = async (taskData) => {
     try {
       setSubmitting(true);
-      
-      // 🛡️ PRÉSERVER LES DONNÉES CRITIQUES
-      const preservedData = {
-        // Préserver l'assignation existante
-        assignedTo: selectedTask.assignedTo || [],
-        
-        // Préserver le créateur
-        createdBy: selectedTask.createdBy,
-        
-        // Préserver les dates importantes
-        createdAt: selectedTask.createdAt,
-        completedAt: selectedTask.completedAt,
-        
-        // Préserver l'historique de validation
-        validationRequestId: selectedTask.validationRequestId,
-        validatedAt: selectedTask.validatedAt,
-        validatedBy: selectedTask.validatedBy,
-        
-        // Ajouter la date de modification
-        updatedAt: new Date()
-      };
-
-      // Combiner les nouvelles données avec les données préservées
-      const finalData = {
-        ...taskData,  // Nouvelles données du formulaire
-        ...preservedData  // Données préservées (priorité)
-      };
-
-      console.log('🔧 Données finales pour mise à jour:', {
-        preservedAssignedTo: preservedData.assignedTo,
-        preservedCreatedBy: preservedData.createdBy,
-        newTitle: taskData.title,
-        newStatus: taskData.status
-      });
-
-      await taskService.updateTask(selectedTask.id, finalData);
-      console.log('✅ Tâche mise à jour avec préservation des assignations');
-      
-      await loadTasks(); // Recharger les tâches
+      await taskService.updateTask(selectedTask.id, taskData);
+      await forceReload(); // Recharger après modification
       setShowCreateModal(false);
       setSelectedTask(null);
     } catch (error) {
-      console.error('❌ Erreur mise à jour tâche:', error);
-      setError('Erreur lors de la mise à jour de la tâche');
+      console.error('❌ Erreur modification tâche:', error);
+      setError('Erreur lors de la modification de la tâche');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDeleteTask = async (taskId) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) return;
+    
     try {
       await taskService.deleteTask(taskId);
-      console.log('✅ Tâche supprimée avec succès');
-      await loadTasks(); // Recharger les tâches
+      await forceReload(); // Recharger après suppression
     } catch (error) {
       console.error('❌ Erreur suppression tâche:', error);
       setError('Erreur lors de la suppression de la tâche');
     }
   };
 
-  const handleViewDetails = (task, defaultTab = 'details') => {
-    setSelectedTask(task);
-    setShowDetailModal(true);
-  };
-
   const handleSubmitTask = async (taskId) => {
     try {
-      // Logique de soumission de tâche
-      console.log('📤 Soumission tâche:', taskId);
-      await loadTasks(); // Recharger après soumission
+      await taskService.submitTask(taskId);
+      await forceReload(); // Recharger après soumission
     } catch (error) {
       console.error('❌ Erreur soumission tâche:', error);
       setError('Erreur lors de la soumission de la tâche');
     }
+  };
+
+  const handleViewDetails = (task) => {
+    setSelectedTask(task);
+    setShowDetailModal(true);
   };
 
   const handleTaskUpdate = useCallback(async () => {
@@ -320,7 +290,7 @@ const TasksPage = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Gestion des Tâches</h1>
           <p className="text-gray-600 mt-1">
-            Gérez vos tâches et collaborez aux projets collaboratifs
+            Gérez vos tâches assignées et participez aux projets collaboratifs
           </p>
           <p className="text-gray-500 text-xs mt-1">
             Dernière mise à jour : {new Date(lastUpdateTime).toLocaleTimeString('fr-FR')}
@@ -355,7 +325,7 @@ const TasksPage = () => {
         </div>
       )}
 
-      {/* Onglets */}
+      {/* Onglets avec description claire */}
       <div className="flex border-b border-gray-200 mb-6">
         <button
           onClick={() => setActiveTab('my')}
@@ -367,7 +337,10 @@ const TasksPage = () => {
         >
           <div className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4" />
-            Mes tâches ({myTasks.length})
+            <div className="text-left">
+              <div>Mes tâches ({myTasks.length})</div>
+              <div className="text-xs text-gray-400">Assignées à moi</div>
+            </div>
           </div>
         </button>
         
@@ -381,7 +354,10 @@ const TasksPage = () => {
         >
           <div className="flex items-center gap-2">
             <Heart className="w-4 h-4" />
-            Disponibles ({availableTasks.length})
+            <div className="text-left">
+              <div>Disponibles ({availableTasks.length})</div>
+              <div className="text-xs text-gray-400">Non assignées</div>
+            </div>
           </div>
         </button>
         
@@ -395,7 +371,10 @@ const TasksPage = () => {
         >
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4" />
-            Autres ({otherTasks.length})
+            <div className="text-left">
+              <div>Autres ({otherTasks.length})</div>
+              <div className="text-xs text-gray-400">Assignées à d'autres</div>
+            </div>
           </div>
         </button>
       </div>
@@ -451,9 +430,9 @@ const TasksPage = () => {
               {activeTab === 'other' && 'Aucune autre tâche'}
             </h3>
             <p className="text-gray-500">
-              {activeTab === 'my' && 'Vous pouvez créer une nouvelle tâche ou vous porter volontaire pour une tâche disponible.'}
+              {activeTab === 'my' && 'Aucune tâche ne vous est actuellement assignée. Consultez les tâches disponibles pour vous porter volontaire.'}
               {activeTab === 'available' && 'Toutes les tâches disponibles ont été prises ou il n\'y en a pas encore.'}
-              {activeTab === 'other' && 'Aucune autre tâche à afficher pour le moment.'}
+              {activeTab === 'other' && 'Aucune tâche assignée à d\'autres utilisateurs pour le moment.'}
             </p>
           </div>
         ) : (
