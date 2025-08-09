@@ -22,7 +22,7 @@ import {
   Paperclip
 } from 'lucide-react';
 
-import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useAuthStore } from '../../shared/stores/authStore.js';
 import { projectService } from '../../core/services/projectService.js';
 import { mediaUploadService } from '../../core/services/mediaUploadService.js';
 
@@ -49,7 +49,7 @@ const RECURRENCE_OPTIONS = {
 };
 
 const TaskForm = ({ isOpen, onClose, onSubmit, initialData, submitting = false }) => {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   
   // États du formulaire
   const [formData, setFormData] = useState({
