@@ -1,52 +1,86 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskForm.jsx
-// FORMULAIRE DE TÂCHE COMPLET SANS FRAMER MOTION
+// FORMULAIRE COMPLET DE CRÉATION/ÉDITION DE TÂCHE
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  X, Plus, Upload, Star, Calendar, Clock, User, Layers, 
-  Tag, FileText, Settings, AlertTriangle, Loader, Target,
-  Globe, Users, MessageSquare, Repeat, Camera, Video,
-  Image as ImageIcon, Paperclip, Save, Trash2
+  Plus, 
+  X, 
+  FileText, 
+  Calendar, 
+  Clock, 
+  Users, 
+  Target, 
+  AlertTriangle,
+  Upload,
+  Image as ImageIcon,
+  Video,
+  Loader,
+  Save,
+  Sparkles,
+  Tag,
+  Repeat
 } from 'lucide-react';
+
+// Services et stores
 import { useAuthStore } from '../../shared/stores/authStore.js';
+import { mediaUploadService } from '../../core/services/mediaUploadService.js';
 import { projectService } from '../../core/services/projectService.js';
 
-/**
- * 📐 HELPER - CALCUL XP AUTOMATIQUE
- */
-const calculateXP = (difficulty, priority, recurrenceType) => {
-  const baseValues = {
-    difficulty: { easy: 15, medium: 25, hard: 40, expert: 60 },
-    priority: { low: 1, medium: 1.2, high: 1.5, urgent: 2 },
-    recurrence: { none: 1, daily: 0.8, weekly: 1.1, monthly: 1.3 }
-  };
-  
-  const base = baseValues.difficulty[difficulty] || 25;
-  const priorityMultiplier = baseValues.priority[priority] || 1.2;
-  const recurrenceMultiplier = baseValues.recurrence[recurrenceType] || 1;
-  
-  return Math.round(base * priorityMultiplier * recurrenceMultiplier);
+// Constants
+const PRIORITY_OPTIONS = [
+  { value: 'low', label: 'Faible', color: 'bg-green-100 text-green-800' },
+  { value: 'medium', label: 'Moyenne', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'high', label: 'Élevée', color: 'bg-orange-100 text-orange-800' },
+  { value: 'urgent', label: 'Urgente', color: 'bg-red-100 text-red-800' }
+];
+
+const DIFFICULTY_OPTIONS = [
+  { value: 'easy', label: 'Facile', xp: 15 },
+  { value: 'medium', label: 'Moyenne', xp: 25 },
+  { value: 'hard', label: 'Difficile', xp: 40 },
+  { value: 'expert', label: 'Expert', xp: 60 }
+];
+
+const SYNERGIA_ROLES = {
+  maintenance: { name: 'Entretien & Maintenance', icon: '🔧' },
+  reputation: { name: 'Gestion de la Réputation', icon: '⭐' },
+  stock: { name: 'Gestion des Stocks', icon: '📦' },
+  organization: { name: 'Organisation Interne', icon: '📋' },
+  content: { name: 'Création de Contenu', icon: '🎨' },
+  mentoring: { name: 'Mentorat & Formation', icon: '🎓' },
+  partnerships: { name: 'Partenariats', icon: '🤝' },
+  communication: { name: 'Communication', icon: '📢' },
+  b2b: { name: 'Relations B2B', icon: '💼' }
+};
+
+const RECURRENCE_OPTIONS = {
+  none: { label: 'Aucune', multiplier: 1 },
+  daily: { label: 'Quotidienne', multiplier: 1.2 },
+  weekly: { label: 'Hebdomadaire', multiplier: 1.5 },
+  monthly: { label: 'Mensuelle', multiplier: 2 }
 };
 
 /**
  * 📎 COMPOSANT APERÇU FICHIER
  */
 const FilePreview = ({ file, onRemove }) => {
-  const isImage = file.type?.startsWith('image/');
-  const isVideo = file.type?.startsWith('video/');
+  const isImage = file.type.startsWith('image/');
+  const isVideo = file.type.startsWith('video/');
   
-  const formatFileSize = (size) => {
-    if (size < 1024) return size + ' B';
-    if (size < 1024 * 1024) return Math.round(size / 1024) + ' KB';
-    return Math.round(size / (1024 * 1024)) + ' MB';
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   return (
-    <div className="relative bg-gray-50 border border-gray-200 rounded-lg p-3">
+    <div className="relative border border-gray-200 rounded-lg p-3 bg-gray-50">
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-2 text-gray-600">
+        <div className="p-2 bg-blue-100 rounded-lg">
           {isImage ? (
             <ImageIcon className="w-4 h-4" />
           ) : isVideo ? (
@@ -144,166 +178,179 @@ const TaskForm = ({
           ) : ''
       }));
       
-      // Activer le mode XP manuel si différent de l'auto
-      const autoXP = calculateXP(
-        initialData.difficulty || 'medium', 
-        initialData.priority || 'medium', 
-        initialData.recurrenceType || 'none'
-      );
-      if (initialData.xpReward && initialData.xpReward !== autoXP) {
+      // Si XP personnalisé
+      const defaultXP = DIFFICULTY_OPTIONS.find(d => d.value === initialData.difficulty)?.xp || 25;
+      if (initialData.xpReward !== defaultXP) {
         setManualXP(true);
       }
-    } else {
-      // Réinitialiser pour une nouvelle tâche
-      setFormData({
-        title: '',
-        description: '',
-        priority: 'medium',
-        difficulty: 'medium',
-        roleId: '',
-        xpReward: 25,
-        estimatedHours: 1,
-        dueDate: '',
-        tags: [],
-        notes: '',
-        projectId: null,
-        isRecurring: false,
-        recurrenceType: 'none',
-        recurrenceInterval: 1,
-        recurrenceEndDate: '',
-        maxOccurrences: null,
-        isOpenToVolunteers: true,
-        volunteerAcceptanceMode: 'manual',
-        maxVolunteers: null,
-        volunteerMessage: ''
-      });
-      setManualXP(false);
     }
   }, [initialData]);
 
-  // ✅ CALCUL XP AUTOMATIQUE
+  // ✅ CHARGER LES PROJETS DISPONIBLES
   useEffect(() => {
-    if (!manualXP) {
-      const recurrenceType = formData.isRecurring ? formData.recurrenceType : 'none';
-      const autoXP = calculateXP(formData.difficulty, formData.priority, recurrenceType);
-      setFormData(prev => ({ ...prev, xpReward: autoXP }));
-    }
-  }, [formData.difficulty, formData.priority, formData.isRecurring, formData.recurrenceType, manualXP]);
-
-  // ✅ CHARGER LES PROJETS
-  useEffect(() => {
-    const loadProjects = async () => {
-      try {
-        if (user?.uid) {
-          const userProjects = await projectService.getUserProjects(user.uid);
-          setProjects(userProjects || []);
-        }
-      } catch (error) {
-        console.error('❌ Erreur chargement projets:', error);
-      }
-    };
-
-    if (isOpen) {
+    if (user?.uid) {
       loadProjects();
     }
-  }, [isOpen, user?.uid]);
+  }, [user?.uid]);
 
-  // ✅ GESTION FICHIERS MÉDIA
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const maxSize = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setError(`Le fichier ne peut pas dépasser ${file.type.startsWith('video/') ? '100 MB' : '10 MB'}`);
-      return;
-    }
-
-    setSelectedFile(file);
-    setError('');
-  };
-
-  // ✅ GESTION TAGS
-  const handleAddTag = () => {
-    if (currentTag.trim() && !formData.tags.includes(currentTag.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, currentTag.trim()]
-      }));
-      setCurrentTag('');
+  const loadProjects = async () => {
+    try {
+      const userProjects = await projectService.getUserProjects(user.uid);
+      setProjects(userProjects);
+    } catch (error) {
+      console.error('❌ Erreur chargement projets:', error);
     }
   };
 
-  const handleRemoveTag = (tagToRemove) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }));
-  };
+  // ✅ MISE À JOUR AUTOMATIQUE XP SELON DIFFICULTÉ
+  useEffect(() => {
+    if (!manualXP && formData.difficulty) {
+      const difficultyOption = DIFFICULTY_OPTIONS.find(d => d.value === formData.difficulty);
+      if (difficultyOption) {
+        setFormData(prev => ({ ...prev, xpReward: difficultyOption.xp }));
+      }
+    }
+  }, [formData.difficulty, manualXP]);
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && e.target.name === 'currentTag') {
-      e.preventDefault();
-      handleAddTag();
+  // ✅ UPLOAD DE FICHIER MÉDIA
+  const uploadMediaFile = async () => {
+    if (!selectedFile) return null;
+    
+    try {
+      setUploading(true);
+      console.log('📤 Upload média:', selectedFile.name);
+      
+      const uploadResult = await mediaUploadService.uploadFile(selectedFile, {
+        folder: 'tasks',
+        userId: user.uid,
+        taskTitle: formData.title
+      });
+      
+      console.log('✅ Média uploadé:', uploadResult);
+      return {
+        url: uploadResult.url,
+        type: selectedFile.type.startsWith('image/') ? 'image' : 
+              selectedFile.type.startsWith('video/') ? 'video' : 'file',
+        filename: selectedFile.name,
+        size: selectedFile.size
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur upload média:', error);
+      
+      if (error.message?.includes('too large')) {
+        setError('Fichier trop volumineux (max 10MB)');
+      } else {
+        console.warn('⚠️ Upload échoué, tâche créée sans média');
+        setError('Upload échoué, la tâche sera créée sans média.');
+        return null;
+      }
+      
+      throw error;
+    } finally {
+      setUploading(false);
     }
   };
 
-  // ✅ SOUMISSION FORMULAIRE
+  // ✅ SOUMISSION DU FORMULAIRE COMPLÈTE
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-
+    
+    if (!formData.title.trim()) {
+      setError('Le titre est obligatoire');
+      return;
+    }
+    
+    if (!formData.description.trim()) {
+      setError('La description est obligatoire');
+      return;
+    }
+    
+    if (!user) {
+      setError('Utilisateur non connecté');
+      return;
+    }
+    
     try {
-      if (!formData.title.trim()) {
-        throw new Error('Le titre est obligatoire');
-      }
-      if (!formData.description.trim()) {
-        throw new Error('La description est obligatoire');
+      setError('');
+      setLoading(true);
+      
+      console.log('📝 Soumission tâche complète:', {
+        title: formData.title,
+        role: formData.roleId,
+        recurring: formData.isRecurring,
+        hasMedia: !!selectedFile,
+        xpReward: formData.xpReward
+      });
+
+      // Upload du média si présent
+      let mediaData = null;
+      if (selectedFile) {
+        mediaData = await uploadMediaFile();
       }
 
-      let finalData = {
+      // ✅ PRÉPARER TOUTES LES DONNÉES DE LA TÂCHE
+      const taskData = {
         ...formData,
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        xpReward: Number(formData.xpReward) || 25,
-        estimatedHours: Number(formData.estimatedHours) || 1,
-        tags: formData.tags.filter(tag => tag.trim()),
-        isOpenToVolunteers: Boolean(formData.isOpenToVolunteers)
+        // Métadonnées de base
+        createdBy: user.uid,
+        creatorName: user.displayName || user.email,
+        
+        // Rôle Synergia
+        category: formData.roleId,
+        roleId: formData.roleId,
+        roleName: SYNERGIA_ROLES[formData.roleId]?.name || null,
+        
+        // Média (si présent)
+        hasMedia: !!mediaData,
+        mediaUrl: mediaData?.url || null,
+        mediaType: mediaData?.type || null,
+        mediaFilename: mediaData?.filename || null,
+        mediaSize: mediaData?.size || null,
+        
+        // Compatibilité ancien système
+        hasPhoto: !!mediaData && mediaData.type === 'image',
+        photoUrl: mediaData?.type === 'image' ? mediaData.url : null,
+        hasVideo: !!mediaData && mediaData.type === 'video',
+        videoUrl: mediaData?.type === 'video' ? mediaData.url : null,
+        
+        // Dates
+        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
+        recurrenceEndDate: formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate) : null,
+        
+        // Configuration récurrence
+        recurrenceConfig: formData.isRecurring ? {
+          type: formData.recurrenceType,
+          interval: formData.recurrenceInterval,
+          endDate: formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate) : null,
+          maxOccurrences: formData.maxOccurrences,
+          xpMultiplier: RECURRENCE_OPTIONS[formData.recurrenceType]?.multiplier || 1
+        } : null,
+        
+        // Configuration système volontaires
+        isOpenToVolunteers: formData.isOpenToVolunteers,
+        volunteerSystem: formData.isOpenToVolunteers ? {
+          acceptanceMode: formData.volunteerAcceptanceMode,
+          maxVolunteers: formData.maxVolunteers,
+          message: formData.volunteerMessage
+        } : null,
+        
+        // Statut initial
+        status: 'todo',
+        assignedTo: [],
+        volunteers: [],
+        
+        // Dates système
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
 
-      // Mode édition : préserver les données critiques
-      if (initialData) {
-        finalData = {
-          ...finalData,
-          // Préserver les données existantes importantes
-          assignedTo: initialData.assignedTo || [],
-          createdBy: initialData.createdBy,
-          createdAt: initialData.createdAt,
-          completedAt: initialData.completedAt,
-          submittedAt: initialData.submittedAt,
-          submittedBy: initialData.submittedBy,
-          validationRequestId: initialData.validationRequestId,
-          validatedAt: initialData.validatedAt,
-          validatedBy: initialData.validatedBy,
-          updatedAt: new Date()
-        };
-      }
-
-      // Gestion des dates
-      if (formData.dueDate) {
-        finalData.dueDate = new Date(formData.dueDate);
-      }
-      if (formData.recurrenceEndDate) {
-        finalData.recurrenceEndDate = new Date(formData.recurrenceEndDate);
-      }
-
-      console.log('📝 Soumission avec données finales:', finalData);
-
-      // Soumission
-      await onSubmit(finalData);
+      // Appeler la fonction de soumission
+      await onSubmit(taskData);
       
-      // Reset après succès pour nouvelle tâche
+      console.log('✅ Tâche soumise avec succès');
+      
+      // Reset formulaire
       if (!initialData) {
         setFormData({
           title: '',
@@ -339,6 +386,40 @@ const TaskForm = ({
       setError(error.message || 'Erreur lors de la sauvegarde');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ✅ GESTION DES TAGS
+  const addTag = () => {
+    if (currentTag.trim() && !formData.tags.includes(currentTag.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, currentTag.trim()]
+      }));
+      setCurrentTag('');
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
+    }));
+  };
+
+  // ✅ GESTION FICHIER
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Vérifier la taille (10MB max)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Fichier trop volumineux (max 10MB)');
+        return;
+      }
+      
+      console.log('📎 Fichier sélectionné:', file.name, file.type);
+      setSelectedFile(file);
+      setError('');
     }
   };
 
@@ -410,25 +491,16 @@ const TaskForm = ({
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Décrivez la tâche en détail : objectifs, livrables attendus, contraintes..."
+                  placeholder="Décrivez précisément ce qui doit être fait, les étapes, les ressources nécessaires..."
                   rows={4}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
                   disabled={loading || uploading}
                   required
                 />
               </div>
-            </div>
 
-            {/* Configuration */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-                <Settings className="w-5 h-5 text-blue-600" />
-                Configuration
-              </h3>
-              
+              {/* Priorité et Difficulté */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                {/* Priorité */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Priorité
@@ -439,14 +511,14 @@ const TaskForm = ({
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     disabled={loading || uploading}
                   >
-                    <option value="low">🟢 Basse</option>
-                    <option value="medium">🟡 Moyenne</option>
-                    <option value="high">🟠 Haute</option>
-                    <option value="urgent">🔴 Urgente</option>
+                    {PRIORITY_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
-                {/* Difficulté */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Difficulté
@@ -457,66 +529,93 @@ const TaskForm = ({
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     disabled={loading || uploading}
                   >
-                    <option value="easy">⭐ Facile</option>
-                    <option value="medium">⭐⭐ Moyenne</option>
-                    <option value="hard">⭐⭐⭐ Difficile</option>
-                    <option value="expert">⭐⭐⭐⭐ Expert</option>
+                    {DIFFICULTY_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label} ({option.xp} XP)
+                      </option>
+                    ))}
                   </select>
                 </div>
+              </div>
+            </div>
 
-                {/* XP Reward */}
-                <div>
+            {/* Rôle Synergia */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-600" />
+                Rôle Synergia
+              </h3>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Domaine d'expertise
+                </label>
+                <select
+                  value={formData.roleId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, roleId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  disabled={loading || uploading}
+                >
+                  <option value="">Sélectionner un domaine...</option>
+                  {Object.entries(SYNERGIA_ROLES).map(([id, role]) => (
+                    <option key={id} value={id}>
+                      {role.icon} {role.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Configuration XP */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                <Target className="w-5 h-5 text-green-600" />
+                Récompense XP
+              </h3>
+              
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <div className="flex items-center gap-2">
-                      <Target className="w-4 h-4" />
-                      Récompense XP
-                      <button
-                        type="button"
-                        onClick={() => setManualXP(!manualXP)}
-                        className="text-xs text-blue-600 hover:text-blue-800"
-                      >
-                        {manualXP ? 'Auto' : 'Manuel'}
-                      </button>
-                    </div>
+                    Points d'expérience
                   </label>
                   <input
                     type="number"
-                    value={formData.xpReward}
-                    onChange={(e) => setFormData(prev => ({ ...prev, xpReward: parseInt(e.target.value) || 0 }))}
                     min="1"
-                    max="1000"
+                    max="200"
+                    value={formData.xpReward}
+                    onChange={(e) => setFormData(prev => ({ ...prev, xpReward: parseInt(e.target.value) || 25 }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     disabled={loading || uploading || !manualXP}
                   />
                 </div>
-
-                {/* Heures estimées */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4" />
-                      Heures estimées
-                    </div>
-                  </label>
+                
+                <div className="flex items-center">
                   <input
-                    type="number"
-                    value={formData.estimatedHours}
-                    onChange={(e) => setFormData(prev => ({ ...prev, estimatedHours: parseFloat(e.target.value) || 0 }))}
-                    min="0.5"
-                    max="100"
-                    step="0.5"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    type="checkbox"
+                    id="manualXP"
+                    checked={manualXP}
+                    onChange={(e) => setManualXP(e.target.checked)}
+                    className="mr-2"
                     disabled={loading || uploading}
                   />
+                  <label htmlFor="manualXP" className="text-sm text-gray-600">
+                    XP personnalisé
+                  </label>
                 </div>
+              </div>
+            </div>
 
-                {/* Date limite */}
+            {/* Dates et temps */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-orange-600" />
+                Planning
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      Date limite
-                    </div>
+                    Date limite (optionnel)
                   </label>
                   <input
                     type="date"
@@ -527,13 +626,94 @@ const TaskForm = ({
                   />
                 </div>
 
-                {/* Projet rattaché */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <div className="flex items-center gap-2">
-                      <Layers className="w-4 h-4" />
-                      Projet rattaché
+                    Temps estimé (heures)
+                  </label>
+                  <input
+                    type="number"
+                    min="0.5"
+                    step="0.5"
+                    max="40"
+                    value={formData.estimatedHours}
+                    onChange={(e) => setFormData(prev => ({ ...prev, estimatedHours: parseFloat(e.target.value) || 1 }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    disabled={loading || uploading}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Tâche récurrente */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                <Repeat className="w-5 h-5 text-indigo-600" />
+                Récurrence
+              </h3>
+              
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isRecurring"
+                  checked={formData.isRecurring}
+                  onChange={(e) => setFormData(prev => ({ ...prev, isRecurring: e.target.checked }))}
+                  className="mr-2"
+                  disabled={loading || uploading}
+                />
+                <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
+                  Cette tâche est récurrente
+                </label>
+              </div>
+
+              {formData.isRecurring && (
+                <div className="pl-6 space-y-4 border-l-2 border-indigo-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Type de récurrence
+                      </label>
+                      <select
+                        value={formData.recurrenceType}
+                        onChange={(e) => setFormData(prev => ({ ...prev, recurrenceType: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        disabled={loading || uploading}
+                      >
+                        {Object.entries(RECURRENCE_OPTIONS).filter(([key]) => key !== 'none').map(([key, option]) => (
+                          <option key={key} value={key}>
+                            {option.label} (×{option.multiplier} XP)
+                          </option>
+                        ))}
+                      </select>
                     </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Date de fin (optionnel)
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.recurrenceEndDate}
+                        onChange={(e) => setFormData(prev => ({ ...prev, recurrenceEndDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        disabled={loading || uploading}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Projet lié */}
+            {projects.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-purple-600" />
+                  Projet
+                </h3>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Lier à un projet (optionnel)
                   </label>
                   <select
                     value={formData.projectId || ''}
@@ -550,33 +730,35 @@ const TaskForm = ({
                   </select>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Tags */}
             <div className="space-y-4">
-              <label className="block text-sm font-medium text-gray-700">
-                <div className="flex items-center gap-2">
-                  <Tag className="w-4 h-4" />
-                  Tags et mots-clés
-                </div>
-              </label>
+              <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                <Tag className="w-5 h-5 text-pink-600" />
+                Tags
+              </h3>
               
               <div className="flex gap-2">
                 <input
                   type="text"
-                  name="currentTag"
                   value={currentTag}
                   onChange={(e) => setCurrentTag(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addTag();
+                    }
+                  }}
                   placeholder="Ajouter un tag..."
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   disabled={loading || uploading}
                 />
                 <button
                   type="button"
-                  onClick={handleAddTag}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  disabled={loading || uploading}
+                  onClick={addTag}
+                  disabled={!currentTag.trim() || loading || uploading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                 >
                   Ajouter
                 </button>
@@ -587,12 +769,12 @@ const TaskForm = ({
                   {formData.tags.map((tag, index) => (
                     <span
                       key={index}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
+                      className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full"
                     >
-                      {tag}
+                      #{tag}
                       <button
                         type="button"
-                        onClick={() => handleRemoveTag(tag)}
+                        onClick={() => removeTag(tag)}
                         className="text-blue-600 hover:text-blue-800"
                         disabled={loading || uploading}
                       >
@@ -602,6 +784,47 @@ const TaskForm = ({
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Upload média */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                <Upload className="w-5 h-5 text-green-600" />
+                Média (optionnel)
+              </h3>
+              
+              <div className="space-y-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*,.pdf,.doc,.docx"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  disabled={loading || uploading}
+                />
+                
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loading || uploading}
+                  className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                >
+                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-600">
+                    Cliquez pour ajouter une image, vidéo ou document
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Max 10MB • JPG, PNG, MP4, PDF, DOC
+                  </p>
+                </button>
+
+                {selectedFile && (
+                  <FilePreview 
+                    file={selectedFile} 
+                    onRemove={() => setSelectedFile(null)} 
+                  />
+                )}
+              </div>
             </div>
 
             {/* Notes supplémentaires */}
