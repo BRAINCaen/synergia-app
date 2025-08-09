@@ -14,6 +14,7 @@ import { useAuthStore, initializeAuthStore } from './shared/stores/authStore.js'
 
 // Import des correctifs
 import './utils/safeFix.js';
+import './utils/productionErrorPatch.js';
 
 // ==========================================
 // 📄 PAGES PRINCIPALES EXISTANTES
