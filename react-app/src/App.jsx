@@ -12,7 +12,8 @@ import Layout from './components/layout/Layout.jsx';
 // Stores (version stable)
 import { useAuthStore, initializeAuthStore } from './shared/stores/authStore.js';
 
-// Import des correctifs
+// Import des correctifs - ORDRE CRITIQUE !
+import './utils/ultimateProductionPatch.js'; // DOIT ÊTRE EN PREMIER
 import './utils/safeFix.js';
 import './utils/productionErrorPatch.js';
 
