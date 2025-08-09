@@ -15,6 +15,20 @@ class UserResolverService {
   }
 
   /**
+   * Résoudre un userId en nom d'affichage  
+   */
+  async resolveUser(userId) {
+    return this.resolveUserName(userId);
+  }
+
+  /**
+   * Résoudre plusieurs userIds
+   */
+  async resolveUsers(userIds) {
+    return this.resolveMultipleUsers(userIds);
+  }
+
+  /**
    * Résoudre un userId en nom d'affichage
    */
   async resolveUserName(userId) {
