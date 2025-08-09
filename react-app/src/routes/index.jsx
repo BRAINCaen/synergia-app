@@ -191,37 +191,123 @@ const DemoDataCleanerPage = createSafeImport(
 );
 
 // ==========================================
-// 📱 COMPOSANTS UTILISÉS COMME PAGES
+// 📱 COMPOSANTS UTILISÉS COMME PAGES - FALLBACKS ONLY
 // ==========================================
 
-const TaskList = createSafeImport(
-  () => import('../modules/tasks/TaskList.jsx'),
-  'Liste des Tâches',
-  '📝'
+// Créer des composants fallback directs au lieu d'essayer d'importer
+const TaskList = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-8 text-center">
+        <div className="text-6xl mb-4">📝</div>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
+          Liste des Tâches
+        </h1>
+        <p className="text-gray-400 text-lg mb-6">Composant de liste des tâches</p>
+        <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4">
+          <p className="text-yellow-400">💡 Utilisez la page /tasks pour la gestion complète</p>
+        </div>
+        <button
+          onClick={() => window.location.href = '/tasks'}
+          className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+        >
+          📋 Aller aux Tâches
+        </button>
+      </div>
+    </div>
+  </div>
 );
 
-const BadgeCollection = createSafeImport(
-  () => import('../components/gamification/BadgeCollection.jsx'),
-  'Collection de Badges',
-  '🏅'
+const BadgeCollection = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-8 text-center">
+        <div className="text-6xl mb-4">🏅</div>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
+          Collection de Badges
+        </h1>
+        <p className="text-gray-400 text-lg mb-6">Vos badges et accomplissements</p>
+        <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4">
+          <p className="text-yellow-400">💡 Utilisez la page /badges pour voir tous vos badges</p>
+        </div>
+        <button
+          onClick={() => window.location.href = '/badges'}
+          className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+        >
+          🏆 Aller aux Badges
+        </button>
+      </div>
+    </div>
+  </div>
 );
 
-const Leaderboard = createSafeImport(
-  () => import('../components/gamification/Leaderboard.jsx'),
-  'Classement',
-  '🥇'
+const Leaderboard = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-8 text-center">
+        <div className="text-6xl mb-4">🥇</div>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
+          Classement
+        </h1>
+        <p className="text-gray-400 text-lg mb-6">Classement de l'équipe</p>
+        <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4">
+          <p className="text-yellow-400">💡 Consultez la page gamification pour le classement complet</p>
+        </div>
+        <button
+          onClick={() => window.location.href = '/gamification'}
+          className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+        >
+          🎮 Aller à la Gamification
+        </button>
+      </div>
+    </div>
+  </div>
 );
 
-const ProjectDashboard = createSafeImport(
-  () => import('../components/projects/ProjectDashboard.jsx'),
-  'Tableau de Bord Projets',
-  '📊'
+const ProjectDashboard = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-8 text-center">
+        <div className="text-6xl mb-4">📊</div>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
+          Tableau de Bord Projets
+        </h1>
+        <p className="text-gray-400 text-lg mb-6">Dashboard des projets</p>
+        <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4">
+          <p className="text-yellow-400">💡 Utilisez la page /projects pour la gestion complète</p>
+        </div>
+        <button
+          onClick={() => window.location.href = '/projects'}
+          className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+        >
+          📁 Aller aux Projets
+        </button>
+      </div>
+    </div>
+  </div>
 );
 
-const Profile = createSafeImport(
-  () => import('../components/profile/Profile.jsx'),
-  'Composant Profil',
-  '👤'
+const Profile = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-8 text-center">
+        <div className="text-6xl mb-4">👤</div>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
+          Composant Profil
+        </h1>
+        <p className="text-gray-400 text-lg mb-6">Profil utilisateur</p>
+        <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4">
+          <p className="text-yellow-400">💡 Utilisez la page /profile pour votre profil complet</p>
+        </div>
+        <button
+          onClick={() => window.location.href = '/profile'}
+          className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+        >
+          🧑‍💼 Aller au Profil
+        </button>
+      </div>
+    </div>
+  </div>
 );
 
 // ==========================================
