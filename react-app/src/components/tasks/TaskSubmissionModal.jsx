@@ -1,183 +1,75 @@
 // ==========================================
 // 📁 react-app/src/components/tasks/TaskSubmissionModal.jsx
-// MODAL DE SOUMISSION AVEC GESTION CORS AMÉLIORÉE
+// CORRECTION IMPORT SERVICE VALIDATION
 // ==========================================
 
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
-  Send, 
+  Upload, 
   Camera, 
   Video, 
-  Trophy, 
-  Zap,
+  Send, 
+  Loader, 
+  CheckCircle, 
   AlertTriangle,
-  CheckCircle,
-  Clock,
-  Upload,
-  Play,
-  Image as ImageIcon,
-  FileVideo,
-  Loader,
-  Wifi,
   WifiOff,
-  MessageSquare,
-  Star
+  Clock,
+  MessageSquare
 } from 'lucide-react';
-import { taskValidationService } from '../../core/services/taskValidationQuickFix.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
+// ✅ CORRECTION: Import correct du service de validation
+import { taskValidationService } from '../../core/services/taskValidationService.js';
 
 /**
- * 🎬 COMPOSANT DE PRÉVISUALISATION MÉDIA
- */
-const MediaPreview = ({ file, fileType, onRemove }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const videoRef = useRef(null);
-
-  const handleVideoPlay = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  if (fileType === 'video') {
-    return (
-      <div className="relative">
-        <video
-          ref={videoRef}
-          src={URL.createObjectURL(file)}
-          className="w-full h-48 object-cover rounded-lg"
-          onLoadedData={() => console.log('✅ Vidéo chargée pour prévisualisation')}
-          onError={(e) => console.error('❌ Erreur chargement vidéo:', e)}
-        />
-        
-        {/* Overlay de contrôle */}
-        <div className="absolute inset-0 bg-black bg-opacity-30 rounded-lg flex items-center justify-center">
-          <button
-            type="button"
-            onClick={handleVideoPlay}
-            className="bg-white bg-opacity-90 p-3 rounded-full hover:bg-opacity-100 transition-all"
-          >
-            {isPlaying ? (
-              <div className="w-4 h-4 bg-gray-800 rounded-sm" />
-            ) : (
-              <Play className="w-4 h-4 text-gray-800 ml-0.5" />
-            )}
-          </button>
-        </div>
-        
-        {/* Informations du fichier */}
-        <div className="mt-2 text-sm">
-          <div className="flex items-center gap-2 text-green-600 font-medium">
-            <FileVideo className="w-4 h-4" />
-            <span>Vidéo prête à envoyer</span>
-          </div>
-          <div className="text-xs text-gray-600 mt-1">
-            📁 {file.name} • {formatFileSize(file.size)}
-          </div>
-        </div>
-        
-        {/* Bouton supprimer */}
-        <button
-          type="button"
-          onClick={onRemove}
-          className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
-        >
-          <X className="w-3 h-3" />
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative">
-      <img
-        src={URL.createObjectURL(file)}
-        alt="Prévisualisation"
-        className="w-full h-48 object-cover rounded-lg"
-        onLoad={() => console.log('✅ Image chargée pour prévisualisation')}
-        onError={(e) => console.error('❌ Erreur chargement image:', e)}
-      />
-      
-      {/* Informations du fichier */}
-      <div className="mt-2 text-sm">
-        <div className="flex items-center gap-2 text-green-600 font-medium">
-          <ImageIcon className="w-4 h-4" />
-          <span>Photo prête à envoyer</span>
-        </div>
-        <div className="text-xs text-gray-600 mt-1">
-          📁 {file.name} • {formatFileSize(file.size)}
-        </div>
-      </div>
-      
-      {/* Bouton supprimer */}
-      <button
-        type="button"
-        onClick={onRemove}
-        className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
-      >
-        <X className="w-3 h-3" />
-      </button>
-    </div>
-  );
-};
-
-/**
- * 📝 MODAL DE SOUMISSION AVEC GESTION CORS
+ * 🖼️ MODAL DE SOUMISSION DE TÂCHE POUR VALIDATION
  */
 const TaskSubmissionModal = ({ 
   isOpen, 
-  task, 
   onClose, 
-  onSubmit,
-  submitting: externalSubmitting = false 
+  task,
+  onSubmit
 }) => {
   const { user } = useAuthStore();
   const [comment, setComment] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
-  const [fileType, setFileType] = useState(null);
-  const [error, setError] = useState('');
+  const [filePreview, setFilePreview] = useState(null);
+  const [fileType, setFileType] = useState(''); // 'image' ou 'video'
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
   const [corsWarning, setCorsWarning] = useState(false);
   const [submitWithoutMedia, setSubmitWithoutMedia] = useState(false);
-  const [success, setSuccess] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Reset du formulaire à l'ouverture
+  // Calculer l'XP attendu
+  const expectedXP = task?.xpReward || task?.difficulty === 'hard' ? 35 : 
+                     task?.difficulty === 'easy' ? 10 : 25;
+
+  // 🔄 Reset modal à l'ouverture
   React.useEffect(() => {
     if (isOpen) {
       setComment('');
       setSelectedFile(null);
-      setFileType(null);
+      setFilePreview(null);
+      setFileType('');
+      setSubmitting(false);
+      setSuccess(false);
       setError('');
       setCorsWarning(false);
       setSubmitWithoutMedia(false);
-      setSuccess(false);
     }
   }, [isOpen]);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
+  // 📎 Gestion de sélection de fichier
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
     if (!file) return;
 
-    // Vérifier la taille
-    const maxSize = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setError(`Le fichier ne peut pas dépasser ${file.type.startsWith('video/') ? '100MB' : '10MB'}`);
+    // Vérifier la taille (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Le fichier est trop volumineux (max 10MB)');
       return;
     }
 
@@ -186,53 +78,67 @@ const TaskSubmissionModal = ({
     const isVideo = file.type.startsWith('video/');
     
     if (!isImage && !isVideo) {
-      setError('Seules les images et vidéos sont acceptées');
+      setError('Seuls les images et vidéos sont acceptées');
       return;
     }
 
     setSelectedFile(file);
-    setFileType(isVideo ? 'video' : 'image');
+    setFileType(isImage ? 'image' : 'video');
     setError('');
-    setCorsWarning(false);
-    
-    console.log('📎 Fichier sélectionné:', {
-      name: file.name,
-      type: file.type,
-      size: `${(file.size / 1024 / 1024).toFixed(2)} MB`
-    });
+
+    // Générer un aperçu pour les images
+    if (isImage) {
+      const reader = new FileReader();
+      reader.onload = (e) => setFilePreview(e.target.result);
+      reader.readAsDataURL(file);
+    } else {
+      setFilePreview(null);
+    }
   };
 
-  const handleRemoveFile = () => {
+  // 🗑️ Supprimer le fichier sélectionné
+  const handleFileRemove = () => {
     setSelectedFile(null);
-    setFileType(null);
-    setCorsWarning(false);
+    setFilePreview(null);
+    setFileType('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
+  // ❌ Fermer le modal
+  const handleClose = () => {
+    if (!submitting) {
+      setComment('');
+      setSelectedFile(null);
+      setFilePreview(null);
+      setSuccess(false);
+      setError('');
+      setCorsWarning(false);
+      onClose();
+    }
+  };
+
+  // 📤 Soumettre la validation
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (submitting) return;
+    
+    // Vérification minimale
     if (!comment.trim() && !selectedFile && !submitWithoutMedia) {
-      setError('Veuillez ajouter un commentaire ou une preuve (photo/vidéo), ou cocher "Soumettre sans média"');
+      setError('Veuillez ajouter un commentaire ou une preuve');
       return;
     }
-    
-    if (!user) {
-      setError('Utilisateur non connecté');
-      return;
-    }
-    
+
     setSubmitting(true);
     setError('');
     setCorsWarning(false);
-    
+
     try {
-      console.log('📝 Soumission validation tâche:', {
+      console.log('📤 Début soumission validation:', {
         taskId: task.id,
-        userId: user.uid,
-        hasMedia: !!selectedFile,
+        hasFile: !!selectedFile,
         submitWithoutMedia
       });
 
@@ -254,7 +160,7 @@ const TaskSubmissionModal = ({
         validationData.videoFile = null;
       }
 
-      // Soumettre la validation
+      // ✅ CORRECTION: Utiliser le service correctement importé
       const result = await taskValidationService.submitTaskForValidation(validationData);
       
       if (result.success) {
@@ -293,192 +199,189 @@ const TaskSubmissionModal = ({
       if (error.message.includes('CORS')) {
         setCorsWarning(true);
         setError('⚠️ Problème de connexion détecté. Vous pouvez soumettre sans média.');
+      } else if (error.message.includes('submitTaskForValidation is not a function')) {
+        setError('❌ Service de validation indisponible. Veuillez réessayer.');
       } else {
-        setError(error.message || 'Erreur lors de la soumission');
+        setError(`Erreur: ${error.message}`);
       }
+      
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleClose = () => {
-    if (submitting) return;
-    onClose();
-  };
-
-  const getExpectedXP = () => {
-    if (task.xpReward) return task.xpReward;
-    
-    switch (task.difficulty) {
-      case 'easy': return 10;
-      case 'hard': return 50;
-      case 'expert': return 100;
-      default: return 25; // normal
-    }
-  };
-
-  const getDifficultyColor = (difficulty) => {
-    switch (difficulty) {
-      case 'easy': return 'text-green-600 bg-green-100';
-      case 'hard': return 'text-orange-600 bg-orange-100';
-      case 'expert': return 'text-red-600 bg-red-100';
-      default: return 'text-blue-600 bg-blue-100';
-    }
-  };
-
-  const expectedXP = getExpectedXP();
-
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-        onClick={handleClose}
-      >
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
         >
-          {/* Header */}
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">
-                Soumettre la tâche
-              </h2>
-              <button
-                onClick={handleClose}
-                disabled={submitting}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
-            {/* Informations de la tâche */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
-              <div className="flex items-center gap-3 text-sm">
-                <span className={`px-2 py-1 rounded-full font-medium ${getDifficultyColor(task.difficulty)}`}>
-                  {task.difficulty || 'normal'}
-                </span>
-                <div className="flex items-center gap-1 text-green-600">
-                  <Trophy className="w-4 h-4" />
-                  <span className="font-medium">+{expectedXP} XP</span>
-                </div>
+          {/* En-tête */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Send className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Soumettre pour validation
+                </h2>
+                <p className="text-sm text-gray-600">
+                  {task.title}
+                </p>
               </div>
             </div>
+            
+            <button
+              onClick={handleClose}
+              disabled={submitting}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Formulaire */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {/* Commentaire */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <MessageSquare className="w-4 h-4 inline mr-2" />
-                Décrivez votre travail *
-              </label>
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Décrivez comment vous avez accompli cette tâche..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                rows="4"
-                disabled={submitting}
-              />
-            </div>
-
-            {/* Upload de fichier */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Camera className="w-4 h-4 inline mr-2" />
-                Preuve (photo ou vidéo)
-              </label>
-              
-              {!selectedFile ? (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    onChange={handleFileChange}
-                    accept="image/*,video/*"
-                    className="hidden"
-                    disabled={submitting}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={submitting}
-                    className="flex flex-col items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors"
-                  >
-                    <Upload className="w-8 h-8" />
-                    <span className="text-sm">
-                      Cliquez pour ajouter une photo ou vidéo
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      Images: 10MB max • Vidéos: 100MB max
-                    </span>
-                  </button>
-                </div>
-              ) : (
-                <MediaPreview
-                  file={selectedFile}
-                  fileType={fileType}
-                  onRemove={handleRemoveFile}
-                />
-              )}
-            </div>
-
-            {/* Option soumettre sans média */}
-            <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <input
-                type="checkbox"
-                id="submitWithoutMedia"
-                checked={submitWithoutMedia}
-                onChange={(e) => setSubmitWithoutMedia(e.target.checked)}
-                disabled={submitting}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="submitWithoutMedia" className="text-sm text-yellow-800 flex-1">
-                Soumettre sans média (si upload impossible)
-              </label>
-            </div>
-
-            {/* Messages d'état */}
+          {/* Contenu */}
+          <form onSubmit={handleSubmit} className="p-6">
+            
+            {/* Message de succès */}
             {success && (
-              <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3 mb-4">
                 <CheckCircle className="w-5 h-5 text-green-600" />
-                <span className="text-green-800 font-medium">
-                  Tâche soumise avec succès ! En attente de validation.
-                </span>
+                <div>
+                  <p className="text-green-800 font-medium">Validation soumise !</p>
+                  <p className="text-green-700 text-sm">
+                    Votre tâche est en attente de validation par un administrateur.
+                    Vous recevrez {expectedXP} XP une fois validée.
+                  </p>
+                </div>
               </div>
             )}
 
+            {/* Messages d'erreur et d'avertissement */}
             {corsWarning && (
-              <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-center gap-3 mb-4">
                 <WifiOff className="w-5 h-5 text-orange-600" />
-                <div className="text-orange-800">
-                  <p className="font-medium">Problème d'upload détecté</p>
-                  <p className="text-sm">La tâche a été soumise sans média. Vous pouvez fermer cette fenêtre.</p>
+                <div>
+                  <p className="text-orange-800 font-medium">Problème d'upload détecté</p>
+                  <p className="text-orange-700 text-sm">
+                    La validation a été soumise mais sans les fichiers média. 
+                    Vous pouvez fermer cette fenêtre.
+                  </p>
                 </div>
               </div>
             )}
 
             {error && !corsWarning && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3 mb-4">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
                 <span className="text-red-800">{error}</span>
               </div>
             )}
 
+            {/* Zone de commentaire */}
+            {!success && (
+              <>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Décrivez votre travail *
+                  </label>
+                  <textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Expliquez ce que vous avez fait pour accomplir cette tâche..."
+                    className="w-full h-32 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    disabled={submitting}
+                    required
+                  />
+                </div>
+
+                {/* Zone d'upload optionnel */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Preuve optionnelle (photo/vidéo)
+                  </label>
+                  
+                  {!selectedFile ? (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="flex gap-2">
+                          <Camera className="w-8 h-8 text-gray-400" />
+                          <Video className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <p className="text-gray-600">Glissez un fichier ici ou cliquez pour sélectionner</p>
+                        <p className="text-xs text-gray-500">Images et vidéos acceptées (max 10MB)</p>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*,video/*"
+                          onChange={handleFileSelect}
+                          className="hidden"
+                          disabled={submitting}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={submitting}
+                          className="mt-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50"
+                        >
+                          <Upload className="w-4 h-4 inline mr-2" />
+                          Choisir un fichier
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border border-gray-300 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-gray-700">
+                          {fileType === 'image' ? '📷' : '🎥'} {selectedFile.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleFileRemove}
+                          disabled={submitting}
+                          className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      
+                      {filePreview && (
+                        <img 
+                          src={filePreview} 
+                          alt="Aperçu" 
+                          className="w-full h-32 object-cover rounded-lg"
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Option pour soumettre sans média */}
+                  <div className="mt-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={submitWithoutMedia}
+                        onChange={(e) => setSubmitWithoutMedia(e.target.checked)}
+                        disabled={submitting}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-600">
+                        Soumettre sans preuve visuelle (commentaire uniquement)
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Informations sur la validation */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <div className="flex items-start gap-3">
                 <Clock className="w-5 h-5 text-blue-600 mt-0.5" />
                 <div className="text-blue-800">
@@ -493,7 +396,7 @@ const TaskSubmissionModal = ({
             </div>
 
             {/* Boutons */}
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-3">
               <button
                 type="button"
                 onClick={handleClose}
@@ -502,27 +405,40 @@ const TaskSubmissionModal = ({
               >
                 Annuler
               </button>
-              <button
-                type="submit"
-                disabled={submitting || (!comment.trim() && !selectedFile && !submitWithoutMedia)}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submitting ? (
-                  <>
-                    <Loader className="w-4 h-4 animate-spin" />
-                    Soumission...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    {success ? 'Soumis ✓' : 'Soumettre pour validation'}
-                  </>
-                )}
-              </button>
+              
+              {!success && (
+                <button
+                  type="submit"
+                  disabled={submitting || (!comment.trim() && !selectedFile && !submitWithoutMedia)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Soumission...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      Soumettre pour validation
+                    </>
+                  )}
+                </button>
+              )}
+              
+              {success && corsWarning && (
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Fermer
+                </button>
+              )}
             </div>
           </form>
         </motion.div>
-      </motion.div>
+      </div>
     </AnimatePresence>
   );
 };
