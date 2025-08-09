@@ -1,97 +1,56 @@
 // ==========================================
-// 📝 react-app/src/modules/tasks/TaskForm.jsx
-// FORMULAIRE COMPLET ORIGINAL + PROJET AJOUTÉ
+// 📁 react-app/src/modules/tasks/TaskForm.jsx
+// FORMULAIRE DE TÂCHE COMPLET SANS FRAMER MOTION
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  X, Plus, Hash, Trophy, Clock, Target, Calendar, Users, 
-  Upload, ImageIcon, VideoIcon, FileText, Info, Star
+  X, Plus, Upload, Star, Calendar, Clock, User, Layers, 
+  Tag, FileText, Settings, AlertTriangle, Loader, Target,
+  Globe, Users, MessageSquare, Repeat, Camera, Video,
+  Image as ImageIcon, Paperclip, Save, Trash2
 } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import { rolesConfig } from '../../shared/config/rolesConfig.js';
-// ✅ FONCTION CALCULATEXP INTERNE - ÉVITE L'ERREUR D'IMPORT
-const calculateXP = (difficulty = 'medium', priority = 'medium', recurrence = 'none') => {
-  const baseXP = {
-    easy: 15, normal: 20, medium: 25, hard: 40, expert: 60
-  }[difficulty] || 25;
-  
-  const priorityMult = {
-    low: 1.0, medium: 1.2, high: 1.5, urgent: 2.0
-  }[priority] || 1.2;
-  
-  const recurrenceMult = {
-    none: 1.0, daily: 0.8, weekly: 1.0, monthly: 1.5, yearly: 3.0, custom: 1.2
-  }[recurrence] || 1.0;
-  
-  return Math.max(5, Math.round(baseXP * priorityMult * recurrenceMult));
-};
-import { storageService } from '../../core/services/storageService.js';
 import { projectService } from '../../core/services/projectService.js';
 
-// ✅ CONSTANTES CONFIGURATION
-const PRIORITY_OPTIONS = {
-  low: { label: 'Basse', color: 'text-green-600', bg: 'bg-green-100', multiplier: 1 },
-  medium: { label: 'Normale', color: 'text-yellow-600', bg: 'bg-yellow-100', multiplier: 1.2 },
-  high: { label: 'Haute', color: 'text-orange-600', bg: 'bg-orange-100', multiplier: 1.5 },
-  urgent: { label: 'Urgente', color: 'text-red-600', bg: 'bg-red-100', multiplier: 2 }
+/**
+ * 📐 HELPER - CALCUL XP AUTOMATIQUE
+ */
+const calculateXP = (difficulty, priority, recurrenceType) => {
+  const baseValues = {
+    difficulty: { easy: 15, medium: 25, hard: 40, expert: 60 },
+    priority: { low: 1, medium: 1.2, high: 1.5, urgent: 2 },
+    recurrence: { none: 1, daily: 0.8, weekly: 1.1, monthly: 1.3 }
+  };
+  
+  const base = baseValues.difficulty[difficulty] || 25;
+  const priorityMultiplier = baseValues.priority[priority] || 1.2;
+  const recurrenceMultiplier = baseValues.recurrence[recurrenceType] || 1;
+  
+  return Math.round(base * priorityMultiplier * recurrenceMultiplier);
 };
 
-const DIFFICULTY_OPTIONS = {
-  easy: { label: 'Facile', multiplier: 0.8 },
-  medium: { label: 'Moyen', multiplier: 1 },
-  hard: { label: 'Difficile', multiplier: 1.5 },
-  expert: { label: 'Expert', multiplier: 2 }
-};
-
-const RECURRENCE_OPTIONS = {
-  none: { label: 'Aucune', multiplier: 1 },
-  daily: { label: 'Quotidienne', multiplier: 1.2 },
-  weekly: { label: 'Hebdomadaire', multiplier: 1.5 },
-  monthly: { label: 'Mensuelle', multiplier: 2 },
-  custom: { label: 'Personnalisée', multiplier: 1.3 }
-};
-
-const VOLUNTEER_MODES = {
-  manual: { label: 'Validation manuelle', description: 'Vous validez chaque demande' },
-  auto: { label: 'Acceptation automatique', description: 'Les volontaires sont acceptés automatiquement' },
-  first_come: { label: 'Premier arrivé', description: 'Le premier volontaire est accepté' }
-};
-
-// ✅ COMPOSANT PRÉVISUALISATION FICHIER
+/**
+ * 📎 COMPOSANT APERÇU FICHIER
+ */
 const FilePreview = ({ file, onRemove }) => {
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  const isImage = file.type?.startsWith('image/');
+  const isVideo = file.type?.startsWith('video/');
+  
+  const formatFileSize = (size) => {
+    if (size < 1024) return size + ' B';
+    if (size < 1024 * 1024) return Math.round(size / 1024) + ' KB';
+    return Math.round(size / (1024 * 1024)) + ' MB';
   };
 
-  const isImage = file.type.startsWith('image/');
-  const isVideo = file.type.startsWith('video/');
-
   return (
-    <div className="relative bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-4">
-      {/* Prévisualisation image */}
-      {isImage && (
-        <img 
-          src={URL.createObjectURL(file)}
-          alt="Prévisualisation"
-          className="w-full h-32 object-cover rounded mb-2"
-          onLoad={() => console.log('✅ Image chargée pour prévisualisation')}
-          onError={(e) => console.error('❌ Erreur chargement image:', e)}
-        />
-      )}
-      
-      {/* Informations du fichier */}
-      <div className="mt-2 text-sm">
-        <div className="flex items-center gap-2 text-blue-600 font-medium">
+    <div className="relative bg-gray-50 border border-gray-200 rounded-lg p-3">
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 text-gray-600">
           {isImage ? (
             <ImageIcon className="w-4 h-4" />
           ) : isVideo ? (
-            <VideoIcon className="w-4 h-4" />
+            <Video className="w-4 h-4" />
           ) : (
             <FileText className="w-4 h-4" />
           )}
@@ -102,7 +61,6 @@ const FilePreview = ({ file, onRemove }) => {
         </div>
       </div>
       
-      {/* Bouton supprimer */}
       <button
         type="button"
         onClick={onRemove}
@@ -138,7 +96,7 @@ const TaskForm = ({
     dueDate: '',
     tags: [],
     notes: '',
-    projectId: null, // ✅ NOUVEAU : Projet rattaché
+    projectId: null,
     // Récurrence
     isRecurring: false,
     recurrenceType: 'none',
@@ -157,7 +115,7 @@ const TaskForm = ({
   const [loading, setLoading] = useState(false);
   const [currentTag, setCurrentTag] = useState('');
   const [manualXP, setManualXP] = useState(false);
-  const [projects, setProjects] = useState([]); // ✅ NOUVEAU : Liste des projets
+  const [projects, setProjects] = useState([]);
   
   // ✅ ÉTATS UPLOAD MÉDIA
   const [selectedFile, setSelectedFile] = useState(null);
@@ -169,12 +127,11 @@ const TaskForm = ({
     if (initialData) {
       console.log('📝 Mode édition - initialisation avec:', initialData);
       
-      // 🛡️ PRÉSERVER TOUTES LES DONNÉES CRITIQUES
       setFormData(prev => ({
         ...prev,
         ...initialData,
         tags: initialData.tags || [],
-        projectId: initialData.projectId || null, // ✅ NOUVEAU : Préserver projet
+        projectId: initialData.projectId || null,
         dueDate: initialData.dueDate ? 
           (initialData.dueDate.toDate ? 
             initialData.dueDate.toDate().toISOString().split('T')[0] : 
@@ -209,7 +166,7 @@ const TaskForm = ({
         dueDate: '',
         tags: [],
         notes: '',
-        projectId: null, // ✅ NOUVEAU : Aucun projet par défaut
+        projectId: null,
         isRecurring: false,
         recurrenceType: 'none',
         recurrenceInterval: 1,
@@ -233,7 +190,7 @@ const TaskForm = ({
     }
   }, [formData.difficulty, formData.priority, formData.isRecurring, formData.recurrenceType, manualXP]);
 
-  // ✅ CHARGER LES PROJETS - NOUVEAU
+  // ✅ CHARGER LES PROJETS
   useEffect(() => {
     const loadProjects = async () => {
       try {
@@ -256,7 +213,6 @@ const TaskForm = ({
     const file = e.target.files[0];
     if (!file) return;
 
-    // Vérifier la taille
     const maxSize = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
     if (file.size > maxSize) {
       setError(`Le fichier ne peut pas dépasser ${file.type.startsWith('video/') ? '100 MB' : '10 MB'}`);
@@ -267,8 +223,8 @@ const TaskForm = ({
     setError('');
   };
 
-  // ✅ GESTION DES TAGS
-  const addTag = () => {
+  // ✅ GESTION TAGS
+  const handleAddTag = () => {
     if (currentTag.trim() && !formData.tags.includes(currentTag.trim())) {
       setFormData(prev => ({
         ...prev,
@@ -278,61 +234,63 @@ const TaskForm = ({
     }
   };
 
-  const removeTag = (tagToRemove) => {
+  const handleRemoveTag = (tagToRemove) => {
     setFormData(prev => ({
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
   };
 
-  // ✅ SOUMISSION DU FORMULAIRE
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && e.target.name === 'currentTag') {
+      e.preventDefault();
+      handleAddTag();
+    }
+  };
+
+  // ✅ SOUMISSION FORMULAIRE
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      // Validation
       if (!formData.title.trim()) {
-        throw new Error('Le titre est requis');
+        throw new Error('Le titre est obligatoire');
+      }
+      if (!formData.description.trim()) {
+        throw new Error('La description est obligatoire');
       }
 
-      // 🛡️ PRÉPARATION DONNÉES AVEC PRÉSERVATION
       let finalData = {
         ...formData,
         title: formData.title.trim(),
         description: formData.description.trim(),
-        updatedAt: new Date()
+        xpReward: Number(formData.xpReward) || 25,
+        estimatedHours: Number(formData.estimatedHours) || 1,
+        tags: formData.tags.filter(tag => tag.trim()),
+        isOpenToVolunteers: Boolean(formData.isOpenToVolunteers)
       };
 
-      // ✅ MODE ÉDITION : PRÉSERVER LES DONNÉES CRITIQUES
+      // Mode édition : préserver les données critiques
       if (initialData) {
-        console.log('🔧 Mode édition - préservation des données critiques');
-        
         finalData = {
           ...finalData,
-          // 🛡️ PRÉSERVER ABSOLUMENT
+          // Préserver les données existantes importantes
           assignedTo: initialData.assignedTo || [],
           createdBy: initialData.createdBy,
           createdAt: initialData.createdAt,
           completedAt: initialData.completedAt,
+          submittedAt: initialData.submittedAt,
+          submittedBy: initialData.submittedBy,
           validationRequestId: initialData.validationRequestId,
           validatedAt: initialData.validatedAt,
           validatedBy: initialData.validatedBy,
-          withdrawnAt: initialData.withdrawnAt,
-          
-          // Mise à jour seulement
           updatedAt: new Date()
         };
-
-        console.log('🔧 Données préservées:', {
-          assignedTo: finalData.assignedTo,
-          createdBy: finalData.createdBy,
-          titre: finalData.title
-        });
       }
 
-      // Dates
+      // Gestion des dates
       if (formData.dueDate) {
         finalData.dueDate = new Date(formData.dueDate);
       }
@@ -345,7 +303,7 @@ const TaskForm = ({
       // Soumission
       await onSubmit(finalData);
       
-      // Reset après succès seulement si nouvelle tâche
+      // Reset après succès pour nouvelle tâche
       if (!initialData) {
         setFormData({
           title: '',
@@ -358,7 +316,7 @@ const TaskForm = ({
           dueDate: '',
           tags: [],
           notes: '',
-          projectId: null, // ✅ NOUVEAU : Reset projet
+          projectId: null,
           isRecurring: false,
           recurrenceType: 'none',
           recurrenceInterval: 1,
@@ -384,200 +342,181 @@ const TaskForm = ({
     }
   };
 
+  // Ne pas afficher si fermé
+  if (!isOpen) return null;
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-        >
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white rounded-xl w-full max-w-4xl max-h-[95vh] overflow-hidden shadow-2xl"
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-xl w-full max-w-4xl max-h-[95vh] overflow-hidden shadow-2xl">
+        
+        {/* ✅ EN-TÊTE */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <Plus className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                {initialData ? 'Modifier la tâche' : 'Créer une nouvelle tâche'}
+              </h2>
+              <p className="text-sm text-gray-600">
+                {initialData ? 'Modifiez les détails de cette tâche' : 'Créez une tâche collaborative complète'}
+              </p>
+            </div>
+          </div>
+          
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading || uploading}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            {/* ✅ EN-TÊTE COMPLET */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500/10 rounded-lg">
-                  <Plus className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {initialData ? 'Modifier la tâche' : 'Créer une nouvelle tâche'}
-                  </h2>
-                  <p className="text-sm text-gray-500">
-                    Formulaire complet avec XP auto, récurrence, rôles et projet
-                  </p>
-                </div>
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* ✅ FORMULAIRE COMPLET */}
+        <div className="overflow-y-auto max-h-[calc(95vh-140px)]">
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            
+            {/* Informations de base */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-600" />
+                Informations de base
+              </h3>
+              
+              {/* Titre */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Titre de la tâche *
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Donnez un titre clair et descriptif"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={loading || uploading}
+                  required
+                />
               </div>
-              <button
-                onClick={onClose}
-                disabled={loading || uploading}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description détaillée *
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Décrivez la tâche en détail : objectifs, livrables attendus, contraintes..."
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                  disabled={loading || uploading}
+                  required
+                />
+              </div>
             </div>
 
-            {/* ✅ FORMULAIRE COMPLET */}
-            <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(95vh-140px)]">
-              <div className="p-6 space-y-6">
+            {/* Configuration */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                <Settings className="w-5 h-5 text-blue-600" />
+                Configuration
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
-                {/* ✅ INFORMATIONS DE BASE */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Titre de la tâche *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.title}
-                      onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                      placeholder="Ex: Vérifier les stocks de boissons"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      disabled={loading || uploading}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Description détaillée *
-                    </label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Décrivez précisément ce qui doit être fait, comment, et le résultat attendu..."
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      disabled={loading || uploading}
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* ✅ PRIORITÉ ET DIFFICULTÉ */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Priorité
-                    </label>
-                    <select
-                      value={formData.priority}
-                      onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      disabled={loading || uploading}
-                    >
-                      {Object.entries(PRIORITY_OPTIONS).map(([key, option]) => (
-                        <option key={key} value={key}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Difficulté
-                    </label>
-                    <select
-                      value={formData.difficulty}
-                      onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      disabled={loading || uploading}
-                    >
-                      {Object.entries(DIFFICULTY_OPTIONS).map(([key, option]) => (
-                        <option key={key} value={key}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* ✅ NOUVEAU : SÉLECTION PROJET */}
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Target className="w-5 h-5 text-green-600" />
-                    <h3 className="font-medium text-gray-900">Projet associé (optionnel)</h3>
-                    <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full">Nouveau</span>
-                  </div>
-                  
-                  <p className="text-sm text-gray-600 mb-3">
-                    Rattachez cette tâche à un projet existant pour un meilleur suivi
-                  </p>
-                  
-                  <select
-                    value={formData.projectId || ''}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      projectId: e.target.value || null 
-                    }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    disabled={loading || uploading}
-                  >
-                    <option value="">Aucun projet sélectionné</option>
-                    {projects.map(project => (
-                      <option key={project.id} value={project.id}>
-                        🎯 {project.name} - {project.status === 'active' ? 'En cours' : project.status}
-                      </option>
-                    ))}
-                  </select>
-                  
-                  {formData.projectId && (
-                    <div className="mt-2 p-2 bg-green-100 border border-green-200 rounded text-sm text-green-800">
-                      <Info className="w-4 h-4 inline mr-1" />
-                      Cette tâche sera visible dans le projet sélectionné
-                    </div>
-                  )}
-                </div>
-
-                {/* ✅ RÔLE ET TEMPS ESTIMÉ */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Rôle recommandé
-                    </label>
-                    <select
-                      value={formData.roleId}
-                      onChange={(e) => setFormData(prev => ({ ...prev, roleId: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      disabled={loading || uploading}
-                    >
-                      <option value="">Tous les rôles</option>
-                      {Object.entries(rolesConfig).map(([roleId, role]) => (
-                        <option key={roleId} value={roleId}>
-                          {role.icon} {role.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Temps estimé (heures)
-                    </label>
-                    <input
-                      type="number"
-                      min="0.25"
-                      max="40"
-                      step="0.25"
-                      value={formData.estimatedHours}
-                      onChange={(e) => setFormData(prev => ({ ...prev, estimatedHours: parseFloat(e.target.value) || 1 }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      disabled={loading || uploading}
-                    />
-                  </div>
-                </div>
-
-                {/* ✅ DATE D'ÉCHÉANCE */}
+                {/* Priorité */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date d'échéance (optionnelle)
+                    Priorité
+                  </label>
+                  <select
+                    value={formData.priority}
+                    onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    disabled={loading || uploading}
+                  >
+                    <option value="low">🟢 Basse</option>
+                    <option value="medium">🟡 Moyenne</option>
+                    <option value="high">🟠 Haute</option>
+                    <option value="urgent">🔴 Urgente</option>
+                  </select>
+                </div>
+
+                {/* Difficulté */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Difficulté
+                  </label>
+                  <select
+                    value={formData.difficulty}
+                    onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    disabled={loading || uploading}
+                  >
+                    <option value="easy">⭐ Facile</option>
+                    <option value="medium">⭐⭐ Moyenne</option>
+                    <option value="hard">⭐⭐⭐ Difficile</option>
+                    <option value="expert">⭐⭐⭐⭐ Expert</option>
+                  </select>
+                </div>
+
+                {/* XP Reward */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <div className="flex items-center gap-2">
+                      <Target className="w-4 h-4" />
+                      Récompense XP
+                      <button
+                        type="button"
+                        onClick={() => setManualXP(!manualXP)}
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        {manualXP ? 'Auto' : 'Manuel'}
+                      </button>
+                    </div>
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.xpReward}
+                    onChange={(e) => setFormData(prev => ({ ...prev, xpReward: parseInt(e.target.value) || 0 }))}
+                    min="1"
+                    max="1000"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    disabled={loading || uploading || !manualXP}
+                  />
+                </div>
+
+                {/* Heures estimées */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      Heures estimées
+                    </div>
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.estimatedHours}
+                    onChange={(e) => setFormData(prev => ({ ...prev, estimatedHours: parseFloat(e.target.value) || 0 }))}
+                    min="0.5"
+                    max="100"
+                    step="0.5"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    disabled={loading || uploading}
+                  />
+                </div>
+
+                {/* Date limite */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Date limite
+                    </div>
                   </label>
                   <input
                     type="date"
@@ -588,414 +527,139 @@ const TaskForm = ({
                   />
                 </div>
 
-                {/* ✅ GESTION DES TAGS */}
+                {/* Projet rattaché */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tags (mots-clés)
-                  </label>
-                  <div className="flex gap-2 mb-3">
-                    <div className="flex-1 relative">
-                      <Hash className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        value={currentTag}
-                        onChange={(e) => setCurrentTag(e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            addTag();
-                          }
-                        }}
-                        placeholder="Ajouter un tag..."
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        disabled={loading || uploading}
-                      />
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-4 h-4" />
+                      Projet rattaché
                     </div>
-                    <button
-                      type="button"
-                      onClick={addTag}
-                      disabled={!currentTag.trim() || loading || uploading}
-                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Ajouter
-                    </button>
-                  </div>
-                  
-                  {formData.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {formData.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
-                        >
-                          #{tag}
-                          <button
-                            type="button"
-                            onClick={() => removeTag(tag)}
-                            className="text-blue-600 hover:text-blue-800"
-                            disabled={loading || uploading}
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* ✅ NOTES ADDITIONNELLES */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Notes additionnelles
                   </label>
-                  <textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Informations complémentaires, consignes spéciales, contacts..."
-                    rows={3}
+                  <select
+                    value={formData.projectId || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, projectId: e.target.value || null }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     disabled={loading || uploading}
-                  />
+                  >
+                    <option value="">Aucun projet</option>
+                    {projects.map(project => (
+                      <option key={project.id} value={project.id}>
+                        {project.title}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+              </div>
+            </div>
 
-                {/* ✅ RÉCURRENCE */}
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Calendar className="w-5 h-5 text-purple-600" />
-                    <h3 className="font-medium text-gray-900">Récurrence</h3>
-                  </div>
-                  
-                  <label className="flex items-center gap-2 mb-3">
-                    <input
-                      type="checkbox"
-                      checked={formData.isRecurring}
-                      onChange={(e) => setFormData(prev => ({ 
-                        ...prev, 
-                        isRecurring: e.target.checked,
-                        recurrenceType: e.target.checked ? 'weekly' : 'none'
-                      }))}
-                      className="rounded border-gray-300 focus:ring-blue-500"
-                      disabled={loading || uploading}
-                    />
-                    <span className="text-sm font-medium text-gray-700">
-                      Tâche récurrente
-                    </span>
-                  </label>
-
-                  {formData.isRecurring && (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Type de récurrence
-                          </label>
-                          <select
-                            value={formData.recurrenceType}
-                            onChange={(e) => setFormData(prev => ({ ...prev, recurrenceType: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            disabled={loading || uploading}
-                          >
-                            <option value="daily">Quotidienne</option>
-                            <option value="weekly">Hebdomadaire</option>
-                            <option value="monthly">Mensuelle</option>
-                            <option value="custom">Personnalisée</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Intervalle
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="365"
-                            value={formData.recurrenceInterval}
-                            onChange={(e) => setFormData(prev => ({ ...prev, recurrenceInterval: parseInt(e.target.value) || 1 }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            disabled={loading || uploading}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Date de fin (optionnelle)
-                          </label>
-                          <input
-                            type="date"
-                            value={formData.recurrenceEndDate}
-                            onChange={(e) => setFormData(prev => ({ ...prev, recurrenceEndDate: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            disabled={loading || uploading}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Nb max d'occurrences
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="100"
-                            value={formData.maxOccurrences || ''}
-                            onChange={(e) => setFormData(prev => ({ ...prev, maxOccurrences: parseInt(e.target.value) || null }))}
-                            placeholder="Illimité"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            disabled={loading || uploading}
-                          />
-                        </div>
-                      </div>
-
-                      {formData.recurrenceType !== 'none' && (
-                        <div className="p-3 bg-purple-100 border border-purple-200 rounded text-sm text-purple-800">
-                          <Info className="w-4 h-4 inline mr-1" />
-                          Cette tâche se répétera {RECURRENCE_OPTIONS[formData.recurrenceType]?.label.toLowerCase()}
-                          {formData.recurrenceInterval > 1 && ` (tous les ${formData.recurrenceInterval})`}
-                        </div>
-                      )}
-                    </div>
-                  )}
+            {/* Tags */}
+            <div className="space-y-4">
+              <label className="block text-sm font-medium text-gray-700">
+                <div className="flex items-center gap-2">
+                  <Tag className="w-4 h-4" />
+                  Tags et mots-clés
                 </div>
+              </label>
+              
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  name="currentTag"
+                  value={currentTag}
+                  onChange={(e) => setCurrentTag(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ajouter un tag..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  disabled={loading || uploading}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddTag}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  disabled={loading || uploading}
+                >
+                  Ajouter
+                </button>
+              </div>
 
-                {/* ✅ SYSTÈME VOLONTAIRES */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Users className="w-5 h-5 text-blue-600" />
-                    <h3 className="font-medium text-gray-900">Système de volontaires</h3>
-                  </div>
-                  
-                  <label className="flex items-center gap-2 mb-3">
-                    <input
-                      type="checkbox"
-                      checked={formData.isOpenToVolunteers}
-                      onChange={(e) => setFormData(prev => ({ ...prev, isOpenToVolunteers: e.target.checked }))}
-                      className="rounded border-gray-300 focus:ring-blue-500"
-                      disabled={loading || uploading}
-                    />
-                    <span className="text-sm font-medium text-gray-700">
-                      Ouvrir aux volontaires
-                    </span>
-                  </label>
-
-                  {formData.isOpenToVolunteers && (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Mode d'acceptation
-                        </label>
-                        <select
-                          value={formData.volunteerAcceptanceMode}
-                          onChange={(e) => setFormData(prev => ({ ...prev, volunteerAcceptanceMode: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                          disabled={loading || uploading}
-                        >
-                          {Object.entries(VOLUNTEER_MODES).map(([key, mode]) => (
-                            <option key={key} value={key}>
-                              {mode.label}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {VOLUNTEER_MODES[formData.volunteerAcceptanceMode]?.description}
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Nombre max de volontaires (optionnel)
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="20"
-                          value={formData.maxVolunteers || ''}
-                          onChange={(e) => setFormData(prev => ({ ...prev, maxVolunteers: parseInt(e.target.value) || null }))}
-                          placeholder="Illimité"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                          disabled={loading || uploading}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Message pour les volontaires
-                        </label>
-                        <textarea
-                          value={formData.volunteerMessage}
-                          onChange={(e) => setFormData(prev => ({ ...prev, volunteerMessage: e.target.value }))}
-                          placeholder="Message d'accueil ou instructions spéciales pour les volontaires..."
-                          rows={2}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                          disabled={loading || uploading}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* ✅ RÉCOMPENSE XP */}
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Trophy className="w-5 h-5 text-yellow-600" />
-                      <h3 className="font-medium text-gray-900">Récompense XP</h3>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setManualXP(!manualXP)}
-                      className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                        manualXP 
-                          ? 'bg-yellow-500 text-white' 
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
-                      disabled={loading || uploading}
+              {formData.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {formData.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
                     >
-                      {manualXP ? 'Manuel' : 'Auto'}
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="number"
-                      min="1"
-                      max="200"
-                      value={formData.xpReward}
-                      onChange={(e) => setFormData(prev => ({ ...prev, xpReward: parseInt(e.target.value) || 0 }))}
-                      disabled={!manualXP || loading || uploading}
-                      className={`flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                        !manualXP ? 'bg-gray-100 text-gray-500' : ''
-                      }`}
-                    />
-                    <div className="text-yellow-600 font-bold text-lg">
-                      {formData.xpReward} XP
-                    </div>
-                  </div>
-
-                  {!manualXP && (
-                    <p className="text-xs text-yellow-700 mt-2">
-                      XP calculés automatiquement selon difficulté (×{
-                        { easy: 0.8, medium: 1, hard: 1.5, expert: 2 }[formData.difficulty] || 1
-                      } difficulté, ×{
-                        { low: 1, medium: 1.2, high: 1.5, urgent: 2 }[formData.priority] || 1.2
-                      } priorité{formData.isRecurring && formData.recurrenceType !== 'none' 
-                        ? ` ×${RECURRENCE_OPTIONS[formData.recurrenceType]?.multiplier} récurrence` 
-                        : ''
-                      })
-                    </p>
-                  )}
-                </div>
-
-                {/* ✅ UPLOAD MÉDIA */}
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Upload className="w-5 h-5 text-blue-600" />
-                    <h3 className="font-medium text-gray-900">
-                      Tutoriel ou exemple (optionnel)
-                    </h3>
-                  </div>
-                  
-                  <p className="text-sm text-gray-600 mb-4">
-                    Ajoutez une image ou vidéo pour aider à comprendre la tâche (tutoriel, exemple, référence...)
-                  </p>
-
-                  {!selectedFile ? (
-                    <div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*,video/*"
-                        onChange={handleFileChange}
-                        className="hidden"
-                        disabled={loading || uploading}
-                      />
+                      {tag}
                       <button
                         type="button"
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => handleRemoveTag(tag)}
+                        className="text-blue-600 hover:text-blue-800"
                         disabled={loading || uploading}
-                        className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50"
                       >
-                        <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-600">
-                          Cliquez pour sélectionner une image ou vidéo
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Images jusqu'à 10MB, vidéos jusqu'à 100MB
-                        </p>
+                        <X className="w-3 h-3" />
                       </button>
-                    </div>
-                  ) : (
-                    <FilePreview 
-                      file={selectedFile} 
-                      onRemove={() => {
-                        setSelectedFile(null);
-                        if (fileInputRef.current) {
-                          fileInputRef.current.value = '';
-                        }
-                      }} 
-                    />
-                  )}
+                    </span>
+                  ))}
                 </div>
+              )}
+            </div>
 
-                {/* ✅ AFFICHAGE ERREUR */}
-                {error && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                      <p className="text-red-700 text-sm font-medium">
-                        {error}
-                      </p>
-                    </div>
-                  </div>
+            {/* Notes supplémentaires */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Notes supplémentaires (optionnel)
+              </label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Informations complémentaires, contexte, références..."
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                disabled={loading || uploading}
+              />
+            </div>
+
+            {/* Messages d'erreur */}
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <span className="text-red-800">{error}</span>
+              </div>
+            )}
+
+            {/* Boutons d'action */}
+            <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={loading || uploading}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={loading || uploading || !formData.title.trim() || !formData.description.trim()}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {loading || uploading ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin" />
+                    {uploading ? 'Upload en cours...' : (initialData ? 'Modification...' : 'Création...')}
+                  </>
+                ) : (
+                  <>
+                    {initialData ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    {initialData ? 'Modifier la tâche' : 'Créer la tâche'}
+                  </>
                 )}
-              </div>
+              </button>
+            </div>
 
-              {/* ✅ BOUTONS D'ACTION */}
-              <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    disabled={loading || uploading}
-                    className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Annuler
-                  </button>
-                  
-                  <div className="flex items-center gap-3">
-                    {uploading && (
-                      <div className="text-sm text-gray-600">
-                        Upload en cours...
-                      </div>
-                    )}
-                    
-                    <button
-                      type="submit"
-                      disabled={loading || uploading || !formData.title.trim() || !formData.description.trim()}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      {loading ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          {initialData ? 'Modification...' : 'Création...'}
-                        </>
-                      ) : (
-                        <>
-                          <Star className="w-4 h-4" />
-                          {initialData ? 'Modifier la tâche' : 'Créer la tâche'}
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </form>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </form>
+        </div>
+      </div>
+    </div>
   );
 };
 
