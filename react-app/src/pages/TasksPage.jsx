@@ -50,22 +50,22 @@ const TasksPage = () => {
   const [submitting, setSubmitting] = useState(false);
 
   /**
-   * 🔄 CHARGER ET RÉPARTIR LES TÂCHES SELON VOS CRITÈRES EXACTS
+   * 🔄 CHARGER ET RÉPARTIR TOUTES LES TÂCHES (ABSOLUMENT TOUTES)
    */
   const loadTasks = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔄 Chargement et répartition des tâches...');
+      console.log('🔄 Chargement de TOUTES les tâches de la base de données...');
 
       if (!user?.uid) {
         console.warn('⚠️ Utilisateur non connecté');
         return;
       }
 
-      // Récupérer toutes les tâches
-      const allTasks = await taskService.getAllTasks();
-      console.log(`📊 Total tâches récupérées: ${allTasks.length}`);
+      // ✅ RÉCUPÉRER ABSOLUMENT TOUTES LES TÂCHES SANS FILTRE
+      const allTasks = await taskService.getAllTasksFromDatabase(); // Nouvelle méthode pour TOUT récupérer
+      console.log(`📊 TOTAL de toutes les tâches dans la base: ${allTasks.length}`);
 
       // 🎯 LOGIQUE DE RÉPARTITION SELON VOS CRITÈRES EXACTS
       const myTasksArray = [];        // Tâches qui me sont assignées (pas créées par moi)
@@ -79,30 +79,27 @@ const TasksPage = () => {
         // Vérifier si la tâche a des assignés
         const hasAssignees = Array.isArray(task.assignedTo) && task.assignedTo.length > 0;
         
-        // Vérifier si je suis le créateur (pour exclure de "mes tâches")
+        // Vérifier si je suis le créateur
         const isMyCreation = task.createdBy === user.uid;
 
-        if (isAssignedToMe && !isMyCreation) {
-          // ✅ MES TÂCHES = Tâches qui me sont assignées (PAS celles que j'ai créées)
+        if (isAssignedToMe) {
+          // ✅ MES TÂCHES = Tâches qui me sont assignées (même si je les ai créées)
           myTasksArray.push(task);
           
-        } else if (!hasAssignees && (task.status === 'todo' || task.status === 'open')) {
-          // ✅ TÂCHES DISPONIBLES = Non assignées et ouvertes à la participation
+        } else if (!hasAssignees || task.status === 'todo' || task.status === 'open') {
+          // ✅ TÂCHES DISPONIBLES = Non assignées OU ouvertes à participation
           availableTasksArray.push(task);
           
-        } else if (hasAssignees && !isAssignedToMe) {
-          // ✅ AUTRES TÂCHES = Assignées à d'autres utilisateurs
+        } else {
+          // ✅ AUTRES TÂCHES = Toutes les autres (assignées à d'autres, créées par d'autres, etc.)
           otherTasksArray.push(task);
         }
-        
-        // Les tâches que j'ai créées mais qui ne me sont pas assignées vont dans "disponibles" ou "autres"
-        // selon qu'elles sont assignées ou non
       });
 
       // Trier par date de création (plus récentes d'abord)
       const sortByDate = (a, b) => {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || Date.now());
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || Date.now());
         return dateB - dateA;
       };
 
@@ -112,14 +109,19 @@ const TasksPage = () => {
       
       setLastUpdateTime(Date.now());
       
-      console.log('✅ Répartition des tâches terminée:', {
+      console.log('✅ Répartition complète des tâches:', {
+        'Total dans la base': allTasks.length,
         'Mes tâches (assignées à moi)': myTasksArray.length,
-        'Disponibles (non assignées)': availableTasksArray.length,
+        'Disponibles (non assignées/ouvertes)': availableTasksArray.length,
         'Autres (assignées à autres)': otherTasksArray.length,
-        'Détail mes tâches': myTasksArray.map(t => `${t.title} (créé par: ${t.createdBy}, assigné: ${t.assignedTo})`),
-        'Détail disponibles': availableTasksArray.map(t => `${t.title} (status: ${t.status}, assignés: ${t.assignedTo?.length || 0})`),
-        'Détail autres': otherTasksArray.map(t => `${t.title} (assigné à: ${t.assignedTo})`),
+        'Vérification': myTasksArray.length + availableTasksArray.length + otherTasksArray.length
       });
+
+      // Afficher quelques exemples pour debug
+      console.log('📋 Exemples de répartition:');
+      console.log('Mes tâches:', myTasksArray.slice(0, 3).map(t => `"${t.title}" (créateur: ${t.createdBy})`));
+      console.log('Disponibles:', availableTasksArray.slice(0, 3).map(t => `"${t.title}" (assignés: ${t.assignedTo?.length || 0})`));
+      console.log('Autres:', otherTasksArray.slice(0, 3).map(t => `"${t.title}" (assignés: ${t.assignedTo?.join(', ') || 'aucun'})`));
 
     } catch (error) {
       console.error('❌ Erreur chargement tâches:', error);
