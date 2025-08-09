@@ -1,17 +1,18 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES COMPLÈTES AVEC IMPORTS CORRIGÉS - VERSION ORIGINALE QUI MARCHAIT
+// ROUTES COMPLÈTES AVEC NOUVELLE ROUTE DEMO CLEANER
 // ==========================================
 
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '../shared/stores/authStore.js'
+import { ROUTES } from '../core/constants.js'
 
 // Pages principales
 import Login from '../pages/Login.jsx'
 import Dashboard from '../pages/Dashboard.jsx'
 import NotFound from '../pages/NotFound.jsx'
-import AnalyticsPage from '../pages/AnalyticsPage.jsx'  // ✅ CORRIGÉ : AnalyticsPage au lieu d'Analytics
+import Analytics from '../pages/Analytics.jsx'
 import TeamPage from '../pages/TeamPage.jsx'
 
 // Pages existantes
@@ -37,20 +38,12 @@ import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
 // 🧹 NOUVELLE PAGE NETTOYAGE DONNÉES DÉMO
 import DemoDataCleanerPage from '../pages/admin/DemoDataCleanerPage.jsx'
 
-// Components utilisés comme pages (fallback) - IMPORTS SÉCURISÉS
-// SUPPRESSION DES IMPORTS QUI N'EXISTENT PAS POUR CORRIGER LE BUILD
-// import TaskList from '../modules/tasks/TaskList.jsx'
-// import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
-// import Leaderboard from '../components/gamification/Leaderboard.jsx'
-// import ProjectDashboard from '../components/projects/ProjectDashboard.jsx'
-// import Profile from '../components/profile/Profile.jsx'
-
-// Composants fallback temporaires pour éviter les erreurs de build
-const TaskList = () => <div className="p-8 text-center">TaskList - En cours de développement</div>
-const BadgeCollection = () => <div className="p-8 text-center">BadgeCollection - En cours de développement</div>
-const Leaderboard = () => <div className="p-8 text-center">Leaderboard - En cours de développement</div>
-const ProjectDashboard = () => <div className="p-8 text-center">ProjectDashboard - En cours de développement</div>
-const Profile = () => <div className="p-8 text-center">Profile - En cours de développement</div>
+// Components utilisés comme pages (fallback)
+import TaskList from '../modules/tasks/TaskList.jsx'
+import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
+import Leaderboard from '../components/gamification/Leaderboard.jsx'
+import ProjectDashboard from '../components/projects/ProjectDashboard.jsx'
+import Profile from '../components/profile/Profile.jsx'
 
 /**
  * 🔐 COMPOSANT DE PROTECTION DES ROUTES
@@ -89,12 +82,12 @@ export const AppRoutes = () => {
       {/* Route de connexion publique */}
       <Route 
         path="/login" 
-        element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
+        element={user ? <Navigate to={ROUTES.DASHBOARD} replace /> : <Login />} 
       />
       
       {/* Routes principales protégées */}
       <Route 
-        path="/dashboard" 
+        path={ROUTES.DASHBOARD} 
         element={
           <ProtectedRoute>
             <Dashboard />
@@ -103,26 +96,7 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path="/analytics" 
-        element={
-          <ProtectedRoute>
-            <AnalyticsPage />
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path="/team" 
-        element={
-          <ProtectedRoute>
-            <TeamPage />
-          </ProtectedRoute>
-        } 
-      />
-      
-      {/* Routes de gestion */}
-      <Route 
-        path="/tasks" 
+        path={ROUTES.TASKS} 
         element={
           <ProtectedRoute>
             <TasksPage />
@@ -131,7 +105,7 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path="/projects" 
+        path={ROUTES.PROJECTS} 
         element={
           <ProtectedRoute>
             <ProjectsPage />
@@ -139,9 +113,17 @@ export const AppRoutes = () => {
         } 
       />
       
-      {/* Routes gamification */}
       <Route 
-        path="/gamification" 
+        path={ROUTES.ANALYTICS} 
+        element={
+          <ProtectedRoute>
+            <Analytics />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.GAMIFICATION} 
         element={
           <ProtectedRoute>
             <GamificationPage />
@@ -150,7 +132,7 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path="/badges" 
+        path={ROUTES.BADGES} 
         element={
           <ProtectedRoute>
             <BadgesPage />
@@ -159,16 +141,7 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path="/rewards" 
-        element={
-          <ProtectedRoute>
-            <RewardsPage />
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path="/leaderboard" 
+        path={ROUTES.LEADERBOARD} 
         element={
           <ProtectedRoute>
             <Leaderboard />
@@ -176,9 +149,17 @@ export const AppRoutes = () => {
         } 
       />
       
-      {/* Routes utilisateur */}
       <Route 
-        path="/users" 
+        path={ROUTES.TEAM} 
+        element={
+          <ProtectedRoute>
+            <TeamPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.USERS} 
         element={
           <ProtectedRoute>
             <UsersPage />
@@ -187,35 +168,16 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path="/profile" 
+        path={ROUTES.ONBOARDING} 
         element={
           <ProtectedRoute>
-            <ProfilePage />
+            <OnboardingPage />
           </ProtectedRoute>
         } 
       />
       
       <Route 
-        path="/profile-component" 
-        element={
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path="/settings" 
-        element={
-          <ProtectedRoute>
-            <SettingsPage />
-          </ProtectedRoute>
-        } 
-      />
-      
-      {/* Routes outils */}
-      <Route 
-        path="/time-track" 
+        path={ROUTES.TIMETRACK} 
         element={
           <ProtectedRoute>
             <TimeTrackPage />
@@ -224,17 +186,35 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path="/onboarding" 
+        path={ROUTES.PROFILE} 
         element={
           <ProtectedRoute>
-            <OnboardingPage />
+            <ProfilePage />
           </ProtectedRoute>
         } 
       />
       
-      {/* Routes admin */}
       <Route 
-        path="/admin/task-validation" 
+        path={ROUTES.SETTINGS} 
+        element={
+          <ProtectedRoute>
+            <SettingsPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.REWARDS} 
+        element={
+          <ProtectedRoute>
+            <RewardsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* ✅ ROUTES ADMIN COMPLÈTES */}
+      <Route 
+        path={ROUTES.ADMIN_TASK_VALIDATION} 
         element={
           <ProtectedRoute>
             <AdminTaskValidationPage />
@@ -243,60 +223,61 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path="/admin/test" 
+        path={ROUTES.ADMIN_COMPLETE_TEST} 
         element={
           <ProtectedRoute>
             <CompleteAdminTestPage />
           </ProtectedRoute>
         } 
       />
-      
+
       <Route 
-        path="/admin/roles" 
+        path={ROUTES.ADMIN_ROLE_PERMISSIONS} 
         element={
           <ProtectedRoute>
             <AdminRolePermissionsPage />
           </ProtectedRoute>
         } 
       />
-      
+
       <Route 
-        path="/admin/users" 
+        path={ROUTES.ADMIN_USERS} 
         element={
           <ProtectedRoute>
             <AdminUsersPage />
           </ProtectedRoute>
         } 
       />
-      
+
       <Route 
-        path="/admin/analytics" 
+        path={ROUTES.ADMIN_ANALYTICS} 
         element={
           <ProtectedRoute>
             <AdminAnalyticsPage />
           </ProtectedRoute>
         } 
       />
-      
+
       <Route 
-        path="/admin/settings" 
+        path={ROUTES.ADMIN_SETTINGS} 
         element={
           <ProtectedRoute>
             <AdminSettingsPage />
           </ProtectedRoute>
         } 
       />
-      
+
+      {/* 🧹 NOUVELLE ROUTE NETTOYAGE DONNÉES DÉMO */}
       <Route 
-        path="/admin/demo-cleaner" 
+        path={ROUTES.ADMIN_DEMO_CLEANER} 
         element={
           <ProtectedRoute>
             <DemoDataCleanerPage />
           </ProtectedRoute>
         } 
       />
-      
-      {/* Routes composants (fallback) */}
+
+      {/* Routes fallback pour compatibilité */}
       <Route 
         path="/tasks-list" 
         element={
@@ -316,6 +297,15 @@ export const AppRoutes = () => {
       />
       
       <Route 
+        path="/profile-component" 
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
         path="/project-dashboard" 
         element={
           <ProtectedRoute>
@@ -323,18 +313,10 @@ export const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
-      
-      {/* Route racine */}
-      <Route 
-        path="/" 
-        element={<Navigate to="/dashboard" replace />} 
-      />
-      
-      {/* Route 404 */}
-      <Route 
-        path="*" 
-        element={<NotFound />} 
-      />
+
+      {/* Routes par défaut */}
+      <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   )
 }
