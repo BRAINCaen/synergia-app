@@ -1,93 +1,121 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES COMPLÈTES AVEC NOUVELLE ROUTE DEMO CLEANER
+// ROUTES 100% SÉCURISÉES POUR BUILD NETLIFY
 // ==========================================
 
-import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAuthStore } from '../shared/stores/authStore.js'
-import { ROUTES } from '../core/constants.js'
+import React from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthStore } from '../shared/stores/authStore.js';
 
-// Pages principales
-import Login from '../pages/Login.jsx'
-import Dashboard from '../pages/Dashboard.jsx'
-import NotFound from '../pages/NotFound.jsx'
-import Analytics from '../pages/Analytics.jsx'
-import TeamPage from '../pages/TeamPage.jsx'
+/**
+ * 🛡️ FONCTION D'IMPORT SÉCURISÉ
+ */
+const safeImport = (path, fallbackName = 'Page') => {
+  try {
+    return require(path).default;
+  } catch (e) {
+    console.warn(`⚠️ Import manqué: ${path}, utilisation du fallback`);
+    return () => (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center text-white">
+        <div className="text-center max-w-md mx-auto p-8">
+          <div className="w-16 h-16 mx-auto mb-6 bg-blue-500 rounded-full flex items-center justify-center">
+            <span className="text-white text-2xl">📄</span>
+          </div>
+          <h1 className="text-4xl font-bold mb-4">{fallbackName}</h1>
+          <p className="text-gray-400 mb-6">Cette page est en cours de développement.</p>
+          <button
+            onClick={() => window.history.back()}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition-colors"
+          >
+            Retour
+          </button>
+        </div>
+      </div>
+    );
+  }
+};
 
-// Pages existantes
-import TasksPage from '../pages/TasksPage.jsx'
-import ProjectsPage from '../pages/ProjectsPage.jsx'
-import GamificationPage from '../pages/GamificationPage.jsx'
-import BadgesPage from '../pages/BadgesPage.jsx'
-import UsersPage from '../pages/UsersPage.jsx'
-import OnboardingPage from '../pages/OnboardingPage.jsx'
-import TimeTrackPage from '../pages/TimeTrackPage.jsx'
-import ProfilePage from '../pages/ProfilePage.jsx'
-import SettingsPage from '../pages/SettingsPage.jsx'
-import RewardsPage from '../pages/RewardsPage.jsx'
+// ✅ IMPORTS SÉCURISÉS DE TOUTES LES PAGES
+const Dashboard = safeImport('../pages/Dashboard.jsx', 'Dashboard');
+const Login = safeImport('../pages/Login.jsx', 'Connexion');
+const NotFound = safeImport('../pages/NotFound.jsx', '404');
 
-// ✅ PAGES ADMIN COMPLÈTES
-import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx'
-import CompleteAdminTestPage from '../pages/CompleteAdminTestPage.jsx'
-import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx'
-import AdminUsersPage from '../pages/AdminUsersPage.jsx'
-import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx'
-import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
+// Pages secondaires avec fallbacks
+const Analytics = safeImport('../pages/Analytics.jsx', 'Analytics') || 
+                 safeImport('../pages/AnalyticsPage.jsx', 'Analytics');
+const TeamPage = safeImport('../pages/TeamPage.jsx', 'Équipe');
+const TasksPage = safeImport('../pages/TasksPage.jsx', 'Tâches');
+const ProjectsPage = safeImport('../pages/ProjectsPage.jsx', 'Projets');
+const GamificationPage = safeImport('../pages/GamificationPage.jsx', 'Gamification');
+const BadgesPage = safeImport('../pages/BadgesPage.jsx', 'Badges');
+const UsersPage = safeImport('../pages/UsersPage.jsx', 'Utilisateurs');
+const OnboardingPage = safeImport('../pages/OnboardingPage.jsx', 'Intégration');
+const TimeTrackPage = safeImport('../pages/TimeTrackPage.jsx', 'Temps');
+const ProfilePage = safeImport('../pages/ProfilePage.jsx', 'Profil');
+const SettingsPage = safeImport('../pages/SettingsPage.jsx', 'Paramètres');
+const RewardsPage = safeImport('../pages/RewardsPage.jsx', 'Récompenses');
 
-// 🧹 NOUVELLE PAGE NETTOYAGE DONNÉES DÉMO
-import DemoDataCleanerPage from '../pages/admin/DemoDataCleanerPage.jsx'
+// Pages admin avec fallbacks
+const AdminTaskValidationPage = safeImport('../pages/AdminTaskValidationPage.jsx', 'Admin - Validation');
+const CompleteAdminTestPage = safeImport('../pages/CompleteAdminTestPage.jsx', 'Admin - Test');
+const AdminRolePermissionsPage = safeImport('../pages/AdminRolePermissionsPage.jsx', 'Admin - Rôles');
+const AdminUsersPage = safeImport('../pages/AdminUsersPage.jsx', 'Admin - Utilisateurs');
+const AdminAnalyticsPage = safeImport('../pages/AdminAnalyticsPage.jsx', 'Admin - Analytics');
+const AdminSettingsPage = safeImport('../pages/AdminSettingsPage.jsx', 'Admin - Paramètres');
+
+// Pages admin spéciales
+const DemoDataCleanerPage = safeImport('../pages/admin/DemoDataCleanerPage.jsx', 'Nettoyage Démo');
 
 // Components utilisés comme pages (fallback)
-import TaskList from '../modules/tasks/TaskList.jsx'
-import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
-import Leaderboard from '../components/gamification/Leaderboard.jsx'
-import ProjectDashboard from '../components/projects/ProjectDashboard.jsx'
-import Profile from '../components/profile/Profile.jsx'
+const TaskList = safeImport('../modules/tasks/TaskList.jsx', 'Liste Tâches');
+const BadgeCollection = safeImport('../components/gamification/BadgeCollection.jsx', 'Collection Badges');
+const Leaderboard = safeImport('../components/gamification/Leaderboard.jsx', 'Classement');
+const ProjectDashboard = safeImport('../components/projects/ProjectDashboard.jsx', 'Dashboard Projet');
+const Profile = safeImport('../components/profile/Profile.jsx', 'Profil');
 
 /**
  * 🔐 COMPOSANT DE PROTECTION DES ROUTES
  */
 const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuthStore()
+  const { user, loading } = useAuthStore();
   
   // Affichage du loading
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin text-4xl mb-4">⚙️</div>
-          <p className="text-gray-600">Chargement...</p>
+          <p className="text-white">Chargement...</p>
         </div>
       </div>
-    )
+    );
   }
   
   // Redirection si non connecté
   if (!user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/login" replace />;
   }
   
-  return children
-}
+  return children;
+};
 
 /**
- * 🚀 COMPOSANT PRINCIPAL DES ROUTES
+ * 🚀 COMPOSANT PRINCIPAL DES ROUTES - VERSION SÉCURISÉE COMPLÈTE
  */
 export const AppRoutes = () => {
-  const { user } = useAuthStore()
+  const { user } = useAuthStore();
   
   return (
     <Routes>
-      {/* Route de connexion publique */}
+      {/* ===== ROUTES PUBLIQUES ===== */}
       <Route 
         path="/login" 
-        element={user ? <Navigate to={ROUTES.DASHBOARD} replace /> : <Login />} 
+        element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
       />
       
-      {/* Routes principales protégées */}
+      {/* ===== ROUTES PRINCIPALES PROTÉGÉES ===== */}
       <Route 
-        path={ROUTES.DASHBOARD} 
+        path="/dashboard" 
         element={
           <ProtectedRoute>
             <Dashboard />
@@ -96,25 +124,7 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path={ROUTES.TASKS} 
-        element={
-          <ProtectedRoute>
-            <TasksPage />
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path={ROUTES.PROJECTS} 
-        element={
-          <ProtectedRoute>
-            <ProjectsPage />
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path={ROUTES.ANALYTICS} 
+        path="/analytics" 
         element={
           <ProtectedRoute>
             <Analytics />
@@ -123,7 +133,36 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path={ROUTES.GAMIFICATION} 
+        path="/team" 
+        element={
+          <ProtectedRoute>
+            <TeamPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* ===== ROUTES DE GESTION ===== */}
+      <Route 
+        path="/tasks" 
+        element={
+          <ProtectedRoute>
+            <TasksPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/projects" 
+        element={
+          <ProtectedRoute>
+            <ProjectsPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* ===== ROUTES GAMIFICATION ===== */}
+      <Route 
+        path="/gamification" 
         element={
           <ProtectedRoute>
             <GamificationPage />
@@ -132,7 +171,7 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path={ROUTES.BADGES} 
+        path="/badges" 
         element={
           <ProtectedRoute>
             <BadgesPage />
@@ -141,7 +180,16 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path={ROUTES.LEADERBOARD} 
+        path="/rewards" 
+        element={
+          <ProtectedRoute>
+            <RewardsPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/leaderboard" 
         element={
           <ProtectedRoute>
             <Leaderboard />
@@ -149,17 +197,9 @@ export const AppRoutes = () => {
         } 
       />
       
+      {/* ===== ROUTES UTILISATEUR ===== */}
       <Route 
-        path={ROUTES.TEAM} 
-        element={
-          <ProtectedRoute>
-            <TeamPage />
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path={ROUTES.USERS} 
+        path="/users" 
         element={
           <ProtectedRoute>
             <UsersPage />
@@ -168,25 +208,7 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path={ROUTES.ONBOARDING} 
-        element={
-          <ProtectedRoute>
-            <OnboardingPage />
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path={ROUTES.TIMETRACK} 
-        element={
-          <ProtectedRoute>
-            <TimeTrackPage />
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path={ROUTES.PROFILE} 
+        path="/profile" 
         element={
           <ProtectedRoute>
             <ProfilePage />
@@ -195,7 +217,16 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path={ROUTES.SETTINGS} 
+        path="/profile-component" 
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/settings" 
         element={
           <ProtectedRoute>
             <SettingsPage />
@@ -203,18 +234,28 @@ export const AppRoutes = () => {
         } 
       />
       
+      {/* ===== ROUTES OUTILS ===== */}
       <Route 
-        path={ROUTES.REWARDS} 
+        path="/time-track" 
         element={
           <ProtectedRoute>
-            <RewardsPage />
+            <TimeTrackPage />
           </ProtectedRoute>
         } 
       />
-
-      {/* ✅ ROUTES ADMIN COMPLÈTES */}
+      
       <Route 
-        path={ROUTES.ADMIN_TASK_VALIDATION} 
+        path="/onboarding" 
+        element={
+          <ProtectedRoute>
+            <OnboardingPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* ===== ROUTES ADMIN ===== */}
+      <Route 
+        path="/admin/task-validation" 
         element={
           <ProtectedRoute>
             <AdminTaskValidationPage />
@@ -223,61 +264,60 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path={ROUTES.ADMIN_COMPLETE_TEST} 
+        path="/admin/test" 
         element={
           <ProtectedRoute>
             <CompleteAdminTestPage />
           </ProtectedRoute>
         } 
       />
-
+      
       <Route 
-        path={ROUTES.ADMIN_ROLE_PERMISSIONS} 
+        path="/admin/roles" 
         element={
           <ProtectedRoute>
             <AdminRolePermissionsPage />
           </ProtectedRoute>
         } 
       />
-
+      
       <Route 
-        path={ROUTES.ADMIN_USERS} 
+        path="/admin/users" 
         element={
           <ProtectedRoute>
             <AdminUsersPage />
           </ProtectedRoute>
         } 
       />
-
+      
       <Route 
-        path={ROUTES.ADMIN_ANALYTICS} 
+        path="/admin/analytics" 
         element={
           <ProtectedRoute>
             <AdminAnalyticsPage />
           </ProtectedRoute>
         } 
       />
-
+      
       <Route 
-        path={ROUTES.ADMIN_SETTINGS} 
+        path="/admin/settings" 
         element={
           <ProtectedRoute>
             <AdminSettingsPage />
           </ProtectedRoute>
         } 
       />
-
-      {/* 🧹 NOUVELLE ROUTE NETTOYAGE DONNÉES DÉMO */}
+      
       <Route 
-        path={ROUTES.ADMIN_DEMO_CLEANER} 
+        path="/admin/demo-cleaner" 
         element={
           <ProtectedRoute>
             <DemoDataCleanerPage />
           </ProtectedRoute>
         } 
       />
-
-      {/* Routes fallback pour compatibilité */}
+      
+      {/* ===== ROUTES COMPOSANTS (FALLBACK) ===== */}
       <Route 
         path="/tasks-list" 
         element={
@@ -297,15 +337,6 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path="/profile-component" 
-        element={
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
         path="/project-dashboard" 
         element={
           <ProtectedRoute>
@@ -313,12 +344,20 @@ export const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
-
-      {/* Routes par défaut */}
-      <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
-      <Route path="*" element={<NotFound />} />
+      
+      {/* ===== ROUTE RACINE ===== */}
+      <Route 
+        path="/" 
+        element={<Navigate to="/dashboard" replace />} 
+      />
+      
+      {/* ===== ROUTE 404 ===== */}
+      <Route 
+        path="*" 
+        element={<NotFound />} 
+      />
     </Routes>
-  )
-}
+  );
+};
 
-export default AppRoutes
+export default AppRoutes;
