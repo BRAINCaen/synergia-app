@@ -332,4 +332,329 @@ export const SYNERGIA_BADGE_DEFINITIONS = {
   efficiency_champion: {
     id: 'efficiency_champion',
     name: 'Champion d\'Efficacité',
-    description: 'Optimisation constante et mesurable des
+    description: 'Optimisation constante et mesurable des processus',
+    icon: '🚀',
+    rarity: 'uncommon',
+    xpReward: 90,
+    category: 'performance',
+    requirements: {
+      efficiencyGains: 25,
+      processesOptimized: 8,
+      timeReduction: 20
+    },
+    checkCondition: (userStats) => {
+      const perfStats = userStats.performance || {};
+      return perfStats.efficiencyGains >= 25 && 
+             perfStats.processesOptimized >= 8;
+    }
+  },
+
+  innovation_pioneer: {
+    id: 'innovation_pioneer',
+    name: 'Pionnier de l\'Innovation',
+    description: 'Idées révolutionnaires qui transforment fondamentalement l\'organisation',
+    icon: '💡',
+    rarity: 'legendary',
+    xpReward: 600,
+    category: 'performance',
+    requirements: {
+      innovationsImplemented: 3,
+      impactScore: 90,
+      adoptionRate: 80
+    },
+    checkCondition: (userStats) => {
+      const perfStats = userStats.performance || {};
+      return perfStats.innovationsImplemented >= 3 && 
+             perfStats.impactScore >= 90;
+    }
+  }
+};
+
+/**
+ * 🏆 SERVICE DE BADGES SPÉCIALISÉS SYNERGIA
+ */
+class SynergiaBadgeService {
+  constructor() {
+    this.badgeDefinitions = SYNERGIA_BADGE_DEFINITIONS;
+    console.log('🏆 Service de badges Synergia initialisé avec', Object.keys(this.badgeDefinitions).length, 'badges');
+  }
+
+  /**
+   * 🔍 VÉRIFIER ET DÉBLOQUER LES BADGES D'UN UTILISATEUR
+   */
+  async checkAndUnlockBadges(userId, activityContext = {}) {
+    try {
+      console.log('🔍 Vérification badges Synergia pour:', userId);
+
+      // Récupérer les statistiques complètes de l'utilisateur
+      const userStats = await firebaseDataSyncService.getUserCompleteStats(userId);
+      if (!userStats) {
+        console.warn('⚠️ Statistiques utilisateur introuvables');
+        return { success: false, newBadges: [], errors: ['Utilisateur non trouvé'] };
+      }
+
+      // Récupérer les badges actuels
+      const currentBadges = userStats.gamification?.badges || [];
+      const currentBadgeIds = currentBadges.map(badge => badge.id);
+
+      const newlyUnlocked = [];
+      const errors = [];
+
+      // Vérifier chaque badge
+      for (const [badgeId, badgeDefinition] of Object.entries(this.badgeDefinitions)) {
+        // Skip si déjà débloqué
+        if (currentBadgeIds.includes(badgeId)) {
+          continue;
+        }
+
+        try {
+          // Vérifier la condition avec le contexte d'activité
+          const contextualStats = this.enrichStatsWithContext(userStats, activityContext);
+          
+          if (badgeDefinition.checkCondition(contextualStats)) {
+            const unlockedBadge = {
+              id: badgeId,
+              name: badgeDefinition.name,
+              description: badgeDefinition.description,
+              icon: badgeDefinition.icon,
+              rarity: badgeDefinition.rarity,
+              xpReward: badgeDefinition.xpReward,
+              category: badgeDefinition.category,
+              unlockedAt: new Date().toISOString(),
+              unlockedContext: activityContext.trigger || 'automatic_check'
+            };
+
+            newlyUnlocked.push(unlockedBadge);
+          }
+        } catch (conditionError) {
+          console.error(`❌ Erreur vérification badge ${badgeId}:`, conditionError);
+          errors.push(`Erreur badge ${badgeId}: ${conditionError.message}`);
+        }
+      }
+
+      // Sauvegarder les nouveaux badges
+      if (newlyUnlocked.length > 0) {
+        const saveResult = await this.saveBadgesToFirebase(userId, newlyUnlocked);
+        if (!saveResult.success) {
+          errors.push('Erreur sauvegarde badges');
+        }
+      }
+
+      console.log(`✅ Vérification terminée: ${newlyUnlocked.length} nouveaux badges`);
+
+      return {
+        success: true,
+        newBadges: newlyUnlocked,
+        totalNewBadges: newlyUnlocked.length,
+        errors
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur vérification badges Synergia:', error);
+      return {
+        success: false,
+        newBadges: [],
+        errors: [error.message]
+      };
+    }
+  }
+
+  /**
+   * 🎯 ENRICHIR LES STATS AVEC LE CONTEXTE D'ACTIVITÉ
+   */
+  enrichStatsWithContext(userStats, activityContext) {
+    const enrichedStats = { ...userStats };
+
+    // Ajouter des statistiques temporaires basées sur le contexte
+    if (activityContext.trigger === 'task_completed') {
+      const roleStats = enrichedStats.roles?.[activityContext.roleId] || {};
+      roleStats.tasksCompleted = (roleStats.tasksCompleted || 0) + 1;
+      
+      if (!enrichedStats.roles) enrichedStats.roles = {};
+      enrichedStats.roles[activityContext.roleId] = roleStats;
+    }
+
+    if (activityContext.trigger === 'game_animated') {
+      const activityStats = enrichedStats.activities?.[activityContext.activityType] || {};
+      activityStats.gamesAnimated = (activityStats.gamesAnimated || 0) + 1;
+      
+      if (!enrichedStats.activities) enrichedStats.activities = {};
+      enrichedStats.activities[activityContext.activityType] = activityStats;
+    }
+
+    return enrichedStats;
+  }
+
+  /**
+   * 💾 SAUVEGARDER LES BADGES DANS FIREBASE
+   */
+  async saveBadgesToFirebase(userId, newBadges) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      
+      // Calculer l'XP total des nouveaux badges
+      const totalXpFromNewBadges = newBadges.reduce((total, badge) => 
+        total + (badge.xpReward || 0), 0);
+
+      const updates = {
+        'gamification.badges': arrayUnion(...newBadges),
+        'gamification.totalBadgeXp': (await this.getCurrentBadgeXp(userId)) + totalXpFromNewBadges,
+        'stats.lastBadgeUnlock': serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      await updateDoc(userRef, updates);
+
+      // Ajouter l'XP au total de l'utilisateur
+      if (totalXpFromNewBadges > 0) {
+        await firebaseDataSyncService.addXpToUser(userId, totalXpFromNewBadges, 'badges_unlocked');
+      }
+
+      // Déclencher notifications
+      newBadges.forEach(badge => {
+        this.triggerBadgeNotification(badge);
+      });
+
+      console.log(`💾 ${newBadges.length} badges sauvegardés avec +${totalXpFromNewBadges} XP`);
+
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde badges:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🎊 DÉCLENCHER LA NOTIFICATION DE BADGE
+   */
+  triggerBadgeNotification(badge) {
+    // Événement personnalisé pour l'interface
+    const event = new CustomEvent('badgeUnlocked', {
+      detail: {
+        badge,
+        timestamp: Date.now()
+      }
+    });
+    
+    window.dispatchEvent(event);
+
+    // Log pour debug
+    console.log(`🎊 Badge débloqué: ${badge.name} (+${badge.xpReward} XP)`);
+  }
+
+  /**
+   * 💰 RÉCUPÉRER L'XP ACTUEL DES BADGES
+   */
+  async getCurrentBadgeXp(userId) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        return userDoc.data().gamification?.totalBadgeXp || 0;
+      }
+      
+      return 0;
+    } catch (error) {
+      console.error('❌ Erreur récupération XP badges:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * 📊 OBTENIR LES BADGES PAR CATÉGORIE
+   */
+  getBadgesByCategory(category) {
+    return Object.values(this.badgeDefinitions).filter(badge => 
+      badge.category === category
+    );
+  }
+
+  /**
+   * 🎯 OBTENIR LES BADGES PAR RARETÉ
+   */
+  getBadgesByRarity(rarity) {
+    return Object.values(this.badgeDefinitions).filter(badge => 
+      badge.rarity === rarity
+    );
+  }
+
+  /**
+   * 🔍 RECHERCHER UN BADGE PAR ID
+   */
+  getBadgeById(badgeId) {
+    return this.badgeDefinitions[badgeId] || null;
+  }
+
+  /**
+   * 📈 CALCULER LA PROGRESSION VERS UN BADGE
+   */
+  calculateBadgeProgress(badgeId, userStats) {
+    const badge = this.getBadgeById(badgeId);
+    if (!badge) return null;
+
+    // Cette méthode sera étendue selon les besoins spécifiques
+    return {
+      badgeId,
+      current: 0,
+      required: 1,
+      percentage: 0,
+      nextMilestone: 'Conditions non définies'
+    };
+  }
+
+  /**
+   * 🎯 OBTENIR TOUS LES BADGES DISPONIBLES
+   */
+  getAllBadges() {
+    return Object.values(this.badgeDefinitions);
+  }
+
+  /**
+   * 📊 OBTENIR LES STATISTIQUES DES BADGES
+   */
+  getBadgeStatistics() {
+    const badges = this.getAllBadges();
+    
+    return {
+      total: badges.length,
+      byCategory: this.groupBadgesByCategory(badges),
+      byRarity: this.groupBadgesByRarity(badges),
+      totalXpPossible: badges.reduce((sum, badge) => sum + badge.xpReward, 0)
+    };
+  }
+
+  /**
+   * 📂 GROUPER LES BADGES PAR CATÉGORIE
+   */
+  groupBadgesByCategory(badges) {
+    return badges.reduce((acc, badge) => {
+      if (!acc[badge.category]) acc[badge.category] = [];
+      acc[badge.category].push(badge);
+      return acc;
+    }, {});
+  }
+
+  /**
+   * ⭐ GROUPER LES BADGES PAR RARETÉ
+   */
+  groupBadgesByRarity(badges) {
+    return badges.reduce((acc, badge) => {
+      if (!acc[badge.rarity]) acc[badge.rarity] = [];
+      acc[badge.rarity].push(badge);
+      return acc;
+    }, {});
+  }
+}
+
+// Instance singleton
+const synergiaBadgeService = new SynergiaBadgeService();
+
+// Exposition globale pour debug
+if (typeof window !== 'undefined') {
+  window.synergiaBadgeService = synergiaBadgeService;
+  window.SYNERGIA_BADGES = SYNERGIA_BADGE_DEFINITIONS;
+}
+
+export default synergiaBadgeService;
+export { SYNERGIA_BADGE_DEFINITIONS, SynergiaBadgeService };
