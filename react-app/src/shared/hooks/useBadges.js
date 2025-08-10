@@ -543,4 +543,3 @@ export const useBadges = () => {
 };
 
 export default useBadges;
-export { useBadges };
