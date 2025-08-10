@@ -1,40 +1,58 @@
 /* ==========================================
-   🎨 GLOBALS CSS - SYNERGIA v3.5 - VERSION CORRIGÉE
-   ==========================================
-   Fichier: react-app/src/assets/styles/globals.css
-   CSS global COMPLET et sécurisé pour Synergia
+   📁 react-app/src/assets/styles/globals.css
+   STYLES GLOBAUX AVEC INTÉGRATION BADGES V3.5
    ========================================== */
 
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
+/* ==========================================
+   🎯 IMPORTS ET RESET TAILWIND
+   ========================================== */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* Variables CSS personnalisées */
+/* ==========================================
+   🌟 VARIABLES CSS PERSONNALISÉES
+   ========================================== */
 :root {
+  /* Couleurs du thème */
   --color-primary: #3b82f6;
   --color-secondary: #8b5cf6;
+  --color-accent: #f59e0b;
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
-  --color-info: #06b6d4;
   
-  /* Variables pour thème sombre */
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-tertiary: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #64748b;
-  --border-color: #475569;
-  --accent-blue: #3b82f6;
-  --accent-purple: #8b5cf6;
+  /* Couleurs badges par rareté */
+  --badge-common: #6b7280;
+  --badge-uncommon: #10b981;
+  --badge-rare: #3b82f6;
+  --badge-epic: #8b5cf6;
+  --badge-legendary: #f59e0b;
+  
+  /* Animations */
+  --animation-fast: 0.15s;
+  --animation-normal: 0.3s;
+  --animation-slow: 0.5s;
+  
+  /* Ombres */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+  
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --gradient-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --gradient-legendary: linear-gradient(135deg, #ffd700 0%, #ffb347 50%, #ff6b6b 100%);
 }
 
 /* ==========================================
-   🎯 STYLES DE BASE
+   🎨 RESET ET BASE STYLES
    ========================================== */
-
 * {
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
 }
 
@@ -43,249 +61,495 @@ html {
 }
 
 body {
-  margin: 0;
-  padding: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 
-               'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 
-               'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #111827;
+  font-family: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  background: linear-gradient(135deg, #0f172a, #581c87, #0f172a);
   color: #f9fafb;
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 /* ==========================================
-   📜 SCROLLBAR PERSONNALISÉE
+   🏆 ANIMATIONS SPÉCIALES BADGES
    ========================================== */
 
+/* Animation badge débloqué */
+@keyframes badgeUnlock {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(-90deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+/* Animation pulsation légendaire */
+@keyframes legendaryPulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
+    transform: scale(1.05);
+  }
+}
+
+/* Animation confettis */
+@keyframes confetti {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+/* Animation niveau up */
+@keyframes levelUp {
+  0% {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(-10px) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Animation sparkle */
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(180deg);
+  }
+}
+
+/* Animation badge hover */
+@keyframes badgeHover {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-2px) rotate(1deg);
+  }
+  75% {
+    transform: translateY(-1px) rotate(-1deg);
+  }
+}
+
+/* ==========================================
+   🎮 CLASSES D'ÉTAT GLOBALES
+   ========================================== */
+
+/* État badge débloqué */
+.badge-unlocked {
+  position: relative;
+}
+
+.badge-unlocked::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, rgba(255, 215, 0, 0.1) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 9999;
+  animation: fadeOut 3s ease-out forwards;
+}
+
+/* État level up */
+.level-up {
+  position: relative;
+}
+
+.level-up::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  pointer-events: none;
+  z-index: 9999;
+  animation: fadeOut 2s ease-out forwards;
+}
+
+/* Classe mobile */
+.mobile-device {
+  font-size: 16px; /* Éviter le zoom automatique sur iOS */
+}
+
+/* ==========================================
+   🎨 COMPOSANTS BADGES PERSONNALISÉS
+   ========================================== */
+
+/* Badge card de base */
+.badge-card {
+  @apply relative bg-white rounded-xl p-4 shadow-lg border-2 transition-all duration-300 cursor-pointer;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+  backdrop-filter: blur(10px);
+}
+
+.badge-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+}
+
+.badge-card.unlocked:hover {
+  animation: badgeHover 0.6s ease-in-out;
+}
+
+/* Borders par rareté */
+.badge-card.common {
+  border-color: var(--badge-common);
+}
+
+.badge-card.uncommon {
+  border-color: var(--badge-uncommon);
+}
+
+.badge-card.rare {
+  border-color: var(--badge-rare);
+}
+
+.badge-card.epic {
+  border-color: var(--badge-epic);
+}
+
+.badge-card.legendary {
+  border-color: var(--badge-legendary);
+  animation: legendaryPulse 2s ease-in-out infinite;
+}
+
+/* Badge notification */
+.badge-notification {
+  @apply fixed top-4 right-4 z-50 bg-white rounded-xl shadow-2xl border-2 p-6 max-w-sm;
+  animation: badgeUnlock 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.9) 100%);
+  backdrop-filter: blur(20px);
+}
+
+.badge-notification.legendary {
+  background: var(--gradient-legendary);
+  color: white;
+}
+
+.badge-notification.legendary::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: var(--gradient-legendary);
+  border-radius: inherit;
+  z-index: -1;
+  animation: legendaryPulse 1s ease-in-out infinite;
+}
+
+/* ==========================================
+   💫 EFFETS PARTICULES
+   ========================================== */
+
+/* Confettis */
+.confetti {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  background: #f59e0b;
+  animation: confetti 3s linear infinite;
+  z-index: 10000;
+}
+
+.confetti:nth-child(1) { left: 10%; animation-delay: -0.5s; background: #ef4444; }
+.confetti:nth-child(2) { left: 20%; animation-delay: -1s; background: #f59e0b; }
+.confetti:nth-child(3) { left: 30%; animation-delay: -1.5s; background: #10b981; }
+.confetti:nth-child(4) { left: 40%; animation-delay: -2s; background: #3b82f6; }
+.confetti:nth-child(5) { left: 50%; animation-delay: -2.5s; background: #8b5cf6; }
+.confetti:nth-child(6) { left: 60%; animation-delay: -3s; background: #ef4444; }
+.confetti:nth-child(7) { left: 70%; animation-delay: -3.5s; background: #f59e0b; }
+.confetti:nth-child(8) { left: 80%; animation-delay: -4s; background: #10b981; }
+.confetti:nth-child(9) { left: 90%; animation-delay: -4.5s; background: #3b82f6; }
+
+/* Étoiles scintillantes */
+.sparkle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #ffd700;
+  border-radius: 50%;
+  animation: sparkle 1.5s ease-in-out infinite;
+}
+
+/* ==========================================
+   🎯 CLASSES UTILITAIRES BADGES
+   ========================================== */
+
+/* Gradients de rareté */
+.gradient-common {
+  background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%);
+}
+
+.gradient-uncommon {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+}
+
+.gradient-rare {
+  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+}
+
+.gradient-epic {
+  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+}
+
+.gradient-legendary {
+  background: var(--gradient-legendary);
+}
+
+/* Bordures brillantes */
+.border-glow {
+  position: relative;
+}
+
+.border-glow::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(45deg, #3b82f6, #8b5cf6, #f59e0b, #ef4444);
+  border-radius: inherit;
+  z-index: -1;
+  animation: borderRotate 3s linear infinite;
+}
+
+/* ==========================================
+   📱 RESPONSIVE OPTIMIZATIONS
+   ========================================== */
+
+@media (max-width: 768px) {
+  .badge-card {
+    @apply p-3;
+  }
+  
+  .badge-notification {
+    @apply max-w-xs left-4;
+  }
+  
+  .confetti {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+/* ==========================================
+   🔧 ANIMATIONS UTILITAIRES
+   ========================================== */
+
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes slideUp {
+  0% {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  0% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes borderRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  40%, 43% {
+    transform: translate3d(0, -10px, 0);
+  }
+  70% {
+    transform: translate3d(0, -5px, 0);
+  }
+  90% {
+    transform: translate3d(0, -2px, 0);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-2px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    text-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor;
+  }
+  50% {
+    text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+  }
+}
+
+/* ==========================================
+   🎮 CLASSES D'ANIMATION PRÊTES À L'EMPLOI
+   ========================================== */
+
+.animate-badge-unlock {
+  animation: badgeUnlock 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.animate-legendary-pulse {
+  animation: legendaryPulse 2s ease-in-out infinite;
+}
+
+.animate-level-up {
+  animation: levelUp 0.5s ease-out;
+}
+
+.animate-sparkle {
+  animation: sparkle 1.5s ease-in-out infinite;
+}
+
+.animate-badge-hover {
+  animation: badgeHover 0.6s ease-in-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.4s ease-out;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* ==========================================
+   🎨 THÈME SOMBRE AVANCÉ
+   ========================================== */
+
+/* Scrollbars personnalisées */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1f2937;
+  background: rgba(55, 65, 81, 0.3);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: rgba(75, 85, 99, 0.8);
   border-radius: 4px;
-  transition: background-color 0.2s ease;
+  transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: rgba(107, 114, 128, 0.9);
 }
 
-/* Pour Firefox */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #4b5563 #1f2937;
-}
-
-/* ==========================================
-   🎨 COMPOSANTS STYLISÉS
-   ========================================== */
-
-/* Cartes premium avec glass morphism */
-.premium-card {
-  background: rgba(55, 65, 81, 0.5);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(75, 85, 99, 0.5);
-  border-radius: 12px;
-  transition: all 0.3s ease;
-}
-
-.premium-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-/* Boutons premium */
-.btn-primary {
-  background: linear-gradient(to right, #3b82f6, #8b5cf6);
+/* Sélection de texte */
+::selection {
+  background: rgba(59, 130, 246, 0.3);
   color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 0.75rem 1.5rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  cursor: pointer;
 }
 
-.btn-primary:hover {
-  background: linear-gradient(to right, #2563eb, #7c3aed);
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background: rgba(75, 85, 99, 1);
+::-moz-selection {
+  background: rgba(59, 130, 246, 0.3);
   color: white;
-  border: 1px solid rgba(107, 114, 128, 1);
-  border-radius: 8px;
-  padding: 0.75rem 1.5rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-.btn-secondary:hover {
-  background: rgba(107, 114, 128, 1);
-}
-
-/* Layout responsive */
-.container {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-}
-
-@media (max-width: 640px) {
-  .container {
-    padding: 0 1rem;
-  }
 }
 
 /* ==========================================
-   🌟 ANIMATIONS ET TRANSITIONS
+   🔧 CORRECTIONS ET AMÉLIORATIONS
    ========================================== */
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.6s ease-out;
-}
-
-.animate-slide-in {
-  animation: slideIn 0.4s ease-out;
-}
-
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* ==========================================
-   🎨 CLASSES UTILITAIRES PERSONNALISÉES
-   ========================================== */
-
-/* Gradients de texte */
-.text-gradient {
-  background: linear-gradient(to right, #60a5fa, #c084fc);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.text-gradient-warm {
-  background: linear-gradient(to right, #f59e0b, #ef4444);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Glass morphism */
-.glass {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.glass-dark {
-  background: rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Ombres personnalisées */
-.shadow-premium {
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-}
-
-.shadow-glow {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
-}
-
-.shadow-glow-purple {
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
-}
-
-/* ==========================================
-   📱 RESPONSIVE DESIGN
-   ========================================== */
-
-/* Sidebar responsive */
-@media (max-width: 768px) {
-  .sidebar {
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-  }
-  
-  .sidebar.open {
-    transform: translateX(0);
-  }
-}
-
-/* Grilles responsives */
-.grid-responsive {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
-}
-
-@media (max-width: 640px) {
-  .grid-responsive {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-}
-
-/* ==========================================
-   🔧 CORRECTIONS SPÉCIFIQUES
-   ========================================== */
-
-/* Correction des inputs et formulaires */
+/* Amélioration des formulaires */
 input, textarea, select {
-  background-color: rgba(55, 65, 81, 0.5);
+  background-color: rgba(55, 65, 81, 0.7);
   border: 1px solid rgba(75, 85, 99, 0.5);
   color: #f9fafb;
+  transition: all 0.2s ease;
 }
 
 input:focus, textarea:focus, select:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  background-color: rgba(55, 65, 81, 0.9);
 }
 
-/* Correction des liens */
+input::placeholder, textarea::placeholder {
+  color: rgba(156, 163, 175, 0.7);
+}
+
+/* Amélioration des boutons */
+button {
+  transition: all 0.2s ease;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Amélioration des liens */
 a {
   color: #60a5fa;
   text-decoration: none;
@@ -296,173 +560,366 @@ a:hover {
   color: #93c5fd;
 }
 
-/* Correction des listes */
-ul, ol {
-  margin: 0;
-  padding: 0;
-}
-
-li {
-  list-style: none;
-}
-
-/* Correction des tableaux */
-table {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-th, td {
-  text-align: left;
-  padding: 0.75rem;
-  border-bottom: 1px solid rgba(75, 85, 99, 0.5);
-}
-
-th {
-  background-color: rgba(55, 65, 81, 0.5);
-  font-weight: 600;
+a:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 /* ==========================================
-   🎯 CLASSES DE LAYOUT SPÉCIFIQUES
+   📊 CLASSES LAYOUT SPÉCIALISÉES
    ========================================== */
 
 /* Layout principal */
 .main-layout {
   min-height: 100vh;
   background: linear-gradient(135deg, #0f172a, #581c87, #0f172a);
+  background-attachment: fixed;
 }
 
-/* Header layouts */
-.page-header {
-  background: rgba(55, 65, 81, 0.5);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(75, 85, 99, 0.5);
-  padding: 1.5rem 0;
-}
-
-/* Content layouts */
-.page-content {
-  padding: 2rem 0;
-}
-
-.content-wrapper {
+/* Container responsive */
+.container-responsive {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 0 1.5rem;
+  padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .container-responsive {
+    padding: 0 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-responsive {
+    padding: 0 2rem;
+  }
+}
+
+/* Grilles adaptatives */
+.grid-auto-fit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.grid-badges {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .grid-badges {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
 }
 
 /* ==========================================
-   🚀 OPTIMISATIONS PERFORMANCE
+   🎯 CLASSES ÉTAT ET FEEDBACK
    ========================================== */
 
-/* Optimisation des images */
+/* États de chargement */
+.loading-shimmer {
+  background: linear-gradient(90deg, 
+    rgba(55, 65, 81, 0.4) 25%, 
+    rgba(75, 85, 99, 0.6) 50%, 
+    rgba(55, 65, 81, 0.4) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Indicateurs de succès */
+.success-indicator {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  color: white;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  animation: slideUp 0.3s ease-out;
+}
+
+/* Indicateurs d'erreur */
+.error-indicator {
+  background: linear-gradient(135deg, #ef4444, #f87171);
+  color: white;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  animation: shake 0.5s ease-out;
+}
+
+/* ==========================================
+   🎮 CLASSES GAMIFICATION SPÉCIALISÉES
+   ========================================== */
+
+/* Barre de progression XP */
+.xp-bar {
+  background: rgba(55, 65, 81, 0.5);
+  border-radius: 1rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.xp-progress {
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  height: 100%;
+  border-radius: inherit;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.xp-progress::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: progressShine 2s infinite;
+}
+
+@keyframes progressShine {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Badge de niveau */
+.level-badge {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  font-weight: bold;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.level-badge:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Compteur animé */
+.animated-counter {
+  font-variant-numeric: tabular-nums;
+  transition: all 0.3s ease;
+}
+
+/* ==========================================
+   🌈 EFFETS VISUELS AVANCÉS
+   ========================================== */
+
+/* Effet glassmorphism */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Effet néon */
+.neon {
+  text-shadow: 
+    0 0 5px currentColor,
+    0 0 10px currentColor,
+    0 0 20px currentColor,
+    0 0 40px currentColor;
+}
+
+.neon-blue {
+  color: #60a5fa;
+  text-shadow: 
+    0 0 5px #60a5fa,
+    0 0 10px #60a5fa,
+    0 0 20px #60a5fa,
+    0 0 40px #60a5fa;
+}
+
+.neon-purple {
+  color: #a78bfa;
+  text-shadow: 
+    0 0 5px #a78bfa,
+    0 0 10px #a78bfa,
+    0 0 20px #a78bfa,
+    0 0 40px #a78bfa;
+}
+
+.neon-gold {
+  color: #fbbf24;
+  text-shadow: 
+    0 0 5px #fbbf24,
+    0 0 10px #fbbf24,
+    0 0 20px #fbbf24,
+    0 0 40px #fbbf24;
+}
+
+/* ==========================================
+   🔧 OPTIMISATIONS PERFORMANCE
+   ========================================== */
+
+/* Force GPU acceleration */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimisation images */
 img {
   max-width: 100%;
   height: auto;
   display: block;
 }
 
-/* Optimisation des vidéos */
+/* Optimisation vidéos */
 video {
   max-width: 100%;
   height: auto;
 }
 
-/* Réduction des reprints - RÈGLE CORRIGÉE */
-.optimized {
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
-
 /* ==========================================
-   🎨 THÈME SOMBRE COMPLET
+   📱 AMÉLIORATIONS ACCESSIBILITÉ
    ========================================== */
 
-/* Application du thème */
-.dark-theme {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+/* Focus visible amélioré */
+.focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
-/* ==========================================
-   🌟 TEAM PAGE - CORRECTIONS SPÉCIFIQUES
-   ========================================== */
-
-/* Correction grille membres */
-.team-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem;
-  padding: 1rem 0;
-}
-
-@media (max-width: 768px) {
-  .team-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+/* Réduction du mouvement pour les utilisateurs sensibles */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .badge-card:hover {
+    transform: none;
+  }
+  
+  .animate-badge-unlock,
+  .animate-legendary-pulse,
+  .animate-level-up,
+  .animate-sparkle {
+    animation: none;
   }
 }
 
-/* Cartes membres */
-.member-card {
-  background: rgba(31, 41, 55, 0.8);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(75, 85, 99, 0.3);
-  border-radius: 16px;
-  padding: 1.5rem;
-  transition: all 0.3s ease;
+/* Mode haut contraste */
+@media (prefers-contrast: high) {
+  .badge-card {
+    border-width: 3px;
+  }
+  
+  .glass,
+  .glass-dark {
+    background: rgba(0, 0, 0, 0.8);
+    border-color: white;
+  }
 }
-
-.member-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(59, 130, 246, 0.5);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-/* Avatar membres */
-.member-avatar {
-  width: 4rem;
-  height: 4rem;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: white;
-  position: relative;
-}
-
-/* Statut en ligne */
-.status-indicator {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 50%;
-  border: 2px solid #1f2937;
-}
-
-.status-online { background-color: #10b981; }
-.status-away { background-color: #f59e0b; }
-.status-offline { background-color: #6b7280; }
 
 /* ==========================================
-   ✅ VALIDATION CSS
+   🎯 CLASSES UTILITAIRES FINALES
    ========================================== */
 
-/* Confirmation que le CSS est chargé correctement */
-body::after {
-  content: "";
-  display: none;
-  /* Marqueur CSS chargé */
+/* Masquer visuellement mais garder pour lecteurs d'écran */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-/* Log de debug - invisible */
-html::before {
-  content: "✅ Globals CSS Synergia v3.5 - COMPLET ET CORRIGÉ";
-  display: none;
+/* Empêcher la sélection */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
+
+/* Forcer la sélection */
+.force-select {
+  user-select: all;
+  -webkit-user-select: all;
+  -moz-user-select: all;
+  -ms-user-select: all;
+}
+
+/* Curseurs personnalisés */
+.cursor-grab {
+  cursor: grab;
+}
+
+.cursor-grabbing {
+  cursor: grabbing;
+}
+
+/* ==========================================
+   🎉 EFFET SPÉCIAL DE FIN
+   ========================================== */
+
+/* Animation de célébration complète */
+@keyframes celebration {
+  0% {
+    transform: scale(1) rotate(0deg);
+    filter: hue-rotate(0deg);
+  }
+  25% {
+    transform: scale(1.1) rotate(90deg);
+    filter: hue-rotate(90deg);
+  }
+  50% {
+    transform: scale(1.2) rotate(180deg);
+    filter: hue-rotate(180deg);
+  }
+  75% {
+    transform: scale(1.1) rotate(270deg);
+    filter: hue-rotate(270deg);
+  }
+  100% {
+    transform: scale(1) rotate(360deg);
+    filter: hue-rotate(360deg);
+  }
+}
+
+.celebrate {
+  animation: celebration 2s ease-in-out infinite;
+}
+
+/* ==========================================
+   ✅ FIN DES STYLES BADGES V3.5
+   ========================================== */
