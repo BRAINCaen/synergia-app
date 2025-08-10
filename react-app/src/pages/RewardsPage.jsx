@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/RewardsPage.jsx
-// BOUTIQUE DES RÉCOMPENSES AVEC ACHAT FONCTIONNEL
+// BOUTIQUE DES RÉCOMPENSES SYNERGIA AUTHENTIQUES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -10,7 +10,9 @@ import {
   Coffee, Gamepad2, Palette, Clock, CheckCircle,
   Lock, Unlock, Filter, Search, Tag, Trophy,
   Target, Calendar, Users, Coins, RefreshCw, X,
-  ShoppingCart
+  ShoppingCart, Heart, Sparkles, Flame, Candy,
+  Car, Home, Utensils, Shirt, Music, Camera,
+  Gamepad, BookOpen, Dumbbell, Plane, MapPin
 } from 'lucide-react';
 import { useUnifiedXP } from '../shared/hooks/useUnifiedXP.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
@@ -52,7 +54,7 @@ const PurchaseSuccessNotification = ({ purchaseSuccess, onClose }) => {
 };
 
 /**
- * 🎁 BOUTIQUE DES RÉCOMPENSES AVEC SYNCHRONISATION XP GARANTIE
+ * 🎁 BOUTIQUE DES RÉCOMPENSES SYNERGIA AUTHENTIQUES
  */
 const RewardsPage = () => {
   const { user } = useAuthStore();
@@ -80,136 +82,700 @@ const RewardsPage = () => {
   const [purchasing, setPurchasing] = useState(false);
   const [purchaseSuccess, setPurchaseSuccess] = useState(null);
 
-  // 🎁 RÉCOMPENSES DISPONIBLES (DYNAMIQUES BASÉES SUR LE NIVEAU ET XP)
+  // 🎁 RÉCOMPENSES SYNERGIA AUTHENTIQUES BASÉES SUR VOS GAINS XP
   const rewardsData = {
-    badges: [
+    mini_plaisirs: [
       {
-        id: 'early_bird',
-        name: 'Lève-tôt',
-        description: 'Connexion avant 8h pendant 7 jours',
-        icon: '🌅',
-        cost: 100,
-        category: 'badges',
-        unlocked: badges.some(b => b.id === 'early_bird' || b === 'early_bird'),
-        requirement: 'Niveau 2'
-      },
-      {
-        id: 'night_owl',
-        name: 'Couche-tard',
-        description: 'Travail productif après 22h',
-        icon: '🦉',
-        cost: 150,
-        category: 'badges',
-        unlocked: level >= 3,
-        requirement: 'Niveau 3'
-      },
-      {
-        id: 'task_master',
-        name: 'Maître des tâches',
-        description: '100 tâches complétées',
-        icon: '✅',
-        cost: 300,
-        category: 'badges',
-        unlocked: level >= 5,
-        requirement: 'Niveau 5'
-      }
-    ],
-    themes: [
-      {
-        id: 'dark_purple',
-        name: 'Thème Violet Foncé',
-        description: 'Interface élégante aux tons violets',
-        icon: '🟣',
-        cost: 200,
-        category: 'themes',
-        unlocked: level >= 2,
-        requirement: 'Niveau 2'
-      },
-      {
-        id: 'ocean_blue',
-        name: 'Thème Océan',
-        description: 'Ambiance marine apaisante',
-        icon: '🌊',
-        cost: 250,
-        category: 'themes',
-        unlocked: level >= 3,
-        requirement: 'Niveau 3'
-      },
-      {
-        id: 'sunset_orange',
-        name: 'Thème Coucher de Soleil',
-        description: 'Chaleur des couleurs automnales',
-        icon: '🌅',
-        cost: 350,
-        category: 'themes',
-        unlocked: level >= 4,
-        requirement: 'Niveau 4'
-      }
-    ],
-    avatars: [
-      {
-        id: 'robot_avatar',
-        name: 'Avatar Robot',
-        description: 'Avatar futuriste personnalisable',
-        icon: '🤖',
-        cost: 180,
-        category: 'avatars',
-        unlocked: level >= 2,
-        requirement: 'Niveau 2'
-      },
-      {
-        id: 'wizard_avatar',
-        name: 'Avatar Sorcier',
-        description: 'Avatar magique avec effets spéciaux',
-        icon: '🧙‍♂️',
-        cost: 320,
-        category: 'avatars',
-        unlocked: level >= 4,
-        requirement: 'Niveau 4'
-      },
-      {
-        id: 'crown_avatar',
-        name: 'Avatar Royal',
-        description: 'Avatar prestigieux avec couronne',
-        icon: '👑',
-        cost: 500,
-        category: 'avatars',
-        unlocked: level >= 5,
-        requirement: 'Niveau 5'
-      }
-    ],
-    boosters: [
-      {
-        id: 'xp_boost_24h',
-        name: 'Boost XP 24h',
-        description: 'Double XP pendant 24 heures',
-        icon: '🚀',
-        cost: 300,
-        category: 'boosters',
+        id: 'bonbons_sachet',
+        name: 'Sachet de bonbons à emporter',
+        description: 'Sélection de bonbons au choix',
+        icon: '🍭',
+        cost: 25, // ~2-3 tâches simples
+        category: 'mini_plaisirs',
         unlocked: true,
-        requirement: 'Toujours disponible',
-        duration: '24h'
+        requirement: 'Toujours disponible'
       },
       {
-        id: 'task_boost',
-        name: 'Boost Tâches',
-        description: '+50% XP sur les tâches (7 jours)',
-        icon: '⚡',
-        cost: 500,
-        category: 'boosters',
+        id: 'snack_sale',
+        name: 'Snack salé premium',
+        description: 'Chips, bretzel, fromage, apéro au choix',
+        icon: '🥨',
+        cost: 30,
+        category: 'mini_plaisirs',
+        unlocked: true,
+        requirement: 'Toujours disponible'
+      },
+      {
+        id: 'boisson_soda',
+        name: 'Boisson soda ou jus au choix',
+        description: '1 bouteille de votre boisson préférée',
+        icon: '🥤',
+        cost: 20,
+        category: 'mini_plaisirs',
+        unlocked: true,
+        requirement: 'Toujours disponible'
+      },
+      {
+        id: 'cafe_special',
+        name: 'Café spécial premium',
+        description: 'Starbucks, Coffee Shop ou café artisanal',
+        icon: '☕',
+        cost: 35,
+        category: 'mini_plaisirs',
+        unlocked: true,
+        requirement: 'Toujours disponible'
+      },
+      {
+        id: 'fruits_saison',
+        name: 'Panier fruits de saison',
+        description: 'Sélection de fruits frais et de saison',
+        icon: '🍎',
+        cost: 40,
+        category: 'mini_plaisirs',
+        unlocked: level >= 2,
+        requirement: 'Niveau 2'
+      },
+      {
+        id: 'glace_service',
+        name: 'Glace en fin de service',
+        description: 'Une glace pour terminer la journée en douceur',
+        icon: '🍦',
+        cost: 30,
+        category: 'mini_plaisirs',
+        unlocked: true,
+        requirement: 'Toujours disponible'
+      },
+      {
+        id: 'chocolats_premium',
+        name: 'Pack chocolats premium',
+        description: 'Sélection de chocolats et friandises haut de gamme',
+        icon: '🍫',
+        cost: 45,
+        category: 'mini_plaisirs',
+        unlocked: level >= 2,
+        requirement: 'Niveau 2'
+      },
+      {
+        id: 'gouter_personnalise',
+        name: 'Goûter personnalisé',
+        description: 'Pâtisserie, donuts, croissant, cookie au choix',
+        icon: '🧁',
+        cost: 40,
+        category: 'mini_plaisirs',
+        unlocked: true,
+        requirement: 'Toujours disponible'
+      }
+    ],
+
+    petits_avantages: [
+      {
+        id: 'quinze_min_off',
+        name: '15 min off',
+        description: 'Arriver plus tard ou partir plus tôt',
+        icon: '⏰',
+        cost: 50, // ~2-3 tâches moyennes
+        category: 'petits_avantages',
+        unlocked: level >= 2,
+        requirement: 'Niveau 2'
+      },
+      {
+        id: 'pause_sieste',
+        name: 'Pause sieste autorisée',
+        description: 'Avec réveil garanti par un collègue !',
+        icon: '😴',
+        cost: 60,
+        category: 'petits_avantages',
+        unlocked: level >= 2,
+        requirement: 'Niveau 2'
+      },
+      {
+        id: 'droit_oubli',
+        name: 'Droit à l\'oubli',
+        description: '1 oubli ou retard "pardonnés" sans conséquence',
+        icon: '🤫',
+        cost: 80,
+        category: 'petits_avantages',
         unlocked: level >= 3,
-        requirement: 'Niveau 3',
-        duration: '7 jours'
+        requirement: 'Niveau 3'
+      },
+      {
+        id: 'papeterie_fun',
+        name: 'Pack papeterie original',
+        description: 'Carnet, stylos fun, post-it originaux',
+        icon: '📝',
+        cost: 45,
+        category: 'petits_avantages',
+        unlocked: true,
+        requirement: 'Toujours disponible'
+      },
+      {
+        id: 'gadget_bureau',
+        name: 'Gadget de bureau anti-stress',
+        description: 'Mini-plante, balle à malaxer, objet zen',
+        icon: '🌱',
+        cost: 55,
+        category: 'petits_avantages',
+        unlocked: level >= 2,
+        requirement: 'Niveau 2'
+      },
+      {
+        id: 'shift_light',
+        name: 'Shift "super light"',
+        description: 'Que les tâches sympas de la journée',
+        icon: '😎',
+        cost: 85,
+        category: 'petits_avantages',
+        unlocked: level >= 3,
+        requirement: 'Niveau 3'
+      },
+      {
+        id: 'pause_illimitee',
+        name: 'Pause illimitée',
+        description: 'Sur une journée calme uniquement',
+        icon: '🏖️',
+        cost: 70,
+        category: 'petits_avantages',
+        unlocked: level >= 3,
+        requirement: 'Niveau 3'
+      }
+    ],
+
+    plaisirs_utiles: [
+      {
+        id: 'bon_action',
+        name: 'Bon "Action/Foir\'Fouille"',
+        description: 'Petit achat fun <10€ dans ces magasins',
+        icon: '🛍️',
+        cost: 120, // ~4-6 tâches moyennes
+        category: 'plaisirs_utiles',
+        unlocked: level >= 3,
+        requirement: 'Niveau 3'
+      },
+      {
+        id: 'lavage_voiture',
+        name: 'Bon pour laver sa voiture',
+        description: 'Service de lavage auto offert',
+        icon: '🚗',
+        cost: 150,
+        category: 'plaisirs_utiles',
+        unlocked: level >= 4,
+        requirement: 'Niveau 4'
+      },
+      {
+        id: 'heure_off',
+        name: '1 heure off payée',
+        description: '1 heure de pause offerte et payée',
+        icon: '🕐',
+        cost: 100,
+        category: 'plaisirs_utiles',
+        unlocked: level >= 3,
+        requirement: 'Niveau 3'
+      },
+      {
+        id: 'petit_dej_surprise',
+        name: 'Petit-déj surprise',
+        description: 'Viennoiseries, jus, café premium',
+        icon: '🥐',
+        cost: 110,
+        category: 'plaisirs_utiles',
+        unlocked: level >= 3,
+        requirement: 'Niveau 3'
+      },
+      {
+        id: 'tshirt_fun',
+        name: 'T-shirt ou mug humoristique',
+        description: 'Personnalisé selon vos goûts',
+        icon: '👕',
+        cost: 90,
+        category: 'plaisirs_utiles',
+        unlocked: level >= 2,
+        requirement: 'Niveau 2'
+      },
+      {
+        id: 'livre_choix',
+        name: 'Livre au choix',
+        description: 'Roman, BD, manga ou livre technique',
+        icon: '📚',
+        cost: 130,
+        category: 'plaisirs_utiles',
+        unlocked: level >= 3,
+        requirement: 'Niveau 3'
+      },
+      {
+        id: 'pizza_midi',
+        name: 'Pizza du midi',
+        description: 'Solo ou partagée avec l\'équipe',
+        icon: '🍕',
+        cost: 140,
+        category: 'plaisirs_utiles',
+        unlocked: level >= 3,
+        requirement: 'Niveau 3'
+      },
+      {
+        id: 'activite_loisir',
+        name: 'Activité loisir locale',
+        description: 'Bowling, laser game, mini-golf, arcade',
+        icon: '🎯',
+        cost: 160,
+        category: 'plaisirs_utiles',
+        unlocked: level >= 4,
+        requirement: 'Niveau 4'
+      }
+    ],
+
+    food_cadeaux: [
+      {
+        id: 'bon_resto',
+        name: 'Bon d\'achat restauration',
+        description: 'Ticket restaurant 15-25€',
+        icon: '🎫',
+        cost: 200, // ~8-10 tâches moyennes
+        category: 'food_cadeaux',
+        unlocked: level >= 4,
+        requirement: 'Niveau 4'
+      },
+      {
+        id: 'livraison_premium',
+        name: 'Poke bowl/burger livré',
+        description: 'Plat premium livré sur le lieu de travail',
+        icon: '🥗',
+        cost: 180,
+        category: 'food_cadeaux',
+        unlocked: level >= 4,
+        requirement: 'Niveau 4'
+      },
+      {
+        id: 'uber_eats',
+        name: 'Repas Uber Eats/Deliveroo',
+        description: 'Commande dans votre restaurant préféré',
+        icon: '📱',
+        cost: 170,
+        category: 'food_cadeaux',
+        unlocked: level >= 4,
+        requirement: 'Niveau 4'
+      },
+      {
+        id: 'bon_cadeau_shopping',
+        name: 'Bon cadeau multi-enseignes',
+        description: 'Amazon, Fnac, Cultura, Carrefour (15-25€)',
+        icon: '🎁',
+        cost: 220,
+        category: 'food_cadeaux',
+        unlocked: level >= 5,
+        requirement: 'Niveau 5'
+      },
+      {
+        id: 'carte_carburant',
+        name: 'Carte carburant',
+        description: 'Ou recharge électrique selon votre véhicule',
+        icon: '⛽',
+        cost: 250,
+        category: 'food_cadeaux',
+        unlocked: level >= 5,
+        requirement: 'Niveau 5'
+      },
+      {
+        id: 'bougie_parfumee',
+        name: 'Bougie parfumée premium',
+        description: 'Ou diffuseur d\'huiles essentielles',
+        icon: '🕯️',
+        cost: 190,
+        category: 'food_cadeaux',
+        unlocked: level >= 4,
+        requirement: 'Niveau 4'
+      }
+    ],
+
+    bien_etre: [
+      {
+        id: 'kit_relaxation',
+        name: 'Kit de relaxation',
+        description: 'Masque yeux, bouillotte, infusions zen',
+        icon: '🧘‍♀️',
+        cost: 280, // ~12-14 tâches moyennes
+        category: 'bien_etre',
+        unlocked: level >= 5,
+        requirement: 'Niveau 5'
+      },
+      {
+        id: 'massage_pro',
+        name: 'Massage professionnel',
+        description: 'Chez un pro ou offert par l\'entreprise',
+        icon: '💆‍♀️',
+        cost: 350,
+        category: 'bien_etre',
+        unlocked: level >= 6,
+        requirement: 'Niveau 6'
+      },
+      {
+        id: 'soins_beaute',
+        name: 'Coffret soins/beauté',
+        description: 'Trousse beauté ou produits de soins',
+        icon: '💄',
+        cost: 300,
+        category: 'bien_etre',
+        unlocked: level >= 5,
+        requirement: 'Niveau 5'
+      },
+      {
+        id: 'manucure_coiffure',
+        name: 'Séance manucure/coiffure',
+        description: 'Bon pour institut de beauté',
+        icon: '💅',
+        cost: 320,
+        category: 'bien_etre',
+        unlocked: level >= 6,
+        requirement: 'Niveau 6'
+      },
+      {
+        id: 'teletravail_jour',
+        name: 'Journée télétravail',
+        description: 'Si possible selon l\'organisation',
+        icon: '🏠',
+        cost: 250,
+        category: 'bien_etre',
+        unlocked: level >= 5,
+        requirement: 'Niveau 5'
+      }
+    ],
+
+    loisirs_sorties: [
+      {
+        id: 'cinema_places',
+        name: '2 places de cinéma',
+        description: 'Pour vous et un accompagnateur',
+        icon: '🎬',
+        cost: 400, // ~16-20 tâches moyennes 
+        category: 'loisirs_sorties',
+        unlocked: level >= 6,
+        requirement: 'Niveau 6'
+      },
+      {
+        id: 'escape_game',
+        name: 'Place d\'escape game',
+        description: 'À offrir famille/ami ou à utiliser',
+        icon: '🔐',
+        cost: 380,
+        category: 'loisirs_sorties',
+        unlocked: level >= 6,
+        requirement: 'Niveau 6'
+      },
+      {
+        id: 'initiation_sport',
+        name: 'Initiation/découverte',
+        description: 'Escalade, atelier créatif, sport fun',
+        icon: '🧗‍♀️',
+        cost: 420,
+        category: 'loisirs_sorties',
+        unlocked: level >= 7,
+        requirement: 'Niveau 7'
+      },
+      {
+        id: 'trampoline_park',
+        name: 'Activité fun locale',
+        description: 'Trampoline park, mini-golf, laser game',
+        icon: '🤸‍♀️',
+        cost: 360,
+        category: 'loisirs_sorties',
+        unlocked: level >= 6,
+        requirement: 'Niveau 6'
+      }
+    ],
+
+    lifestyle_bonus: [
+      {
+        id: 'abonnement_streaming',
+        name: 'Abonnement streaming 1 mois',
+        description: 'Netflix, Spotify, Disney+ ou autre',
+        icon: '📺',
+        cost: 500, // ~20-25 tâches moyennes
+        category: 'lifestyle_bonus',
+        unlocked: level >= 7,
+        requirement: 'Niveau 7'
+      },
+      {
+        id: 'accessoire_tech',
+        name: 'Accessoire high-tech',
+        description: 'Powerbank, support téléphone, mini enceinte',
+        icon: '📱',
+        cost: 550,
+        category: 'lifestyle_bonus',
+        unlocked: level >= 8,
+        requirement: 'Niveau 8'
+      },
+      {
+        id: 'bon_gaming',
+        name: 'Bon gaming',
+        description: 'Steam, PlayStation Store, Nintendo eShop',
+        icon: '🎮',
+        cost: 480,
+        category: 'lifestyle_bonus',
+        unlocked: level >= 7,
+        requirement: 'Niveau 7'
+      },
+      {
+        id: 'carte_shopping',
+        name: 'Carte cadeau shopping',
+        description: 'Multi-enseignes 40-60€',
+        icon: '💳',
+        cost: 600,
+        category: 'lifestyle_bonus',
+        unlocked: level >= 8,
+        requirement: 'Niveau 8'
+      }
+    ],
+
+    temps_offert: [
+      {
+        id: 'heure_travail_offerte',
+        name: '1 heure de travail offerte',
+        description: '1 heure en moins à effectuer, payée',
+        icon: '⌛',
+        cost: 800, // ~32-40 tâches moyennes
+        category: 'temps_offert',
+        unlocked: level >= 10,
+        requirement: 'Niveau 10'
+      },
+      {
+        id: 'journee_off',
+        name: 'Journée off offerte',
+        description: 'Journée complète payée sans travail',
+        icon: '🌴',
+        cost: 1200,
+        category: 'temps_offert',
+        unlocked: level >= 12,
+        requirement: 'Niveau 12'
+      },
+      {
+        id: 'zero_fermeture',
+        name: 'Pass "zéro fermeture"',
+        description: 'Pas obligé de fermer le local ce jour-là',
+        icon: '🔓',
+        cost: 900,
+        category: 'temps_offert',
+        unlocked: level >= 11,
+        requirement: 'Niveau 11'
+      }
+    ],
+
+    grands_plaisirs: [
+      {
+        id: 'resto_duo',
+        name: 'Bon resto au choix',
+        description: 'Seul ou à deux, restaurant de qualité',
+        icon: '🍽️',
+        cost: 1500, // ~60-75 tâches moyennes
+        category: 'grands_plaisirs',
+        unlocked: level >= 15,
+        requirement: 'Niveau 15'
+      },
+      {
+        id: 'apero_equipe',
+        name: 'Apéro équipe fin de mois',
+        description: 'Organisé et payé pour toute l\'équipe',
+        icon: '🥂',
+        cost: 1400,
+        category: 'grands_plaisirs',
+        unlocked: level >= 14,
+        requirement: 'Niveau 14'
+      },
+      {
+        id: 'pizza_party',
+        name: 'Pizza party équipe',
+        description: 'Repas livré pour toute l\'équipe',
+        icon: '🍕',
+        cost: 1300,
+        category: 'grands_plaisirs',
+        unlocked: level >= 13,
+        requirement: 'Niveau 13'
+      }
+    ],
+
+    premium: [
+      {
+        id: 'carte_premium_100',
+        name: 'Carte cadeau premium 100€',
+        description: 'Dans l\'enseigne de votre choix',
+        icon: '💎',
+        cost: 2500, // ~100+ tâches moyennes
+        category: 'premium',
+        unlocked: level >= 20,
+        requirement: 'Niveau 20'
+      },
+      {
+        id: 'nuit_hotel',
+        name: 'Nuit d\'hôtel pour 2',
+        description: 'Week-end romantique ou détente',
+        icon: '🏨',
+        cost: 3000,
+        category: 'premium',
+        unlocked: level >= 25,
+        requirement: 'Niveau 25'
+      },
+      {
+        id: 'concert_spectacle',
+        name: 'Place concert/spectacle',
+        description: 'Événement de votre choix',
+        icon: '🎤',
+        cost: 2800,
+        category: 'premium',
+        unlocked: level >= 22,
+        requirement: 'Niveau 22'
+      },
+      {
+        id: 'journee_spa',
+        name: 'Journée spa complète',
+        description: 'Spa, balnéo, hammam, détente ultime',
+        icon: '🧖‍♀️',
+        cost: 4000,
+        category: 'premium',
+        unlocked: level >= 30,
+        requirement: 'Niveau 30'
+      },
+      {
+        id: 'weekend_surprise',
+        name: 'Week-end surprise',
+        description: 'Gros budget collectif pour toute l\'équipe',
+        icon: '✈️',
+        cost: 5000,
+        category: 'premium',
+        unlocked: level >= 35,
+        requirement: 'Niveau 35'
+      }
+    ],
+
+    // Nouvelles récompenses Gen Z
+    digital_genZ: [
+      {
+        id: 'setup_gaming',
+        name: 'Accessoire setup gaming',
+        description: 'Clavier RGB, souris gaming, casque ou tapis',
+        icon: '⌨️',
+        cost: 450,
+        category: 'digital_genZ',
+        unlocked: level >= 7,
+        requirement: 'Niveau 7'
+      },
+      {
+        id: 'skin_jeu',
+        name: 'Skin rare ou contenu jeu',
+        description: 'Fortnite, Valorant, LoL, CS2 ou autre',
+        icon: '👾',
+        cost: 380,
+        category: 'digital_genZ',
+        unlocked: level >= 6,
+        requirement: 'Niveau 6'
+      },
+      {
+        id: 'cours_skill',
+        name: 'Cours en ligne skill',
+        description: 'Masterclass, Skillshare, cours créatif',
+        icon: '💻',
+        cost: 420,
+        category: 'digital_genZ',
+        unlocked: level >= 7,
+        requirement: 'Niveau 7'
+      },
+      {
+        id: 'preset_lightroom',
+        name: 'Pack presets créatifs',
+        description: 'Lightroom, Photoshop, filtres Instagram',
+        icon: '📸',
+        cost: 280,
+        category: 'digital_genZ',
+        unlocked: level >= 5,
+        requirement: 'Niveau 5'
+      },
+      {
+        id: 'nft_art',
+        name: 'Création NFT personnalisé',
+        description: 'Votre avatar transformé en art digital',
+        icon: '🎨',
+        cost: 650,
+        category: 'digital_genZ',
+        unlocked: level >= 10,
+        requirement: 'Niveau 10'
+      },
+      {
+        id: 'crypto_starter',
+        name: 'Starter pack crypto',
+        description: 'Petite somme pour découvrir les cryptos',
+        icon: '₿',
+        cost: 800,
+        category: 'digital_genZ',
+        unlocked: level >= 12,
+        requirement: 'Niveau 12'
+      }
+    ],
+
+    experiences_genZ: [
+      {
+        id: 'karaoke_prive',
+        name: 'Session karaoké privée',
+        description: 'Box karaoké entre amis',
+        icon: '🎤',
+        cost: 320,
+        category: 'experiences_genZ',
+        unlocked: level >= 6,
+        requirement: 'Niveau 6'
+      },
+      {
+        id: 'photoshoot_insta',
+        name: 'Photoshoot Instagram',
+        description: 'Séance photo pro pour réseaux sociaux',
+        icon: '📷',
+        cost: 480,
+        category: 'experiences_genZ',
+        unlocked: level >= 8,
+        requirement: 'Niveau 8'
+      },
+      {
+        id: 'atelier_tiktok',
+        name: 'Atelier création TikTok',
+        description: 'Cours pour créer du contenu viral',
+        icon: '🎬',
+        cost: 380,
+        category: 'experiences_genZ',
+        unlocked: level >= 7,
+        requirement: 'Niveau 7'
+      },
+      {
+        id: 'bubble_tea',
+        name: 'Tour des bubble tea',
+        description: 'Découverte des meilleurs spots bubble tea',
+        icon: '🧋',
+        cost: 250,
+        category: 'experiences_genZ',
+        unlocked: level >= 5,
+        requirement: 'Niveau 5'
+      },
+      {
+        id: 'festival_local',
+        name: 'Pass festival local',
+        description: 'Musique, food, art ou culture pop',
+        icon: '🎪',
+        cost: 550,
+        category: 'experiences_genZ',
+        unlocked: level >= 9,
+        requirement: 'Niveau 9'
       }
     ]
   };
 
   // Combiner toutes les récompenses
   const allRewards = [
-    ...rewardsData.badges,
-    ...rewardsData.themes,
-    ...rewardsData.avatars,
-    ...rewardsData.boosters
+    ...rewardsData.mini_plaisirs,
+    ...rewardsData.petits_avantages,
+    ...rewardsData.plaisirs_utiles,
+    ...rewardsData.food_cadeaux,
+    ...rewardsData.bien_etre,
+    ...rewardsData.loisirs_sorties,
+    ...rewardsData.lifestyle_bonus,
+    ...rewardsData.temps_offert,
+    ...rewardsData.grands_plaisirs,
+    ...rewardsData.premium,
+    ...rewardsData.digital_genZ,
+    ...rewardsData.experiences_genZ
   ];
 
   // Filtrer et trier les récompenses
@@ -324,7 +890,7 @@ const RewardsPage = () => {
           <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl animate-pulse flex items-center justify-center">
             <Gift className="w-8 h-8 text-white" />
           </div>
-          <p className="text-white text-lg">Chargement de la boutique...</p>
+          <p className="text-white text-lg">Chargement de la boutique Synergia...</p>
           <p className="text-gray-400 text-sm mt-2">Synchronisation: {syncStatus}</p>
         </div>
       </div>
@@ -354,10 +920,10 @@ const RewardsPage = () => {
             <div>
               <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
                 <Gift className="w-8 h-8 text-purple-400" />
-                Boutique des Récompenses
+                Boutique Synergia
               </h1>
               <p className="text-gray-400">
-                Échangez vos XP contre des récompenses fantastiques !
+                Échangez vos XP contre des récompenses authentiques !
               </p>
               <p className="text-gray-500 text-sm mt-1">
                 Dernière synchronisation: {lastUpdate ? lastUpdate.toLocaleTimeString('fr-FR') : 'En cours...'}
@@ -422,10 +988,16 @@ const RewardsPage = () => {
           <div className="flex flex-wrap gap-2">
             {[
               { id: 'all', name: 'Toutes', icon: '🎁' },
-              { id: 'badges', name: 'Badges', icon: '🏆' },
-              { id: 'themes', name: 'Thèmes', icon: '🎨' },
-              { id: 'avatars', name: 'Avatars', icon: '👤' },
-              { id: 'boosters', name: 'Boosters', icon: '⚡' }
+              { id: 'mini_plaisirs', name: 'Mini-plaisirs', icon: '🍭' },
+              { id: 'petits_avantages', name: 'Petits avantages', icon: '⏰' },
+              { id: 'plaisirs_utiles', name: 'Plaisirs utiles', icon: '🛍️' },
+              { id: 'food_cadeaux', name: 'Food & Cadeaux', icon: '🎫' },
+              { id: 'bien_etre', name: 'Bien-être', icon: '🧘‍♀️' },
+              { id: 'loisirs_sorties', name: 'Loisirs', icon: '🎬' },
+              { id: 'lifestyle_bonus', name: 'Lifestyle', icon: '📺' },
+              { id: 'digital_genZ', name: 'Digital GenZ', icon: '👾' },
+              { id: 'experiences_genZ', name: 'Expériences GenZ', icon: '🎤' },
+              { id: 'premium', name: 'Premium', icon: '💎' }
             ].map(category => (
               <button
                 key={category.id}
@@ -437,7 +1009,7 @@ const RewardsPage = () => {
                 }`}
               >
                 <span>{category.icon}</span>
-                <span>{category.name}</span>
+                <span className="text-sm">{category.name}</span>
               </button>
             ))}
           </div>
@@ -484,12 +1056,17 @@ const RewardsPage = () => {
               <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center">
                 <Trophy className="w-8 h-8 text-white" />
               </div>
-              <h4 className="text-white font-medium mb-1">Prochain Objectif</h4>
+              <h4 className="text-white font-medium mb-1">Récompense Prochaine</h4>
               <p className="text-gray-400 text-sm">
-                Niveau {level + 1}
+                {(() => {
+                  const nextReward = allRewards
+                    .filter(r => !r.unlocked)
+                    .sort((a, b) => a.cost - b.cost)[0];
+                  return nextReward ? `${nextReward.cost} XP` : 'Toutes débloquées !';
+                })()}
               </p>
               <p className="text-orange-400 text-xs mt-1">
-                Pour débloquer plus de récompenses
+                Continuez à progresser !
               </p>
             </div>
           </div>
@@ -518,13 +1095,8 @@ const RewardsPage = () => {
               >
                 {/* Badge catégorie */}
                 <div className="absolute top-3 right-3 z-10">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                    reward.category === 'badges' ? 'bg-yellow-500 text-yellow-900' :
-                    reward.category === 'themes' ? 'bg-purple-500 text-white' :
-                    reward.category === 'avatars' ? 'bg-blue-500 text-white' :
-                    'bg-green-500 text-white'
-                  }`}>
-                    {reward.category}
+                  <span className="text-xs px-2 py-1 rounded-full font-medium bg-purple-500/80 text-white">
+                    {reward.cost} XP
                   </span>
                 </div>
 
@@ -537,27 +1109,17 @@ const RewardsPage = () => {
 
                 <div className="p-6">
                   {/* Icône principale */}
-                  <div className="text-6xl mb-4 text-center">
+                  <div className="text-4xl mb-4 text-center">
                     {reward.icon}
                   </div>
 
                   {/* Nom et description */}
-                  <h3 className="text-xl font-bold text-white mb-2 text-center">
+                  <h3 className="text-lg font-bold text-white mb-2 text-center">
                     {reward.name}
                   </h3>
-                  <p className="text-gray-400 text-sm text-center mb-4">
+                  <p className="text-gray-400 text-sm text-center mb-4 line-clamp-2">
                     {reward.description}
                   </p>
-
-                  {/* Durée (pour les boosters) */}
-                  {reward.duration && (
-                    <div className="flex items-center justify-center gap-1 mb-3">
-                      <Clock className="w-4 h-4 text-orange-400" />
-                      <span className="text-orange-400 text-sm font-medium">
-                        {reward.duration}
-                      </span>
-                    </div>
-                  )}
 
                   {/* Prix et statut */}
                   <div className="flex items-center justify-between">
@@ -649,7 +1211,7 @@ const RewardsPage = () => {
                   </button>
                   <button
                     onClick={() => handlePurchaseReward(selectedReward)}
-                    disabled={totalXp < selectedReward.cost || purchasing}
+                    disabled={totalXp < selectedReward.cost || purchasing || !selectedReward.unlocked}
                     className="flex-1 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 text-white py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2"
                   >
                     {purchasing ? (
