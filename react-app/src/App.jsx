@@ -45,7 +45,7 @@ import AdminRewardsPage from './pages/AdminRewardsPage.jsx';
 import AdminBadgesPage from './pages/AdminBadgesPage.jsx';
 import AdminAnalyticsPage from './pages/AdminAnalyticsPage.jsx';
 import AdminSettingsPage from './pages/AdminSettingsPage.jsx';
-import AdminDemoCleanerPage from './pages/AdminDemoCleanerPage.jsx';
+// import AdminDemoCleanerPage from './pages/AdminDemoCleanerPage.jsx'; // ❌ FICHIER MANQUANT
 import AdminObjectiveValidationPage from './pages/AdminObjectiveValidationPage.jsx';
 
 // ==========================================
@@ -230,6 +230,8 @@ function App() {
                 </AdminRoute>
               }
             />
+            {/* TEMPORAIREMENT DÉSACTIVÉ - Fichier manquant */}
+            {/* 
             <Route
               path="admin/demo-cleaner"
               element={
@@ -238,6 +240,7 @@ function App() {
                 </AdminRoute>
               }
             />
+            */}
 
             {/* ==========================================
                 🚫 ROUTE 404 - PAGE NON TROUVÉE
