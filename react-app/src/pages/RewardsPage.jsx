@@ -9,7 +9,8 @@ import {
   Gift, Star, Zap, Crown, Award, ShoppingBag, 
   Coffee, Gamepad2, Palette, Clock, CheckCircle,
   Lock, Unlock, Filter, Search, Tag, Trophy,
-  Target, Calendar, Users, Coins, RefreshCw  // ← Coins ajouté
+  Target, Calendar, Users, Coins, RefreshCw,
+  ShoppingCart // ✅ AJOUT DE L'IMPORT MANQUANT
 } from 'lucide-react';
 import { useUnifiedXP } from '../shared/hooks/useUnifiedXP.js';
 
@@ -52,110 +53,79 @@ const RewardsPage = () => {
         requirement: 'Niveau 2'
       },
       {
-        id: 'task_master',
-        name: 'Maître des Tâches',
-        description: 'Complétez 50 tâches',
+        id: 'perfectionist',
+        name: 'Perfectionniste',
+        description: '100% de tâches complétées pendant 1 semaine',
         icon: '🎯',
         cost: 200,
         category: 'badges',
-        unlocked: (gamificationData?.tasksCompleted || 0) >= 50,
+        unlocked: level >= 3,
         requirement: 'Niveau 3'
-      },
-      {
-        id: 'streak_champion',
-        name: 'Champion des Séries',
-        description: 'Série de 30 jours',
-        icon: '🔥',
-        cost: 500,
-        category: 'badges',
-        unlocked: badges.some(b => b.id === 'streak_champion' || b === 'streak_champion'),
-        requirement: 'Niveau 5'
       }
     ],
-    themes: [
+    rewards: [
       {
-        id: 'dark_mode',
-        name: 'Thème Sombre Premium',
-        description: 'Interface élégante avec animations',
-        icon: '🌙',
+        id: 'coffee_break',
+        name: 'Pause café premium',
+        description: 'Un bon café et une viennoiserie',
+        icon: '☕',
         cost: 150,
-        category: 'themes',
+        category: 'mini-pleasures',
+        unlocked: true
+      },
+      {
+        id: 'lunch_voucher',
+        name: 'Bon restaurant',
+        description: 'Déjeuner dans un restaurant de votre choix',
+        icon: '🍽️',
+        cost: 500,
+        category: 'food',
         unlocked: level >= 2,
         requirement: 'Niveau 2'
       },
       {
-        id: 'neon_theme',
-        name: 'Thème Néon',
-        description: 'Style cyberpunk avec effets lumineux',
-        icon: '⚡',
-        cost: 300,
-        category: 'themes',
-        unlocked: level >= 4,
-        requirement: 'Niveau 4'
-      }
-    ],
-    avatars: [
-      {
-        id: 'crown_avatar',
-        name: 'Avatar Couronné',
-        description: 'Montrez votre statut de leader',
-        icon: '👑',
-        cost: 250,
-        category: 'avatars',
+        id: 'movie_tickets',
+        name: '2 places de cinéma',
+        description: 'Sortie cinéma avec popcorn inclus',
+        icon: '🎬',
+        cost: 800,
+        category: 'entertainment',
         unlocked: level >= 3,
         requirement: 'Niveau 3'
       },
       {
-        id: 'robot_avatar',
-        name: 'Avatar Robot',
-        description: 'Style futuriste et technologique',
-        icon: '🤖',
-        cost: 400,
-        category: 'avatars',
+        id: 'spa_day',
+        name: 'Journée spa',
+        description: 'Détente complète dans un spa',
+        icon: '🧘',
+        cost: 2000,
+        category: 'wellness',
         unlocked: level >= 5,
         requirement: 'Niveau 5'
-      }
-    ],
-    boosters: [
-      {
-        id: 'xp_boost_24h',
-        name: 'Boost XP 24h',
-        description: 'Double XP pendant 24 heures',
-        icon: '🚀',
-        cost: 300,
-        category: 'boosters',
-        unlocked: true,
-        requirement: 'Toujours disponible',
-        duration: '24h'
       },
       {
-        id: 'task_boost',
-        name: 'Boost Tâches',
-        description: '+50% XP sur les tâches (7 jours)',
-        icon: '⚡',
-        cost: 500,
-        category: 'boosters',
-        unlocked: level >= 3,
-        requirement: 'Niveau 3',
-        duration: '7 jours'
+        id: 'tech_gadget',
+        name: 'Gadget tech',
+        description: 'Accessoire high-tech de votre choix',
+        icon: '📱',
+        cost: 3500,
+        category: 'premium',
+        unlocked: level >= 7,
+        requirement: 'Niveau 7'
       }
     ]
   };
 
-  // Combiner toutes les récompenses
-  const allRewards = [
-    ...rewardsData.badges,
-    ...rewardsData.themes,
-    ...rewardsData.avatars,
-    ...rewardsData.boosters
-  ];
+  // Combiner tous les items
+  const allRewards = [...rewardsData.badges, ...rewardsData.rewards];
 
   // Filtrer et trier les récompenses
   const filteredRewards = allRewards
     .filter(reward => {
-      if (selectedCategory !== 'all' && reward.category !== selectedCategory) return false;
-      if (searchTerm && !reward.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-      return true;
+      const matchesCategory = selectedCategory === 'all' || reward.category === selectedCategory;
+      const matchesSearch = reward.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           reward.description.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesCategory && matchesSearch;
     })
     .sort((a, b) => {
       switch (sortBy) {
@@ -163,51 +133,53 @@ const RewardsPage = () => {
           return a.cost - b.cost;
         case 'name':
           return a.name.localeCompare(b.name);
-        case 'category':
-          return a.category.localeCompare(b.category);
+        case 'unlocked':
+          return b.unlocked - a.unlocked;
         default:
           return 0;
       }
     });
 
-  // 🛒 ACHAT DE RÉCOMPENSE
+  // Catégories disponibles
+  const categories = [
+    { id: 'all', name: 'Toutes', icon: '🎁' },
+    { id: 'badges', name: 'Badges', icon: '🏆' },
+    { id: 'mini-pleasures', name: 'Mini-plaisirs', icon: '☕' },
+    { id: 'food', name: 'Restauration', icon: '🍽️' },
+    { id: 'entertainment', name: 'Loisirs', icon: '🎬' },
+    { id: 'wellness', name: 'Bien-être', icon: '🧘' },
+    { id: 'premium', name: 'Premium', icon: '👑' }
+  ];
+
+  // Gestion de l'achat de récompense
   const handlePurchaseReward = async (reward) => {
+    if (totalXp < reward.cost) {
+      alert('Pas assez d\'XP pour cette récompense !');
+      return;
+    }
+
     try {
-      if (totalXp < reward.cost) {
-        alert(`Vous n'avez pas assez d'XP! Il vous manque ${reward.cost - totalXp} XP.`);
-        return;
-      }
-
-      if (!reward.unlocked) {
-        alert(`Cette récompense nécessite: ${reward.requirement}`);
-        return;
-      }
-
-      // Déduire les XP (simulation - en vrai il faudrait une API)
-      await addXP(-reward.cost, 'reward_purchase', {
-        rewardId: reward.id,
-        rewardName: reward.name,
-        cost: reward.cost
-      });
-
-      // Animation de succès
-      setShowPurchaseModal(false);
-      alert(`🎉 ${reward.name} acheté avec succès!`);
+      // Simulation d'achat (à remplacer par la vraie logique)
+      console.log('🎁 Achat de récompense:', reward);
       
+      // Déduire les XP (simulation)
+      // await addXP(-reward.cost);
+      
+      alert(`🎉 Félicitations ! Vous venez d'obtenir "${reward.name}" !`);
+      setShowPurchaseModal(false);
+      setSelectedReward(null);
     } catch (error) {
       console.error('❌ Erreur achat récompense:', error);
       alert('Erreur lors de l\'achat. Veuillez réessayer.');
     }
   };
 
-  // ⏳ CHARGEMENT
-  if (loading || !isReady) {
+  // Si les données ne sont pas encore prêtes
+  if (!isReady || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl animate-pulse flex items-center justify-center">
-            <Gift className="w-8 h-8 text-white" />
-          </div>
+          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-white text-lg">Chargement de la boutique...</p>
           <p className="text-gray-400 text-sm mt-2">Synchronisation: {syncStatus}</p>
         </div>
@@ -216,169 +188,150 @@ const RewardsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
-      <div className="max-w-7xl mx-auto p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="container mx-auto px-6 py-8">
         
-        {/* 🎁 EN-TÊTE */}
+        {/* 🎨 HEADER DE LA BOUTIQUE */}
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="text-center mb-8"
         >
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-                <Gift className="w-8 h-8 text-purple-400" />
-                Boutique des Récompenses
-              </h1>
-              <p className="text-gray-400">
-                Échangez vos XP contre des récompenses fantastiques !
-              </p>
-              <p className="text-gray-500 text-sm mt-1">
-                Dernière synchronisation: {lastUpdate ? lastUpdate.toLocaleTimeString('fr-FR') : 'En cours...'}
-              </p>
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Gift className="w-10 h-10 text-purple-400" />
+            <h1 className="text-4xl font-bold text-white">Boutique des Récompenses</h1>
+          </div>
+          
+          <p className="text-gray-400 text-lg mb-6">
+            Échangez vos XP contre des récompenses fantastiques !
+          </p>
+
+          {/* 💰 SOLDE XP ET NIVEAU */}
+          <div className="flex items-center justify-center gap-8 mb-6">
+            <div className="bg-gradient-to-r from-yellow-500 to-orange-500 px-6 py-3 rounded-full">
+              <div className="flex items-center gap-2">
+                <Coins className="w-5 h-5 text-white" />
+                <span className="text-white font-bold text-lg">{totalXp.toLocaleString()} XP</span>
+              </div>
             </div>
             
-            <div className="flex items-center gap-4">
-              {/* Solde XP */}
-              <div className="bg-gradient-to-r from-yellow-500 to-orange-600 rounded-xl p-4 text-center">
-                <div className="flex items-center gap-2 mb-1">
-                  <Coins className="w-5 h-5 text-white" />
-                  <span className="text-white font-semibold">XP Disponibles</span>
-                </div>
-                <p className="text-2xl font-bold text-white">{totalXp.toLocaleString()}</p>
-                <p className="text-orange-100 text-sm">Niveau {level}</p>
+            <div className="bg-gradient-to-r from-purple-500 to-blue-500 px-6 py-3 rounded-full">
+              <div className="flex items-center gap-2">
+                <Crown className="w-5 h-5 text-white" />
+                <span className="text-white font-bold text-lg">Niveau {level}</span>
               </div>
-              
-              <button
-                onClick={forceSync}
-                className="flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                <RefreshCw className={`w-4 h-4 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
-                Actualiser
-              </button>
             </div>
           </div>
+
+          {/* 🔄 BOUTON DE SYNCHRONISATION */}
+          <button
+            onClick={forceSync}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 mx-auto transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Synchroniser
+          </button>
         </motion.div>
 
         {/* 🔍 FILTRES ET RECHERCHE */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 mb-8"
+          className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mb-8"
         >
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Recherche */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          {/* Barre de recherche */}
+          <div className="flex gap-4 mb-6">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Rechercher une récompense..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-gray-700/50 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-purple-400"
               />
             </div>
             
-            {/* Catégorie */}
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="all">Toutes catégories</option>
-              <option value="badges">Badges</option>
-              <option value="themes">Thèmes</option>
-              <option value="avatars">Avatars</option>
-              <option value="boosters">Boosters</option>
-            </select>
-            
-            {/* Tri */}
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-400"
             >
-              <option value="price">Prix (croissant)</option>
-              <option value="name">Nom (A-Z)</option>
-              <option value="category">Catégorie</option>
+              <option value="price">Prix croissant</option>
+              <option value="name">Nom A-Z</option>
+              <option value="unlocked">Disponibles d'abord</option>
             </select>
-            
-            {/* Compteur */}
-            <div className="flex items-center justify-center bg-white/5 rounded-lg p-2">
-              <span className="text-gray-300 text-sm">
-                {filteredRewards.length} récompense{filteredRewards.length > 1 ? 's' : ''}
-              </span>
-            </div>
+          </div>
+
+          {/* Catégories */}
+          <div className="flex flex-wrap gap-2">
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategory(category.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                  selectedCategory === category.id
+                    ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white'
+                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
+                }`}
+              >
+                <span>{category.icon}</span>
+                <span>{category.name}</span>
+              </button>
+            ))}
           </div>
         </motion.div>
 
-        {/* 🏪 GRILLE DES RÉCOMPENSES */}
+        {/* 🎁 GRILLE DES RÉCOMPENSES */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
           {filteredRewards.map((reward, index) => (
             <motion.div
               key={reward.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 + index * 0.1 }}
-              className={`relative overflow-hidden rounded-xl border transition-all duration-300 hover:scale-105 cursor-pointer ${
-                reward.unlocked
-                  ? 'bg-white/10 border-white/20 hover:bg-white/15'
-                  : 'bg-gray-800/50 border-gray-700/50 opacity-75'
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className={`relative bg-gray-800/50 backdrop-blur-sm border rounded-xl p-6 cursor-pointer group transition-all ${
+                reward.unlocked 
+                  ? totalXp >= reward.cost
+                    ? 'border-green-500/50 hover:border-green-400 hover:scale-105'
+                    : 'border-gray-600/50 hover:border-gray-500'
+                  : 'border-red-500/50 opacity-75'
               }`}
-              onClick={() => reward.unlocked && setSelectedReward(reward)}
+              onClick={() => {
+                if (reward.unlocked) {
+                  setSelectedReward(reward);
+                  setShowPurchaseModal(true);
+                }
+              }}
             >
-              {/* Badge de catégorie */}
-              <div className="absolute top-3 right-3 z-10">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  reward.category === 'badges' ? 'bg-yellow-500 text-yellow-900' :
-                  reward.category === 'themes' ? 'bg-purple-500 text-white' :
-                  reward.category === 'avatars' ? 'bg-blue-500 text-white' :
-                  'bg-green-500 text-white'
-                }`}>
-                  {reward.category}
-                </span>
+              {/* Statut de déverrouillage */}
+              <div className="absolute top-3 right-3">
+                {reward.unlocked ? (
+                  totalXp >= reward.cost ? (
+                    <Unlock className="w-5 h-5 text-green-400" />
+                  ) : (
+                    <Coins className="w-5 h-5 text-yellow-400" />
+                  )
+                ) : (
+                  <Lock className="w-5 h-5 text-red-400" />
+                )}
               </div>
 
-              {/* Icône de verrouillage */}
-              {!reward.unlocked && (
-                <div className="absolute top-3 left-3 z-10">
-                  <Lock className="w-5 h-5 text-gray-400" />
+              {/* Icône et nom */}
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-2">{reward.icon}</div>
+                <h3 className="text-lg font-bold text-white mb-1">{reward.name}</h3>
+                <p className="text-gray-400 text-sm">{reward.description}</p>
+              </div>
+
+              {/* Prix et action */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Coins className="w-4 h-4 text-yellow-400" />
+                  <span className="text-white font-bold">{reward.cost} XP</span>
                 </div>
-              )}
-
-              <div className="p-6">
-                {/* Icône principale */}
-                <div className="text-6xl mb-4 text-center">
-                  {reward.icon}
-                </div>
-
-                {/* Nom et description */}
-                <h3 className="text-xl font-bold text-white mb-2 text-center">
-                  {reward.name}
-                </h3>
-                <p className="text-gray-400 text-sm text-center mb-4">
-                  {reward.description}
-                </p>
-
-                {/* Durée (pour les boosters) */}
-                {reward.duration && (
-                  <div className="flex items-center justify-center gap-1 mb-3">
-                    <Clock className="w-4 h-4 text-orange-400" />
-                    <span className="text-orange-400 text-sm font-medium">
-                      {reward.duration}
-                    </span>
-                  </div>
-                )}
-
-                {/* Prix et statut */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Coins className="w-4 h-4 text-yellow-400" />
-                    <span className="text-white font-bold">{reward.cost} XP</span>
-                  </div>
-                  
+                
+                <div>
                   {reward.unlocked ? (
                     totalXp >= reward.cost ? (
                       <button
@@ -418,60 +371,33 @@ const RewardsPage = () => {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-          className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6"
+          className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6"
         >
-          <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-            <Target className="w-5 h-5 text-green-400" />
-            Progression et Objectifs
+          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-yellow-400" />
+            Statistiques
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Récompenses débloquées */}
             <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-xl font-bold">
-                  {allRewards.filter(r => r.unlocked).length}
-                </span>
+              <div className="text-2xl font-bold text-purple-400 mb-1">
+                {filteredRewards.filter(r => r.unlocked && totalXp >= r.cost).length}
               </div>
-              <h4 className="text-white font-medium mb-1">Récompenses Débloquées</h4>
-              <p className="text-gray-400 text-sm">
-                sur {allRewards.length} total
-              </p>
-              <div className="w-full h-2 bg-gray-700 rounded-full mt-2">
-                <div 
-                  className="h-full bg-gradient-to-r from-green-500 to-emerald-600 rounded-full"
-                  style={{ width: `${(allRewards.filter(r => r.unlocked).length / allRewards.length) * 100}%` }}
-                ></div>
-              </div>
+              <div className="text-gray-400 text-sm">Récompenses accessibles</div>
             </div>
             
-            {/* XP dépensés */}
             <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center">
-                <Coins className="w-8 h-8 text-white" />
+              <div className="text-2xl font-bold text-blue-400 mb-1">
+                {filteredRewards.filter(r => !r.unlocked).length}
               </div>
-              <h4 className="text-white font-medium mb-1">XP Disponibles</h4>
-              <p className="text-gray-400 text-sm">
-                {totalXp.toLocaleString()} XP
-              </p>
-              <p className="text-purple-400 text-xs mt-1">
-                Peut acheter {allRewards.filter(r => r.unlocked && totalXp >= r.cost).length} articles
-              </p>
+              <div className="text-gray-400 text-sm">À débloquer</div>
             </div>
             
-            {/* Prochaine récompense */}
             <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center">
-                <Trophy className="w-8 h-8 text-white" />
+              <div className="text-2xl font-bold text-green-400 mb-1">
+                {Math.min(...filteredRewards.filter(r => r.unlocked && totalXp < r.cost).map(r => r.cost - totalXp)) || 0}
               </div>
-              <h4 className="text-white font-medium mb-1">Prochain Objectif</h4>
-              <p className="text-gray-400 text-sm">
-                Niveau {level + 1}
-              </p>
-              <p className="text-orange-400 text-xs mt-1">
-                Pour débloquer plus de récompenses
-              </p>
+              <div className="text-gray-400 text-sm">XP pour la prochaine</div>
             </div>
           </div>
         </motion.div>
@@ -483,7 +409,7 @@ const RewardsPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
               onClick={() => setShowPurchaseModal(false)}
             >
               <motion.div
