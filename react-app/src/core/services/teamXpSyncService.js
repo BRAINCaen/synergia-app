@@ -9,7 +9,8 @@ import {
   onSnapshot,
   doc,
   where,
-  getDocs
+  getDocs,
+  getDoc
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import { useTeamStore } from '../../shared/stores/teamStore.js';
@@ -130,7 +131,7 @@ class TeamXpSyncService {
    */
   updateMemberInStore(memberId, gamificationData) {
     try {
-      const { members, updateMemberStats } = useTeamStore.getState();
+      const { members } = useTeamStore.getState();
       
       // Chercher le membre dans le store
       const memberIndex = members.findIndex(member => member.id === memberId);
