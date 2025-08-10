@@ -488,7 +488,7 @@ if (typeof window !== 'undefined') {
 }
 
 export default assetsManager;
-export { assetsManager, effectsManager, SOUND_CONFIG, IMAGE_CONFIG };
+export { assetsManager, effectsManager };
 
 // Fonctions utilitaires exportées
 export const playBadgeSound = (rarity) => assetsManager.playBadgeSound(rarity);
