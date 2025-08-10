@@ -38,15 +38,16 @@ import RoleProgressionPage from './pages/RoleProgressionPage.jsx';
 // 🛡️ PAGES ADMIN
 // ==========================================
 import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
-import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
+import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx'; // ✅ Nom correct
 import AdminRolePermissionsPage from './pages/AdminRolePermissionsPage.jsx';
 import AdminUsersPage from './pages/AdminUsersPage.jsx';
-import AdminRewardsPage from './pages/AdminRewardsPage.jsx';
-import AdminBadgesPage from './pages/AdminBadgesPage.jsx';
 import AdminAnalyticsPage from './pages/AdminAnalyticsPage.jsx';
 import AdminSettingsPage from './pages/AdminSettingsPage.jsx';
-// import AdminDemoCleanerPage from './pages/AdminDemoCleanerPage.jsx'; // ❌ FICHIER MANQUANT
-import AdminObjectiveValidationPage from './pages/AdminObjectiveValidationPage.jsx';
+import DemoDataCleanerPage from './pages/admin/DemoDataCleanerPage.jsx'; // ✅ Chemin correct
+// Fichiers manquants - à créer si nécessaire :
+// import AdminRewardsPage from './pages/AdminRewardsPage.jsx';
+// import AdminBadgesPage from './pages/AdminBadgesPage.jsx';
+// import AdminObjectiveValidationPage from './pages/AdminObjectiveValidationPage.jsx';
 
 // ==========================================
 // 🛡️ COMPOSANT DE PROTECTION DES ROUTES
@@ -167,14 +168,6 @@ function App() {
               }
             />
             <Route
-              path="admin/objective-validation"
-              element={
-                <AdminRoute>
-                  <AdminObjectiveValidationPage />
-                </AdminRoute>
-              }
-            />
-            <Route
               path="admin/complete-test"
               element={
                 <AdminRoute>
@@ -199,22 +192,6 @@ function App() {
               }
             />
             <Route
-              path="admin/rewards"
-              element={
-                <AdminRoute>
-                  <AdminRewardsPage />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="admin/badges"
-              element={
-                <AdminRoute>
-                  <AdminBadgesPage />
-                </AdminRoute>
-              }
-            />
-            <Route
               path="admin/analytics"
               element={
                 <AdminRoute>
@@ -230,13 +207,38 @@ function App() {
                 </AdminRoute>
               }
             />
-            {/* TEMPORAIREMENT DÉSACTIVÉ - Fichier manquant */}
-            {/* 
             <Route
               path="admin/demo-cleaner"
               element={
                 <AdminRoute>
-                  <AdminDemoCleanerPage />
+                  <DemoDataCleanerPage />
+                </AdminRoute>
+              }
+            />
+
+            {/* ROUTES ADMIN TEMPORAIREMENT DÉSACTIVÉES - Fichiers à créer */}
+            {/* 
+            <Route
+              path="admin/objective-validation"
+              element={
+                <AdminRoute>
+                  <AdminObjectiveValidationPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="admin/rewards"
+              element={
+                <AdminRoute>
+                  <AdminRewardsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="admin/badges"
+              element={
+                <AdminRoute>
+                  <AdminBadgesPage />
                 </AdminRoute>
               }
             />
