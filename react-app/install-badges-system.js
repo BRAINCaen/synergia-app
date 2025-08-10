@@ -42,7 +42,7 @@ const INSTALLATION_CONFIG = {
   },
   filesToUpdate: {
     'react-app/src/App.jsx': 'app_jsx_complete',
-    'react-app/src/main.jsx': 'main_jsx_complete',
+    'react-app/src/index.jsx': 'index_jsx_complete', // ✅ ADAPTÉ POUR VOTRE STRUCTURE
     'react-app/src/components/layout/Layout.jsx': 'layout_complete'
   }
 };
@@ -151,7 +151,7 @@ function getArtifactContent(artifactId) {
     enhanced_useBadges_hook: `// useBadges.js enhanced - Contenu depuis l'artifact`,
     css_styles_complete: `/* Styles CSS complets avec badges */`,
     app_jsx_complete: `// App.jsx avec intégration badges`,
-    main_jsx_complete: `// main.jsx avec intégration badges`,
+    index_jsx_complete: `// index.jsx avec intégration badges`,
     layout_complete: `// Layout.jsx avec intégration badges`
   };
   
