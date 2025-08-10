@@ -1,9 +1,10 @@
 // ==========================================
-// 📁 react-app/src/core/services/teamPageXpSyncIntegration.js
-// INTÉGRATION SYNCHRONISATION XP DANS LA PAGE ÉQUIPE
+// 📁 react-app/src/core/services/teamPageXpSyncIntegration.jsx
+// INTÉGRATION SYNCHRONISATION XP DANS LA PAGE ÉQUIPE - VERSION CORRIGÉE
 // ==========================================
 
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Users, Zap, Award, CheckSquare } from 'lucide-react';
 import { useTeamXpSync } from '../../shared/hooks/useTeamXpSync.js';
 import { useTeamStore } from '../../shared/stores/teamStore.js';
 
@@ -55,11 +56,11 @@ export const TeamPageXpSyncWrapper = ({ children }) => {
     <>
       {children}
       
-      {/* Indicateur de synchronisation (optionnel) */}
+      {/* Indicateur de synchronisation */}
       {syncStats.activeSyncs > 0 && (
         <div className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+            <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
             <span className="text-sm">
               Synchronisation XP... ({syncStats.activeSyncs})
             </span>
@@ -72,7 +73,6 @@ export const TeamPageXpSyncWrapper = ({ children }) => {
 
 /**
  * 🎯 HOOK POUR BOUTON DE SYNCHRONISATION MANUELLE
- * À intégrer dans les boutons existants de la page équipe
  */
 export const useTeamXpSyncButton = () => {
   const { forceSync } = useTeamXpSync();
@@ -104,7 +104,6 @@ export const useTeamXpSyncButton = () => {
 
 /**
  * 📊 COMPOSANT D'AFFICHAGE XP AVEC SYNCHRONISATION TEMPS RÉEL
- * Pour remplacer l'affichage XP statique dans les cartes membres
  */
 export const MemberXpDisplay = ({ member, showLevel = true, showXp = true }) => {
   const [memberData, setMemberData] = useState(member);
@@ -160,7 +159,6 @@ export const MemberXpDisplay = ({ member, showLevel = true, showXp = true }) => 
 
 /**
  * 📈 COMPOSANT STATISTIQUES ÉQUIPE AVEC XP SYNCHRONISÉS
- * Pour remplacer les stats statiques dans l'en-tête
  */
 export const TeamStatsWithSync = () => {
   const stats = useTeamStore(state => state.stats);
@@ -258,7 +256,6 @@ export const TeamStatsWithSync = () => {
 
 /**
  * 🔄 HOOK POUR STATUS DE SYNCHRONISATION
- * Affiche l'état de la synchronisation dans l'interface
  */
 export const useTeamSyncStatus = () => {
   const { initialized, getDiagnostic } = useTeamXpSync({
@@ -284,8 +281,5 @@ export const useTeamSyncStatus = () => {
 
   return syncStatus;
 };
-
-// Imports nécessaires pour les icônes (à ajouter en haut du fichier)
-import { Users, Zap, Award, CheckSquare } from 'lucide-react';
 
 export default TeamPageXpSyncWrapper;
