@@ -657,4 +657,4 @@ if (typeof window !== 'undefined') {
 }
 
 export default synergiaBadgeService;
-export { SYNERGIA_BADGE_DEFINITIONS, SynergiaBadgeService };
+export { SynergiaBadgeService };
