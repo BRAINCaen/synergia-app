@@ -250,7 +250,7 @@ const calculateBadgeStats = (userBadges, allBadges) => {
 /**
  * 🏆 HOOK PRINCIPAL BADGES ENHANCED
  */
-const useBadges = () => {
+export const useBadges = () => {
   const { user } = useAuthStore();
   
   // États
@@ -543,3 +543,4 @@ const useBadges = () => {
 };
 
 export default useBadges;
+export { useBadges };
