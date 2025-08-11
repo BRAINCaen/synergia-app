@@ -29,7 +29,8 @@ import {
   Paperclip,
   Repeat,
   Hash,
-  Send
+  Send,
+  Heart
 } from 'lucide-react';
 
 // 🚨 IMPORT DU SERVICE DE COLLABORATION TEMPS RÉEL
@@ -418,32 +419,32 @@ const TaskDetailsModal = ({
   const getStatusConfig = (status) => {
     const statusConfigs = {
       'todo': { 
-        bg: 'bg-gray-100', 
-        text: 'text-gray-800', 
+        bg: 'bg-gray-800/50', 
+        text: 'text-gray-300', 
         label: 'À faire',
         icon: Clock 
       },
       'in_progress': { 
-        bg: 'bg-blue-100', 
-        text: 'text-blue-800', 
+        bg: 'bg-blue-800/50', 
+        text: 'text-blue-300', 
         label: 'En cours',
         icon: CheckCircle 
       },
       'validation_pending': { 
-        bg: 'bg-orange-100', 
-        text: 'text-orange-800', 
+        bg: 'bg-orange-800/50', 
+        text: 'text-orange-300', 
         label: 'En validation',
         icon: Eye 
       },
       'completed': { 
-        bg: 'bg-green-100', 
-        text: 'text-green-800', 
+        bg: 'bg-green-800/50', 
+        text: 'text-green-300', 
         label: 'Terminée',
         icon: Trophy 
       },
       'cancelled': { 
-        bg: 'bg-red-100', 
-        text: 'text-red-800', 
+        bg: 'bg-red-800/50', 
+        text: 'text-red-300', 
         label: 'Annulée',
         icon: X 
       }
@@ -455,26 +456,26 @@ const TaskDetailsModal = ({
   const getPriorityConfig = (priority) => {
     const priorityConfigs = {
       'low': { 
-        bg: 'bg-green-100', 
-        text: 'text-green-700', 
+        bg: 'bg-green-800/50', 
+        text: 'text-green-300', 
         label: 'Basse',
         icon: '🟢' 
       },
       'medium': { 
-        bg: 'bg-yellow-100', 
-        text: 'text-yellow-700', 
+        bg: 'bg-yellow-800/50', 
+        text: 'text-yellow-300', 
         label: 'Moyenne',
         icon: '🟡' 
       },
       'high': { 
-        bg: 'bg-orange-100', 
-        text: 'text-orange-700', 
+        bg: 'bg-orange-800/50', 
+        text: 'text-orange-300', 
         label: 'Haute',
         icon: '🟠' 
       },
       'urgent': { 
-        bg: 'bg-red-100', 
-        text: 'text-red-700', 
+        bg: 'bg-red-800/50', 
+        text: 'text-red-300', 
         label: 'Urgente',
         icon: '🔴' 
       }
@@ -486,26 +487,26 @@ const TaskDetailsModal = ({
   const getDifficultyConfig = (difficulty) => {
     const difficultyConfigs = {
       'easy': { 
-        bg: 'bg-green-100', 
-        text: 'text-green-700', 
+        bg: 'bg-green-800/50', 
+        text: 'text-green-300', 
         label: 'Facile',
         stars: 1 
       },
       'normal': { 
-        bg: 'bg-blue-100', 
-        text: 'text-blue-700', 
+        bg: 'bg-blue-800/50', 
+        text: 'text-blue-300', 
         label: 'Normal',
         stars: 2 
       },
       'hard': { 
-        bg: 'bg-orange-100', 
-        text: 'text-orange-700', 
+        bg: 'bg-orange-800/50', 
+        text: 'text-orange-300', 
         label: 'Difficile',
         stars: 3 
       },
       'expert': { 
-        bg: 'bg-red-100', 
-        text: 'text-red-700', 
+        bg: 'bg-red-800/50', 
+        text: 'text-red-300', 
         label: 'Expert',
         stars: 4 
       }
@@ -520,7 +521,7 @@ const TaskDetailsModal = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl border border-gray-700"">
+      <div className="bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl border border-gray-700">
         
         {/* Header avec titre et actions */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700 bg-gray-800">
@@ -529,10 +530,10 @@ const TaskDetailsModal = ({
             <div>
               <h2 className="text-xl font-bold text-white">{task.title}</h2>
               <div className="flex items-center gap-2 mt-1">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusConfig.bg} ${statusConfig.text}`}>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusConfig.bg} ${statusConfig.text} border border-gray-600`}>
                   {statusConfig.label}
                 </span>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${priorityConfig.bg} ${priorityConfig.text}`}>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${priorityConfig.bg} ${priorityConfig.text} border border-gray-600`}>
                   {priorityConfig.icon} {priorityConfig.label}
                 </span>
               </div>
@@ -698,7 +699,7 @@ const TaskDetailsModal = ({
                       {/* Difficulté */}
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400">Difficulté:</span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${difficultyConfig.bg} ${difficultyConfig.text}`}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${difficultyConfig.bg} ${difficultyConfig.text} border border-gray-600`}>
                           {Array.from({ length: difficultyConfig.stars }, (_, i) => (
                             <Star key={i} className="w-3 h-3 inline fill-current" />
                           ))}
@@ -894,64 +895,6 @@ const TaskDetailsModal = ({
             <button
               onClick={onClose}
               className="px-4 py-2 bg-gray-600 text-gray-300 rounded-lg hover:bg-gray-500 transition-colors font-medium"
-            >
-              Fermer
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default TaskDetailsModal;mettre pour validation */}
-            {onSubmit && task.status !== 'completed' && task.status !== 'validation_pending' && (
-              <button
-                onClick={() => {
-                  onSubmit(task);
-                  onClose();
-                }}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-              >
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Soumettre
-              </button>
-            )}
-
-            {/* Modifier */}
-            {onEdit && (
-              <button
-                onClick={() => {
-                  onEdit(task);
-                  onClose();
-                }}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                Modifier
-              </button>
-            )}
-
-            {/* Supprimer */}
-            {onDelete && (
-              <button
-                onClick={() => {
-                  if (confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
-                    onDelete(task.id);
-                    onClose();
-                  }
-                }}
-                className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Supprimer
-              </button>
-            )}
-
-            {/* Fermer */}
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium"
             >
               Fermer
             </button>
