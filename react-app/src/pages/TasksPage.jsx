@@ -60,6 +60,7 @@ const TasksPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all'); // NOUVEAU: Filtre par rôle Synergia
 
   // Chargement initial
   useEffect(() => {
@@ -107,16 +108,31 @@ const TasksPage = () => {
   // Appliquer les filtres de recherche
   const getFilteredTasks = (taskList) => {
     return taskList.filter(task => {
+      // Filtre par texte de recherche
       if (searchTerm && !task.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
           !task.description?.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
+      
+      // Filtre par statut
       if (statusFilter !== 'all' && task.status !== statusFilter) {
         return false;
       }
+      
+      // Filtre par priorité
       if (priorityFilter !== 'all' && task.priority !== priorityFilter) {
         return false;
       }
+      
+      // 🆕 NOUVEAU: Filtre par rôle Synergia
+      if (roleFilter !== 'all') {
+        // Vérifier si la tâche a un rôle correspondant
+        const taskRole = task.synergiaRole || task.role || task.category;
+        if (!taskRole || taskRole !== roleFilter) {
+          return false;
+        }
+      }
+      
       return true;
     });
   };
@@ -390,40 +406,160 @@ const TasksPage = () => {
         </div>
 
         {/* Filtres */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Rechercher une tâche..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+        <div className="space-y-4 mb-6">
+          
+          {/* Première ligne : Recherche et filtres existants */}
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <input
+                type="text"
+                placeholder="Rechercher une tâche..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">Tous les statuts</option>
+              <option value="todo">À faire</option>
+              <option value="in_progress">En cours</option>
+              <option value="validation_pending">En validation</option>
+              <option value="completed">Terminées</option>
+            </select>
+            
+            <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">Toutes les priorités</option>
+              <option value="low">Basse</option>
+              <option value="medium">Moyenne</option>
+              <option value="high">Haute</option>
+              <option value="urgent">Urgente</option>
+            </select>
           </div>
-          
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="all">Tous les statuts</option>
-            <option value="todo">À faire</option>
-            <option value="in_progress">En cours</option>
-            <option value="validation_pending">En validation</option>
-            <option value="completed">Terminées</option>
-          </select>
-          
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-            className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="all">Toutes les priorités</option>
-            <option value="low">Basse</option>
-            <option value="medium">Moyenne</option>
-            <option value="high">Haute</option>
-            <option value="urgent">Urgente</option>
-          </select>
+
+          {/* Nouvelle ligne : Filtre par rôles Synergia avec boutons */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-gray-400">Filtrer par rôle Synergia :</h3>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setRoleFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  roleFilter === 'all'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                Tous les rôles
+              </button>
+              
+              <button
+                onClick={() => setRoleFilter('game_master')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                  roleFilter === 'game_master'
+                    ? 'bg-yellow-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                🎮 Game Master
+              </button>
+              
+              <button
+                onClick={() => setRoleFilter('maintenance')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                  roleFilter === 'maintenance'
+                    ? 'bg-orange-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                🛠️ Entretien & Maintenance
+              </button>
+              
+              <button
+                onClick={() => setRoleFilter('avis_reputation')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                  roleFilter === 'avis_reputation'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                ⭐ Gestion des Avis
+              </button>
+              
+              <button
+                onClick={() => setRoleFilter('stocks')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                  roleFilter === 'stocks'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                📦 Gestion des Stocks
+              </button>
+              
+              <button
+                onClick={() => setRoleFilter('organisation')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                  roleFilter === 'organisation'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                🗓️ Organisation Interne
+              </button>
+              
+              <button
+                onClick={() => setRoleFilter('formation')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                  roleFilter === 'formation'
+                    ? 'bg-teal-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                📚 Formation & Tutorat
+              </button>
+              
+              <button
+                onClick={() => setRoleFilter('partenariats')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                  roleFilter === 'partenariats'
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                🤝 Partenariats
+              </button>
+              
+              <button
+                onClick={() => setRoleFilter('communication')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                  roleFilter === 'communication'
+                    ? 'bg-pink-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                📱 Communication
+              </button>
+              
+              <button
+                onClick={() => setRoleFilter('b2b')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                  roleFilter === 'b2b'
+                    ? 'bg-slate-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                💼 Relations B2B
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Liste des tâches */}
