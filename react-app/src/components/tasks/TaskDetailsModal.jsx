@@ -721,7 +721,7 @@ const TaskDetailsModal = ({
                       {task.estimatedHours && (
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Durée estimée:</span>
-                          <span className="flex items-center font-medium text-white">
+                          <span className="flex items-center font-medium text-gray-200">
                             <Clock className="w-4 h-4 mr-1 text-gray-400" />
                             {formatDuration(task.estimatedHours)}
                           </span>
