@@ -1,13 +1,13 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/CommentBadgeTemp.jsx  
-// BADGE COMMENTAIRES TEMPS RÉEL - FIX NOTIFICATION
+// BADGE COMMENTAIRES TEMPS RÉEL - FIX NOTIFICATION DIRECT FIREBASE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { MessageCircle } from 'lucide-react';
 
 /**
- * 💬 BADGE COMMENTAIRES AVEC RECHARGEMENT TEMPS RÉEL
+ * 💬 BADGE COMMENTAIRES AVEC RECHARGEMENT TEMPS RÉEL DIRECT FIREBASE
  */
 const CommentBadgeTemp = ({ 
   entityType, 
@@ -19,7 +19,7 @@ const CommentBadgeTemp = ({
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(0);
 
-  // 🔄 FONCTION DE CHARGEMENT DIRECT FIREBASE
+  // 🔄 FONCTION DE CHARGEMENT DIRECT FIREBASE - MÊME MÉTHODE QUE LE MODAL
   const loadCommentCount = async () => {
     if (!entityType || !entityId) {
       setLoading(false);
@@ -27,9 +27,9 @@ const CommentBadgeTemp = ({
     }
 
     try {
-      console.log('📊 [COMMENT_BADGE] Chargement pour:', entityType, entityId);
+      console.log('📊 [COMMENT_BADGE] Chargement direct Firebase pour:', entityType, entityId);
       
-      // 📖 CHARGEMENT DIRECT FIREBASE
+      // 📖 CHARGEMENT DIRECT FIREBASE - MÊME CODE QUE TaskDetailModal
       const { getDocs, collection, query, where } = await import('firebase/firestore');
       const { db } = await import('../../core/firebase.js');
       
@@ -42,11 +42,11 @@ const CommentBadgeTemp = ({
       const snapshot = await getDocs(commentsQuery);
       const count = snapshot.size;
       
-      console.log('📊 [COMMENT_BADGE] Trouvé:', count, 'commentaires');
+      console.log('📊 [COMMENT_BADGE] Commentaires trouvés:', count, 'pour tâche:', entityId);
       setCommentCount(count);
       
     } catch (error) {
-      console.error('❌ [COMMENT_BADGE] Erreur chargement:', error);
+      console.error('❌ [COMMENT_BADGE] Erreur chargement Firebase:', error);
       setCommentCount(0);
     } finally {
       setLoading(false);
@@ -62,11 +62,11 @@ const CommentBadgeTemp = ({
   useEffect(() => {
     if (!entityType || !entityId) return;
     
-    // Rechargement toutes les 5 secondes
+    // Rechargement toutes les 3 secondes pour temps réel
     const interval = setInterval(() => {
       loadCommentCount();
       setLastUpdate(Date.now());
-    }, 5000);
+    }, 3000);
     
     return () => clearInterval(interval);
   }, [entityType, entityId]);
@@ -76,7 +76,7 @@ const CommentBadgeTemp = ({
     const handleCommentAdded = (event) => {
       const { taskId } = event.detail || {};
       if (taskId === entityId) {
-        console.log('🔔 [COMMENT_BADGE] Nouveau commentaire détecté, rechargement...');
+        console.log('🔔 [COMMENT_BADGE] Nouveau commentaire détecté pour:', taskId, '- rechargement immédiat...');
         loadCommentCount();
       }
     };
@@ -94,26 +94,29 @@ const CommentBadgeTemp = ({
   // 🚫 Ne rien afficher si pas de commentaires
   if (loading) {
     return (
-      <div className="w-6 h-6 bg-gray-700 rounded-full animate-pulse"></div>
+      <div className="w-4 h-4 bg-gray-700 rounded-full animate-pulse"></div>
     );
   }
 
   if (commentCount === 0) {
+    console.log('📊 [COMMENT_BADGE] Aucun commentaire à afficher pour:', entityId);
     return null; // Masquer si aucun commentaire
   }
+
+  console.log('📊 [COMMENT_BADGE] Affichage badge:', commentCount, 'commentaires pour:', entityId);
 
   // 🎨 BADGE VISIBLE AVEC ANIMATION
   return (
     <button
       onClick={onClick}
-      className={`inline-flex items-center gap-1 px-2 py-1 bg-blue-600/80 hover:bg-blue-600 text-white rounded-full text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md ${className}`}
+      className={`inline-flex items-center gap-1 px-2 py-1 bg-blue-600/90 hover:bg-blue-600 text-white rounded-full text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md ${className}`}
       title={`${commentCount} commentaire${commentCount > 1 ? 's' : ''} - Cliquer pour voir`}
     >
       <MessageCircle className="w-3 h-3" />
       <span>{commentCount}</span>
       
       {/* Indicateur de mise à jour récente */}
-      {Date.now() - lastUpdate < 2000 && (
+      {Date.now() - lastUpdate < 3000 && (
         <div className="w-1 h-1 bg-green-400 rounded-full animate-ping"></div>
       )}
     </button>
