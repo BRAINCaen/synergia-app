@@ -20,7 +20,8 @@ import {
   Edit,
   Trash2,
   MessageCircle,
-  Info
+  Info,
+  X  // ✅ Ajout UNIQUEMENT de cette icône pour le bouton fermer
 } from 'lucide-react';
 
 // Stores et services
