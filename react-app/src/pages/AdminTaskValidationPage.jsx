@@ -200,7 +200,11 @@ const AdminTaskValidationPage = () => {
                 source: 'validations_collection',
                 photoUrl: validationData.photoUrl || null,
                 videoUrl: validationData.videoUrl || null,
-                hasMedia: !!(validationData.photoUrl || validationData.videoUrl)
+                hasMedia: !!(validationData.photoUrl || validationData.videoUrl),
+                // ✅ INCLURE LES COMMENTAIRES ADMIN EXISTANTS
+                adminComment: validationData.adminComment || '',
+                validationComment: validationData.validationComment || validationData.adminComment || '',
+                rejectionReason: validationData.rejectionReason || ''
               });
               
             } catch (validationError) {
@@ -402,11 +406,12 @@ const AdminTaskValidationPage = () => {
           status: 'completed',
           validatedAt: serverTimestamp(),
           validatedBy: user.uid,
-          validationComment: comment,
+          validationComment: comment, // ✅ SAUVEGARDER LE COMMENTAIRE
+          adminComment: comment, // ✅ AUSSI EN adminComment pour compatibilité
           updatedAt: serverTimestamp()
         });
         
-        console.log('✅ [ADMIN] Tâche marquée comme completed');
+        console.log('✅ [ADMIN] Tâche marquée comme completed avec commentaire:', comment);
         
       } else {
         // Validation classique
@@ -416,10 +421,11 @@ const AdminTaskValidationPage = () => {
           status: 'approved',
           reviewedBy: user.uid,
           reviewedAt: serverTimestamp(),
-          adminComment: comment
+          adminComment: comment, // ✅ SAUVEGARDER LE COMMENTAIRE
+          validationComment: comment // ✅ AUSSI EN validationComment pour compatibilité
         });
         
-        console.log('✅ [ADMIN] Validation classique approuvée');
+        console.log('✅ [ADMIN] Validation classique approuvée avec commentaire:', comment);
       }
       
       // Recharger les données ET les statistiques
@@ -430,7 +436,7 @@ const AdminTaskValidationPage = () => {
       // Fermer les modals
       setShowDetailModal(false);
       setSelectedValidation(null);
-      setAdminComment('');
+      setAdminComment(''); // Réinitialiser le commentaire local
       
     } catch (error) {
       console.error('❌ [ADMIN] Erreur approbation:', error);
@@ -468,10 +474,12 @@ const AdminTaskValidationPage = () => {
           rejectedAt: serverTimestamp(),
           rejectedBy: user.uid,
           rejectionReason: comment,
+          adminComment: comment, // ✅ SAUVEGARDER LE COMMENTAIRE DE REJET
+          validationComment: comment, // ✅ AUSSI EN validationComment pour compatibilité
           updatedAt: serverTimestamp()
         });
         
-        console.log('✅ [ADMIN] Tâche remise en cours');
+        console.log('✅ [ADMIN] Tâche remise en cours avec commentaire de rejet:', comment);
         
       } else {
         // Validation classique
@@ -481,10 +489,11 @@ const AdminTaskValidationPage = () => {
           status: 'rejected',
           reviewedBy: user.uid,
           reviewedAt: serverTimestamp(),
-          adminComment: comment
+          adminComment: comment, // ✅ SAUVEGARDER LE COMMENTAIRE DE REJET
+          rejectionReason: comment // ✅ AUSSI EN rejectionReason pour compatibilité
         });
         
-        console.log('✅ [ADMIN] Validation classique rejetée');
+        console.log('✅ [ADMIN] Validation classique rejetée avec commentaire:', comment);
       }
       
       // Recharger les données ET les statistiques
@@ -496,7 +505,7 @@ const AdminTaskValidationPage = () => {
       setShowDetailModal(false);
       setShowRejectModal(false);
       setSelectedValidation(null);
-      setAdminComment('');
+      setAdminComment(''); // Réinitialiser le commentaire local
       
     } catch (error) {
       console.error('❌ [ADMIN] Erreur rejet:', error);
@@ -511,6 +520,16 @@ const AdminTaskValidationPage = () => {
    */
   const handleViewDetails = (validation) => {
     setSelectedValidation(validation);
+    
+    // ✅ RÉCUPÉRER LE COMMENTAIRE ADMIN EXISTANT
+    const existingComment = validation.adminComment || 
+                           validation.validationComment || 
+                           validation.rejectionReason || 
+                           '';
+    
+    console.log('👁️ [ADMIN] Ouverture détails avec commentaire existant:', existingComment);
+    setAdminComment(existingComment);
+    
     setShowDetailModal(true);
   };
 
@@ -951,22 +970,33 @@ const AdminTaskValidationPage = () => {
                       <div><strong>imageUrl:</strong> {selectedValidation.imageUrl || 'null'}</div>
                       <div><strong>videoUrl:</strong> {selectedValidation.videoUrl || 'null'}</div>
                       <div><strong>hasMedia:</strong> {selectedValidation.hasMedia ? 'true' : 'false'}</div>
-                      <div><strong>taskData.photoUrl:</strong> {selectedValidation.taskData?.photoUrl || 'null'}</div>
-                      <div><strong>taskData.imageUrl:</strong> {selectedValidation.taskData?.imageUrl || 'null'}</div>
+                      <div><strong>adminComment:</strong> {selectedValidation.adminComment || 'null'}</div>
+                      <div><strong>validationComment:</strong> {selectedValidation.validationComment || 'null'}</div>
+                      <div><strong>rejectionReason:</strong> {selectedValidation.rejectionReason || 'null'}</div>
+                      <div><strong>taskData.adminComment:</strong> {selectedValidation.taskData?.adminComment || 'null'}</div>
+                      <div><strong>taskData.validationComment:</strong> {selectedValidation.taskData?.validationComment || 'null'}</div>
                     </div>
                   </div>
                 )}
 
                 {/* COMMENTAIRE ADMIN */}
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Commentaire admin (optionnel)</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Commentaire admin {selectedValidation.status === 'pending' ? '(optionnel)' : '(enregistré)'}
+                  </label>
                   <textarea
                     value={adminComment}
                     onChange={(e) => setAdminComment(e.target.value)}
                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows="3"
-                    placeholder="Ajoutez un commentaire..."
+                    placeholder={selectedValidation.status === 'pending' ? "Ajoutez un commentaire..." : "Commentaire enregistré"}
+                    disabled={selectedValidation.status !== 'pending'}
                   />
+                  {selectedValidation.status !== 'pending' && selectedValidation.adminComment && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      💾 Ce commentaire a été enregistré lors de la validation
+                    </p>
+                  )}
                 </div>
               </div>
 
