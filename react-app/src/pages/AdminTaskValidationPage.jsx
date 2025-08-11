@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminTaskValidationPage.jsx
-// PAGE ADMIN VALIDATION CORRIGÉE - CORRECTION IMPORTS FIREBASE
+// PAGE ADMIN VALIDATION CORRIGÉE - CORRECTION FILTER SÉCURISÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -28,9 +28,6 @@ import {
 import { adminValidationService } from '../core/services/adminValidationService.js';
 import { taskService } from '../core/services/taskService.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
-
-// ✅ PAS D'IMPORT DYNAMIQUE POUR ÉVITER LES ERREURS DE CHARGEMENT
-// Utilisation directe des services existants
 
 /**
  * 🛡️ PAGE D'ADMINISTRATION DES VALIDATIONS - VERSION CORRIGÉE
@@ -64,8 +61,6 @@ const AdminTaskValidationPage = () => {
   // 🔄 États pour le debug
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
-
-  // ✅ MODE CLASSIQUE UNIQUEMENT - PAS DE SYNCHRONISATION COMPLEXE
 
   /**
    * 🔄 CHARGEMENT INITIAL - MODE CLASSIQUE SIMPLE
@@ -107,7 +102,7 @@ const AdminTaskValidationPage = () => {
             userName: 'Utilisateur',
             userEmail: 'email@exemple.com',
             comment: task.submissionNotes || 'Tâche soumise pour validation',
-            xpReward: this.calculateXPForDifficulty(task.difficulty || 'normal'),
+            xpReward: calculateXPForDifficulty(task.difficulty || 'normal'),
             difficulty: task.difficulty || 'normal',
             submittedAt: task.submittedAt || task.updatedAt || new Date(),
             submittedBy: task.submittedBy || task.assignedTo?.[0] || task.createdBy,
@@ -195,23 +190,44 @@ const AdminTaskValidationPage = () => {
   };
 
   /**
-   * 📊 OBTENIR LES VALIDATIONS SELON L'ONGLET ACTIF
+   * 📊 OBTENIR LES VALIDATIONS SELON L'ONGLET ACTIF - SÉCURISÉ
    */
   const getValidationsForTab = () => {
+    // 🛡️ SÉCURITÉ : Toujours retourner un tableau
     const allValidations = validations || [];
     
-    switch (activeTab) {
-      case 'pending':
-        return allValidations.filter(v => v.status === 'pending' || v.type === 'task_submission');
-      case 'approved':
-        return allValidations.filter(v => v.status === 'approved');
-      case 'rejected':
-        return allValidations.filter(v => v.status === 'rejected');
-      case 'all':
-      default:
-        return allValidations;
+    try {
+      switch (activeTab) {
+        case 'pending':
+          return allValidations.filter(v => v.status === 'pending' || v.type === 'task_submission');
+        case 'approved':
+          return allValidations.filter(v => v.status === 'approved');
+        case 'rejected':
+          return allValidations.filter(v => v.status === 'rejected');
+        case 'all':
+        default:
+          return allValidations;
+      }
+    } catch (filterError) {
+      console.error('🛡️ [SAFEGUARD] Erreur filtrage, retour tableau vide:', filterError);
+      return [];
     }
   };
+
+  /**
+   * 🔍 FILTRER LES VALIDATIONS - SÉCURISÉ
+   */
+  const filteredValidations = (getValidationsForTab() || []).filter(validation => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      validation.taskTitle?.toLowerCase().includes(searchLower) ||
+      validation.userName?.toLowerCase().includes(searchLower) ||
+      validation.userEmail?.toLowerCase().includes(searchLower) ||
+      validation.comment?.toLowerCase().includes(searchLower)
+    );
+  });
 
   /**
    * ✅ APPROUVER UNE VALIDATION
@@ -225,20 +241,20 @@ const AdminTaskValidationPage = () => {
       if (!validation) {
         throw new Error('Validation introuvable');
       }
-      
-      if (validation.type === 'task_submission' || validation.source === 'tasks_collection') {
-        // Nouveau système : mettre à jour la tâche
+
+      // Nouveau système avec taskData
+      if (validation.taskData && validation.source === 'tasks_collection') {
+        console.log('🚀 [ADMIN] Nouveau système - Approbation via taskService');
+        
         await taskService.updateTask(validation.taskId, {
           status: 'completed',
-          completedAt: new Date(),
           validatedAt: new Date(),
           validatedBy: user.uid,
-          adminComment: comment,
-          xpAwarded: validation.xpReward || 25,
+          validationComment: comment,
           updatedAt: new Date()
         });
         
-        console.log('✅ [ADMIN] Tâche marquée comme terminée avec XP');
+        console.log('✅ [ADMIN] Tâche validée avec succès');
         
       } else {
         // Ancien système de validation  
@@ -275,9 +291,11 @@ const AdminTaskValidationPage = () => {
       if (!validation) {
         throw new Error('Validation introuvable');
       }
-      
-      if (validation.type === 'task_submission' || validation.source === 'tasks_collection') {
-        // Nouveau système : remettre la tâche en cours
+
+      // Nouveau système avec taskData
+      if (validation.taskData && validation.source === 'tasks_collection') {
+        console.log('🚀 [ADMIN] Nouveau système - Rejet via taskService');
+        
         await taskService.updateTask(validation.taskId, {
           status: 'in_progress',
           submittedForValidation: false,
@@ -322,21 +340,6 @@ const AdminTaskValidationPage = () => {
   };
 
   /**
-   * 🔍 FILTRER LES VALIDATIONS
-   */
-  const filteredValidations = getValidationsForTab().filter(validation => {
-    if (!searchTerm) return true;
-    
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      validation.taskTitle?.toLowerCase().includes(searchLower) ||
-      validation.userName?.toLowerCase().includes(searchLower) ||
-      validation.userEmail?.toLowerCase().includes(searchLower) ||
-      validation.comment?.toLowerCase().includes(searchLower)
-    );
-  });
-
-  /**
    * 📅 FORMATER UNE DATE
    */
   const formatDate = (timestamp) => {
@@ -352,250 +355,144 @@ const AdminTaskValidationPage = () => {
         minute: '2-digit'
       });
     } catch (error) {
+      console.error('Erreur formatage date:', error);
       return 'Date invalide';
     }
   };
 
   /**
-   * 🎨 OBTENIR LA CLASSE CSS POUR LE STATUT
+   * 🏆 FORMATER LA DIFFICULTÉ
    */
-  const getStatusBadgeClass = (status) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-orange-100 text-orange-700 border-orange-300';
-      case 'approved':
-        return 'bg-green-100 text-green-700 border-green-300';
-      case 'rejected':
-        return 'bg-red-100 text-red-700 border-red-300';
-      default:
-        return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
+  const formatDifficulty = (difficulty) => {
+    const difficultyMap = {
+      easy: { label: 'Facile', color: 'bg-green-100 text-green-700', icon: '🟢' },
+      normal: { label: 'Normal', color: 'bg-blue-100 text-blue-700', icon: '🔵' },
+      hard: { label: 'Difficile', color: 'bg-orange-100 text-orange-700', icon: '🟠' },
+      expert: { label: 'Expert', color: 'bg-red-100 text-red-700', icon: '🔴' }
+    };
+    
+    return difficultyMap[difficulty] || difficultyMap.normal;
   };
 
-  /**
-   * 🏷️ RENDER DU BADGE DE STATUT
-   */
-  const StatusBadge = ({ status, type }) => {
-    const getIcon = () => {
-      switch (status) {
-        case 'pending':
-          return <Clock className="w-3 h-3" />;
-        case 'approved':
-          return <CheckCircle className="w-3 h-3" />;
-        case 'rejected':
-          return <XCircle className="w-3 h-3" />;
-        default:
-          return <AlertTriangle className="w-3 h-3" />;
-      }
-    };
-
-    const getText = () => {
-      if (type === 'task_submission') {
-        return status === 'pending' ? 'Soumission en attente' : status;
-      }
-      return status === 'pending' ? 'En attente' : status;
-    };
-
-    return (
-      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusBadgeClass(status)}`}>
-        {getIcon()}
-        {getText()}
-      </span>
-    );
+  // 📊 Calculer les statistiques pour les onglets
+  const tabStats = {
+    pending: (validations || []).filter(v => v.status === 'pending' || v.type === 'task_submission').length,
+    approved: (validations || []).filter(v => v.status === 'approved').length,
+    rejected: (validations || []).filter(v => v.status === 'rejected').length,
+    all: (validations || []).length
   };
 
-  // 🎨 AFFICHAGE DE L'ÉTAT DE CHARGEMENT
-  if (loading && !validations.length) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <Loader className="w-8 h-8 mx-auto mb-4 animate-spin text-blue-600" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            Chargement des validations...
-          </h3>
-          <p className="text-gray-600">
-            Récupération des données depuis Firebase
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // 🎨 Configuration des onglets
+  const tabs = [
+    { id: 'pending', label: 'En attente', icon: Clock, count: tabStats.pending },
+    { id: 'approved', label: 'Approuvées', icon: CheckCircle, count: tabStats.approved },
+    { id: 'rejected', label: 'Rejetées', icon: XCircle, count: tabStats.rejected },
+    { id: 'all', label: 'Toutes', icon: Eye, count: tabStats.all }
+  ];
 
   return (
-    <div className="flex-1 bg-gray-50 overflow-hidden">
-      {/* 📊 HEADER AVEC STATS */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Clock className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    Administration - Validation des Tâches
-                  </h1>
-                  <p className="text-gray-600 mt-1 flex items-center gap-2">
-                    Gérer les demandes de validation des tâches utilisateurs
-                    <span className="inline-flex items-center gap-1 text-orange-600">
-                      <RefreshCw className="w-4 h-4" />
-                      Mode classique
-                    </span>
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              {/* 🔄 BOUTON REFRESH MANUEL */}
-              <button
-                onClick={forceRefresh}
-                disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                Actualiser
-              </button>
-              
-              {/* 🔧 BOUTON DEBUG */}
-              <button
-                onClick={() => setShowDebugInfo(!showDebugInfo)}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                <Eye className="w-4 h-4" />
-                Debug
-              </button>
-            </div>
+    <div className="flex flex-col h-screen bg-gray-50">
+      {/* 📊 EN-TÊTE AVEC STATISTIQUES */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Shield className="w-7 h-7 text-blue-600" />
+              Validation des Tâches
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Gérer les demandes de validation des collaborateurs
+            </p>
           </div>
 
-          {/* 📊 STATISTIQUES */}
-          <div className="grid grid-cols-5 gap-4 mt-6">
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-4 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm">Total</p>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                </div>
-                <Filter className="w-8 h-8 text-blue-200" />
+          <div className="flex items-center gap-4">
+            {/* STATS RAPIDES */}
+            <div className="flex items-center gap-4 bg-gray-50 rounded-lg px-4 py-2">
+              <div className="text-center">
+                <div className="text-lg font-bold text-blue-600">{stats.pending || 0}</div>
+                <div className="text-xs text-gray-500">En attente</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-green-600">{stats.approved || 0}</div>
+                <div className="text-xs text-gray-500">Approuvées</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-red-600">{stats.rejected || 0}</div>
+                <div className="text-xs text-gray-500">Rejetées</div>
               </div>
             </div>
-            
-            <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-4 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-100 text-sm">En attente</p>
-                  <p className="text-2xl font-bold">{stats.pending}</p>
-                </div>
-                <Clock className="w-8 h-8 text-orange-200" />
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-4 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm">Approuvées</p>
-                  <p className="text-2xl font-bold">{stats.approved}</p>
-                </div>
-                <CheckCircle className="w-8 h-8 text-green-200" />
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-4 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-red-100 text-sm">Rejetées</p>
-                  <p className="text-2xl font-bold">{stats.rejected}</p>
-                </div>
-                <XCircle className="w-8 h-8 text-red-200" />
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-4 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm">Aujourd'hui</p>
-                  <p className="text-2xl font-bold">{stats.today}</p>
-                </div>
-                <Calendar className="w-8 h-8 text-purple-200" />
-              </div>
-            </div>
+
+            {/* ACTIONS */}
+            <button
+              onClick={forceRefresh}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Actualiser
+            </button>
+          </div>
+        </div>
+
+        {/* DERNIÈRE MISE À JOUR */}
+        {lastUpdate && (
+          <div className="mt-2 text-sm text-gray-500">
+            Dernière mise à jour: {formatDate(lastUpdate)}
+          </div>
+        )}
+      </div>
+
+      {/* 🔍 RECHERCHE ET FILTRES */}
+      <div className="bg-white border-b border-gray-200 px-6 py-3">
+        <div className="flex items-center justify-between">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Rechercher une validation..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
 
-          {/* 🔧 INFO DEBUG */}
-          {showDebugInfo && (
-            <div className="mt-4 p-4 bg-gray-100 rounded-lg">
-              <h4 className="font-medium text-gray-900 mb-2">🔧 Informations de Debug</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p><strong>Mode:</strong> Classique (stable)</p>
-                  <p><strong>Validations chargées:</strong> {validations.length}</p>
-                  <p><strong>Erreur:</strong> {error ? '❌ Oui' : '✅ Non'}</p>
-                </div>
-                <div>
-                  <p><strong>Dernière MAJ:</strong> {lastUpdate ? formatDate(lastUpdate) : 'Jamais'}</p>
-                  <p><strong>Onglet actif:</strong> {activeTab}</p>
-                  <p><strong>Recherche:</strong> "{searchTerm || 'Aucune'}"</p>
-                </div>
-              </div>
-              {error && (
-                <p className="mt-2 text-red-600"><strong>Erreur:</strong> {error}</p>
-              )}
-            </div>
-          )}
+          <div className="text-sm text-gray-500">
+            {filteredValidations.length} validation{filteredValidations.length > 1 ? 's' : ''} trouvée{filteredValidations.length > 1 ? 's' : ''}
+          </div>
         </div>
       </div>
 
-      {/* 🔍 BARRE DE RECHERCHE ET ONGLETS */}
-      <div className="bg-white border-b px-6 py-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
-            {/* 🔍 RECHERCHE */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Rechercher par titre, utilisateur ou commentaire..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-96"
-              />
-            </div>
+      {/* 🗂️ ONGLETS DE NAVIGATION */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="px-6">
+          <div className="flex space-x-8">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
+                    isActive
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                    isActive
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        </div>
-
-        {/* 🏷️ ONGLETS */}
-        <div className="flex space-x-1">
-          {[
-            { id: 'pending', label: 'En attente', count: stats.pending, icon: Clock },
-            { id: 'approved', label: 'Approuvées', count: stats.approved, icon: CheckCircle },
-            { id: 'rejected', label: 'Rejetées', count: stats.rejected, icon: XCircle },
-            { id: 'all', label: 'Toutes', count: stats.total, icon: Filter }
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  isActive
-                    ? 'bg-blue-100 text-blue-700 border-2 border-blue-200'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-                <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                  isActive
-                    ? 'bg-blue-200 text-blue-800'
-                    : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
         </div>
       </div>
 
@@ -655,79 +552,65 @@ const AdminTaskValidationPage = () => {
                               <img
                                 src={validation.userAvatar}
                                 alt={validation.userName}
-                                className="w-10 h-10 rounded-full"
+                                className="w-10 h-10 rounded-full object-cover"
                               />
                             ) : (
                               <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                                <User className="w-6 h-6 text-gray-600" />
+                                <User className="w-5 h-5 text-gray-600" />
                               </div>
                             )}
                           </div>
-                          
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h3 className="text-lg font-semibold text-gray-900">
-                                {validation.taskTitle || 'Tâche sans titre'}
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="text-lg font-semibold text-gray-900 truncate">
+                                {validation.taskTitle}
                               </h3>
-                              <StatusBadge status={validation.status} type={validation.type} />
-                              {validation.source === 'tasks_collection' && (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
-                                  <Zap className="w-3 h-3" />
-                                  Nouveau système
-                                </span>
-                              )}
+                              {(() => {
+                                const diff = formatDifficulty(validation.difficulty);
+                                return (
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${diff.color}`}>
+                                    {diff.icon} {diff.label}
+                                  </span>
+                                );
+                              })()}
                             </div>
-                            
-                            <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
-                              <span className="flex items-center gap-1">
+
+                            <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                              <div className="flex items-center gap-1">
                                 <User className="w-4 h-4" />
-                                {validation.userName}
-                              </span>
-                              <span className="flex items-center gap-1">
+                                {validation.userName} ({validation.userEmail})
+                              </div>
+                              <div className="flex items-center gap-1">
                                 <Calendar className="w-4 h-4" />
                                 {formatDate(validation.submittedAt)}
-                              </span>
-                              {validation.xpReward && (
-                                <span className="flex items-center gap-1">
-                                  <Trophy className="w-4 h-4" />
-                                  {validation.xpReward} XP
-                                </span>
-                              )}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Trophy className="w-4 h-4" />
+                                +{validation.xpReward} XP
+                              </div>
                             </div>
 
-                            {/* 📄 COMMENTAIRE */}
                             {validation.comment && (
-                              <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                                <p className="text-sm text-gray-700">
-                                  <MessageSquare className="w-4 h-4 inline mr-2" />
-                                  {validation.comment}
-                                </p>
-                              </div>
-                            )}
-
-                            {/* 🎬 MÉDIAS */}
-                            {(validation.hasPhoto || validation.hasVideo || validation.hasMedia) && (
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
-                                {validation.hasPhoto && (
-                                  <span className="flex items-center gap-1">
-                                    <ImageIcon className="w-4 h-4" />
-                                    Photo
-                                  </span>
-                                )}
-                                {validation.hasVideo && (
-                                  <span className="flex items-center gap-1">
-                                    <Video className="w-4 h-4" />
-                                    Vidéo
-                                  </span>
-                                )}
+                              <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-lg">
+                                <MessageSquare className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                                <p className="text-gray-700 text-sm">{validation.comment}</p>
                               </div>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {/* 🎯 ACTIONS */}
+                      {/* 🎛️ ACTIONS */}
                       <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => handleViewDetails(validation)}
+                          className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Détails
+                        </button>
+
                         {validation.status === 'pending' && (
                           <>
                             <button
@@ -738,7 +621,7 @@ const AdminTaskValidationPage = () => {
                               <CheckCircle className="w-4 h-4" />
                               Approuver
                             </button>
-                            
+
                             <button
                               onClick={() => {
                                 setSelectedValidation(validation);
@@ -752,14 +635,6 @@ const AdminTaskValidationPage = () => {
                             </button>
                           </>
                         )}
-                        
-                        <button
-                          onClick={() => handleViewDetails(validation)}
-                          className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                          Détails
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -806,7 +681,7 @@ const AdminTaskValidationPage = () => {
                       <img
                         src={selectedValidation.userAvatar}
                         alt={selectedValidation.userName}
-                        className="w-12 h-12 rounded-full"
+                        className="w-12 h-12 rounded-full object-cover"
                       />
                     ) : (
                       <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
@@ -814,8 +689,8 @@ const AdminTaskValidationPage = () => {
                       </div>
                     )}
                     <div>
-                      <p className="font-medium">{selectedValidation.userName}</p>
-                      <p className="text-sm text-gray-600">{selectedValidation.userEmail}</p>
+                      <div className="font-medium text-gray-900">{selectedValidation.userName}</div>
+                      <div className="text-sm text-gray-600">{selectedValidation.userEmail}</div>
                     </div>
                   </div>
                 </div>
@@ -823,11 +698,25 @@ const AdminTaskValidationPage = () => {
                 {/* INFO TÂCHE */}
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h3 className="font-medium text-gray-900 mb-2">Tâche</h3>
-                  <p className="text-lg font-medium">{selectedValidation.taskTitle}</p>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                    <span>Difficulté: {selectedValidation.difficulty || 'normal'}</span>
-                    <span>XP: {selectedValidation.xpReward || 25}</span>
-                    <span>Soumise: {formatDate(selectedValidation.submittedAt)}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Titre:</span>
+                      <span className="font-medium">{selectedValidation.taskTitle}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Difficulté:</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${formatDifficulty(selectedValidation.difficulty).color}`}>
+                        {formatDifficulty(selectedValidation.difficulty).label}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Récompense XP:</span>
+                      <span className="font-medium text-blue-600">+{selectedValidation.xpReward} XP</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Soumise le:</span>
+                      <span className="font-medium">{formatDate(selectedValidation.submittedAt)}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -839,50 +728,35 @@ const AdminTaskValidationPage = () => {
                   </div>
                 )}
 
-                {/* DONNÉES DEBUG */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-medium text-gray-900 mb-2">Informations techniques</h3>
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <p><strong>ID:</strong> {selectedValidation.id}</p>
-                    <p><strong>Source:</strong> {selectedValidation.source || 'inconnue'}</p>
-                    <p><strong>Type:</strong> {selectedValidation.type || 'standard'}</p>
-                    <p><strong>Statut:</strong> {selectedValidation.status}</p>
+                {/* ACTIONS SI PENDING */}
+                {selectedValidation.status === 'pending' && (
+                  <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={() => {
+                        handleApprove(selectedValidation.id);
+                        setShowDetailModal(false);
+                      }}
+                      disabled={actionLoading}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      Approuver
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        setShowDetailModal(false);
+                        setShowRejectModal(true);
+                      }}
+                      disabled={actionLoading}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      Rejeter
+                    </button>
                   </div>
-                </div>
+                )}
               </div>
-
-              {/* ACTIONS */}
-              {selectedValidation.status === 'pending' && (
-                <div className="flex items-center gap-3 mt-6 pt-6 border-t">
-                  <button
-                    onClick={() => handleApprove(selectedValidation.id)}
-                    disabled={actionLoading}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    Approuver
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      setShowDetailModal(false);
-                      setShowRejectModal(true);
-                    }}
-                    disabled={actionLoading}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <XCircle className="w-4 h-4" />
-                    Rejeter
-                  </button>
-                  
-                  <button
-                    onClick={() => setShowDetailModal(false)}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                  >
-                    Fermer
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -893,25 +767,13 @@ const AdminTaskValidationPage = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900">
-                  Rejeter la validation
-                </h2>
-                <button
-                  onClick={() => setShowRejectModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <XCircle className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="mb-6">
-                <p className="text-gray-700 mb-4">
-                  Vous êtes sur le point de rejeter la validation de la tâche :
-                </p>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="font-medium">{selectedValidation.taskTitle}</p>
-                  <p className="text-sm text-gray-600">par {selectedValidation.userName}</p>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <XCircle className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Rejeter la validation</h2>
+                  <p className="text-gray-600">Cette action remettra la tâche en cours</p>
                 </div>
               </div>
 
@@ -960,4 +822,4 @@ const AdminTaskValidationPage = () => {
 
 export default AdminTaskValidationPage;
 
-console.log('🚀 AdminTaskValidationPage corrigée - Imports Firebase corrigés');
+console.log('🚀 AdminTaskValidationPage corrigée - Filter sécurisé appliqué');
