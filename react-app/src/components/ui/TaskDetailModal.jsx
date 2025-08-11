@@ -107,7 +107,7 @@ const TaskDetailModal = ({
   const [submittingComment, setSubmittingComment] = useState(false);
   const [error, setError] = useState('');
 
-  // 🔄 CHARGER LES COMMENTAIRES AVEC FIREBASE
+  // 🔄 CHARGER LES COMMENTAIRES AVEC FIREBASE - VERSION SIMPLIFIÉE
   const loadComments = async () => {
     if (!task?.id) return;
     
@@ -115,19 +115,44 @@ const TaskDetailModal = ({
       setLoadingComments(true);
       
       console.log('📖 [TASK_COMMENTS] Chargement pour tâche:', task.id);
-      const existingComments = await collaborationService.getComments('task', task.id);
-      setComments(existingComments);
-      console.log('📖 [TASK_COMMENTS] Chargés:', existingComments.length);
+      
+      // 📖 CHARGEMENT DIRECT SANS SERVICE DÉFAILLANT
+      const { getDocs, collection, query, where, orderBy } = await import('firebase/firestore');
+      const { db } = await import('../../core/firebase.js');
+      
+      const commentsQuery = query(
+        collection(db, 'comments'),
+        where('entityType', '==', 'task'),
+        where('entityId', '==', task.id),
+        orderBy('createdAt', 'asc')
+      );
+      
+      const snapshot = await getDocs(commentsQuery);
+      const commentsData = [];
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        commentsData.push({
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt)
+        });
+      });
+      
+      setComments(commentsData);
+      console.log('📖 [TASK_COMMENTS] Chargés:', commentsData.length);
       
     } catch (error) {
       console.error('❌ [TASK_COMMENTS] Erreur chargement:', error);
       setError('Impossible de charger les commentaires');
+      setComments([]); // Valeur par défaut en cas d'erreur
     } finally {
       setLoadingComments(false);
     }
   };
 
-  // 📤 AJOUTER UN COMMENTAIRE AVEC FIREBASE
+  // 📤 AJOUTER UN COMMENTAIRE AVEC FIREBASE - VERSION CORRIGÉE
   const addComment = async () => {
     if (!newComment.trim() || !effectiveUser || submittingComment) return;
     
@@ -137,32 +162,40 @@ const TaskDetailModal = ({
       
       console.log('📤 [TASK_COMMENTS] Envoi commentaire pour tâche:', task.id);
       
-      // 📝 UTILISER LE SERVICE COLLABORATION
-      const commentData = {
+      // 📝 MÉTHODE SIMPLE SANS TRANSACTION
+      const commentToAdd = {
         entityType: 'task',
         entityId: task.id,
         userId: effectiveUser.uid,
         userName: effectiveUser.displayName || effectiveUser.email || 'Utilisateur',
         userEmail: effectiveUser.email || '',
-        content: newComment.trim()
+        content: newComment.trim(),
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
       
-      console.log('📝 [TASK_COMMENTS] Données commentaire:', commentData);
+      console.log('📝 [TASK_COMMENTS] Données commentaire:', commentToAdd);
       
-      // 🚀 SAUVEGARDE FIREBASE
-      const savedComment = await collaborationService.addComment(commentData);
+      // 🚀 AJOUT DIRECT SANS UTILISER LE SERVICE DÉFAILLANT
+      const { addDoc, collection } = await import('firebase/firestore');
+      const { db } = await import('../../core/firebase.js');
       
-      if (savedComment) {
-        console.log('✅ [TASK_COMMENTS] Commentaire sauvegardé:', savedComment.id);
-        
-        // Réinitialiser le champ
-        setNewComment('');
-        
-        // ✅ RECHARGER POUR VOIR LE NOUVEAU
-        await loadComments();
-        
-        console.log('✅ [TASK_COMMENTS] Liste rechargée');
-      }
+      const docRef = await addDoc(collection(db, 'comments'), commentToAdd);
+      
+      console.log('✅ [TASK_COMMENTS] Commentaire sauvegardé:', docRef.id);
+      
+      // Ajouter localement pour feedback immédiat
+      const newCommentLocal = {
+        id: docRef.id,
+        ...commentToAdd
+      };
+      
+      setComments(prev => [...prev, newCommentLocal]);
+      
+      // Réinitialiser le champ
+      setNewComment('');
+      
+      console.log('✅ [TASK_COMMENTS] Commentaire ajouté avec succès');
       
     } catch (error) {
       console.error('❌ [TASK_COMMENTS] Erreur ajout commentaire:', error);
