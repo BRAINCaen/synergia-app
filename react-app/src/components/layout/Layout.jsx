@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// RESTORATION EXACTE + CORRECTION HAMBURGER SEULEMENT
+// MENU HAMBURGER BULLETPROOF - RESTAURÉ EXACTEMENT
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -51,7 +51,7 @@ const Layout = ({ children }) => {
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
 
-  // ✅ MENU ITEMS COMPLETS - RESTAURÉ EXACTEMENT
+  // ✅ MENU ITEMS COMPLETS
   const menuItems = [
     { section: 'PRINCIPAL', items: [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
@@ -97,151 +97,229 @@ const Layout = ({ children }) => {
     setMenuOpen(false);
   };
 
-  // ✅ CRÉATION DU MENU AVEC DOM MANIPULATION - RESTAURÉ EXACTEMENT
+  // ✅ CRÉATION DU MENU AVEC DOM MANIPULATION
   useEffect(() => {
     if (menuOpen) {
       // Créer le menu directement dans le body
       const menuOverlay = document.createElement('div');
       menuOverlay.id = 'hamburger-menu-overlay';
       menuOverlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 9999;
-        display: flex;
-        align-items: flex-start;
-        justify-content: flex-start;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        background-color: rgba(0, 0, 0, 0.8) !important;
+        z-index: 999999 !important;
+        display: flex !important;
+        animation: fadeIn 0.3s ease !important;
       `;
 
       const menuContainer = document.createElement('div');
       menuContainer.style.cssText = `
-        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-        width: 320px;
-        height: 100vh;
-        overflow-y: auto;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 350px !important;
+        height: 100vh !important;
+        background: linear-gradient(135deg, #1e293b, #0f172a) !important;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5) !important;
+        z-index: 999999 !important;
+        overflow-y: auto !important;
+        transform: translateX(-100%) !important;
+        transition: transform 0.3s ease !important;
+        font-family: Inter, system-ui, sans-serif !important;
       `;
 
       // Header du menu
-      const menuHeader = document.createElement('div');
-      menuHeader.style.cssText = `
-        padding: 20px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(0, 0, 0, 0.2);
+      const header = document.createElement('div');
+      header.style.cssText = `
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 20px !important;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6) !important;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.1) !important;
       `;
-      menuHeader.innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: space-between;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 24px;">⚡</span>
-            <span style="color: white; font-size: 20px; font-weight: bold;">Synergia v3.5</span>
-            ${userIsAdmin ? '<span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px;">ADMIN</span>' : ''}
+      header.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <div style="font-size: 24px;">⚡</div>
+          <div>
+            <div style="color: white; font-size: 20px; font-weight: bold;">
+              SYNERGIA MENU
+            </div>
+            <div style="color: rgba(255,255,255,0.8); font-size: 12px;">
+              ${userIsAdmin ? 'MODE ADMINISTRATEUR' : 'NAVIGATION PRINCIPALE'}
+            </div>
           </div>
-          <button id="close-menu-btn" style="background: rgba(255,255,255,0.1); border: none; color: white; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
         </div>
-      `;
-
-      // Navigation
-      const navContainer = document.createElement('div');
-      navContainer.style.cssText = `padding: 20px 0;`;
-
-      menuItems.forEach(section => {
-        const sectionEl = document.createElement('div');
-        sectionEl.style.cssText = `margin-bottom: 24px;`;
-
-        const sectionTitle = document.createElement('h3');
-        sectionTitle.style.cssText = `
-          color: ${section.section === 'ADMINISTRATION' ? '#fca5a5' : '#9ca3af'};
-          font-size: 12px;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          margin: 0 0 12px 20px;
-        `;
-        sectionTitle.textContent = section.section;
-        sectionEl.appendChild(sectionTitle);
-
-        section.items.forEach(item => {
-          const itemEl = document.createElement('a');
-          itemEl.href = item.path;
-          itemEl.className = 'menu-item';
-          itemEl.style.cssText = `
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 20px;
-            color: ${location.pathname === item.path ? '#ffffff' : '#d1d5db'};
-            background: ${location.pathname === item.path ? 'rgba(59, 130, 246, 0.8)' : 'transparent'};
-            text-decoration: none;
-            transition: all 0.2s ease;
-            border-left: ${location.pathname === item.path ? '4px solid #3b82f6' : '4px solid transparent'};
-          `;
-
-          itemEl.onmouseover = () => {
-            if (location.pathname !== item.path) {
-              itemEl.style.background = 'rgba(255, 255, 255, 0.1)';
-              itemEl.style.color = '#ffffff';
-            }
-          };
-
-          itemEl.onmouseout = () => {
-            if (location.pathname !== item.path) {
-              itemEl.style.background = 'transparent';
-              itemEl.style.color = '#d1d5db';
-            }
-          };
-
-          itemEl.innerHTML = `
-            <span style="font-size: 18px;">${item.icon}</span>
-            <span style="font-weight: 500;">${item.label}</span>
-            ${section.section === 'ADMINISTRATION' ? '<span style="color: #f87171; font-size: 12px; margin-left: auto;">🛡️</span>' : ''}
-          `;
-
-          sectionEl.appendChild(itemEl);
-        });
-
-        navContainer.appendChild(sectionEl);
-      });
-
-      // Section déconnexion
-      const logoutSection = document.createElement('div');
-      logoutSection.style.cssText = `
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        padding: 20px;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(0, 0, 0, 0.2);
-      `;
-
-      logoutSection.innerHTML = `
-        <button id="logout-btn" style="
-          width: 100%;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 12px;
-          background: rgba(239, 68, 68, 0.8);
-          border: none;
-          border-radius: 8px;
-          color: white;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        ">
-          <span style="font-size: 18px;">🚪</span>
-          <span>Déconnexion</span>
+        <button id="close-menu-btn" style="
+          background: rgba(255,255,255,0.2) !important;
+          border: none !important;
+          color: white !important;
+          padding: 10px !important;
+          border-radius: 8px !important;
+          cursor: pointer !important;
+          font-size: 20px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          transition: all 0.2s !important;
+        " onmouseover="this.style.background='rgba(255,255,255,0.3)'" 
+           onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+          ✕
         </button>
       `;
 
-      // Assemblage
-      menuContainer.appendChild(menuHeader);
-      menuContainer.appendChild(navContainer);
+      // Info utilisateur
+      const userInfo = document.createElement('div');
+      userInfo.style.cssText = `
+        padding: 20px !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+      `;
+      userInfo.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <div style="
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+          ">
+            ${user?.email?.[0]?.toUpperCase() || '?'}
+          </div>
+          <div>
+            <div style="color: white; font-weight: 600; font-size: 16px;">
+              ${user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
+            </div>
+            <div style="color: rgba(255,255,255,0.7); font-size: 14px;">
+              ${user?.email || 'Pas d\'email'}
+            </div>
+            ${userIsAdmin ? `
+              <div style="
+                background: linear-gradient(135deg, #dc2626, #b91c1c);
+                color: white;
+                padding: 2px 8px;
+                border-radius: 12px;
+                font-size: 10px;
+                font-weight: bold;
+                display: inline-block;
+                margin-top: 5px;
+              ">
+                🛡️ ADMINISTRATEUR
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+
+      // Menu de navigation
+      const navigation = document.createElement('div');
+      navigation.style.cssText = `
+        flex: 1 !important;
+        padding: 20px 0 !important;
+        overflow-y: auto !important;
+      `;
+
+      let navHTML = '';
+      menuItems.forEach(section => {
+        const isAdminSection = section.section === 'ADMINISTRATION';
+        navHTML += `
+          <div style="margin-bottom: 30px;">
+            <div style="
+              padding: 0 20px 10px 20px;
+              color: ${isAdminSection ? '#fca5a5' : 'rgba(255,255,255,0.6)'};
+              font-size: 12px;
+              font-weight: bold;
+              letter-spacing: 1px;
+              text-transform: uppercase;
+              border-bottom: 1px solid ${isAdminSection ? 'rgba(252, 165, 165, 0.3)' : 'rgba(255,255,255,0.1)'};
+            ">
+              ${isAdminSection ? '🛡️ ' : ''}${section.section}
+            </div>
+            <div style="margin-top: 10px;">
+        `;
+        
+        section.items.forEach(item => {
+          const isActive = location.pathname === item.path;
+          navHTML += `
+            <a href="${item.path}" class="menu-item" style="
+              display: flex !important;
+              align-items: center !important;
+              gap: 15px !important;
+              padding: 12px 20px !important;
+              color: ${isActive ? (isAdminSection ? '#fef2f2' : 'white') : 'rgba(255,255,255,0.8)'} !important;
+              text-decoration: none !important;
+              font-weight: ${isActive ? '600' : '500'} !important;
+              background: ${isActive ? (isAdminSection ? 'linear-gradient(135deg, #dc2626, #b91c1c)' : 'linear-gradient(135deg, #3b82f6, #2563eb)') : 'transparent'} !important;
+              border-left: 4px solid ${isActive ? (isAdminSection ? '#dc2626' : '#3b82f6') : 'transparent'} !important;
+              transition: all 0.2s !important;
+              margin: 2px 0 !important;
+            " onmouseover="
+              if (!this.style.background.includes('gradient')) {
+                this.style.background = '${isAdminSection ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)'}';
+                this.style.borderLeft = '4px solid ${isAdminSection ? '#ef4444' : '#60a5fa'}';
+              }
+            " onmouseout="
+              if (!this.style.background.includes('gradient')) {
+                this.style.background = 'transparent';
+                this.style.borderLeft = '4px solid transparent';
+              }
+            ">
+              <span style="font-size: 18px;">${item.icon}</span>
+              <span style="flex: 1;">${item.label}</span>
+              ${isAdminSection ? '<span style="color: #fca5a5; font-size: 12px;">🛡️</span>' : ''}
+            </a>
+          `;
+        });
+        
+        navHTML += `
+            </div>
+          </div>
+        `;
+      });
+      navigation.innerHTML = navHTML;
+
+      // Bouton de déconnexion
+      const logoutSection = document.createElement('div');
+      logoutSection.style.cssText = `
+        padding: 20px !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background: rgba(0, 0, 0, 0.2) !important;
+      `;
+      logoutSection.innerHTML = `
+        <button id="logout-btn" style="
+          width: 100% !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 10px !important;
+          padding: 15px !important;
+          background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+          color: white !important;
+          border: none !important;
+          border-radius: 10px !important;
+          font-weight: 600 !important;
+          cursor: pointer !important;
+          transition: all 0.2s !important;
+          font-size: 16px !important;
+        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 25px rgba(220, 38, 38, 0.3)'" 
+           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+          <span style="font-size: 18px;">🚪</span>
+          <span>DÉCONNEXION</span>
+        </button>
+      `;
+
+      // Assembler le menu
+      menuContainer.appendChild(header);
+      menuContainer.appendChild(userInfo);
+      menuContainer.appendChild(navigation);
       menuContainer.appendChild(logoutSection);
       menuOverlay.appendChild(menuContainer);
 
@@ -297,7 +375,7 @@ const Layout = ({ children }) => {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
       
-      {/* ✅ HEADER RESTAURÉ - BOUTON HAMBURGER FIXÉ */}
+      {/* ✅ HEADER UNIVERSEL - PC ET MOBILE */}
       <header style={{
         position: 'sticky',
         top: 0,
@@ -320,11 +398,11 @@ const Layout = ({ children }) => {
             alignItems: 'center',
             gap: '15px'
           }}>
-            {/* 🔧 SEULE MODIFICATION: BOUTON HAMBURGER TOUJOURS VISIBLE */}
+            {/* BOUTON HAMBURGER ÉNORME */}
             <button
               onClick={() => setMenuOpen(true)}
               style={{
-                display: 'flex !important',
+                display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 width: '50px',
@@ -339,9 +417,7 @@ const Layout = ({ children }) => {
                 boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
                 transition: 'all 0.2s ease',
                 position: 'relative',
-                overflow: 'hidden',
-                visibility: 'visible',
-                opacity: '1'
+                overflow: 'hidden'
               }}
               onMouseOver={(e) => {
                 e.target.style.transform = 'translateY(-2px)';
@@ -417,10 +493,28 @@ const Layout = ({ children }) => {
         </div>
       </header>
 
-      {/* ✅ CONTENU PRINCIPAL RESTAURÉ */}
+      {/* ✅ CONTENU PRINCIPAL */}
       <main style={{ padding: '0' }}>
         {children}
       </main>
+
+      {/* ✅ DEBUG VISIBLE */}
+      <div style={{
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        padding: '10px 15px',
+        backgroundColor: menuOpen ? '#10b981' : '#ef4444',
+        color: 'white',
+        borderRadius: '8px',
+        fontSize: '12px',
+        fontWeight: 'bold',
+        zIndex: 1000000,
+        border: '2px solid white',
+        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)'
+      }}>
+        🍔 MENU: {menuOpen ? '✅ OUVERT' : '❌ FERMÉ'}
+      </div>
     </div>
   );
 };
