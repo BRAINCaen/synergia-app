@@ -89,23 +89,19 @@ const TasksPage = () => {
     }
   };
 
-  // Filtrage des tâches
+  // 🎯 RÉPARTITION DES TÂCHES COMME DEMANDÉ ORIGINALEMENT
   const myTasks = tasks.filter(task => 
-    task.createdBy === user?.uid || 
-    (Array.isArray(task.assignedTo) && task.assignedTo.includes(user?.uid))
+    Array.isArray(task.assignedTo) && task.assignedTo.includes(user?.uid)
   );
   
   const availableTasks = tasks.filter(task => 
-    task.openToVolunteers && 
-    task.createdBy !== user?.uid &&
-    !(Array.isArray(task.assignedTo) && task.assignedTo.includes(user?.uid)) &&
-    task.status !== 'completed'
+    !Array.isArray(task.assignedTo) || task.assignedTo.length === 0
   );
   
   const otherTasks = tasks.filter(task => 
-    task.createdBy !== user?.uid && 
-    !task.openToVolunteers &&
-    !(Array.isArray(task.assignedTo) && task.assignedTo.includes(user?.uid))
+    Array.isArray(task.assignedTo) && 
+    task.assignedTo.length > 0 && 
+    !task.assignedTo.includes(user?.uid)
   );
 
   // Appliquer les filtres de recherche
