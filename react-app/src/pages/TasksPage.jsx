@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx  
-// CORRECTION URGENTE HANDLECREATETASK
+// CORRECTION CHIRURGICALE : NewTaskModal au lieu de TaskForm
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -31,8 +31,10 @@ import taskService from '../core/services/taskService.js';
 // 🚨 IMPORT DE LA CORRECTION URGENTE
 import { createTaskSafely } from '../core/services/taskCreationFix.js';
 
-// Composants
-import TaskForm from '../modules/tasks/TaskForm.jsx';
+// 🔧 CORRECTION CHIRURGICALE - LIGNE 30
+// ✅ NOUVEAU : Import NewTaskModal au lieu de TaskForm
+import NewTaskModal from '../components/tasks/NewTaskModal.jsx';
+
 import TaskDetailModal from '../components/ui/TaskDetailModal.jsx';
 import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
 import TaskCard from '../modules/tasks/TaskCard.jsx';
@@ -60,56 +62,62 @@ const TasksPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
-  const [roleFilter, setRoleFilter] = useState('all'); // NOUVEAU: Filtre par rôle Synergia
+  const [roleFilter, setRoleFilter] = useState('all');
 
-  // Chargement initial
+  // Charger les tâches au montage et sur changement d'onglet
   useEffect(() => {
-    if (user && !authLoading) {
+    if (!authLoading && user) {
       loadTasks();
     }
-  }, [user, authLoading]);
+  }, [authLoading, user, activeTab]);
 
-  // Charger les tâches
-  const loadTasks = async () => {
+  // Fonction de chargement des tâches
+  const loadTasks = useCallback(async () => {
+    if (!user) return;
+    
     try {
       setLoading(true);
-      setError('');
-      
-      console.log('📚 Chargement des tâches...');
-      const fetchedTasks = await taskService.getAllTasks();
-      
-      console.log('✅ Tâches chargées:', fetchedTasks.length);
-      setTasks(fetchedTasks || []);
-      
+      const allTasks = await taskService.getAllTasks();
+      setTasks(allTasks || []);
     } catch (error) {
       console.error('❌ Erreur chargement tâches:', error);
-      setError('Erreur lors du chargement des tâches');
-      setTasks([]);
+      setError('Erreur lors du chargement des tâches: ' + error.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  // 🎯 RÉPARTITION DES TÂCHES COMME DEMANDÉ ORIGINALEMENT
+  // Calculer les différentes catégories de tâches
   const myTasks = tasks.filter(task => 
-    Array.isArray(task.assignedTo) && task.assignedTo.includes(user?.uid)
-  );
-  
-  const availableTasks = tasks.filter(task => 
-    !Array.isArray(task.assignedTo) || task.assignedTo.length === 0
-  );
-  
-  const otherTasks = tasks.filter(task => 
-    Array.isArray(task.assignedTo) && 
-    task.assignedTo.length > 0 && 
-    !task.assignedTo.includes(user?.uid)
+    task.assignedTo && (
+      task.assignedTo.includes(user?.uid) ||
+      task.assignedTo.includes(user?.email) ||
+      task.createdBy === user?.uid ||
+      task.createdBy === user?.email
+    )
   );
 
-  // Appliquer les filtres de recherche
+  const availableTasks = tasks.filter(task => 
+    (!task.assignedTo || task.assignedTo.length === 0) &&
+    task.status !== 'completed' &&
+    task.createdBy !== user?.uid &&
+    task.createdBy !== user?.email
+  );
+
+  const otherTasks = tasks.filter(task => 
+    task.assignedTo && 
+    task.assignedTo.length > 0 &&
+    !task.assignedTo.includes(user?.uid) &&
+    !task.assignedTo.includes(user?.email) &&
+    task.createdBy !== user?.uid &&
+    task.createdBy !== user?.email
+  );
+
+  // Fonction de filtrage des tâches
   const getFilteredTasks = (taskList) => {
     return taskList.filter(task => {
-      // Filtre par texte de recherche
-      if (searchTerm && !task.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      // Filtre par terme de recherche
+      if (searchTerm && !task.title?.toLowerCase().includes(searchTerm.toLowerCase()) &&
           !task.description?.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
@@ -124,9 +132,8 @@ const TasksPage = () => {
         return false;
       }
       
-      // 🆕 NOUVEAU: Filtre par rôle Synergia
+      // Filtre par rôle Synergia
       if (roleFilter !== 'all') {
-        // Vérifier si la tâche a un rôle correspondant
         const taskRole = task.synergiaRole || task.role || task.category;
         if (!taskRole || taskRole !== roleFilter) {
           return false;
@@ -293,6 +300,9 @@ const TasksPage = () => {
       });
 
       await loadTasks();
+      setShowDetailModal(false);
+      setSelectedTask(null);
+      alert('🎯 Vous avez rejoint cette tâche !');
     } catch (error) {
       console.error('❌ Erreur volontariat:', error);
       setError('Erreur lors du volontariat: ' + error.message);
@@ -376,7 +386,7 @@ const TasksPage = () => {
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
           >
-            <CheckCircle className="w-4 h-4" />
+            <Users className="w-4 h-4" />
             Mes tâches ({myTasks.length})
           </button>
           
@@ -384,7 +394,7 @@ const TasksPage = () => {
             onClick={() => setActiveTab('available')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
               activeTab === 'available'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-green-600 text-white'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
           >
@@ -396,169 +406,132 @@ const TasksPage = () => {
             onClick={() => setActiveTab('other')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
               activeTab === 'other'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-purple-600 text-white'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
           >
-            <Users className="w-4 h-4" />
+            <Eye className="w-4 h-4" />
             Autres ({otherTasks.length})
           </button>
         </div>
 
         {/* Filtres */}
-        <div className="space-y-4 mb-6">
-          
-          {/* Première ligne : Recherche et filtres existants */}
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
+        <div className="bg-gray-800 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex-1 relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 placeholder="Rechercher une tâche..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
               />
             </div>
             
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
             >
               <option value="all">Tous les statuts</option>
-              <option value="todo">À faire</option>
+              <option value="not_started">Non commencé</option>
               <option value="in_progress">En cours</option>
-              <option value="validation_pending">En validation</option>
-              <option value="completed">Terminées</option>
+              <option value="pending_review">En attente de validation</option>
+              <option value="completed">Terminé</option>
             </select>
             
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
             >
               <option value="all">Toutes les priorités</option>
-              <option value="low">Basse</option>
+              <option value="low">Faible</option>
               <option value="medium">Moyenne</option>
-              <option value="high">Haute</option>
+              <option value="high">Élevée</option>
               <option value="urgent">Urgente</option>
             </select>
           </div>
-
-          {/* Nouvelle ligne : Filtre par rôles Synergia avec boutons */}
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium text-gray-400">Filtrer par rôle Synergia :</h3>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setRoleFilter('all')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  roleFilter === 'all'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                Tous les rôles
-              </button>
-              
-              <button
-                onClick={() => setRoleFilter('game_master')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                  roleFilter === 'game_master'
-                    ? 'bg-yellow-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                🎮 Game Master
-              </button>
-              
-              <button
-                onClick={() => setRoleFilter('maintenance')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                  roleFilter === 'maintenance'
-                    ? 'bg-orange-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                🛠️ Entretien & Maintenance
-              </button>
-              
-              <button
-                onClick={() => setRoleFilter('avis_reputation')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                  roleFilter === 'avis_reputation'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                ⭐ Gestion des Avis
-              </button>
-              
-              <button
-                onClick={() => setRoleFilter('stocks')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                  roleFilter === 'stocks'
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                📦 Gestion des Stocks
-              </button>
-              
-              <button
-                onClick={() => setRoleFilter('organisation')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                  roleFilter === 'organisation'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                🗓️ Organisation Interne
-              </button>
-              
-              <button
-                onClick={() => setRoleFilter('formation')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                  roleFilter === 'formation'
-                    ? 'bg-teal-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                📚 Formation & Tutorat
-              </button>
-              
-              <button
-                onClick={() => setRoleFilter('partenariats')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                  roleFilter === 'partenariats'
-                    ? 'bg-cyan-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                🤝 Partenariats
-              </button>
-              
-              <button
-                onClick={() => setRoleFilter('communication')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                  roleFilter === 'communication'
-                    ? 'bg-pink-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                📱 Communication
-              </button>
-              
-              <button
-                onClick={() => setRoleFilter('b2b')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                  roleFilter === 'b2b'
-                    ? 'bg-slate-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                💼 Relations B2B
-              </button>
-            </div>
+          
+          {/* Filtres par rôle Synergia */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setRoleFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === 'all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              🌟 Tous les rôles
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('tech')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                roleFilter === 'tech'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              💻 Développement Tech
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('organisation')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                roleFilter === 'organisation'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              🗓️ Organisation Interne
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('formation')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                roleFilter === 'formation'
+                  ? 'bg-teal-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              📚 Formation & Tutorat
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('partenariats')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                roleFilter === 'partenariats'
+                  ? 'bg-cyan-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              🤝 Partenariats
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('communication')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                roleFilter === 'communication'
+                  ? 'bg-pink-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              📱 Communication
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('b2b')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                roleFilter === 'b2b'
+                  ? 'bg-slate-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              💼 Relations B2B
+            </button>
           </div>
         </div>
 
@@ -576,7 +549,7 @@ const TasksPage = () => {
               <p className="text-gray-400">
                 {activeTab === 'my' && 'Vous n\'avez pas encore de tâches assignées.'}
                 {activeTab === 'available' && 'Aucune tâche disponible pour le moment.'}
-                {activeTab === 'other' && 'Aucune tâche assignée à d\'autres utilisateurs.'}
+                {activeTab === 'other' && 'Aucune autre tâche visible.'}
               </p>
             </div>
           ) : (
@@ -584,35 +557,33 @@ const TasksPage = () => {
               <TaskCard
                 key={task.id}
                 task={task}
-                currentUser={user}
+                user={user}
+                onViewDetails={handleViewDetails}
+                onSubmit={handleSubmitTask}
                 onEdit={(task) => {
                   setSelectedTask(task);
                   setShowCreateModal(true);
                 }}
                 onDelete={handleDeleteTask}
-                onViewDetails={handleViewDetails}
-                onSubmit={handleSubmitTask}
-                onVolunteer={handleVolunteer}
-                isMyTask={activeTab === 'my'}
-                showVolunteerButton={activeTab === 'available'}
+                showActions={activeTab === 'my'}
               />
             ))
           )}
         </div>
       </div>
 
-      {/* MODALS */}
-      
-      {/* Modal de création/édition */}
+      {/* 🔧 CORRECTION CHIRURGICALE - LIGNES 870-885 */}
+      {/* ✅ NOUVEAU : NewTaskModal avec props correctes */}
       {showCreateModal && (
-        <TaskForm
+        <NewTaskModal
           isOpen={showCreateModal}
-          task={selectedTask}
           onClose={() => {
             setShowCreateModal(false);
             setSelectedTask(null);
           }}
           onSubmit={selectedTask ? handleEditTask : handleCreateTask}
+          initialData={selectedTask || null}
+          mode={selectedTask ? 'edit' : 'create'}
           submitting={submitting}
         />
       )}
@@ -620,38 +591,35 @@ const TasksPage = () => {
       {/* Modal de détails */}
       {showDetailModal && selectedTask && (
         <TaskDetailModal
-          isOpen={showDetailModal}
           task={selectedTask}
-          currentUser={user}
+          user={user}
+          isOpen={showDetailModal}
           onClose={() => {
             setShowDetailModal(false);
             setSelectedTask(null);
           }}
-          onEdit={() => {
+          onVolunteer={handleVolunteer}
+          onSubmit={handleSubmitTask}
+          onEdit={(task) => {
             setShowDetailModal(false);
+            setSelectedTask(task);
             setShowCreateModal(true);
           }}
-          onDelete={() => {
-            setShowDetailModal(false);
-            handleDeleteTask(selectedTask.id);
-          }}
-          onSubmit={() => {
-            setShowDetailModal(false);
-            handleSubmitTask(selectedTask);
-          }}
+          onDelete={handleDeleteTask}
         />
       )}
 
       {/* Modal de soumission */}
       {showSubmissionModal && selectedTask && (
         <TaskSubmissionModal
-          isOpen={showSubmissionModal}
           task={selectedTask}
+          user={user}
+          isOpen={showSubmissionModal}
           onClose={() => {
             setShowSubmissionModal(false);
             setSelectedTask(null);
           }}
-          onSubmit={handleSubmissionSuccess}
+          onSuccess={handleSubmissionSuccess}
         />
       )}
     </div>
