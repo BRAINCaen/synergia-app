@@ -28,7 +28,7 @@ import { collaborationService } from '../../core/services/collaborationService.j
 import SubmitTaskButton from './SubmitTaskButton.jsx';
 
 /**
- * 💬 BADGE COMMENTAIRES AVEC NOTIFICATION VISUELLE
+ * 💬 BADGE COMMENTAIRES AVEC NOTIFICATION VISUELLE TEMPS RÉEL
  */
 const CommentNotificationBadge = ({ taskId, onClick, className = '' }) => {
   const [commentCount, setCommentCount] = useState(0);
@@ -36,35 +36,38 @@ const CommentNotificationBadge = ({ taskId, onClick, className = '' }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadComments = async () => {
-      if (!taskId) {
-        setLoading(false);
-        return;
-      }
+    if (!taskId) {
+      setLoading(false);
+      return;
+    }
 
-      try {
-        const comments = await collaborationService.getComments('task', taskId);
+    console.log('🔄 [TASK_CARD_COMMENT_BADGE] Configuration synchronisation pour tâche:', taskId);
+
+    // 📡 SYNCHRONISATION TEMPS RÉEL DES COMMENTAIRES
+    const unsubscribe = collaborationService.subscribeToComments(
+      'task',
+      taskId,
+      (comments) => {
         const count = Array.isArray(comments) ? comments.length : 0;
         setCommentCount(count);
         
-        // Détecter nouveaux commentaires (simulation)
-        // Dans une vraie app, on comparerait avec lastReadAt de l'utilisateur
+        // Détecter nouveaux commentaires (simulation - dans une vraie app, comparer avec lastReadAt)
         if (count > 0) {
           const lastComment = comments[comments.length - 1];
           const isRecent = lastComment && 
-            new Date() - (lastComment.createdAt?.toDate ? lastComment.createdAt.toDate() : new Date(lastComment.createdAt)) < 24 * 60 * 60 * 1000; // 24h
+            new Date() - (lastComment.createdAt?.toDate ? lastComment.createdAt.toDate() : new Date(lastComment.createdAt)) < 30 * 60 * 1000; // 30 min
           setHasNewComments(isRecent);
         }
         
-      } catch (error) {
-        console.warn('Erreur chargement commentaires:', error);
-        setCommentCount(0);
-      } finally {
         setLoading(false);
       }
-    };
+    );
 
-    loadComments();
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, [taskId]);
 
   if (loading) {
@@ -104,21 +107,22 @@ const CommentNotificationBadge = ({ taskId, onClick, className = '' }) => {
           ? 'bg-blue-500/30 text-blue-300 border border-blue-400/50 hover:bg-blue-500/40 animate-pulse'
           : 'bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30'
       } ${className}`}
-      title={`${commentCount} commentaire${commentCount > 1 ? 's' : ''} - Cliquer pour voir`}
+      title={`${commentCount} commentaire${commentCount > 1 ? 's' : ''} - ${hasNewComments ? 'Nouveaux messages !' : 'Cliquer pour voir'}`}
     >
       <MessageCircle className="w-3 h-3" />
       <span>{commentCount}</span>
       
-      {/* Indicateur de nouveaux commentaires */}
+      {/* 🚨 INDICATEUR VISUEL POUR NOUVEAUX COMMENTAIRES */}
       {hasNewComments && (
-        <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-gray-800">
-          <div className="w-full h-full bg-red-500 rounded-full animate-ping" />
-        </div>
-      )}
-      
-      {/* Icône de notification pour nouveaux commentaires */}
-      {hasNewComments && (
-        <Bell className="w-2 h-2 text-yellow-400 animate-bounce" />
+        <>
+          {/* Point rouge animé */}
+          <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-gray-800">
+            <div className="w-full h-full bg-red-500 rounded-full animate-ping" />
+          </div>
+          
+          {/* Icône de notification */}
+          <Bell className="w-2 h-2 text-yellow-400 animate-bounce ml-1" />
+        </>
       )}
     </button>
   );
