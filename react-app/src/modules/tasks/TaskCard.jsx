@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx
-// TASKCARD AVEC NOTIFICATION COMMENTAIRES - FIX FIREBASE DIRECT
+// TASKCARD AVEC NOMS UTILISATEURS RÉSOLUS - FIX COMPLET
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -183,7 +183,7 @@ const PriorityBadge = ({ priority }) => {
 };
 
 /**
- * 🎯 COMPOSANT TASKCARD AVEC NOTIFICATION COMMENTAIRES
+ * 🎯 COMPOSANT TASKCARD AVEC NOMS UTILISATEURS RÉSOLUS
  */
 const TaskCard = ({ 
   task, 
@@ -198,6 +198,11 @@ const TaskCard = ({
 }) => {
   const { user } = useAuthStore();
   const [isVolunteering, setIsVolunteering] = useState(false);
+  
+  // ✅ NOUVEAUX ÉTATS POUR LES NOMS D'UTILISATEURS
+  const [creatorName, setCreatorName] = useState('Chargement...');
+  const [assigneeNames, setAssigneeNames] = useState([]);
+  const [loadingUserNames, setLoadingUserNames] = useState(true);
 
   // ✅ Vérifications de statut
   const isTaskOwner = user && task && task.createdBy === user.uid;
@@ -208,6 +213,78 @@ const TaskCard = ({
     !isAssignedToMe &&
     task.status !== 'completed' &&
     task.status !== 'validation_pending';
+
+  // ✅ NOUVEAU useEffect POUR CHARGER LES NOMS D'UTILISATEURS
+  useEffect(() => {
+    const loadUserNames = async () => {
+      if (!task) {
+        setLoadingUserNames(false);
+        return;
+      }
+
+      try {
+        setLoadingUserNames(true);
+        
+        // 📖 IMPORT FIREBASE DIRECT
+        const { doc, getDoc } = await import('firebase/firestore');
+        const { db } = await import('../../core/firebase.js');
+
+        // 👤 CHARGER LE NOM DU CRÉATEUR
+        if (task.createdBy) {
+          try {
+            const creatorDoc = await getDoc(doc(db, 'users', task.createdBy));
+            if (creatorDoc.exists()) {
+              const creatorData = creatorDoc.data();
+              setCreatorName(creatorData.displayName || creatorData.name || creatorData.email || 'Utilisateur anonyme');
+            } else {
+              setCreatorName('Utilisateur anonyme');
+            }
+          } catch (error) {
+            console.warn('Erreur chargement créateur:', error);
+            setCreatorName('Utilisateur anonyme');
+          }
+        } else {
+          setCreatorName('Utilisateur anonyme');
+        }
+
+        // 👥 CHARGER LES NOMS DES ASSIGNÉS
+        if (task.assignedTo && Array.isArray(task.assignedTo) && task.assignedTo.length > 0) {
+          try {
+            const assigneePromises = task.assignedTo.map(async (userId) => {
+              try {
+                const userDoc = await getDoc(doc(db, 'users', userId));
+                if (userDoc.exists()) {
+                  const userData = userDoc.data();
+                  return userData.displayName || userData.name || userData.email || 'Utilisateur anonyme';
+                }
+                return 'Utilisateur anonyme';
+              } catch (error) {
+                console.warn('Erreur chargement assigné:', userId, error);
+                return 'Utilisateur anonyme';
+              }
+            });
+
+            const names = await Promise.all(assigneePromises);
+            setAssigneeNames(names);
+          } catch (error) {
+            console.warn('Erreur chargement assignés:', error);
+            setAssigneeNames([]);
+          }
+        } else {
+          setAssigneeNames([]);
+        }
+
+      } catch (error) {
+        console.error('Erreur chargement noms utilisateurs:', error);
+        setCreatorName('Erreur de chargement');
+        setAssigneeNames([]);
+      } finally {
+        setLoadingUserNames(false);
+      }
+    };
+
+    loadUserNames();
+  }, [task?.id, task?.createdBy, task?.assignedTo]);
 
   // Fonction de volontariat
   const handleVolunteer = async () => {
@@ -314,21 +391,37 @@ const TaskCard = ({
         </div>
       )}
 
-      {/* Métadonnées */}
+      {/* Métadonnées avec noms d'utilisateurs résolus */}
       <div className="space-y-2 text-sm text-gray-400 mb-4">
         
-        {/* Créateur */}
+        {/* Créateur avec nom résolu */}
         <div className="flex items-center gap-2">
           <User className="w-4 h-4" />
-          <span>Créé par: {task.createdBy || 'Anonyme'}</span>
+          <span>
+            Créé par: {loadingUserNames ? (
+              <span className="text-gray-500">Chargement...</span>
+            ) : (
+              <span className="text-white font-medium">{creatorName}</span>
+            )}
+          </span>
         </div>
 
-        {/* Assignés */}
+        {/* Assignés avec noms résolus */}
         {task.assignedTo && task.assignedTo.length > 0 && (
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4" />
             <span>
-              Assigné à {task.assignedTo.length} personne{task.assignedTo.length > 1 ? 's' : ''}
+              Assigné à: {loadingUserNames ? (
+                <span className="text-gray-500">Chargement...</span>
+              ) : assigneeNames.length > 0 ? (
+                assigneeNames.map((name, index) => (
+                  <span key={index} className="inline-block bg-blue-500/20 text-blue-300 px-2 py-1 rounded text-xs mr-1 mb-1 font-medium">
+                    {name}
+                  </span>
+                ))
+              ) : (
+                <span className="text-gray-500">Utilisateurs anonymes</span>
+              )}
             </span>
           </div>
         )}
