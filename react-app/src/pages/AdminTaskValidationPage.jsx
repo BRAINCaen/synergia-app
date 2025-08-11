@@ -145,9 +145,9 @@ const AdminTaskValidationPage = () => {
               taskData: taskData,
               type: 'task_submission',
               source: 'tasks_collection',
-              photoUrl: taskData.photoUrl || null,
+              photoUrl: taskData.photoUrl || taskData.imageUrl || null,
               videoUrl: taskData.videoUrl || null,
-              hasMedia: !!(taskData.photoUrl || taskData.videoUrl)
+              hasMedia: !!(taskData.photoUrl || taskData.imageUrl || taskData.videoUrl)
             });
             
           } catch (taskError) {
@@ -781,9 +781,9 @@ const AdminTaskValidationPage = () => {
                         </div>
 
                         {/* MÉDIAS SI PRÉSENTS */}
-                        {validation.hasMedia && (
+                        {(validation.photoUrl || validation.imageUrl || validation.hasMedia) && (
                           <div className="flex items-center gap-2 mb-4">
-                            {validation.photoUrl && (
+                            {(validation.photoUrl || validation.imageUrl) && (
                               <div className="flex items-center gap-1 text-sm text-green-600">
                                 <ImageIcon className="w-4 h-4" />
                                 Photo jointe
@@ -889,25 +889,71 @@ const AdminTaskValidationPage = () => {
                 </div>
 
                 {/* MÉDIAS */}
-                {selectedValidation.photoUrl && (
+                {(selectedValidation.photoUrl || selectedValidation.imageUrl) && (
                   <div>
                     <label className="text-sm font-medium text-gray-700">Photo</label>
-                    <img 
-                      src={selectedValidation.photoUrl} 
-                      alt="Validation" 
-                      className="mt-2 max-w-full h-auto rounded-lg"
-                    />
+                    <div className="mt-2">
+                      <img 
+                        src={selectedValidation.photoUrl || selectedValidation.imageUrl} 
+                        alt="Validation" 
+                        className="max-w-full h-auto rounded-lg border border-gray-200"
+                        onError={(e) => {
+                          console.error('Erreur chargement image:', e.target.src);
+                          e.target.style.display = 'none';
+                          // Afficher un message d'erreur
+                          const errorDiv = document.createElement('div');
+                          errorDiv.className = 'text-red-500 text-sm mt-2';
+                          errorDiv.textContent = 'Impossible de charger l\'image';
+                          e.target.parentNode.appendChild(errorDiv);
+                        }}
+                        onLoad={() => {
+                          console.log('✅ Image chargée avec succès:', selectedValidation.photoUrl || selectedValidation.imageUrl);
+                        }}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        URL: {selectedValidation.photoUrl || selectedValidation.imageUrl}
+                      </p>
+                    </div>
                   </div>
                 )}
 
                 {selectedValidation.videoUrl && (
                   <div>
                     <label className="text-sm font-medium text-gray-700">Vidéo</label>
-                    <video 
-                      src={selectedValidation.videoUrl} 
-                      controls 
-                      className="mt-2 max-w-full h-auto rounded-lg"
-                    />
+                    <div className="mt-2">
+                      <video 
+                        src={selectedValidation.videoUrl} 
+                        controls 
+                        className="max-w-full h-auto rounded-lg border border-gray-200"
+                        onError={(e) => {
+                          console.error('Erreur chargement vidéo:', e.target.src);
+                          e.target.style.display = 'none';
+                          // Afficher un message d'erreur
+                          const errorDiv = document.createElement('div');
+                          errorDiv.className = 'text-red-500 text-sm mt-2';
+                          errorDiv.textContent = 'Impossible de charger la vidéo';
+                          e.target.parentNode.appendChild(errorDiv);
+                        }}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        URL: {selectedValidation.videoUrl}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* DEBUG MÉDIAS */}
+                {showDebugInfo && (
+                  <div className="bg-gray-100 p-3 rounded-lg">
+                    <label className="text-sm font-medium text-gray-700">Debug Médias</label>
+                    <div className="text-xs text-gray-600 mt-1">
+                      <div><strong>photoUrl:</strong> {selectedValidation.photoUrl || 'null'}</div>
+                      <div><strong>imageUrl:</strong> {selectedValidation.imageUrl || 'null'}</div>
+                      <div><strong>videoUrl:</strong> {selectedValidation.videoUrl || 'null'}</div>
+                      <div><strong>hasMedia:</strong> {selectedValidation.hasMedia ? 'true' : 'false'}</div>
+                      <div><strong>taskData.photoUrl:</strong> {selectedValidation.taskData?.photoUrl || 'null'}</div>
+                      <div><strong>taskData.imageUrl:</strong> {selectedValidation.taskData?.imageUrl || 'null'}</div>
+                    </div>
                   </div>
                 )}
 
