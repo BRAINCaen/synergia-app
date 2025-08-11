@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// CORRECTION HAMBURGER MENU - VISIBILITÉ PERMANENTE
+// RESTORATION EXACTE + CORRECTION HAMBURGER SEULEMENT
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -51,7 +51,7 @@ const Layout = ({ children }) => {
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
 
-  // ✅ MENU ITEMS COMPLETS
+  // ✅ MENU ITEMS COMPLETS - RESTAURÉ EXACTEMENT
   const menuItems = [
     { section: 'PRINCIPAL', items: [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
@@ -97,7 +97,7 @@ const Layout = ({ children }) => {
     setMenuOpen(false);
   };
 
-  // ✅ CRÉATION DU MENU AVEC DOM MANIPULATION FIXÉ
+  // ✅ CRÉATION DU MENU AVEC DOM MANIPULATION - RESTAURÉ EXACTEMENT
   useEffect(() => {
     if (menuOpen) {
       // Créer le menu directement dans le body
@@ -297,7 +297,7 @@ const Layout = ({ children }) => {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
       
-      {/* ✅ HEADER CORRIGÉ - BOUTON HAMBURGER ULTRA VISIBLE */}
+      {/* ✅ HEADER RESTAURÉ - BOUTON HAMBURGER FIXÉ */}
       <header style={{
         position: 'sticky',
         top: 0,
@@ -320,7 +320,7 @@ const Layout = ({ children }) => {
             alignItems: 'center',
             gap: '15px'
           }}>
-            {/* 🔧 CORRECTION: BOUTON HAMBURGER VISIBLE PARTOUT */}
+            {/* 🔧 SEULE MODIFICATION: BOUTON HAMBURGER TOUJOURS VISIBLE */}
             <button
               onClick={() => setMenuOpen(true)}
               style={{
@@ -331,7 +331,7 @@ const Layout = ({ children }) => {
                 height: '50px',
                 background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
                 color: 'white',
-                border: '3px solid #1d4ed8',
+                border: 'none',
                 borderRadius: '12px',
                 cursor: 'pointer',
                 fontSize: '24px',
@@ -340,9 +340,8 @@ const Layout = ({ children }) => {
                 transition: 'all 0.2s ease',
                 position: 'relative',
                 overflow: 'hidden',
-                visibility: 'visible !important',
-                opacity: '1 !important',
-                zIndex: '100'
+                visibility: 'visible',
+                opacity: '1'
               }}
               onMouseOver={(e) => {
                 e.target.style.transform = 'translateY(-2px)';
@@ -352,119 +351,74 @@ const Layout = ({ children }) => {
                 e.target.style.transform = 'translateY(0)';
                 e.target.style.boxShadow = '0 4px 15px rgba(59, 130, 246, 0.3)';
               }}
-              title="Ouvrir le menu de navigation"
+              title="Ouvrir le menu"
             >
-              ☰
+              <Menu style={{ width: '24px', height: '24px' }} />
             </button>
-
-            {/* Logo et titre */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              <span style={{ fontSize: '28px' }}>⚡</span>
-              <div>
-                <h1 style={{
-                  margin: 0,
-                  fontSize: '24px',
-                  fontWeight: 'bold',
-                  color: '#1f2937',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  Synergia
-                  <span style={{
-                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                    color: 'white',
-                    padding: '2px 8px',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    fontWeight: '600'
-                  }}>v3.5</span>
-                  {userIsAdmin && (
-                    <span style={{
-                      background: '#ef4444',
-                      color: 'white',
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                      fontWeight: '600'
-                    }}>ADMIN</span>
-                  )}
-                </h1>
+            
+            <div>
+              <h1 style={{
+                margin: 0,
+                fontSize: '24px',
+                fontWeight: 'bold',
+                background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}>
+                ⚡ Synergia
+              </h1>
+              <div style={{
+                fontSize: '12px',
+                color: '#6b7280',
+                fontWeight: '500'
+              }}>
+                v3.5 {userIsAdmin && '• ADMIN'}
               </div>
             </div>
           </div>
 
-          {/* Section droite - Info utilisateur */}
+          {/* Indicateur utilisateur */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '12px'
+            gap: '10px',
+            padding: '8px 15px',
+            backgroundColor: '#f8fafc',
+            borderRadius: '25px',
+            border: '1px solid #e2e8f0'
           }}>
-            {/* Avatar/Info utilisateur */}
             <div style={{
+              width: '30px',
+              height: '30px',
+              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+              borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '8px 12px',
-              background: '#f9fafb',
-              borderRadius: '8px',
-              border: '1px solid #e5e7eb'
+              justifyContent: 'center',
+              color: 'white',
+              fontSize: '12px',
+              fontWeight: 'bold'
             }}>
-              {user?.photoURL ? (
-                <img 
-                  src={user.photoURL} 
-                  alt={user.displayName || 'Utilisateur'}
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    objectFit: 'cover'
-                  }}
-                />
-              ) : (
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  backgroundColor: '#3b82f6',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'white',
-                  fontSize: '14px',
-                  fontWeight: 'bold'
-                }}>
-                  {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
-                </div>
-              )}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <span style={{
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151',
-                  lineHeight: '1'
-                }}>
-                  {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
-                </span>
-                <span style={{
-                  fontSize: '12px',
-                  color: '#6b7280',
-                  lineHeight: '1'
-                }}>
-                  En ligne
-                </span>
-              </div>
+              {user?.email?.[0]?.toUpperCase() || '?'}
+            </div>
+            <div style={{
+              fontSize: '14px',
+              color: '#374151',
+              fontWeight: '500',
+              maxWidth: '150px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}>
+              {user?.displayName || user?.email || 'Utilisateur'}
             </div>
           </div>
         </div>
       </header>
 
-      {/* CONTENU PRINCIPAL */}
-      <main style={{ padding: '0', minHeight: 'calc(100vh - 80px)' }}>
+      {/* ✅ CONTENU PRINCIPAL RESTAURÉ */}
+      <main style={{ padding: '0' }}>
         {children}
       </main>
     </div>
