@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminTaskValidationPage.jsx
-// PAGE ADMIN VALIDATION CORRIGÉE - CORRECTION IMPORT SHIELD
+// PAGE ADMIN VALIDATION CORRIGÉE - RÉCUPÉRATION DIRECTE FIREBASE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -25,13 +25,25 @@ import {
   Zap
 } from 'lucide-react';
 
-// ✅ IMPORTS CORRIGÉS - CHEMIN CORRECT VERS FIREBASE
-import { adminValidationService } from '../core/services/adminValidationService.js';
-import { taskService } from '../core/services/taskService.js';
+// ✅ IMPORTS FIREBASE DIRECTS
+import { 
+  collection, 
+  doc,
+  getDocs, 
+  getDoc,
+  updateDoc,
+  query, 
+  where, 
+  orderBy,
+  serverTimestamp
+} from 'firebase/firestore';
+import { db } from '../core/firebase.js';
+
+// Services
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 /**
- * 🛡️ PAGE D'ADMINISTRATION DES VALIDATIONS - VERSION CORRIGÉE
+ * 🛡️ PAGE D'ADMINISTRATION DES VALIDATIONS - RÉCUPÉRATION DIRECTE
  */
 const AdminTaskValidationPage = () => {
   const { user } = useAuthStore();
@@ -64,82 +76,201 @@ const AdminTaskValidationPage = () => {
   const [lastUpdate, setLastUpdate] = useState(null);
 
   /**
-   * 🔄 CHARGEMENT INITIAL - MODE CLASSIQUE SIMPLE
+   * 🔄 CHARGEMENT INITIAL
    */
   useEffect(() => {
-    loadValidationsClassic();
-    loadStatsClassic();
+    loadValidationsDirectFromFirebase();
+    loadStatsDirectFromFirebase();
   }, [activeTab]);
 
   /**
-   * 📥 CHARGER LES VALIDATIONS - MODE CLASSIQUE
+   * 📥 RÉCUPÉRER LES VALIDATIONS DIRECTEMENT DEPUIS FIREBASE
    */
-  const loadValidationsClassic = async () => {
+  const loadValidationsDirectFromFirebase = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log('📥 [ADMIN-CLASSIC] Chargement validations:', activeTab);
+      console.log('🔥 [FIREBASE-DIRECT] Chargement validations:', activeTab);
       
       let fetchedValidations = [];
       
       if (activeTab === 'pending') {
-        // Récupérer directement les tâches avec status = 'validation_pending'
-        console.log('🔍 [ADMIN-CLASSIC] Recherche des tâches en attente de validation...');
+        console.log('🔍 [FIREBASE-DIRECT] Recherche tâches validation_pending...');
         
-        try {
-          const allTasks = await taskService.getAllTasks();
-          const pendingTasks = allTasks.filter(task => task.status === 'validation_pending');
+        // ✅ RÉCUPÉRATION DIRECTE DES TÂCHES EN VALIDATION
+        const tasksQuery = query(
+          collection(db, 'tasks'),
+          where('status', '==', 'validation_pending'),
+          orderBy('updatedAt', 'desc')
+        );
+        
+        const tasksSnapshot = await getDocs(tasksQuery);
+        console.log(`📊 [FIREBASE-DIRECT] ${tasksSnapshot.size} tâches en validation_pending trouvées`);
+        
+        // Transformer chaque tâche en format validation
+        for (const taskDoc of tasksSnapshot.docs) {
+          const taskData = taskDoc.data();
           
-          console.log(`📊 [ADMIN-CLASSIC] ${pendingTasks.length} tâches trouvées avec statut validation_pending`);
-          
-          // Transformer les tâches en format validation
-          fetchedValidations = pendingTasks.map(task => ({
-            id: task.id,
-            taskId: task.id,
-            taskTitle: task.title,
-            status: 'pending',
-            userId: task.submittedBy || task.assignedTo?.[0] || task.createdBy,
-            userName: 'Utilisateur',
-            userEmail: 'email@exemple.com',
-            comment: task.submissionNotes || 'Tâche soumise pour validation',
-            xpReward: calculateXPForDifficulty(task.difficulty || 'normal'),
-            difficulty: task.difficulty || 'normal',
-            submittedAt: task.submittedAt || task.updatedAt || new Date(),
-            submittedBy: task.submittedBy || task.assignedTo?.[0] || task.createdBy,
-            taskData: task,
-            type: 'task_submission',
-            source: 'tasks_collection'
-          }));
-          
-        } catch (tasksError) {
-          console.error('❌ [ADMIN-CLASSIC] Erreur récupération tâches:', tasksError);
-          // Fallback vers le service de validation classique
           try {
-            fetchedValidations = await adminValidationService.getPendingValidations();
-            console.log(`📊 [ADMIN-CLASSIC] Fallback: ${fetchedValidations.length} validations`);
-          } catch (fallbackError) {
-            console.error('❌ [ADMIN-CLASSIC] Erreur fallback:', fallbackError);
-            throw new Error('Impossible de récupérer les validations');
+            // Récupérer les données utilisateur
+            let userData = { displayName: 'Utilisateur', email: 'email@exemple.com' };
+            if (taskData.submittedBy) {
+              try {
+                const userDoc = await getDoc(doc(db, 'users', taskData.submittedBy));
+                if (userDoc.exists()) {
+                  userData = userDoc.data();
+                }
+              } catch (userError) {
+                console.warn('⚠️ Erreur récupération utilisateur:', userError);
+              }
+            }
+            
+            fetchedValidations.push({
+              id: taskDoc.id,
+              taskId: taskDoc.id,
+              taskTitle: taskData.title || 'Tâche sans titre',
+              status: 'pending',
+              userId: taskData.submittedBy || taskData.assignedTo?.[0] || taskData.createdBy || 'unknown',
+              userName: userData.displayName || userData.name || 'Utilisateur',
+              userEmail: userData.email || 'email@exemple.com',
+              comment: taskData.submissionNotes || taskData.description || 'Tâche soumise pour validation',
+              xpReward: calculateXPForDifficulty(taskData.difficulty || 'normal'),
+              difficulty: taskData.difficulty || 'normal',
+              submittedAt: taskData.submittedAt || taskData.updatedAt || new Date(),
+              submittedBy: taskData.submittedBy || taskData.assignedTo?.[0] || taskData.createdBy,
+              taskData: taskData,
+              type: 'task_submission',
+              source: 'tasks_collection',
+              photoUrl: taskData.photoUrl || null,
+              videoUrl: taskData.videoUrl || null,
+              hasMedia: !!(taskData.photoUrl || taskData.videoUrl)
+            });
+            
+          } catch (taskError) {
+            console.warn('⚠️ Erreur traitement tâche:', taskError);
           }
         }
         
+        // ✅ RÉCUPÉRATION AUSSI DES VALIDATIONS CLASSIQUES
+        try {
+          const validationsQuery = query(
+            collection(db, 'task_validations'),
+            where('status', '==', 'pending'),
+            orderBy('submittedAt', 'desc')
+          );
+          
+          const validationsSnapshot = await getDocs(validationsQuery);
+          console.log(`📊 [FIREBASE-DIRECT] ${validationsSnapshot.size} validations classiques trouvées`);
+          
+          for (const validationDoc of validationsSnapshot.docs) {
+            const validationData = validationDoc.data();
+            
+            try {
+              // Récupérer les données utilisateur
+              let userData = { displayName: 'Utilisateur', email: 'email@exemple.com' };
+              if (validationData.userId) {
+                try {
+                  const userDoc = await getDoc(doc(db, 'users', validationData.userId));
+                  if (userDoc.exists()) {
+                    userData = userDoc.data();
+                  }
+                } catch (userError) {
+                  console.warn('⚠️ Erreur récupération utilisateur validation:', userError);
+                }
+              }
+              
+              fetchedValidations.push({
+                id: validationDoc.id,
+                taskId: validationData.taskId,
+                taskTitle: validationData.taskTitle || 'Validation classique',
+                status: 'pending',
+                userId: validationData.userId,
+                userName: userData.displayName || userData.name || 'Utilisateur',
+                userEmail: userData.email || 'email@exemple.com',
+                comment: validationData.comment || 'Validation soumise',
+                xpReward: validationData.xpAmount || calculateXPForDifficulty(validationData.difficulty || 'normal'),
+                difficulty: validationData.difficulty || 'normal',
+                submittedAt: validationData.submittedAt || new Date(),
+                submittedBy: validationData.userId,
+                type: 'validation_request',
+                source: 'validations_collection',
+                photoUrl: validationData.photoUrl || null,
+                videoUrl: validationData.videoUrl || null,
+                hasMedia: !!(validationData.photoUrl || validationData.videoUrl)
+              });
+              
+            } catch (validationError) {
+              console.warn('⚠️ Erreur traitement validation:', validationError);
+            }
+          }
+        } catch (validationsError) {
+          console.warn('⚠️ Erreur récupération validations classiques:', validationsError);
+        }
+        
       } else if (activeTab === 'approved') {
-        fetchedValidations = await adminValidationService.getApprovedValidations();
+        // Récupérer les validations approuvées
+        const approvedQuery = query(
+          collection(db, 'task_validations'),
+          where('status', '==', 'approved'),
+          orderBy('reviewedAt', 'desc')
+        );
+        
+        const approvedSnapshot = await getDocs(approvedQuery);
+        
+        for (const validationDoc of approvedSnapshot.docs) {
+          const validationData = validationDoc.data();
+          fetchedValidations.push({
+            id: validationDoc.id,
+            ...validationData,
+            source: 'validations_collection'
+          });
+        }
         
       } else if (activeTab === 'rejected') {
-        fetchedValidations = await adminValidationService.getRejectedValidations();
+        // Récupérer les validations rejetées
+        const rejectedQuery = query(
+          collection(db, 'task_validations'),
+          where('status', '==', 'rejected'),
+          orderBy('reviewedAt', 'desc')
+        );
+        
+        const rejectedSnapshot = await getDocs(rejectedQuery);
+        
+        for (const validationDoc of rejectedSnapshot.docs) {
+          const validationData = validationDoc.data();
+          fetchedValidations.push({
+            id: validationDoc.id,
+            ...validationData,
+            source: 'validations_collection'
+          });
+        }
         
       } else {
-        fetchedValidations = await adminValidationService.getAllValidations();
+        // Récupérer toutes les validations
+        const allValidationsQuery = query(
+          collection(db, 'task_validations'),
+          orderBy('submittedAt', 'desc')
+        );
+        
+        const allSnapshot = await getDocs(allValidationsQuery);
+        
+        for (const validationDoc of allSnapshot.docs) {
+          const validationData = validationDoc.data();
+          fetchedValidations.push({
+            id: validationDoc.id,
+            ...validationData,
+            source: 'validations_collection'
+          });
+        }
       }
       
-      console.log(`✅ [ADMIN-CLASSIC] ${fetchedValidations.length} validations chargées pour l'onglet ${activeTab}`);
+      console.log(`✅ [FIREBASE-DIRECT] ${fetchedValidations.length} validations chargées pour l'onglet ${activeTab}`);
       setValidations(fetchedValidations);
       setLastUpdate(new Date());
       
     } catch (error) {
-      console.error('❌ [ADMIN-CLASSIC] Erreur chargement validations:', error);
+      console.error('❌ [FIREBASE-DIRECT] Erreur chargement validations:', error);
       setError(`Erreur lors du chargement: ${error.message}`);
       setValidations([]);
     } finally {
@@ -148,14 +279,48 @@ const AdminTaskValidationPage = () => {
   };
 
   /**
-   * 📊 CHARGER LES STATISTIQUES - MODE CLASSIQUE
+   * 📊 CHARGER LES STATISTIQUES DIRECTEMENT DEPUIS FIREBASE
    */
-  const loadStatsClassic = async () => {
+  const loadStatsDirectFromFirebase = async () => {
     try {
-      const statsData = await adminValidationService.getValidationStats();
+      console.log('📊 [FIREBASE-DIRECT] Calcul statistiques...');
+      
+      // Compter les tâches en validation_pending
+      const pendingTasksQuery = query(
+        collection(db, 'tasks'),
+        where('status', '==', 'validation_pending')
+      );
+      const pendingTasksSnapshot = await getDocs(pendingTasksQuery);
+      
+      // Compter les validations classiques
+      const allValidationsSnapshot = await getDocs(collection(db, 'task_validations'));
+      
+      let pending = pendingTasksSnapshot.size;
+      let approved = 0;
+      let rejected = 0;
+      let total = pendingTasksSnapshot.size;
+      
+      allValidationsSnapshot.forEach(doc => {
+        const status = doc.data().status;
+        total++;
+        if (status === 'pending') pending++;
+        else if (status === 'approved') approved++;
+        else if (status === 'rejected') rejected++;
+      });
+      
+      const statsData = {
+        total,
+        pending,
+        approved,
+        rejected,
+        today: 0 // TODO: calculer les validations du jour
+      };
+      
+      console.log('📊 [FIREBASE-DIRECT] Statistiques calculées:', statsData);
       setStats(statsData);
+      
     } catch (error) {
-      console.error('❌ [ADMIN-CLASSIC] Erreur stats:', error);
+      console.error('❌ [FIREBASE-DIRECT] Erreur stats:', error);
       setStats({
         total: 0,
         pending: 0,
@@ -172,8 +337,8 @@ const AdminTaskValidationPage = () => {
   const forceRefresh = async () => {
     console.log('🔄 [ADMIN] Rafraîchissement forcé...');
     await Promise.all([
-      loadValidationsClassic(),
-      loadStatsClassic()
+      loadValidationsDirectFromFirebase(),
+      loadStatsDirectFromFirebase()
     ]);
   };
 
@@ -220,26 +385,33 @@ const AdminTaskValidationPage = () => {
         throw new Error('Validation introuvable');
       }
 
-      // Nouveau système avec taskData
-      if (validation.taskData && validation.source === 'tasks_collection') {
-        console.log('🚀 [ADMIN] Nouveau système - Approbation via taskService');
+      // Si c'est une tâche en validation_pending
+      if (validation.source === 'tasks_collection') {
+        console.log('🚀 [ADMIN] Approbation tâche via Firebase direct');
         
-        await taskService.updateTask(validation.taskId, {
+        await updateDoc(doc(db, 'tasks', validation.taskId), {
           status: 'completed',
-          validatedAt: new Date(),
+          validatedAt: serverTimestamp(),
           validatedBy: user.uid,
           validationComment: comment,
-          updatedAt: new Date()
+          updatedAt: serverTimestamp()
         });
         
-        console.log('✅ [ADMIN] Tâche validée avec succès');
+        console.log('✅ [ADMIN] Tâche marquée comme completed');
         
       } else {
-        // Ancien système de validation  
-        await adminValidationService.approveValidation(validationId, user.uid, comment);
+        // Validation classique
+        console.log('🚀 [ADMIN] Approbation validation classique');
+        
+        await updateDoc(doc(db, 'task_validations', validationId), {
+          status: 'approved',
+          reviewedBy: user.uid,
+          reviewedAt: serverTimestamp(),
+          adminComment: comment
+        });
+        
+        console.log('✅ [ADMIN] Validation classique approuvée');
       }
-      
-      console.log('✅ [ADMIN] Validation approuvée avec succès');
       
       // Recharger les données
       await forceRefresh();
@@ -265,32 +437,44 @@ const AdminTaskValidationPage = () => {
       setActionLoading(true);
       console.log('❌ [ADMIN] Rejet validation:', validationId);
       
+      if (!comment.trim()) {
+        alert('Un commentaire est requis pour rejeter une validation');
+        return;
+      }
+      
       const validation = validations.find(v => v.id === validationId);
       if (!validation) {
         throw new Error('Validation introuvable');
       }
 
-      // Nouveau système avec taskData
-      if (validation.taskData && validation.source === 'tasks_collection') {
-        console.log('🚀 [ADMIN] Nouveau système - Rejet via taskService');
+      // Si c'est une tâche en validation_pending
+      if (validation.source === 'tasks_collection') {
+        console.log('🚀 [ADMIN] Rejet tâche via Firebase direct');
         
-        await taskService.updateTask(validation.taskId, {
+        await updateDoc(doc(db, 'tasks', validation.taskId), {
           status: 'in_progress',
           submittedForValidation: false,
-          rejectedAt: new Date(),
+          rejectedAt: serverTimestamp(),
           rejectedBy: user.uid,
           rejectionReason: comment,
-          updatedAt: new Date()
+          updatedAt: serverTimestamp()
         });
         
-        console.log('✅ [ADMIN] Tâche remise en cours avec succès');
+        console.log('✅ [ADMIN] Tâche remise en cours');
         
       } else {
-        // Ancien système de validation  
-        await adminValidationService.rejectValidation(validationId, user.uid, comment);
+        // Validation classique
+        console.log('🚀 [ADMIN] Rejet validation classique');
+        
+        await updateDoc(doc(db, 'task_validations', validationId), {
+          status: 'rejected',
+          reviewedBy: user.uid,
+          reviewedAt: serverTimestamp(),
+          adminComment: comment
+        });
+        
+        console.log('✅ [ADMIN] Validation classique rejetée');
       }
-      
-      console.log('❌ [ADMIN] Validation rejetée avec succès');
       
       // Recharger les données
       await forceRefresh();
@@ -523,6 +707,14 @@ const AdminTaskValidationPage = () => {
               <p className="text-gray-600">
                 {searchTerm ? 'Aucune validation trouvée pour cette recherche' : 'Aucune validation à afficher'}
               </p>
+              {!searchTerm && activeTab === 'pending' && (
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg max-w-md">
+                  <p className="text-blue-800 text-sm">
+                    💡 <strong>Astuce:</strong> Les tâches apparaissent ici quand les utilisateurs les soumettent pour validation.
+                    Vérifiez que des tâches ont bien le statut "validation_pending" dans la base de données.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -548,6 +740,16 @@ const AdminTaskValidationPage = () => {
                           <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
                             +{validation.xpReward} XP
                           </span>
+                          {validation.source === 'tasks_collection' && (
+                            <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-700">
+                              Tâche
+                            </span>
+                          )}
+                          {validation.source === 'validations_collection' && (
+                            <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">
+                              Validation
+                            </span>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
@@ -566,7 +768,7 @@ const AdminTaskValidationPage = () => {
                         </div>
 
                         {/* MÉDIAS SI PRÉSENTS */}
-                        {(validation.photoUrl || validation.videoUrl) && (
+                        {validation.hasMedia && (
                           <div className="flex items-center gap-2 mb-4">
                             {validation.photoUrl && (
                               <div className="flex items-center gap-1 text-sm text-green-600">
@@ -646,7 +848,7 @@ const AdminTaskValidationPage = () => {
 
                 <div>
                   <label className="text-sm font-medium text-gray-700">Utilisateur</label>
-                  <p className="text-gray-900">{selectedValidation.userName}</p>
+                  <p className="text-gray-900">{selectedValidation.userName} ({selectedValidation.userEmail})</p>
                 </div>
 
                 <div>
@@ -664,6 +866,13 @@ const AdminTaskValidationPage = () => {
                 <div>
                   <label className="text-sm font-medium text-gray-700">Récompense XP</label>
                   <p className="text-gray-900">{selectedValidation.xpReward} XP</p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Source</label>
+                  <p className="text-gray-900">
+                    {selectedValidation.source === 'tasks_collection' ? 'Collection Tâches' : 'Collection Validations'}
+                  </p>
                 </div>
 
                 {/* MÉDIAS */}
