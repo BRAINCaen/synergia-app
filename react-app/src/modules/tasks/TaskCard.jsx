@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx
-// TASKCARD AVEC NOTIFICATION COMMENTAIRES VISIBLE
+// TASKCARD AVEC NOTIFICATION COMMENTAIRES VISIBLE - FIX BADGE 0 COMMENTAIRES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -28,7 +28,7 @@ import { collaborationService } from '../../core/services/collaborationService.j
 import SubmitTaskButton from './SubmitTaskButton.jsx';
 
 /**
- * 💬 BADGE COMMENTAIRES AVEC NOTIFICATION VISUELLE TEMPS RÉEL
+ * 💬 BADGE COMMENTAIRES AVEC NOTIFICATION VISUELLE TEMPS RÉEL - FIX AFFICHAGE 0
  */
 const CommentNotificationBadge = ({ taskId, onClick, className = '' }) => {
   const [commentCount, setCommentCount] = useState(0);
@@ -78,22 +78,7 @@ const CommentNotificationBadge = ({ taskId, onClick, className = '' }) => {
     );
   }
 
-  if (commentCount === 0) {
-    return (
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          if (onClick) onClick();
-        }}
-        className={`inline-flex items-center gap-1 px-2 py-1 bg-gray-600/20 text-gray-400 border border-gray-600/30 rounded text-xs font-medium hover:bg-gray-600/30 transition-colors ${className}`}
-        title="Aucun commentaire - Cliquer pour ajouter"
-      >
-        <MessageCircle className="w-3 h-3" />
-        <span>0</span>
-      </button>
-    );
-  }
-
+  // ✅ TOUJOURS AFFICHER LE BADGE - MÊME AVEC 0 COMMENTAIRES
   const handleClick = (e) => {
     e.stopPropagation();
     if (onClick) onClick();
@@ -103,17 +88,23 @@ const CommentNotificationBadge = ({ taskId, onClick, className = '' }) => {
     <button
       onClick={handleClick}
       className={`inline-flex items-center gap-1 px-2 py-1 relative transition-all duration-200 text-xs font-medium rounded ${
-        hasNewComments
-          ? 'bg-blue-500/30 text-blue-300 border border-blue-400/50 hover:bg-blue-500/40 animate-pulse'
-          : 'bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30'
+        commentCount === 0
+          ? 'bg-gray-600/20 text-gray-400 border border-gray-600/30 hover:bg-gray-600/30'
+          : hasNewComments
+            ? 'bg-blue-500/30 text-blue-300 border border-blue-400/50 hover:bg-blue-500/40 animate-pulse'
+            : 'bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30'
       } ${className}`}
-      title={`${commentCount} commentaire${commentCount > 1 ? 's' : ''} - ${hasNewComments ? 'Nouveaux messages !' : 'Cliquer pour voir'}`}
+      title={
+        commentCount === 0 
+          ? "Aucun commentaire - Cliquer pour ajouter"
+          : `${commentCount} commentaire${commentCount > 1 ? 's' : ''} - ${hasNewComments ? 'Nouveaux messages !' : 'Cliquer pour voir'}`
+      }
     >
       <MessageCircle className="w-3 h-3" />
       <span>{commentCount}</span>
       
       {/* 🚨 INDICATEUR VISUEL POUR NOUVEAUX COMMENTAIRES */}
-      {hasNewComments && (
+      {hasNewComments && commentCount > 0 && (
         <>
           {/* Point rouge animé */}
           <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-gray-800">
@@ -262,28 +253,33 @@ const TaskCard = ({
             {task.status === 'completed' ? 'Terminée' :
              task.status === 'in_progress' ? 'En cours' :
              task.status === 'validation_pending' ? 'En validation' :
-             'À faire'}
+             'En attente'}
           </span>
-
+          
           {/* Badge de priorité */}
           {task.priority && <PriorityBadge priority={task.priority} />}
         </div>
       </div>
 
-      {/* Description */}
+      {/* Description courte */}
       {task.description && (
-        <p className="text-gray-300 text-sm mb-3 line-clamp-2">
-          {task.description}
-        </p>
+        <div className="mb-3">
+          <p className="text-gray-300 text-sm line-clamp-2">
+            {task.description.length > 100 
+              ? `${task.description.substring(0, 100)}...`
+              : task.description
+            }
+          </p>
+        </div>
       )}
 
       {/* Métadonnées */}
-      <div className="space-y-2 mb-4 text-sm text-gray-400">
+      <div className="space-y-2 text-sm text-gray-400 mb-4">
         
         {/* Créateur */}
         <div className="flex items-center gap-2">
           <User className="w-4 h-4" />
-          <span>Créé par: {task.creatorName || 'Utilisateur'}</span>
+          <span>Créé par: {task.createdBy || 'Anonyme'}</span>
         </div>
 
         {/* Assignés */}
