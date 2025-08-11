@@ -195,7 +195,12 @@ const TaskDetailModal = ({
       // Réinitialiser le champ
       setNewComment('');
       
-      console.log('✅ [TASK_COMMENTS] Commentaire ajouté avec succès');
+      // 🔔 ÉMETTRE ÉVÉNEMENT GLOBAL POUR METTRE À JOUR LES BADGES
+      window.dispatchEvent(new CustomEvent('commentAdded', {
+        detail: { taskId: task.id, commentCount: comments.length + 1 }
+      }));
+      
+      console.log('✅ [TASK_COMMENTS] Commentaire ajouté avec succès + événement émis');
       
     } catch (error) {
       console.error('❌ [TASK_COMMENTS] Erreur ajout commentaire:', error);
