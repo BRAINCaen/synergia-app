@@ -1,9 +1,9 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx
-// CODE COMPLET AVEC BOUTON "NE PLUS ÊTRE VOLONTAIRE"
+// TASKCARD AVEC NOTIFICATION COMMENTAIRES VISIBLE
 // ==========================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Clock, 
   User, 
@@ -17,47 +17,79 @@ import {
   UserPlus,
   UserMinus,
   Trophy,
-  Star
+  Star,
+  MessageCircle,
+  Bell,
+  Heart
 } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { taskService } from '../../core/services/taskService.js';
+import { collaborationService } from '../../core/services/collaborationService.js';
 import SubmitTaskButton from './SubmitTaskButton.jsx';
 
-// ✅ COMPOSANT TEMPORAIRE EN ATTENDANT LE FICHIER CommentBadge.jsx
-const CommentBadgeTemp = ({ entityType, entityId, onClick, className = '' }) => {
-  const [commentCount, setCommentCount] = React.useState(0);
-  const [loading, setLoading] = React.useState(true);
+/**
+ * 💬 BADGE COMMENTAIRES AVEC NOTIFICATION VISUELLE
+ */
+const CommentNotificationBadge = ({ taskId, onClick, className = '' }) => {
+  const [commentCount, setCommentCount] = useState(0);
+  const [hasNewComments, setHasNewComments] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
-    const fetchCount = async () => {
+  useEffect(() => {
+    const loadComments = async () => {
+      if (!taskId) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        if (!entityType || !entityId) {
-          setLoading(false);
-          return;
-        }
-        const { collaborationService } = await import('../../core/services/collaborationService.js');
-        const comments = await collaborationService.getComments(entityType, entityId);
+        const comments = await collaborationService.getComments('task', taskId);
         const count = Array.isArray(comments) ? comments.length : 0;
         setCommentCount(count);
+        
+        // Détecter nouveaux commentaires (simulation)
+        // Dans une vraie app, on comparerait avec lastReadAt de l'utilisateur
+        if (count > 0) {
+          const lastComment = comments[comments.length - 1];
+          const isRecent = lastComment && 
+            new Date() - (lastComment.createdAt?.toDate ? lastComment.createdAt.toDate() : new Date(lastComment.createdAt)) < 24 * 60 * 60 * 1000; // 24h
+          setHasNewComments(isRecent);
+        }
+        
       } catch (error) {
-        console.warn('CommentBadgeTemp error:', error);
+        console.warn('Erreur chargement commentaires:', error);
         setCommentCount(0);
       } finally {
         setLoading(false);
       }
     };
-    fetchCount();
-  }, [entityType, entityId]);
+
+    loadComments();
+  }, [taskId]);
 
   if (loading) {
     return (
-      <div className={`inline-flex items-center ${className}`}>
-        <div className="w-3 h-3 bg-gray-400 rounded-full animate-pulse" />
+      <div className={`inline-flex items-center gap-1 ${className}`}>
+        <div className="w-3 h-3 bg-gray-600 rounded-full animate-pulse" />
       </div>
     );
   }
 
-  if (commentCount === 0) return null;
+  if (commentCount === 0) {
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onClick) onClick();
+        }}
+        className={`inline-flex items-center gap-1 px-2 py-1 bg-gray-600/20 text-gray-400 border border-gray-600/30 rounded text-xs font-medium hover:bg-gray-600/30 transition-colors ${className}`}
+        title="Aucun commentaire - Cliquer pour ajouter"
+      >
+        <MessageCircle className="w-3 h-3" />
+        <span>0</span>
+      </button>
+    );
+  }
 
   const handleClick = (e) => {
     e.stopPropagation();
@@ -67,13 +99,27 @@ const CommentBadgeTemp = ({ entityType, entityId, onClick, className = '' }) => 
   return (
     <button
       onClick={handleClick}
-      className={`inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded text-xs font-medium hover:bg-blue-500/30 transition-colors ${className}`}
+      className={`inline-flex items-center gap-1 px-2 py-1 relative transition-all duration-200 text-xs font-medium rounded ${
+        hasNewComments
+          ? 'bg-blue-500/30 text-blue-300 border border-blue-400/50 hover:bg-blue-500/40 animate-pulse'
+          : 'bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30'
+      } ${className}`}
       title={`${commentCount} commentaire${commentCount > 1 ? 's' : ''} - Cliquer pour voir`}
     >
-      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
-      </svg>
+      <MessageCircle className="w-3 h-3" />
       <span>{commentCount}</span>
+      
+      {/* Indicateur de nouveaux commentaires */}
+      {hasNewComments && (
+        <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-gray-800">
+          <div className="w-full h-full bg-red-500 rounded-full animate-ping" />
+        </div>
+      )}
+      
+      {/* Icône de notification pour nouveaux commentaires */}
+      {hasNewComments && (
+        <Bell className="w-2 h-2 text-yellow-400 animate-bounce" />
+      )}
     </button>
   );
 };
@@ -101,7 +147,7 @@ const PriorityBadge = ({ priority }) => {
 };
 
 /**
- * 🎯 COMPOSANT TASKCARD AVEC BOUTON "NE PLUS ÊTRE VOLONTAIRE"
+ * 🎯 COMPOSANT TASKCARD AVEC NOTIFICATION COMMENTAIRES
  */
 const TaskCard = ({ 
   task, 
@@ -127,68 +173,22 @@ const TaskCard = ({
     task.status !== 'completed' &&
     task.status !== 'validation_pending';
 
-  // État de la soumission - VERSION CORRIGÉE
-  const handleSubmissionSuccess = async () => {
-    console.log('✅ Soumission réussie pour tâche:', task.id);
-    
-    try {
-      // ✅ CORRECTION : Forcer la mise à jour du statut
-      await taskService.updateTask(task.id, {
-        status: 'validation_pending',
-        submittedAt: new Date(),
-        submittedBy: user.uid,
-        submissionNotes: 'Tâche soumise pour validation',
-        updatedAt: new Date()
-      });
-      
-      console.log('✅ Statut mis à jour vers validation_pending');
-      
-      // Notifier le parent pour recharger les données
-      if (onTaskUpdate) {
-        onTaskUpdate();
-      }
-      
-      // Callback original
-      if (onSubmit) {
-        onSubmit(task.id);
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur mise à jour statut:', error);
-    }
-  };
-
-  // 🔧 FONCTION VOLONTAIRE CORRIGÉE
+  // Fonction de volontariat
   const handleVolunteer = async () => {
+    if (isVolunteering) return;
+    
+    setIsVolunteering(true);
     try {
-      setIsVolunteering(true);
-      console.log('🙋‍♂️ Volontariat pour tâche:', task.title);
-
-      // ✅ CORRECTION: Vérification AVANT d'ajouter
-      const currentAssigned = Array.isArray(task.assignedTo) ? task.assignedTo : [];
+      const updatedAssignedTo = [...(task.assignedTo || []), user.uid];
       
-      // 🛡️ SÉCURITÉ: Vérification obligatoire
-      if (currentAssigned.includes(user.uid)) {
-        console.warn('⚠️ Utilisateur déjà assigné à cette tâche');
-        return; // SORTIR IMMÉDIATEMENT
-      }
-
-      console.log('📋 Current assignedTo:', currentAssigned);
-      console.log('👤 User ID:', user.uid);
-
-      const updatedAssigned = [...currentAssigned, user.uid];
-      console.log('📋 Updated assignedTo:', updatedAssigned);
-
-      // ✅ METTRE À JOUR AVEC VÉRIFICATION
       await taskService.updateTask(task.id, {
-        assignedTo: updatedAssigned,
-        status: task.status === 'pending' ? 'in_progress' : task.status,
+        assignedTo: updatedAssignedTo,
+        status: task.status === 'todo' ? 'in_progress' : task.status,
         updatedAt: new Date()
       });
 
       console.log('✅ Volontariat enregistré avec succès');
       
-      // Notifier la mise à jour
       if (onTaskUpdate) {
         onTaskUpdate();
       }
@@ -197,6 +197,20 @@ const TaskCard = ({
       console.error('❌ Erreur volontariat:', error);
     } finally {
       setIsVolunteering(false);
+    }
+  };
+
+  // Fonction pour ne plus être volontaire
+  const handleUnvolunteer = async () => {
+    if (!onUnvolunteer) return;
+    
+    try {
+      await onUnvolunteer(task.id);
+      if (onTaskUpdate) {
+        onTaskUpdate();
+      }
+    } catch (error) {
+      console.error('❌ Erreur désengagement:', error);
     }
   };
 
@@ -217,11 +231,10 @@ const TaskCard = ({
   return (
     <div className="bg-gray-800 border border-gray-600 rounded-lg p-4 hover:border-gray-500 transition-all duration-200 shadow-lg relative">
       
-      {/* 💬 BADGE COMMENTAIRES - POSITION ABSOLUE TOP-RIGHT */}
-      <div className="absolute top-2 right-2 z-10">
-        <CommentBadgeTemp
-          entityType="task"
-          entityId={task.id}
+      {/* 💬 BADGE COMMENTAIRES - POSITION ABSOLUE TOP-RIGHT TRÈS VISIBLE */}
+      <div className="absolute top-3 right-3 z-20">
+        <CommentNotificationBadge
+          taskId={task.id}
           onClick={handleCommentsClick}
         />
       </div>
@@ -229,7 +242,7 @@ const TaskCard = ({
       {/* En-tête avec titre et statut */}
       <div className="mb-3">
         <div className="flex items-start justify-between mb-2">
-          <h3 className="text-white font-semibold text-lg leading-tight pr-16">
+          <h3 className="text-white font-semibold text-lg leading-tight pr-20">
             {task.title}
           </h3>
         </div>
@@ -279,28 +292,15 @@ const TaskCard = ({
           </div>
         )}
 
-        {/* Date de création */}
-        {task.createdAt && (
+        {/* Échéance */}
+        {task.dueDate && (
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4" />
-            <span>
-              {task.createdAt.toDate ? 
-                task.createdAt.toDate().toLocaleDateString('fr-FR') : 
-                new Date(task.createdAt).toLocaleDateString('fr-FR')
-              }
-            </span>
+            <span>Échéance: {new Date(task.dueDate).toLocaleDateString('fr-FR')}</span>
           </div>
         )}
 
-        {/* Difficulté */}
-        {task.difficulty && (
-          <div className="flex items-center gap-2">
-            <Star className="w-4 h-4" />
-            <span>Difficulté: {task.difficulty}</span>
-          </div>
-        )}
-
-        {/* XP Reward */}
+        {/* Récompense XP */}
         {task.xpReward && (
           <div className="flex items-center gap-2">
             <Trophy className="w-4 h-4 text-yellow-400" />
@@ -308,44 +308,65 @@ const TaskCard = ({
           </div>
         )}
 
-        {/* Tags */}
-        {task.tags && task.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {task.tags.slice(0, 3).map((tag, index) => (
-              <span 
-                key={index}
-                className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs"
-              >
-                #{tag}
-              </span>
-            ))}
-            {task.tags.length > 3 && (
-              <span className="px-2 py-1 bg-gray-700 text-gray-400 rounded text-xs">
-                +{task.tags.length - 3}
-              </span>
-            )}
+        {/* Ouvert aux volontaires */}
+        {task.openToVolunteers && (
+          <div className="flex items-center gap-2">
+            <Heart className="w-4 h-4 text-red-400" />
+            <span className="text-green-400">Ouvert aux volontaires</span>
           </div>
         )}
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 pt-3 border-t border-gray-600">
+      <div className="flex items-center gap-2 flex-wrap">
         
-        {/* Bouton voir détails */}
+        {/* Voir détails */}
         <button
           onClick={() => onViewDetails && onViewDetails(task)}
-          className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm transition-colors"
+          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
         >
           <Eye className="w-4 h-4" />
           Détails
         </button>
 
+        {/* Bouton de soumission */}
+        {isAssignedToMe && task.status !== 'completed' && task.status !== 'validation_pending' && (
+          <SubmitTaskButton
+            task={task}
+            onSubmit={onSubmit}
+            onTaskUpdate={onTaskUpdate}
+          />
+        )}
+
+        {/* Devenir volontaire */}
+        {canVolunteer && (
+          <button
+            onClick={handleVolunteer}
+            disabled={isVolunteering}
+            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
+          >
+            <UserPlus className="w-4 h-4" />
+            {isVolunteering ? 'En cours...' : 'Volontaire'}
+          </button>
+        )}
+
+        {/* Ne plus être volontaire */}
+        {isAssignedToMe && !isTaskOwner && onUnvolunteer && (
+          <button
+            onClick={handleUnvolunteer}
+            className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 text-white rounded text-sm hover:bg-orange-700 transition-colors"
+          >
+            <UserMinus className="w-4 h-4" />
+            Se désengager
+          </button>
+        )}
+
         {/* Actions propriétaire */}
-        {isTaskOwner && (
+        {(isTaskOwner || isMyTask) && (
           <>
             <button
               onClick={() => onEdit && onEdit(task)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700 transition-colors"
             >
               <Edit className="w-4 h-4" />
               Modifier
@@ -353,59 +374,23 @@ const TaskCard = ({
             
             <button
               onClick={() => onDelete && onDelete(task.id)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-sm transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors"
             >
               <Trash2 className="w-4 h-4" />
               Supprimer
             </button>
           </>
         )}
+      </div>
 
-        {/* Bouton volontaire */}
-        {canVolunteer && (
-          <button
-            onClick={handleVolunteer}
-            disabled={isVolunteering}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm transition-colors ${
-              isVolunteering 
-                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
-            }`}
-          >
-            {isVolunteering ? (
-              <>
-                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                Inscription...
-              </>
-            ) : (
-              <>
-                <UserPlus className="w-4 h-4" />
-                Volontaire
-              </>
-            )}
-          </button>
-        )}
-
-        {/* ✅ NOUVEAU - Bouton se retirer (UNIQUEMENT pour mes tâches) */}
-        {isMyTask && isAssignedToMe && (
-          <button
-            onClick={() => onUnvolunteer && onUnvolunteer()}
-            className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm transition-colors"
-            title="Ne plus être volontaire"
-          >
-            <UserMinus className="w-4 h-4" />
-            Ne plus être volontaire
-          </button>
-        )}
-
-        {/* Bouton de soumission pour mes tâches - VERSION CORRIGÉE */}
-        {isMyTask && task.status !== 'completed' && task.status !== 'validation_pending' && (
-          <SubmitTaskButton 
-            task={task}
-            onSuccess={handleSubmissionSuccess}
-            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors"
-          />
-        )}
+      {/* Indicateur de nouveaux commentaires au bas de la carte */}
+      <div className="mt-3 pt-3 border-t border-gray-600">
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <span>ID: {task.id.slice(-8)}</span>
+          <div className="flex items-center gap-2">
+            <span>💬 Cliquez sur le badge pour voir les commentaires</span>
+          </div>
+        </div>
       </div>
     </div>
   );
