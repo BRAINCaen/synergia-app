@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/layouts/MainLayout.jsx  
-// CORRECTION MENU HAMBURGER - VISIBILITÉ FORCÉE
+// VERSION FINALE - MENU MOBILE GARANTI FONCTIONNEL
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -56,7 +56,7 @@ const MainLayout = () => {
   // Vérification admin simple
   const isAdmin = user?.email === 'alan.boehme61@gmail.com' || user?.email === 'tanguy.caron@gmail.com';
 
-  // Navigation organisée - RESTAURÉE EXACTEMENT
+  // Navigation organisée
   const navSections = [
     {
       title: 'PRINCIPAL',
@@ -104,9 +104,11 @@ const MainLayout = () => {
     });
   }
 
+  const isActive = (path) => location.pathname === path;
+
   return (
     <div className="min-h-screen bg-gray-900">
-      {/* SIDEBAR MOBILE - Position Fixed avec visibilité forcée */}
+      {/* SIDEBAR MOBILE - Position Fixed */}
       {sidebarOpen && (
         <>
           {/* Overlay */}
@@ -128,52 +130,66 @@ const MainLayout = () => {
                 onClick={() => setSidebarOpen(false)}
                 className="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-700"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
+            {/* Utilisateur */}
+            <div className="p-4 bg-gray-800 border-b border-gray-700">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                  {(user?.email || 'U')[0].toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white truncate">
+                    {user?.displayName || user?.email || 'Utilisateur'}
+                  </p>
+                  <p className="text-xs text-gray-400">Connecté</p>
+                </div>
+              </div>
+            </div>
+
             {/* Navigation */}
-            <nav className="flex-1 px-4 py-6 space-y-8">
-              {navSections.map((section) => {
-                const isAdminSection = section.title === 'ADMINISTRATION';
-                return (
-                  <div key={section.title}>
-                    <h3 className={`px-3 text-xs font-semibold tracking-wider uppercase mb-3 ${
-                      isAdminSection ? 'text-red-400' : 'text-gray-400'
-                    }`}>
-                      {section.title}
-                    </h3>
-                    <div className="space-y-1">
-                      {section.items.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                          <NavLink
-                            key={item.path}
-                            to={item.path}
-                            className={({ isActive }) =>
-                              `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                                isActive
-                                  ? isAdminSection
-                                    ? 'bg-red-900 text-red-100'
-                                    : 'bg-blue-900 text-blue-100'
-                                  : isAdminSection
-                                    ? 'text-red-300 hover:bg-red-900/50'
-                                    : 'text-gray-300 hover:bg-gray-700'
-                              }
-                            `}
-                          >
-                            <Icon className="mr-3 w-5 h-5" />
-                            <span>{item.label}</span>
-                            {isAdminSection && (
-                              <Shield className="w-3 h-3 ml-auto text-red-400" />
-                            )}
-                          </NavLink>
-                        );
-                      })}
-                    </div>
+            <nav className="flex-1 px-3 py-4 overflow-y-auto">
+              {navSections.map((section, sectionIndex) => (
+                <div key={sectionIndex} className="mb-6">
+                  <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                    {section.title}
+                  </h3>
+                  <div className="space-y-1">
+                    {section.items.map((item, itemIndex) => {
+                      const Icon = item.icon;
+                      const active = isActive(item.path);
+                      const isAdminSection = section.title === 'ADMINISTRATION';
+
+                      return (
+                        <NavLink
+                          key={itemIndex}
+                          to={item.path}
+                          onClick={() => setSidebarOpen(false)}
+                          className={`
+                            flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
+                            ${active
+                              ? isAdminSection
+                                ? 'bg-red-900 text-red-100'
+                                : 'bg-blue-900 text-blue-100'
+                              : isAdminSection
+                                ? 'text-red-300 hover:bg-red-900/50'
+                                : 'text-gray-300 hover:bg-gray-700'
+                            }
+                          `}
+                        >
+                          <Icon className="mr-3 w-5 h-5" />
+                          <span>{item.label}</span>
+                          {isAdminSection && (
+                            <Shield className="w-3 h-3 ml-auto text-red-400" />
+                          )}
+                        </NavLink>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </nav>
 
             {/* Déconnexion */}
@@ -190,22 +206,17 @@ const MainLayout = () => {
         </>
       )}
 
-      {/* HEADER CORRIGÉ - BOUTON HAMBURGER SUPER VISIBLE */}
+      {/* HEADER */}
       <header className="bg-gray-800 shadow-lg border-b border-gray-700 sticky top-0 z-30">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Section gauche - BOUTON HAMBURGER FORCÉ VISIBLE */}
+            {/* Section gauche - BOUTON HAMBURGER TRÈS VISIBLE */}
             <div className="flex items-center space-x-4">
-              {/* 🔧 CORRECTION: BOUTON HAMBURGER VISIBLE SUR TOUTES TAILLES */}
+              {/* BOUTON HAMBURGER - GROS ET VISIBLE */}
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="flex items-center justify-center w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-lg border-2 border-blue-400"
+                className="md:hidden flex items-center justify-center w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-lg"
                 aria-label="Ouvrir le menu"
-                style={{ 
-                  display: 'flex !important',
-                  visibility: 'visible !important',
-                  opacity: '1 !important'
-                }}
               >
                 <Menu className="w-6 h-6" />
               </button>
@@ -229,76 +240,124 @@ const MainLayout = () => {
             <nav className="hidden md:flex space-x-1">
               <NavLink to="/dashboard" className={({ isActive }) => 
                 `flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'
+                  isActive ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'
                 }`
               }>
-                <Home className="w-4 h-4" />
-                <span>Dashboard</span>
+                <span>🏠</span><span>Dashboard</span>
               </NavLink>
-
               <NavLink to="/tasks" className={({ isActive }) => 
                 `flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'
+                  isActive ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'
                 }`
               }>
-                <CheckSquare className="w-4 h-4" />
-                <span>Tâches</span>
+                <span>✅</span><span>Tâches</span>
               </NavLink>
-
               <NavLink to="/projects" className={({ isActive }) => 
                 `flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'
+                  isActive ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'
                 }`
               }>
-                <FolderOpen className="w-4 h-4" />
-                <span>Projets</span>
+                <span>📁</span><span>Projets</span>
               </NavLink>
-
+              <NavLink to="/analytics" className={({ isActive }) => 
+                `flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                }`
+              }>
+                <span>📊</span><span>Analytics</span>
+              </NavLink>
               <NavLink to="/gamification" className={({ isActive }) => 
                 `flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'
+                  isActive ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'
                 }`
               }>
-                <Gamepad2 className="w-4 h-4" />
-                <span>Gamification</span>
+                <span>🎮</span><span>Gamification</span>
+              </NavLink>
+              <NavLink to="/team" className={({ isActive }) => 
+                `flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                }`
+              }>
+                <span>👥</span><span>Équipe</span>
               </NavLink>
             </nav>
 
-            {/* Actions utilisateur */}
+            {/* Section droite - utilisateur */}
             <div className="flex items-center space-x-3">
-              {/* Profil utilisateur */}
-              <div className="flex items-center space-x-2">
-                {user?.photoURL ? (
-                  <img 
-                    src={user.photoURL} 
-                    alt={user.displayName || 'Utilisateur'}
-                    className="w-8 h-8 rounded-full"
-                  />
-                ) : (
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                    <User className="w-4 h-4 text-white" />
-                  </div>
-                )}
-                <span className="text-sm text-gray-300 hidden sm:block">
-                  {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
+              <div className="hidden sm:block text-right">
+                <div className="text-sm font-medium text-white">
+                  {user?.displayName || user?.email || 'Utilisateur'}
+                </div>
+                <div className="text-xs text-gray-400">Connecté</div>
+              </div>
+              
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                <span className="text-white text-sm font-bold">
+                  {(user?.email || 'U')[0].toUpperCase()}
                 </span>
               </div>
-
+              
               {/* Bouton déconnexion desktop */}
               <button
                 onClick={handleLogout}
-                className="hidden md:flex items-center space-x-1 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-lg transition-colors"
+                className="hidden md:block text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-700 transition-colors"
+                title="Déconnexion"
               >
-                <LogOut className="w-4 h-4" />
-                <span>Déconnexion</span>
+                <LogOut className="w-5 h-5" />
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* CONTENU PRINCIPAL */}
-      <main className="flex-1">
+      {/* Navigation mobile du bas - optionnelle */}
+      <nav className="md:hidden bg-gray-800 border-t border-gray-700 fixed bottom-0 left-0 right-0 z-30">
+        <div className="flex justify-around py-2">
+          <NavLink to="/dashboard" className={({ isActive }) => 
+            `flex flex-col items-center py-2 px-3 transition-colors ${
+              isActive ? 'text-blue-400' : 'text-gray-400 hover:text-white'
+            }`
+          }>
+            <span className="text-lg">🏠</span>
+            <span className="text-xs mt-1">Dashboard</span>
+          </NavLink>
+          <NavLink to="/tasks" className={({ isActive }) => 
+            `flex flex-col items-center py-2 px-3 transition-colors ${
+              isActive ? 'text-blue-400' : 'text-gray-400 hover:text-white'
+            }`
+          }>
+            <span className="text-lg">✅</span>
+            <span className="text-xs mt-1">Tâches</span>
+          </NavLink>
+          <NavLink to="/projects" className={({ isActive }) => 
+            `flex flex-col items-center py-2 px-3 transition-colors ${
+              isActive ? 'text-blue-400' : 'text-gray-400 hover:text-white'
+            }`
+          }>
+            <span className="text-lg">📁</span>
+            <span className="text-xs mt-1">Projets</span>
+          </NavLink>
+          <NavLink to="/gamification" className={({ isActive }) => 
+            `flex flex-col items-center py-2 px-3 transition-colors ${
+              isActive ? 'text-blue-400' : 'text-gray-400 hover:text-white'
+            }`
+          }>
+            <span className="text-lg">🎮</span>
+            <span className="text-xs mt-1">Jeux</span>
+          </NavLink>
+          <NavLink to="/team" className={({ isActive }) => 
+            `flex flex-col items-center py-2 px-3 transition-colors ${
+              isActive ? 'text-blue-400' : 'text-gray-400 hover:text-white'
+            }`
+          }>
+            <span className="text-lg">👥</span>
+            <span className="text-xs mt-1">Équipe</span>
+          </NavLink>
+        </div>
+      </nav>
+
+      {/* Contenu principal */}
+      <main className="pb-16 md:pb-0">
         <Outlet />
       </main>
     </div>
