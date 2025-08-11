@@ -80,7 +80,10 @@ const AdminTaskValidationPage = () => {
    */
   useEffect(() => {
     loadValidationsDirectFromFirebase();
-    loadStatsDirectFromFirebase();
+    // Charger les stats seulement une fois au début ou lors du refresh
+    if (activeTab === 'pending') {
+      loadStatsDirectFromFirebase();
+    }
   }, [activeTab]);
 
   /**
@@ -279,44 +282,50 @@ const AdminTaskValidationPage = () => {
   };
 
   /**
-   * 📊 CHARGER LES STATISTIQUES DIRECTEMENT DEPUIS FIREBASE
+   * 📊 CHARGER LES STATISTIQUES GLOBALES (INDÉPENDANTES DE L'ONGLET)
    */
   const loadStatsDirectFromFirebase = async () => {
     try {
-      console.log('📊 [FIREBASE-DIRECT] Calcul statistiques...');
+      console.log('📊 [FIREBASE-DIRECT] Calcul statistiques globales...');
       
-      // Compter les tâches en validation_pending
+      // 1. Compter les tâches en validation_pending
       const pendingTasksQuery = query(
         collection(db, 'tasks'),
         where('status', '==', 'validation_pending')
       );
       const pendingTasksSnapshot = await getDocs(pendingTasksQuery);
       
-      // Compter les validations classiques
+      // 2. Compter toutes les validations classiques par statut
       const allValidationsSnapshot = await getDocs(collection(db, 'task_validations'));
       
-      let pending = pendingTasksSnapshot.size;
-      let approved = 0;
-      let rejected = 0;
-      let total = pendingTasksSnapshot.size;
+      let pendingValidations = 0;
+      let approvedValidations = 0;
+      let rejectedValidations = 0;
       
       allValidationsSnapshot.forEach(doc => {
         const status = doc.data().status;
-        total++;
-        if (status === 'pending') pending++;
-        else if (status === 'approved') approved++;
-        else if (status === 'rejected') rejected++;
+        if (status === 'pending') pendingValidations++;
+        else if (status === 'approved') approvedValidations++;
+        else if (status === 'rejected') rejectedValidations++;
       });
       
+      // 3. Calculer les totaux
       const statsData = {
-        total,
-        pending,
-        approved,
-        rejected,
+        total: pendingTasksSnapshot.size + allValidationsSnapshot.size,
+        pending: pendingTasksSnapshot.size + pendingValidations, // Tâches + validations en attente
+        approved: approvedValidations,
+        rejected: rejectedValidations,
         today: 0 // TODO: calculer les validations du jour
       };
       
-      console.log('📊 [FIREBASE-DIRECT] Statistiques calculées:', statsData);
+      console.log('📊 [FIREBASE-DIRECT] Statistiques globales calculées:', {
+        tâchesEnValidation: pendingTasksSnapshot.size,
+        validationsPending: pendingValidations,
+        validationsApproved: approvedValidations,
+        validationsRejected: rejectedValidations,
+        total: statsData
+      });
+      
       setStats(statsData);
       
     } catch (error) {
@@ -338,7 +347,7 @@ const AdminTaskValidationPage = () => {
     console.log('🔄 [ADMIN] Rafraîchissement forcé...');
     await Promise.all([
       loadValidationsDirectFromFirebase(),
-      loadStatsDirectFromFirebase()
+      loadStatsDirectFromFirebase() // Toujours recharger les stats lors du refresh
     ]);
   };
 
@@ -413,8 +422,10 @@ const AdminTaskValidationPage = () => {
         console.log('✅ [ADMIN] Validation classique approuvée');
       }
       
-      // Recharger les données
-      await forceRefresh();
+      // Recharger les données ET les statistiques
+      await Promise.all([
+        forceRefresh(), // Ceci inclut déjà les stats
+      ]);
       
       // Fermer les modals
       setShowDetailModal(false);
@@ -476,8 +487,10 @@ const AdminTaskValidationPage = () => {
         console.log('✅ [ADMIN] Validation classique rejetée');
       }
       
-      // Recharger les données
-      await forceRefresh();
+      // Recharger les données ET les statistiques
+      await Promise.all([
+        forceRefresh(), // Ceci inclut déjà les stats
+      ]);
       
       // Fermer les modals
       setShowDetailModal(false);
@@ -536,12 +549,12 @@ const AdminTaskValidationPage = () => {
     return difficultyMap[difficulty] || difficultyMap.normal;
   };
 
-  // 📊 Calculer les statistiques pour les onglets
+  // 📊 Utiliser les statistiques globales au lieu des validations filtrées
   const tabStats = {
-    pending: (validations || []).filter(v => v.status === 'pending' || v.type === 'task_submission').length,
-    approved: (validations || []).filter(v => v.status === 'approved').length,
-    rejected: (validations || []).filter(v => v.status === 'rejected').length,
-    all: (validations || []).length
+    pending: stats.pending,
+    approved: stats.approved,
+    rejected: stats.rejected,
+    all: stats.total
   };
 
   // 🎨 Configuration des onglets
