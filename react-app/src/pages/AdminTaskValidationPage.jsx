@@ -1,10 +1,11 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminTaskValidationPage.jsx
-// PAGE ADMIN VALIDATION CORRIGÉE - CORRECTION FILTER SÉCURISÉ
+// PAGE ADMIN VALIDATION CORRIGÉE - CORRECTION IMPORT SHIELD
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { 
+  Shield,
   CheckCircle, 
   XCircle, 
   Clock, 
@@ -154,80 +155,57 @@ const AdminTaskValidationPage = () => {
       const statsData = await adminValidationService.getValidationStats();
       setStats(statsData);
     } catch (error) {
-      console.error('❌ [ADMIN-CLASSIC] Erreur chargement stats:', error);
+      console.error('❌ [ADMIN-CLASSIC] Erreur stats:', error);
+      setStats({
+        total: 0,
+        pending: 0,
+        approved: 0,
+        rejected: 0,
+        today: 0
+      });
     }
   };
 
   /**
-   * 🎯 CALCULER L'XP SELON LA DIFFICULTÉ
-   */
-  const calculateXPForDifficulty = (difficulty) => {
-    switch (difficulty) {
-      case 'easy': return 10;
-      case 'normal': return 25;
-      case 'hard': return 50;
-      case 'expert': return 100;
-      default: return 25;
-    }
-  };
-
-  /**
-   * 🔄 FORCER LA SYNCHRONISATION
+   * 🔄 RAFRAÎCHISSEMENT FORCÉ
    */
   const forceRefresh = async () => {
-    try {
-      setLoading(true);
-      // Mode classique simple
-      await loadValidationsClassic();
-      await loadStatsClassic();
-      console.log('✅ [ADMIN] Refresh forcé terminé');
-    } catch (error) {
-      console.error('❌ [ADMIN] Erreur refresh forcé:', error);
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
+    console.log('🔄 [ADMIN] Rafraîchissement forcé...');
+    await Promise.all([
+      loadValidationsClassic(),
+      loadStatsClassic()
+    ]);
   };
 
   /**
-   * 📊 OBTENIR LES VALIDATIONS SELON L'ONGLET ACTIF - SÉCURISÉ
+   * 🏆 CALCULER L'XP SELON LA DIFFICULTÉ
    */
-  const getValidationsForTab = () => {
-    // 🛡️ SÉCURITÉ : Toujours retourner un tableau
-    const allValidations = validations || [];
-    
-    try {
-      switch (activeTab) {
-        case 'pending':
-          return allValidations.filter(v => v.status === 'pending' || v.type === 'task_submission');
-        case 'approved':
-          return allValidations.filter(v => v.status === 'approved');
-        case 'rejected':
-          return allValidations.filter(v => v.status === 'rejected');
-        case 'all':
-        default:
-          return allValidations;
-      }
-    } catch (filterError) {
-      console.error('🛡️ [SAFEGUARD] Erreur filtrage, retour tableau vide:', filterError);
-      return [];
-    }
+  const calculateXPForDifficulty = (difficulty) => {
+    const xpMap = {
+      easy: 10,
+      normal: 25,
+      hard: 50,
+      expert: 100
+    };
+    return xpMap[difficulty] || 25;
   };
 
   /**
-   * 🔍 FILTRER LES VALIDATIONS - SÉCURISÉ
+   * 🔍 FILTRER LES VALIDATIONS SELON LA RECHERCHE
    */
-  const filteredValidations = (getValidationsForTab() || []).filter(validation => {
-    if (!searchTerm) return true;
+  const getFilteredValidations = () => {
+    if (!searchTerm.trim()) return validations;
     
     const searchLower = searchTerm.toLowerCase();
-    return (
-      validation.taskTitle?.toLowerCase().includes(searchLower) ||
-      validation.userName?.toLowerCase().includes(searchLower) ||
-      validation.userEmail?.toLowerCase().includes(searchLower) ||
-      validation.comment?.toLowerCase().includes(searchLower)
-    );
-  });
+    return validations.filter(validation => {
+      return (
+        validation.taskTitle?.toLowerCase().includes(searchLower) ||
+        validation.userName?.toLowerCase().includes(searchLower) ||
+        validation.userEmail?.toLowerCase().includes(searchLower) ||
+        validation.comment?.toLowerCase().includes(searchLower)
+      );
+    });
+  };
 
   /**
    * ✅ APPROUVER UNE VALIDATION
@@ -407,409 +385,406 @@ const AdminTaskValidationPage = () => {
 
           <div className="flex items-center gap-4">
             {/* STATS RAPIDES */}
-            <div className="flex items-center gap-4 bg-gray-50 rounded-lg px-4 py-2">
-              <div className="text-center">
-                <div className="text-lg font-bold text-blue-600">{stats.pending || 0}</div>
-                <div className="text-xs text-gray-500">En attente</div>
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-1">
+                <Clock className="w-4 h-4 text-orange-500" />
+                <span className="font-medium text-orange-700">{stats.pending}</span>
+                <span className="text-gray-500">en attente</span>
               </div>
-              <div className="text-center">
-                <div className="text-lg font-bold text-green-600">{stats.approved || 0}</div>
-                <div className="text-xs text-gray-500">Approuvées</div>
+              <div className="flex items-center gap-1">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="font-medium text-green-700">{stats.approved}</span>
+                <span className="text-gray-500">validées</span>
               </div>
-              <div className="text-center">
-                <div className="text-lg font-bold text-red-600">{stats.rejected || 0}</div>
-                <div className="text-xs text-gray-500">Rejetées</div>
+              <div className="flex items-center gap-1">
+                <Trophy className="w-4 h-4 text-blue-500" />
+                <span className="font-medium text-blue-700">{stats.total}</span>
+                <span className="text-gray-500">total</span>
               </div>
             </div>
 
-            {/* ACTIONS */}
+            {/* BOUTON RAFRAÎCHIR */}
             <button
               onClick={forceRefresh}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               Actualiser
             </button>
+
+            {/* BOUTON DEBUG */}
+            <button
+              onClick={() => setShowDebugInfo(!showDebugInfo)}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <Eye className="w-4 h-4" />
+              Debug
+            </button>
           </div>
         </div>
 
-        {/* DERNIÈRE MISE À JOUR */}
-        {lastUpdate && (
-          <div className="mt-2 text-sm text-gray-500">
-            Dernière mise à jour: {formatDate(lastUpdate)}
+        {/* INFO DEBUG */}
+        {showDebugInfo && (
+          <div className="mt-4 p-3 bg-gray-100 rounded-lg text-sm">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <strong>Dernière mise à jour:</strong> {lastUpdate ? lastUpdate.toLocaleTimeString() : 'Jamais'}
+              </div>
+              <div>
+                <strong>Validations chargées:</strong> {validations.length}
+              </div>
+              <div>
+                <strong>Onglet actif:</strong> {activeTab}
+              </div>
+              <div>
+                <strong>Erreur:</strong> {error || 'Aucune'}
+              </div>
+            </div>
           </div>
         )}
       </div>
 
-      {/* 🔍 RECHERCHE ET FILTRES */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3">
-        <div className="flex items-center justify-between">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Rechercher une validation..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div className="text-sm text-gray-500">
-            {filteredValidations.length} validation{filteredValidations.length > 1 ? 's' : ''} trouvée{filteredValidations.length > 1 ? 's' : ''}
-          </div>
-        </div>
-      </div>
-
-      {/* 🗂️ ONGLETS DE NAVIGATION */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="px-6">
-          <div className="flex space-x-8">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
+      {/* 🎨 ONGLETS */}
+      <div className="bg-white border-b border-gray-200 px-6">
+        <div className="flex space-x-8">
+          {tabs.map((tab) => {
+            const IconComponent = tab.icon;
+            const isActive = activeTab === tab.id;
+            
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  isActive
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <IconComponent className="w-4 h-4" />
+                {tab.label}
+                {tab.count > 0 && (
+                  <span className={`px-2 py-1 text-xs rounded-full ${
                     isActive
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
-                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                    isActive
-                      ? 'bg-blue-100 text-blue-800'
+                      ? 'bg-blue-100 text-blue-600'
                       : 'bg-gray-100 text-gray-600'
                   }`}>
                     {tab.count}
                   </span>
-                </button>
-              );
-            })}
-          </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 🔍 BARRE DE RECHERCHE */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input
+            type="text"
+            placeholder="Rechercher par titre, utilisateur, commentaire..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
         </div>
       </div>
 
       {/* 📋 CONTENU PRINCIPAL */}
       <div className="flex-1 overflow-auto">
-        {error && (
-          <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center gap-2 text-red-700">
-              <AlertTriangle className="w-5 h-5" />
-              <span className="font-medium">Erreur</span>
-            </div>
-            <p className="text-red-600 mt-1">{error}</p>
-            <button
-              onClick={forceRefresh}
-              className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-            >
-              Réessayer
-            </button>
-          </div>
-        )}
-
-        {filteredValidations.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center py-12">
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <Clock className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {activeTab === 'pending' ? 'Aucune validation en attente' : `Aucune validation ${activeTab}`}
-              </h3>
-              <p className="text-gray-600 mb-4">
-                {searchTerm 
-                  ? `Aucun résultat pour "${searchTerm}"`
-                  : 'Les nouvelles demandes de validation apparaîtront ici.'
-                }
+              <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+              <p className="text-gray-600">Chargement des validations...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-4" />
+              <p className="text-red-600 mb-2">Erreur de chargement</p>
+              <p className="text-gray-600 text-sm">{error}</p>
+              <button
+                onClick={forceRefresh}
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Réessayer
+              </button>
+            </div>
+          </div>
+        ) : getFilteredValidations().length === 0 ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <Trophy className="w-8 h-8 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">
+                {searchTerm ? 'Aucune validation trouvée pour cette recherche' : 'Aucune validation à afficher'}
               </p>
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="text-blue-600 hover:text-blue-700"
-                >
-                  Effacer la recherche
-                </button>
-              )}
             </div>
           </div>
         ) : (
           <div className="p-6">
-            <div className="space-y-4">
-              {filteredValidations.map((validation) => (
-                <div key={validation.id} className="bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between">
+            <div className="grid gap-4">
+              {getFilteredValidations().map((validation) => {
+                const difficultyInfo = formatDifficulty(validation.difficulty);
+                
+                return (
+                  <div
+                    key={validation.id}
+                    className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        {/* 📋 INFO TÂCHE */}
-                        <div className="flex items-start gap-4">
-                          <div className="flex-shrink-0">
-                            {validation.userAvatar ? (
-                              <img
-                                src={validation.userAvatar}
-                                alt={validation.userName}
-                                className="w-10 h-10 rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                                <User className="w-5 h-5 text-gray-600" />
-                              </div>
-                            )}
+                        <div className="flex items-center gap-3 mb-3">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {validation.taskTitle}
+                          </h3>
+                          <span className={`px-2 py-1 text-xs rounded-full ${difficultyInfo.color}`}>
+                            {difficultyInfo.icon} {difficultyInfo.label}
+                          </span>
+                          <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
+                            +{validation.xpReward} XP
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4" />
+                            {validation.userName}
                           </div>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="text-lg font-semibold text-gray-900 truncate">
-                                {validation.taskTitle}
-                              </h3>
-                              {(() => {
-                                const diff = formatDifficulty(validation.difficulty);
-                                return (
-                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${diff.color}`}>
-                                    {diff.icon} {diff.label}
-                                  </span>
-                                );
-                              })()}
-                            </div>
-
-                            <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                              <div className="flex items-center gap-1">
-                                <User className="w-4 h-4" />
-                                {validation.userName} ({validation.userEmail})
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Calendar className="w-4 h-4" />
-                                {formatDate(validation.submittedAt)}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Trophy className="w-4 h-4" />
-                                +{validation.xpReward} XP
-                              </div>
-                            </div>
-
-                            {validation.comment && (
-                              <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-lg">
-                                <MessageSquare className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                                <p className="text-gray-700 text-sm">{validation.comment}</p>
-                              </div>
-                            )}
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4" />
+                            {formatDate(validation.submittedAt)}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="w-4 h-4" />
+                            {validation.comment.substring(0, 50)}...
                           </div>
                         </div>
+
+                        {/* MÉDIAS SI PRÉSENTS */}
+                        {(validation.photoUrl || validation.videoUrl) && (
+                          <div className="flex items-center gap-2 mb-4">
+                            {validation.photoUrl && (
+                              <div className="flex items-center gap-1 text-sm text-green-600">
+                                <ImageIcon className="w-4 h-4" />
+                                Photo jointe
+                              </div>
+                            )}
+                            {validation.videoUrl && (
+                              <div className="flex items-center gap-1 text-sm text-purple-600">
+                                <Video className="w-4 h-4" />
+                                Vidéo jointe
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
-                      {/* 🎛️ ACTIONS */}
-                      <div className="flex items-center gap-2 ml-4">
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleViewDetails(validation)}
-                          className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                          className="px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         >
                           <Eye className="w-4 h-4" />
-                          Détails
                         </button>
-
+                        
                         {validation.status === 'pending' && (
                           <>
                             <button
                               onClick={() => handleApprove(validation.id)}
                               disabled={actionLoading}
-                              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
                             >
                               <CheckCircle className="w-4 h-4" />
-                              Approuver
                             </button>
-
                             <button
                               onClick={() => {
                                 setSelectedValidation(validation);
                                 setShowRejectModal(true);
                               }}
                               disabled={actionLoading}
-                              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
                             >
                               <XCircle className="w-4 h-4" />
-                              Rejeter
                             </button>
                           </>
                         )}
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
       </div>
 
-      {/* 🔄 LOADING OVERLAY */}
-      {actionLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 flex items-center gap-4">
-            <Loader className="w-6 h-6 animate-spin text-blue-600" />
-            <span className="text-lg font-medium">Traitement en cours...</span>
-          </div>
-        </div>
-      )}
-
-      {/* 📋 MODAL DÉTAILS */}
+      {/* 📱 MODAL DÉTAILS */}
       {showDetailModal && selectedValidation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-auto">
             <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900">
-                  Détails de la validation
-                </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Détails de la validation</h2>
                 <button
                   onClick={() => setShowDetailModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-500 hover:text-gray-700"
                 >
                   <XCircle className="w-6 h-6" />
                 </button>
               </div>
 
               <div className="space-y-4">
-                {/* INFO UTILISATEUR */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-medium text-gray-900 mb-2">Utilisateur</h3>
-                  <div className="flex items-center gap-3">
-                    {selectedValidation.userAvatar ? (
-                      <img
-                        src={selectedValidation.userAvatar}
-                        alt={selectedValidation.userName}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-                        <User className="w-6 h-6 text-gray-600" />
-                      </div>
-                    )}
-                    <div>
-                      <div className="font-medium text-gray-900">{selectedValidation.userName}</div>
-                      <div className="text-sm text-gray-600">{selectedValidation.userEmail}</div>
-                    </div>
-                  </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Tâche</label>
+                  <p className="text-gray-900">{selectedValidation.taskTitle}</p>
                 </div>
 
-                {/* INFO TÂCHE */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-medium text-gray-900 mb-2">Tâche</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Titre:</span>
-                      <span className="font-medium">{selectedValidation.taskTitle}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Difficulté:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${formatDifficulty(selectedValidation.difficulty).color}`}>
-                        {formatDifficulty(selectedValidation.difficulty).label}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Récompense XP:</span>
-                      <span className="font-medium text-blue-600">+{selectedValidation.xpReward} XP</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Soumise le:</span>
-                      <span className="font-medium">{formatDate(selectedValidation.submittedAt)}</span>
-                    </div>
-                  </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Utilisateur</label>
+                  <p className="text-gray-900">{selectedValidation.userName}</p>
                 </div>
 
-                {/* COMMENTAIRE */}
-                {selectedValidation.comment && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-900 mb-2">Commentaire</h3>
-                    <p className="text-gray-700">{selectedValidation.comment}</p>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Commentaire</label>
+                  <p className="text-gray-900">{selectedValidation.comment}</p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Difficulté</label>
+                  <span className={`inline-block px-2 py-1 text-xs rounded-full ${formatDifficulty(selectedValidation.difficulty).color}`}>
+                    {formatDifficulty(selectedValidation.difficulty).label}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Récompense XP</label>
+                  <p className="text-gray-900">{selectedValidation.xpReward} XP</p>
+                </div>
+
+                {/* MÉDIAS */}
+                {selectedValidation.photoUrl && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Photo</label>
+                    <img 
+                      src={selectedValidation.photoUrl} 
+                      alt="Validation" 
+                      className="mt-2 max-w-full h-auto rounded-lg"
+                    />
                   </div>
                 )}
 
-                {/* ACTIONS SI PENDING */}
-                {selectedValidation.status === 'pending' && (
-                  <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
-                    <button
-                      onClick={() => {
-                        handleApprove(selectedValidation.id);
-                        setShowDetailModal(false);
-                      }}
-                      disabled={actionLoading}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      Approuver
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        setShowDetailModal(false);
-                        setShowRejectModal(true);
-                      }}
-                      disabled={actionLoading}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <XCircle className="w-4 h-4" />
-                      Rejeter
-                    </button>
+                {selectedValidation.videoUrl && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Vidéo</label>
+                    <video 
+                      src={selectedValidation.videoUrl} 
+                      controls 
+                      className="mt-2 max-w-full h-auto rounded-lg"
+                    />
                   </div>
                 )}
+
+                {/* COMMENTAIRE ADMIN */}
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Commentaire admin (optionnel)</label>
+                  <textarea
+                    value={adminComment}
+                    onChange={(e) => setAdminComment(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows="3"
+                    placeholder="Ajoutez un commentaire..."
+                  />
+                </div>
               </div>
+
+              {/* ACTIONS */}
+              {selectedValidation.status === 'pending' && (
+                <div className="flex items-center gap-3 mt-6 pt-4 border-t">
+                  <button
+                    onClick={() => handleApprove(selectedValidation.id, adminComment)}
+                    disabled={actionLoading}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                  >
+                    {actionLoading ? (
+                      <Loader className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4" />
+                    )}
+                    Approuver
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDetailModal(false);
+                      setShowRejectModal(true);
+                    }}
+                    disabled={actionLoading}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Rejeter
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* ❌ MODAL REJET */}
+      {/* 📱 MODAL REJET */}
       {showRejectModal && selectedValidation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <XCircle className="w-6 h-6 text-red-600" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">Rejeter la validation</h2>
-                  <p className="text-gray-600">Cette action remettra la tâche en cours</p>
-                </div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-red-600">Rejeter la validation</h2>
+                <button
+                  onClick={() => setShowRejectModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
               </div>
 
-              <div className="mb-6">
-                <label htmlFor="reject-comment" className="block text-sm font-medium text-gray-700 mb-2">
-                  Commentaire (optionnel)
-                </label>
+              <p className="text-gray-600 mb-4">
+                Vous êtes sur le point de rejeter la validation pour "{selectedValidation.taskTitle}".
+                Un commentaire explicatif est requis.
+              </p>
+
+              <div className="mb-4">
+                <label className="text-sm font-medium text-gray-700">Raison du rejet *</label>
                 <textarea
-                  id="reject-comment"
-                  rows={3}
                   value={adminComment}
                   onChange={(e) => setAdminComment(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  rows="4"
                   placeholder="Expliquez pourquoi cette validation est rejetée..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  required
                 />
               </div>
 
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => handleReject(selectedValidation.id, adminComment)}
-                  disabled={actionLoading}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <XCircle className="w-4 h-4" />
-                  Confirmer le rejet
-                </button>
-                
-                <button
-                  onClick={() => {
-                    setShowRejectModal(false);
-                    setAdminComment('');
-                  }}
-                  disabled={actionLoading}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  onClick={() => setShowRejectModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Annuler
+                </button>
+                <button
+                  onClick={() => handleReject(selectedValidation.id, adminComment)}
+                  disabled={actionLoading || !adminComment.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  {actionLoading ? (
+                    <Loader className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <XCircle className="w-4 h-4" />
+                  )}
+                  Rejeter
                 </button>
               </div>
             </div>
@@ -821,5 +796,3 @@ const AdminTaskValidationPage = () => {
 };
 
 export default AdminTaskValidationPage;
-
-console.log('🚀 AdminTaskValidationPage corrigée - Filter sécurisé appliqué');
