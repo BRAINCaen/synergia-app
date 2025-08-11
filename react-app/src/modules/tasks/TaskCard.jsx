@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx
-// TASKCARD AVEC NOTIFICATION COMMENTAIRES VISIBLE - FIX BADGE 0 COMMENTAIRES
+// TASKCARD AVEC NOTIFICATION COMMENTAIRES - FIX FIREBASE DIRECT
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -28,7 +28,7 @@ import { collaborationService } from '../../core/services/collaborationService.j
 import SubmitTaskButton from './SubmitTaskButton.jsx';
 
 /**
- * 💬 BADGE COMMENTAIRES AVEC NOTIFICATION VISUELLE TEMPS RÉEL - FIX AFFICHAGE 0
+ * 💬 BADGE COMMENTAIRES AVEC FIREBASE DIRECT - FIX SYNCHRONISATION
  */
 const CommentNotificationBadge = ({ taskId, onClick, className = '' }) => {
   const [commentCount, setCommentCount] = useState(0);
@@ -41,31 +41,72 @@ const CommentNotificationBadge = ({ taskId, onClick, className = '' }) => {
       return;
     }
 
-    console.log('🔄 [TASK_CARD_COMMENT_BADGE] Configuration synchronisation pour tâche:', taskId);
+    console.log('🔄 [TASK_CARD_COMMENT_BADGE] Chargement direct Firebase pour tâche:', taskId);
 
-    // 📡 SYNCHRONISATION TEMPS RÉEL DES COMMENTAIRES
-    const unsubscribe = collaborationService.subscribeToComments(
-      'task',
-      taskId,
-      (comments) => {
-        const count = Array.isArray(comments) ? comments.length : 0;
-        setCommentCount(count);
+    // 📡 CHARGEMENT DIRECT FIREBASE - MÊME MÉTHODE QUE TaskDetailModal
+    const loadCommentsDirect = async () => {
+      try {
+        setLoading(true);
         
-        // Détecter nouveaux commentaires (simulation - dans une vraie app, comparer avec lastReadAt)
-        if (count > 0) {
-          const lastComment = comments[comments.length - 1];
-          const isRecent = lastComment && 
-            new Date() - (lastComment.createdAt?.toDate ? lastComment.createdAt.toDate() : new Date(lastComment.createdAt)) < 30 * 60 * 1000; // 30 min
-          setHasNewComments(isRecent);
-        }
+        // 📖 IMPORT FIREBASE DIRECT
+        const { getDocs, collection, query, where, onSnapshot } = await import('firebase/firestore');
+        const { db } = await import('../../core/firebase.js');
         
+        // 🔄 REQUÊTE TEMPS RÉEL FIREBASE DIRECTE
+        const commentsQuery = query(
+          collection(db, 'comments'),
+          where('entityType', '==', 'task'),
+          where('entityId', '==', taskId)
+        );
+        
+        // 📡 ÉCOUTE TEMPS RÉEL DIRECTE
+        const unsubscribe = onSnapshot(
+          commentsQuery,
+          (snapshot) => {
+            const count = snapshot.size;
+            console.log('📊 [TASK_CARD_COMMENT_BADGE] Commentaires reçus:', count, 'pour tâche:', taskId);
+            setCommentCount(count);
+            
+            // Détecter nouveaux commentaires
+            if (count > 0) {
+              const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              const lastComment = docs[docs.length - 1];
+              const isRecent = lastComment && 
+                new Date() - (lastComment.createdAt?.seconds ? new Date(lastComment.createdAt.seconds * 1000) : new Date()) < 30 * 60 * 1000;
+              setHasNewComments(isRecent);
+            } else {
+              setHasNewComments(false);
+            }
+            
+            setLoading(false);
+          },
+          (error) => {
+            console.error('❌ [TASK_CARD_COMMENT_BADGE] Erreur Firebase:', error);
+            setCommentCount(0);
+            setLoading(false);
+          }
+        );
+
+        return unsubscribe;
+        
+      } catch (error) {
+        console.error('❌ [TASK_CARD_COMMENT_BADGE] Erreur chargement:', error);
+        setCommentCount(0);
         setLoading(false);
+        return null;
       }
-    );
+    };
 
+    let unsubscribeRef = null;
+    
+    loadCommentsDirect().then(unsubscribe => {
+      unsubscribeRef = unsubscribe;
+    });
+
+    // Nettoyer l'écoute au démontage
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
+      if (unsubscribeRef) {
+        unsubscribeRef();
       }
     };
   }, [taskId]);
