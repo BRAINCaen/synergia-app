@@ -1,533 +1,472 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT PRINCIPAL AVEC INTÉGRATION BADGES V3.5
+// CORRECTION HAMBURGER MENU - VISIBILITÉ PERMANENTE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  Menu, 
-  X, 
-  Home, 
-  Users, 
-  Gamepad2, 
-  Gift, 
-  Trophy, 
-  Target, 
-  User, 
-  Settings, 
-  LogOut, 
-  Shield,
-  BarChart3,
-  CheckSquare,
-  FolderOpen,
-  Clock,
-  Star,
-  Zap,
-  Bell,
-  Award
+  Home, CheckSquare, FolderOpen, BarChart3, Trophy, Users, Settings, 
+  Menu, X, User, LogOut, Award, Clock, BookOpen, UserCheck, Shield,
+  Crown, TestTube, Lock, Gift, PieChart, Gamepad2, Zap
 } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 
-// 🏆 IMPORT HOOKS BADGES POUR AFFICHAGE TEMPS RÉEL
-import { useBadges } from '../../shared/hooks/useBadges.js';
-
-// ==========================================
-// 🧭 CONFIGURATION DE LA NAVIGATION
-// ==========================================
-const NAVIGATION_CONFIG = {
-  main: [
-    { path: '/dashboard', name: 'Dashboard', icon: Home, color: 'blue' },
-    { path: '/tasks', name: 'Tâches', icon: CheckSquare, color: 'green' },
-    { path: '/projects', name: 'Projets', icon: FolderOpen, color: 'purple' },
-    { path: '/team', name: 'Équipe', icon: Users, color: 'indigo' },
-    { path: '/analytics', name: 'Analytics', icon: BarChart3, color: 'yellow' }
-  ],
-  gamification: [
-    { path: '/gamification', name: 'Gamification', icon: Gamepad2, color: 'purple', badge: 'XP' },
-    { path: '/rewards', name: 'Récompenses', icon: Gift, color: 'pink', badge: 'NEW' },
-    { path: '/badges', name: 'Badges', icon: Trophy, color: 'yellow', badge: 'HOT' }, // 🏆 PAGE REFAITE
-    { path: '/progression', name: 'Progression', icon: Target, color: 'orange' }
-  ],
-  personal: [
-    { path: '/profile', name: 'Mon Profil', icon: User, color: 'gray' },
-    { path: '/timetrack', name: 'Pointeuse', icon: Clock, color: 'blue' },
-    { path: '/settings', name: 'Paramètres', icon: Settings, color: 'gray' }
-  ],
-  admin: [
-    { path: '/admin/task-validation', name: 'Validation Tâches', icon: Shield, color: 'red' },
-    { path: '/admin/objective-validation', name: 'Validation Objectifs', icon: Target, color: 'red' },
-    { path: '/admin/users', name: 'Gestion Utilisateurs', icon: Users, color: 'red' },
-    { path: '/admin/badges', name: 'Gestion Badges', icon: Trophy, color: 'red' },
-    { path: '/admin/settings', name: 'Paramètres Admin', icon: Settings, color: 'red' }
-  ]
+const isUserAdmin = (user) => {
+  if (!user) return false;
+  const adminEmails = ['alan.boehme61@gmail.com', 'tanguy.caron@gmail.com', 'admin@synergia.com'];
+  return adminEmails.includes(user.email) || user.role === 'admin' || user.isAdmin === true;
 };
 
-// ==========================================
-// 🎨 COMPOSANT BADGE DE NOTIFICATION
-// ==========================================
-const NotificationBadge = ({ count, color = 'red' }) => {
-  if (!count || count === 0) return null;
-  
-  return (
-    <span className={`absolute -top-1 -right-1 bg-${color}-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse`}>
-      {count > 9 ? '9+' : count}
-    </span>
-  );
-};
-
-// ==========================================
-// 🏆 COMPOSANT MINI WIDGET BADGES
-// ==========================================
-const BadgeWidget = () => {
-  const { userBadges, stats, loading } = useBadges();
-  
-  if (loading) return null;
-
-  const recentBadges = userBadges.slice(-3).reverse(); // Derniers 3 badges
-
-  return (
-    <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded-lg p-3 mb-4 border border-yellow-500/20">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center space-x-2">
-          <Trophy className="w-4 h-4 text-yellow-500" />
-          <span className="text-sm font-medium text-white">Badges</span>
-        </div>
-        <span className="text-xs text-yellow-400">
-          {stats?.earned || 0}/{stats?.total || 0}
-        </span>
-      </div>
-      
-      {recentBadges.length > 0 ? (
-        <div className="flex space-x-1">
-          {recentBadges.map((badge, index) => (
-            <div
-              key={badge.id}
-              className="text-lg"
-              title={badge.name}
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              {badge.icon}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-xs text-gray-400">Aucun badge encore</p>
-      )}
-    </div>
-  );
-};
-
-// ==========================================
-// 🔔 COMPOSANT CENTRE DE NOTIFICATIONS
-// ==========================================
-const NotificationCenter = () => {
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-
-  useEffect(() => {
-    // Écouter les nouveaux badges
-    const handleNewBadge = (event) => {
-      const { badge } = event.detail;
-      const notification = {
-        id: Date.now(),
-        type: 'badge',
-        title: 'Nouveau Badge !',
-        message: `${badge.name} débloqué`,
-        icon: badge.icon,
-        timestamp: new Date(),
-        read: false
-      };
-      
-      setNotifications(prev => [notification, ...prev.slice(0, 4)]);
-    };
-
-    window.addEventListener('badgeUnlocked', handleNewBadge);
-    
-    return () => {
-      window.removeEventListener('badgeUnlocked', handleNewBadge);
-    };
-  }, []);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  const markAsRead = (id) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, read: true } : n)
-    );
-  };
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setShowNotifications(!showNotifications)}
-        className="relative p-2 text-gray-300 hover:text-white transition-colors"
-      >
-        <Bell className="w-5 h-5" />
-        <NotificationBadge count={unreadCount} />
-      </button>
-
-      {showNotifications && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-50">
-          <div className="p-4 border-b border-gray-700">
-            <h3 className="font-semibold text-white">Notifications</h3>
-          </div>
-          
-          <div className="max-h-64 overflow-y-auto">
-            {notifications.length === 0 ? (
-              <div className="p-4 text-center text-gray-400">
-                Aucune notification
-              </div>
-            ) : (
-              notifications.map(notification => (
-                <div
-                  key={notification.id}
-                  className={`p-3 border-b border-gray-700 last:border-b-0 cursor-pointer hover:bg-gray-700 transition-colors ${
-                    !notification.read ? 'bg-blue-900/30' : ''
-                  }`}
-                  onClick={() => markAsRead(notification.id)}
-                >
-                  <div className="flex items-start space-x-3">
-                    <div className="text-2xl">{notification.icon}</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">
-                        {notification.title}
-                      </p>
-                      <p className="text-sm text-gray-300">
-                        {notification.message}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {notification.timestamp.toLocaleTimeString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          
-          {notifications.length > 0 && (
-            <div className="p-3 border-t border-gray-700">
-              <button
-                onClick={() => setNotifications([])}
-                className="w-full text-sm text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                Effacer tout
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ==========================================
-// 🧭 COMPOSANT ÉLÉMENT DE NAVIGATION
-// ==========================================
-const NavItem = ({ item, isActive, onClick }) => {
-  const Icon = item.icon;
-  
-  return (
-    <NavLink
-      to={item.path}
-      onClick={onClick}
-      className={({ isActive: navIsActive }) => {
-        const active = navIsActive || isActive;
-        return `flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative group ${
-          active
-            ? `bg-${item.color}-600 text-white shadow-lg`
-            : `text-gray-300 hover:bg-gray-700 hover:text-white`
-        }`;
-      }}
-    >
-      <div className="relative">
-        <Icon className="w-5 h-5" />
-        {item.badge && (
-          <span className={`absolute -top-1 -right-1 bg-gradient-to-r from-orange-400 to-red-500 text-white text-xs px-1.5 py-0.5 rounded-full font-bold transform -rotate-12 animate-pulse`}>
-            {item.badge}
-          </span>
-        )}
-      </div>
-      <span className="flex-1">{item.name}</span>
-      
-      {/* Indicateur visuel pour page active */}
-      <div className={`absolute left-0 top-0 bottom-0 w-1 bg-${item.color}-400 rounded-r transition-opacity duration-200 ${
-        isActive ? 'opacity-100' : 'opacity-0'
-      }`} />
-    </NavLink>
-  );
-};
-
-// ==========================================
-// 🏠 COMPOSANT LAYOUT PRINCIPAL
-// ==========================================
-const Layout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const { user, logout, isAdmin } = useAuthStore();
+const Layout = ({ children }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuthStore();
+  
+  // ✅ ÉTAT MENU SIMPLE
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // 🏆 DONNÉES BADGES TEMPS RÉEL
-  const { stats: badgeStats, loading: badgesLoading } = useBadges();
-
-  // Mise à jour de l'heure
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  // Fermer sidebar au changement de route
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [location.pathname]);
+  const userIsAdmin = React.useMemo(() => {
+    return isUserAdmin(user);
+  }, [user?.email]);
 
   const handleLogout = async () => {
     try {
-      await logout();
+      setMenuOpen(false);
+      await signOut();
+      navigate('/login');
     } catch (error) {
-      console.error('Erreur déconnexion:', error);
+      console.error('❌ Erreur déconnexion:', error);
     }
   };
 
-  const isCurrentPath = (path) => location.pathname === path;
+  // ✅ FERMETURE SUR ESCAPE
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
+
+  // ✅ MENU ITEMS COMPLETS
+  const menuItems = [
+    { section: 'PRINCIPAL', items: [
+      { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
+      { path: '/tasks', label: 'Tâches', icon: '✅' },
+      { path: '/projects', label: 'Projets', icon: '📁' },
+      { path: '/analytics', label: 'Analytics', icon: '📊' }
+    ]},
+    { section: 'GAMIFICATION', items: [
+      { path: '/gamification', label: 'Gamification', icon: '🎮' },
+      { path: '/badges', label: 'Badges', icon: '🏆' },
+      { path: '/leaderboard', label: 'Classement', icon: '🥇' },
+      { path: '/rewards', label: 'Récompenses', icon: '🎁' }
+    ]},
+    { section: 'ÉQUIPE', items: [
+      { path: '/team', label: 'Équipe', icon: '👥' },
+      { path: '/users', label: 'Utilisateurs', icon: '👤' }
+    ]},
+    { section: 'OUTILS', items: [
+      { path: '/onboarding', label: 'Intégration', icon: '📚' },
+      { path: '/time-track', label: 'Pointeuse', icon: '⏰' },
+      { path: '/profile', label: 'Mon Profil', icon: '👨‍💼' },
+      { path: '/settings', label: 'Paramètres', icon: '⚙️' }
+    ]}
+  ];
+
+  // ✅ ADMIN ITEMS
+  if (userIsAdmin) {
+    menuItems.push({
+      section: 'ADMINISTRATION',
+      items: [
+        { path: '/admin/task-validation', label: 'Validation Tâches', icon: '🛡️' },
+        { path: '/admin/test', label: 'Test Admin', icon: '🧪' },
+        { path: '/admin/roles', label: 'Permissions', icon: '🔐' },
+        { path: '/admin/users', label: 'Admin Utilisateurs', icon: '👑' },
+        { path: '/admin/analytics', label: 'Admin Analytics', icon: '📈' },
+        { path: '/admin/settings', label: 'Admin Config', icon: '🔧' }
+      ]
+    });
+  }
+
+  // ✅ FERMETURE MENU SUR NAVIGATION
+  const handleNavClick = () => {
+    setMenuOpen(false);
+  };
+
+  // ✅ CRÉATION DU MENU AVEC DOM MANIPULATION FIXÉ
+  useEffect(() => {
+    if (menuOpen) {
+      // Créer le menu directement dans le body
+      const menuOverlay = document.createElement('div');
+      menuOverlay.id = 'hamburger-menu-overlay';
+      menuOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9999;
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+      `;
+
+      const menuContainer = document.createElement('div');
+      menuContainer.style.cssText = `
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        width: 320px;
+        height: 100vh;
+        overflow-y: auto;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      `;
+
+      // Header du menu
+      const menuHeader = document.createElement('div');
+      menuHeader.style.cssText = `
+        padding: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.2);
+      `;
+      menuHeader.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 24px;">⚡</span>
+            <span style="color: white; font-size: 20px; font-weight: bold;">Synergia v3.5</span>
+            ${userIsAdmin ? '<span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px;">ADMIN</span>' : ''}
+          </div>
+          <button id="close-menu-btn" style="background: rgba(255,255,255,0.1); border: none; color: white; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+        </div>
+      `;
+
+      // Navigation
+      const navContainer = document.createElement('div');
+      navContainer.style.cssText = `padding: 20px 0;`;
+
+      menuItems.forEach(section => {
+        const sectionEl = document.createElement('div');
+        sectionEl.style.cssText = `margin-bottom: 24px;`;
+
+        const sectionTitle = document.createElement('h3');
+        sectionTitle.style.cssText = `
+          color: ${section.section === 'ADMINISTRATION' ? '#fca5a5' : '#9ca3af'};
+          font-size: 12px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin: 0 0 12px 20px;
+        `;
+        sectionTitle.textContent = section.section;
+        sectionEl.appendChild(sectionTitle);
+
+        section.items.forEach(item => {
+          const itemEl = document.createElement('a');
+          itemEl.href = item.path;
+          itemEl.className = 'menu-item';
+          itemEl.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: ${location.pathname === item.path ? '#ffffff' : '#d1d5db'};
+            background: ${location.pathname === item.path ? 'rgba(59, 130, 246, 0.8)' : 'transparent'};
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border-left: ${location.pathname === item.path ? '4px solid #3b82f6' : '4px solid transparent'};
+          `;
+
+          itemEl.onmouseover = () => {
+            if (location.pathname !== item.path) {
+              itemEl.style.background = 'rgba(255, 255, 255, 0.1)';
+              itemEl.style.color = '#ffffff';
+            }
+          };
+
+          itemEl.onmouseout = () => {
+            if (location.pathname !== item.path) {
+              itemEl.style.background = 'transparent';
+              itemEl.style.color = '#d1d5db';
+            }
+          };
+
+          itemEl.innerHTML = `
+            <span style="font-size: 18px;">${item.icon}</span>
+            <span style="font-weight: 500;">${item.label}</span>
+            ${section.section === 'ADMINISTRATION' ? '<span style="color: #f87171; font-size: 12px; margin-left: auto;">🛡️</span>' : ''}
+          `;
+
+          sectionEl.appendChild(itemEl);
+        });
+
+        navContainer.appendChild(sectionEl);
+      });
+
+      // Section déconnexion
+      const logoutSection = document.createElement('div');
+      logoutSection.style.cssText = `
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.2);
+      `;
+
+      logoutSection.innerHTML = `
+        <button id="logout-btn" style="
+          width: 100%;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px;
+          background: rgba(239, 68, 68, 0.8);
+          border: none;
+          border-radius: 8px;
+          color: white;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        ">
+          <span style="font-size: 18px;">🚪</span>
+          <span>Déconnexion</span>
+        </button>
+      `;
+
+      // Assemblage
+      menuContainer.appendChild(menuHeader);
+      menuContainer.appendChild(navContainer);
+      menuContainer.appendChild(logoutSection);
+      menuOverlay.appendChild(menuContainer);
+
+      // Ajouter au DOM
+      document.body.appendChild(menuOverlay);
+
+      // Animation d'entrée
+      setTimeout(() => {
+        menuContainer.style.transform = 'translateX(0)';
+      }, 10);
+
+      // Event listeners
+      const closeBtn = document.getElementById('close-menu-btn');
+      const logoutBtn = document.getElementById('logout-btn');
+      
+      closeBtn?.addEventListener('click', () => setMenuOpen(false));
+      logoutBtn?.addEventListener('click', handleLogout);
+      
+      // Fermeture sur overlay
+      menuOverlay.addEventListener('click', (e) => {
+        if (e.target === menuOverlay) {
+          setMenuOpen(false);
+        }
+      });
+
+      // Gestion des liens
+      const menuLinks = menuOverlay.querySelectorAll('.menu-item');
+      menuLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          navigate(link.getAttribute('href'));
+          setMenuOpen(false);
+        });
+      });
+
+    } else {
+      // Supprimer le menu
+      const existingMenu = document.getElementById('hamburger-menu-overlay');
+      if (existingMenu) {
+        existingMenu.remove();
+      }
+    }
+
+    // Cleanup
+    return () => {
+      const menuToRemove = document.getElementById('hamburger-menu-overlay');
+      if (menuToRemove) {
+        menuToRemove.remove();
+      }
+    };
+  }, [menuOpen, location.pathname, user, userIsAdmin, navigate]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
-      {/* ==========================================
-          📱 SIDEBAR MOBILE OVERLAY
-          ========================================== */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+    <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
+      
+      {/* ✅ HEADER CORRIGÉ - BOUTON HAMBURGER ULTRA VISIBLE */}
+      <header style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 1000,
+        backgroundColor: 'white',
+        borderBottom: '1px solid #e5e7eb',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+        padding: '0'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '15px 20px',
+          maxWidth: '100%'
+        }}>
+          {/* Section gauche avec hamburger */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px'
+          }}>
+            {/* 🔧 CORRECTION: BOUTON HAMBURGER VISIBLE PARTOUT */}
+            <button
+              onClick={() => setMenuOpen(true)}
+              style={{
+                display: 'flex !important',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '50px',
+                height: '50px',
+                background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                color: 'white',
+                border: '3px solid #1d4ed8',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                fontSize: '24px',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
+                transition: 'all 0.2s ease',
+                position: 'relative',
+                overflow: 'hidden',
+                visibility: 'visible !important',
+                opacity: '1 !important',
+                zIndex: '100'
+              }}
+              onMouseOver={(e) => {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.4)';
+              }}
+              onMouseOut={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 15px rgba(59, 130, 246, 0.3)';
+              }}
+              title="Ouvrir le menu de navigation"
+            >
+              ☰
+            </button>
 
-      {/* ==========================================
-          🧭 SIDEBAR NAVIGATION
-          ========================================== */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-80 bg-gray-800 transform transition-transform duration-300 ease-in-out ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } md:translate-x-0`}>
-        
-        {/* Header Sidebar */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-              <Zap className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-white">Synergia</h1>
-              <p className="text-xs text-gray-400">v3.5 • Badges Premium</p>
+            {/* Logo et titre */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <span style={{ fontSize: '28px' }}>⚡</span>
+              <div>
+                <h1 style={{
+                  margin: 0,
+                  fontSize: '24px',
+                  fontWeight: 'bold',
+                  color: '#1f2937',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  Synergia
+                  <span style={{
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    color: 'white',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: '600'
+                  }}>v3.5</span>
+                  {userIsAdmin && (
+                    <span style={{
+                      background: '#ef4444',
+                      color: 'white',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: '600'
+                    }}>ADMIN</span>
+                  )}
+                </h1>
+              </div>
             </div>
           </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="md:hidden p-1 text-gray-400 hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        {/* Profil utilisateur */}
-        <div className="p-4 border-b border-gray-700">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-              {user?.displayName?.[0] || user?.email?.[0] || '?'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-medium text-white truncate">
-                {user?.displayName || user?.email || 'Utilisateur'}
-              </h3>
-              <p className="text-xs text-gray-400 truncate">
-                {isAdmin ? '👑 Administrateur' : '👤 Membre'}
-              </p>
-              {!badgesLoading && badgeStats && (
-                <p className="text-xs text-yellow-400">
-                  🏆 {badgeStats.earned} badges • {badgeStats.percentage}%
-                </p>
+          {/* Section droite - Info utilisateur */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            {/* Avatar/Info utilisateur */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 12px',
+              background: '#f9fafb',
+              borderRadius: '8px',
+              border: '1px solid #e5e7eb'
+            }}>
+              {user?.photoURL ? (
+                <img 
+                  src={user.photoURL} 
+                  alt={user.displayName || 'Utilisateur'}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    objectFit: 'cover'
+                  }}
+                />
+              ) : (
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  backgroundColor: '#3b82f6',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 'bold'
+                }}>
+                  {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                </div>
               )}
-            </div>
-          </div>
-        </div>
-
-        {/* 🏆 Widget Badges */}
-        <div className="p-4 border-b border-gray-700">
-          <BadgeWidget />
-        </div>
-
-        {/* Navigation principale */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          {/* Section principale */}
-          <div>
-            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Principal
-            </h4>
-            <div className="space-y-1">
-              {NAVIGATION_CONFIG.main.map(item => (
-                <NavItem
-                  key={item.path}
-                  item={item}
-                  isActive={isCurrentPath(item.path)}
-                  onClick={() => setSidebarOpen(false)}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Section Gamification */}
-          <div>
-            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center">
-              🎮 Gamification
-              <Star className="w-3 h-3 ml-2 text-yellow-400 animate-pulse" />
-            </h4>
-            <div className="space-y-1">
-              {NAVIGATION_CONFIG.gamification.map(item => (
-                <NavItem
-                  key={item.path}
-                  item={item}
-                  isActive={isCurrentPath(item.path)}
-                  onClick={() => setSidebarOpen(false)}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Section Personnel */}
-          <div>
-            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Personnel
-            </h4>
-            <div className="space-y-1">
-              {NAVIGATION_CONFIG.personal.map(item => (
-                <NavItem
-                  key={item.path}
-                  item={item}
-                  isActive={isCurrentPath(item.path)}
-                  onClick={() => setSidebarOpen(false)}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Section Admin */}
-          {isAdmin && (
-            <div>
-              <h4 className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-3 flex items-center">
-                <Shield className="w-3 h-3 mr-2" />
-                Administration
-              </h4>
-              <div className="space-y-1">
-                {NAVIGATION_CONFIG.admin.map(item => (
-                  <NavItem
-                    key={item.path}
-                    item={item}
-                    isActive={isCurrentPath(item.path)}
-                    onClick={() => setSidebarOpen(false)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer Sidebar */}
-        <div className="p-4 border-t border-gray-700 space-y-3">
-          {/* Horloge */}
-          <div className="text-center">
-            <p className="text-lg font-mono text-white">
-              {currentTime.toLocaleTimeString('fr-FR', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              })}
-            </p>
-            <p className="text-xs text-gray-400">
-              {currentTime.toLocaleDateString('fr-FR', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long'
-              })}
-            </p>
-          </div>
-
-          {/* Bouton déconnexion */}
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-sm font-medium text-gray-300 hover:bg-red-600 hover:text-white rounded-lg transition-all duration-200"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Déconnexion</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ==========================================
-          📱 HEADER MOBILE
-          ========================================== */}
-      <div className="md:ml-80">
-        <header className="bg-gray-800/90 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-30">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              {/* Bouton menu mobile */}
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => setSidebarOpen(true)}
-                  className="md:hidden p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  <Menu className="w-6 h-6" />
-                </button>
-
-                {/* Titre de page */}
-                <div className="hidden sm:block">
-                  <h2 className="text-lg font-semibold text-white">
-                    {NAVIGATION_CONFIG.main.find(item => isCurrentPath(item.path))?.name ||
-                     NAVIGATION_CONFIG.gamification.find(item => isCurrentPath(item.path))?.name ||
-                     NAVIGATION_CONFIG.personal.find(item => isCurrentPath(item.path))?.name ||
-                     (isAdmin && NAVIGATION_CONFIG.admin.find(item => isCurrentPath(item.path))?.name) ||
-                     'Synergia'}
-                  </h2>
-                </div>
-              </div>
-
-              {/* Actions header */}
-              <div className="flex items-center space-x-4">
-                {/* Niveau et XP */}
-                {!badgesLoading && badgeStats && (
-                  <div className="hidden sm:flex items-center space-x-2 text-sm">
-                    <Award className="w-4 h-4 text-yellow-400" />
-                    <span className="text-gray-300">
-                      {badgeStats.earned} badges
-                    </span>
-                    <div className="w-px h-4 bg-gray-600" />
-                    <span className="text-yellow-400">
-                      {badgeStats.totalXpFromBadges} XP
-                    </span>
-                  </div>
-                )}
-
-                {/* Centre de notifications */}
-                <NotificationCenter />
-
-                {/* Avatar utilisateur */}
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium text-sm">
-                  {user?.displayName?.[0] || user?.email?.[0] || '?'}
-                </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#374151',
+                  lineHeight: '1'
+                }}>
+                  {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
+                </span>
+                <span style={{
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  lineHeight: '1'
+                }}>
+                  En ligne
+                </span>
               </div>
             </div>
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* ==========================================
-            📄 CONTENU PRINCIPAL
-            ========================================== */}
-        <main className="min-h-screen">
-          <Outlet />
-        </main>
-      </div>
+      {/* CONTENU PRINCIPAL */}
+      <main style={{ padding: '0', minHeight: 'calc(100vh - 80px)' }}>
+        {children}
+      </main>
     </div>
   );
 };
