@@ -3,6 +3,8 @@
 // CORRECTION ARCHITECTURE - UN SEUL SYSTÈME DE ROUTING
 // ==========================================
 
+import globalFirebasePatch from './core/services/globalFirebasePatch.js';
+import { createTaskSafely } from './core/services/taskCreationFixService.js';
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
