@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/layouts/MainLayout.jsx  
-// RESTAURATION EXACTE - MENU MOBILE FONCTIONNEL
+// CORRECTION MENU HAMBURGER - VISIBILITÉ FORCÉE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -104,11 +104,9 @@ const MainLayout = () => {
     });
   }
 
-  const isActive = (path) => location.pathname === path;
-
   return (
     <div className="min-h-screen bg-gray-900">
-      {/* SIDEBAR MOBILE - Position Fixed */}
+      {/* SIDEBAR MOBILE - Position Fixed avec visibilité forcée */}
       {sidebarOpen && (
         <>
           {/* Overlay */}
@@ -192,17 +190,22 @@ const MainLayout = () => {
         </>
       )}
 
-      {/* HEADER - RESTAURÉ EXACTEMENT */}
+      {/* HEADER CORRIGÉ - BOUTON HAMBURGER SUPER VISIBLE */}
       <header className="bg-gray-800 shadow-lg border-b border-gray-700 sticky top-0 z-30">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Section gauche - BOUTON HAMBURGER TRÈS VISIBLE */}
+            {/* Section gauche - BOUTON HAMBURGER FORCÉ VISIBLE */}
             <div className="flex items-center space-x-4">
-              {/* BOUTON HAMBURGER - GROS ET VISIBLE */}
+              {/* 🔧 CORRECTION: BOUTON HAMBURGER VISIBLE SUR TOUTES TAILLES */}
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="md:hidden flex items-center justify-center w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-lg"
+                className="flex items-center justify-center w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-lg border-2 border-blue-400"
                 aria-label="Ouvrir le menu"
+                style={{ 
+                  display: 'flex !important',
+                  visibility: 'visible !important',
+                  opacity: '1 !important'
+                }}
               >
                 <Menu className="w-6 h-6" />
               </button>
@@ -226,51 +229,69 @@ const MainLayout = () => {
             <nav className="hidden md:flex space-x-1">
               <NavLink to="/dashboard" className={({ isActive }) => 
                 `flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                  isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'
                 }`
               }>
                 <Home className="w-4 h-4" />
                 <span>Dashboard</span>
               </NavLink>
-              
-              <NavLink to="/team" className={({ isActive }) => 
+
+              <NavLink to="/tasks" className={({ isActive }) => 
                 `flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                  isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'
                 }`
               }>
-                <Users className="w-4 h-4" />
-                <span>Équipe</span>
+                <CheckSquare className="w-4 h-4" />
+                <span>Tâches</span>
+              </NavLink>
+
+              <NavLink to="/projects" className={({ isActive }) => 
+                `flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'
+                }`
+              }>
+                <FolderOpen className="w-4 h-4" />
+                <span>Projets</span>
               </NavLink>
 
               <NavLink to="/gamification" className={({ isActive }) => 
                 `flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                  isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'
                 }`
               }>
                 <Gamepad2 className="w-4 h-4" />
                 <span>Gamification</span>
               </NavLink>
-
-              <NavLink to="/rewards" className={({ isActive }) => 
-                `flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:text-white hover:bg-gray-700'
-                }`
-              }>
-                <Gift className="w-4 h-4" />
-                <span>Récompenses</span>
-              </NavLink>
             </nav>
 
-            {/* Profil utilisateur */}
+            {/* Actions utilisateur */}
             <div className="flex items-center space-x-3">
-              <span className="text-sm text-gray-300 hidden sm:block">
-                {user?.displayName || user?.email || 'Utilisateur'}
-              </span>
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                <span className="text-sm font-medium text-white">
-                  {user?.displayName?.[0] || user?.email?.[0] || '?'}
+              {/* Profil utilisateur */}
+              <div className="flex items-center space-x-2">
+                {user?.photoURL ? (
+                  <img 
+                    src={user.photoURL} 
+                    alt={user.displayName || 'Utilisateur'}
+                    className="w-8 h-8 rounded-full"
+                  />
+                ) : (
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                    <User className="w-4 h-4 text-white" />
+                  </div>
+                )}
+                <span className="text-sm text-gray-300 hidden sm:block">
+                  {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
                 </span>
               </div>
+
+              {/* Bouton déconnexion desktop */}
+              <button
+                onClick={handleLogout}
+                className="hidden md:flex items-center space-x-1 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Déconnexion</span>
+              </button>
             </div>
           </div>
         </div>
