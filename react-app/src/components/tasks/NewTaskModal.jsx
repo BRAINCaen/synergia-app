@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/tasks/NewTaskModal.jsx
-// MODAL CRÉATION TÂCHES CORRIGÉE - FIX CREATEDBY UNDEFINED
+// CORRECTION URGENTE - BOUTON CRÉER QUI NE FONCTIONNE PAS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -22,7 +22,7 @@ import { useAuthStore } from '../../shared/stores/authStore.js';
 import { createTaskSafely } from '../../core/services/taskCreationFix.js';
 
 /**
- * 📝 MODAL DE CRÉATION DE TÂCHES CORRIGÉE
+ * 📝 MODAL DE CRÉATION DE TÂCHES - CORRECTION BOUTON
  */
 const NewTaskModal = ({ 
   isOpen, 
@@ -83,19 +83,30 @@ const NewTaskModal = ({
         attachments: []
       });
     }
+    setError(''); // Reset error lors de l'ouverture
   }, [initialData, isOpen]);
 
   // Gestionnaire de changement de champ
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+    console.log('📝 [MODAL] Changement champ:', { name, value, type, checked });
+    
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    
+    // Clear error when user starts typing
+    if (error && name === 'title' && value.trim()) {
+      setError('');
+    }
   };
 
   // Gestionnaire ajout de tag
-  const handleAddTag = () => {
+  const handleAddTag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
       setFormData(prev => ({
         ...prev,
@@ -111,6 +122,14 @@ const NewTaskModal = ({
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
+  };
+
+  // Gestionnaire de fermeture
+  const handleClose = () => {
+    console.log('📝 [MODAL] Fermeture modal');
+    setError('');
+    setLoading(false);
+    onClose();
   };
 
   // Validation du formulaire
@@ -136,44 +155,64 @@ const NewTaskModal = ({
     return errors;
   };
 
-  // Gestionnaire de soumission
+  // 🔧 GESTIONNAIRE DE SOUMISSION CORRIGÉ
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    // Empêcher comportements par défaut
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     
-    // Validation
+    console.log('📝 [MODAL] *** DÉBUT SOUMISSION ***');
+    console.log('📝 [MODAL] Event:', e?.type);
+    console.log('📝 [MODAL] Loading state:', loading);
+    console.log('📝 [MODAL] Form data:', formData);
+    
+    // Vérifier si déjà en cours
+    if (loading) {
+      console.log('📝 [MODAL] ⚠️ Soumission déjà en cours, abandon');
+      return;
+    }
+    
+    // Validation immédiate
     const validationErrors = validateForm();
     if (validationErrors.length > 0) {
-      setError(validationErrors.join(', '));
+      const errorMsg = validationErrors.join(', ');
+      console.error('📝 [MODAL] ❌ Erreurs validation:', errorMsg);
+      setError(errorMsg);
       return;
     }
     
     // Vérifier l'utilisateur
     if (!user || !user.uid) {
-      setError('Utilisateur non connecté. Veuillez vous reconnecter.');
+      const errorMsg = 'Utilisateur non connecté. Veuillez vous reconnecter.';
+      console.error('📝 [MODAL] ❌ Pas d\'utilisateur:', errorMsg);
+      setError(errorMsg);
       return;
     }
     
+    // Commencer le loading
     setLoading(true);
     setError('');
     
     try {
-      console.log('📝 [NEW_TASK_MODAL] Soumission formulaire...');
-      console.log('📝 [NEW_TASK_MODAL] Données formulaire:', formData);
-      console.log('📝 [NEW_TASK_MODAL] Utilisateur:', user.uid);
+      console.log('📝 [MODAL] 🚀 Début création tâche...');
+      console.log('📝 [MODAL] User ID:', user.uid);
+      console.log('📝 [MODAL] User email:', user.email);
       
-      // Préparer les données nettoyées
+      // Préparer les données nettoyées avec TOUS les champs requis
       const cleanedData = {
         // Champs obligatoires
         title: formData.title.trim(),
-        description: formData.description.trim(),
-        priority: formData.priority,
-        category: formData.category,
-        status: formData.status,
-        difficulty: formData.difficulty,
+        description: formData.description?.trim() || '',
+        priority: formData.priority || 'medium',
+        category: formData.category || 'general',
+        status: formData.status || 'todo',
+        difficulty: formData.difficulty || 'normal',
         
-        // Champs numériques
-        xpReward: formData.xpReward ? parseInt(formData.xpReward) : 0,
-        estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : null,
+        // Champs numériques avec validation
+        xpReward: formData.xpReward ? parseInt(formData.xpReward, 10) : 25,
+        estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : 1,
         
         // Champs de date
         dueDate: formData.dueDate || null,
@@ -182,70 +221,82 @@ const NewTaskModal = ({
         openToVolunteers: Boolean(formData.openToVolunteers),
         isRecurring: Boolean(formData.isRecurring),
         
-        // Tableaux
+        // Tableaux sécurisés
         tags: Array.isArray(formData.tags) ? formData.tags : [],
-        assignedTo: [], // Vide par défaut, sera assigné après
+        assignedTo: [], // Vide par défaut
         
         // Champs optionnels
         projectId: formData.projectId || null,
-        attachments: Array.isArray(formData.attachments) ? formData.attachments : []
+        attachments: Array.isArray(formData.attachments) ? formData.attachments : [],
+        
+        // Métadonnées automatiques
+        createdBy: user.uid, // OBLIGATOIRE pour éviter l'erreur
+        creatorName: user.displayName || user.email || 'Utilisateur',
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
       
-      console.log('📝 [NEW_TASK_MODAL] Données nettoyées:', cleanedData);
+      console.log('📝 [MODAL] 📋 Données nettoyées pour création:', cleanedData);
       
-      // ✅ UTILISER LE SERVICE CORRIGÉ
+      // ✅ APPEL SERVICE SÉCURISÉ
+      console.log('📝 [MODAL] 🔧 Appel createTaskSafely...');
       const result = await createTaskSafely(cleanedData, user);
       
-      if (result.success) {
-        console.log('✅ [NEW_TASK_MODAL] Tâche créée avec succès:', result.id);
+      console.log('📝 [MODAL] 📊 Résultat création:', result);
+      
+      if (result && result.success) {
+        console.log('📝 [MODAL] ✅ Tâche créée avec succès!');
+        console.log('📝 [MODAL] ID tâche:', result.id || result.taskId);
         
-        // Notifier le parent
+        // Notification de succès
         if (onSuccess) {
-          onSuccess(result.task);
+          console.log('📝 [MODAL] 📢 Appel callback onSuccess...');
+          onSuccess(result.task || result);
         }
         
         // Fermer le modal
-        onClose();
+        console.log('📝 [MODAL] 🚪 Fermeture modal...');
+        handleClose();
         
-        // Réinitialiser le formulaire
-        setFormData({
-          title: '',
-          description: '',
-          priority: 'medium',
-          category: 'general',
-          status: 'todo',
-          dueDate: '',
-          estimatedHours: '',
-          xpReward: '',
-          difficulty: 'normal',
-          tags: [],
-          openToVolunteers: false,
-          isRecurring: false,
-          projectId: '',
-          attachments: []
-        });
+        // Notification utilisateur
+        if (window.showNotification) {
+          window.showNotification('Tâche créée avec succès !', 'success');
+        }
         
       } else {
-        console.error('❌ [NEW_TASK_MODAL] Erreur création:', result.error);
-        setError(result.message || 'Erreur lors de la création');
+        // Erreur retournée par le service
+        const errorMsg = result?.message || result?.error || 'Erreur lors de la création';
+        console.error('📝 [MODAL] ❌ Erreur service:', errorMsg);
+        setError(errorMsg);
       }
       
     } catch (error) {
-      console.error('❌ [NEW_TASK_MODAL] Erreur soumission:', error);
-      setError(`Erreur lors de la ${mode === 'edit' ? 'modification' : 'création'}: ${error.message}`);
+      // Erreur d'exécution
+      console.error('📝 [MODAL] ❌ Exception pendant création:', error);
+      console.error('📝 [MODAL] Stack trace:', error.stack);
+      
+      let errorMessage = 'Erreur technique lors de la création';
+      if (error.message) {
+        errorMessage += ': ' + error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
+      // Toujours arrêter le loading
+      console.log('📝 [MODAL] 🏁 Fin soumission');
       setLoading(false);
     }
   };
 
-  // Fermer le modal
-  const handleClose = () => {
-    if (!loading) {
-      setError('');
-      onClose();
+  // Gestionnaire Enter sur les champs
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
     }
   };
 
+  // Ne pas render si pas ouvert
   if (!isOpen) return null;
 
   return (
@@ -255,143 +306,125 @@ const NewTaskModal = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-        onClick={(e) => e.target === e.currentTarget && handleClose()}
+        onClick={(e) => {
+          // Fermer si clic sur le backdrop
+          if (e.target === e.currentTarget) {
+            handleClose();
+          }
+        }}
       >
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
+          initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
+          exit={{ scale: 0.95, opacity: 0 }}
+          className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Plus className="w-5 h-5 text-blue-600" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  {mode === 'edit' ? 'Modifier la tâche' : 'Nouvelle tâche'}
-                </h2>
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Plus className="w-5 h-5 text-blue-600" />
               </div>
-              <button
-                onClick={handleClose}
-                disabled={loading}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 disabled:opacity-50"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {mode === 'edit' ? 'Modifier la tâche' : 'Créer une nouvelle tâche'}
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Remplissez les informations ci-dessous
+                </p>
+              </div>
             </div>
+            <button
+              onClick={handleClose}
+              disabled={loading}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Contenu */}
-          <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              
-              {/* Erreur */}
-              {error && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-center gap-2 text-red-700">
-                    <AlertTriangle className="w-5 h-5" />
-                    <span className="font-medium">Erreur</span>
-                  </div>
-                  <p className="text-red-600 mt-1">{error}</p>
+          {/* Notification d'erreur */}
+          {error && (
+            <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <div>
+                  <h4 className="font-medium text-red-800">Erreur</h4>
+                  <p className="text-sm text-red-700">{error}</p>
                 </div>
-              )}
+              </div>
+            </div>
+          )}
 
-              {/* Titre */}
+          {/* Formulaire */}
+          <div className="p-6 overflow-y-auto max-h-[60vh]">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              
+              {/* Titre (obligatoire) */}
               <div>
-                <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                  Titre <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Titre de la tâche *
                 </label>
                 <input
                   type="text"
-                  id="title"
                   name="title"
                   value={formData.title}
                   onChange={handleInputChange}
-                  disabled={loading}
-                  placeholder="Nom de la tâche..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
-                  maxLength={100}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ex: Développer la page d'accueil"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
+                  disabled={loading}
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Description
                 </label>
                 <textarea
-                  id="description"
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
-                  disabled={loading}
-                  placeholder="Décrivez les détails de la tâche..."
+                  placeholder="Décrivez les détails de cette tâche..."
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  disabled={loading}
                 />
               </div>
 
-              {/* Grille de paramètres */}
+              {/* Ligne 1: Priorité et Difficulté */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                {/* Priorité */}
                 <div>
-                  <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Priorité
                   </label>
                   <select
-                    id="priority"
                     name="priority"
                     value={formData.priority}
                     onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     disabled={loading}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
                   >
                     <option value="low">Basse</option>
                     <option value="medium">Moyenne</option>
                     <option value="high">Haute</option>
-                    <option value="critical">Critique</option>
+                    <option value="urgent">Urgente</option>
                   </select>
                 </div>
 
-                {/* Catégorie */}
                 <div>
-                  <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                    Catégorie
-                  </label>
-                  <select
-                    id="category"
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    disabled={loading}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
-                  >
-                    <option value="general">Général</option>
-                    <option value="maintenance">Maintenance</option>
-                    <option value="reputation">Réputation</option>
-                    <option value="stock">Gestion Stock</option>
-                    <option value="communication">Communication</option>
-                    <option value="formation">Formation</option>
-                  </select>
-                </div>
-
-                {/* Difficulté */}
-                <div>
-                  <label htmlFor="difficulty" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Difficulté
                   </label>
                   <select
-                    id="difficulty"
                     name="difficulty"
                     value={formData.difficulty}
                     onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     disabled={loading}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
                   >
                     <option value="easy">Facile</option>
                     <option value="normal">Normal</option>
@@ -399,60 +432,78 @@ const NewTaskModal = ({
                     <option value="expert">Expert</option>
                   </select>
                 </div>
+              </div>
 
-                {/* Récompense XP */}
+              {/* Ligne 2: Catégorie et XP */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="xpReward" className="block text-sm font-medium text-gray-700 mb-2">
-                    <Trophy className="w-4 h-4 inline mr-1" />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Catégorie
+                  </label>
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={loading}
+                  >
+                    <option value="general">Général</option>
+                    <option value="development">Développement</option>
+                    <option value="design">Design</option>
+                    <option value="marketing">Marketing</option>
+                    <option value="business">Business</option>
+                    <option value="research">Recherche</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Récompense XP
                   </label>
                   <input
                     type="number"
-                    id="xpReward"
                     name="xpReward"
                     value={formData.xpReward}
                     onChange={handleInputChange}
-                    disabled={loading}
-                    placeholder="0"
+                    placeholder="25"
                     min="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                    max="1000"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              {/* Ligne 3: Durée et Échéance */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Durée estimée (heures)
+                  </label>
+                  <input
+                    type="number"
+                    name="estimatedHours"
+                    value={formData.estimatedHours}
+                    onChange={handleInputChange}
+                    placeholder="1"
+                    min="0"
+                    step="0.5"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={loading}
                   />
                 </div>
 
-                {/* Date d'échéance */}
                 <div>
-                  <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-2">
-                    <Calendar className="w-4 h-4 inline mr-1" />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Date d'échéance
                   </label>
                   <input
                     type="date"
-                    id="dueDate"
                     name="dueDate"
                     value={formData.dueDate}
                     onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     disabled={loading}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
-                  />
-                </div>
-
-                {/* Heures estimées */}
-                <div>
-                  <label htmlFor="estimatedHours" className="block text-sm font-medium text-gray-700 mb-2">
-                    <Clock className="w-4 h-4 inline mr-1" />
-                    Heures estimées
-                  </label>
-                  <input
-                    type="number"
-                    id="estimatedHours"
-                    name="estimatedHours"
-                    value={formData.estimatedHours}
-                    onChange={handleInputChange}
-                    disabled={loading}
-                    placeholder="0"
-                    min="0"
-                    step="0.5"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
                   />
                 </div>
               </div>
@@ -460,117 +511,120 @@ const NewTaskModal = ({
               {/* Tags */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Tag className="w-4 h-4 inline mr-1" />
                   Tags
                 </label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {formData.tags.map((tag, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm"
-                    >
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTag(tag)}
-                        disabled={loading}
-                        className="w-4 h-4 text-blue-500 hover:text-blue-700 disabled:opacity-50"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 mb-2">
                   <input
                     type="text"
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                    disabled={loading}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddTag(e);
+                      }
+                    }}
                     placeholder="Ajouter un tag..."
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={loading}
                   />
                   <button
                     type="button"
                     onClick={handleAddTag}
-                    disabled={loading || !tagInput.trim()}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                    disabled={loading}
                   >
-                    <Plus className="w-4 h-4" />
+                    <Tag className="w-4 h-4" />
                   </button>
                 </div>
+                {formData.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {formData.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-2"
+                      >
+                        #{tag}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTag(tag)}
+                          className="text-blue-500 hover:text-blue-700"
+                          disabled={loading}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Options */}
               <div className="space-y-3">
-                <div className="flex items-center gap-3">
+                <label className="flex items-center gap-3">
                   <input
                     type="checkbox"
-                    id="openToVolunteers"
                     name="openToVolunteers"
                     checked={formData.openToVolunteers}
                     onChange={handleInputChange}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     disabled={loading}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                   />
-                  <label htmlFor="openToVolunteers" className="text-sm font-medium text-gray-700">
-                    <User className="w-4 h-4 inline mr-1" />
-                    Ouverte aux volontaires
-                  </label>
-                </div>
+                  <span className="text-sm text-gray-700">Ouvrir aux volontaires</span>
+                </label>
 
-                <div className="flex items-center gap-3">
+                <label className="flex items-center gap-3">
                   <input
                     type="checkbox"
-                    id="isRecurring"
                     name="isRecurring"
                     checked={formData.isRecurring}
                     onChange={handleInputChange}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     disabled={loading}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                   />
-                  <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
-                    Tâche récurrente
-                  </label>
-                </div>
+                  <span className="text-sm text-gray-700">Tâche récurrente</span>
+                </label>
               </div>
             </form>
           </div>
 
-          {/* Footer */}
-          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-500">
-                {user ? `Créée par: ${user.displayName || user.email}` : 'Utilisateur non connecté'}
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  disabled={loading}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading || !formData.title.trim()}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      {mode === 'edit' ? 'Modification...' : 'Création...'}
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      {mode === 'edit' ? 'Modifier' : 'Créer'}
-                    </>
-                  )}
-                </button>
-              </div>
+          {/* Footer avec actions */}
+          <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+            <div className="text-sm text-gray-600">
+              {user ? `Créée par: ${user.displayName || user.email}` : 'Utilisateur non connecté'}
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={loading}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Annuler
+              </button>
+              
+              {/* 🚨 BOUTON CORRIGÉ - AVEC GESTIONNAIRE onClick EXPLICITE */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  console.log('📝 [MODAL] 🔘 CLIC BOUTON CRÉER!');
+                  handleSubmit(e);
+                }}
+                disabled={loading || !formData.title.trim()}
+                className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    {mode === 'edit' ? 'Modification...' : 'Création...'}
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    {mode === 'edit' ? 'Modifier' : 'Créer la tâche'}
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </motion.div>
@@ -580,5 +634,3 @@ const NewTaskModal = ({
 };
 
 export default NewTaskModal;
-
-console.log('📝 NewTaskModal corrigé - Fix createdBy undefined');
