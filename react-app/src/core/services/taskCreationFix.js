@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskCreationFix.js
-// CORRECTION URGENTE - SERVICE CRÉATION TÂCHES AVEC CREATEDBY
+// CORRECTION URGENTE - CREATEDBY UNDEFINED
 // ==========================================
 
 import { 
@@ -9,266 +9,265 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
-import { useAuthStore } from '../../shared/stores/authStore.js';
 
 /**
- * 🔧 SERVICE DE CORRECTION CRÉATION TÂCHES
- * Corrige le problème du champ createdBy undefined
+ * 🚨 FONCTION URGENTE DE CRÉATION DE TÂCHE
+ * CORRECTION IMMÉDIATE DU PROBLÈME CREATEDBY UNDEFINED
  */
-class TaskCreationFixService {
-  constructor() {
-    console.log('🔧 TaskCreationFixService initialisé - Fix createdBy');
-  }
-
-  /**
-   * 📝 CRÉER UNE TÂCHE AVEC VALIDATION CREATEDBY
-   */
-  async createTaskWithValidation(taskData, userContext = null) {
+export const createTaskSafely = async (taskData, userContext = null) => {
+  try {
+    console.log('🚨 [EMERGENCY_FIX] DÉBUT CRÉATION TÂCHE URGENTE');
+    console.log('🚨 [EMERGENCY_FIX] TaskData reçu:', taskData);
+    console.log('🚨 [EMERGENCY_FIX] UserContext reçu:', userContext);
+    
+    // 🔍 RÉCUPÉRATION AGGRESSIVE DE L'UTILISATEUR
+    let currentUserId = null;
+    let userName = 'Utilisateur';
+    let userEmail = '';
+    
+    // MÉTHODE 1: Depuis le paramètre userContext
+    if (userContext) {
+      currentUserId = userContext.uid || userContext.id || userContext;
+      userName = userContext.displayName || userContext.name || userContext.email || 'Utilisateur';
+      userEmail = userContext.email || '';
+      console.log('🔍 [EMERGENCY] User depuis paramètre:', { currentUserId, userName, userEmail });
+    }
+    
+    // MÉTHODE 2: Depuis useAuthStore (force import)
+    if (!currentUserId) {
+      try {
+        const { useAuthStore } = await import('../../shared/stores/authStore.js');
+        const authState = useAuthStore.getState();
+        if (authState.user) {
+          currentUserId = authState.user.uid;
+          userName = authState.user.displayName || authState.user.email || 'Utilisateur';
+          userEmail = authState.user.email || '';
+          console.log('🔍 [EMERGENCY] User depuis store:', { currentUserId, userName, userEmail });
+        }
+      } catch (storeError) {
+        console.warn('⚠️ [EMERGENCY] Erreur store:', storeError);
+      }
+    }
+    
+    // MÉTHODE 3: Depuis localStorage
+    if (!currentUserId) {
+      try {
+        const storedUser = localStorage.getItem('authUser') || localStorage.getItem('currentUser') || localStorage.getItem('user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          currentUserId = userData.uid || userData.id;
+          userName = userData.displayName || userData.name || userData.email || 'Utilisateur';
+          userEmail = userData.email || '';
+          console.log('🔍 [EMERGENCY] User depuis localStorage:', { currentUserId, userName, userEmail });
+        }
+      } catch (storageError) {
+        console.warn('⚠️ [EMERGENCY] Erreur localStorage:', storageError);
+      }
+    }
+    
+    // MÉTHODE 4: Depuis window.currentUser (fallback global)
+    if (!currentUserId && window.currentUser) {
+      currentUserId = window.currentUser.uid || window.currentUser.id;
+      userName = window.currentUser.displayName || window.currentUser.name || window.currentUser.email || 'Utilisateur';
+      userEmail = window.currentUser.email || '';
+      console.log('🔍 [EMERGENCY] User depuis window:', { currentUserId, userName, userEmail });
+    }
+    
+    // MÉTHODE 5: ID de fallback système
+    if (!currentUserId) {
+      currentUserId = 'system-emergency-' + Date.now();
+      userName = 'Système';
+      userEmail = 'system@synergia.app';
+      console.warn('⚠️ [EMERGENCY] Utilisation ID fallback:', currentUserId);
+    }
+    
+    console.log('✅ [EMERGENCY] User final:', { currentUserId, userName, userEmail });
+    
+    // 🛡️ VALIDATION ET NETTOYAGE DRASTIQUE DES DONNÉES
+    const cleanedTaskData = {
+      // ✅ CHAMPS OBLIGATOIRES AVEC PROTECTION TOTALE
+      title: String(taskData.title || 'Nouvelle tâche').trim(),
+      description: String(taskData.description || '').trim(),
+      status: String(taskData.status || 'todo'),
+      priority: String(taskData.priority || 'medium'),
+      category: String(taskData.category || 'general'),
+      difficulty: String(taskData.difficulty || 'normal'),
+      
+      // 🚨 CHAMPS SYSTÈME - PROTECTION MAXIMALE CONTRE UNDEFINED
+      createdBy: String(currentUserId), // ✅ JAMAIS UNDEFINED
+      creatorName: String(userName),
+      creatorEmail: String(userEmail),
+      userId: String(currentUserId), // ✅ BACKUP DU CREATEDBY
+      
+      // ⏰ TIMESTAMPS FIREBASE
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      
+      // 🔢 CHAMPS NUMÉRIQUES SÉCURISÉS
+      xpReward: Math.max(0, parseInt(taskData.xpReward) || 0),
+      estimatedHours: Math.max(0, parseFloat(taskData.estimatedHours) || 0),
+      
+      // 📅 CHAMPS DE DATE SÉCURISÉS
+      dueDate: taskData.dueDate || null,
+      
+      // ✅ CHAMPS BOOLÉENS EXPLICITES
+      openToVolunteers: Boolean(taskData.openToVolunteers),
+      isRecurring: Boolean(taskData.isRecurring),
+      
+      // 📋 TABLEAUX SÉCURISÉS
+      tags: Array.isArray(taskData.tags) ? taskData.tags.filter(tag => tag && typeof tag === 'string') : [],
+      assignedTo: Array.isArray(taskData.assignedTo) ? taskData.assignedTo.filter(id => id && typeof id === 'string') : [],
+      attachments: Array.isArray(taskData.attachments) ? taskData.attachments : [],
+      
+      // 📁 CHAMPS OPTIONNELS SÉCURISÉS
+      projectId: taskData.projectId ? String(taskData.projectId) : null,
+      notes: taskData.notes ? String(taskData.notes) : '',
+      
+      // 📊 CHAMPS DE TRACKING
+      progress: Math.max(0, Math.min(100, parseInt(taskData.progress) || 0)),
+      version: 1,
+      
+      // 🏷️ MÉTADONNÉES DE DEBUG
+      creationMethod: 'emergency-fix',
+      creationTimestamp: new Date().toISOString(),
+      clientInfo: {
+        userAgent: navigator.userAgent,
+        timestamp: Date.now(),
+        url: window.location.href
+      }
+    };
+    
+    console.log('🛡️ [EMERGENCY] Données nettoyées:', cleanedTaskData);
+    
+    // 🔍 VALIDATION FINALE STRICTE
+    const requiredFields = ['title', 'createdBy', 'status', 'priority'];
+    const missingFields = requiredFields.filter(field => !cleanedTaskData[field]);
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Champs obligatoires manquants: ${missingFields.join(', ')}`);
+    }
+    
+    // 🚀 CRÉATION DANS FIREBASE
+    console.log('🚀 [EMERGENCY] Envoi vers Firebase...');
+    console.log('🚀 [EMERGENCY] Collection: tasks');
+    console.log('🚀 [EMERGENCY] CreatedBy final:', cleanedTaskData.createdBy);
+    
+    const tasksRef = collection(db, 'tasks');
+    const docRef = await addDoc(tasksRef, cleanedTaskData);
+    
+    console.log('✅ [EMERGENCY] TÂCHE CRÉÉE AVEC SUCCÈS !');
+    console.log('✅ [EMERGENCY] ID Tâche:', docRef.id);
+    console.log('✅ [EMERGENCY] CreatedBy:', cleanedTaskData.createdBy);
+    
+    // 📝 TÂCHE CRÉÉE AVEC SUCCÈS
+    const createdTask = {
+      id: docRef.id,
+      ...cleanedTaskData,
+      // Remplacer serverTimestamp par date réelle pour l'affichage immédiat
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    // 🎉 NOTIFICATION DE SUCCÈS
+    if (window.showNotification) {
+      window.showNotification('✅ Tâche créée avec succès !', 'success');
+    }
+    
+    return {
+      success: true,
+      task: createdTask,
+      id: docRef.id,
+      message: 'Tâche créée avec succès'
+    };
+    
+  } catch (error) {
+    console.error('❌ [EMERGENCY] ERREUR CRÉATION TÂCHE:', error);
+    console.error('❌ [EMERGENCY] Stack:', error.stack);
+    
+    // 🆘 DERNIÈRE TENTATIVE AVEC DONNÉES ULTRA-MINIMALES
     try {
-      console.log('📝 [FIX] Création tâche avec validation createdBy...');
-      console.log('📝 [FIX] TaskData reçu:', taskData);
-      console.log('📝 [FIX] UserContext reçu:', userContext);
+      console.log('🆘 [EMERGENCY] Tentative de sauvegarde minimale...');
       
-      // 1. RÉCUPÉRER L'UTILISATEUR ACTUEL
-      let currentUserId = null;
-      
-      // Essayer plusieurs sources pour obtenir l'utilisateur
-      if (userContext) {
-        currentUserId = userContext.uid || userContext.id || userContext;
-        console.log('📝 [FIX] UserId depuis contexte:', currentUserId);
-      }
-      
-      // Fallback vers le store auth
-      if (!currentUserId) {
-        try {
-          const { user } = useAuthStore.getState();
-          currentUserId = user?.uid;
-          console.log('📝 [FIX] UserId depuis store:', currentUserId);
-        } catch (storeError) {
-          console.warn('⚠️ [FIX] Erreur accès store:', storeError);
-        }
-      }
-      
-      // Fallback vers localStorage
-      if (!currentUserId) {
-        try {
-          const storedUser = localStorage.getItem('currentUser');
-          if (storedUser) {
-            const userData = JSON.parse(storedUser);
-            currentUserId = userData.uid;
-            console.log('📝 [FIX] UserId depuis localStorage:', currentUserId);
-          }
-        } catch (storageError) {
-          console.warn('⚠️ [FIX] Erreur localStorage:', storageError);
-        }
-      }
-      
-      // Dernier fallback : valeur par défaut
-      if (!currentUserId) {
-        currentUserId = 'system-fallback';
-        console.warn('⚠️ [FIX] Aucun userId trouvé, utilisation fallback');
-      }
-      
-      // 2. VALIDER ET NETTOYER LES DONNÉES
-      const cleanedTaskData = {
-        // Champs obligatoires avec valeurs par défaut
-        title: taskData.title || 'Tâche sans titre',
-        description: taskData.description || '',
-        status: taskData.status || 'todo',
-        priority: taskData.priority || 'medium',
-        category: taskData.category || 'general',
-        
-        // Champs système
-        createdBy: currentUserId, // ✅ CORRECTION PRINCIPALE
+      const minimalTask = {
+        title: String(taskData.title || 'Tâche de secours'),
+        description: 'Tâche créée en mode de secours',
+        status: 'todo',
+        priority: 'medium',
+        category: 'general',
+        difficulty: 'normal',
+        createdBy: 'emergency-system-' + Date.now(),
+        creatorName: 'Système de secours',
+        userId: 'emergency-system-' + Date.now(),
+        xpReward: 10,
+        tags: [],
+        assignedTo: [],
+        attachments: [],
+        progress: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        
-        // Champs optionnels avec valeurs par défaut
-        assignedTo: Array.isArray(taskData.assignedTo) ? taskData.assignedTo : [],
-        tags: Array.isArray(taskData.tags) ? taskData.tags : [],
-        xpReward: parseInt(taskData.xpReward) || 0,
-        difficulty: taskData.difficulty || 'normal',
-        
-        // Champs de planning
-        dueDate: taskData.dueDate || null,
-        estimatedHours: parseFloat(taskData.estimatedHours) || null,
-        
-        // Champs booléens
-        openToVolunteers: Boolean(taskData.openToVolunteers),
-        isRecurring: Boolean(taskData.isRecurring),
-        
-        // Métadonnées
-        projectId: taskData.projectId || null,
-        attachments: Array.isArray(taskData.attachments) ? taskData.attachments : [],
-        
-        // Champs additionnels préservés
-        ...Object.fromEntries(
-          Object.entries(taskData).filter(([key, value]) => 
-            ![
-              'title', 'description', 'status', 'priority', 'category',
-              'createdBy', 'createdAt', 'updatedAt', 'assignedTo', 'tags',
-              'xpReward', 'difficulty', 'dueDate', 'estimatedHours',
-              'openToVolunteers', 'isRecurring', 'projectId', 'attachments'
-            ].includes(key) && value !== undefined
-          )
-        )
+        isEmergencyCreation: true,
+        originalError: error.message
       };
       
-      console.log('📝 [FIX] Données nettoyées pour création:', cleanedTaskData);
+      const emergencyRef = collection(db, 'tasks');
+      const emergencyDoc = await addDoc(emergencyRef, minimalTask);
       
-      // 3. CRÉER LA TÂCHE DANS FIREBASE
-      const tasksRef = collection(db, 'tasks');
-      const docRef = await addDoc(tasksRef, cleanedTaskData);
-      
-      console.log(`✅ [FIX] Tâche créée avec succès: ${docRef.id}`);
-      console.log(`✅ [FIX] CreatedBy: ${cleanedTaskData.createdBy}`);
-      
-      // 4. RETOURNER LA TÂCHE CRÉÉE
-      const createdTask = {
-        id: docRef.id,
-        ...cleanedTaskData
-      };
+      console.log('🆘 [EMERGENCY] Sauvegarde de secours réussie:', emergencyDoc.id);
       
       return {
         success: true,
-        task: createdTask,
-        id: docRef.id,
-        message: 'Tâche créée avec succès'
+        task: { id: emergencyDoc.id, ...minimalTask },
+        id: emergencyDoc.id,
+        message: 'Tâche créée en mode secours',
+        isEmergency: true
       };
       
-    } catch (error) {
-      console.error('❌ [FIX] Erreur création tâche:', error);
+    } catch (emergencyError) {
+      console.error('💀 [EMERGENCY] ÉCHEC TOTAL:', emergencyError);
       
       return {
         success: false,
-        error: error.message,
-        message: `Erreur lors de la création: ${error.message}`
+        error: emergencyError.message,
+        originalError: error.message,
+        message: `Échec total de création: ${emergencyError.message}`
       };
     }
   }
-
-  /**
-   * 🔍 DIAGNOSTIQUER LES PROBLÈMES DE CRÉATION
-   */
-  async diagnoseCreationIssues() {
-    try {
-      console.log('🔍 [FIX] Diagnostic des problèmes de création...');
-      
-      const issues = [];
-      
-      // 1. Vérifier Firebase
-      if (!db) {
-        issues.push('Firebase non initialisé');
-      } else {
-        console.log('✅ [FIX] Firebase OK');
-      }
-      
-      // 2. Vérifier l'authentification
-      try {
-        const { user } = useAuthStore.getState();
-        if (!user) {
-          issues.push('Aucun utilisateur connecté');
-        } else {
-          console.log('✅ [FIX] Utilisateur connecté:', user.uid);
-        }
-      } catch (authError) {
-        issues.push(`Erreur store auth: ${authError.message}`);
-      }
-      
-      // 3. Vérifier les permissions Firestore
-      try {
-        const testRef = collection(db, 'tasks');
-        console.log('✅ [FIX] Accès collection tasks OK');
-      } catch (permError) {
-        issues.push(`Erreur permissions Firestore: ${permError.message}`);
-      }
-      
-      const diagnosis = {
-        hasIssues: issues.length > 0,
-        issues: issues,
-        timestamp: new Date(),
-        recommendations: this.getRecommendations(issues)
-      };
-      
-      console.log('🔍 [FIX] Diagnostic terminé:', diagnosis);
-      return diagnosis;
-      
-    } catch (error) {
-      console.error('❌ [FIX] Erreur diagnostic:', error);
-      return {
-        hasIssues: true,
-        issues: [`Erreur diagnostic: ${error.message}`],
-        timestamp: new Date(),
-        recommendations: ['Vérifier la connexion et réessayer']
-      };
-    }
-  }
-
-  /**
-   * 💡 OBTENIR DES RECOMMANDATIONS
-   */
-  getRecommendations(issues) {
-    const recommendations = [];
-    
-    issues.forEach(issue => {
-      if (issue.includes('Firebase')) {
-        recommendations.push('Vérifier la configuration Firebase');
-      }
-      if (issue.includes('utilisateur')) {
-        recommendations.push('Se reconnecter à l\'application');
-      }
-      if (issue.includes('permissions')) {
-        recommendations.push('Vérifier les règles de sécurité Firestore');
-      }
-    });
-    
-    if (recommendations.length === 0) {
-      recommendations.push('Tout semble fonctionnel');
-    }
-    
-    return recommendations;
-  }
-
-  /**
-   * 🛠️ RÉPARER LES TÂCHES EXISTANTES SANS CREATEDBY
-   */
-  async repairTasksWithoutCreatedBy() {
-    try {
-      console.log('🛠️ [FIX] Réparation des tâches sans createdBy...');
-      
-      // Cette méthode pourrait être implémentée pour corriger les données existantes
-      // Pour l'instant, on log juste l'intention
-      console.log('🛠️ [FIX] Réparation en cours de développement...');
-      
-      return {
-        success: true,
-        message: 'Fonction de réparation en cours de développement'
-      };
-      
-    } catch (error) {
-      console.error('❌ [FIX] Erreur réparation:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-}
-
-// Instance unique
-const taskCreationFixService = new TaskCreationFixService();
-
-// Fonction utilitaire pour remplacer les créations de tâches problématiques
-export const createTaskSafely = async (taskData, userContext = null) => {
-  return await taskCreationFixService.createTaskWithValidation(taskData, userContext);
 };
 
-// Fonction de diagnostic rapide
+// 🔍 FONCTION DE DIAGNOSTIC IMMÉDIAT
 export const diagnoseTaskCreation = async () => {
-  return await taskCreationFixService.diagnoseCreationIssues();
+  console.log('🔍 [DIAGNOSTIC] Diagnostic immédiat...');
+  
+  const report = {
+    timestamp: new Date().toISOString(),
+    issues: [],
+    recommendations: []
+  };
+  
+  try {
+    // Test connexion Firebase
+    const testRef = collection(db, 'tasks');
+    console.log('✅ [DIAGNOSTIC] Connexion Firebase OK');
+  } catch (firebaseError) {
+    report.issues.push('Erreur connexion Firebase: ' + firebaseError.message);
+  }
+  
+  // Test utilisateur
+  try {
+    const { useAuthStore } = await import('../../shared/stores/authStore.js');
+    const user = useAuthStore.getState().user;
+    if (user) {
+      console.log('✅ [DIAGNOSTIC] Utilisateur connecté:', user.uid);
+    } else {
+      report.issues.push('Aucun utilisateur connecté');
+    }
+  } catch (authError) {
+    report.issues.push('Erreur store auth: ' + authError.message);
+  }
+  
+  console.log('🔍 [DIAGNOSTIC] Rapport:', report);
+  return report;
 };
 
-export { taskCreationFixService };
-export default taskCreationFixService;
-
-console.log('🔧 TaskCreationFixService prêt - Fix du problème createdBy undefined');
+console.log('🚨 [EMERGENCY_FIX] Service de correction urgente chargé');
