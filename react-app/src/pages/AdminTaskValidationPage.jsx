@@ -19,7 +19,6 @@ import {
   AlertTriangle,
   Eye,
   Loader,
-  Filter,
   Wifi,
   WifiOff,
   Zap
@@ -30,14 +29,8 @@ import { adminValidationService } from '../core/services/adminValidationService.
 import { taskService } from '../core/services/taskService.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// ✅ IMPORT HOOK DE SYNCHRONISATION (conditionnel pour éviter les erreurs)
-let useValidationSync = null;
-try {
-  const syncHook = await import('../shared/hooks/useValidationSync.js');
-  useValidationSync = syncHook.useValidationSync || syncHook.default;
-} catch (error) {
-  console.warn('⚠️ useValidationSync non disponible, utilisation du mode classique');
-}
+// ✅ PAS D'IMPORT DYNAMIQUE POUR ÉVITER LES ERREURS DE CHARGEMENT
+// Utilisation directe des services existants
 
 /**
  * 🛡️ PAGE D'ADMINISTRATION DES VALIDATIONS - VERSION CORRIGÉE
@@ -72,30 +65,15 @@ const AdminTaskValidationPage = () => {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
 
-  // ✅ UTILISER LE HOOK DE SYNCHRONISATION SI DISPONIBLE
-  const syncData = useValidationSync ? useValidationSync({
-    autoStart: true,
-    enableRealTime: true,
-    refreshInterval: 30000
-  }) : null;
+  // ✅ MODE CLASSIQUE UNIQUEMENT - PAS DE SYNCHRONISATION COMPLEXE
 
   /**
-   * 🔄 CHARGEMENT INITIAL ET GESTION SYNCHRONISATION
+   * 🔄 CHARGEMENT INITIAL - MODE CLASSIQUE SIMPLE
    */
   useEffect(() => {
-    if (syncData && syncData.isInitialized) {
-      // Utiliser les données synchronisées
-      setValidations(syncData.validations);
-      setStats(syncData.stats);
-      setLoading(syncData.loading);
-      setError(syncData.error);
-      setLastUpdate(syncData.lastUpdate);
-    } else {
-      // Mode classique sans synchronisation temps réel
-      loadValidationsClassic();
-      loadStatsClassic();
-    }
-  }, [activeTab, syncData?.isInitialized, syncData?.validations, syncData?.stats]);
+    loadValidationsClassic();
+    loadStatsClassic();
+  }, [activeTab]);
 
   /**
    * 📥 CHARGER LES VALIDATIONS - MODE CLASSIQUE
@@ -204,16 +182,9 @@ const AdminTaskValidationPage = () => {
   const forceRefresh = async () => {
     try {
       setLoading(true);
-      
-      if (syncData && syncData.forceRefresh) {
-        // Mode synchronisé
-        await syncData.forceRefresh();
-      } else {
-        // Mode classique
-        await loadValidationsClassic();
-        await loadStatsClassic();
-      }
-      
+      // Mode classique simple
+      await loadValidationsClassic();
+      await loadStatsClassic();
       console.log('✅ [ADMIN] Refresh forcé terminé');
     } catch (error) {
       console.error('❌ [ADMIN] Erreur refresh forcé:', error);
@@ -467,18 +438,10 @@ const AdminTaskValidationPage = () => {
                   </h1>
                   <p className="text-gray-600 mt-1 flex items-center gap-2">
                     Gérer les demandes de validation des tâches utilisateurs
-                    {syncData?.isInitialized && (
-                      <span className="inline-flex items-center gap-1 text-green-600">
-                        <Wifi className="w-4 h-4" />
-                        Temps réel
-                      </span>
-                    )}
-                    {!syncData && (
-                      <span className="inline-flex items-center gap-1 text-orange-600">
-                        <RefreshCw className="w-4 h-4" />
-                        Mode classique
-                      </span>
-                    )}
+                    <span className="inline-flex items-center gap-1 text-orange-600">
+                      <RefreshCw className="w-4 h-4" />
+                      Mode classique
+                    </span>
                   </p>
                 </div>
               </div>
@@ -565,7 +528,7 @@ const AdminTaskValidationPage = () => {
               <h4 className="font-medium text-gray-900 mb-2">🔧 Informations de Debug</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p><strong>Sync activé:</strong> {syncData ? '✅ Oui' : '❌ Non'}</p>
+                  <p><strong>Mode:</strong> Classique (stable)</p>
                   <p><strong>Validations chargées:</strong> {validations.length}</p>
                   <p><strong>Erreur:</strong> {error ? '❌ Oui' : '✅ Non'}</p>
                 </div>
