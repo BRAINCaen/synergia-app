@@ -1,12 +1,11 @@
 // ==========================================
 // 📁 react-app/src/shared/hooks/useTaskHistory.js
-// HOOK REACT POUR L'HISTORIQUE DES TÂCHES AVEC FILTRES AVANCÉS
+// HOOK REACT POUR L'HISTORIQUE DES TÂCHES AVEC FILTRES AVANCÉS - CLEAN VERSION
 // ==========================================
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../stores/authStore.js';
 import { taskHistoryService } from '../../core/services/taskHistoryService.js';
-import { taskValidationServiceEnhanced } from '../../core/services/taskValidationServiceEnhanced.js';
 
 /**
  * 🗃️ HOOK POUR L'HISTORIQUE DES TÂCHES
@@ -69,128 +68,6 @@ export const useTaskHistory = (options = {}) => {
   }, [user?.uid, JSON.stringify(filters)]);
 
   /**
-   * 🔍 ANALYSER UNE TÂCHE SPÉCIFIQUE
-   */
-  const analyzeTask = useCallback(async (taskTitle) => {
-    if (!user?.uid || !taskTitle) return null;
-    
-    try {
-      console.log('🔍 [HISTORY-HOOK] Analyse tâche:', taskTitle);
-      
-      const analysis = await taskHistoryService.analyzeTaskTypePerformance(user.uid, taskTitle);
-      
-      console.log('📊 [HISTORY-HOOK] Analyse terminée:', analysis);
-      return analysis;
-      
-    } catch (error) {
-      console.error('❌ [HISTORY-HOOK] Erreur analyse tâche:', error);
-      return null;
-    }
-  }, [user?.uid]);
-
-  /**
-   * 📊 RÉCUPÉRER LES STATISTIQUES ÉTENDUES
-   */
-  const getExtendedStats = useCallback(() => {
-    if (!history.length || !stats) return null;
-
-    // Calculer des métriques supplémentaires basées sur l'historique
-    const totalTasks = history.length;
-    const recurringTasks = history.filter(task => task.isRecurring).length;
-    const nonRecurringTasks = totalTasks - recurringTasks;
-    
-    // Répartition par difficulté
-    const difficultyDistribution = {};
-    history.forEach(task => {
-      const diff = task.difficulty || 'medium';
-      difficultyDistribution[diff] = (difficultyDistribution[diff] || 0) + 1;
-    });
-
-    // Répartition par rôle Synergia
-    const roleDistribution = {};
-    history.forEach(task => {
-      if (task.roleId) {
-        roleDistribution[task.roleId] = (roleDistribution[task.roleId] || 0) + 1;
-      }
-    });
-
-    // Analyse temporelle
-    const last30Days = history.filter(task => {
-      const taskDate = new Date(task.completedAt);
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      return taskDate >= thirtyDaysAgo;
-    }).length;
-
-    const last7Days = history.filter(task => {
-      const taskDate = new Date(task.completedAt);
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      return taskDate >= sevenDaysAgo;
-    }).length;
-
-    // Performance moyenne
-    const tasksWithTime = history.filter(task => task.timeSpent && task.timeSpent > 0);
-    const averageTime = tasksWithTime.length > 0 ? 
-      tasksWithTime.reduce((sum, task) => sum + task.timeSpent, 0) / tasksWithTime.length : 0;
-
-    // XP total de l'historique
-    const totalHistoryXP = history.reduce((sum, task) => sum + (task.xpReward || 0), 0);
-
-    return {
-      // Stats de base
-      ...stats,
-      
-      // Métriques étendues
-      totalTasksInHistory: totalTasks,
-      recurringTasksCompleted: recurringTasks,
-      nonRecurringTasksCompleted: nonRecurringTasks,
-      recurringPercentage: totalTasks > 0 ? Math.round((recurringTasks / totalTasks) * 100) : 0,
-      
-      // Répartitions
-      difficultyDistribution,
-      roleDistribution,
-      
-      // Performance temporelle
-      tasksLast30Days: last30Days,
-      tasksLast7Days: last7Days,
-      
-      // Performance générale
-      averageTimePerTask: Math.round(averageTime),
-      totalXPFromHistory: totalHistoryXP,
-      
-      // Efficacité
-      tasksPerWeek: last7Days,
-      tasksPerMonth: last30Days,
-      productivityTrend: this.calculateProductivityTrend(history)
-    };
-  }, [history, stats]);
-
-  /**
-   * 🎯 CALCULER LA TENDANCE DE PRODUCTIVITÉ
-   */
-  const calculateProductivityTrend = useCallback((taskHistory) => {
-    if (taskHistory.length < 2) return 'stable';
-
-    // Comparer les 15 derniers jours avec les 15 précédents
-    const now = new Date();
-    const last15Days = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
-    const prev15Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-    const recentTasks = taskHistory.filter(task => {
-      const taskDate = new Date(task.completedAt);
-      return taskDate >= last15Days;
-    }).length;
-
-    const previousTasks = taskHistory.filter(task => {
-      const taskDate = new Date(task.completedAt);
-      return taskDate >= prev15Days && taskDate < last15Days;
-    }).length;
-
-    if (recentTasks > previousTasks * 1.2) return 'increasing';
-    if (recentTasks < previousTasks * 0.8) return 'decreasing';
-    return 'stable';
-  }, []);
-
-  /**
    * 🔄 METTRE À JOUR LES FILTRES
    */
   const updateFilters = useCallback((newFilters) => {
@@ -212,16 +89,6 @@ export const useTaskHistory = (options = {}) => {
    */
   const getTasksByRole = useCallback((roleId) => {
     return history.filter(task => task.roleId === roleId);
-  }, [history]);
-
-  /**
-   * 📅 OBTENIR LES TÂCHES PAR PÉRIODE
-   */
-  const getTasksByPeriod = useCallback((startDate, endDate) => {
-    return history.filter(task => {
-      const taskDate = new Date(task.completedAt);
-      return taskDate >= startDate && taskDate <= endDate;
-    });
   }, [history]);
 
   /**
@@ -269,7 +136,6 @@ export const useTaskHistory = (options = {}) => {
     // Données principales
     history,
     stats,
-    extendedStats: getExtendedStats(),
     
     // États
     loading,
@@ -282,12 +148,10 @@ export const useTaskHistory = (options = {}) => {
     
     // Actions
     refetch: loadHistory,
-    analyzeTask,
     
     // Utilitaires de données
     getTasksByType,
     getTasksByRole,
-    getTasksByPeriod,
     getTopTasks,
     
     // Métriques
@@ -316,7 +180,7 @@ export const useTaskStats = () => {
       setLoading(true);
       setError(null);
 
-      const stats = await taskValidationServiceEnhanced.getUserTaskStats(user.uid);
+      const stats = await taskHistoryService.getUserTaskStats(user.uid);
       setGlobalStats(stats);
 
     } catch (err) {
@@ -336,41 +200,5 @@ export const useTaskStats = () => {
     loading,
     error,
     refetch: loadGlobalStats
-  };
-};
-
-/**
- * 🏆 HOOK POUR LE CLASSEMENT DES TÂCHES
- */
-export const useTaskLeaderboard = (timeframe = 'all', limit = 10) => {
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const loadLeaderboard = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const data = await taskValidationServiceEnhanced.getTaskLeaderboard(timeframe, limit);
-      setLeaderboard(data || []);
-
-    } catch (err) {
-      console.error('❌ [LEADERBOARD-HOOK] Erreur chargement classement:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [timeframe, limit]);
-
-  useEffect(() => {
-    loadLeaderboard();
-  }, [loadLeaderboard]);
-
-  return {
-    leaderboard,
-    loading,
-    error,
-    refetch: loadLeaderboard
   };
 };
