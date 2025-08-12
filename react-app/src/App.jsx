@@ -5,6 +5,8 @@
 
 import globalFirebasePatch from './core/services/globalFirebasePatch.js';
 import { createTaskSafely } from './core/services/taskCreationFixService.js';
+// ✅ CORRECTION AJOUTÉE - Import userResolverService pour corriger "User is not defined"
+import { userResolverService } from './core/services/userResolverService.js';
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -42,193 +44,112 @@ import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
 // 🔐 COMPOSANT DE PROTECTION DES ROUTES
 // ==========================================
 const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuthStore();
+  const { isAuthenticated, loading } = useAuthStore();
   
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin text-4xl mb-4">⚙️</div>
-          <p className="text-gray-600">Chargement...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-900 to-gray-900">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white"></div>
       </div>
     );
   }
   
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return children;
+  return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
 // ==========================================
-// 🚀 COMPOSANT PRINCIPAL CORRIGÉ
+// 🚀 COMPOSANT APP PRINCIPAL
 // ==========================================
-export default function App() {
-  const { initializeAuth } = useAuthStore();
+const App = () => {
+  const { isAuthenticated, loading } = useAuthStore();
 
+  // ==========================================
+  // 🔧 INITIALISATION UNIQUE
+  // ==========================================
   useEffect(() => {
-    console.log('🔐 Initialisation de l\'authentification...');
-    initializeAuth();
+    console.log('🚀 Initialisation App principale...');
+    
+    // Initialiser l'AuthStore une seule fois
     initializeAuthStore();
-  }, [initializeAuth]);
+    
+    // Initialiser userResolverService globalement
+    if (typeof window !== 'undefined') {
+      window.userResolverService = userResolverService;
+      console.log('✅ UserResolverService disponible globalement');
+    }
+    
+    console.log('✅ App initialisée');
+  }, []);
 
+  // ==========================================
+  // 🔄 LOADING GLOBAL
+  // ==========================================
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-900 to-gray-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Chargement de Synergia...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // 📱 SYSTÈME DE ROUTING PRINCIPAL
+  // ==========================================
   return (
     <Router>
-      <div className="App">
-        <Routes>
-          {/* Route publique de connexion - SANS LAYOUT */}
-          <Route path="/login" element={<Login />} />
-          
-          {/* 🔧 CORRECTION: Routes avec Layout comme wrapper individuel */}
-          <Route path="/" element={
+      <Routes>
+        {/* 🔐 Page de connexion */}
+        <Route 
+          path="/login" 
+          element={
+            isAuthenticated ? <Navigate to="/dashboard" /> : <Login />
+          } 
+        />
+
+        {/* 🏠 Routes protégées avec Layout */}
+        <Route 
+          path="/*" 
+          element={
             <ProtectedRoute>
               <Layout>
-                <Navigate to="/dashboard" replace />
+                <Routes>
+                  {/* Dashboard par défaut */}
+                  <Route path="/" element={<Navigate to="/dashboard" />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  
+                  {/* Pages principales */}
+                  <Route path="/tasks" element={<TasksPage />} />
+                  <Route path="/projects" element={<ProjectsPage />} />
+                  <Route path="/analytics" element={<AnalyticsPage />} />
+                  <Route path="/gamification" element={<GamificationPage />} />
+                  <Route path="/team" element={<TeamPage />} />
+                  <Route path="/users" element={<UsersPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/rewards" element={<RewardsPage />} />
+                  <Route path="/badges" element={<BadgesPage />} />
+                  <Route path="/time-track" element={<TimeTrackPage />} />
+                  
+                  {/* Pages spéciales */}
+                  <Route path="/onboarding" element={<OnboardingPage />} />
+                  
+                  {/* Pages admin */}
+                  <Route path="/admin-tasks" element={<AdminTaskValidationPage />} />
+                  <Route path="/admin-test" element={<CompleteAdminTestPage />} />
+                  
+                  {/* Route fallback */}
+                  <Route path="*" element={<Navigate to="/dashboard" />} />
+                </Routes>
               </Layout>
             </ProtectedRoute>
-          } />
-          
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Layout>
-                <Dashboard />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          {/* Pages principales avec Layout */}
-          <Route path="/tasks" element={
-            <ProtectedRoute>
-              <Layout>
-                <TasksPage />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/projects" element={
-            <ProtectedRoute>
-              <Layout>
-                <ProjectsPage />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/analytics" element={
-            <ProtectedRoute>
-              <Layout>
-                <AnalyticsPage />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/gamification" element={
-            <ProtectedRoute>
-              <Layout>
-                <GamificationPage />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/team" element={
-            <ProtectedRoute>
-              <Layout>
-                <TeamPage />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/users" element={
-            <ProtectedRoute>
-              <Layout>
-                <UsersPage />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/onboarding" element={
-            <ProtectedRoute>
-              <Layout>
-                <OnboardingPage />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <Layout>
-                <ProfilePage />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/settings" element={
-            <ProtectedRoute>
-              <Layout>
-                <SettingsPage />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/rewards" element={
-            <ProtectedRoute>
-              <Layout>
-                <RewardsPage />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/badges" element={
-            <ProtectedRoute>
-              <Layout>
-                <BadgesPage />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/time-track" element={
-            <ProtectedRoute>
-              <Layout>
-                <TimeTrackPage />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          {/* Routes admin */}
-          <Route path="/admin/task-validation" element={
-            <ProtectedRoute>
-              <Layout>
-                <AdminTaskValidationPage />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/admin/test" element={
-            <ProtectedRoute>
-              <Layout>
-                <CompleteAdminTestPage />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          {/* Route 404 - SANS LAYOUT */}
-          <Route path="*" element={
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 flex items-center justify-center">
-              <div className="text-center">
-                <h1 className="text-6xl font-bold text-white mb-4">404</h1>
-                <p className="text-gray-400 mb-8">Page non trouvée</p>
-                <button
-                  onClick={() => window.location.href = '/dashboard'}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
-                >
-                  🏠 Retour au Dashboard
-                </button>
-              </div>
-            </div>
-          } />
-        </Routes>
-      </div>
+          } 
+        />
+      </Routes>
     </Router>
   );
-}
+};
+
+export default App;
