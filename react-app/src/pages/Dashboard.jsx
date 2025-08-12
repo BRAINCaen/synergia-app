@@ -21,7 +21,9 @@ import {
   Plus,
   Flame,
   Award,
-  RefreshCw
+  RefreshCw,
+  FolderOpen,
+  AlertCircle
 } from 'lucide-react';
 
 // ✅ HOOKS FIREBASE FONCTIONNELS - FINI LES DONNÉES MOCK !
