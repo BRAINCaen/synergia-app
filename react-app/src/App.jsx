@@ -7,6 +7,8 @@ import globalFirebasePatch from './core/services/globalFirebasePatch.js';
 import { createTaskSafely } from './core/services/taskCreationFixService.js';
 // ✅ CORRECTION AJOUTÉE - Import userResolverService pour corriger "User is not defined"
 import { userResolverService } from './core/services/userResolverService.js';
+// ✅ CORRECTION AJOUTÉE - Import globalErrorFix pour corriger "Repeat is not defined"
+import './core/globalErrorFix.js';
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
