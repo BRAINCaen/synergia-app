@@ -92,7 +92,7 @@ const TasksPage = () => {
       setLoading(true);
       setError('');
       
-      console.log('📚 [TASKS] Chargement des tâches actives...');
+      console.log('📚 [TASKS] Chargement des tâches...');
       
       // ✅ CORRECTION ERREUR CHARGEMENT - Gestion robuste des différents formats
       const result = await taskService.getAllTasks();
@@ -115,18 +115,10 @@ const TasksPage = () => {
         return;
       }
       
-      // ✅ FILTRER LES TÂCHES ARCHIVÉES ET TERMINÉES - PRÉSERVÉ
-      const activeTasks = fetchedTasks.filter(task => {
-        if (task.status === 'archived') return false;
-        if (task.status === 'completed' && statusFilter !== 'completed') return false;
-        if (task.isDeleted || task.archived || task.archivedAt) return false;
-        return true;
-      });
+      console.log('✅ [TASKS] TOUTES LES TÂCHES chargées:', fetchedTasks.length);
       
-      console.log('✅ [TASKS] Tâches actives chargées:', activeTasks.length);
-      console.log('📊 [TASKS] Tâches filtrées (archivées exclues):', fetchedTasks.length - activeTasks.length);
-      
-      setTasks(activeTasks);
+      // ✅ GARDER TOUTES LES TÂCHES - PAS DE FILTRAGE ICI
+      setTasks(fetchedTasks);
       
     } catch (error) {
       console.error('❌ [TASKS] Erreur chargement:', error);
@@ -137,43 +129,53 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ LOGIQUE DE FILTRAGE DES TÂCHES DANS LES ONGLETS - PRÉSERVÉE
+  // ✅ LOGIQUE DE TRI DES TÂCHES - CORRIGÉE SELON VOS SPÉCIFICATIONS EXACTES
+  
+  // 📝 MES TÂCHES : Tâches qui me sont assignées UNIQUEMENT
   const myTasks = tasks.filter(task => {
     if (!task || !user?.uid) return false;
     
-    const isAssigned = task.assignedTo && Array.isArray(task.assignedTo) 
-      ? task.assignedTo.includes(user.uid)
-      : task.assignedTo === user.uid;
+    // Vérifier si la tâche m'est assignée
+    const isAssignedToMe = task.assignedTo && (
+      (Array.isArray(task.assignedTo) && task.assignedTo.includes(user.uid)) ||
+      (typeof task.assignedTo === 'string' && task.assignedTo === user.uid)
+    );
     
-    const isCreated = task.createdBy === user.uid;
-    const isOwner = task.ownerId === user.uid;
-    
-    return isAssigned || isCreated || isOwner;
+    return isAssignedToMe;
   });
 
+  // 💡 DISPONIBLES : Tâches SANS assignation
   const availableTasks = tasks.filter(task => {
     if (!task || !user?.uid) return false;
     
-    const isNotAssigned = !task.assignedTo || 
+    // Tâche sans assignation = pas d'assignedTo OU assignedTo vide
+    const hasNoAssignment = !task.assignedTo || 
       (Array.isArray(task.assignedTo) && task.assignedTo.length === 0) ||
-      (typeof task.assignedTo === 'string' && task.assignedTo === '');
+      (typeof task.assignedTo === 'string' && task.assignedTo.trim() === '');
     
-    const isNotMine = task.createdBy !== user.uid;
-    const isOpen = task.status === 'todo' || task.status === 'open' || !task.status;
+    // Exclure les tâches terminées/archivées
+    const isActive = task.status !== 'completed' && 
+                     task.status !== 'archived' && 
+                     !task.isDeleted;
     
-    return isNotAssigned && isNotMine && isOpen;
+    return hasNoAssignment && isActive;
   });
 
+  // 👥 AUTRES : Tâches assignées à d'AUTRES utilisateurs
   const otherTasks = tasks.filter(task => {
     if (!task || !user?.uid) return false;
     
-    const isNotMine = task.createdBy !== user.uid;
-    const isAssignedToOthers = task.assignedTo && 
-      (Array.isArray(task.assignedTo) 
-        ? !task.assignedTo.includes(user.uid) && task.assignedTo.length > 0
-        : task.assignedTo !== user.uid && task.assignedTo !== '');
+    // Tâche assignée à quelqu'un d'autre (pas à moi)
+    const isAssignedToOthers = task.assignedTo && (
+      (Array.isArray(task.assignedTo) && 
+       task.assignedTo.length > 0 && 
+       !task.assignedTo.includes(user.uid)) ||
+      (typeof task.assignedTo === 'string' && 
+       task.assignedTo.trim() !== '' && 
+       task.assignedTo !== user.uid)
+    );
     
-    return isNotMine && isAssignedToOthers;
+    return isAssignedToOthers;
   });
 
   /**
@@ -219,7 +221,7 @@ const TasksPage = () => {
   };
 
   /**
-   * 📋 OBTENIR LES TÂCHES ACTUELLES SELON L'ONGLET - PRÉSERVÉ
+   * 📋 OBTENIR LES TÂCHES ACTUELLES SELON L'ONGLET - LOGIQUE CORRIGÉE
    */
   const getCurrentTasks = () => {
     switch (activeTab) {
@@ -230,7 +232,13 @@ const TasksPage = () => {
       case 'other':
         return getFilteredTasks(otherTasks);
       case 'history':
-        return history || [];
+        // 📚 HISTORIQUE : Tâches terminées ET validées par admin
+        const completedTasks = tasks.filter(task => 
+          task.status === 'completed' || 
+          task.status === 'validated' || 
+          task.isValidated === true
+        );
+        return getFilteredTasks(completedTasks.concat(history || []));
       default:
         return [];
     }
