@@ -28,7 +28,7 @@ import {
 import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// Composants
+// ✅ COMPOSANTS DASHBOARD CRÉÉS
 import StatsCard from '../components/dashboard/StatsCard.jsx';
 import ActivityFeed from '../components/dashboard/ActivityFeed.jsx';
 import QuickActions from '../components/dashboard/QuickActions.jsx';
