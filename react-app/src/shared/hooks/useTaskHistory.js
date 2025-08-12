@@ -1,14 +1,23 @@
 // ==========================================
 // 📁 react-app/src/shared/hooks/useTaskHistory.js
-// HOOK REACT POUR L'HISTORIQUE DES TÂCHES AVEC FILTRES AVANCÉS - CLEAN VERSION
+// HOOK REACT POUR L'HISTORIQUE DES TÂCHES - VERSION CORRIGÉE SANS ERREURS USERID
 // ==========================================
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../stores/authStore.js';
-import { taskHistoryService } from '../../core/services/taskHistoryService.js';
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  limit as firestoreLimit,
+  getDocs 
+} from 'firebase/firestore';
+import { db } from '../../core/firebase.js';
 
 /**
- * 🗃️ HOOK POUR L'HISTORIQUE DES TÂCHES
+ * 🗃️ HOOK POUR L'HISTORIQUE DES TÂCHES - VERSION SÉCURISÉE
+ * Correction des erreurs de validation userId
  */
 export const useTaskHistory = (options = {}) => {
   const { user } = useAuthStore();
@@ -31,27 +40,81 @@ export const useTaskHistory = (options = {}) => {
   });
 
   /**
-   * 📋 CHARGER L'HISTORIQUE AVEC FILTRES
+   * 🛡️ VALIDATION SÉCURISÉE DU USERID
+   */
+  const validateUserId = useCallback((userId) => {
+    if (!userId) return { isValid: false, error: 'UserId manquant' };
+    
+    // Convertir en string de manière sécurisée
+    let cleanId;
+    try {
+      cleanId = String(userId).trim();
+    } catch (error) {
+      return { isValid: false, error: 'UserId non convertible' };
+    }
+
+    // Vérifications de base
+    if (!cleanId || cleanId === 'undefined' || cleanId === 'null' || cleanId.length < 5) {
+      return { isValid: false, error: 'UserId invalide' };
+    }
+
+    return { isValid: true, cleanId, error: null };
+  }, []);
+
+  /**
+   * 📋 CHARGER L'HISTORIQUE AVEC VALIDATION SÉCURISÉE
    */
   const loadHistory = useCallback(async () => {
     if (!user?.uid) {
       setLoading(false);
+      setHistory([]);
+      setStats(null);
       return;
     }
     
+    // ✅ VALIDATION SÉCURISÉE DU USERID
+    const validation = validateUserId(user.uid);
+    if (!validation.isValid) {
+      console.warn('⚠️ [HISTORY] UserID invalide:', validation.error);
+      setHistory([]);
+      setStats(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
       
-      console.log('📋 [HISTORY-HOOK] Chargement historique avec filtres:', filters);
+      console.log('📋 [HISTORY-HOOK] Chargement historique pour:', validation.cleanId);
       
-      // Charger l'historique et les stats en parallèle
-      const [historyData, statsData] = await Promise.all([
-        taskHistoryService.getUserTaskHistory(user.uid, filters),
-        taskHistoryService.getUserTaskStats(user.uid)
-      ]);
+      // ✅ REQUÊTE FIRESTORE SÉCURISÉE
+      // Rechercher dans la collection task_history
+      const historyQuery = query(
+        collection(db, 'task_history'),
+        where('userId', '==', validation.cleanId),
+        orderBy('completedAt', 'desc'),
+        firestoreLimit(filters.limit)
+      );
       
-      setHistory(historyData || []);
+      const historySnapshot = await getDocs(historyQuery);
+      const historyData = [];
+      
+      historySnapshot.forEach(doc => {
+        const data = doc.data();
+        historyData.push({
+          id: doc.id,
+          ...data,
+          // Conversion sécurisée des timestamps
+          completedAt: data.completedAt?.toDate?.() || data.completedAt || new Date(),
+          createdAt: data.createdAt?.toDate?.() || data.createdAt || new Date()
+        });
+      });
+
+      // ✅ CALCUL DES STATISTIQUES SANS VALIDATION USERID STRICTE
+      const statsData = calculateStatsFromHistory(historyData);
+      
+      setHistory(historyData);
       setStats(statsData);
       setLastUpdate(new Date());
       
@@ -65,7 +128,86 @@ export const useTaskHistory = (options = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [user?.uid, JSON.stringify(filters)]);
+  }, [user?.uid, validateUserId, filters.limit]);
+
+  /**
+   * 📊 CALCUL DES STATISTIQUES SANS ERREURS USERID
+   */
+  const calculateStatsFromHistory = useCallback((historyData) => {
+    if (!historyData || historyData.length === 0) {
+      return {
+        totalCompleted: 0,
+        totalXP: 0,
+        totalTimeSpent: 0,
+        tasksThisWeek: 0,
+        tasksThisMonth: 0,
+        totalRecurringCompleted: 0,
+        averageXpPerTask: 0,
+        averageTimePerTask: 0,
+        tasksByDifficulty: {},
+        tasksByRole: {},
+        recentTasks: []
+      };
+    }
+
+    const now = new Date();
+    const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    let totalXP = 0;
+    let totalTimeSpent = 0;
+    let tasksThisWeek = 0;
+    let tasksThisMonth = 0;
+    let totalRecurringCompleted = 0;
+    const tasksByDifficulty = {};
+    const tasksByRole = {};
+
+    historyData.forEach(task => {
+      // XP total
+      totalXP += task.xpReward || 0;
+      
+      // Temps total
+      totalTimeSpent += task.timeSpent || 0;
+      
+      // Tâches cette semaine
+      const taskDate = new Date(task.completedAt);
+      if (taskDate >= weekStart) {
+        tasksThisWeek++;
+      }
+      
+      // Tâches ce mois
+      if (taskDate >= monthStart) {
+        tasksThisMonth++;
+      }
+      
+      // Tâches récurrentes
+      if (task.isRecurring) {
+        totalRecurringCompleted++;
+      }
+      
+      // Par difficulté
+      const difficulty = task.difficulty || 'normal';
+      tasksByDifficulty[difficulty] = (tasksByDifficulty[difficulty] || 0) + 1;
+      
+      // Par rôle (sans validation stricte)
+      const roleId = task.roleId || task.role || 'unassigned';
+      tasksByRole[roleId] = (tasksByRole[roleId] || 0) + 1;
+    });
+
+    return {
+      totalCompleted: historyData.length,
+      totalXP,
+      totalTimeSpent,
+      tasksThisWeek,
+      tasksThisMonth,
+      totalRecurringCompleted,
+      averageXpPerTask: historyData.length > 0 ? Math.round(totalXP / historyData.length) : 0,
+      averageTimePerTask: historyData.length > 0 ? Math.round(totalTimeSpent / historyData.length) : 0,
+      tasksByDifficulty,
+      tasksByRole,
+      recentTasks: historyData.slice(0, 5)
+    };
+  }, []);
 
   /**
    * 🔄 METTRE À JOUR LES FILTRES
@@ -78,36 +220,43 @@ export const useTaskHistory = (options = {}) => {
   }, []);
 
   /**
-   * 📝 OBTENIR LES TÂCHES PAR TYPE
+   * 📝 OBTENIR LES TÂCHES PAR TYPE (VERSION SÉCURISÉE)
    */
   const getTasksByType = useCallback((taskTitle) => {
+    if (!taskTitle || !history) return [];
     return history.filter(task => task.title === taskTitle);
   }, [history]);
 
   /**
-   * 📊 OBTENIR LES TÂCHES PAR RÔLE
+   * 📊 OBTENIR LES TÂCHES PAR RÔLE (VERSION SÉCURISÉE)
    */
   const getTasksByRole = useCallback((roleId) => {
-    return history.filter(task => task.roleId === roleId);
+    if (!roleId || !history) return [];
+    return history.filter(task => 
+      task.roleId === roleId || 
+      task.role === roleId
+    );
   }, [history]);
 
   /**
-   * 🎯 OBTENIR LES TÂCHES LES PLUS FRÉQUENTES
+   * 🎯 OBTENIR LES TÂCHES LES PLUS FRÉQUENTES (VERSION SÉCURISÉE)
    */
   const getTopTasks = useCallback((limit = 5) => {
+    if (!history || history.length === 0) return [];
+    
     const taskCounts = {};
     
     history.forEach(task => {
-      const key = task.title;
+      const key = task.title || 'Tâche sans titre';
       if (!taskCounts[key]) {
         taskCounts[key] = {
-          title: task.title,
+          title: key,
           count: 0,
           totalXP: 0,
           totalTime: 0,
-          isRecurring: task.isRecurring,
-          roleId: task.roleId,
-          difficulty: task.difficulty,
+          isRecurring: task.isRecurring || false,
+          roleId: task.roleId || task.role || 'unassigned',
+          difficulty: task.difficulty || 'normal',
           lastCompleted: task.completedAt
         };
       }
@@ -124,6 +273,36 @@ export const useTaskHistory = (options = {}) => {
     return Object.values(taskCounts)
       .sort((a, b) => b.count - a.count)
       .slice(0, limit);
+  }, [history]);
+
+  /**
+   * 📈 OBTENIR LES TENDANCES HEBDOMADAIRES
+   */
+  const getWeeklyTrends = useCallback(() => {
+    if (!history || history.length === 0) return [];
+    
+    const now = new Date();
+    const trends = [];
+    
+    // Calculer les 4 dernières semaines
+    for (let i = 0; i < 4; i++) {
+      const weekStart = new Date(now.getTime() - ((i + 1) * 7 * 24 * 60 * 60 * 1000));
+      const weekEnd = new Date(now.getTime() - (i * 7 * 24 * 60 * 60 * 1000));
+      
+      const weekTasks = history.filter(task => {
+        const taskDate = new Date(task.completedAt);
+        return taskDate >= weekStart && taskDate < weekEnd;
+      });
+      
+      trends.unshift({
+        week: `Semaine ${4 - i}`,
+        taskCount: weekTasks.length,
+        totalXP: weekTasks.reduce((sum, task) => sum + (task.xpReward || 0), 0),
+        totalTime: weekTasks.reduce((sum, task) => sum + (task.timeSpent || 0), 0)
+      });
+    }
+    
+    return trends;
   }, [history]);
 
   // Charger l'historique au montage et quand les filtres changent
@@ -149,10 +328,11 @@ export const useTaskHistory = (options = {}) => {
     // Actions
     refetch: loadHistory,
     
-    // Utilitaires de données
+    // Utilitaires de données (versions sécurisées)
     getTasksByType,
     getTasksByRole,
     getTopTasks,
+    getWeeklyTrends,
     
     // Métriques
     hasData: history.length > 0,
@@ -162,7 +342,7 @@ export const useTaskHistory = (options = {}) => {
 };
 
 /**
- * 📊 HOOK SPÉCIALISÉ POUR LES STATISTIQUES GLOBALES
+ * 📊 HOOK SPÉCIALISÉ POUR LES STATISTIQUES GLOBALES (VERSION SÉCURISÉE)
  */
 export const useTaskStats = () => {
   const { user } = useAuthStore();
@@ -173,6 +353,20 @@ export const useTaskStats = () => {
   const loadGlobalStats = useCallback(async () => {
     if (!user?.uid) {
       setLoading(false);
+      setGlobalStats(null);
+      return;
+    }
+
+    // ✅ VALIDATION SÉCURISÉE DU USERID
+    let cleanUserId;
+    try {
+      cleanUserId = String(user.uid).trim();
+      if (!cleanUserId || cleanUserId.length < 5) {
+        throw new Error('UserId invalide');
+      }
+    } catch (error) {
+      console.warn('⚠️ [STATS] UserId invalide:', error);
+      setLoading(false);
       return;
     }
 
@@ -180,12 +374,34 @@ export const useTaskStats = () => {
       setLoading(true);
       setError(null);
 
-      const stats = await taskHistoryService.getUserTaskStats(user.uid);
-      setGlobalStats(stats);
+      // Requête sécurisée pour les statistiques
+      const statsQuery = query(
+        collection(db, 'task_history'),
+        where('userId', '==', cleanUserId)
+      );
+      
+      const statsSnapshot = await getDocs(statsQuery);
+      const tasks = [];
+      
+      statsSnapshot.forEach(doc => {
+        tasks.push(doc.data());
+      });
+
+      // Calculer les statistiques globales
+      const globalStats = {
+        totalTasks: tasks.length,
+        totalXP: tasks.reduce((sum, task) => sum + (task.xpReward || 0), 0),
+        totalTime: tasks.reduce((sum, task) => sum + (task.timeSpent || 0), 0),
+        completionRate: tasks.length > 0 ? 100 : 0, // Toutes les tâches en historique sont complétées
+        averageXP: tasks.length > 0 ? Math.round(tasks.reduce((sum, task) => sum + (task.xpReward || 0), 0) / tasks.length) : 0
+      };
+
+      setGlobalStats(globalStats);
 
     } catch (err) {
       console.error('❌ [STATS-HOOK] Erreur chargement stats:', err);
       setError(err.message);
+      setGlobalStats(null);
     } finally {
       setLoading(false);
     }
