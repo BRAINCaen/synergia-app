@@ -9,6 +9,8 @@ import { createTaskSafely } from './core/services/taskCreationFixService.js';
 import { userResolverService } from './core/services/userResolverService.js';
 // ✅ CORRECTION AJOUTÉE - Import globalErrorFix pour corriger "Repeat is not defined"
 import './core/globalErrorFix.js';
+// ✅ CORRECTION MAJEURE - Import userErrorGlobalFix pour éliminer définitivement "User is not defined"
+import './core/userErrorGlobalFix.js';
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
