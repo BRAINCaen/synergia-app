@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskValidationServiceEnhanced.js
-// SERVICE DE VALIDATION AVEC INTÉGRATION HISTORIQUE COMPLÈTE
+// SERVICE DE VALIDATION AVEC INTÉGRATION HISTORIQUE COMPLÈTE - SYNTAX FIX
 // ==========================================
 
 import { 
@@ -27,7 +27,7 @@ import {
 } from 'firebase/storage';
 import { db, storage } from '../firebase.js';
 import { taskAssignmentService } from './taskAssignmentService.js';
-import { taskHistoryService } from './taskHistoryService.js'; // ✅ IMPORT DU SERVICE HISTORIQUE
+import { taskHistoryService } from './taskHistoryService.js';
 
 /**
  * 🔄 SERVICE DE VALIDATION AVEC HISTORIQUE AUTOMATIQUE
@@ -213,7 +213,7 @@ class TaskValidationServiceEnhanced {
         
         console.log('🏆 [APPROVE] XP distribués pour assignation multiple:', result);
       } else {
-        // ✅ ATTRIBUTION XP + ARCHIVAGE AUTOMATIQUE POUR TÂCHE STANDARD
+        // Attribution XP + Archivage automatique pour tâche standard
         console.log('🏆 [APPROVE] Attribution XP pour tâche standard...');
         
         const xpResult = await this.awardXPToUserWithSync(
@@ -225,7 +225,7 @@ class TaskValidationServiceEnhanced {
 
         console.log('✅ [APPROVE] XP attribués:', xpResult);
 
-        // 📚 ARCHIVAGE AUTOMATIQUE DANS L'HISTORIQUE
+        // Archivage automatique dans l'historique
         console.log('📚 [APPROVE] Début archivage automatique...');
         
         const archiveResult = await this.archiveTaskToHistory(
@@ -269,4 +269,449 @@ class TaskValidationServiceEnhanced {
       // Préparer les données de completion pour l'historique
       const completionData = {
         userId: validationData.userId,
-        userName: userData.displayName || userData.email
+        userName: userData.displayName || userData.email || 'Utilisateur',
+        userDisplayName: userData.displayName || 'Utilisateur',
+        
+        // Données de validation
+        validatedBy: adminId,
+        validatedAt: new Date(),
+        adminComment: adminComment,
+        submissionComment: validationData.comment || '',
+        submissionPhoto: validationData.photoUrl || null,
+        submissionVideo: validationData.videoUrl || null,
+        
+        // Données de performance
+        timeSpent: validationData.timeSpent || null,
+        quality: validationData.quality || 'good',
+        wasVolunteer: validationData.wasVolunteer || false,
+        
+        // Données du projet si disponible
+        projectName: validationData.projectName || null,
+        
+        // Résultats XP
+        xpAwarded: xpResult?.xpAwarded || validationData.xpAmount || 0,
+        leveledUp: xpResult?.leveledUp || false
+      };
+
+      // Archiver la tâche dans l'historique
+      const archiveResult = await taskHistoryService.archiveCompletedTask(
+        taskId, 
+        completionData
+      );
+
+      console.log('📚 [ARCHIVE] Tâche archivée avec succès:', archiveResult);
+      
+      return archiveResult;
+
+    } catch (error) {
+      console.error('❌ [ARCHIVE] Erreur archivage tâche:', error);
+      // Ne pas faire échouer la validation si l'archivage échoue
+      console.warn('⚠️ [ARCHIVE] Archivage échoué mais validation maintenue');
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🏆 ATTRIBUER XP À UN UTILISATEUR AVEC SYNCHRONISATION COMPLÈTE
+   */
+  async awardXPToUserWithSync(userId, xpAmount, taskId, taskTitle) {
+    try {
+      console.log('🏆 [XP-SYNC] Attribution XP avec synchronisation:', { userId, xpAmount, taskId });
+      
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        console.warn('⚠️ Utilisateur introuvable pour attribution XP:', userId);
+        return;
+      }
+
+      const userData = userDoc.data();
+      const currentGamification = userData.gamification || {};
+      
+      // Calculer les nouvelles valeurs
+      const currentXP = currentGamification.totalXp || 0;
+      const currentLevel = currentGamification.level || 1;
+      const currentTasksCompleted = currentGamification.tasksCompleted || 0;
+      const currentWeeklyXp = currentGamification.weeklyXp || 0;
+      const currentMonthlyXp = currentGamification.monthlyXp || 0;
+
+      const newXP = currentXP + xpAmount;
+      const newLevel = this.calculateLevel(newXP);
+      const newTasksCompleted = currentTasksCompleted + 1;
+      const newWeeklyXp = currentWeeklyXp + xpAmount;
+      const newMonthlyXp = currentMonthlyXp + xpAmount;
+
+      // Créer l'entrée d'historique XP
+      const xpHistoryEntry = {
+        amount: xpAmount,
+        source: 'task_completion',
+        taskId: taskId,
+        taskTitle: taskTitle,
+        timestamp: new Date().toISOString(),
+        totalAfter: newXP
+      };
+
+      // Préparer l'historique mis à jour
+      const currentXpHistory = currentGamification.xpHistory || [];
+      const newXpHistory = [
+        ...currentXpHistory.slice(-19), // Garder les 19 derniers
+        xpHistoryEntry
+      ];
+
+      // Préparer l'historique de niveau si level up
+      let newLevelHistory = currentGamification.levelHistory || [];
+      if (newLevel > currentLevel) {
+        const levelHistoryEntry = {
+          level: newLevel,
+          timestamp: new Date().toISOString(),
+          xpAtLevelUp: newXP,
+          source: 'task_completion'
+        };
+        
+        newLevelHistory = [
+          ...newLevelHistory.slice(-9), // Garder les 9 derniers
+          levelHistoryEntry
+        ];
+        
+        console.log(`🎉 [XP-SYNC] Level UP! ${currentLevel} → ${newLevel}`);
+      }
+
+      // Mise à jour complète avec synchronisation
+      const updates = {
+        // Gamification principale
+        'gamification.totalXp': newXP,
+        'gamification.weeklyXp': newWeeklyXp,
+        'gamification.monthlyXp': newMonthlyXp,
+        'gamification.level': newLevel,
+        'gamification.tasksCompleted': newTasksCompleted,
+        'gamification.xpHistory': newXpHistory,
+        'gamification.levelHistory': newLevelHistory,
+        'gamification.lastActivityAt': new Date().toISOString(),
+        'gamification.lastXpGain': {
+          amount: xpAmount,
+          source: 'task_completion',
+          taskId: taskId,
+          taskTitle: taskTitle,
+          timestamp: new Date().toISOString()
+        },
+        
+        // Métadonnées de synchronisation
+        'syncMetadata.lastXpSync': serverTimestamp(),
+        'syncMetadata.lastXpSource': 'task_validation',
+        'syncMetadata.lastXpAmount': xpAmount,
+        'syncMetadata.lastTaskCompleted': taskId,
+        'syncMetadata.forceSync': true,
+        
+        // Timestamps généraux
+        updatedAt: serverTimestamp()
+      };
+
+      // Effectuer la mise à jour
+      await updateDoc(userRef, updates);
+
+      console.log('✅ [XP-SYNC] XP attribués avec synchronisation complète:', {
+        userId,
+        oldXP: currentXP,
+        newXP,
+        xpAmount,
+        oldLevel: currentLevel,
+        newLevel,
+        tasksCompleted: newTasksCompleted
+      });
+
+      // Notification globale pour synchronisation immédiate
+      this.notifyXPUpdate(userId, {
+        totalXp: newXP,
+        level: newLevel,
+        tasksCompleted: newTasksCompleted,
+        weeklyXp: newWeeklyXp,
+        monthlyXp: newMonthlyXp,
+        lastXpGain: xpAmount,
+        leveledUp: newLevel > currentLevel
+      });
+
+      return {
+        success: true,
+        xpAwarded: xpAmount,
+        newTotalXp: newXP,
+        newLevel: newLevel,
+        leveledUp: newLevel > currentLevel
+      };
+
+    } catch (error) {
+      console.error('❌ [XP-SYNC] Erreur attribution XP:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📢 NOTIFIER MISE À JOUR XP POUR SYNCHRONISATION IMMÉDIATE
+   */
+  notifyXPUpdate(userId, gamificationData) {
+    // Émettre un événement global pour notifier tous les composants
+    const event = new CustomEvent('userXPUpdated', {
+      detail: {
+        userId,
+        gamificationData,
+        source: 'task_validation',
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+    window.dispatchEvent(event);
+    
+    // Également émettre l'événement de synchronisation générale
+    const syncEvent = new CustomEvent('userDataSynced', {
+      detail: {
+        userId,
+        gamificationData,
+        source: 'task_validation_xp',
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+    window.dispatchEvent(syncEvent);
+    
+    console.log('📢 [XP-SYNC] Notifications XP émises pour synchronisation:', {
+      userId,
+      totalXp: gamificationData.totalXp,
+      level: gamificationData.level,
+      tasksCompleted: gamificationData.tasksCompleted
+    });
+  }
+
+  /**
+   * 📊 CALCULER LE NIVEAU BASÉ SUR L'XP (Système amélioré)
+   */
+  calculateLevel(totalXp) {
+    if (totalXp < 100) return 1;
+    if (totalXp < 200) return 2;
+    if (totalXp < 350) return 3;
+    if (totalXp < 550) return 4;
+    if (totalXp < 800) return 5;
+    if (totalXp < 1100) return 6;
+    if (totalXp < 1450) return 7;
+    if (totalXp < 1850) return 8;
+    if (totalXp < 2300) return 9;
+    if (totalXp < 2800) return 10;
+    
+    // À partir du niveau 10, progression linéaire
+    return Math.floor((totalXp - 2800) / 500) + 11;
+  }
+
+  /**
+   * 🧮 CALCULER LES XP SELON LA DIFFICULTÉ
+   */
+  calculateXPForDifficulty(difficulty) {
+    const xpTable = {
+      'easy': 10,
+      'medium': 25,
+      'normal': 25,
+      'hard': 50,
+      'expert': 100
+    };
+    
+    return xpTable[difficulty] || xpTable['medium'];
+  }
+
+  /**
+   * 🔍 VÉRIFIER LES PERMISSIONS ADMIN
+   */
+  async checkAdminPermissions(userId) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        return false;
+      }
+
+      const userData = userDoc.data();
+      
+      // Vérifications multiples pour admin
+      const isRoleAdmin = userData.profile?.role === 'admin';
+      const isProfileRoleAdmin = userData.role === 'admin';
+      const hasAdminFlag = userData.isAdmin === true;
+      const hasValidatePermission = userData.permissions?.includes('validate_tasks');
+      
+      const isAdmin = isRoleAdmin || isProfileRoleAdmin || hasAdminFlag || hasValidatePermission;
+      
+      console.log('🔍 checkAdminPermissions résultat:', {
+        userId,
+        isRoleAdmin,
+        isProfileRoleAdmin,
+        hasAdminFlag,
+        hasValidatePermission,
+        finalResult: isAdmin
+      });
+      
+      return isAdmin;
+      
+    } catch (error) {
+      console.error('❌ Erreur vérification permissions admin:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 📋 RÉCUPÉRER LES VALIDATIONS EN ATTENTE
+   */
+  async getPendingValidations() {
+    try {
+      const q = query(
+        collection(db, 'task_validations'),
+        where('status', '==', 'pending'),
+        orderBy('submittedAt', 'desc')
+      );
+      
+      const snapshot = await getDocs(q);
+      const validations = [];
+      
+      snapshot.forEach(doc => {
+        validations.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+      
+      console.log('📋 Validations en attente récupérées:', validations.length);
+      return validations;
+      
+    } catch (error) {
+      console.error('❌ Erreur récupération validations:', error);
+      return [];
+    }
+  }
+
+  /**
+   * ❌ REJETER UNE VALIDATION
+   */
+  async rejectValidation(validationId, adminId, adminComment = '') {
+    try {
+      const isAdmin = await this.checkAdminPermissions(adminId);
+      if (!isAdmin) {
+        throw new Error('Permissions insuffisantes');
+      }
+
+      const validationRef = doc(db, 'task_validations', validationId);
+      
+      await updateDoc(validationRef, {
+        status: 'rejected',
+        reviewedBy: adminId,
+        reviewedAt: serverTimestamp(),
+        adminComment: adminComment || 'Tâche rejetée'
+      });
+
+      console.log(`❌ Validation ${validationId} rejetée par ${adminId}`);
+      
+      return {
+        success: true,
+        message: 'Validation rejetée'
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur rejet validation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🔄 ÉCOUTER LES VALIDATIONS EN TEMPS RÉEL
+   */
+  onValidationsUpdated(callback) {
+    const q = query(
+      collection(db, 'task_validations'),
+      where('status', '==', 'pending'),
+      orderBy('submittedAt', 'desc')
+    );
+    
+    return onSnapshot(q, (snapshot) => {
+      const validations = [];
+      snapshot.forEach(doc => {
+        validations.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+      
+      callback(validations);
+    });
+  }
+
+  /**
+   * 🗑️ SUPPRIMER UNE VALIDATION
+   */
+  async deleteValidation(validationId, adminId) {
+    try {
+      const isAdmin = await this.checkAdminPermissions(adminId);
+      if (!isAdmin) {
+        throw new Error('Permissions insuffisantes');
+      }
+
+      await deleteDoc(doc(db, 'task_validations', validationId));
+      
+      console.log(`🗑️ Validation ${validationId} supprimée par ${adminId}`);
+      
+      return {
+        success: true,
+        message: 'Validation supprimée'
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur suppression validation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📊 RÉCUPÉRER L'HISTORIQUE DES TÂCHES D'UN UTILISATEUR
+   */
+  async getUserTaskHistory(userId, options = {}) {
+    try {
+      return await taskHistoryService.getUserTaskHistory(userId, options);
+    } catch (error) {
+      console.error('❌ Erreur récupération historique utilisateur:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 📈 RÉCUPÉRER LES STATISTIQUES D'UN UTILISATEUR
+   */
+  async getUserTaskStats(userId) {
+    try {
+      return await taskHistoryService.getUserTaskStats(userId);
+    } catch (error) {
+      console.error('❌ Erreur récupération stats utilisateur:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 🔍 ANALYSER LES PERFORMANCES D'UNE TÂCHE SPÉCIFIQUE
+   */
+  async analyzeTaskPerformance(userId, taskTitle) {
+    try {
+      return await taskHistoryService.analyzeTaskTypePerformance(userId, taskTitle);
+    } catch (error) {
+      console.error('❌ Erreur analyse performance tâche:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 🏆 RÉCUPÉRER LE CLASSEMENT DES TÂCHES
+   */
+  async getTaskLeaderboard(timeframe = 'all', limit = 10) {
+    try {
+      return await taskHistoryService.getTaskLeaderboard(timeframe, limit);
+    } catch (error) {
+      console.error('❌ Erreur récupération classement:', error);
+      return [];
+    }
+  }
+}
+
+// Export de l'instance singleton
+export const taskValidationServiceEnhanced = new TaskValidationServiceEnhanced();
