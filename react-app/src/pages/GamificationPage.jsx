@@ -533,18 +533,4 @@ const GamificationPage = () => {
               {userStats.badges.map((badge, index) => (
                 <div key={index} className="bg-white/5 rounded-lg p-4 text-center border border-white/10">
                   <div className="text-3xl mb-2">🏅</div>
-                  <p className="text-white text-sm font-medium">t">
-                  <p className="text-green-400 font-semibold">{activity.xp}</p>
-                  <p className="text-gray-400 text-sm">{activity.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
-};
-
-export default GamificationPage;
+                  <p className="text-white text-sm font-medium">
