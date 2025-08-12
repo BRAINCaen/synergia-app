@@ -457,18 +457,19 @@ const NewTaskModal = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4"
+        className="fixed inset-0 bg-black bg-opacity-60 flex items-start justify-center z-50 pt-4 pb-4 px-4 overflow-y-auto"
         onClick={(e) => {
           if (e.target === e.currentTarget) {
             handleClose();
           }
         }}
+        style={{ paddingTop: '80px' }} // Décalage pour éviter la barre de navigation
       >
         <motion.div
           initial={{ scale: 0.95, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 20 }}
-          className="bg-white rounded-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden shadow-2xl flex flex-col"
+          className="bg-white rounded-2xl max-w-4xl w-full max-h-[calc(100vh-120px)] overflow-hidden shadow-2xl flex flex-col my-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header Compact */}
@@ -499,7 +500,7 @@ const NewTaskModal = ({
           </div>
 
           {/* Contenu scrollable */}
-          <div className="max-h-[calc(95vh-160px)] overflow-y-auto">
+          <div className="max-h-[calc(100vh-240px)] overflow-y-auto flex-1">
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
               
               {/* Erreur */}
