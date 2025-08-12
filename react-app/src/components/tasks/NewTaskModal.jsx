@@ -468,45 +468,39 @@ const NewTaskModal = ({
           initial={{ scale: 0.95, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 20 }}
-          className="bg-white rounded-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden shadow-2xl"
+          className="bg-white rounded-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden shadow-2xl flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header Premium */}
-          <div className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-6">
+          {/* Header Compact */}
+          <div className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-3">
             <div className="absolute inset-0 bg-black opacity-10"></div>
             <div className="relative flex items-center justify-between text-white">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white bg-opacity-20 rounded-xl backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white bg-opacity-20 rounded-lg backdrop-blur-sm">
                   {mode === 'edit' ? 
-                    <Edit className="w-6 h-6" /> : 
-                    <Plus className="w-6 h-6" />
+                    <Edit className="w-4 h-4" /> : 
+                    <Plus className="w-4 h-4" />
                   }
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold">
+                  <h2 className="text-lg font-bold">
                     {mode === 'edit' ? 'Modifier la tâche' : 'Créer une nouvelle tâche'}
                   </h2>
-                  <p className="text-indigo-100 text-sm">
-                    {mode === 'edit' ? 
-                      'Modifiez les informations de la tâche' : 
-                      'Remplissez les informations de la tâche'
-                    }
-                  </p>
                 </div>
               </div>
               
               <button
                 onClick={handleClose}
-                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+                className="p-1 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
           </div>
 
           {/* Contenu scrollable */}
-          <div className="max-h-[calc(95vh-140px)] overflow-y-auto">
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="max-h-[calc(95vh-160px)] overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-4 space-y-4">
               
               {/* Erreur */}
               {error && (
@@ -909,18 +903,18 @@ const NewTaskModal = ({
             </form>
           </div>
 
-          {/* Footer avec actions */}
-          <div className="bg-gray-50 border-t border-gray-200 p-6">
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-gray-500">
-                Les XP sont calculés automatiquement selon la difficulté et la priorité
+          {/* Footer avec actions - FIXÉ VISIBLE */}
+          <div className="bg-gray-50 border-t border-gray-200 p-4 flex-shrink-0">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+              <div className="text-xs text-gray-500 text-center sm:text-left">
+                Les XP sont calculés automatiquement
               </div>
               
-              <div className="flex gap-3">
+              <div className="flex gap-3 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+                  className="flex-1 sm:flex-none px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                 >
                   Annuler
                 </button>
@@ -928,7 +922,7 @@ const NewTaskModal = ({
                 <button
                   onClick={handleSubmit}
                   disabled={loading || !formData.title.trim()}
-                  className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2 min-w-[140px] justify-center"
+                  className="flex-1 sm:flex-none px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2 justify-center"
                 >
                   {loading ? (
                     <>
@@ -938,7 +932,7 @@ const NewTaskModal = ({
                   ) : (
                     <>
                       <Save className="w-4 h-4" />
-                      {mode === 'edit' ? 'Modifier la tâche' : 'Créer la tâche'}
+                      {mode === 'edit' ? 'Modifier' : 'Créer'}
                     </>
                   )}
                 </button>
