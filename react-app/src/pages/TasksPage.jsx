@@ -600,209 +600,6 @@ const TasksPage = () => {
             <button
               onClick={() => setRoleFilter('reputation')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                roleFit handleDeleteTask = async (taskId) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) return;
-    
-    try {
-      console.log('🗑️ [TASKS] Suppression tâche:', taskId);
-      
-      const result = await taskService.deleteTask(taskId);
-      
-      if (result.success) {
-        console.log('✅ [TASKS] Tâche supprimée:', taskId);
-        await loadTasks();
-        
-        if (window.showNotification) {
-          window.showNotification('✅ Tâche supprimée avec succès !', 'success');
-        }
-      } else {
-        throw new Error(result.message || 'Erreur lors de la suppression');
-      }
-      
-    } catch (error) {
-      console.error('❌ [TASKS] Erreur suppression:', error);
-      setError(error.message);
-    }
-  };
-
-  /**
-   * 📤 GESTIONNAIRE SOUMISSION TÂCHE - PRÉSERVÉ
-   */
-  const handleSubmitTask = async (task) => {
-    try {
-      console.log('📤 [TASKS] Soumission pour validation:', task.title);
-      setSelectedTask(task);
-      setShowSubmissionModal(true);
-    } catch (error) {
-      console.error('❌ [TASKS] Erreur soumission:', error);
-      setError(error.message);
-    }
-  };
-
-  /**
-   * ✅ GESTIONNAIRE SUCCÈS SOUMISSION - PRÉSERVÉ
-   */
-  const handleSubmissionSuccess = async () => {
-    console.log('✅ [TASKS] Soumission réussie');
-    
-    setShowSubmissionModal(false);
-    setSelectedTask(null);
-    await loadTasks();
-    
-    if (window.showNotification) {
-      window.showNotification('✅ Tâche soumise pour validation !', 'success');
-    }
-  };
-
-  /**
-   * 🎨 FONCTION BADGE STATUT - PRÉSERVÉE
-   */
-  const getStatusBadge = (status) => {
-    const statusMap = {
-      todo: { label: 'À faire', color: 'bg-gray-100 text-gray-700', icon: <Clock className="w-3 h-3" /> },
-      in_progress: { label: 'En cours', color: 'bg-blue-100 text-blue-700', icon: <Target className="w-3 h-3" /> },
-      completed: { label: 'Terminée', color: 'bg-green-100 text-green-700', icon: <CheckCircle className="w-3 h-3" /> },
-      pending: { label: 'En attente', color: 'bg-yellow-100 text-yellow-700', icon: <Clock className="w-3 h-3" /> },
-      cancelled: { label: 'Annulée', color: 'bg-red-100 text-red-700', icon: <AlertCircle className="w-3 h-3" /> },
-      archived: { label: 'Archivée', color: 'bg-gray-100 text-gray-500', icon: <Archive className="w-3 h-3" /> }
-    };
-    
-    return statusMap[status] || statusMap.todo;
-  };
-
-  // Interface de chargement
-  if (loading || authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-900 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-              <p className="text-gray-400 mt-4">Chargement des tâches...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const currentTasks = getCurrentTasks();
-
-  return (
-    <div className="min-h-screen bg-gray-900">
-      <div className="max-w-7xl mx-auto p-6">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Gestion des Tâches
-            </h1>
-            <p className="text-gray-400">
-              Gérez vos tâches assignées et participez aux projets collaboratifs
-            </p>
-          </div>
-          
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Nouvelle tâche
-          </button>
-        </div>
-
-        {/* ✅ STATISTIQUES HISTORIQUE - PRÉSERVÉES (si onglet historique) */}
-        {activeTab === 'history' && historyStats && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-gray-800 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-400">Cette semaine</p>
-                  <p className="text-xl font-bold text-white">{historyStats.tasksThisWeek || 0}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gray-800 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Repeat className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-400">Récurrentes</p>
-                  <p className="text-xl font-bold text-white">{historyStats.totalRecurringCompleted || 0}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gray-800 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <Zap className="w-5 h-5 text-yellow-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-400">XP Total</p>
-                  <p className="text-xl font-bold text-white">{historyStats.totalXP || 0}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Message d'erreur */}
-        {error && (
-          <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400" />
-              <p className="text-red-100">{error}</p>
-            </div>
-          </div>
-        )}
-
-        {/* ✅ BOUTONS DE FILTRAGE RAPIDE PAR RÔLES SYNERGIA - AJOUTÉS */}
-        <div className="mb-6">
-          <h3 className="text-lg font-medium text-white mb-3">Filtrer par rôle Synergia</h3>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setRoleFilter('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                roleFilter === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              🔍 Tous les rôles
-            </button>
-            
-            <button
-              onClick={() => setRoleFilter('gamemaster')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                roleFilter === 'gamemaster'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              🎮 Game Master
-            </button>
-            
-            <button
-              onClick={() => setRoleFilter('maintenance')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                roleFilter === 'maintenance'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              🛠️ Entretien & Maintenance
-            </button>
-            
-            <button
-              onClick={() => setRoleFilter('reputation')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 roleFilter === 'reputation'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -1015,10 +812,21 @@ const TasksPage = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="bg-gray-800 border border-gray-700 rounded-lg p-6 hover:bg-gray-750 transition-colors"
+                  className="bg-gray-800 border border-gray-700 rounded-lg p-6 hover:bg-gray-750 transition-colors relative"
                 >
+                  {/* 💬 BADGE COMMENTAIRES - POSITION ABSOLUE TOP-RIGHT */}
+                  <div className="absolute top-3 right-3 z-20">
+                    <CommentNotificationBadge
+                      taskId={task.id}
+                      onClick={() => {
+                        setSelectedTask(task);
+                        setShowDetailModal(true);
+                      }}
+                    />
+                  </div>
+
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                    <div className="flex-1 pr-16">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-semibold text-white">
                           {task.title || 'Tâche sans titre'}
@@ -1049,7 +857,7 @@ const TasksPage = () => {
                         </p>
                       )}
                       
-                      <div className="flex items-center gap-4 text-sm text-gray-400">
+                      <div className="flex items-center gap-4 text-sm text-gray-400 mb-3">
                         {task.createdAt && (
                           <span className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />
@@ -1071,9 +879,38 @@ const TasksPage = () => {
                           </span>
                         )}
                       </div>
+
+                      {/* 🙋‍♂️ BOUTONS VOLONTARIAT - REMIS */}
+                      <div className="flex items-center gap-2 mb-3">
+                        {/* Bouton se porter volontaire */}
+                        {activeTab === 'available' && !task.assignedTo?.includes?.(user?.uid) && (
+                          <button
+                            onClick={() => handleVolunteer(task.id)}
+                            disabled={submitting}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                            title="Se porter volontaire pour cette tâche"
+                          >
+                            <Heart className="w-4 h-4" />
+                            {submitting ? 'En cours...' : 'Volontaire'}
+                          </button>
+                        )}
+
+                        {/* Bouton se retirer */}
+                        {task.assignedTo?.includes?.(user?.uid) && task.createdBy !== user?.uid && (
+                          <button
+                            onClick={() => handleUnvolunteer(task.id)}
+                            disabled={submitting}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50"
+                            title="Se retirer de cette tâche"
+                          >
+                            <Users className="w-4 h-4" />
+                            Se désengager
+                          </button>
+                        )}
+                      </div>
                     </div>
                     
-                    {/* Actions - PRÉSERVÉES */}
+                    {/* Actions principales */}
                     <div className="flex items-center gap-2 ml-4">
                       <button
                         onClick={() => {
