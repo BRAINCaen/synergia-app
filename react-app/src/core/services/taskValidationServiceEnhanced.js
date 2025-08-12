@@ -173,6 +173,8 @@ class TaskValidationServiceEnhanced {
    */
   async approveValidation(validationId, adminId, adminComment = '') {
     try {
+      console.log('✅ [APPROVE] DÉBUT approbation avec archivage automatique:', validationId);
+      
       const isAdmin = await this.checkAdminPermissions(adminId);
       if (!isAdmin) {
         throw new Error('Permissions insuffisantes');
@@ -188,7 +190,7 @@ class TaskValidationServiceEnhanced {
       const validationData = validationDoc.data();
       const { taskId, type } = validationData;
 
-      console.log('✅ [APPROVE] Début approbation avec archivage:', validationId);
+      console.log('✅ [APPROVE] Données validation récupérées:', { taskId, type, userId: validationData.userId });
 
       // Mettre à jour la validation
       await updateDoc(validationRef, {
@@ -197,6 +199,8 @@ class TaskValidationServiceEnhanced {
         reviewedAt: serverTimestamp(),
         adminComment: adminComment || 'Tâche approuvée'
       });
+
+      console.log('✅ [APPROVE] Validation mise à jour dans DB');
 
       if (type === 'multiple_assignment') {
         // Distribuer les XP pour assignation multiple
@@ -207,9 +211,11 @@ class TaskValidationServiceEnhanced {
           adminComment
         );
         
-        console.log('🏆 XP distribués pour assignation multiple:', result);
+        console.log('🏆 [APPROVE] XP distribués pour assignation multiple:', result);
       } else {
-        // ✅ ATTRIBUTION XP + ARCHIVAGE AUTOMATIQUE
+        // ✅ ATTRIBUTION XP + ARCHIVAGE AUTOMATIQUE POUR TÂCHE STANDARD
+        console.log('🏆 [APPROVE] Attribution XP pour tâche standard...');
+        
         const xpResult = await this.awardXPToUserWithSync(
           validationData.userId, 
           validationData.xpAmount, 
@@ -217,7 +223,11 @@ class TaskValidationServiceEnhanced {
           validationData.taskTitle
         );
 
+        console.log('✅ [APPROVE] XP attribués:', xpResult);
+
         // 📚 ARCHIVAGE AUTOMATIQUE DANS L'HISTORIQUE
+        console.log('📚 [APPROVE] Début archivage automatique...');
+        
         const archiveResult = await this.archiveTaskToHistory(
           taskId,
           validationData,
@@ -226,19 +236,20 @@ class TaskValidationServiceEnhanced {
           xpResult
         );
 
-        console.log('✅ [APPROVE] Tâche archivée automatiquement:', archiveResult);
+        console.log('✅ [APPROVE] Archivage terminé:', archiveResult);
       }
 
-      console.log(`✅ Validation ${validationId} approuvée par ${adminId}`);
+      console.log(`✅ [APPROVE] Validation ${validationId} approuvée par ${adminId} avec archivage complet`);
       
       return {
         success: true,
-        message: 'Validation approuvée avec succès',
-        type: type
+        message: 'Validation approuvée avec succès - Tâche archivée automatiquement',
+        type: type,
+        archived: true
       };
 
     } catch (error) {
-      console.error('❌ Erreur approbation validation:', error);
+      console.error('❌ [APPROVE] Erreur approbation validation:', error);
       throw error;
     }
   }
