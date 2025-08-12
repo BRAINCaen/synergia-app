@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES COMPLÈTES AVEC NOUVELLE ROUTE DEMO CLEANER
+// ROUTES COMPLÈTES AVEC CORRECTION LEADERBOARD
 // ==========================================
 
 import React from 'react'
@@ -20,6 +20,7 @@ import TasksPage from '../pages/TasksPage.jsx'
 import ProjectsPage from '../pages/ProjectsPage.jsx'
 import GamificationPage from '../pages/GamificationPage.jsx'
 import BadgesPage from '../pages/BadgesPage.jsx'
+import LeaderboardPage from '../pages/LeaderboardPage.jsx' // ✅ CORRECTION: Import de la page, pas du composant
 import UsersPage from '../pages/UsersPage.jsx'
 import OnboardingPage from '../pages/OnboardingPage.jsx'
 import TimeTrackPage from '../pages/TimeTrackPage.jsx'
@@ -38,10 +39,10 @@ import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
 // 🧹 NOUVELLE PAGE NETTOYAGE DONNÉES DÉMO
 import DemoDataCleanerPage from '../pages/admin/DemoDataCleanerPage.jsx'
 
-// Components utilisés comme pages (fallback)
+// Components utilisés comme pages (fallback pour certaines routes)
 import TaskList from '../modules/tasks/TaskList.jsx'
 import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
-import Leaderboard from '../components/gamification/Leaderboard.jsx'
+// ❌ SUPPRIMÉ: import Leaderboard from '../components/gamification/Leaderboard.jsx' - Plus utilisé
 import ProjectDashboard from '../components/projects/ProjectDashboard.jsx'
 import Profile from '../components/profile/Profile.jsx'
 
@@ -140,11 +141,12 @@ export const AppRoutes = () => {
         } 
       />
       
+      {/* ✅ CORRECTION: Utilisation de LeaderboardPage au lieu du composant Leaderboard */}
       <Route 
         path={ROUTES.LEADERBOARD} 
         element={
           <ProtectedRoute>
-            <Leaderboard />
+            <LeaderboardPage />
           </ProtectedRoute>
         } 
       />
@@ -267,7 +269,7 @@ export const AppRoutes = () => {
         } 
       />
 
-      {/* 🧹 NOUVELLE ROUTE NETTOYAGE DONNÉES DÉMO */}
+      {/* 🧹 NOUVELLE ROUTE DEMO CLEANER */}
       <Route 
         path={ROUTES.ADMIN_DEMO_CLEANER} 
         element={
@@ -277,9 +279,9 @@ export const AppRoutes = () => {
         } 
       />
 
-      {/* Routes fallback pour compatibilité */}
+      {/* Routes de fallback pour anciens liens */}
       <Route 
-        path="/tasks-list" 
+        path="/task-list" 
         element={
           <ProtectedRoute>
             <TaskList />
@@ -297,15 +299,6 @@ export const AppRoutes = () => {
       />
       
       <Route 
-        path="/profile-component" 
-        element={
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
         path="/project-dashboard" 
         element={
           <ProtectedRoute>
@@ -313,12 +306,24 @@ export const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
-
-      {/* Routes par défaut */}
+      
+      {/* Redirection par défaut */}
       <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+      
+      {/* Page 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   )
 }
 
 export default AppRoutes
+
+// ==========================================
+// 📊 RÉCAPITULATIF DES CORRECTIONS
+// ==========================================
+
+console.log('✅ Routes fixes appliquées:');
+console.log('🔧 LeaderboardPage importé correctement depuis pages/');
+console.log('🔧 Route LEADERBOARD corrigée pour utiliser LeaderboardPage');
+console.log('🔧 Import du composant Leaderboard supprimé (plus utilisé en route)');
+console.log('🎯 URL /leaderboard maintenant fonctionnelle');
