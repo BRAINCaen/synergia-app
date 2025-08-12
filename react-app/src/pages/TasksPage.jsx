@@ -69,10 +69,11 @@ const TasksPage = () => {
     limit: 10 // Charger les 10 dernières tâches de l'historique
   });
 
-  // ✅ CHARGEMENT SÉCURISÉ DES TÂCHES
+  // ✅ CHARGEMENT SÉCURISÉ DES TÂCHES - CORRIGÉ
   const loadTasks = async () => {
     if (!user?.uid) {
       console.log('⏳ [TASKS] Utilisateur non connecté, attente...');
+      setLoading(false);
       return;
     }
 
@@ -81,21 +82,31 @@ const TasksPage = () => {
       setLoading(true);
       setError('');
 
-      // Utiliser le service simplifié sans validation userId stricte
-      const result = await taskService.getAllTasksForUser(user.uid);
+      // ✅ UTILISATION DU SERVICE CORRIGÉ
+      const result = await taskService.getAllTasks();
       
-      if (result.success) {
-        console.log(`✅ [TASKS] ${result.tasks.length} tâches chargées`);
-        setTasks(result.tasks || []);
+      if (Array.isArray(result)) {
+        // Cas où le service retourne directement un tableau
+        console.log(`✅ [TASKS] ${result.length} tâches chargées (tableau direct)`);
+        setTasks(result);
+      } else if (result && Array.isArray(result.tasks)) {
+        // Cas où le service retourne un objet avec propriété tasks
+        console.log(`✅ [TASKS] ${result.tasks.length} tâches chargées (objet)`);
+        setTasks(result.tasks);
+      } else if (result && result.success) {
+        // Cas où le service retourne un objet de succès
+        console.log(`✅ [TASKS] ${(result.data || []).length} tâches chargées (succès)`);
+        setTasks(result.data || []);
       } else {
-        console.warn('⚠️ [TASKS] Erreur:', result.message);
-        setError(result.message || 'Erreur de chargement');
+        // Cas d'erreur ou de résultat inattendu
+        console.warn('⚠️ [TASKS] Format de réponse inattendu:', result);
+        setError('Format de données inattendu');
         setTasks([]);
       }
       
     } catch (error) {
       console.error('❌ [TASKS] Erreur chargement:', error);
-      setError('Erreur lors du chargement des tâches');
+      setError('Erreur lors du chargement des tâches: ' + error.message);
       setTasks([]);
     } finally {
       setLoading(false);
@@ -372,56 +383,7 @@ const TasksPage = () => {
           </button>
         </div>
 
-        {/* Statistiques rapides */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-400">Mes tâches</p>
-                <p className="text-xl font-bold text-white">{myTasks.length}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Heart className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-400">Disponibles</p>
-                <p className="text-xl font-bold text-white">{availableTasks.length}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Users className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-400">Autres équipes</p>
-                <p className="text-xl font-bold text-white">{otherTasks.length}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <Star className="w-5 h-5 text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-400">Total</p>
-                <p className="text-xl font-bold text-white">{tasks.length}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Statistiques rapides - SUPPRIMÉES */}
 
         {/* Message d'erreur */}
         {error && (
@@ -432,6 +394,133 @@ const TasksPage = () => {
             </div>
           </div>
         )}
+
+        {/* ✅ BOUTONS DE FILTRAGE RAPIDE PAR RÔLES SYNERGIA */}
+        <div className="mb-6">
+          <h3 className="text-lg font-medium text-white mb-3">Filtrer par rôle Synergia</h3>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setRoleFilter('all')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === 'all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              🔍 Tous les rôles
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('gamemaster')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === 'gamemaster'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              🎮 Game Master
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('maintenance')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === 'maintenance'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              🛠️ Entretien & Maintenance
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('reputation')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === 'reputation'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              🌟 Gestion des Avis
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('stock')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === 'stock'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              📦 Gestion des Stocks
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('organization')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === 'organization'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              🗓️ Organisation Interne
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('content')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === 'content'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              🎬 Création de Contenu
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('mentoring')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === 'mentoring'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              🎓 Formation & Mentorat
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('partnerships')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === 'partnerships'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              🤝 Partenariats
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('communication')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === 'communication'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              📱 Communication
+            </button>
+            
+            <button
+              onClick={() => setRoleFilter('b2b')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === 'b2b'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              💼 Relations B2B
+            </button>
+          </div>
+        </div>
 
         {/* Onglets */}
         <div className="flex flex-wrap gap-2 mb-6">
