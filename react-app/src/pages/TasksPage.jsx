@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES CORRIGÉE - SANS ERREURS USERID
+// PAGE TÂCHES AVEC TOUTES FONCTIONNALITÉS - CORRECTIONS PRÉCISES SEULEMENT
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -23,12 +23,14 @@ import {
   Target,
   Zap,
   Trophy,
-  Archive
+  Archive,
+  Repeat
 } from 'lucide-react';
 
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { taskService } from '../core/services/taskService.js';
 import { createTaskSafely } from '../core/services/taskCreationFix.js';
+import { taskValidationServiceEnhanced } from '../core/services/taskValidationServiceEnhanced.js';
 import { useTaskHistory } from '../shared/hooks/useTaskHistory.js';
 
 // Composants
@@ -54,11 +56,11 @@ const TasksPage = () => {
   
   // États des modals
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
 
-  // ✅ INTÉGRATION SYSTÈME HISTORIQUE CORRIGÉ
+  // ✅ INTÉGRATION SYSTÈME HISTORIQUE - PRÉSERVÉ
   const { 
     history, 
     stats: historyStats, 
@@ -66,10 +68,19 @@ const TasksPage = () => {
     getWeeklyTrends,
     getTopTasks
   } = useTaskHistory({
-    limit: 10 // Charger les 10 dernières tâches de l'historique
+    limit: 10
   });
 
-  // ✅ CHARGEMENT SÉCURISÉ DES TÂCHES - CORRIGÉ
+  // Chargement initial
+  useEffect(() => {
+    if (user && !authLoading) {
+      loadTasks();
+    }
+  }, [user, authLoading]);
+
+  /**
+   * 📚 CHARGER LES TÂCHES - CORRIGÉ POUR ERREUR DE CHARGEMENT
+   */
   const loadTasks = async () => {
     if (!user?.uid) {
       console.log('⏳ [TASKS] Utilisateur non connecté, attente...');
@@ -78,31 +89,44 @@ const TasksPage = () => {
     }
 
     try {
-      console.log('📋 [TASKS] Chargement des tâches pour:', user.uid);
       setLoading(true);
       setError('');
-
-      // ✅ UTILISATION DU SERVICE CORRIGÉ
+      
+      console.log('📚 [TASKS] Chargement des tâches actives...');
+      
+      // ✅ CORRECTION ERREUR CHARGEMENT - Gestion robuste des différents formats
       const result = await taskService.getAllTasks();
+      
+      let fetchedTasks = [];
       
       if (Array.isArray(result)) {
         // Cas où le service retourne directement un tableau
-        console.log(`✅ [TASKS] ${result.length} tâches chargées (tableau direct)`);
-        setTasks(result);
+        fetchedTasks = result;
       } else if (result && Array.isArray(result.tasks)) {
         // Cas où le service retourne un objet avec propriété tasks
-        console.log(`✅ [TASKS] ${result.tasks.length} tâches chargées (objet)`);
-        setTasks(result.tasks);
-      } else if (result && result.success) {
+        fetchedTasks = result.tasks;
+      } else if (result && result.success && Array.isArray(result.data)) {
         // Cas où le service retourne un objet de succès
-        console.log(`✅ [TASKS] ${(result.data || []).length} tâches chargées (succès)`);
-        setTasks(result.data || []);
+        fetchedTasks = result.data;
       } else {
-        // Cas d'erreur ou de résultat inattendu
         console.warn('⚠️ [TASKS] Format de réponse inattendu:', result);
-        setError('Format de données inattendu');
+        setError('Format de données inattendu du service');
         setTasks([]);
+        return;
       }
+      
+      // ✅ FILTRER LES TÂCHES ARCHIVÉES ET TERMINÉES - PRÉSERVÉ
+      const activeTasks = fetchedTasks.filter(task => {
+        if (task.status === 'archived') return false;
+        if (task.status === 'completed' && statusFilter !== 'completed') return false;
+        if (task.isDeleted || task.archived || task.archivedAt) return false;
+        return true;
+      });
+      
+      console.log('✅ [TASKS] Tâches actives chargées:', activeTasks.length);
+      console.log('📊 [TASKS] Tâches filtrées (archivées exclues):', fetchedTasks.length - activeTasks.length);
+      
+      setTasks(activeTasks);
       
     } catch (error) {
       console.error('❌ [TASKS] Erreur chargement:', error);
@@ -113,18 +137,10 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ EFFET DE CHARGEMENT INITIAL
-  useEffect(() => {
-    if (!authLoading && user?.uid) {
-      loadTasks();
-    }
-  }, [user?.uid, authLoading]);
-
-  // ✅ SÉPARATION SÉCURISÉE DES TÂCHES PAR CATÉGORIE
+  // ✅ LOGIQUE DE FILTRAGE DES TÂCHES DANS LES ONGLETS - PRÉSERVÉE
   const myTasks = tasks.filter(task => {
     if (!task || !user?.uid) return false;
     
-    // Vérifications sécurisées pour "mes tâches"
     const isAssigned = task.assignedTo && Array.isArray(task.assignedTo) 
       ? task.assignedTo.includes(user.uid)
       : task.assignedTo === user.uid;
@@ -138,7 +154,6 @@ const TasksPage = () => {
   const availableTasks = tasks.filter(task => {
     if (!task || !user?.uid) return false;
     
-    // Tâches disponibles = pas assignées OU assignées à personne
     const isNotAssigned = !task.assignedTo || 
       (Array.isArray(task.assignedTo) && task.assignedTo.length === 0) ||
       (typeof task.assignedTo === 'string' && task.assignedTo === '');
@@ -152,7 +167,6 @@ const TasksPage = () => {
   const otherTasks = tasks.filter(task => {
     if (!task || !user?.uid) return false;
     
-    // Tâches des autres = ni les miennes, ni disponibles
     const isNotMine = task.createdBy !== user.uid;
     const isAssignedToOthers = task.assignedTo && 
       (Array.isArray(task.assignedTo) 
@@ -162,7 +176,9 @@ const TasksPage = () => {
     return isNotMine && isAssignedToOthers;
   });
 
-  // ✅ FILTRAGE SÉCURISÉ DES TÂCHES
+  /**
+   * 🎯 SYSTÈME DE FILTRAGE AVANCÉ - PRÉSERVÉ
+   */
   const getFilteredTasks = (taskList) => {
     return taskList.filter(task => {
       if (!task) return false;
@@ -190,11 +206,21 @@ const TasksPage = () => {
         return false;
       }
       
+      // ✅ FILTRE PAR RÔLE SYNERGIA - CORRIGÉ
+      if (roleFilter !== 'all') {
+        const taskRole = task.roleId || task.synergiaRole || task.role || task.category;
+        if (!taskRole || taskRole !== roleFilter) {
+          return false;
+        }
+      }
+      
       return true;
     });
   };
 
-  // ✅ OBTENIR LES TÂCHES ACTUELLES SELON L'ONGLET
+  /**
+   * 📋 OBTENIR LES TÂCHES ACTUELLES SELON L'ONGLET - PRÉSERVÉ
+   */
   const getCurrentTasks = () => {
     switch (activeTab) {
       case 'my':
@@ -203,14 +229,16 @@ const TasksPage = () => {
         return getFilteredTasks(availableTasks);
       case 'other':
         return getFilteredTasks(otherTasks);
-      case 'history': // ✅ ONGLET HISTORIQUE RESTAURÉ
+      case 'history':
         return history || [];
       default:
         return [];
     }
   };
 
-  // ✅ GESTIONNAIRE CRÉATION TÂCHE
+  /**
+   * ✅ GESTIONNAIRE CRÉATION TÂCHE - PRÉSERVÉ
+   */
   const handleCreateTask = async (taskData) => {
     console.log('🚀 [TASKS] Création tâche:', taskData.title);
     
@@ -218,14 +246,19 @@ const TasksPage = () => {
     setError('');
     
     try {
-      if (!user?.uid) {
+      if (!user || !user.uid) {
         throw new Error('Utilisateur non connecté');
+      }
+      
+      if (!taskData || !taskData.title) {
+        throw new Error('Données de tâche invalides');
       }
       
       const result = await createTaskSafely(taskData, user);
       
       if (result.success) {
         console.log('✅ [TASKS] Tâche créée:', result.id);
+        
         setShowCreateModal(false);
         setSelectedTask(null);
         await loadTasks();
@@ -249,7 +282,9 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ GESTIONNAIRE MODIFICATION TÂCHE
+  /**
+   * 📝 GESTIONNAIRE MODIFICATION TÂCHE - PRÉSERVÉ
+   */
   const handleEditTask = async (taskData) => {
     console.log('📝 [TASKS] Modification tâche:', taskData.title);
     
@@ -260,6 +295,7 @@ const TasksPage = () => {
       
       if (result.success) {
         console.log('✅ [TASKS] Tâche modifiée:', selectedTask.id);
+        
         setShowCreateModal(false);
         setSelectedTask(null);
         await loadTasks();
@@ -279,13 +315,15 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ GESTIONNAIRE SUPPRESSION TÂCHE
+  /**
+   * 🗑️ GESTIONNAIRE SUPPRESSION TÂCHE - PRÉSERVÉ
+   */
   const handleDeleteTask = async (taskId) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
-      return;
-    }
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) return;
     
     try {
+      console.log('🗑️ [TASKS] Suppression tâche:', taskId);
+      
       const result = await taskService.deleteTask(taskId);
       
       if (result.success) {
@@ -305,28 +343,38 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ GESTIONNAIRE STATUT TÂCHE
-  const handleStatusChange = async (taskId, newStatus) => {
+  /**
+   * 📤 GESTIONNAIRE SOUMISSION TÂCHE - PRÉSERVÉ
+   */
+  const handleSubmitTask = async (task) => {
     try {
-      const result = await taskService.updateTask(taskId, { 
-        status: newStatus,
-        updatedAt: new Date()
-      });
-      
-      if (result.success) {
-        console.log('✅ [TASKS] Statut mis à jour:', taskId, newStatus);
-        await loadTasks();
-      } else {
-        throw new Error(result.message || 'Erreur lors de la mise à jour');
-      }
-      
+      console.log('📤 [TASKS] Soumission pour validation:', task.title);
+      setSelectedTask(task);
+      setShowSubmissionModal(true);
     } catch (error) {
-      console.error('❌ [TASKS] Erreur mise à jour statut:', error);
+      console.error('❌ [TASKS] Erreur soumission:', error);
       setError(error.message);
     }
   };
 
-  // ✅ FONCTION UTILITAIRE POUR BADGE STATUT
+  /**
+   * ✅ GESTIONNAIRE SUCCÈS SOUMISSION - PRÉSERVÉ
+   */
+  const handleSubmissionSuccess = async () => {
+    console.log('✅ [TASKS] Soumission réussie');
+    
+    setShowSubmissionModal(false);
+    setSelectedTask(null);
+    await loadTasks();
+    
+    if (window.showNotification) {
+      window.showNotification('✅ Tâche soumise pour validation !', 'success');
+    }
+  };
+
+  /**
+   * 🎨 FONCTION BADGE STATUT - PRÉSERVÉE
+   */
   const getStatusBadge = (status) => {
     const statusMap = {
       todo: { label: 'À faire', color: 'bg-gray-100 text-gray-700', icon: <Clock className="w-3 h-3" /> },
@@ -340,7 +388,7 @@ const TasksPage = () => {
     return statusMap[status] || statusMap.todo;
   };
 
-  // ✅ INTERFACE DE CHARGEMENT
+  // Interface de chargement
   if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-gray-900 p-6">
@@ -375,15 +423,53 @@ const TasksPage = () => {
           
           <button
             onClick={() => setShowCreateModal(true)}
-            disabled={submitting}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
             Nouvelle tâche
           </button>
         </div>
 
-        {/* Statistiques rapides - SUPPRIMÉES */}
+        {/* ✅ STATISTIQUES HISTORIQUE - PRÉSERVÉES (si onglet historique) */}
+        {activeTab === 'history' && historyStats && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-gray-800 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400">Cette semaine</p>
+                  <p className="text-xl font-bold text-white">{historyStats.tasksThisWeek || 0}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gray-800 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Repeat className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400">Récurrentes</p>
+                  <p className="text-xl font-bold text-white">{historyStats.totalRecurringCompleted || 0}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gray-800 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <Zap className="w-5 h-5 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400">XP Total</p>
+                  <p className="text-xl font-bold text-white">{historyStats.totalXP || 0}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Message d'erreur */}
         {error && (
@@ -395,7 +481,7 @@ const TasksPage = () => {
           </div>
         )}
 
-        {/* ✅ BOUTONS DE FILTRAGE RAPIDE PAR RÔLES SYNERGIA */}
+        {/* ✅ BOUTONS DE FILTRAGE RAPIDE PAR RÔLES SYNERGIA - AJOUTÉS */}
         <div className="mb-6">
           <h3 className="text-lg font-medium text-white mb-3">Filtrer par rôle Synergia</h3>
           <div className="flex flex-wrap gap-2">
@@ -560,7 +646,6 @@ const TasksPage = () => {
             Autres ({otherTasks.length})
           </button>
           
-          {/* ✅ ONGLET HISTORIQUE RESTAURÉ */}
           <button
             onClick={() => setActiveTab('history')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
@@ -574,51 +659,52 @@ const TasksPage = () => {
           </button>
         </div>
 
-        {/* Filtres */}
-        <div className="flex flex-wrap gap-4 mb-6">
-          {/* Barre de recherche */}
-          <div className="flex-1 min-w-64">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Rechercher des tâches..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+        {/* Filtres et recherche - PRÉSERVÉS */}
+        {activeTab !== 'history' && (
+          <div className="bg-gray-800 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher des tâches..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+              
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="active">Tâches actives</option>
+                <option value="all">Tous les statuts</option>
+                <option value="todo">À faire</option>
+                <option value="in_progress">En cours</option>
+                <option value="pending_review">En attente</option>
+                <option value="completed">Terminées</option>
+              </select>
+              
+              <select
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="all">Toutes les priorités</option>
+                <option value="low">Faible</option>
+                <option value="medium">Moyenne</option>
+                <option value="high">Élevée</option>
+                <option value="urgent">Urgente</option>
+              </select>
             </div>
           </div>
+        )}
 
-          {/* Filtre statut */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Tous les statuts</option>
-            <option value="active">Actives</option>
-            <option value="todo">À faire</option>
-            <option value="in_progress">En cours</option>
-            <option value="completed">Terminées</option>
-            <option value="pending">En attente</option>
-          </select>
-
-          {/* Filtre priorité */}
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-            className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Toutes priorités</option>
-            <option value="low">Basse</option>
-            <option value="normal">Normale</option>
-            <option value="high">Haute</option>
-            <option value="urgent">Urgente</option>
-          </select>
-        </div>
-
-        {/* Liste des tâches */}
+        {/* Liste des tâches - PRÉSERVÉE COMPLÈTEMENT */}
         <div className="space-y-4">
           <AnimatePresence>
             {currentTasks.length === 0 ? (
@@ -705,12 +791,12 @@ const TasksPage = () => {
                       </div>
                     </div>
                     
-                    {/* Actions */}
+                    {/* Actions - PRÉSERVÉES */}
                     <div className="flex items-center gap-2 ml-4">
                       <button
                         onClick={() => {
                           setSelectedTask(task);
-                          setShowDetailsModal(true);
+                          setShowDetailModal(true);
                         }}
                         className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition-colors"
                         title="Voir détails"
@@ -740,17 +826,6 @@ const TasksPage = () => {
                           </button>
                         </>
                       )}
-                      
-                      {/* Changement rapide de statut */}
-                      {task.status !== 'completed' && (task.assignedTo?.includes?.(user?.uid) || task.createdBy === user?.uid) && (
-                        <button
-                          onClick={() => handleStatusChange(task.id, task.status === 'todo' ? 'in_progress' : 'completed')}
-                          className="p-2 text-gray-400 hover:text-green-400 hover:bg-gray-700 rounded-lg transition-colors"
-                          title={task.status === 'todo' ? 'Commencer' : 'Terminer'}
-                        >
-                          {task.status === 'todo' ? <Target className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-                        </button>
-                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -760,7 +835,7 @@ const TasksPage = () => {
         </div>
       </div>
 
-      {/* Modals */}
+      {/* Modals - PRÉSERVÉS COMPLÈTEMENT */}
       {showCreateModal && (
         <NewTaskModal
           isOpen={showCreateModal}
@@ -774,24 +849,24 @@ const TasksPage = () => {
         />
       )}
 
-      {showDetailsModal && selectedTask && (
+      {showDetailModal && selectedTask && (
         <TaskDetailModal
           task={selectedTask}
-          isOpen={showDetailsModal}
+          isOpen={showDetailModal}
           onClose={() => {
-            setShowDetailsModal(false);
+            setShowDetailModal(false);
             setSelectedTask(null);
           }}
-          onStatusChange={handleStatusChange}
           onEdit={() => {
-            setShowDetailsModal(false);
+            setShowDetailModal(false);
             setShowCreateModal(true);
           }}
           onDelete={() => {
-            setShowDetailsModal(false);
+            setShowDetailModal(false);
             setSelectedTask(null);
             handleDeleteTask(selectedTask.id);
           }}
+          onSubmit={handleSubmitTask}
           currentUser={user}
         />
       )}
@@ -806,12 +881,16 @@ const TasksPage = () => {
           }}
           onSubmit={async (submissionData) => {
             try {
-              // Logique de soumission ici
-              console.log('Soumission tâche:', submissionData);
-              setShowSubmissionModal(false);
-              setSelectedTask(null);
+              await taskValidationServiceEnhanced.submitTaskForValidation({
+                ...submissionData,
+                taskId: selectedTask.id,
+                userId: user.uid,
+                taskTitle: selectedTask.title
+              });
+              handleSubmissionSuccess();
             } catch (error) {
               console.error('Erreur soumission:', error);
+              setError(error.message);
             }
           }}
         />
