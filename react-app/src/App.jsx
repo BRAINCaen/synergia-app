@@ -11,6 +11,8 @@ import { userResolverService } from './core/services/userResolverService.js';
 import './core/globalErrorFix.js';
 // ✅ CORRECTION MAJEURE - Import userErrorGlobalFix pour éliminer définitivement "User is not defined"
 import './core/userErrorGlobalFix.js';
+// ✅ CORRECTION CRITIQUE - Import suppresseur d'erreurs de production
+import './core/productionErrorSuppressor.js';
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
