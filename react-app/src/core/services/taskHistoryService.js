@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskHistoryService.js
-// SYSTÈME D'HISTORIQUE COMPLET DES TÂCHES AVEC RÉCURRENCE
+// SYSTÈME D'HISTORIQUE COMPLET DES TÂCHES AVEC RÉCURRENCE - IMPLÉMENTÉ
 // ==========================================
 
 import { 
@@ -15,26 +15,29 @@ import {
   orderBy, 
   limit,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  setDoc
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
 /**
- * 🗃️ SERVICE DE GESTION DE L'HISTORIQUE DES TÂCHES
+ * 🗃️ SERVICE DE GESTION DE L'HISTORIQUE DES TÂCHES - IMPLÉMENTATION COMPLÈTE
  */
 class TaskHistoryService {
   constructor() {
     this.HISTORY_COLLECTION = 'task_history';
     this.TASKS_COLLECTION = 'tasks';
     this.USER_STATS_COLLECTION = 'user_task_stats';
+    this.SETTINGS_COLLECTION = 'task_settings';
   }
 
   /**
-   * 📝 ARCHIVER UNE TÂCHE TERMINÉE
+   * 📝 ARCHIVER UNE TÂCHE TERMINÉE - FONCTION PRINCIPALE
    */
   async archiveCompletedTask(taskId, completionData) {
     try {
-      console.log('📝 [ARCHIVE] Archivage tâche terminée:', taskId);
+      console.log('📝 [ARCHIVE] Début archivage tâche:', taskId);
+      console.log('📝 [ARCHIVE] Données completion:', completionData);
 
       // 1. Récupérer la tâche originale
       const taskRef = doc(db, this.TASKS_COLLECTION, taskId);
@@ -44,86 +47,112 @@ class TaskHistoryService {
         throw new Error('Tâche originale introuvable');
       }
 
-      const originalTask = taskDoc.data();
-      
-      // 2. Créer l'entrée d'historique
+      const originalTask = { id: taskId, ...taskDoc.data() };
+      console.log('📋 [ARCHIVE] Tâche originale:', originalTask.title);
+
+      // 2. Créer l'entrée d'historique complète
       const historyEntry = {
-        // Données de la tâche originale
+        // Identifiants
         originalTaskId: taskId,
-        title: originalTask.title,
-        description: originalTask.description,
-        difficulty: originalTask.difficulty,
-        priority: originalTask.priority,
-        xpReward: originalTask.xpReward,
-        roleId: originalTask.roleId,
-        category: originalTask.category,
-        estimatedHours: originalTask.estimatedHours,
-        
-        // Données de l'utilisateur qui a terminé
         completedBy: completionData.userId,
-        completedByName: completionData.userName || 'Utilisateur',
+        completedByName: completionData.userName || completionData.userDisplayName || 'Utilisateur',
         
-        // Données de completion
+        // Données de la tâche
+        title: originalTask.title,
+        description: originalTask.description || '',
+        difficulty: originalTask.difficulty || 'medium',
+        priority: originalTask.priority || 'medium',
+        xpReward: originalTask.xpReward || 0,
+        roleId: originalTask.roleId || null,
+        category: originalTask.category || 'general',
+        estimatedHours: originalTask.estimatedHours || 0,
+        
+        // Timestamps de completion
         completedAt: serverTimestamp(),
-        validatedBy: completionData.validatedBy,
+        taskCreatedAt: originalTask.createdAt || null,
+        validatedBy: completionData.validatedBy || null,
         validatedAt: completionData.validatedAt || serverTimestamp(),
+        
+        // Données de soumission
         adminComment: completionData.adminComment || '',
         submissionComment: completionData.submissionComment || '',
         submissionPhoto: completionData.submissionPhoto || null,
         submissionVideo: completionData.submissionVideo || null,
         
-        // Métadonnées de performance
+        // Performance et qualité
         timeSpent: completionData.timeSpent || null,
         quality: completionData.quality || 'good',
+        efficiency: this.calculateEfficiency(originalTask.estimatedHours, completionData.timeSpent),
         
-        // Données de récurrence si applicable
+        // Données de récurrence
         isRecurring: Boolean(originalTask.isRecurring),
         recurrenceType: originalTask.recurrenceType || null,
-        instanceNumber: completionData.instanceNumber || 1,
-        nextOccurrence: originalTask.isRecurring ? 
-          this.calculateNextOccurrence(originalTask) : null,
+        recurrenceInterval: originalTask.recurrenceInterval || null,
+        recurrenceDays: originalTask.recurrenceDays || [],
+        instanceNumber: originalTask.instanceNumber || 1,
         
         // Données du projet
         projectId: originalTask.projectId || null,
         projectName: completionData.projectName || null,
         
-        // Contexte temporel
+        // Métadonnées temporelles
         completionWeek: this.getWeekNumber(new Date()),
         completionMonth: new Date().getMonth() + 1,
         completionYear: new Date().getFullYear(),
+        completionDayOfWeek: new Date().getDay(),
+        completionHour: new Date().getHours(),
+        
+        // Contexte d'assignation
+        wasVolunteer: completionData.wasVolunteer || false,
+        assignedBy: originalTask.createdBy || null,
+        openToVolunteers: originalTask.openToVolunteers || false,
         
         // Métadonnées système
         archivedAt: serverTimestamp(),
-        version: '1.0'
+        archiveVersion: '1.0',
+        source: 'task_validation_system'
       };
 
-      // 3. Sauvegarder dans l'historique
+      // 3. Calculer la prochaine occurrence si récurrente
+      let nextOccurrence = null;
+      if (originalTask.isRecurring) {
+        nextOccurrence = this.calculateNextOccurrence(originalTask);
+        historyEntry.nextOccurrenceCalculated = nextOccurrence;
+      }
+
+      // 4. Sauvegarder dans l'historique
       const historyRef = await addDoc(
         collection(db, this.HISTORY_COLLECTION), 
         historyEntry
       );
 
-      // 4. Mettre à jour les statistiques utilisateur
+      console.log('✅ [ARCHIVE] Entrée historique créée:', historyRef.id);
+
+      // 5. Mettre à jour les statistiques utilisateur
       await this.updateUserTaskStats(
         completionData.userId, 
         originalTask, 
-        completionData
+        completionData,
+        historyRef.id
       );
 
-      // 5. Gérer la récurrence ou supprimer la tâche
-      if (originalTask.isRecurring) {
-        await this.handleRecurringTaskCompletion(taskId, originalTask);
+      // 6. Gérer la récurrence ou archiver définitivement
+      if (originalTask.isRecurring && nextOccurrence) {
+        await this.handleRecurringTaskCompletion(taskId, originalTask, nextOccurrence);
       } else {
-        // Supprimer la tâche non-récurrente des tâches actives
         await this.archiveNonRecurringTask(taskId);
       }
 
-      console.log('✅ [ARCHIVE] Tâche archivée avec succès:', historyRef.id);
+      console.log('✅ [ARCHIVE] Archivage complet terminé avec succès');
       
       return {
         success: true,
         historyId: historyRef.id,
-        message: 'Tâche archivée avec succès'
+        nextOccurrence: nextOccurrence,
+        wasRecurring: Boolean(originalTask.isRecurring),
+        message: originalTask.isRecurring ? 
+          'Tâche archivée et prochaine occurrence programmée' : 
+          'Tâche archivée définitivement'
       };
 
     } catch (error) {
@@ -135,23 +164,16 @@ class TaskHistoryService {
   /**
    * 🔄 GÉRER LA COMPLETION D'UNE TÂCHE RÉCURRENTE
    */
-  async handleRecurringTaskCompletion(taskId, originalTask) {
+  async handleRecurringTaskCompletion(taskId, originalTask, nextOccurrence) {
     try {
-      console.log('🔄 [RECURRENCE] Gestion tâche récurrente:', taskId);
+      console.log('🔄 [RECURRENCE] Gestion tâche récurrente:', originalTask.title);
+      console.log('🔄 [RECURRENCE] Prochaine occurrence:', nextOccurrence);
 
-      // 1. Calculer la prochaine occurrence
-      const nextOccurrence = this.calculateNextOccurrence(originalTask);
-      
-      if (!nextOccurrence) {
-        // Pas de prochaine occurrence, archiver définitivement
-        await this.archiveNonRecurringTask(taskId);
-        return;
-      }
-
-      // 2. Mettre à jour la tâche existante pour la prochaine occurrence
       const taskRef = doc(db, this.TASKS_COLLECTION, taskId);
       
-      await updateDoc(taskRef, {
+      // Réinitialiser la tâche pour la prochaine occurrence
+      const resetData = {
+        // Statut réinitialisé
         status: 'todo',
         completedAt: null,
         validatedBy: null,
@@ -163,20 +185,29 @@ class TaskHistoryService {
         // Nouvelle échéance
         dueDate: nextOccurrence,
         
-        // Incrémenter le compteur d'instance
+        // Compteurs de récurrence
         instanceNumber: (originalTask.instanceNumber || 1) + 1,
+        totalInstancesCompleted: (originalTask.totalInstancesCompleted || 0) + 1,
         
-        // Métadonnées de récurrence
+        // Historique de récurrence
         lastCompletedAt: serverTimestamp(),
         lastInstanceArchived: true,
+        previousInstancesCount: (originalTask.instanceNumber || 1),
         
-        // Mise à jour système
+        // Maintenir les assignations pour les tâches récurrentes
+        assignedTo: originalTask.assignedTo || [],
+        
+        // Métadonnées de régénération
         updatedAt: serverTimestamp(),
         recreatedAt: serverTimestamp(),
-        recreatedReason: 'recurring_task_completion'
-      });
+        recreatedReason: 'recurring_task_completion',
+        recurringTaskActive: true
+      };
 
-      console.log('✅ [RECURRENCE] Prochaine instance programmée:', nextOccurrence);
+      await updateDoc(taskRef, resetData);
+
+      console.log('✅ [RECURRENCE] Tâche réinitialisée pour prochaine occurrence');
+      console.log('🔄 [RECURRENCE] Instance #' + resetData.instanceNumber + ' programmée');
 
     } catch (error) {
       console.error('❌ [RECURRENCE] Erreur gestion récurrence:', error);
@@ -191,14 +222,16 @@ class TaskHistoryService {
     try {
       const taskRef = doc(db, this.TASKS_COLLECTION, taskId);
       
-      // Marquer comme archivée au lieu de supprimer
+      // Marquer comme archivée définitivement
       await updateDoc(taskRef, {
         status: 'archived',
         archivedAt: serverTimestamp(),
-        archivedReason: 'task_completed_non_recurring'
+        archivedReason: 'task_completed_non_recurring',
+        isActive: false,
+        completionArchived: true
       });
 
-      console.log('🗂️ [ARCHIVE] Tâche non-récurrente archivée:', taskId);
+      console.log('🗂️ [ARCHIVE] Tâche non-récurrente archivée définitivement:', taskId);
 
     } catch (error) {
       console.error('❌ [ARCHIVE] Erreur archivage non-récurrent:', error);
@@ -207,63 +240,117 @@ class TaskHistoryService {
   }
 
   /**
-   * 📊 METTRE À JOUR LES STATISTIQUES UTILISATEUR
+   * 📊 METTRE À JOUR LES STATISTIQUES UTILISATEUR - VERSION COMPLÈTE
    */
-  async updateUserTaskStats(userId, originalTask, completionData) {
+  async updateUserTaskStats(userId, originalTask, completionData, historyId) {
     try {
+      console.log('📊 [STATS] Mise à jour statistiques pour:', userId);
+
       const statsRef = doc(db, this.USER_STATS_COLLECTION, userId);
       const statsDoc = await getDoc(statsRef);
       
-      let currentStats = {};
+      let currentStats = {
+        userId: userId,
+        createdAt: new Date().toISOString(),
+        totalTasksCompleted: 0,
+        totalXpEarned: 0,
+        totalTimeSpent: 0,
+        tasksThisWeek: 0,
+        tasksThisMonth: 0,
+        tasksThisYear: 0
+      };
+
       if (statsDoc.exists()) {
-        currentStats = statsDoc.data();
+        currentStats = { ...currentStats, ...statsDoc.data() };
       }
 
-      // Préparer les nouvelles statistiques
+      // Calculer les nouvelles valeurs
+      const xpEarned = originalTask.xpReward || 0;
+      const timeSpent = completionData.timeSpent || 0;
+      const isCurrentWeek = this.isCurrentWeek(new Date());
+      const isCurrentMonth = this.isCurrentMonth(new Date());
+      const isCurrentYear = this.isCurrentYear(new Date());
+
+      // Préparer les mises à jour
       const updates = {
-        userId: userId,
-        
         // Compteurs généraux
         totalTasksCompleted: (currentStats.totalTasksCompleted || 0) + 1,
-        totalXpEarned: (currentStats.totalXpEarned || 0) + (originalTask.xpReward || 0),
-        totalTimeSpent: (currentStats.totalTimeSpent || 0) + (completionData.timeSpent || 0),
-        
-        // Compteurs par difficulté
-        [`${originalTask.difficulty}TasksCompleted`]: 
-          (currentStats[`${originalTask.difficulty}TasksCompleted`] || 0) + 1,
-        
-        // Compteurs par rôle
-        [`role_${originalTask.roleId}_completed`]: 
-          (currentStats[`role_${originalTask.roleId}_completed`] || 0) + 1,
-        
-        // Compteurs par catégorie
-        [`category_${originalTask.category}_completed`]: 
-          (currentStats[`category_${originalTask.category}_completed`] || 0) + 1,
+        totalXpEarned: (currentStats.totalXpEarned || 0) + xpEarned,
+        totalTimeSpent: (currentStats.totalTimeSpent || 0) + timeSpent,
         
         // Compteurs temporels
-        tasksThisWeek: this.isCurrentWeek(new Date()) ? 
+        tasksThisWeek: isCurrentWeek ? 
           (currentStats.tasksThisWeek || 0) + 1 : (currentStats.tasksThisWeek || 0),
-        tasksThisMonth: this.isCurrentMonth(new Date()) ? 
+        tasksThisMonth: isCurrentMonth ? 
           (currentStats.tasksThisMonth || 0) + 1 : (currentStats.tasksThisMonth || 0),
+        tasksThisYear: isCurrentYear ? 
+          (currentStats.tasksThisYear || 0) + 1 : (currentStats.tasksThisYear || 0),
+        
+        // Compteurs par difficulté
+        [`${originalTask.difficulty || 'medium'}TasksCompleted`]: 
+          (currentStats[`${originalTask.difficulty || 'medium'}TasksCompleted`] || 0) + 1,
+        
+        // Compteurs par priorité
+        [`${originalTask.priority || 'medium'}PriorityCompleted`]: 
+          (currentStats[`${originalTask.priority || 'medium'}PriorityCompleted`] || 0) + 1,
+        
+        // Compteurs par rôle Synergia
+        [`role_${originalTask.roleId || 'none'}_completed`]: 
+          (currentStats[`role_${originalTask.roleId || 'none'}_completed`] || 0) + 1,
+        [`role_${originalTask.roleId || 'none'}_xp`]: 
+          (currentStats[`role_${originalTask.roleId || 'none'}_xp`] || 0) + xpEarned,
+        
+        // Compteurs par catégorie
+        [`category_${originalTask.category || 'general'}_completed`]: 
+          (currentStats[`category_${originalTask.category || 'general'}_completed`] || 0) + 1,
+        
+        // Statistiques de récurrence
+        totalRecurringCompleted: originalTask.isRecurring ? 
+          (currentStats.totalRecurringCompleted || 0) + 1 : (currentStats.totalRecurringCompleted || 0),
+        totalNonRecurringCompleted: !originalTask.isRecurring ? 
+          (currentStats.totalNonRecurringCompleted || 0) + 1 : (currentStats.totalNonRecurringCompleted || 0),
+        
+        // Performance moyenne
+        averageTaskTime: timeSpent > 0 ? 
+          ((currentStats.averageTaskTime || 0) * (currentStats.totalTasksCompleted || 0) + timeSpent) / 
+          ((currentStats.totalTasksCompleted || 0) + 1) : (currentStats.averageTaskTime || 0),
         
         // Métadonnées
         lastTaskCompleted: originalTask.title,
+        lastTaskCompletedId: historyId,
         lastCompletionDate: serverTimestamp(),
-        lastUpdated: serverTimestamp()
+        lastUpdated: serverTimestamp(),
+        
+        // Streaks et habitudes
+        currentStreak: this.calculateStreak(currentStats, new Date()),
+        longestStreak: Math.max(
+          currentStats.longestStreak || 0, 
+          this.calculateStreak(currentStats, new Date())
+        )
       };
 
-      // Gestion spéciale pour les tâches récurrentes
-      if (originalTask.isRecurring) {
-        const recurringKey = `recurring_${originalTask.title.toLowerCase().replace(/\s+/g, '_')}_count`;
-        updates[recurringKey] = (currentStats[recurringKey] || 0) + 1;
+      // Gestion spéciale pour les tâches récurrentes spécifiques
+      if (originalTask.isRecurring && originalTask.title) {
+        const taskKey = this.sanitizeTaskKey(originalTask.title);
+        const recurringCountKey = `recurring_${taskKey}_count`;
+        const recurringXpKey = `recurring_${taskKey}_xp`;
+        const recurringTimeKey = `recurring_${taskKey}_time`;
         
-        updates.totalRecurringCompleted = (currentStats.totalRecurringCompleted || 0) + 1;
+        updates[recurringCountKey] = (currentStats[recurringCountKey] || 0) + 1;
+        updates[recurringXpKey] = (currentStats[recurringXpKey] || 0) + xpEarned;
+        updates[recurringTimeKey] = (currentStats[recurringTimeKey] || 0) + timeSpent;
       }
 
-      // Sauvegarder ou mettre à jour
-      await updateDoc(statsRef, updates, { merge: true });
+      // Sauvegarder avec merge pour préserver les données existantes
+      await setDoc(statsRef, updates, { merge: true });
 
-      console.log('📊 [STATS] Statistiques utilisateur mises à jour');
+      console.log('✅ [STATS] Statistiques mises à jour avec succès');
+      console.log('📊 [STATS] Nouvelles valeurs:', {
+        totalCompleted: updates.totalTasksCompleted,
+        totalXP: updates.totalXpEarned,
+        thisWeek: updates.tasksThisWeek,
+        thisMonth: updates.tasksThisMonth
+      });
 
     } catch (error) {
       console.error('❌ [STATS] Erreur mise à jour statistiques:', error);
@@ -272,55 +359,70 @@ class TaskHistoryService {
   }
 
   /**
-   * 📅 CALCULER LA PROCHAINE OCCURRENCE D'UNE TÂCHE RÉCURRENTE
+   * 📅 CALCULER LA PROCHAINE OCCURRENCE - VERSION AMÉLIORÉE
    */
   calculateNextOccurrence(task) {
     if (!task.isRecurring || !task.recurrenceType) {
       return null;
     }
 
+    console.log('📅 [RECURRENCE] Calcul prochaine occurrence pour:', task.title);
+    console.log('📅 [RECURRENCE] Type:', task.recurrenceType, 'Intervalle:', task.recurrenceInterval);
+
     const now = new Date();
-    const interval = task.recurrenceInterval || 1;
+    const interval = parseInt(task.recurrenceInterval) || 1;
+    let nextDate = null;
     
     switch (task.recurrenceType) {
       case 'daily':
-        return new Date(now.getTime() + (interval * 24 * 60 * 60 * 1000));
+        nextDate = new Date(now.getTime() + (interval * 24 * 60 * 60 * 1000));
+        break;
         
       case 'weekly':
-        const nextWeek = new Date(now.getTime() + (interval * 7 * 24 * 60 * 60 * 1000));
-        
-        // Si des jours spécifiques sont définis
         if (task.recurrenceDays && task.recurrenceDays.length > 0) {
-          // Logique pour trouver le prochain jour de la semaine spécifié
-          const dayNames = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
-          const nextDay = task.recurrenceDays[0]; // Prendre le premier jour défini
-          const targetDayIndex = dayNames.indexOf(nextDay.toLowerCase());
-          
-          if (targetDayIndex !== -1) {
-            const daysUntilTarget = (targetDayIndex - now.getDay() + 7) % 7;
-            return new Date(now.getTime() + (daysUntilTarget * 24 * 60 * 60 * 1000));
-          }
+          // Trouver le prochain jour spécifié
+          nextDate = this.getNextWeeklyOccurrence(now, task.recurrenceDays, interval);
+        } else {
+          // Semaine standard
+          nextDate = new Date(now.getTime() + (interval * 7 * 24 * 60 * 60 * 1000));
         }
-        
-        return nextWeek;
+        break;
         
       case 'monthly':
-        const nextMonth = new Date(now);
-        nextMonth.setMonth(nextMonth.getMonth() + interval);
-        return nextMonth;
+        nextDate = new Date(now);
+        nextDate.setMonth(nextDate.getMonth() + interval);
+        // Garder le même jour du mois si possible
+        if (task.dueDate) {
+          const originalDay = new Date(task.dueDate).getDate();
+          nextDate.setDate(Math.min(originalDay, this.getDaysInMonth(nextDate)));
+        }
+        break;
         
       case 'yearly':
-        const nextYear = new Date(now);
-        nextYear.setFullYear(nextYear.getFullYear() + interval);
-        return nextYear;
+        nextDate = new Date(now);
+        nextDate.setFullYear(nextDate.getFullYear() + interval);
+        break;
         
       default:
+        console.warn('⚠️ [RECURRENCE] Type de récurrence non supporté:', task.recurrenceType);
         return null;
     }
+
+    // Vérifier la date de fin de récurrence
+    if (task.recurrenceEndDate) {
+      const endDate = new Date(task.recurrenceEndDate);
+      if (nextDate > endDate) {
+        console.log('📅 [RECURRENCE] Fin de récurrence atteinte');
+        return null;
+      }
+    }
+
+    console.log('📅 [RECURRENCE] Prochaine occurrence calculée:', nextDate);
+    return nextDate;
   }
 
   /**
-   * 📋 RÉCUPÉRER L'HISTORIQUE D'UN UTILISATEUR
+   * 📋 RÉCUPÉRER L'HISTORIQUE D'UN UTILISATEUR - VERSION AVANCÉE
    */
   async getUserTaskHistory(userId, options = {}) {
     try {
@@ -328,70 +430,72 @@ class TaskHistoryService {
         limit: queryLimit = 50,
         roleId = null,
         category = null,
-        timeframe = null, // 'week', 'month', 'year'
-        isRecurring = null
+        timeframe = null,
+        isRecurring = null,
+        taskTitle = null,
+        difficulty = null,
+        sortBy = 'completedAt',
+        sortOrder = 'desc'
       } = options;
 
-      let q = query(
-        collection(db, this.HISTORY_COLLECTION),
+      console.log('📋 [HISTORY] Récupération historique pour:', userId);
+      console.log('📋 [HISTORY] Options:', options);
+
+      let constraints = [
         where('completedBy', '==', userId),
-        orderBy('completedAt', 'desc')
-      );
+        orderBy(sortBy, sortOrder)
+      ];
 
       // Filtres optionnels
       if (roleId) {
-        q = query(q, where('roleId', '==', roleId));
+        constraints.push(where('roleId', '==', roleId));
       }
       
       if (category) {
-        q = query(q, where('category', '==', category));
+        constraints.push(where('category', '==', category));
       }
       
       if (isRecurring !== null) {
-        q = query(q, where('isRecurring', '==', isRecurring));
+        constraints.push(where('isRecurring', '==', isRecurring));
+      }
+      
+      if (difficulty) {
+        constraints.push(where('difficulty', '==', difficulty));
+      }
+      
+      if (taskTitle) {
+        constraints.push(where('title', '==', taskTitle));
       }
 
-      // Filtrage temporel
-      if (timeframe) {
-        const now = new Date();
-        let startDate;
-        
-        switch (timeframe) {
-          case 'week':
-            startDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
-            break;
-          case 'month':
-            startDate = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
-            break;
-          case 'year':
-            startDate = new Date(now.getTime() - (365 * 24 * 60 * 60 * 1000));
-            break;
-        }
-        
-        if (startDate) {
-          q = query(q, where('completedAt', '>=', startDate));
-        }
-      }
-
-      // Limitation
+      // Limitation des résultats
       if (queryLimit) {
-        q = query(q, limit(queryLimit));
+        constraints.push(limit(queryLimit));
       }
 
+      const q = query(collection(db, this.HISTORY_COLLECTION), ...constraints);
       const snapshot = await getDocs(q);
       const history = [];
       
       snapshot.forEach(doc => {
+        const data = doc.data();
         history.push({
           id: doc.id,
-          ...doc.data(),
-          completedAt: doc.data().completedAt?.toDate?.() || doc.data().completedAt
+          ...data,
+          completedAt: data.completedAt?.toDate?.() || data.completedAt,
+          validatedAt: data.validatedAt?.toDate?.() || data.validatedAt,
+          archivedAt: data.archivedAt?.toDate?.() || data.archivedAt
         });
       });
 
-      console.log(`📋 [HISTORY] Historique récupéré: ${history.length} entrées`);
+      // Filtrage temporel en post-traitement pour plus de flexibilité
+      let filteredHistory = history;
+      if (timeframe) {
+        filteredHistory = this.filterByTimeframe(history, timeframe);
+      }
+
+      console.log(`📋 [HISTORY] Historique récupéré: ${filteredHistory.length} entrées`);
       
-      return history;
+      return filteredHistory;
 
     } catch (error) {
       console.error('❌ [HISTORY] Erreur récupération historique:', error);
@@ -400,33 +504,38 @@ class TaskHistoryService {
   }
 
   /**
-   * 📊 RÉCUPÉRER LES STATISTIQUES D'UN UTILISATEUR
+   * 📊 RÉCUPÉRER LES STATISTIQUES COMPLÈTES D'UN UTILISATEUR
    */
   async getUserTaskStats(userId) {
     try {
+      console.log('📊 [STATS] Récupération statistiques pour:', userId);
+
       const statsRef = doc(db, this.USER_STATS_COLLECTION, userId);
       const statsDoc = await getDoc(statsRef);
       
       if (!statsDoc.exists()) {
-        return {
-          userId,
-          totalTasksCompleted: 0,
-          totalXpEarned: 0,
-          totalTimeSpent: 0,
-          tasksThisWeek: 0,
-          tasksThisMonth: 0,
-          lastTaskCompleted: null,
-          lastCompletionDate: null
-        };
+        console.log('📊 [STATS] Aucune statistique trouvée, création par défaut');
+        return this.getDefaultUserStats(userId);
       }
 
       const stats = statsDoc.data();
       
-      // Convertir les timestamps
+      // Convertir les timestamps Firestore
       if (stats.lastCompletionDate?.toDate) {
         stats.lastCompletionDate = stats.lastCompletionDate.toDate();
       }
+      if (stats.lastUpdated?.toDate) {
+        stats.lastUpdated = stats.lastUpdated.toDate();
+      }
 
+      // Calculer des métriques dérivées
+      stats.completionRate = this.calculateCompletionRate(stats);
+      stats.averageXpPerTask = stats.totalTasksCompleted > 0 ? 
+        Math.round(stats.totalXpEarned / stats.totalTasksCompleted) : 0;
+      stats.averageTimePerTask = stats.totalTasksCompleted > 0 ? 
+        Math.round(stats.totalTimeSpent / stats.totalTasksCompleted) : 0;
+
+      console.log('📊 [STATS] Statistiques récupérées avec succès');
       return stats;
 
     } catch (error) {
@@ -436,93 +545,64 @@ class TaskHistoryService {
   }
 
   /**
-   * 🏆 RÉCUPÉRER LE CLASSEMENT DES UTILISATEURS PAR TÂCHES
-   */
-  async getTaskLeaderboard(timeframe = 'all', limit = 10) {
-    try {
-      let q = query(
-        collection(db, this.USER_STATS_COLLECTION),
-        orderBy('totalTasksCompleted', 'desc'),
-        limit(limit)
-      );
-
-      // Pour un classement temporel, on utiliserait les compteurs spécifiques
-      if (timeframe === 'week') {
-        q = query(
-          collection(db, this.USER_STATS_COLLECTION),
-          orderBy('tasksThisWeek', 'desc'),
-          limit(limit)
-        );
-      } else if (timeframe === 'month') {
-        q = query(
-          collection(db, this.USER_STATS_COLLECTION),
-          orderBy('tasksThisMonth', 'desc'),
-          limit(limit)
-        );
-      }
-
-      const snapshot = await getDocs(q);
-      const leaderboard = [];
-      
-      snapshot.forEach(doc => {
-        leaderboard.push({
-          userId: doc.id,
-          ...doc.data()
-        });
-      });
-
-      return leaderboard;
-
-    } catch (error) {
-      console.error('❌ [LEADERBOARD] Erreur récupération classement:', error);
-      throw error;
-    }
-  }
-
-  /**
    * 🔍 ANALYSER LES PERFORMANCES PAR TYPE DE TÂCHE
    */
   async analyzeTaskTypePerformance(userId, taskTitle) {
     try {
-      // Rechercher toutes les occurrences de cette tâche pour cet utilisateur
-      const q = query(
-        collection(db, this.HISTORY_COLLECTION),
-        where('completedBy', '==', userId),
-        where('title', '==', taskTitle),
-        orderBy('completedAt', 'desc')
-      );
+      console.log('🔍 [ANALYSIS] Analyse performance pour:', taskTitle);
 
-      const snapshot = await getDocs(q);
-      const occurrences = [];
-      
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        occurrences.push({
-          id: doc.id,
-          completedAt: data.completedAt?.toDate?.() || data.completedAt,
-          timeSpent: data.timeSpent || 0,
-          quality: data.quality || 'good',
-          instanceNumber: data.instanceNumber || 1
-        });
+      const history = await this.getUserTaskHistory(userId, { 
+        taskTitle: taskTitle,
+        limit: 100,
+        sortBy: 'completedAt',
+        sortOrder: 'desc'
       });
 
-      // Calculer les métriques
-      const totalOccurrences = occurrences.length;
-      const averageTime = occurrences.reduce((sum, occ) => sum + occ.timeSpent, 0) / totalOccurrences;
+      if (history.length === 0) {
+        return {
+          taskTitle,
+          totalOccurrences: 0,
+          message: 'Aucune occurrence trouvée pour cette tâche'
+        };
+      }
+
+      // Calculs des métriques
+      const totalOccurrences = history.length;
+      const validTimeEntries = history.filter(h => h.timeSpent && h.timeSpent > 0);
+      const averageTime = validTimeEntries.length > 0 ? 
+        validTimeEntries.reduce((sum, h) => sum + h.timeSpent, 0) / validTimeEntries.length : 0;
+      
+      const totalXp = history.reduce((sum, h) => sum + (h.xpReward || 0), 0);
+      const averageXp = totalOccurrences > 0 ? totalXp / totalOccurrences : 0;
+
+      // Distribution par qualité
       const qualityDistribution = {};
-      
-      occurrences.forEach(occ => {
-        qualityDistribution[occ.quality] = (qualityDistribution[occ.quality] || 0) + 1;
+      history.forEach(h => {
+        const quality = h.quality || 'unknown';
+        qualityDistribution[quality] = (qualityDistribution[quality] || 0) + 1;
       });
 
-      return {
+      // Tendances temporelles
+      const monthlyTrend = this.calculateMonthlyTrend(history);
+      const weeklyPattern = this.calculateWeeklyPattern(history);
+
+      const analysis = {
         taskTitle,
         totalOccurrences,
-        averageTime,
+        averageTime: Math.round(averageTime),
+        totalXpEarned: totalXp,
+        averageXpPerOccurrence: Math.round(averageXp),
         qualityDistribution,
-        occurrences,
-        lastCompleted: occurrences[0]?.completedAt || null
+        monthlyTrend,
+        weeklyPattern,
+        lastCompleted: history[0]?.completedAt || null,
+        firstCompleted: history[history.length - 1]?.completedAt || null,
+        isRecurring: history[0]?.isRecurring || false,
+        occurrences: history.slice(0, 20) // Limiter pour la performance
       };
+
+      console.log('🔍 [ANALYSIS] Analyse terminée:', analysis);
+      return analysis;
 
     } catch (error) {
       console.error('❌ [ANALYSIS] Erreur analyse performance:', error);
@@ -531,8 +611,42 @@ class TaskHistoryService {
   }
 
   /**
-   * 🛠️ UTILITAIRES
+   * 🛠️ UTILITAIRES ET HELPERS
    */
+  
+  getDefaultUserStats(userId) {
+    return {
+      userId,
+      totalTasksCompleted: 0,
+      totalXpEarned: 0,
+      totalTimeSpent: 0,
+      tasksThisWeek: 0,
+      tasksThisMonth: 0,
+      tasksThisYear: 0,
+      totalRecurringCompleted: 0,
+      totalNonRecurringCompleted: 0,
+      currentStreak: 0,
+      longestStreak: 0,
+      averageTaskTime: 0,
+      lastTaskCompleted: null,
+      lastCompletionDate: null,
+      createdAt: new Date().toISOString()
+    };
+  }
+
+  calculateEfficiency(estimatedHours, actualTime) {
+    if (!estimatedHours || !actualTime || estimatedHours <= 0) return null;
+    const estimatedSeconds = estimatedHours * 3600;
+    return Math.round((estimatedSeconds / actualTime) * 100) / 100;
+  }
+
+  sanitizeTaskKey(taskTitle) {
+    return taskTitle.toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, '_')
+      .substring(0, 50);
+  }
+
   getWeekNumber(date) {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
@@ -549,7 +663,111 @@ class TaskHistoryService {
     const now = new Date();
     return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
   }
+
+  isCurrentYear(date) {
+    return date.getFullYear() === new Date().getFullYear();
+  }
+
+  getDaysInMonth(date) {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  }
+
+  getNextWeeklyOccurrence(startDate, recurrenceDays, interval) {
+    const dayNames = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+    const currentDay = startDate.getDay();
+    
+    // Trouver le prochain jour dans la liste
+    let nextDayIndex = -1;
+    let daysToAdd = 7; // Par défaut, semaine suivante
+    
+    for (const dayName of recurrenceDays) {
+      const dayIndex = dayNames.indexOf(dayName.toLowerCase());
+      if (dayIndex !== -1) {
+        const daysUntilTarget = (dayIndex - currentDay + 7) % 7;
+        if (daysUntilTarget > 0 && daysUntilTarget < daysToAdd) {
+          daysToAdd = daysUntilTarget;
+          nextDayIndex = dayIndex;
+        }
+      }
+    }
+    
+    // Si pas de jour trouvé cette semaine, prendre le premier jour de la semaine suivante
+    if (nextDayIndex === -1 && recurrenceDays.length > 0) {
+      const firstDay = recurrenceDays[0];
+      nextDayIndex = dayNames.indexOf(firstDay.toLowerCase());
+      daysToAdd = (nextDayIndex - currentDay + 7) % 7 + 7;
+    }
+    
+    const nextDate = new Date(startDate.getTime() + (daysToAdd * 24 * 60 * 60 * 1000));
+    return nextDate;
+  }
+
+  calculateStreak(stats, currentDate) {
+    // Logique simple pour calculer une streak basée sur les tâches récentes
+    // À améliorer avec des données plus précises si nécessaire
+    const lastCompletion = stats.lastCompletionDate;
+    if (!lastCompletion) return 0;
+    
+    const daysDiff = Math.floor((currentDate - new Date(lastCompletion)) / (1000 * 60 * 60 * 24));
+    return daysDiff <= 1 ? (stats.currentStreak || 0) + 1 : 1;
+  }
+
+  calculateCompletionRate(stats) {
+    // Pourcentage basé sur un objectif théorique
+    const weeklyGoal = 5; // 5 tâches par semaine
+    const currentWeekProgress = (stats.tasksThisWeek || 0) / weeklyGoal;
+    return Math.min(100, Math.round(currentWeekProgress * 100));
+  }
+
+  filterByTimeframe(history, timeframe) {
+    const now = new Date();
+    let cutoffDate;
+    
+    switch (timeframe) {
+      case 'today':
+        cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        break;
+      case 'week':
+        cutoffDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+        break;
+      case 'month':
+        cutoffDate = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+        break;
+      case 'year':
+        cutoffDate = new Date(now.getTime() - (365 * 24 * 60 * 60 * 1000));
+        break;
+      default:
+        return history;
+    }
+    
+    return history.filter(item => {
+      const itemDate = new Date(item.completedAt);
+      return itemDate >= cutoffDate;
+    });
+  }
+
+  calculateMonthlyTrend(history) {
+    const monthlyData = {};
+    history.forEach(item => {
+      const date = new Date(item.completedAt);
+      const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
+      monthlyData[monthKey] = (monthlyData[monthKey] || 0) + 1;
+    });
+    return monthlyData;
+  }
+
+  calculateWeeklyPattern(history) {
+    const weeklyData = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0};
+    history.forEach(item => {
+      const dayOfWeek = new Date(item.completedAt).getDay();
+      weeklyData[dayOfWeek] = (weeklyData[dayOfWeek] || 0) + 1;
+    });
+    return weeklyData;
+  }
 }
+
+// Export de l'instance singleton
+export const taskHistoryService = new TaskHistoryService();
 
 // Export de l'instance singleton
 export const taskHistoryService = new TaskHistoryService();
