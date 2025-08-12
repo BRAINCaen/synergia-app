@@ -29,6 +29,7 @@ import {
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { taskService } from '../core/services/taskService.js';
 import { createTaskSafely } from '../core/services/taskCreationFix.js';
+import { useTaskHistory } from '../shared/hooks/useTaskHistory.js';
 
 // Composants
 import NewTaskModal from '../components/tasks/NewTaskModal.jsx';
@@ -56,6 +57,17 @@ const TasksPage = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+
+  // ✅ INTÉGRATION SYSTÈME HISTORIQUE CORRIGÉ
+  const { 
+    history, 
+    stats: historyStats, 
+    loading: historyLoading,
+    getWeeklyTrends,
+    getTopTasks
+  } = useTaskHistory({
+    limit: 10 // Charger les 10 dernières tâches de l'historique
+  });
 
   // ✅ CHARGEMENT SÉCURISÉ DES TÂCHES
   const loadTasks = async () => {
@@ -180,6 +192,8 @@ const TasksPage = () => {
         return getFilteredTasks(availableTasks);
       case 'other':
         return getFilteredTasks(otherTasks);
+      case 'history': // ✅ ONGLET HISTORIQUE RESTAURÉ
+        return history || [];
       default:
         return [];
     }
@@ -456,6 +470,19 @@ const TasksPage = () => {
             <Users className="w-4 h-4" />
             Autres ({otherTasks.length})
           </button>
+          
+          {/* ✅ ONGLET HISTORIQUE RESTAURÉ */}
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              activeTab === 'history'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            <Archive className="w-4 h-4" />
+            Historique ({history?.length || 0})
+          </button>
         </div>
 
         {/* Filtres */}
@@ -521,6 +548,7 @@ const TasksPage = () => {
                   {activeTab === 'my' && 'Vous n\'avez aucune tâche assignée pour le moment.'}
                   {activeTab === 'available' && 'Aucune tâche disponible actuellement.'}
                   {activeTab === 'other' && 'Aucune tâche d\'autres équipes trouvée.'}
+                  {activeTab === 'history' && 'Aucune tâche complétée dans votre historique.'}
                 </p>
               </motion.div>
             ) : (
