@@ -19,7 +19,7 @@ import recurrenceSchedulerService from './core/services/recurrenceSchedulerServi
 // 🎭 PAGES PRINCIPALES - CHEMINS CORRIGÉS
 // ==========================================
 import LoginPage from './pages/Login.jsx';
-import DashboardPage from './pages/DashboardPage.jsx';
+import DashboardPage from './pages/Dashboard.jsx'; // ✅ CORRECTION: Dashboard.jsx au lieu de DashboardPage.jsx
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
 import TeamPage from './pages/TeamPage.jsx';
@@ -50,456 +50,430 @@ import AdminDemoCleanerPage from './pages/admin/AdminDemoCleanerPage.jsx';
 import AdminCompleteTestPage from './pages/admin/AdminCompleteTestPage.jsx';
 
 // ==========================================
-// 📊 PAGES OUTILS - CHEMINS CORRIGÉS
+// 📱 PAGES ADDITIONNELLES
 // ==========================================
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import UsersPage from './pages/UsersPage.jsx';
 import OnboardingPage from './pages/OnboardingPage.jsx';
 import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
-import UsersPage from './pages/UsersPage.jsx';
-import NotFoundPage from './pages/NotFoundPage.jsx';
+import NotFoundPage from './pages/NotFound.jsx';
 
 // ==========================================
-// 🎨 STYLES GLOBAUX
+// 🎯 COMPOSANTS LAYOUT
 // ==========================================
-import './index.css';
+import Layout from './components/layout/Layout.jsx';
+import ProtectedRoute from './components/auth/ProtectedRoute.jsx';
+import PublicRoute from './components/auth/PublicRoute.jsx';
 
 // ==========================================
-// 🛡️ COMPOSANT DE PROTECTION DES ROUTES
+// 🔧 CONFIGURATION ET CONSTANTES
 // ==========================================
-const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuthStore();
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-900 to-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Chargement de Synergia...</p>
-        </div>
-      </div>
-    );
-  }
+import { ROUTES } from './core/constants.js';
 
-  return isAuthenticated ? children : <Navigate to="/login" />;
-};
-
-// ==========================================
-// 🚀 COMPOSANT APP PRINCIPAL
-// ==========================================
+/**
+ * 🚀 COMPOSANT APP PRINCIPAL
+ */
 const App = () => {
-  const { isAuthenticated, loading, user } = useAuthStore();
+  const { isAuthenticated, isLoading, user } = useAuthStore();
 
   // ==========================================
-  // 🔧 INITIALISATION UNIQUE
+  // 🔄 INITIALISATION DES SERVICES
   // ==========================================
   useEffect(() => {
-    console.log('🚀 Initialisation App principale...');
-    
-    // Initialiser l'AuthStore une seule fois
-    initializeAuthStore();
-    
-    // Initialiser userResolverService globalement
-    if (typeof window !== 'undefined') {
-      window.userResolverService = userResolverService;
-      console.log('✅ UserResolverService disponible globalement');
-    }
-    
-    console.log('✅ App initialisée');
+    const initializeApp = async () => {
+      try {
+        // 1. Initialiser le store d'authentification
+        await initializeAuthStore();
+        
+        // 2. Initialiser les services si utilisateur connecté
+        if (isAuthenticated && user) {
+          // Service de résolution utilisateur
+          await userResolverService.initialize();
+          
+          // Service de récurrence hebdomadaire
+          await weeklyRecurrenceService.initialize();
+          
+          // Planificateur de récurrence
+          await recurrenceSchedulerService.start();
+        }
+      } catch (error) {
+        console.error('Erreur lors de l\'initialisation de l\'app:', error);
+      }
+    };
+
+    initializeApp();
+  }, [isAuthenticated, user]);
+
+  // ==========================================
+  // 🔄 CLEANUP AU DÉMONTAGE
+  // ==========================================
+  useEffect(() => {
+    return () => {
+      // Arrêter le planificateur lors du démontage
+      recurrenceSchedulerService.stop();
+    };
   }, []);
 
   // ==========================================
-  // 📅 INITIALISATION DU SYSTÈME DE RÉCURRENCE HEBDOMADAIRE COMPLET
+  // ⏳ AFFICHAGE CHARGEMENT
   // ==========================================
-  useEffect(() => {
-    if (isAuthenticated && user?.uid) {
-      initializeRecurrenceSystem();
-    }
-
-    // Nettoyage lors de la déconnexion
-    return () => {
-      if (!isAuthenticated) {
-        recurrenceSchedulerService.stop();
-      }
-    };
-  }, [isAuthenticated, user?.uid]);
-
-  const initializeRecurrenceSystem = async () => {
-    try {
-      console.log('📅 Initialisation système de récurrence hebdomadaire complet...');
-      
-      // 1. Initialiser le service de récurrence de base
-      const initResult = await weeklyRecurrenceService.initialize();
-      
-      if (initResult.success) {
-        console.log('✅ Service de récurrence hebdomadaire initialisé');
-        
-        // 2. Effectuer une vérification matinale
-        await recurrenceSchedulerService.morningStartupCheck();
-        
-        // 3. Démarrer le planificateur automatique (vérification toutes les 30 minutes)
-        recurrenceSchedulerService.start(30 * 60 * 1000); // 30 minutes
-        
-        console.log('✅ Système de récurrence complet initialisé avec succès');
-        
-        // 4. Programmer une vérification à minuit pour les nouveaux jours
-        scheduleMidnightCheck();
-        
-      } else {
-        console.warn('⚠️ Erreur initialisation récurrence:', initResult.error);
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur critique initialisation récurrence:', error);
-    }
-  };
-
-  const scheduleMidnightCheck = () => {
-    const now = new Date();
-    const midnight = new Date();
-    midnight.setHours(24, 0, 0, 0); // Minuit prochain
-    
-    const timeToMidnight = midnight.getTime() - now.getTime();
-    
-    setTimeout(async () => {
-      try {
-        console.log('🌙 Vérification de minuit - Nouveau jour détecté');
-        await recurrenceSchedulerService.morningStartupCheck();
-        
-        // Reprogrammer pour le prochain minuit
-        scheduleMidnightCheck();
-      } catch (error) {
-        console.error('❌ Erreur vérification de minuit:', error);
-      }
-    }, timeToMidnight);
-    
-    console.log(`🌙 Prochaine vérification programmée dans ${Math.round(timeToMidnight / 1000 / 60)} minutes`);
-  };
-
-  // ==========================================
-  // 🔄 LOADING GLOBAL
-  // ==========================================
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-900 to-gray-900">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Chargement de Synergia...</p>
-          <p className="text-blue-200 text-sm mt-2">Initialisation des services...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-400 mx-auto mb-4"></div>
+          <h2 className="text-2xl font-bold text-white mb-2">Synergia</h2>
+          <p className="text-gray-400">Chargement en cours...</p>
         </div>
       </div>
     );
   }
 
   // ==========================================
-  // 📱 SYSTÈME DE ROUTING PRINCIPAL
+  // 🎯 RENDU PRINCIPAL
   // ==========================================
   return (
     <Router>
-      <AnimatePresence mode="wait">
-        <Routes>
-          {/* 🔐 Page de connexion */}
-          <Route 
-            path="/login" 
-            element={
-              isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />
-            } 
-          />
+      <div className="App min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <AnimatePresence mode="wait">
+          <Routes>
+            {/* ==========================================
+                🔐 ROUTES PUBLIQUES
+                ========================================== */}
+            <Route 
+              path={ROUTES.LOGIN} 
+              element={
+                <PublicRoute>
+                  <LoginPage />
+                </PublicRoute>
+              } 
+            />
 
-          {/* 🏠 Dashboard principal */}
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            } 
-          />
+            {/* ==========================================
+                🏠 ROUTES PROTÉGÉES PRINCIPALES
+                ========================================== */}
+            <Route
+              path={ROUTES.DASHBOARD}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <DashboardPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* ✅ Gestion des tâches avec récurrence */}
-          <Route 
-            path="/tasks" 
-            element={
-              <ProtectedRoute>
-                <TasksPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.TASKS}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <TasksPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 📁 Projets */}
-          <Route 
-            path="/projects" 
-            element={
-              <ProtectedRoute>
-                <ProjectsPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.PROJECTS}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ProjectsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 👥 Équipe */}
-          <Route 
-            path="/team" 
-            element={
-              <ProtectedRoute>
-                <TeamPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.ANALYTICS}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <AnalyticsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 👤 Utilisateurs */}
-          <Route 
-            path="/users" 
-            element={
-              <ProtectedRoute>
-                <UsersPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.TEAM}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <TeamPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 👨‍💼 Profil utilisateur */}
-          <Route 
-            path="/profile" 
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            } 
-          />
+            {/* ==========================================
+                🏆 ROUTES GAMIFICATION
+                ========================================== */}
+            <Route
+              path={ROUTES.GAMIFICATION}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <GamificationPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* ==========================================
-               🏆 ROUTES GAMIFICATION
-               ========================================== */}
+            <Route
+              path={ROUTES.BADGES}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <BadgesPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 🎮 Gamification principale */}
-          <Route 
-            path="/gamification" 
-            element={
-              <ProtectedRoute>
-                <GamificationPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.LEADERBOARD}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <LeaderboardPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 🏆 Badges */}
-          <Route 
-            path="/badges" 
-            element={
-              <ProtectedRoute>
-                <BadgesPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.REWARDS}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <RewardsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 🥇 Classement */}
-          <Route 
-            path="/leaderboard" 
-            element={
-              <ProtectedRoute>
-                <LeaderboardPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.ROLE_PROGRESSION}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <RoleProgressionPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 🎁 Récompenses */}
-          <Route 
-            path="/rewards" 
-            element={
-              <ProtectedRoute>
-                <RewardsPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.ESCAPE_PROGRESSION}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <EscapeProgressionPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 🎯 Progression des rôles */}
-          <Route 
-            path="/role-progression" 
-            element={
-              <ProtectedRoute>
-                <RoleProgressionPage />
-              </ProtectedRoute>
-            } 
-          />
+            {/* ==========================================
+                👥 ROUTES UTILISATEURS
+                ========================================== */}
+            <Route
+              path={ROUTES.USERS}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <UsersPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 🚀 Escape Progression */}
-          <Route 
-            path="/escape-progression" 
-            element={
-              <ProtectedRoute>
-                <EscapeProgressionPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.PROFILE}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ProfilePage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* ==========================================
-               📊 ROUTES OUTILS
-               ========================================== */}
+            {/* ==========================================
+                🛠️ ROUTES OUTILS
+                ========================================== */}
+            <Route
+              path={ROUTES.ONBOARDING}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <OnboardingPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 📊 Analytics */}
-          <Route 
-            path="/analytics" 
-            element={
-              <ProtectedRoute>
-                <AnalyticsPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.TIMETRACK}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <TimeTrackPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 📚 Intégration/Onboarding */}
-          <Route 
-            path="/onboarding" 
-            element={
-              <ProtectedRoute>
-                <OnboardingPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.SETTINGS}
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <SettingsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* ⏰ Pointeuse */}
-          <Route 
-            path="/timetrack" 
-            element={
-              <ProtectedRoute>
-                <TimeTrackPage />
-              </ProtectedRoute>
-            } 
-          />
+            {/* ==========================================
+                🛡️ ROUTES ADMIN
+                ========================================== */}
+            <Route
+              path={ROUTES.ADMIN_TASK_VALIDATION}
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <AdminTaskValidationPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* ⚙️ Paramètres */}
-          <Route 
-            path="/settings" 
-            element={
-              <ProtectedRoute>
-                <SettingsPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.ADMIN_OBJECTIVE_VALIDATION}
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <AdminObjectiveValidationPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* ==========================================
-               🛡️ ROUTES ADMIN
-               ========================================== */}
+            <Route
+              path={ROUTES.ADMIN_COMPLETE_TEST}
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <AdminCompleteTestPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 🛡️ Validation des tâches */}
-          <Route 
-            path="/admin/task-validation" 
-            element={
-              <ProtectedRoute>
-                <AdminTaskValidationPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.ADMIN_ROLE_PERMISSIONS}
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <AdminRolePermissionsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 🎯 Validation des objectifs */}
-          <Route 
-            path="/admin/objective-validation" 
-            element={
-              <ProtectedRoute>
-                <AdminObjectiveValidationPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.ADMIN_REWARDS}
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <AdminRewardsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 🔐 Permissions des rôles */}
-          <Route 
-            path="/admin/role-permissions" 
-            element={
-              <ProtectedRoute>
-                <AdminRolePermissionsPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.ADMIN_BADGES}
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <AdminBadgesPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 🎁 Gestion des récompenses */}
-          <Route 
-            path="/admin/rewards" 
-            element={
-              <ProtectedRoute>
-                <AdminRewardsPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.ADMIN_USERS}
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <AdminUsersPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 🏆 Gestion des badges */}
-          <Route 
-            path="/admin/badges" 
-            element={
-              <ProtectedRoute>
-                <AdminBadgesPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.ADMIN_ANALYTICS}
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <AdminAnalyticsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 👥 Gestion des utilisateurs */}
-          <Route 
-            path="/admin/users" 
-            element={
-              <ProtectedRoute>
-                <AdminUsersPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.ADMIN_SETTINGS}
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <AdminSettingsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* 📈 Analytics admin */}
-          <Route 
-            path="/admin/analytics" 
-            element={
-              <ProtectedRoute>
-                <AdminAnalyticsPage />
-              </ProtectedRoute>
-            } 
-          />
+            <Route
+              path={ROUTES.ADMIN_DEMO_CLEANER}
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <AdminDemoCleanerPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* ⚙️ Paramètres admin */}
-          <Route 
-            path="/admin/settings" 
-            element={
-              <ProtectedRoute>
-                <AdminSettingsPage />
-              </ProtectedRoute>
-            } 
-          />
+            {/* ==========================================
+                🔀 REDIRECTIONS ET 404
+                ========================================== */}
+            <Route 
+              path="/" 
+              element={
+                isAuthenticated ? 
+                  <Navigate to={ROUTES.DASHBOARD} replace /> : 
+                  <Navigate to={ROUTES.LOGIN} replace />
+              } 
+            />
 
-          {/* 🧹 Nettoyage des données */}
-          <Route 
-            path="/admin/demo-cleaner" 
-            element={
-              <ProtectedRoute>
-                <AdminDemoCleanerPage />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* 🧪 Test complet */}
-          <Route 
-            path="/admin/complete-test" 
-            element={
-              <ProtectedRoute>
-                <AdminCompleteTestPage />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* ==========================================
-               🔄 ROUTES PAR DÉFAUT
-               ========================================== */}
-
-          {/* Redirection racine */}
-          <Route 
-            path="/" 
-            element={
-              isAuthenticated ? 
-                <Navigate to="/dashboard" /> : 
-                <Navigate to="/login" />
-            } 
-          />
-
-          {/* Route 404 */}
-          <Route 
-            path="*" 
-            element={<NotFoundPage />}
-          />
-
-        </Routes>
-      </AnimatePresence>
+            <Route 
+              path="*" 
+              element={
+                <Layout>
+                  <NotFoundPage />
+                </Layout>
+              } 
+            />
+          </Routes>
+        </AnimatePresence>
+      </div>
     </Router>
   );
 };
