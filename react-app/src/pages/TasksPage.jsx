@@ -286,23 +286,23 @@ const TasksPage = () => {
     setFormData(prev => ({ ...prev, xpReward: autoXP }));
   }, [formData.difficulty, formData.priority, formData.isRecurring, formData.recurrenceType, calculateAutoXP]);
 
-  // ✅ ÉCOUTE TEMPS RÉEL DES TÂCHES
+  // ✅ ÉCOUTE TEMPS RÉEL DE TOUTES LES TÂCHES (VISIBILITÉ TOTALE)
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
-    console.log('🔥 Mise en place de l\'écoute temps réel des tâches...');
+    console.log('🔥 Mise en place de l\'écoute temps réel de TOUTES les tâches...');
     setSyncing(true);
 
+    // 🌐 RÉCUPÉRATION DE TOUTES LES TÂCHES (TRANSPARENCE TOTALE)
     const tasksQuery = query(
       collection(db, 'tasks'),
-      where('userId', '==', user.uid),
       orderBy('createdAt', 'desc')
     );
 
     const unsubscribe = onSnapshot(
       tasksQuery,
       (snapshot) => {
-        console.log(`📋 ${snapshot.docs.length} tâches reçues de Firebase`);
+        console.log(`📋 ${snapshot.docs.length} tâches totales reçues de Firebase`);
         
         const fetchedTasks = [];
         snapshot.forEach((doc) => {
@@ -312,7 +312,9 @@ const TasksPage = () => {
             ...taskData,
             createdAt: taskData.createdAt?.toDate?.() || new Date(),
             dueDate: taskData.dueDate?.toDate?.() || null,
-            updatedAt: taskData.updatedAt?.toDate?.() || null
+            updatedAt: taskData.updatedAt?.toDate?.() || null,
+            completedAt: taskData.completedAt?.toDate?.() || null,
+            validatedAt: taskData.validatedAt?.toDate?.() || null
           });
         });
 
@@ -405,25 +407,33 @@ const TasksPage = () => {
     return filtered;
   }, [tasks, searchTerm, statusFilter, priorityFilter, roleFilter, sortBy, sortOrder]);
 
-  // Tâches selon l'onglet actif
+  // ✅ LOGIQUE DE TRI VERROUILLÉE - INTERDICTION DE MODIFICATION
   const currentTasks = useMemo(() => {
     switch (activeTab) {
       case 'my':
+        // 🧑‍💼 MES TÂCHES : Tâches assignées UNIQUEMENT à moi
         return filteredAndSortedTasks.filter(task => 
-          task.userId === user?.uid || task.assignedTo === user?.uid
+          task.assignedTo === user?.uid
         );
+        
       case 'available':
+        // 💼 DISPONIBLES : Tâches SANS attribution
         return filteredAndSortedTasks.filter(task => 
-          task.openToVolunteers && !task.assignedTo && task.status === 'todo'
+          !task.assignedTo || task.assignedTo === null || task.assignedTo === ''
         );
-      case 'team':
+        
+      case 'others':
+        // 👥 AUTRES : Tâches assignées à d'AUTRES utilisateurs
         return filteredAndSortedTasks.filter(task => 
-          task.teamTask === true
+          task.assignedTo && task.assignedTo !== user?.uid
         );
+        
       case 'history':
+        // 📚 HISTORIQUE : Tâches terminées ET validées par admin
         return filteredAndSortedTasks.filter(task => 
-          task.status === 'completed' || task.status === 'cancelled'
+          task.status === 'completed' && task.validatedBy
         );
+        
       default:
         return filteredAndSortedTasks;
     }
@@ -554,8 +564,8 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ SE PORTER VOLONTAIRE POUR UNE TÂCHE
-  const handleVolunteerTask = async (taskId) => {
+  // ✅ S'ASSIGNER UNE TÂCHE DISPONIBLE
+  const handleAssignToMe = async (taskId) => {
     try {
       const taskRef = doc(db, 'tasks', taskId);
       await updateDoc(taskRef, {
@@ -563,10 +573,10 @@ const TasksPage = () => {
         assignedAt: serverTimestamp(),
         status: 'in_progress'
       });
-      console.log('✅ Volontariat enregistré');
+      console.log('✅ Tâche assignée à moi');
     } catch (error) {
-      console.error('❌ Erreur volontariat:', error);
-      setError('Erreur lors du volontariat');
+      console.error('❌ Erreur assignation:', error);
+      setError('Erreur lors de l\'assignation de la tâche');
     }
   };
 
@@ -620,34 +630,31 @@ const TasksPage = () => {
     }));
   };
 
-  // ==========================================
-  // 🔥 DONNÉES POUR LES ONGLETS
-  // ==========================================
-  
+  // ✅ ONGLETS SELON LOGIQUE VERROUILLÉE
   const tabs = [
     {
       id: 'my',
       label: 'Mes Tâches',
       icon: User,
-      count: tasks.filter(t => t.userId === user?.uid || t.assignedTo === user?.uid).length
+      count: tasks.filter(t => t.assignedTo === user?.uid).length
     },
     {
       id: 'available',
       label: 'Disponibles',
       icon: Heart,
-      count: tasks.filter(t => t.openToVolunteers && !t.assignedTo).length
+      count: tasks.filter(t => !t.assignedTo || t.assignedTo === null || t.assignedTo === '').length
     },
     {
-      id: 'team',
-      label: 'Équipe',
+      id: 'others',
+      label: 'Autres',
       icon: Users,
-      count: tasks.filter(t => t.teamTask).length
+      count: tasks.filter(t => t.assignedTo && t.assignedTo !== user?.uid).length
     },
     {
       id: 'history',
       label: 'Historique',
       icon: Archive,
-      count: tasks.filter(t => ['completed', 'cancelled'].includes(t.status)).length
+      count: tasks.filter(t => t.status === 'completed' && t.validatedBy).length
     }
   ];
 
@@ -791,8 +798,8 @@ const TasksPage = () => {
                 <h3 className="text-xl font-bold text-white mb-2">
                   {activeTab === 'my' && 'Mes Tâches Assignées'}
                   {activeTab === 'available' && 'Tâches Disponibles'}
-                  {activeTab === 'team' && 'Tâches d\'Équipe'}
-                  {activeTab === 'history' && 'Historique des Tâches'}
+                  {activeTab === 'others' && 'Tâches des Autres'}
+                  {activeTab === 'history' && 'Historique Validé'}
                 </h3>
                 <p className="text-gray-400">
                   {currentTasks.length} tâche{currentTasks.length !== 1 ? 's' : ''} trouvée{currentTasks.length !== 1 ? 's' : ''}
@@ -834,14 +841,14 @@ const TasksPage = () => {
                 <h3 className="text-xl font-bold text-white mb-2">
                   {activeTab === 'my' && 'Aucune tâche assignée'}
                   {activeTab === 'available' && 'Aucune tâche disponible'}
-                  {activeTab === 'team' && 'Aucune tâche d\'équipe'}
-                  {activeTab === 'history' && 'Aucun historique'}
+                  {activeTab === 'others' && 'Aucune tâche assignée aux autres'}
+                  {activeTab === 'history' && 'Aucun historique validé'}
                 </h3>
                 <p className="text-gray-400 mb-6">
-                  {activeTab === 'my' && 'Vous n\'avez actuellement aucune tâche assignée.'}
-                  {activeTab === 'available' && 'Aucune tâche disponible au volontariat actuellement.'}
-                  {activeTab === 'team' && 'Aucune tâche d\'équipe en cours.'}
-                  {activeTab === 'history' && 'Aucune tâche complétée dans votre historique.'}
+                  {activeTab === 'my' && 'Vous n\'avez actuellement aucune tâche qui vous soit assignée.'}
+                  {activeTab === 'available' && 'Aucune tâche n\'est actuellement disponible sans attribution.'}
+                  {activeTab === 'others' && 'Aucune tâche n\'est assignée à d\'autres utilisateurs.'}
+                  {activeTab === 'history' && 'Aucune tâche validée par un admin dans l\'historique.'}
                 </p>
                 <button
                   onClick={() => setShowCreateModal(true)}
@@ -930,8 +937,20 @@ const TasksPage = () => {
                           </div>
                         )}
 
-                        {/* Métadonnées */}
+                        {/* Métadonnées avec informations d'assignation */}
                         <div className="flex items-center gap-4 text-sm text-gray-500">
+                          {/* Informations d'assignation */}
+                          <div className="flex items-center gap-1">
+                            <User className="w-4 h-4" />
+                            {task.assignedTo ? (
+                              <span className="text-blue-400">
+                                {task.assignedTo === user?.uid ? 'Assignée à moi' : `Assignée à ${task.assignedTo.substring(0, 8)}`}
+                              </span>
+                            ) : (
+                              <span className="text-yellow-400">Non assignée</span>
+                            )}
+                          </div>
+
                           {task.dueDate && (
                             <div className="flex items-center gap-1">
                               <Calendar className="w-4 h-4" />
@@ -945,15 +964,30 @@ const TasksPage = () => {
                             </div>
                           )}
                           <div className="flex items-center gap-1">
-                            <User className="w-4 h-4" />
+                            <Calendar className="w-4 h-4" />
                             <span>Créée le {task.createdAt?.toLocaleDateString()}</span>
                           </div>
+
+                          {/* Validation pour historique */}
+                          {activeTab === 'history' && task.validatedBy && (
+                            <div className="flex items-center gap-1">
+                              <CheckCircle className="w-4 h-4 text-green-400" />
+                              <span className="text-green-400">Validée par admin</span>
+                            </div>
+                          )}
+
+                          {/* Compteur récurrence pour historique */}
+                          {activeTab === 'history' && task.recurrenceCount && task.recurrenceCount > 1 && (
+                            <div className="flex items-center gap-1">
+                              <Repeat className="w-4 h-4 text-purple-400" />
+                              <span className="text-purple-400">x{task.recurrenceCount}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      {/* Actions */}
                       <div className="flex items-center gap-2">
-                        {/* Voir détails */}
+                        {/* Voir détails - TOUJOURS visible (transparence totale) */}
                         <button
                           onClick={() => setSelectedTask(task)}
                           className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
@@ -961,8 +995,10 @@ const TasksPage = () => {
                           <Eye className="w-4 h-4" />
                         </button>
 
-                        {/* Marquer comme terminé (si pas déjà terminé) */}
-                        {task.status !== 'completed' && (
+                        {/* Actions selon l'onglet actif et droits */}
+                        
+                        {/* Mes tâches : terminer, modifier, supprimer */}
+                        {activeTab === 'my' && task.status !== 'completed' && (
                           <button
                             onClick={() => handleCompleteTask(task.id)}
                             className="p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
@@ -971,38 +1007,53 @@ const TasksPage = () => {
                           </button>
                         )}
 
-                        {/* Se porter volontaire (si tâche disponible) */}
+                        {/* Disponibles : s'assigner la tâche */}
                         {activeTab === 'available' && (
                           <button
-                            onClick={() => handleVolunteerTask(task.id)}
+                            onClick={() => handleAssignToMe(task.id)}
                             className="p-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors"
+                            title="M'assigner cette tâche"
                           >
-                            <Heart className="w-4 h-4" />
+                            <User className="w-4 h-4" />
                           </button>
                         )}
 
-                        {/* Modifier (si propriétaire) */}
-                        {task.createdBy === user.uid && (
-                          <button
-                            onClick={() => {
-                              setSelectedTask(task);
-                              setEditMode(true);
-                              setShowCreateModal(true);
-                            }}
-                            className="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
+                        {/* Autres : pas d'action directe, juste consultation */}
+                        {activeTab === 'others' && (
+                          <div className="text-gray-400 text-sm px-2 py-1">
+                            Consultation uniquement
+                          </div>
                         )}
 
-                        {/* Supprimer (si propriétaire) */}
-                        {task.createdBy === user.uid && (
-                          <button
-                            onClick={() => handleDeleteTask(task.id, task.title)}
-                            className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        {/* Historique : affichage informations validation */}
+                        {activeTab === 'history' && (
+                          <div className="flex items-center gap-1 text-green-400 text-sm px-2 py-1">
+                            <CheckCircle className="w-4 h-4" />
+                            <span>Validée</span>
+                          </div>
+                        )}
+
+                        {/* Modifier/Supprimer (propriétaire uniquement) */}
+                        {(task.createdBy === user.uid || task.userId === user.uid) && activeTab !== 'history' && (
+                          <>
+                            <button
+                              onClick={() => {
+                                setSelectedTask(task);
+                                setEditMode(true);
+                                setShowCreateModal(true);
+                              }}
+                              className="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteTask(task.id, task.title)}
+                              className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
