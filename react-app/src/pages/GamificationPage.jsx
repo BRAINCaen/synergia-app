@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/GamificationPage.jsx
-// CORRECTION SYNCHRONISATION XP FIREBASE
+// VRAIES DONNÉES FIREBASE - PLUS DE MOCK !
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -28,17 +28,27 @@ import {
   Shield
 } from 'lucide-react';
 
-// ✅ IMPORTS CORRECTS POUR SYNCHRONISATION XP
+// ✅ IMPORTS POUR VRAIES DONNÉES FIREBASE
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useUnifiedXP } from '../shared/hooks/useUnifiedXP.js';
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  limit,
+  onSnapshot,
+  where,
+  getDocs
+} from 'firebase/firestore';
+import { db } from '../core/firebase.js';
 
 /**
- * 🎮 PAGE GAMIFICATION AVEC SYNCHRONISATION XP RÉELLE
+ * 🎮 PAGE GAMIFICATION AVEC VRAIES DONNÉES FIREBASE UNIQUEMENT
  */
 const GamificationPage = () => {
   const { user, isAuthenticated } = useAuthStore();
   
-  // ✅ DONNÉES XP SYNCHRONISÉES AVEC FIREBASE
+  // ✅ VRAIES DONNÉES XP DEPUIS FIREBASE
   const {
     gamificationData,
     level,
@@ -60,19 +70,70 @@ const GamificationPage = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
+  
+  // ✅ VRAIES DONNÉES LEADERBOARD DEPUIS FIREBASE
+  const [realLeaderboard, setRealLeaderboard] = useState([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(true);
 
-  // ✅ CALCULS BASÉS SUR LES VRAIES DONNÉES XP
-  const calculations = {
+  // ✅ RÉCUPÉRATION DU VRAI LEADERBOARD FIREBASE
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    console.log('🏆 Récupération du vrai leaderboard depuis Firebase...');
+    setLeaderboardLoading(true);
+
+    const usersQuery = query(
+      collection(db, 'users'),
+      orderBy('gamification.totalXp', 'desc'),
+      limit(10)
+    );
+
+    const unsubscribe = onSnapshot(usersQuery, (snapshot) => {
+      const leaderboardData = [];
+      snapshot.forEach((doc, index) => {
+        const userData = doc.data();
+        const gamification = userData.gamification || {};
+        
+        leaderboardData.push({
+          rank: index + 1,
+          id: doc.id,
+          name: userData.displayName || userData.email || 'Utilisateur',
+          xp: gamification.totalXp || 0,
+          level: gamification.level || 1,
+          isMe: doc.id === user?.uid
+        });
+      });
+      
+      console.log('🏆 Leaderboard réel récupéré:', leaderboardData);
+      setRealLeaderboard(leaderboardData);
+      setLeaderboardLoading(false);
+    }, (error) => {
+      console.error('❌ Erreur leaderboard:', error);
+      setLeaderboardLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [isAuthenticated, user?.uid]);
+
+  // ✅ CALCULS BASÉS SUR LES VRAIES DONNÉES XP UNIQUEMENT
+  const calculations = gamificationData ? {
     currentLevelXp: (level - 1) * 100,
     nextLevelXp: level * 100,
     xpToNextLevel: Math.max(0, (level * 100) - totalXp),
     progressPercent: Math.min(100, ((totalXp % 100) / 100) * 100),
-    weeklyProgress: Math.min(100, (weeklyXp / 500) * 100), // Objectif 500 XP/semaine
-    monthlyProgress: Math.min(100, (monthlyXp / 2000) * 100) // Objectif 2000 XP/mois
+    weeklyProgress: Math.min(100, (weeklyXp / 500) * 100),
+    monthlyProgress: Math.min(100, (monthlyXp / 2000) * 100)
+  } : {
+    currentLevelXp: 0,
+    nextLevelXp: 100,
+    xpToNextLevel: 100,
+    progressPercent: 0,
+    weeklyProgress: 0,
+    monthlyProgress: 0
   };
 
-  // ✅ DONNÉES OBJECTIVES BASÉES SUR LES VRAIES DONNÉES
-  const objectives = [
+  // ✅ OBJECTIFS BASÉS SUR LES VRAIES DONNÉES UTILISATEUR
+  const objectives = gamificationData ? [
     {
       id: 'weekly_xp',
       title: 'XP Hebdomadaire',
@@ -90,12 +151,12 @@ const GamificationPage = () => {
       title: 'Tâches Mensuelles', 
       description: 'Terminez 20 tâches ce mois',
       target: 20,
-      current: gamificationData?.tasksCompleted || 0,
-      progress: Math.min(100, ((gamificationData?.tasksCompleted || 0) / 20) * 100),
+      current: gamificationData.tasksCompleted || 0,
+      progress: Math.min(100, ((gamificationData.tasksCompleted || 0) / 20) * 100),
       xpReward: 250,
       type: 'monthly',
       icon: '✅',
-      completed: (gamificationData?.tasksCompleted || 0) >= 20
+      completed: (gamificationData.tasksCompleted || 0) >= 20
     },
     {
       id: 'streak_goal',
@@ -109,28 +170,26 @@ const GamificationPage = () => {
       icon: '🔥',
       completed: loginStreak >= 7
     }
-  ];
+  ] : [];
 
-  // ✅ ACTIVITÉS RÉCENTES BASÉES SUR LES VRAIES DONNÉES
-  const recentActivities = gamificationData?.xpHistory?.slice(-5).map((entry, index) => ({
+  // ✅ ACTIVITÉS RÉCENTES DEPUIS LES VRAIES DONNÉES XP HISTORY
+  const recentActivities = gamificationData?.xpHistory?.slice(-5).reverse().map((entry, index) => ({
     id: index,
-    type: entry.source || 'task',
-    description: `+${entry.amount} XP - ${entry.source}`,
+    type: entry.source || 'unknown',
+    description: `+${entry.amount} XP - ${
+      entry.source === 'task_completion' ? 'Tâche terminée' :
+      entry.source === 'level_up' ? 'Montée de niveau' :
+      entry.source === 'badge_unlock' ? 'Badge débloqué' :
+      entry.source === 'objective_completion' ? 'Objectif atteint' :
+      entry.source
+    }`,
     timestamp: entry.timestamp ? new Date(entry.timestamp) : new Date(),
     xp: entry.amount,
     icon: entry.source === 'task_completion' ? '✅' : 
           entry.source === 'level_up' ? '🎉' : 
-          entry.source === 'badge_unlock' ? '🏆' : '⭐'
+          entry.source === 'badge_unlock' ? '🏆' : 
+          entry.source === 'objective_completion' ? '🎯' : '⭐'
   })) || [];
-
-  // ✅ LEADERBOARD SIMULÉ (EN ATTENDANT LES VRAIES DONNÉES)
-  const leaderboardData = [
-    { rank: 1, name: user?.displayName || 'Vous', xp: totalXp, level: level, isMe: true },
-    { rank: 2, name: 'Alice Martin', xp: Math.max(0, totalXp - 150), level: Math.floor(Math.max(0, totalXp - 150) / 100) + 1 },
-    { rank: 3, name: 'Bob Dupont', xp: Math.max(0, totalXp - 300), level: Math.floor(Math.max(0, totalXp - 300) / 100) + 1 },
-    { rank: 4, name: 'Claire Moreau', xp: Math.max(0, totalXp - 450), level: Math.floor(Math.max(0, totalXp - 450) / 100) + 1 },
-    { rank: 5, name: 'David Chen', xp: Math.max(0, totalXp - 600), level: Math.floor(Math.max(0, totalXp - 600) / 100) + 1 }
-  ];
 
   // ✅ GESTION DU RAFRAÎCHISSEMENT
   const handleRefresh = async () => {
@@ -145,7 +204,7 @@ const GamificationPage = () => {
     }
   };
 
-  // ✅ CLAIM D'OBJECTIF
+  // ✅ CLAIM D'OBJECTIF AVEC VRAIES DONNÉES
   const claimObjective = async (objectiveId) => {
     const objective = objectives.find(obj => obj.id === objectiveId);
     if (!objective || !objective.completed) return;
@@ -173,6 +232,19 @@ const GamificationPage = () => {
           <Trophy className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">Connexion requise</h2>
           <p className="text-gray-400">Veuillez vous connecter pour accéder à la gamification</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Chargement des données
+  if (loading || !isReady) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-center">
+          <RefreshCw className="w-16 h-16 text-blue-400 mx-auto mb-4 animate-spin" />
+          <h2 className="text-2xl font-bold mb-2">Chargement de vos données...</h2>
+          <p className="text-gray-400">Synchronisation avec Firebase en cours</p>
         </div>
       </div>
     );
@@ -212,7 +284,7 @@ const GamificationPage = () => {
               <RefreshCw className={`w-5 h-5 text-white ${(isRefreshing || loading) ? 'animate-spin' : ''}`} />
             </button>
           </div>
-          <p className="text-gray-400 text-lg">Suivez vos progrès et débloquez des récompenses</p>
+          <p className="text-gray-400 text-lg">Vos progrès réels synchronisés avec Firebase</p>
           
           {/* Status de synchronisation */}
           <div className="flex items-center justify-center gap-2 mt-2">
@@ -222,9 +294,9 @@ const GamificationPage = () => {
               syncStatus === 'error' ? 'bg-red-400' : 'bg-gray-400'
             }`} />
             <span className="text-sm text-gray-400">
-              {syncStatus === 'synchronized' ? 'Synchronisé' :
-               syncStatus === 'syncing' ? 'Synchronisation...' :
-               syncStatus === 'error' ? 'Erreur sync' : 'En attente'}
+              {syncStatus === 'synchronized' ? 'Données Firebase synchronisées' :
+               syncStatus === 'syncing' ? 'Synchronisation Firebase...' :
+               syncStatus === 'error' ? 'Erreur Firebase' : 'Connexion Firebase'}
             </span>
             {lastUpdate && (
               <span className="text-xs text-gray-500">
@@ -234,7 +306,7 @@ const GamificationPage = () => {
           </div>
         </div>
 
-        {/* 📈 STATISTIQUES PRINCIPALES SYNCHRONISÉES */}
+        {/* 📈 STATISTIQUES PRINCIPALES - VRAIES DONNÉES FIREBASE UNIQUEMENT */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -245,7 +317,7 @@ const GamificationPage = () => {
               <Zap className="w-8 h-8 text-blue-400" />
               <span className="text-2xl font-bold text-white">{totalXp.toLocaleString()}</span>
             </div>
-            <h3 className="text-blue-400 font-semibold mb-2">XP Total</h3>
+            <h3 className="text-blue-400 font-semibold mb-2">XP Total (Firebase)</h3>
             <div className="flex items-center gap-2">
               <div className="flex-1 bg-gray-700 rounded-full h-2">
                 <div 
@@ -270,7 +342,7 @@ const GamificationPage = () => {
               <Trophy className="w-8 h-8 text-green-400" />
               <span className="text-2xl font-bold text-white">{level}</span>
             </div>
-            <h3 className="text-green-400 font-semibold mb-2">Niveau Actuel</h3>
+            <h3 className="text-green-400 font-semibold mb-2">Niveau (Firebase)</h3>
             <div className="flex items-center gap-2">
               <div className="flex-1 bg-gray-700 rounded-full h-2">
                 <div 
@@ -295,7 +367,7 @@ const GamificationPage = () => {
               <Calendar className="w-8 h-8 text-orange-400" />
               <span className="text-2xl font-bold text-white">{weeklyXp}</span>
             </div>
-            <h3 className="text-orange-400 font-semibold mb-2">XP Hebdomadaire</h3>
+            <h3 className="text-orange-400 font-semibold mb-2">XP Semaine (Firebase)</h3>
             <div className="flex items-center gap-2">
               <div className="flex-1 bg-gray-700 rounded-full h-2">
                 <div 
@@ -320,7 +392,7 @@ const GamificationPage = () => {
               <Flame className="w-8 h-8 text-purple-400" />
               <span className="text-2xl font-bold text-white">{loginStreak}</span>
             </div>
-            <h3 className="text-purple-400 font-semibold mb-2">Série Connexion</h3>
+            <h3 className="text-purple-400 font-semibold mb-2">Série (Firebase)</h3>
             <div className="flex items-center gap-2">
               <div className="flex-1 bg-gray-700 rounded-full h-2">
                 <div 
@@ -372,11 +444,11 @@ const GamificationPage = () => {
               exit={{ opacity: 0, x: -20 }}
               className="grid grid-cols-1 lg:grid-cols-2 gap-8"
             >
-              {/* Progression de niveau */}
+              {/* Progression de niveau - VRAIES DONNÉES */}
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
                   <TrendingUp className="w-6 h-6 text-green-400" />
-                  Progression de Niveau
+                  Progression Réelle Firebase
                 </h3>
                 
                 <div className="space-y-4">
@@ -409,11 +481,11 @@ const GamificationPage = () => {
                 </div>
               </div>
 
-              {/* Statistiques détaillées */}
+              {/* Statistiques détaillées - VRAIES DONNÉES FIREBASE */}
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
                   <Gauge className="w-6 h-6 text-purple-400" />
-                  Statistiques Détaillées
+                  Vraies Statistiques Firebase
                 </h3>
                 
                 <div className="space-y-4">
@@ -441,6 +513,175 @@ const GamificationPage = () => {
             </motion.div>
           )}
 
+          {activeTab === 'leaderboard' && (
+            <motion.div
+              key="leaderboard"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <h3 className="text-2xl font-bold text-white">Classement Réel Firebase</h3>
+              
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden">
+                <div className="p-6 border-b border-white/10">
+                  <h4 className="text-lg font-semibold text-white">
+                    Top Utilisateurs - Données Firebase Réelles
+                  </h4>
+                </div>
+                
+                {leaderboardLoading ? (
+                  <div className="p-8 text-center">
+                    <RefreshCw className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-4" />
+                    <p className="text-gray-400">Chargement du classement Firebase...</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-white/10">
+                    {realLeaderboard.map((player) => (
+                      <div
+                        key={player.id}
+                        className={`p-4 flex items-center gap-4 ${
+                          player.isMe ? 'bg-blue-500/10 border-l-4 border-blue-500' : ''
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                          player.rank === 1 ? 'bg-yellow-500 text-black' :
+                          player.rank === 2 ? 'bg-gray-400 text-black' :
+                          player.rank === 3 ? 'bg-orange-500 text-black' :
+                          'bg-white/10 text-white'
+                        }`}>
+                          {player.rank}
+                        </div>
+                        
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`font-medium ${player.isMe ? 'text-blue-400' : 'text-white'}`}>
+                              {player.name}
+                            </span>
+                            {player.isMe && (
+                              <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
+                                Vous (Firebase)
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-400">
+                            Niveau {player.level}
+                          </div>
+                        </div>
+                        
+                        <div className="text-right">
+                          <div className="text-white font-bold">
+                            {player.xp.toLocaleString()} XP
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            Firebase
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'activity' && (
+            <motion.div
+              key="activity"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <h3 className="text-2xl font-bold text-white">Activité Réelle Firebase</h3>
+              
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                {recentActivities.length > 0 ? (
+                  <div className="space-y-4">
+                    {recentActivities.map((activity) => (
+                      <div
+                        key={activity.id}
+                        className="flex items-center gap-4 p-4 bg-white/5 rounded-lg"
+                      >
+                        <div className="text-2xl">{activity.icon}</div>
+                        <div className="flex-1">
+                          <p className="text-white font-medium">{activity.description}</p>
+                          <p className="text-gray-400 text-sm">
+                            {activity.timestamp.toLocaleString()} • Firebase
+                          </p>
+                        </div>
+                        <div className="text-green-400 font-bold">
+                          +{activity.xp} XP
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Activity className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+                    <h4 className="text-xl font-bold text-white mb-2">Aucune activité Firebase</h4>
+                    <p className="text-gray-400">
+                      Votre historique d'activité XP Firebase apparaîtra ici
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'badges' && (
+            <motion.div
+              key="badges"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-white">Vrais Badges Firebase</h3>
+                <span className="text-gray-400">
+                  {badges?.length || 0} badge{(badges?.length || 0) !== 1 ? 's' : ''} débloqué{(badges?.length || 0) !== 1 ? 's' : ''} (Firebase)
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                {badges && badges.length > 0 ? (
+                  badges.map((badge, index) => (
+                    <motion.div
+                      key={badge.id || index}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 text-center hover:bg-white/10 transition-colors"
+                    >
+                      <div className="text-4xl mb-2">{badge.icon || '🏆'}</div>
+                      <h4 className="text-white font-medium text-sm mb-1">
+                        {badge.name || badge.title || 'Badge'}
+                      </h4>
+                      <p className="text-gray-400 text-xs">
+                        {badge.description || 'Badge débloqué'}
+                      </p>
+                      {badge.unlockedAt && (
+                        <p className="text-green-400 text-xs mt-1">
+                          {new Date(badge.unlockedAt).toLocaleDateString()}
+                        </p>
+                      )}
+                      <p className="text-blue-400 text-xs mt-1">Firebase</p>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-12">
+                    <Shield className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+                    <h4 className="text-xl font-bold text-white mb-2">Aucun badge Firebase débloqué</h4>
+                    <p className="text-gray-400">
+                      Complétez des tâches pour débloquer vos premiers badges dans Firebase !
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
           {activeTab === 'objectives' && (
             <motion.div
               key="objectives"
@@ -449,7 +690,7 @@ const GamificationPage = () => {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <h3 className="text-2xl font-bold text-white">Objectifs Actifs</h3>
+              <h3 className="text-2xl font-bold text-white">Objectifs Basés sur Données Firebase</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {objectives.map((objective) => (
@@ -479,7 +720,7 @@ const GamificationPage = () => {
                     
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-400">Progression</span>
+                        <span className="text-gray-400">Progression Firebase</span>
                         <span className="text-white font-bold">
                           {objective.current}/{objective.target}
                         </span>
@@ -512,162 +753,6 @@ const GamificationPage = () => {
                     </div>
                   </motion.div>
                 ))}
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'badges' && (
-            <motion.div
-              key="badges"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-white">Collection de Badges</h3>
-                <span className="text-gray-400">
-                  {badges?.length || 0} badge{(badges?.length || 0) !== 1 ? 's' : ''} débloqué{(badges?.length || 0) !== 1 ? 's' : ''}
-                </span>
-              </div>
-              
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                {badges && badges.length > 0 ? (
-                  badges.map((badge, index) => (
-                    <motion.div
-                      key={badge.id || index}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 text-center hover:bg-white/10 transition-colors"
-                    >
-                      <div className="text-4xl mb-2">{badge.icon || '🏆'}</div>
-                      <h4 className="text-white font-medium text-sm mb-1">
-                        {badge.name || badge.title || 'Badge'}
-                      </h4>
-                      <p className="text-gray-400 text-xs">
-                        {badge.description || 'Badge débloqué'}
-                      </p>
-                      {badge.unlockedAt && (
-                        <p className="text-green-400 text-xs mt-1">
-                          {new Date(badge.unlockedAt).toLocaleDateString()}
-                        </p>
-                      )}
-                    </motion.div>
-                  ))
-                ) : (
-                  <div className="col-span-full text-center py-12">
-                    <Shield className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-                    <h4 className="text-xl font-bold text-white mb-2">Aucun badge débloqué</h4>
-                    <p className="text-gray-400">
-                      Complétez des tâches et atteignez des objectifs pour débloquer vos premiers badges !
-                    </p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'leaderboard' && (
-            <motion.div
-              key="leaderboard"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <h3 className="text-2xl font-bold text-white">Classement</h3>
-              
-              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden">
-                <div className="p-6 border-b border-white/10">
-                  <h4 className="text-lg font-semibold text-white">Top 5 - XP Total</h4>
-                </div>
-                
-                <div className="divide-y divide-white/10">
-                  {leaderboardData.map((player) => (
-                    <div
-                      key={player.rank}
-                      className={`p-4 flex items-center gap-4 ${
-                        player.isMe ? 'bg-blue-500/10 border-l-4 border-blue-500' : ''
-                      }`}
-                    >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                        player.rank === 1 ? 'bg-yellow-500 text-black' :
-                        player.rank === 2 ? 'bg-gray-400 text-black' :
-                        player.rank === 3 ? 'bg-orange-500 text-black' :
-                        'bg-white/10 text-white'
-                      }`}>
-                        {player.rank}
-                      </div>
-                      
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-medium ${player.isMe ? 'text-blue-400' : 'text-white'}`}>
-                            {player.name}
-                          </span>
-                          {player.isMe && (
-                            <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
-                              Vous
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-sm text-gray-400">
-                          Niveau {player.level}
-                        </div>
-                      </div>
-                      
-                      <div className="text-right">
-                        <div className="text-white font-bold">
-                          {player.xp.toLocaleString()} XP
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'activity' && (
-            <motion.div
-              key="activity"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <h3 className="text-2xl font-bold text-white">Activité Récente</h3>
-              
-              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                {recentActivities.length > 0 ? (
-                  <div className="space-y-4">
-                    {recentActivities.map((activity) => (
-                      <div
-                        key={activity.id}
-                        className="flex items-center gap-4 p-4 bg-white/5 rounded-lg"
-                      >
-                        <div className="text-2xl">{activity.icon}</div>
-                        <div className="flex-1">
-                          <p className="text-white font-medium">{activity.description}</p>
-                          <p className="text-gray-400 text-sm">
-                            {activity.timestamp.toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="text-green-400 font-bold">
-                          +{activity.xp} XP
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Activity className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-                    <h4 className="text-xl font-bold text-white mb-2">Aucune activité récente</h4>
-                    <p className="text-gray-400">
-                      Votre activité XP apparaîtra ici au fur et à mesure
-                    </p>
-                  </div>
-                )}
               </div>
             </motion.div>
           )}
