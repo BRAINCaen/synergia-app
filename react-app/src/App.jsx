@@ -16,9 +16,9 @@ import weeklyRecurrenceService from './core/services/weeklyRecurrenceService.js'
 import recurrenceSchedulerService from './core/services/recurrenceSchedulerService.js';
 
 // ==========================================
-// 🎭 PAGES PRINCIPALES
+// 🎭 PAGES PRINCIPALES - CHEMINS CORRIGÉS
 // ==========================================
-import LoginPage from './pages/auth/LoginPage.jsx';
+import LoginPage from './pages/Login.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
@@ -26,7 +26,7 @@ import TeamPage from './pages/TeamPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 
 // ==========================================
-// 🏆 PAGES GAMIFICATION
+// 🏆 PAGES GAMIFICATION - CHEMINS CORRIGÉS
 // ==========================================
 import GamificationPage from './pages/GamificationPage.jsx';
 import BadgesPage from './pages/BadgesPage.jsx';
@@ -36,7 +36,7 @@ import RoleProgressionPage from './pages/RoleProgressionPage.jsx';
 import EscapeProgressionPage from './pages/EscapeProgressionPage.jsx';
 
 // ==========================================
-// 🛡️ PAGES ADMIN
+// 🛡️ PAGES ADMIN - CHEMINS CORRIGÉS
 // ==========================================
 import AdminTaskValidationPage from './pages/admin/AdminTaskValidationPage.jsx';
 import AdminObjectiveValidationPage from './pages/admin/AdminObjectiveValidationPage.jsx';
@@ -50,12 +50,14 @@ import AdminDemoCleanerPage from './pages/admin/AdminDemoCleanerPage.jsx';
 import AdminCompleteTestPage from './pages/admin/AdminCompleteTestPage.jsx';
 
 // ==========================================
-// 📊 PAGES OUTILS
+// 📊 PAGES OUTILS - CHEMINS CORRIGÉS
 // ==========================================
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import OnboardingPage from './pages/OnboardingPage.jsx';
 import TimeTrackPage from './pages/TimeTrackPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
+import UsersPage from './pages/UsersPage.jsx';
+import NotFoundPage from './pages/NotFoundPage.jsx';
 
 // ==========================================
 // 🎨 STYLES GLOBAUX
@@ -240,6 +242,16 @@ const App = () => {
             element={
               <ProtectedRoute>
                 <TeamPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* 👤 Utilisateurs */}
+          <Route 
+            path="/users" 
+            element={
+              <ProtectedRoute>
+                <UsersPage />
               </ProtectedRoute>
             } 
           />
@@ -483,17 +495,7 @@ const App = () => {
           {/* Route 404 */}
           <Route 
             path="*" 
-            element={
-              <ProtectedRoute>
-                <div className="min-h-screen flex items-center justify-center bg-gray-100">
-                  <div className="text-center">
-                    <h1 className="text-6xl font-bold text-gray-400 mb-4">404</h1>
-                    <p className="text-xl text-gray-600 mb-8">Page introuvable</p>
-                    <Navigate to="/dashboard" />
-                  </div>
-                </div>
-              </ProtectedRoute>
-            } 
+            element={<NotFoundPage />}
           />
 
         </Routes>
