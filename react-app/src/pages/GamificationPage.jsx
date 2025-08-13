@@ -397,7 +397,7 @@ const GamificationPage = () => {
                         <span className="text-white text-xs font-bold">
                           {Math.round(calculations.progressPercent)}%
                         </span>
-                      </div>
+                      </motion.div>
                     </div>
                     
                     <div className="flex items-center justify-between text-sm">
@@ -416,39 +416,38 @@ const GamificationPage = () => {
 
               {/* Statistiques détaillées - VRAIES DONNÉES FIREBASE */}
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                  <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                    <Gauge className="w-6 h-6 text-purple-400" />
-                    Vraies Statistiques Firebase
-                  </h3>
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                  <Gauge className="w-6 h-6 text-purple-400" />
+                  Vraies Statistiques Firebase
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+                    <span className="text-gray-400">Tâches complétées</span>
+                    <span className="text-white font-bold">{gamificationData?.tasksCompleted || 0}</span>
+                  </div>
                   
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
-                      <span className="text-gray-400">Tâches complétées</span>
-                      <span className="text-white font-bold">{gamificationData?.tasksCompleted || 0}</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
-                      <span className="text-gray-400">XP cette semaine</span>
-                      <span className="text-white font-bold">{weeklyXp}</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
-                      <span className="text-gray-400">XP ce mois</span>
-                      <span className="text-white font-bold">{monthlyXp}</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
-                      <span className="text-gray-400">Statut synchronisation</span>
-                      <span className={`font-bold ${
-                        syncStatus === 'synced' ? 'text-green-400' :
-                        syncStatus === 'syncing' ? 'text-yellow-400' :
-                        'text-red-400'
-                      }`}>
-                        {syncStatus === 'synced' ? '🟢 Synchronisé' :
-                         syncStatus === 'syncing' ? '🟡 En cours' :
-                         '🔴 Erreur'}
-                      </span>
-                    </div>
+                  <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+                    <span className="text-gray-400">XP cette semaine</span>
+                    <span className="text-white font-bold">{weeklyXp}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+                    <span className="text-gray-400">XP ce mois</span>
+                    <span className="text-white font-bold">{monthlyXp}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+                    <span className="text-gray-400">Statut synchronisation</span>
+                    <span className={`font-bold ${
+                      syncStatus === 'synced' ? 'text-green-400' :
+                      syncStatus === 'syncing' ? 'text-yellow-400' :
+                      'text-red-400'
+                    }`}>
+                      {syncStatus === 'synced' ? '🟢 Synchronisé' :
+                       syncStatus === 'syncing' ? '🟡 En cours' :
+                       '🔴 Erreur'}
+                    </span>
                   </div>
                 </div>
               </div>
