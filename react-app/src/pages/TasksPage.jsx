@@ -1,239 +1,93 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES COMPLÈTE - VERSION CORRIGÉE SANS STATS
+// PAGE GESTION DES TÂCHES GAMIFIÉE - CORRECTION ÉCRAN BLANC ONGLET AUTRES
 // ==========================================
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Plus,
-  Search,
-  Filter,
-  Users,
-  Heart,
-  CheckCircle,
-  Clock,
-  AlertCircle,
-  Star,
-  Trash2,
-  Edit,
-  Eye,
-  ChevronDown,
-  Calendar,
-  Target,
-  Zap,
-  Trophy,
-  Archive,
-  Repeat,
-  MessageCircle,
-  Upload,
-  Download,
-  RefreshCw,
-  Settings,
-  BarChart3,
-  TrendingUp,
-  Award,
-  Bell,
-  Flag,
-  Tag,
-  User,
-  X,
-  Save,
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Target, 
+  Plus, 
+  Search, 
+  Calendar, 
+  Star, 
+  User, 
+  Users, 
+  BookOpen, 
+  Eye, 
+  CheckCircle, 
+  Clock, 
+  Trash2, 
+  Edit, 
+  RefreshCw, 
+  Filter, 
+  Heart, 
+  MessageCircle, 
+  FolderOpen, 
+  X, 
   AlertTriangle,
-  Paperclip,
+  Upload,
   FileText,
-  EyeOff,
-  ChevronRight,
-  Building,
-  Globe,
-  MapPin
+  Image,
+  Video,
+  Repeat,
+  Award,
+  Zap,
+  TrendingUp,
+  Flag
 } from 'lucide-react';
-
-// ✅ IMPORTS SERVICES FIREBASE
-import { useAuthStore } from '../shared/stores/authStore.js';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   collection, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot, 
-  doc, 
+  addDoc, 
   updateDoc, 
   deleteDoc, 
-  addDoc,
-  serverTimestamp,
-  getDoc
+  doc, 
+  serverTimestamp, 
+  query, 
+  onSnapshot, 
+  orderBy 
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { SYNERGIA_ROLES } from '../core/data/roles.js';
+import TaskDetailModal from '../components/tasks/TaskDetailModal.jsx';
+import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
+import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal.jsx';
 
-/**
- * 🎭 RÔLES SYNERGIA COMPLETS
- */
-const SYNERGIA_ROLES = {
-  maintenance: {
-    id: 'maintenance',
-    name: 'Entretien & Maintenance',
-    icon: '🔧',
-    color: 'bg-gradient-to-r from-orange-500 to-red-500',
-    textColor: 'text-orange-600',
-    description: 'Maintenance technique et matériel'
-  },
-  reputation: {
-    id: 'reputation',
-    name: 'Gestion des Avis & Réputation',
-    icon: '⭐',
-    color: 'bg-gradient-to-r from-yellow-500 to-amber-500',
-    textColor: 'text-yellow-600',
-    description: 'Gestion de la réputation et avis clients'
-  },
-  stock: {
-    id: 'stock',
-    name: 'Gestion des Stocks & Matériel',
-    icon: '📦',
-    color: 'bg-gradient-to-r from-blue-500 to-cyan-500',
-    textColor: 'text-blue-600',
-    description: 'Inventaires et approvisionnements'
-  },
-  organization: {
-    id: 'organization',
-    name: 'Organisation Interne',
-    icon: '📋',
-    color: 'bg-gradient-to-r from-purple-500 to-indigo-500',
-    textColor: 'text-purple-600',
-    description: 'Organisation et planification'
-  },
-  content: {
-    id: 'content',
-    name: 'Création de Contenu',
-    icon: '🎨',
-    color: 'bg-gradient-to-r from-pink-500 to-rose-500',
-    textColor: 'text-pink-600',
-    description: 'Création et gestion de contenu'
-  },
-  mentoring: {
-    id: 'mentoring',
-    name: 'Mentorat & Formation',
-    icon: '🎓',
-    color: 'bg-gradient-to-r from-green-500 to-emerald-500',
-    textColor: 'text-green-600',
-    description: 'Formation et encadrement équipe'
-  },
-  partnerships: {
-    id: 'partnerships',
-    name: 'Partenariats & Référencement',
-    icon: '🤝',
-    color: 'bg-gradient-to-r from-indigo-500 to-purple-500',
-    textColor: 'text-indigo-600',
-    description: 'Développement des partenariats'
-  },
-  communication: {
-    id: 'communication',
-    name: 'Communication & Réseaux',
-    icon: '📱',
-    color: 'bg-gradient-to-r from-cyan-500 to-blue-500',
-    textColor: 'text-cyan-600',
-    description: 'Gestion des réseaux sociaux'
-  },
-  b2b: {
-    id: 'b2b',
-    name: 'Relations B2B & Devis',
-    icon: '💼',
-    color: 'bg-gradient-to-r from-slate-500 to-gray-600',
-    textColor: 'text-slate-600',
-    description: 'Relations professionnelles et devis'
-  },
-  gamification: {
-    id: 'gamification',
-    name: 'Gamification & Système XP',
-    icon: '🎮',
-    color: 'bg-gradient-to-r from-red-500 to-pink-500',
-    textColor: 'text-red-600',
-    description: 'Gestion du système de gamification'
-  }
-};
-
-/**
- * 🏆 SYSTÈME DE CALCUL XP AUTOMATIQUE OBLIGATOIRE
- */
-const DIFFICULTY_XP_CONFIG = {
-  easy: { 
-    label: 'Facile (5-15 XP)', 
-    baseXP: 10, 
-    color: 'text-green-600',
-    bgColor: 'bg-green-500/20'
-  },
-  medium: { 
-    label: 'Moyen (15-35 XP)', 
-    baseXP: 25, 
-    color: 'text-yellow-600',
-    bgColor: 'bg-yellow-500/20'
-  },
-  hard: { 
-    label: 'Difficile (35-65 XP)', 
-    baseXP: 50, 
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-500/20'
-  },
-  expert: { 
-    label: 'Expert (65-120 XP)', 
-    baseXP: 85, 
-    color: 'text-red-600',
-    bgColor: 'bg-red-500/20'
-  }
-};
-
-const PRIORITY_XP_MULTIPLIERS = {
-  low: { multiplier: 0.8, label: 'Basse', color: 'text-gray-600' },
-  medium: { multiplier: 1.0, label: 'Normale', color: 'text-blue-600' },
-  high: { multiplier: 1.3, label: 'Haute', color: 'text-orange-600' },
-  urgent: { multiplier: 1.6, label: 'Urgente', color: 'text-red-600' }
-};
-
-const RECURRENCE_MULTIPLIERS = {
-  none: 1.0,
-  daily: 1.5,
-  weekly: 1.3,
-  monthly: 1.1
-};
-
-/**
- * 📋 PAGE TÂCHES COMPLÈTE AVEC TOUTES LES FONCTIONNALITÉS
- */
 const TasksPage = () => {
   const { user, isAuthenticated } = useAuthStore();
+
+  // ==========================================
+  // 🔥 ÉTATS LOCAUX
+  // ==========================================
   
-  // ==========================================
-  // 🔥 ÉTATS PRINCIPAUX
-  // ==========================================
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  
-  // États de filtrage et recherche
-  const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState('');
+
+  // Navigation et filtres
   const [activeTab, setActiveTab] = useState('my');
+  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
   const [sortBy, setSortBy] = useState('created');
   const [sortOrder, setSortOrder] = useState('desc');
-  
-  // États des modals
+
+  // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [editMode, setEditMode] = useState(false);
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
 
-  // État du formulaire de création/édition
+  // Formulaire de création/édition
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     priority: 'medium',
-    difficulty: 'medium',
-    category: 'general',
-    status: 'todo',
     dueDate: '',
     estimatedHours: 1,
     xpReward: 25,
@@ -250,50 +104,22 @@ const TasksPage = () => {
     notes: ''
   });
 
+  const [submitting, setSubmitting] = useState(false);
   const [tagInput, setTagInput] = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // ==========================================
-  // 🔥 HOOKS ET EFFECTS
+  // 🔥 CHARGEMENT DES DONNÉES EN TEMPS RÉEL
   // ==========================================
 
-  // ✅ CALCUL AUTOMATIQUE XP
-  const calculateAutoXP = useCallback((difficulty, priority, isRecurring, recurrenceType) => {
-    const diffConfig = DIFFICULTY_XP_CONFIG[difficulty] || DIFFICULTY_XP_CONFIG.medium;
-    const priorityConfig = PRIORITY_XP_MULTIPLIERS[priority] || PRIORITY_XP_MULTIPLIERS.medium;
-    const recurrenceConfig = isRecurring ? 
-      (RECURRENCE_MULTIPLIERS[recurrenceType] || RECURRENCE_MULTIPLIERS.none) : 
-      RECURRENCE_MULTIPLIERS.none;
-    
-    const finalXP = Math.round(
-      diffConfig.baseXP * 
-      priorityConfig.multiplier * 
-      recurrenceConfig.multiplier
-    );
-    
-    return Math.max(5, Math.min(200, finalXP));
-  }, []);
-
-  // ✅ MISE À JOUR AUTOMATIQUE XP
   useEffect(() => {
-    const autoXP = calculateAutoXP(
-      formData.difficulty, 
-      formData.priority, 
-      formData.isRecurring, 
-      formData.recurrenceType
-    );
-    
-    setFormData(prev => ({ ...prev, xpReward: autoXP }));
-  }, [formData.difficulty, formData.priority, formData.isRecurring, formData.recurrenceType, calculateAutoXP]);
+    if (!isAuthenticated || !user) {
+      setLoading(false);
+      return;
+    }
 
-  // ✅ ÉCOUTE TEMPS RÉEL DE TOUTES LES TÂCHES (VISIBILITÉ TOTALE)
-  useEffect(() => {
-    if (!isAuthenticated || !user) return;
-
-    console.log('🔥 Mise en place de l\'écoute temps réel de TOUTES les tâches...');
+    console.log('🔄 Configuration écoute temps réel des tâches...');
     setSyncing(true);
 
-    // 🌐 RÉCUPÉRATION DE TOUTES LES TÂCHES (TRANSPARENCE TOTALE)
     const tasksQuery = query(
       collection(db, 'tasks'),
       orderBy('createdAt', 'desc')
@@ -302,12 +128,11 @@ const TasksPage = () => {
     const unsubscribe = onSnapshot(
       tasksQuery,
       (snapshot) => {
-        console.log(`📋 ${snapshot.docs.length} tâches totales reçues de Firebase`);
+        console.log(`📋 Mise à jour temps réel: ${snapshot.docs.length} tâches`);
         
-        const fetchedTasks = [];
-        snapshot.forEach((doc) => {
+        const fetchedTasks = snapshot.docs.map(doc => {
           const taskData = doc.data();
-          fetchedTasks.push({
+          return {
             id: doc.id,
             ...taskData,
             createdAt: taskData.createdAt?.toDate?.() || new Date(),
@@ -315,7 +140,7 @@ const TasksPage = () => {
             updatedAt: taskData.updatedAt?.toDate?.() || null,
             completedAt: taskData.completedAt?.toDate?.() || null,
             validatedAt: taskData.validatedAt?.toDate?.() || null
-          });
+          };
         });
 
         setTasks(fetchedTasks);
@@ -407,36 +232,61 @@ const TasksPage = () => {
     return filtered;
   }, [tasks, searchTerm, statusFilter, priorityFilter, roleFilter, sortBy, sortOrder]);
 
-  // ✅ LOGIQUE DE TRI VERROUILLÉE - INTERDICTION DE MODIFICATION
+  // ✅ LOGIQUE DE TRI CORRIGÉE - FIX ONGLET AUTRES
   const currentTasks = useMemo(() => {
+    console.log('🔍 Filtrage onglet:', activeTab, 'User ID:', user?.uid);
+    console.log('📊 Total tâches filtrées:', filteredAndSortedTasks.length);
+    
+    let result = [];
+    
     switch (activeTab) {
       case 'my':
         // 🧑‍💼 MES TÂCHES : Tâches assignées UNIQUEMENT à moi
-        return filteredAndSortedTasks.filter(task => 
-          task.assignedTo === user?.uid
-        );
+        result = filteredAndSortedTasks.filter(task => {
+          const isAssignedToMe = task.assignedTo === user?.uid;
+          console.log(`📋 Tâche "${task.title}": assignedTo=${task.assignedTo}, userId=${user?.uid}, match=${isAssignedToMe}`);
+          return isAssignedToMe;
+        });
+        break;
         
       case 'available':
-        // 💼 DISPONIBLES : Tâches SANS attribution
-        return filteredAndSortedTasks.filter(task => 
-          !task.assignedTo || task.assignedTo === null || task.assignedTo === ''
-        );
+        // 💼 DISPONIBLES : Tâches SANS attribution OU avec assignedTo vide/null
+        result = filteredAndSortedTasks.filter(task => {
+          const isAvailable = !task.assignedTo || task.assignedTo === null || task.assignedTo === '' || task.assignedTo === undefined;
+          console.log(`💼 Tâche "${task.title}": assignedTo="${task.assignedTo}", available=${isAvailable}`);
+          return isAvailable;
+        });
+        break;
         
       case 'others':
-        // 👥 AUTRES : Tâches assignées à d'AUTRES utilisateurs
-        return filteredAndSortedTasks.filter(task => 
-          task.assignedTo && task.assignedTo !== user?.uid
-        );
+        // 👥 AUTRES : Tâches assignées à d'AUTRES utilisateurs (pas moi, pas vide)
+        result = filteredAndSortedTasks.filter(task => {
+          const hasAssignee = task.assignedTo && task.assignedTo !== null && task.assignedTo !== '' && task.assignedTo !== undefined;
+          const isNotMe = task.assignedTo !== user?.uid;
+          const isOthers = hasAssignee && isNotMe;
+          console.log(`👥 Tâche "${task.title}": assignedTo="${task.assignedTo}", hasAssignee=${hasAssignee}, isNotMe=${isNotMe}, isOthers=${isOthers}`);
+          return isOthers;
+        });
+        break;
         
       case 'history':
         // 📚 HISTORIQUE : Tâches terminées ET validées par admin
-        return filteredAndSortedTasks.filter(task => 
-          task.status === 'completed' && task.validatedBy
-        );
+        result = filteredAndSortedTasks.filter(task => {
+          const isCompleted = task.status === 'completed';
+          const isValidated = task.validatedBy && task.validatedBy !== null && task.validatedBy !== '';
+          const inHistory = isCompleted && isValidated;
+          console.log(`📚 Tâche "${task.title}": status=${task.status}, validatedBy=${task.validatedBy}, inHistory=${inHistory}`);
+          return inHistory;
+        });
+        break;
         
       default:
-        return filteredAndSortedTasks;
+        result = filteredAndSortedTasks;
+        break;
     }
+    
+    console.log(`✅ Résultat onglet "${activeTab}":`, result.length, 'tâches');
+    return result;
   }, [filteredAndSortedTasks, activeTab, user]);
 
   // ==========================================
@@ -464,87 +314,74 @@ const TasksPage = () => {
         status: 'todo',
         progress: 0,
         teamId: user.teamId || null,
-        dueDate: formData.dueDate ? new Date(formData.dueDate) : null
+        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
+        assignedTo: null // Nouvelles tâches non assignées par défaut
       };
 
       await addDoc(collection(db, 'tasks'), taskData);
       
-      // Réinitialiser le formulaire
-      setFormData({
-        title: '',
-        description: '',
-        priority: 'medium',
-        difficulty: 'medium',
-        category: 'general',
-        status: 'todo',
-        dueDate: '',
-        estimatedHours: 1,
-        xpReward: 25,
-        roleId: '',
-        tags: [],
-        openToVolunteers: true,
-        isRecurring: false,
-        recurrenceType: 'none',
-        recurrenceInterval: 1,
-        recurrenceDays: [],
-        recurrenceEndDate: '',
-        projectId: '',
-        attachments: [],
-        notes: ''
-      });
-
-      setShowCreateModal(false);
-      setEditMode(false);
       console.log('✅ Tâche créée avec succès');
-
+      setShowCreateModal(false);
+      resetForm();
     } catch (error) {
       console.error('❌ Erreur création tâche:', error);
-      setError('Erreur lors de la création de la tâche');
-    } finally {
-      setSubmitting(false);
+      setError('Erreur lors de la création');
     }
+
+    setSubmitting(false);
   };
 
-  // ✅ MODIFICATION D'UNE TÂCHE
+  // ✅ MODIFIER UNE TÂCHE
   const handleUpdateTask = async () => {
-    if (!selectedTask) return;
+    if (!selectedTask?.id || !formData.title.trim()) {
+      setError('Données invalides');
+      return;
+    }
 
     setSubmitting(true);
     setError('');
 
     try {
       const taskRef = doc(db, 'tasks', selectedTask.id);
-      await updateDoc(taskRef, {
+      
+      const updateData = {
         ...formData,
         updatedAt: serverTimestamp(),
         dueDate: formData.dueDate ? new Date(formData.dueDate) : null
-      });
+      };
 
-      setShowCreateModal(false);
+      await updateDoc(taskRef, updateData);
+      
+      console.log('✅ Tâche modifiée avec succès');
       setEditMode(false);
       setSelectedTask(null);
-      console.log('✅ Tâche modifiée avec succès');
-
+      resetForm();
     } catch (error) {
       console.error('❌ Erreur modification tâche:', error);
-      setError('Erreur lors de la modification de la tâche');
-    } finally {
-      setSubmitting(false);
+      setError('Erreur lors de la modification');
     }
+
+    setSubmitting(false);
   };
 
-  // ✅ SUPPRESSION D'UNE TÂCHE
-  const handleDeleteTask = async (taskId, taskTitle) => {
-    if (!confirm(`Voulez-vous vraiment supprimer la tâche "${taskTitle}" ?`)) {
+  // ✅ SUPPRIMER UNE TÂCHE
+  const handleDeleteTask = async (taskId) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
       return;
     }
 
     try {
       await deleteDoc(doc(db, 'tasks', taskId));
       console.log('✅ Tâche supprimée avec succès');
+      
+      // Fermer les modals si la tâche supprimée était sélectionnée
+      if (selectedTask?.id === taskId) {
+        setSelectedTask(null);
+        setEditMode(false);
+      }
     } catch (error) {
       console.error('❌ Erreur suppression tâche:', error);
-      setError('Erreur lors de la suppression de la tâche');
+      setError('Erreur lors de la suppression');
     }
   };
 
@@ -554,13 +391,15 @@ const TasksPage = () => {
       const taskRef = doc(db, 'tasks', taskId);
       await updateDoc(taskRef, {
         status: 'completed',
+        progress: 100,
         completedAt: serverTimestamp(),
-        progress: 100
+        updatedAt: serverTimestamp()
       });
+      
       console.log('✅ Tâche marquée comme terminée');
     } catch (error) {
-      console.error('❌ Erreur completion tâche:', error);
-      setError('Erreur lors de la completion de la tâche');
+      console.error('❌ Erreur finalisation tâche:', error);
+      setError('Erreur lors de la finalisation');
     }
   };
 
@@ -570,31 +409,54 @@ const TasksPage = () => {
       const taskRef = doc(db, 'tasks', taskId);
       await updateDoc(taskRef, {
         assignedTo: user.uid,
-        assignedAt: serverTimestamp(),
-        status: 'in_progress'
+        status: 'in_progress',
+        updatedAt: serverTimestamp()
       });
-      console.log('✅ Tâche assignée à moi');
+      
+      console.log('✅ Tâche assignée à moi-même');
     } catch (error) {
-      console.error('❌ Erreur assignation:', error);
-      setError('Erreur lors de l\'assignation de la tâche');
+      console.error('❌ Erreur assignation tâche:', error);
+      setError('Erreur lors de l\'assignation');
     }
   };
 
   // ==========================================
-  // 🔥 GESTION DU FORMULAIRE
+  // 🔥 UTILITAIRES
   // ==========================================
 
-  // ✅ PRÉ-REMPLISSAGE POUR L'ÉDITION
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      priority: 'medium',
+      dueDate: '',
+      estimatedHours: 1,
+      xpReward: 25,
+      roleId: '',
+      tags: [],
+      openToVolunteers: true,
+      isRecurring: false,
+      recurrenceType: 'none',
+      recurrenceInterval: 1,
+      recurrenceDays: [],
+      recurrenceEndDate: '',
+      projectId: '',
+      attachments: [],
+      notes: ''
+    });
+    setTagInput('');
+    setError('');
+  };
+
+  // Préremplir le formulaire en mode édition
   useEffect(() => {
     if (editMode && selectedTask) {
       setFormData({
         title: selectedTask.title || '',
         description: selectedTask.description || '',
         priority: selectedTask.priority || 'medium',
-        difficulty: selectedTask.difficulty || 'medium',
-        category: selectedTask.category || 'general',
-        status: selectedTask.status || 'todo',
-        dueDate: selectedTask.dueDate ? selectedTask.dueDate.toISOString().split('T')[0] : '',
+        dueDate: selectedTask.dueDate ? 
+          selectedTask.dueDate.toISOString().split('T')[0] : '',
         estimatedHours: selectedTask.estimatedHours || 1,
         xpReward: selectedTask.xpReward || 25,
         roleId: selectedTask.roleId || '',
@@ -630,7 +492,7 @@ const TasksPage = () => {
     }));
   };
 
-  // ✅ ONGLETS SELON LOGIQUE VERROUILLÉE
+  // ✅ ONGLETS SELON LOGIQUE CORRIGÉE
   const tabs = [
     {
       id: 'my',
@@ -642,60 +504,47 @@ const TasksPage = () => {
       id: 'available',
       label: 'Disponibles',
       icon: Heart,
-      count: tasks.filter(t => !t.assignedTo || t.assignedTo === null || t.assignedTo === '').length
+      count: tasks.filter(t => !t.assignedTo || t.assignedTo === null || t.assignedTo === '' || t.assignedTo === undefined).length
     },
     {
       id: 'others',
       label: 'Autres',
       icon: Users,
-      count: tasks.filter(t => t.assignedTo && t.assignedTo !== user?.uid).length
+      count: tasks.filter(t => t.assignedTo && t.assignedTo !== user?.uid && t.assignedTo !== null && t.assignedTo !== '' && t.assignedTo !== undefined).length
     },
     {
       id: 'history',
       label: 'Historique',
-      icon: Archive,
+      icon: BookOpen,
       count: tasks.filter(t => t.status === 'completed' && t.validatedBy).length
     }
   ];
 
   // ==========================================
-  // 🎨 RENDU DE L'INTERFACE
+  // 🔥 RENDU
   // ==========================================
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Accès Restreint</h1>
-          <p className="text-gray-400">Veuillez vous connecter pour accéder aux tâches</p>
+      <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <div className="text-center text-white">
+          <p className="text-xl">Connexion requise pour accéder aux tâches</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-slate-900 p-6">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* 📊 EN-TÊTE SIMPLE SANS STATISTIQUES */}
-        <div className="text-center mb-8">
+        {/* 🎯 HEADER */}
+        <div className="text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Target className="w-8 h-8 text-blue-400" />
-            <h1 className="text-4xl font-bold text-white">Gestion des Tâches</h1>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="p-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-5 h-5 text-white" />
-              </button>
-              <button
-                onClick={() => setShowFiltersModal(true)}
-                className="p-2 bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                <Filter className="w-5 h-5 text-white" />
-              </button>
+            <div className="w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Target className="w-8 h-8 text-white" />
             </div>
+            <h1 className="text-4xl font-bold text-white">Gestion des Tâches</h1>
           </div>
           <p className="text-gray-400 text-lg">
             Organisez et suivez vos tâches avec gamification intégrée
@@ -741,36 +590,31 @@ const TasksPage = () => {
                 className="px-4 py-3 bg-white/10 border border-white/10 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">Toutes priorités</option>
-                <option value="low">Basse</option>
-                <option value="medium">Normale</option>
-                <option value="high">Haute</option>
                 <option value="urgent">Urgente</option>
+                <option value="high">Haute</option>
+                <option value="medium">Moyenne</option>
+                <option value="low">Basse</option>
               </select>
 
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="px-4 py-3 bg-white/10 border border-white/10 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center gap-2"
               >
-                <option value="all">Tous les rôles</option>
-                {Object.values(SYNERGIA_ROLES).map(role => (
-                  <option key={role.id} value={role.id}>
-                    {role.icon} {role.name}
-                  </option>
-                ))}
-              </select>
+                <Plus className="w-4 h-4" />
+                Nouvelle Tâche
+              </button>
             </div>
           </div>
         </div>
 
-        {/* 📑 ONGLETS DE NAVIGATION */}
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-2">
-          <div className="flex gap-2">
+        {/* 📊 ONGLETS DE NAVIGATION */}
+        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+          <div className="flex flex-wrap gap-2">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all font-medium ${
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-all ${
                   activeTab === tab.id
                     ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
@@ -896,83 +740,69 @@ const TasksPage = () => {
                           <div className={`px-2 py-1 rounded text-xs font-medium ${
                             task.priority === 'urgent' ? 'bg-red-500/20 text-red-400' :
                             task.priority === 'high' ? 'bg-orange-500/20 text-orange-400' :
-                            task.priority === 'medium' ? 'bg-blue-500/20 text-blue-400' :
+                            task.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
                             'bg-gray-500/20 text-gray-400'
                           }`}>
-                            {PRIORITY_XP_MULTIPLIERS[task.priority]?.label}
+                            {task.priority === 'urgent' && '🔥 Urgent'}
+                            {task.priority === 'high' && '⚡ Haute'}
+                            {task.priority === 'medium' && '📊 Moyenne'}
+                            {task.priority === 'low' && '🔽 Basse'}
                           </div>
 
                           {/* Badge XP */}
-                          <div className="flex items-center gap-1 px-2 py-1 bg-purple-500/20 rounded text-purple-400 text-xs font-medium">
-                            <Zap className="w-3 h-3" />
-                            {task.xpReward} XP
-                          </div>
+                          {task.xpReward && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-purple-500/20 rounded text-purple-400 text-xs">
+                              <Zap className="w-3 h-3" />
+                              <span>{task.xpReward} XP</span>
+                            </div>
+                          )}
 
-                          {/* Badge de rôle */}
+                          {/* Badge rôle */}
                           {task.roleId && SYNERGIA_ROLES[task.roleId] && (
-                            <div className="flex items-center gap-1 px-2 py-1 bg-yellow-500/20 rounded text-yellow-400 text-xs font-medium">
-                              <span>{SYNERGIA_ROLES[task.roleId].icon}</span>
-                              <span>{SYNERGIA_ROLES[task.roleId].name}</span>
+                            <div className={`px-2 py-1 rounded text-xs font-medium text-white ${SYNERGIA_ROLES[task.roleId].color}`}>
+                              {SYNERGIA_ROLES[task.roleId].emoji} {SYNERGIA_ROLES[task.roleId].name}
+                            </div>
+                          )}
+
+                          {/* Compteur récurrence pour historique */}
+                          {activeTab === 'history' && task.recurrenceCount && task.recurrenceCount > 1 && (
+                            <div className="flex items-center gap-1">
+                              <Repeat className="w-4 h-4 text-purple-400" />
+                              <span className="text-purple-400">x{task.recurrenceCount}</span>
                             </div>
                           )}
                         </div>
 
-                        {/* Titre et description */}
                         <h4 className="text-lg font-semibold text-white mb-2">{task.title}</h4>
+                        
                         {task.description && (
-                          <p className="text-gray-400 mb-3 line-clamp-2">{task.description}</p>
+                          <p className="text-gray-300 mb-3 text-sm leading-relaxed">
+                            {task.description.length > 150 
+                              ? `${task.description.substring(0, 150)}...`
+                              : task.description
+                            }
+                          </p>
                         )}
 
-                        {/* Tags */}
-                        {task.tags && task.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mb-3">
-                            {task.tags.map((tag, index) => (
-                              <span
-                                key={index}
-                                className="px-2 py-1 bg-white/10 rounded text-gray-300 text-xs"
-                              >
-                                #{tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Métadonnées avec informations d'assignation */}
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                          {/* Informations d'assignation */}
-                          <div className="flex items-center gap-1">
-                            <User className="w-4 h-4" />
-                            {task.assignedTo ? (
-                              <span className="text-blue-400">
-                                {task.assignedTo === user?.uid ? 'Assignée à moi' : `Assignée à ${task.assignedTo.substring(0, 8)}`}
-                              </span>
-                            ) : (
-                              <span className="text-yellow-400">Non assignée</span>
-                            )}
-                          </div>
-
+                        <div className="flex items-center gap-4 text-sm text-gray-400">
                           {task.dueDate && (
                             <div className="flex items-center gap-1">
                               <Calendar className="w-4 h-4" />
-                              <span>{task.dueDate.toLocaleDateString()}</span>
+                              <span>{task.dueDate.toLocaleDateString('fr-FR')}</span>
                             </div>
                           )}
+
                           {task.estimatedHours && (
                             <div className="flex items-center gap-1">
                               <Clock className="w-4 h-4" />
                               <span>{task.estimatedHours}h estimées</span>
                             </div>
                           )}
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            <span>Créée le {task.createdAt?.toLocaleDateString()}</span>
-                          </div>
 
-                          {/* Validation pour historique */}
-                          {activeTab === 'history' && task.validatedBy && (
+                          {task.assignedTo && task.assignedTo !== user?.uid && (
                             <div className="flex items-center gap-1">
-                              <CheckCircle className="w-4 h-4 text-green-400" />
-                              <span className="text-green-400">Validée par admin</span>
+                              <User className="w-4 h-4" />
+                              <span>Assignée</span>
                             </div>
                           )}
 
@@ -1040,15 +870,14 @@ const TasksPage = () => {
                               onClick={() => {
                                 setSelectedTask(task);
                                 setEditMode(true);
-                                setShowCreateModal(true);
                               }}
-                              className="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                              className="p-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
-
+                            
                             <button
-                              onClick={() => handleDeleteTask(task.id, task.title)}
+                              onClick={() => handleDeleteTask(task.id)}
                               className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1057,6 +886,20 @@ const TasksPage = () => {
                         )}
                       </div>
                     </div>
+
+                    {/* Tags */}
+                    {task.tags && task.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        {task.tags.map((tag, index) => (
+                          <span
+                            key={index}
+                            className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -1064,70 +907,54 @@ const TasksPage = () => {
           </div>
         </div>
 
-        {/* 🏆 SECTION GAMIFICATION */}
-        <div className="bg-gradient-to-r from-purple-600/10 to-pink-600/10 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-8">
-          <div className="text-center">
-            <Trophy className="w-16 h-16 text-yellow-400 mx-auto mb-6" />
-            <h3 className="text-3xl font-bold text-white mb-4">Productivité Gamifiée !</h3>
-            <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
-              Terminez des tâches pour gagner de l'XP, débloquer des badges et gravir les échelons !
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white/5 rounded-lg p-4 text-center border border-white/10">
-                <div className="text-3xl mb-2">⚡</div>
-                <p className="text-white text-sm font-medium">Gagnez de l'XP</p>
-                <p className="text-gray-400 text-xs">Chaque tâche terminée</p>
-              </div>
-              
-              <div className="bg-white/5 rounded-lg p-4 text-center border border-white/10">
-                <div className="text-3xl mb-2">🏆</div>
-                <p className="text-white text-sm font-medium">Débloquez des badges</p>
-                <p className="text-gray-400 text-xs">Accomplissements spéciaux</p>
-              </div>
-              
-              <div className="bg-white/5 rounded-lg p-4 text-center border border-white/10">
-                <div className="text-3xl mb-2">👑</div>
-                <p className="text-white text-sm font-medium">Montez en niveau</p>
-                <p className="text-gray-400 text-xs">Progressez dans votre rôle</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        {/* ========================= MODALS ========================= */}
 
-      {/* 🔥 MODAL DE CRÉATION/ÉDITION COMPLÈTE */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">
-                {editMode ? 'Modifier la Tâche' : 'Créer une Nouvelle Tâche'}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setEditMode(false);
-                  setSelectedTask(null);
-                }}
-                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
+        {/* 🔍 MODAL DE DÉTAILS D'UNE TÂCHE */}
+        {selectedTask && !editMode && (
+          <TaskDetailModal
+            task={selectedTask}
+            onClose={() => setSelectedTask(null)}
+            onEdit={() => setEditMode(true)}
+            onDelete={() => handleDeleteTask(selectedTask.id)}
+            onSubmitForValidation={() => setShowSubmissionModal(true)}
+            onAssign={() => setShowAssignmentModal(true)}
+            currentUser={user}
+          />
+        )}
 
-            {error && (
-              <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-red-400" />
-                  <span className="text-red-400">{error}</span>
+        {/* ✏️ MODAL DE CRÉATION/ÉDITION DE TÂCHE */}
+        {(showCreateModal || editMode) && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-800 rounded-2xl border border-gray-700 p-8 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-white">
+                  {editMode ? 'Modifier la Tâche' : 'Nouvelle Tâche'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setEditMode(false);
+                    setSelectedTask(null);
+                    resetForm();
+                  }}
+                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              {error && (
+                <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+                  <div className="flex items-center gap-2 text-red-400">
+                    <AlertTriangle className="w-5 h-5" />
+                    <span className="font-medium">Erreur</span>
+                  </div>
+                  <p className="text-red-300 mt-1">{error}</p>
                 </div>
-              </div>
-            )}
+              )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Colonne gauche - Informations principales */}
-              <div className="space-y-4">
+              <div className="space-y-6">
+                {/* Titre */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Titre de la tâche *
@@ -1136,11 +963,13 @@ const TasksPage = () => {
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Ex: Mettre à jour la documentation"
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ex: Optimiser la base de données"
+                    required
                   />
                 </div>
 
+                {/* Description */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Description
@@ -1148,13 +977,14 @@ const TasksPage = () => {
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Décrivez la tâche en détail..."
                     rows={4}
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                    placeholder="Décrivez la tâche en détail..."
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Priorité */}
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Priorité
@@ -1164,49 +994,14 @@ const TasksPage = () => {
                       onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
                       className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="low">🟢 Basse</option>
-                      <option value="medium">🔵 Normale</option>
-                      <option value="high">🟠 Haute</option>
-                      <option value="urgent">🔴 Urgente</option>
+                      <option value="low">🔽 Basse</option>
+                      <option value="medium">📊 Moyenne</option>
+                      <option value="high">⚡ Haute</option>
+                      <option value="urgent">🔥 Urgente</option>
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Difficulté
-                    </label>
-                    <select
-                      value={formData.difficulty}
-                      onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value }))}
-                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="easy">🟢 Facile</option>
-                      <option value="medium">🟡 Moyen</option>
-                      <option value="hard">🟠 Difficile</option>
-                      <option value="expert">🔴 Expert</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Rôle Synergia
-                  </label>
-                  <select
-                    value={formData.roleId}
-                    onChange={(e) => setFormData(prev => ({ ...prev, roleId: e.target.value }))}
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Aucun rôle spécifique</option>
-                    {Object.values(SYNERGIA_ROLES).map(role => (
-                      <option key={role.id} value={role.id}>
-                        {role.icon} {role.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+                  {/* Date d'échéance */}
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Date d'échéance
@@ -1219,9 +1014,10 @@ const TasksPage = () => {
                     />
                   </div>
 
+                  {/* Estimation heures */}
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Temps estimé (heures)
+                      Heures estimées
                     </label>
                     <input
                       type="number"
@@ -1232,25 +1028,43 @@ const TasksPage = () => {
                       className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-                </div>
 
-                {/* ✅ AFFICHAGE XP CALCULÉ AUTOMATIQUEMENT */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Récompense XP (calculée automatiquement)
-                  </label>
-                  <div className="flex items-center gap-3 px-4 py-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
-                    <Zap className="w-5 h-5 text-purple-400" />
-                    <span className="text-xl font-bold text-purple-400">{formData.xpReward} XP</span>
-                    <span className="text-sm text-gray-400">
-                      Basé sur difficulté, priorité et récurrence
-                    </span>
+                  {/* Récompense XP */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Points XP
+                    </label>
+                    <input
+                      type="number"
+                      min="5"
+                      step="5"
+                      value={formData.xpReward}
+                      onChange={(e) => setFormData(prev => ({ ...prev, xpReward: parseInt(e.target.value) || 25 }))}
+                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
                 </div>
-              </div>
 
-              {/* Colonne droite - Paramètres avancés */}
-              <div className="space-y-4">
+                {/* Rôle */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Rôle spécialisé (optionnel)
+                  </label>
+                  <select
+                    value={formData.roleId}
+                    onChange={(e) => setFormData(prev => ({ ...prev, roleId: e.target.value }))}
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Aucun rôle spécifique</option>
+                    {Object.entries(SYNERGIA_ROLES).map(([id, role]) => (
+                      <option key={id} value={id}>
+                        {role.emoji} {role.name} - {role.description}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Tags */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Tags
@@ -1260,731 +1074,108 @@ const TasksPage = () => {
                       type="text"
                       value={tagInput}
                       onChange={(e) => setTagInput(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                      className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
                       placeholder="Ajouter un tag..."
-                      className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
                     />
                     <button
                       type="button"
                       onClick={handleAddTag}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {formData.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="flex items-center gap-1 px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-sm"
-                      >
-                        #{tag}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveTag(tag)}
-                          className="text-blue-400 hover:text-blue-300"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-4 bg-gray-700/50 rounded-lg">
-                  <input
-                    type="checkbox"
-                    id="openToVolunteers"
-                    checked={formData.openToVolunteers}
-                    onChange={(e) => setFormData(prev => ({ ...prev, openToVolunteers: e.target.checked }))}
-                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-                  />
-                  <label htmlFor="openToVolunteers" className="text-gray-300">
-                    Ouverte au volontariat
-                  </label>
-                </div>
-
-                <div className="flex items-center gap-3 p-4 bg-gray-700/50 rounded-lg">
-                  <input
-                    type="checkbox"
-                    id="isRecurring"
-                    checked={formData.isRecurring}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isRecurring: e.target.checked }))}
-                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-                  />
-                  <label htmlFor="isRecurring" className="text-gray-300">
-                    Tâche récurrente
-                  </label>
-                </div>
-
-                {formData.isRecurring && (
-                  <div className="space-y-3 p-4 bg-gray-700/30 rounded-lg border border-gray-600">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Type de récurrence
-                      </label>
-                      <select
-                        value={formData.recurrenceType}
-                        onChange={(e) => setFormData(prev => ({ ...prev, recurrenceType: e.target.value }))}
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="daily">Quotidienne</option>
-                        <option value="weekly">Hebdomadaire</option>
-                        <option value="monthly">Mensuelle</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Intervalle
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={formData.recurrenceInterval}
-                        onChange={(e) => setFormData(prev => ({ ...prev, recurrenceInterval: parseInt(e.target.value) || 1 }))}
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Date de fin (optionnel)
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.recurrenceEndDate}
-                        onChange={(e) => setFormData(prev => ({ ...prev, recurrenceEndDate: e.target.value }))}
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Notes supplémentaires
-                  </label>
-                  <textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Notes internes, instructions spéciales..."
-                    rows={3}
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 resize-none"
-                  />
-                </div>
-
-                {/* Bouton paramètres avancés */}
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced(!showAdvanced)}
-                  className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
-                >
-                  <Settings className="w-4 h-4" />
-                  {showAdvanced ? 'Masquer' : 'Afficher'} les paramètres avancés
-                  <ChevronDown className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-                </button>
-
-                {showAdvanced && (
-                  <div className="space-y-4 p-4 bg-gray-700/30 rounded-lg border border-gray-600">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Catégorie
-                      </label>
-                      <select
-                        value={formData.category}
-                        onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="general">Général</option>
-                        <option value="development">Développement</option>
-                        <option value="design">Design</option>
-                        <option value="marketing">Marketing</option>
-                        <option value="management">Management</option>
-                        <option value="maintenance">Maintenance</option>
-                        <option value="research">Recherche</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Projet associé
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.projectId}
-                        onChange={(e) => setFormData(prev => ({ ...prev, projectId: e.target.value }))}
-                        placeholder="ID du projet (optionnel)"
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Actions du modal */}
-            <div className="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-gray-700">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setEditMode(false);
-                  setSelectedTask(null);
-                }}
-                className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={editMode ? handleUpdateTask : handleCreateTask}
-                disabled={submitting || !formData.title.trim()}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submitting ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )}
-                {editMode ? 'Mettre à jour' : 'Créer la tâche'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 🔍 MODAL DE FILTRES AVANCÉS */}
-      {showFiltersModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6 w-full max-w-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">Filtres Avancés</h3>
-              <button
-                onClick={() => setShowFiltersModal(false)}
-                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Statut
-                </label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">Tous les statuts</option>
-                  <option value="active">Actives</option>
-                  <option value="todo">À faire</option>
-                  <option value="in_progress">En cours</option>
-                  <option value="completed">Terminées</option>
-                  <option value="cancelled">Annulées</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Priorité
-                </label>
-                <select
-                  value={priorityFilter}
-                  onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">Toutes les priorités</option>
-                  <option value="low">🟢 Basse</option>
-                  <option value="medium">🔵 Normale</option>
-                  <option value="high">🟠 Haute</option>
-                  <option value="urgent">🔴 Urgente</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Rôle Synergia
-                </label>
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">Tous les rôles</option>
-                  {Object.values(SYNERGIA_ROLES).map(role => (
-                    <option key={role.id} value={role.id}>
-                      {role.icon} {role.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Trier par
-                </label>
-                <div className="flex gap-2">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="created">Date de création</option>
-                    <option value="dueDate">Date d'échéance</option>
-                    <option value="priority">Priorité</option>
-                    <option value="title">Titre</option>
-                  </select>
-                  <button
-                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    className="px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white hover:bg-gray-600 transition-colors"
-                  >
-                    {sortOrder === 'asc' ? '↑' : '↓'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-700">
-              <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setStatusFilter('active');
-                  setPriorityFilter('all');
-                  setRoleFilter('all');
-                  setSortBy('created');
-                  setSortOrder('desc');
-                }}
-                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
-              >
-                Réinitialiser
-              </button>
-              <button
-                onClick={() => setShowFiltersModal(false)}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
-              >
-                Appliquer les filtres
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 🔍 MODAL DE DÉTAILS D'UNE TÂCHE COMPLET AVEC TOUTES LES INFOS */}
-      {selectedTask && !editMode && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 rounded-2xl border border-gray-700 p-8 w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-lg ${selectedTask.roleId && SYNERGIA_ROLES[selectedTask.roleId] ? SYNERGIA_ROLES[selectedTask.roleId].color : 'bg-gray-600'} flex items-center justify-center text-2xl shadow-lg`}>
-                  {selectedTask.roleId && SYNERGIA_ROLES[selectedTask.roleId] ? SYNERGIA_ROLES[selectedTask.roleId].icon : '📋'}
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-white">Détails de la Tâche</h3>
-                  <p className="text-gray-400">#{selectedTask.id.substring(0, 8)}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedTask(null)}
-                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <X className="w-6 h-6 text-gray-400" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Colonne principale - Informations de la tâche */}
-              <div className="lg:col-span-2 space-y-8">
-                {/* En-tête de la tâche */}
-                <div>
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className={`px-4 py-2 rounded-full text-sm font-medium ${
-                      selectedTask.status === 'completed' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-                      selectedTask.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                      selectedTask.status === 'todo' ? 'bg-gray-500/20 text-gray-400 border border-gray-500/30' :
-                      'bg-red-500/20 text-red-400 border border-red-500/30'
-                    }`}>
-                      {selectedTask.status === 'completed' && '✅ Terminée'}
-                      {selectedTask.status === 'in_progress' && '🔄 En cours'}
-                      {selectedTask.status === 'todo' && '📋 À faire'}
-                      {selectedTask.status === 'cancelled' && '❌ Annulée'}
-                    </div>
-
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium border ${
-                      selectedTask.priority === 'urgent' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
-                      selectedTask.priority === 'high' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' :
-                      selectedTask.priority === 'medium' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
-                      'bg-gray-500/20 text-gray-400 border-gray-500/30'
-                    }`}>
-                      🚨 Priorité {PRIORITY_XP_MULTIPLIERS[selectedTask.priority]?.label}
-                    </div>
-
-                    <div className="flex items-center gap-2 px-3 py-1 bg-purple-500/20 rounded-full text-purple-400 text-sm font-medium border border-purple-500/30">
-                      <Zap className="w-4 h-4" />
-                      <span>{selectedTask.xpReward} XP</span>
-                    </div>
-                  </div>
-
-                  <h1 className="text-3xl font-bold text-white mb-4">{selectedTask.title}</h1>
                   
-                  {selectedTask.description && (
-                    <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
-                      <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                        <FileText className="w-5 h-5" />
-                        Description
-                      </h4>
-                      <p className="text-gray-300 text-lg leading-relaxed">{selectedTask.description}</p>
+                  {formData.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {formData.tags.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm"
+                        >
+                          #{tag}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTag(tag)}
+                            className="hover:text-red-400"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
                     </div>
                   )}
                 </div>
 
-                {/* Informations détaillées */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-6">
-                    <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
-                      <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                        <Settings className="w-5 h-5" />
-                        Configuration
-                      </h4>
-                      
-                      <div className="space-y-4">
-                        {selectedTask.roleId && SYNERGIA_ROLES[selectedTask.roleId] && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Rôle Synergia:</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xl">{SYNERGIA_ROLES[selectedTask.roleId].icon}</span>
-                              <span className="text-white font-medium">{SYNERGIA_ROLES[selectedTask.roleId].name}</span>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Difficulté:</span>
-                          <span className={`font-medium px-3 py-1 rounded-full text-sm ${DIFFICULTY_XP_CONFIG[selectedTask.difficulty]?.bgColor || 'bg-gray-500/20'} ${DIFFICULTY_XP_CONFIG[selectedTask.difficulty]?.color || 'text-gray-400'}`}>
-                            {DIFFICULTY_XP_CONFIG[selectedTask.difficulty]?.label || 'Non définie'}
-                          </span>
-                        </div>
-
-                        {selectedTask.estimatedHours && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Durée estimée:</span>
-                            <div className="flex items-center gap-1 text-white">
-                              <Clock className="w-4 h-4" />
-                              <span>{selectedTask.estimatedHours}h</span>
-                            </div>
-                          </div>
-                        )}
-
-                        {selectedTask.category && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Catégorie:</span>
-                            <span className="text-white capitalize">{selectedTask.category}</span>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Volontariat:</span>
-                          <span className={`font-medium ${selectedTask.openToVolunteers ? 'text-green-400' : 'text-red-400'}`}>
-                            {selectedTask.openToVolunteers ? '✅ Ouvert' : '❌ Fermé'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
-                      <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                        <Calendar className="w-5 h-5" />
-                        Dates importantes
-                      </h4>
-                      
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Créée le:</span>
-                          <div className="flex items-center gap-1 text-white">
-                            <span>{selectedTask.createdAt?.toLocaleDateString('fr-FR', { 
-                              day: 'numeric', 
-                              month: 'long', 
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}</span>
-                          </div>
-                        </div>
-
-                        {selectedTask.dueDate && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Échéance:</span>
-                            <div className="flex items-center gap-1">
-                              <Flag className="w-4 h-4 text-orange-400" />
-                              <span className="text-orange-400 font-medium">
-                                {selectedTask.dueDate.toLocaleDateString('fr-FR', { 
-                                  day: 'numeric', 
-                                  month: 'long', 
-                                  year: 'numeric' 
-                                })}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                        {selectedTask.updatedAt && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Dernière MAJ:</span>
-                            <span className="text-gray-300">
-                              {selectedTask.updatedAt.toLocaleDateString('fr-FR', { 
-                                day: 'numeric', 
-                                month: 'short',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
-                          </div>
-                        )}
-
-                        {selectedTask.completedAt && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Terminée le:</span>
-                            <div className="flex items-center gap-1 text-green-400">
-                              <CheckCircle className="w-4 h-4" />
-                              <span className="font-medium">
-                                {selectedTask.completedAt.toLocaleDateString('fr-FR', { 
-                                  day: 'numeric', 
-                                  month: 'long',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Tags */}
-                {selectedTask.tags && selectedTask.tags.length > 0 && (
-                  <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
-                    <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                      <Tag className="w-5 h-5" />
-                      Tags ({selectedTask.tags.length})
-                    </h4>
-                    <div className="flex flex-wrap gap-3">
-                      {selectedTask.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium border border-blue-500/30"
-                        >
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Récurrence */}
-                {selectedTask.isRecurring && (
-                  <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
-                    <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                      <Repeat className="w-5 h-5" />
-                      Configuration de récurrence
-                    </h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-500/20 rounded-lg">
-                          <Repeat className="w-5 h-5 text-blue-400" />
-                        </div>
-                        <div>
-                          <p className="text-white font-medium">
-                            {selectedTask.recurrenceType === 'daily' && 'Récurrence quotidienne'}
-                            {selectedTask.recurrenceType === 'weekly' && 'Récurrence hebdomadaire'}
-                            {selectedTask.recurrenceType === 'monthly' && 'Récurrence mensuelle'}
-                          </p>
-                          {selectedTask.recurrenceInterval > 1 && (
-                            <p className="text-gray-400 text-sm">
-                              Toutes les {selectedTask.recurrenceInterval} {
-                                selectedTask.recurrenceType === 'daily' ? 'jours' : 
-                                selectedTask.recurrenceType === 'weekly' ? 'semaines' : 'mois'
-                              }
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      {selectedTask.recurrenceEndDate && (
-                        <p className="text-gray-400 text-sm">
-                          Fin prévue: {new Date(selectedTask.recurrenceEndDate).toLocaleDateString('fr-FR')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
                 {/* Notes */}
-                {selectedTask.notes && (
-                  <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
-                    <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                      <FileText className="w-5 h-5" />
-                      Notes supplémentaires
-                    </h4>
-                    <div className="bg-gray-800/50 rounded-lg p-4">
-                      <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{selectedTask.notes}</p>
-                    </div>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Notes internes
+                  </label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    rows={3}
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                    placeholder="Notes pour les assignés..."
+                  />
+                </div>
               </div>
 
-              {/* Sidebar droite - Métadonnées et actions */}
-              <div className="space-y-6">
-                {/* Propriétaire */}
-                <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
-                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <User className="w-5 h-5" />
-                    Propriétaire
-                  </h4>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                      {user?.email?.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-white font-medium">{user?.displayName || user?.email}</p>
-                      <p className="text-gray-400 text-sm">{user?.email}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Statistiques */}
-                <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
-                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5" />
-                    Statistiques
-                  </h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Progression:</span>
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 h-2 bg-gray-600 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all"
-                            style={{ width: `${selectedTask.progress || 0}%` }}
-                          />
-                        </div>
-                        <span className="text-white text-sm font-medium">{selectedTask.progress || 0}%</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Gain XP:</span>
-                      <div className="flex items-center gap-1 text-purple-400 font-medium">
-                        <Zap className="w-4 h-4" />
-                        <span>{selectedTask.xpReward} points</span>
-                      </div>
-                    </div>
-
-                    {selectedTask.projectId && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-400">Projet:</span>
-                        <span className="text-white">{selectedTask.projectId}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
-                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <Settings className="w-5 h-5" />
-                    Actions
-                  </h4>
-                  <div className="space-y-3">
-                    {selectedTask.status !== 'completed' && (
-                      <button
-                        onClick={() => handleCompleteTask(selectedTask.id)}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        Marquer comme terminée
-                      </button>
-                    )}
-
-                    {selectedTask.createdBy === user.uid && (
-                      <>
-                        <button
-                          onClick={() => {
-                            setEditMode(true);
-                            setShowCreateModal(true);
-                          }}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
-                        >
-                          <Edit className="w-4 h-4" />
-                          Modifier la tâche
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            if (confirm(`Voulez-vous vraiment supprimer la tâche "${selectedTask.title}" ?`)) {
-                              handleDeleteTask(selectedTask.id, selectedTask.title);
-                              setSelectedTask(null);
-                            }
-                          }}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Supprimer
-                        </button>
-                      </>
-                    )}
-
-                    {activeTab === 'available' && selectedTask.openToVolunteers && !selectedTask.assignedTo && (
-                      <button
-                        onClick={() => {
-                          handleVolunteerTask(selectedTask.id);
-                          setSelectedTask(null);
-                        }}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium"
-                      >
-                        <Heart className="w-4 h-4" />
-                        Se porter volontaire
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Informations système */}
-                <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
-                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <Globe className="w-5 h-5" />
-                    Informations système
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400 text-sm">ID de la tâche:</span>
-                      <code className="text-gray-300 text-xs bg-gray-800/50 px-2 py-1 rounded">
-                        {selectedTask.id}
-                      </code>
-                    </div>
-                    
-                    {selectedTask.teamId && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-400 text-sm">Équipe:</span>
-                        <span className="text-gray-300 text-sm">{selectedTask.teamId}</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400 text-sm">Version:</span>
-                      <span className="text-gray-300 text-sm">Synergia v3.5</span>
-                    </div>
-                  </div>
-                </div>
+              {/* Actions */}
+              <div className="flex gap-4 mt-8">
+                <button
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setEditMode(false);
+                    setSelectedTask(null);
+                    resetForm();
+                  }}
+                  className="flex-1 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Annuler
+                </button>
+                
+                <button
+                  onClick={editMode ? handleUpdateTask : handleCreateTask}
+                  disabled={submitting || !formData.title.trim()}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {submitting && <RefreshCw className="w-4 h-4 animate-spin" />}
+                  {editMode ? 'Modifier' : 'Créer'} la Tâche
+                </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* 📤 MODAL DE SOUMISSION POUR VALIDATION */}
+        {showSubmissionModal && selectedTask && (
+          <TaskSubmissionModal
+            task={selectedTask}
+            onClose={() => setShowSubmissionModal(false)}
+            onSubmit={(result) => {
+              console.log('🎯 Validation soumise:', result);
+              setShowSubmissionModal(false);
+              setSelectedTask(null);
+            }}
+          />
+        )}
+
+        {/* 👥 MODAL D'ASSIGNATION */}
+        {showAssignmentModal && selectedTask && (
+          <TaskAssignmentModal
+            task={selectedTask}
+            onClose={() => setShowAssignmentModal(false)}
+            onAssign={(result) => {
+              console.log('👥 Assignation effectuée:', result);
+              setShowAssignmentModal(false);
+              setSelectedTask(null);
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 };
