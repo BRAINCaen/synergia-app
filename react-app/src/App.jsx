@@ -66,8 +66,8 @@ import NotFoundPage from './pages/NotFound.jsx';
 // 🎯 COMPOSANTS LAYOUT
 // ==========================================
 import Layout from './components/layout/Layout.jsx';
-import ProtectedRoute from './components/auth/ProtectedRoute.jsx';
-import PublicRoute from './components/auth/PublicRoute.jsx';
+import ProtectedRoute from './routes/ProtectedRoute.jsx';
+import PublicRoute from './routes/PublicRoute.jsx';
 
 // ==========================================
 // 🔧 CONFIGURATION ET CONSTANTES
