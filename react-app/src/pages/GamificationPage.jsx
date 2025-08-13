@@ -1,6 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/GamificationPage.jsx
 // VRAIES DONNÉES FIREBASE - PLUS DE MOCK !
+// TESTS FIREBASE SUPPRIMÉS - ERREUR SYNC DIAGNOSTIQUÉE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -25,7 +26,8 @@ import {
   Gauge,
   BarChart3,
   Medal,
-  Shield
+  Shield,
+  AlertTriangle
 } from 'lucide-react';
 
 // ✅ IMPORTS POUR VRAIES DONNÉES FIREBASE
@@ -112,63 +114,57 @@ const GamificationPage = () => {
     return cleanName;
   };
 
-  // ✅ RÉCUPÉRATION DU VRAI LEADERBOARD FIREBASE
+  // ✅ RÉCUPÉRER LE LEADERBOARD RÉEL DEPUIS FIREBASE
   useEffect(() => {
-    if (!isAuthenticated) return;
-
-    console.log('🏆 Récupération du vrai leaderboard depuis Firebase...');
-    setLeaderboardLoading(true);
-
-    const usersQuery = query(
-      collection(db, 'users'),
-      orderBy('gamification.totalXp', 'desc'),
-      limit(10)
-    );
-
-    const unsubscribe = onSnapshot(usersQuery, (snapshot) => {
-      const leaderboardData = [];
-      snapshot.forEach((doc, index) => {
-        const userData = doc.data();
-        const gamification = userData.gamification || {};
+    const fetchRealLeaderboard = async () => {
+      try {
+        setLeaderboardLoading(true);
         
-        // 🔧 UTILISER LA FONCTION DE NETTOYAGE DES NOMS
-        const cleanedName = cleanDisplayName(userData);
+        const usersRef = collection(db, 'users');
+        const leaderboardQuery = query(
+          usersRef,
+          orderBy('gamification.totalXp', 'desc'),
+          limit(10)
+        );
         
-        leaderboardData.push({
-          rank: index + 1,
-          id: doc.id,
-          name: cleanedName, // 🔧 NOM NETTOYÉ
-          xp: gamification.totalXp || 0,
-          level: gamification.level || 1,
-          isMe: doc.id === user?.uid
+        const snapshot = await getDocs(leaderboardQuery);
+        const leaderboardData = [];
+        
+        snapshot.forEach((doc) => {
+          const userData = doc.data();
+          const gamificationData = userData.gamification || {};
+          
+          leaderboardData.push({
+            id: doc.id,
+            name: cleanDisplayName(userData),
+            totalXp: gamificationData.totalXp || 0,
+            level: gamificationData.level || 1,
+            badges: gamificationData.badges || [],
+            tasksCompleted: gamificationData.tasksCompleted || 0
+          });
         });
-      });
-      
-      console.log('🏆 Leaderboard réel récupéré:', leaderboardData);
-      setRealLeaderboard(leaderboardData);
-      setLeaderboardLoading(false);
-    }, (error) => {
-      console.error('❌ Erreur leaderboard:', error);
-      setLeaderboardLoading(false);
-    });
+        
+        setRealLeaderboard(leaderboardData);
+        console.log('✅ Leaderboard Firebase récupéré:', leaderboardData.length, 'utilisateurs');
+        
+      } catch (error) {
+        console.error('❌ Erreur récupération leaderboard:', error);
+        setRealLeaderboard([]);
+      } finally {
+        setLeaderboardLoading(false);
+      }
+    };
 
-    return () => unsubscribe();
-  }, [isAuthenticated, user?.uid]);
+    if (isAuthenticated && isReady) {
+      fetchRealLeaderboard();
+    }
+  }, [isAuthenticated, isReady]);
 
-  // ✅ CALCULS BASÉS SUR LES VRAIES DONNÉES XP UNIQUEMENT
-  const calculations = gamificationData ? {
-    currentLevelXp: totalXp % 100,
-    nextLevelXp: 100,
-    xpToNextLevel: 100 - (totalXp % 100),
-    progressPercent: ((totalXp % 100) / 100) * 100
-  } : {
-    currentLevelXp: 0,
-    nextLevelXp: 100,
-    xpToNextLevel: 100,
-    progressPercent: 0
-  };
+  // ✅ CALCULER LES MÉTRIQUES XP RÉELLES
+  const xpToNextLevel = ((level + 1) * 100) - (totalXp % 100);
+  const progressToNextLevel = ((totalXp % 100) / 100) * 100;
 
-  // ✅ VRAIES ACTIVITÉS RÉCENTES DEPUIS FIREBASE
+  // ✅ ACTIVITÉS RÉCENTES RÉELLES DEPUIS FIREBASE
   const recentActivities = gamificationData?.xpHistory ? 
     gamificationData.xpHistory.slice(-5).reverse().map((activity, index) => ({
       id: index,
@@ -202,6 +198,53 @@ const GamificationPage = () => {
     }
   };
 
+  // 🔍 DIAGNOSTIC DE L'ERREUR DE SYNCHRONISATION
+  const getSyncErrorDiagnosis = () => {
+    if (syncStatus === 'error' || syncStatus === 'failed') {
+      return {
+        level: 'error',
+        title: 'Erreur de synchronisation Firebase',
+        message: 'La synchronisation avec Firebase a échoué. Données possiblement obsolètes.',
+        causes: [
+          'Problème de connexion réseau',
+          'Permissions Firebase manquantes',
+          'Service de synchronisation non initialisé',
+          'Structure de données incorrecte'
+        ],
+        solutions: [
+          'Vérifier la connexion internet',
+          'Actualiser la page',
+          'Forcer la synchronisation',
+          'Contacter l\'administrateur si le problème persiste'
+        ]
+      };
+    }
+    
+    if (syncStatus === 'syncing') {
+      return {
+        level: 'warning',
+        title: 'Synchronisation en cours',
+        message: 'Les données sont en cours de synchronisation avec Firebase.',
+        causes: ['Synchronisation normale en cours'],
+        solutions: ['Attendre la fin de la synchronisation']
+      };
+    }
+    
+    if (!isReady) {
+      return {
+        level: 'info',
+        title: 'Chargement des données',
+        message: 'Connexion à Firebase et récupération des données utilisateur.',
+        causes: ['Première connexion', 'Initialisation du service'],
+        solutions: ['Patienter le temps du chargement initial']
+      };
+    }
+    
+    return null;
+  };
+
+  const syncDiagnosis = getSyncErrorDiagnosis();
+
   // Si pas connecté
   if (!isAuthenticated) {
     return (
@@ -223,6 +266,22 @@ const GamificationPage = () => {
           <div className="animate-spin w-12 h-12 border-4 border-purple-400 border-t-transparent rounded-full mx-auto mb-4"></div>
           <h1 className="text-xl font-bold text-white mb-2">Chargement des données Firebase...</h1>
           <p className="text-gray-400">Synchronisation en cours</p>
+          
+          {/* Diagnostic en temps réel */}
+          {syncDiagnosis && (
+            <div className="mt-6 max-w-md mx-auto">
+              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4 text-left">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                  <span className="text-sm font-medium text-white">{syncDiagnosis.title}</span>
+                </div>
+                <p className="text-sm text-gray-300 mb-2">{syncDiagnosis.message}</p>
+                <div className="text-xs text-gray-400">
+                  Status: {syncStatus} • Prêt: {isReady ? 'Oui' : 'Non'}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -235,34 +294,37 @@ const GamificationPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-blue-500 rounded-xl flex items-center justify-center">
                 <Trophy className="w-8 h-8 text-white" />
               </div>
-              
               <div>
-                <h1 className="text-3xl font-bold text-white">
-                  🎮 Gamification Synergia v3.5
-                </h1>
-                <p className="text-purple-200">
-                  {/* 🔧 AFFICHAGE NETTOYÉ DU NOM */}
-                  Bonjour, <strong>{cleanDisplayName({ 
-                    displayName: user?.displayName, 
-                    email: user?.email,
-                    profile: { displayName: user?.displayName }
-                  })}</strong> • 
-                  Niveau <strong>{level}</strong> • 
-                  <strong>{totalXp.toLocaleString()}</strong> XP total • 
-                  Statut: <span className="text-green-400">{syncStatus}</span>
-                </p>
+                <h1 className="text-3xl font-bold text-white">Gamification Firebase</h1>
+                <p className="text-purple-200">Vraies données synchronisées</p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-4">
+              {/* Diagnostic d'erreur de synchronisation */}
+              {syncDiagnosis && (
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+                  syncDiagnosis.level === 'error' ? 'bg-red-500/20 border border-red-500/40' :
+                  syncDiagnosis.level === 'warning' ? 'bg-yellow-500/20 border border-yellow-500/40' :
+                  'bg-blue-500/20 border border-blue-500/40'
+                }`}>
+                  <AlertTriangle className={`w-4 h-4 ${
+                    syncDiagnosis.level === 'error' ? 'text-red-400' :
+                    syncDiagnosis.level === 'warning' ? 'text-yellow-400' :
+                    'text-blue-400'
+                  }`} />
+                  <span className="text-sm text-white">{syncDiagnosis.title}</span>
+                </div>
+              )}
+              
               <button
                 onClick={handleForceSync}
-                disabled={isRefreshing}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
-                  isRefreshing 
+                disabled={isRefreshing || !forceSync}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                  isRefreshing || !forceSync 
                     ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
                     : 'bg-purple-600 hover:bg-purple-700 text-white'
                 }`}
@@ -313,7 +375,7 @@ const GamificationPage = () => {
                 className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all ${
                   activeTab === tab.id
                     ? 'bg-purple-600 text-white shadow-lg'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                    : 'text-gray-300 hover:text-white hover:bg-white/10'
                 }`}
               >
                 <Icon className="w-5 h-5" />
@@ -322,10 +384,8 @@ const GamificationPage = () => {
             );
           })}
         </div>
-      </div>
 
-      {/* Contenu des onglets */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+        {/* Contenu des onglets */}
         <AnimatePresence mode="wait">
           {activeTab === 'overview' && (
             <motion.div
@@ -333,84 +393,92 @@ const GamificationPage = () => {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="space-y-8"
+              className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6"
             >
-              {/* Statistiques principales - VRAIES DONNÉES FIREBASE */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-blue-100 text-sm">XP Total (Firebase)</p>
-                      <p className="text-3xl font-bold">{totalXp.toLocaleString()}</p>
+              {/* Profil utilisateur avec vraies données */}
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                  <div className="flex items-center gap-6 mb-6">
+                    <div className="w-24 h-24 bg-gradient-to-br from-purple-400 to-blue-500 rounded-2xl flex items-center justify-center">
+                      <span className="text-3xl font-bold text-white">{level}</span>
                     </div>
-                    <Zap className="w-12 h-12 text-blue-200" />
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-green-100 text-sm">Niveau Actuel</p>
-                      <p className="text-3xl font-bold">{level}</p>
-                    </div>
-                    <Crown className="w-12 h-12 text-green-200" />
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-r from-orange-600 to-red-600 rounded-2xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-orange-100 text-sm">Série de connexion</p>
-                      <p className="text-3xl font-bold">{loginStreak}</p>
-                    </div>
-                    <Flame className="w-12 h-12 text-orange-200" />
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-purple-100 text-sm">Badges obtenus</p>
-                      <p className="text-3xl font-bold">{badges.length}</p>
-                    </div>
-                    <Medal className="w-12 h-12 text-purple-200" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Progression du niveau - VRAIES DONNÉES FIREBASE */}
-              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                  <Target className="w-6 h-6 text-purple-400" />
-                  Progression Niveau {level} → {level + 1} (Firebase)
-                </h3>
-                
-                <div className="space-y-4">
-                  <div className="relative">
-                    <div className="h-4 bg-gray-700 rounded-full overflow-hidden">
-                      <motion.div
-                        className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${calculations.progressPercent}%` }}
-                        transition={{ duration: 1, ease: "easeOut" }}
-                      >
-                        <span className="text-white text-xs font-bold">
-                          {Math.round(calculations.progressPercent)}%
-                        </span>
-                      </motion.div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-400">{calculations.currentLevelXp} XP</span>
-                      <span className="text-gray-400">{calculations.nextLevelXp} XP</span>
-                    </div>
-                    
-                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                      <p className="text-blue-400 text-sm">
-                        🎯 <strong>{calculations.xpToNextLevel} XP</strong> restants pour atteindre le niveau <strong>{level + 1}</strong>
+                    <div className="flex-1">
+                      <h2 className="text-2xl font-bold text-white mb-2">
+                        {user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
+                      </h2>
+                      <p className="text-purple-200 mb-4">Niveau {level} • {totalXp} XP total</p>
+                      
+                      {/* Barre de progression niveau */}
+                      <div className="w-full bg-gray-700 rounded-full h-3 mb-2">
+                        <div 
+                          className="bg-gradient-to-r from-purple-500 to-blue-500 h-3 rounded-full transition-all duration-1000"
+                          style={{ width: `${progressToNextLevel}%` }}
+                        />
+                      </div>
+                      <p className="text-sm text-gray-400">
+                        {xpToNextLevel} XP jusqu'au niveau {level + 1}
                       </p>
                     </div>
                   </div>
+
+                  {/* Stats principales */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-gradient-to-br from-green-500/20 to-emerald-600/20 border border-green-500/30 rounded-xl p-4 text-center">
+                      <Target className="w-8 h-8 text-green-400 mx-auto mb-2" />
+                      <div className="text-2xl font-bold text-white">{gamificationData?.tasksCompleted || 0}</div>
+                      <div className="text-sm text-green-300">Tâches terminées</div>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-blue-500/20 to-cyan-600/20 border border-blue-500/30 rounded-xl p-4 text-center">
+                      <Flame className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+                      <div className="text-2xl font-bold text-white">{loginStreak}</div>
+                      <div className="text-sm text-blue-300">Jours consécutifs</div>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-purple-500/20 to-violet-600/20 border border-purple-500/30 rounded-xl p-4 text-center">
+                      <Award className="w-8 h-8 text-purple-400 mx-auto mb-2" />
+                      <div className="text-2xl font-bold text-white">{badges.length}</div>
+                      <div className="text-sm text-purple-300">Badges obtenus</div>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-yellow-500/20 to-orange-600/20 border border-yellow-500/30 rounded-xl p-4 text-center">
+                      <TrendingUp className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
+                      <div className="text-2xl font-bold text-white">{weeklyXp}</div>
+                      <div className="text-sm text-yellow-300">XP cette semaine</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Activité récente - VRAIES DONNÉES */}
+                <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                  <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <Activity className="w-6 h-6 text-purple-400" />
+                    Activité récente Firebase
+                  </h3>
+                  
+                  {recentActivities.length > 0 ? (
+                    <div className="space-y-3">
+                      {recentActivities.map((activity) => (
+                        <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
+                              <Plus className="w-5 h-5 text-green-400" />
+                            </div>
+                            <div>
+                              <div className="text-white font-medium">{activity.description}</div>
+                              <div className="text-sm text-gray-400">{activity.timestamp}</div>
+                            </div>
+                          </div>
+                          <span className="text-green-400 font-bold">{activity.xp}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-400">
+                      <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>Aucune activité récente</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -450,6 +518,32 @@ const GamificationPage = () => {
                     </span>
                   </div>
                 </div>
+
+                {/* Diagnostic détaillé en cas d'erreur */}
+                {syncDiagnosis && syncDiagnosis.level === 'error' && (
+                  <div className="mt-6 bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                    <h4 className="text-red-400 font-semibold mb-2">Diagnostic d'erreur</h4>
+                    <p className="text-sm text-gray-300 mb-3">{syncDiagnosis.message}</p>
+                    
+                    <div className="mb-3">
+                      <h5 className="text-xs font-semibold text-red-400 mb-1">Causes possibles:</h5>
+                      <ul className="text-xs text-gray-400 space-y-1">
+                        {syncDiagnosis.causes.map((cause, index) => (
+                          <li key={index}>• {cause}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    
+                    <div>
+                      <h5 className="text-xs font-semibold text-red-400 mb-1">Solutions:</h5>
+                      <ul className="text-xs text-gray-400 space-y-1">
+                        {syncDiagnosis.solutions.map((solution, index) => (
+                          <li key={index}>• {solution}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -460,7 +554,7 @@ const GamificationPage = () => {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
+              className="mt-8 space-y-6"
             >
               <h3 className="text-2xl font-bold text-white">🏆 Classement Firebase Réel</h3>
               
@@ -468,94 +562,46 @@ const GamificationPage = () => {
                 <h4 className="text-lg font-semibold text-white mb-4">Top 10 des utilisateurs</h4>
                 
                 {leaderboardLoading ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin w-8 h-8 border-4 border-purple-400 border-t-transparent rounded-full mx-auto mb-2"></div>
-                    <p className="text-gray-400">Chargement du classement Firebase...</p>
-                  </div>
-                ) : (
                   <div className="space-y-3">
-                    {realLeaderboard.map((player) => (
-                      <div
-                        key={player.id}
-                        className={`flex items-center space-x-4 p-4 rounded-lg transition-all ${
-                          player.isMe ? 'bg-blue-500/10 border-l-4 border-blue-500' : ''
-                        }`}
-                      >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                          player.rank === 1 ? 'bg-yellow-500 text-black' :
-                          player.rank === 2 ? 'bg-gray-400 text-black' :
-                          player.rank === 3 ? 'bg-orange-500 text-black' :
-                          'bg-white/10 text-white'
-                        }`}>
-                          {player.rank}
-                        </div>
-                        
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className={`font-medium ${player.isMe ? 'text-blue-400' : 'text-white'}`}>
-                              {player.name}
-                            </span>
-                            {player.isMe && (
-                              <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
-                                Vous (Firebase)
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-sm text-gray-400">
-                            Niveau {player.level}
-                          </div>
-                        </div>
-                        
-                        <div className="text-right">
-                          <div className="text-white font-bold">
-                            {player.xp.toLocaleString()} XP
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            Firebase
-                          </div>
-                        </div>
+                    {[1,2,3,4,5].map(i => (
+                      <div key={i} className="animate-pulse flex items-center gap-4 p-4 bg-gray-700/30 rounded-lg">
+                        <div className="w-8 h-8 bg-gray-600 rounded"></div>
+                        <div className="flex-1 h-4 bg-gray-600 rounded"></div>
+                        <div className="w-16 h-4 bg-gray-600 rounded"></div>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'activity' && (
-            <motion.div
-              key="activity"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <h3 className="text-2xl font-bold text-white">Activité Réelle Firebase</h3>
-              
-              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                {recentActivities.length > 0 ? (
-                  <div className="space-y-4">
-                    <h4 className="text-lg font-semibold text-white">Activités récentes</h4>
-                    {recentActivities.map((activity) => (
-                      <div key={activity.id} className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center">
-                            <Activity className="w-5 h-5 text-purple-400" />
+                ) : realLeaderboard.length > 0 ? (
+                  <div className="space-y-3">
+                    {realLeaderboard.map((player, index) => (
+                      <div key={player.id} className={`flex items-center justify-between p-4 rounded-lg ${
+                        index < 3 ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30' : 'bg-gray-700/50'
+                      }`}>
+                        <div className="flex items-center gap-4">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                            index === 0 ? 'bg-yellow-500 text-yellow-900' :
+                            index === 1 ? 'bg-gray-300 text-gray-800' :
+                            index === 2 ? 'bg-orange-600 text-white' :
+                            'bg-gray-600 text-white'
+                          }`}>
+                            {index + 1}
                           </div>
                           <div>
-                            <p className="text-white font-medium">{activity.description}</p>
-                            <p className="text-gray-400 text-sm">{activity.timestamp}</p>
+                            <div className="text-white font-medium">{player.name}</div>
+                            <div className="text-sm text-gray-400">Niveau {player.level} • {player.tasksCompleted} tâches</div>
                           </div>
                         </div>
-                        <span className="text-green-400 font-bold">{activity.xp}</span>
+                        <div className="text-right">
+                          <div className="text-white font-bold">{player.totalXp} XP</div>
+                          <div className="text-sm text-gray-400">{player.badges.length} badges</div>
+                        </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <Activity className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400">Aucune activité récente</p>
-                    <p className="text-gray-500 text-sm">Complétez des tâches pour voir votre activité ici</p>
+                  <div className="text-center py-8 text-gray-400">
+                    <Trophy className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>Aucun utilisateur dans le classement</p>
                   </div>
                 )}
               </div>
@@ -568,87 +614,78 @@ const GamificationPage = () => {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
+              className="mt-8 space-y-6"
             >
-              <h3 className="text-2xl font-bold text-white">🏅 Collection de badges</h3>
+              <h3 className="text-2xl font-bold text-white">🏅 Collection de badges Firebase</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {availableBadges.map((badge) => (
-                  <div
-                    key={badge.id}
-                    className={`p-6 rounded-2xl border transition-all ${
-                      badge.earned
-                        ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/30'
-                        : 'bg-white/5 border-white/10'
-                    }`}
-                  >
-                    <div className="text-center">
-                      <div className={`text-4xl mb-3 ${badge.earned ? '' : 'filter grayscale opacity-50'}`}>
-                        {badge.icon}
-                      </div>
-                      <h4 className={`font-bold mb-2 ${badge.earned ? 'text-yellow-400' : 'text-gray-400'}`}>
-                        {badge.name}
-                      </h4>
-                      <p className={`text-sm ${badge.earned ? 'text-yellow-200' : 'text-gray-500'}`}>
-                        {badge.description}
-                      </p>
-                      {badge.earned && (
-                        <div className="mt-3">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400">
-                            ✅ Obtenu
-                          </span>
-                        </div>
-                      )}
+                  <div key={badge.id} className={`bg-white/5 backdrop-blur-sm border rounded-2xl p-6 text-center transition-all ${
+                    badge.earned 
+                      ? 'border-yellow-500/50 bg-gradient-to-br from-yellow-500/10 to-orange-500/10' 
+                      : 'border-white/10 hover:border-white/20'
+                  }`}>
+                    <div className={`text-6xl mb-4 transition-all ${badge.earned ? '' : 'filter grayscale opacity-50'}`}>
+                      {badge.icon}
                     </div>
+                    <h4 className={`font-bold mb-2 ${badge.earned ? 'text-yellow-400' : 'text-gray-400'}`}>
+                      {badge.name}
+                    </h4>
+                    <p className={`text-sm ${badge.earned ? 'text-yellow-200' : 'text-gray-500'}`}>
+                      {badge.description}
+                    </p>
+                    {badge.earned && (
+                      <div className="mt-3">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400">
+                          ✅ Obtenu
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
-      </div>
 
-      {/* Tests XP en bas de page */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-          <h3 className="text-lg font-bold text-white mb-4">🧪 Tests XP Firebase</h3>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button
-              onClick={() => addXP && addXP(10, 'test_button')}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-all"
+          {activeTab === 'activity' && (
+            <motion.div
+              key="activity"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="mt-8 space-y-6"
             >
-              +10 XP Test
-            </button>
-            
-            <button
-              onClick={() => addXP && addXP(25, 'task_completed')}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all"
-            >
-              +25 XP Tâche
-            </button>
-            
-            <button
-              onClick={() => addXP && addXP(50, 'project_completed')}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-all"
-            >
-              +50 XP Projet
-            </button>
-            
-            <button
-              onClick={handleForceSync}
-              className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-all"
-            >
-              🔄 Force Sync
-            </button>
-          </div>
-          
-          <div className="mt-4 text-sm text-gray-400">
-            Dernière sync: {lastUpdate ? new Date(lastUpdate).toLocaleString() : 'Jamais'} • 
-            Statut: {syncStatus} • 
-            Données prêtes: {isReady ? '✅' : '❌'}
-          </div>
-        </div>
+              <h3 className="text-2xl font-bold text-white">📊 Historique d'activité Firebase</h3>
+              
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                {recentActivities.length > 0 ? (
+                  <div className="space-y-4">
+                    {recentActivities.map((activity) => (
+                      <div key={activity.id} className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                            <Zap className="w-6 h-6 text-purple-400" />
+                          </div>
+                          <div>
+                            <div className="text-white font-medium">{activity.description}</div>
+                            <div className="text-sm text-gray-400">{activity.timestamp}</div>
+                          </div>
+                        </div>
+                        <span className="text-purple-400 font-bold">{activity.xp}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-400">
+                    <Activity className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <h4 className="text-lg font-medium mb-2">Aucune activité enregistrée</h4>
+                    <p className="text-sm">Vos actions et gains d'XP apparaîtront ici</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
