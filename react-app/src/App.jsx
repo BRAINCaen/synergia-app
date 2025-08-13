@@ -38,16 +38,19 @@ import EscapeProgressionPage from './pages/EscapeProgressionPage.jsx';
 // ==========================================
 // 🛡️ PAGES ADMIN - CHEMINS CORRIGÉS
 // ==========================================
-import AdminTaskValidationPage from './pages/admin/AdminTaskValidationPage.jsx';
-import AdminObjectiveValidationPage from './pages/admin/AdminObjectiveValidationPage.jsx';
-import AdminRolePermissionsPage from './pages/admin/AdminRolePermissionsPage.jsx';
-import AdminRewardsPage from './pages/admin/AdminRewardsPage.jsx';
-import AdminBadgesPage from './pages/admin/AdminBadgesPage.jsx';
-import AdminUsersPage from './pages/admin/AdminUsersPage.jsx';
-import AdminAnalyticsPage from './pages/admin/AdminAnalyticsPage.jsx';
-import AdminSettingsPage from './pages/admin/AdminSettingsPage.jsx';
-import AdminDemoCleanerPage from './pages/admin/AdminDemoCleanerPage.jsx';
-import AdminCompleteTestPage from './pages/admin/AdminCompleteTestPage.jsx';
+import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
+import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
+import {
+  AdminObjectiveValidationPage,
+  AdminRolePermissionsPage,
+  AdminRewardsPage,
+  AdminBadgesPage,
+  AdminUsersPage,
+  AdminAnalyticsPage,
+  AdminSettingsPage,
+  AdminDemoCleanerPage,
+  AdminCompleteTestPage
+} from './pages/RoleProgressionPage.jsx';
 
 // ==========================================
 // 📱 PAGES ADDITIONNELLES
@@ -368,7 +371,7 @@ const App = () => {
               element={
                 <ProtectedRoute requiredRole="admin">
                   <Layout>
-                    <AdminCompleteTestPage />
+                    <CompleteAdminTestPage />
                   </Layout>
                 </ProtectedRoute>
               }
