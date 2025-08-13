@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES COMPLÈTE - TOUTES FONCTIONNALITÉS RESTAURÉES
+// PAGE TÂCHES COMPLÈTE AVEC FILTRAGE CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -50,7 +50,8 @@ import {
   MapPin,
   Video,
   Image as ImageIcon,
-  Play
+  Play,
+  Shield
 } from 'lucide-react';
 
 // ✅ IMPORTS SERVICES FIREBASE
@@ -66,7 +67,8 @@ import {
   deleteDoc, 
   addDoc,
   serverTimestamp,
-  getDoc
+  getDoc,
+  getDocs
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
@@ -78,6 +80,9 @@ import TaskDetailModal from '../components/tasks/TaskDetailsModal.jsx';
 
 // ✅ SERVICE D'UPLOAD MÉDIA
 import { storageService } from '../core/services/storageService.js';
+
+// ✅ FORMULAIRE DE TÂCHE
+import TaskForm from '../modules/tasks/TaskForm.jsx';
 
 /**
  * 🔄 CONFIGURATION RÉCURRENCE COMPLÈTE
@@ -126,6 +131,7 @@ const TasksPage = () => {
   
   // ✅ NOUVEAUX ÉTATS POUR COMMENTAIRES
   const [taskComments, setTaskComments] = useState({}); // {taskId: count}
+  
   // ✅ ÉTATS UI COMPLETS
   const [activeTab, setActiveTab] = useState('my');
   const [searchTerm, setSearchTerm] = useState('');
@@ -154,43 +160,41 @@ const TasksPage = () => {
     dueDate: '',
     tags: [],
     notes: '',
-    // ✅ RÉCURRENCE
+    // Récurrence
     isRecurring: false,
     recurrenceType: 'none',
     recurrenceInterval: 1,
     recurrenceEndDate: '',
     maxOccurrences: null,
-    // ✅ SYSTÈME VOLONTAIRES
-    isOpenToVolunteers: true,
-    volunteerAcceptanceMode: 'manual',
+    // ✅ NOUVEAU : Système volontaires
+    isOpenToVolunteers: false,
+    volunteerAcceptanceMode: 'manual', // 'manual', 'auto', 'first_come'
     maxVolunteers: null,
-    volunteerMessage: '',
-    // ✅ MÉDIAS
-    hasMedia: false,
-    mediaUrl: null,
-    mediaType: null,
-    mediaFilename: null
+    volunteerMessage: ''
   });
-  
-  // ✅ ÉTATS UPLOAD
+
+  // ✅ ÉTATS UPLOAD MÉDIA
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileType, setFileType] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
   
-  // ✅ AUTRES ÉTATS
+  // États pour tags
   const [tagInput, setTagInput] = useState('');
   const [manualXP, setManualXP] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
-  // ✅ CHARGEMENT TEMPS RÉEL DES TÂCHES
+  // ✅ CHARGEMENT TEMPS RÉEL DES TÂCHES DEPUIS FIREBASE
   useEffect(() => {
-    if (!isAuthenticated || !user) return;
+    if (!isAuthenticated || !user?.uid) {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
 
-    console.log('📋 Chargement tâches temps réel...');
-    setLoading(true);
+    console.log('🔄 Chargement tâches en temps réel pour:', user.email);
 
+    // ✅ QUERY FIREBASE OPTIMISÉE
     const tasksQuery = query(
       collection(db, 'tasks'),
       orderBy('createdAt', 'desc')
@@ -198,12 +202,16 @@ const TasksPage = () => {
 
     const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
       const tasksData = [];
-      snapshot.forEach((doc) => {
-        const task = { id: doc.id, ...doc.data() };
-        tasksData.push(task);
-      });
       
-      console.log(`📋 ${tasksData.length} tâches chargées`);
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        tasksData.push({
+          id: doc.id,
+          ...data
+        });
+      });
+
+      console.log(`✅ ${tasksData.length} tâches chargées depuis Firebase`);
       setTasks(tasksData);
       
       // ✅ CHARGER LES COMMENTAIRES POUR CHAQUE TÂCHE
@@ -327,78 +335,99 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ FILTRAGE ET TRI DES TÂCHES
+  // ✅ FILTRAGE ET TRI DES TÂCHES SELON LES RÈGLES EXACTES SPÉCIFIÉES
   const filteredAndSortedTasks = useMemo(() => {
     let filtered = tasks;
 
-    // Filtrage par onglet
+    // ✅ FILTRAGE PAR ONGLET SELON LES RÈGLES SPÉCIFIÉES
     switch (activeTab) {
       case 'my':
-        filtered = tasks.filter(t => 
-          t.assignedTo === user?.uid || 
-          t.createdBy === user?.uid ||
-          (Array.isArray(t.assignedTo) && t.assignedTo.includes(user?.uid))
-        );
+        // 📋 MES TÂCHES : uniquement les tâches ASSIGNÉES à l'utilisateur (pas les tâches créées par lui)
+        filtered = tasks.filter(t => {
+          // Tâche assignée à moi ET pas terminée/validée
+          const isAssignedToMe = t.assignedTo === user?.uid || 
+                                (Array.isArray(t.assignedTo) && t.assignedTo.includes(user?.uid));
+          const isNotCompleted = t.status !== 'completed' && t.status !== 'validated';
+          
+          return isAssignedToMe && isNotCompleted;
+        });
         break;
+        
       case 'available':
-        filtered = tasks.filter(t => 
-          !t.assignedTo || 
-          t.assignedTo === null || 
-          t.assignedTo === '' ||
-          t.isOpenToVolunteers === true
-        );
+        // 💝 DISPONIBLES : les tâches ouvertes aux volontaires
+        filtered = tasks.filter(t => {
+          const isNotCompleted = t.status !== 'completed' && t.status !== 'validated';
+          const isOpenToVolunteers = t.isOpenToVolunteers === true;
+          const hasNoAssignee = !t.assignedTo || t.assignedTo === null || t.assignedTo === '';
+          
+          return isNotCompleted && (isOpenToVolunteers || hasNoAssignee);
+        });
         break;
+        
       case 'others':
-        filtered = tasks.filter(t => 
-          t.assignedTo && 
-          t.assignedTo !== user?.uid && 
-          t.createdBy !== user?.uid &&
-          (!Array.isArray(t.assignedTo) || !t.assignedTo.includes(user?.uid))
-        );
+        // 👥 AUTRES : les tâches prises par d'autres utilisateurs qui sont volontaires
+        filtered = tasks.filter(t => {
+          const isNotCompleted = t.status !== 'completed' && t.status !== 'validated';
+          const isAssignedToSomeoneElse = t.assignedTo && 
+                                         t.assignedTo !== user?.uid && 
+                                         (!Array.isArray(t.assignedTo) || !t.assignedTo.includes(user?.uid));
+          const isNotCreatedByMe = t.createdBy !== user?.uid;
+          
+          return isNotCompleted && isAssignedToSomeoneElse && isNotCreatedByMe;
+        });
         break;
+        
       case 'history':
-        filtered = tasks.filter(t => 
-          t.status === 'completed' || 
-          t.status === 'validated'
-        );
+        // 📚 HISTORIQUE : toutes les tâches terminées et validées
+        // Quand une tâche est validée par un admin, elle disparaît des autres onglets et va dans historique
+        // avec le nom de celui qui a réalisé la tâche de façon visible !
+        filtered = tasks.filter(t => {
+          return t.status === 'completed' || t.status === 'validated';
+        });
         break;
+        
       default:
         filtered = tasks;
     }
 
-    // Filtrage par terme de recherche
+    // ✅ FILTRAGE PAR TERME DE RECHERCHE
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(task =>
         task.title?.toLowerCase().includes(term) ||
         task.description?.toLowerCase().includes(term) ||
         task.tags?.some(tag => tag.toLowerCase().includes(term)) ||
-        SYNERGIA_ROLES[task.roleId]?.name?.toLowerCase().includes(term)
+        SYNERGIA_ROLES[task.roleId]?.name?.toLowerCase().includes(term) ||
+        // Dans l'historique, rechercher aussi par nom du réalisateur
+        (activeTab === 'history' && (
+          task.completedByName?.toLowerCase().includes(term) ||
+          task.validatedByName?.toLowerCase().includes(term)
+        ))
       );
     }
 
-    // Filtrage par rôle Synergia
+    // ✅ FILTRAGE PAR RÔLE SYNERGIA
     if (selectedRole) {
       filtered = filtered.filter(task => task.roleId === selectedRole);
     }
 
-    // Filtrage par priorité
+    // ✅ FILTRAGE PAR PRIORITÉ
     if (selectedPriority) {
       filtered = filtered.filter(task => task.priority === selectedPriority);
     }
 
-    // Filtrage par statut
+    // ✅ FILTRAGE PAR STATUT
     if (selectedStatus) {
       filtered = filtered.filter(task => task.status === selectedStatus);
     }
 
-    // Tri
+    // ✅ TRI
     filtered.sort((a, b) => {
       let aVal = a[sortBy];
       let bVal = b[sortBy];
 
       // Gestion des dates
-      if (sortBy === 'dueDate' || sortBy === 'createdAt') {
+      if (sortBy === 'dueDate' || sortBy === 'createdAt' || sortBy === 'completedAt') {
         aVal = aVal ? new Date(aVal.seconds ? aVal.seconds * 1000 : aVal) : new Date(0);
         bVal = bVal ? new Date(bVal.seconds ? bVal.seconds * 1000 : bVal) : new Date(0);
       }
@@ -417,6 +446,57 @@ const TasksPage = () => {
 
     return filtered;
   }, [tasks, activeTab, searchTerm, selectedRole, selectedPriority, selectedStatus, sortBy, sortOrder, user?.uid]);
+
+  // ✅ ONGLETS AVEC COMPTEURS CORRIGÉS SELON LES RÈGLES EXACTES
+  const tabs = [
+    {
+      id: 'my',
+      label: 'Mes Tâches',
+      icon: User,
+      count: tasks.filter(t => {
+        // uniquement les tâches assignées à l'utilisateur (pas les tâches créées par l'utilisateur)
+        const isAssignedToMe = t.assignedTo === user?.uid || 
+                              (Array.isArray(t.assignedTo) && t.assignedTo.includes(user?.uid));
+        const isNotCompleted = t.status !== 'completed' && t.status !== 'validated';
+        return isAssignedToMe && isNotCompleted;
+      }).length
+    },
+    {
+      id: 'available',
+      label: 'Disponibles',
+      icon: Heart,
+      count: tasks.filter(t => {
+        // les tâches ouvertes aux volontaires
+        const isNotCompleted = t.status !== 'completed' && t.status !== 'validated';
+        const isOpenToVolunteers = t.isOpenToVolunteers === true;
+        const hasNoAssignee = !t.assignedTo || t.assignedTo === null || t.assignedTo === '';
+        return isNotCompleted && (isOpenToVolunteers || hasNoAssignee);
+      }).length
+    },
+    {
+      id: 'others',
+      label: 'Autres',
+      icon: Users,
+      count: tasks.filter(t => {
+        // les tâches prises par d'autres utilisateurs qui sont volontaires
+        const isNotCompleted = t.status !== 'completed' && t.status !== 'validated';
+        const isAssignedToSomeoneElse = t.assignedTo && 
+                                       t.assignedTo !== user?.uid && 
+                                       (!Array.isArray(t.assignedTo) || !t.assignedTo.includes(user?.uid));
+        const isNotCreatedByMe = t.createdBy !== user?.uid;
+        return isNotCompleted && isAssignedToSomeoneElse && isNotCreatedByMe;
+      }).length
+    },
+    {
+      id: 'history',
+      label: 'Historique',
+      icon: Archive,
+      count: tasks.filter(t => {
+        // toutes les tâches terminées et validées
+        return t.status === 'completed' || t.status === 'validated';
+      }).length
+    }
+  ];
 
   // ✅ GESTION DES TAGS
   const handleAddTag = () => {
@@ -459,113 +539,27 @@ const TasksPage = () => {
       roleId: task.roleId || '',
       xpReward: task.xpReward || 25,
       estimatedHours: task.estimatedHours || 1,
-      dueDate: task.dueDate ? new Date(task.dueDate.seconds ? task.dueDate.seconds * 1000 : task.dueDate).toISOString().split('T')[0] : '',
+      dueDate: task.dueDate ? new Date(task.dueDate.seconds ? 
+        task.dueDate.seconds * 1000 : task.dueDate
+      ).toISOString().split('T')[0] : '',
       tags: task.tags || [],
       notes: task.notes || '',
       isRecurring: task.isRecurring || false,
       recurrenceType: task.recurrenceType || 'none',
       recurrenceInterval: task.recurrenceInterval || 1,
-      recurrenceEndDate: task.recurrenceEndDate ? new Date(task.recurrenceEndDate.seconds ? task.recurrenceEndDate.seconds * 1000 : task.recurrenceEndDate).toISOString().split('T')[0] : '',
-      maxOccurrences: task.maxOccurrences || null,
-      isOpenToVolunteers: task.isOpenToVolunteers !== false,
+      recurrenceEndDate: task.recurrenceEndDate ? new Date(task.recurrenceEndDate.seconds ?
+        task.recurrenceEndDate.seconds * 1000 : task.recurrenceEndDate
+      ).toISOString().split('T')[0] : '',
+      isOpenToVolunteers: task.isOpenToVolunteers || false,
       volunteerAcceptanceMode: task.volunteerAcceptanceMode || 'manual',
       maxVolunteers: task.maxVolunteers || null,
-      volunteerMessage: task.volunteerMessage || '',
-      hasMedia: task.hasMedia || false,
-      mediaUrl: task.mediaUrl || null,
-      mediaType: task.mediaType || null,
-      mediaFilename: task.mediaFilename || null
+      volunteerMessage: task.volunteerMessage || ''
     });
     
     setShowCreateModal(true);
   };
 
-  // ✅ SOUMISSION FORMULAIRE COMPLÈTE
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!formData.title.trim()) {
-      setError('Le titre est obligatoire');
-      return;
-    }
-    
-    if (!formData.description.trim()) {
-      setError('La description est obligatoire');
-      return;
-    }
-    
-    try {
-      setSubmitting(true);
-      setError('');
-
-      // Upload du média si présent
-      let mediaData = null;
-      if (selectedFile) {
-        mediaData = await uploadMediaFile();
-      }
-
-      // Préparer les données de la tâche
-      const taskData = {
-        ...formData,
-        createdBy: user.uid,
-        creatorName: user.displayName || user.email,
-        status: editMode ? selectedTask.status : 'todo',
-        
-        // Rôle Synergia
-        category: formData.roleId,
-        roleId: formData.roleId,
-        roleName: SYNERGIA_ROLES[formData.roleId]?.name || null,
-        
-        // Média
-        hasMedia: !!mediaData || formData.hasMedia,
-        mediaUrl: mediaData?.url || formData.mediaUrl,
-        mediaType: mediaData?.type || formData.mediaType,
-        mediaFilename: mediaData?.filename || formData.mediaFilename,
-        
-        // Compatibilité ancienne
-        hasPhoto: (mediaData?.type === 'image') || (formData.mediaType === 'image'),
-        photoUrl: (mediaData?.type === 'image' ? mediaData.url : null) || (formData.mediaType === 'image' ? formData.mediaUrl : null),
-        hasVideo: (mediaData?.type === 'video') || (formData.mediaType === 'video'),
-        videoUrl: (mediaData?.type === 'video' ? mediaData.url : null) || (formData.mediaType === 'video' ? formData.mediaUrl : null),
-        
-        // Dates
-        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
-        recurrenceEndDate: formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate) : null,
-        
-        // Configuration récurrence
-        recurrenceConfig: formData.isRecurring ? {
-          type: formData.recurrenceType,
-          interval: formData.recurrenceInterval,
-          endDate: formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate) : null,
-          maxOccurrences: formData.maxOccurrences,
-          xpMultiplier: RECURRENCE_OPTIONS[formData.recurrenceType]?.multiplier || 1
-        } : null,
-        
-        // Timestamps
-        ...(editMode ? { updatedAt: serverTimestamp() } : { createdAt: serverTimestamp() })
-      };
-
-      if (editMode) {
-        await updateDoc(doc(db, 'tasks', selectedTask.id), taskData);
-        console.log('✅ Tâche modifiée avec succès');
-      } else {
-        await addDoc(collection(db, 'tasks'), taskData);
-        console.log('✅ Tâche créée avec succès');
-      }
-
-      // Réinitialiser
-      resetForm();
-      setShowCreateModal(false);
-      
-    } catch (error) {
-      console.error('❌ Erreur soumission:', error);
-      setError(`Erreur: ${error.message}`);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // ✅ RÉINITIALISATION DU FORMULAIRE
+  // ✅ RÉINITIALISER LE FORMULAIRE
   const resetForm = () => {
     setFormData({
       title: '',
@@ -583,81 +577,98 @@ const TasksPage = () => {
       recurrenceInterval: 1,
       recurrenceEndDate: '',
       maxOccurrences: null,
-      isOpenToVolunteers: true,
+      isOpenToVolunteers: false,
       volunteerAcceptanceMode: 'manual',
       maxVolunteers: null,
-      volunteerMessage: '',
-      hasMedia: false,
-      mediaUrl: null,
-      mediaType: null,
-      mediaFilename: null
+      volunteerMessage: ''
     });
     setSelectedFile(null);
     setFileType(null);
     setTagInput('');
-    setManualXP(false);
-    setError('');
-    setEditMode(false);
     setSelectedTask(null);
+    setEditMode(false);
+    setError('');
+    setManualXP(false);
+  };
+
+  // ✅ SOUMISSION DU FORMULAIRE
+  const handleSubmit = async (taskData) => {
+    try {
+      console.log('📝 Soumission tâche:', taskData);
+
+      const finalTaskData = {
+        ...taskData,
+        userId: user.uid,
+        createdBy: user.uid,
+        creatorName: user.displayName || user.email,
+        userEmail: user.email,
+        status: 'todo',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        assignedTo: taskData.assignedTo || user.uid
+      };
+
+      if (selectedTask) {
+        // Modification
+        await updateDoc(doc(db, 'tasks', selectedTask.id), {
+          ...finalTaskData,
+          updatedAt: serverTimestamp()
+        });
+        console.log('✅ Tâche modifiée avec succès');
+      } else {
+        // Création
+        await addDoc(collection(db, 'tasks'), finalTaskData);
+        console.log('✅ Tâche créée avec succès');
+      }
+
+      setShowCreateModal(false);
+      resetForm();
+      
+    } catch (error) {
+      console.error('❌ Erreur soumission tâche:', error);
+      setError('Erreur lors de la sauvegarde');
+    }
   };
 
   // ✅ SUPPRESSION DE TÂCHE
   const handleDeleteTask = async (taskId) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) return;
-    
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
+      return;
+    }
+
     try {
       await deleteDoc(doc(db, 'tasks', taskId));
-      console.log('✅ Tâche supprimée');
+      console.log('✅ Tâche supprimée avec succès');
     } catch (error) {
-      console.error('❌ Erreur suppression:', error);
+      console.error('❌ Erreur suppression tâche:', error);
       setError('Impossible de supprimer la tâche');
     }
   };
 
-  // ✅ ASSIGNATION À MOI
-  const handleAssignToMe = async (taskId) => {
+  // ✅ PRENDRE UNE TÂCHE EN CHARGE
+  const handleTakeTask = async (taskId) => {
     try {
       await updateDoc(doc(db, 'tasks', taskId), {
         assignedTo: user.uid,
+        takenAt: serverTimestamp(),
         status: 'in_progress',
         updatedAt: serverTimestamp()
       });
-      console.log('✅ Tâche assignée à moi');
+      
+      console.log('✅ Tâche prise en charge avec succès');
     } catch (error) {
-      console.error('❌ Erreur assignation:', error);
-      setError('Impossible de s\'assigner la tâche');
+      console.error('❌ Erreur pour prendre la tâche:', error);
+      setError('Impossible de prendre la tâche en charge');
     }
   };
 
-  // ✅ NOUVEAU: SE RETIRER D'UNE TÂCHE
-  const handleUnassignFromMe = async (taskId) => {
-    if (!confirm('Êtes-vous sûr de vouloir vous retirer de cette tâche ?')) return;
-    
+  // ✅ SE RETIRER D'UNE TÂCHE
+  const handleLeaveTask = async (taskId) => {
     try {
-      const taskRef = doc(db, 'tasks', taskId);
-      const taskDoc = await getDoc(taskRef);
-      
-      if (!taskDoc.exists()) {
-        setError('Tâche introuvable');
-        return;
-      }
-      
-      const taskData = taskDoc.data();
-      let newAssignedTo = null;
-      
-      // Gérer les différents cas d'assignation
-      if (Array.isArray(taskData.assignedTo)) {
-        // Si c'est un tableau, retirer mon ID
-        newAssignedTo = taskData.assignedTo.filter(id => id !== user.uid);
-        if (newAssignedTo.length === 0) newAssignedTo = null;
-      } else if (taskData.assignedTo === user.uid) {
-        // Si c'est juste mon ID, mettre à null
-        newAssignedTo = null;
-      }
-      
-      await updateDoc(taskRef, {
-        assignedTo: newAssignedTo,
-        status: newAssignedTo ? 'in_progress' : 'todo', // Retour en "à faire" si plus personne
+      await updateDoc(doc(db, 'tasks', taskId), {
+        assignedTo: null,
+        leftAt: serverTimestamp(),
+        status: 'todo',
         updatedAt: serverTimestamp()
       });
       
@@ -667,50 +678,6 @@ const TasksPage = () => {
       setError('Impossible de se retirer de la tâche');
     }
   };
-
-  // ✅ ONGLETS AVEC COMPTEURS CORRIGÉS
-  const tabs = [
-    {
-      id: 'my',
-      label: 'Mes Tâches',
-      icon: User,
-      count: tasks.filter(t => 
-        t.assignedTo === user?.uid || 
-        (Array.isArray(t.assignedTo) && t.assignedTo.includes(user?.uid))
-      ).length
-    },
-    {
-      id: 'available',
-      label: 'Disponibles',
-      icon: Heart,
-      count: tasks.filter(t => 
-        !t.assignedTo || 
-        t.assignedTo === null || 
-        t.assignedTo === '' ||
-        t.isOpenToVolunteers === true
-      ).length
-    },
-    {
-      id: 'others',
-      label: 'Autres',
-      icon: Users,
-      count: tasks.filter(t => 
-        t.assignedTo && 
-        t.assignedTo !== user?.uid && 
-        t.createdBy !== user?.uid &&
-        (!Array.isArray(t.assignedTo) || !t.assignedTo.includes(user?.uid))
-      ).length
-    },
-    {
-      id: 'history',
-      label: 'Historique',
-      icon: Archive,
-      count: tasks.filter(t => 
-        t.status === 'completed' || 
-        t.status === 'validated'
-      ).length
-    }
-  ];
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -737,80 +704,82 @@ const TasksPage = () => {
         </div>
 
         {/* Statistiques rapides */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total</p>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex items-center">
+              <FileText className="h-8 w-8 text-blue-500" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Total</p>
                 <p className="text-2xl font-bold text-gray-900">{tasks.length}</p>
               </div>
-              <FileText className="w-8 h-8 text-blue-500" />
             </div>
           </div>
-          
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">En cours</p>
+
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex items-center">
+              <Clock className="h-8 w-8 text-yellow-500" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">En cours</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {tasks.filter(t => t.status === 'in_progress').length}
                 </p>
               </div>
-              <Clock className="w-8 h-8 text-orange-500" />
             </div>
           </div>
-          
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Terminées</p>
+
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex items-center">
+              <CheckCircle className="h-8 w-8 text-green-500" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Terminées</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {tasks.filter(t => t.status === 'completed').length}
+                  {tasks.filter(t => t.status === 'completed' || t.status === 'validated').length}
                 </p>
               </div>
-              <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
           </div>
-          
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">XP Total</p>
+
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex items-center">
+              <Trophy className="h-8 w-8 text-purple-500" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">XP Total</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {tasks.reduce((sum, task) => sum + (task.xpReward || 0), 0)}
+                  {tasks.reduce((total, task) => total + (task.xpReward || 0), 0)}
                 </p>
               </div>
-              <Trophy className="w-8 h-8 text-yellow-500" />
             </div>
           </div>
         </div>
 
-        {/* Recherche et filtres */}
-        <div className="bg-white p-4 rounded-lg border border-gray-200 space-y-4">
-          <div className="flex flex-col lg:flex-row gap-4">
+        {/* Filtres et recherche */}
+        <div className="bg-white rounded-lg shadow p-4 mt-6">
+          <div className="flex flex-wrap items-center gap-4">
             {/* Recherche */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Rechercher par titre, description, tags ou rôle..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+            <div className="flex-1 min-w-64">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Rechercher des tâches..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
 
             {/* Filtres */}
-            <div className="flex gap-2">
-              {/* Filtre par rôle Synergia */}
+            <div className="flex items-center gap-2">
+              {/* Filtre par rôle */}
               <select
                 value={selectedRole}
                 onChange={(e) => setSelectedRole(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Tous les rôles</option>
-                {Object.values(SYNERGIA_ROLES).map(role => (
-                  <option key={role.id} value={role.id}>
+                {Object.entries(SYNERGIA_ROLES).map(([key, role]) => (
+                  <option key={key} value={key}>
                     {role.icon} {role.name}
                   </option>
                 ))}
@@ -825,7 +794,7 @@ const TasksPage = () => {
                 <option value="">Toutes priorités</option>
                 <option value="low">Faible</option>
                 <option value="medium">Moyenne</option>
-                <option value="high">Haute</option>
+                <option value="high">Élevée</option>
                 <option value="urgent">Urgente</option>
               </select>
 
@@ -980,20 +949,16 @@ const TasksPage = () => {
                           {task.mediaType === 'video' ? (
                             <Video className="w-4 h-4 text-purple-500" />
                           ) : (
-                            <ImageIcon className="w-4 h-4 text-blue-500" />
+                            <ImageIcon className="w-4 h-4 text-green-500" />
                           )}
                         </div>
                       )}
                       
-                      {/* ✅ BADGE COMMENTAIRES */}
-                      {taskComments[task.id] > 0 && (
-                        <div 
-                          className="flex items-center gap-1 bg-blue-100 text-blue-600 px-2 py-1 rounded-full cursor-pointer hover:bg-blue-200 transition-colors"
-                          onClick={() => handleViewTask(task)}
-                          title={`${taskComments[task.id]} message${taskComments[task.id] > 1 ? 's' : ''}`}
-                        >
-                          <MessageCircle className="w-3 h-3" />
-                          <span className="text-xs font-medium">{taskComments[task.id]}</span>
+                      {/* Commentaires indicator */}
+                      {taskComments[task.id] && (
+                        <div className="flex items-center gap-1" title={`${taskComments[task.id]} commentaire(s)`}>
+                          <MessageCircle className="w-4 h-4 text-blue-500" />
+                          <span className="text-xs text-blue-600">{taskComments[task.id]}</span>
                         </div>
                       )}
                     </div>
@@ -1005,151 +970,184 @@ const TasksPage = () => {
                   </p>
 
                   {/* Métadonnées */}
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+                    <div className="flex items-center gap-3">
+                      {/* Priorité */}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        task.priority === 'urgent' ? 'bg-red-100 text-red-700' :
+                        task.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                        task.priority === 'medium' ? 'bg-blue-100 text-blue-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {task.priority === 'urgent' ? 'Urgente' :
+                         task.priority === 'high' ? 'Élevée' :
+                         task.priority === 'medium' ? 'Moyenne' : 'Faible'}
+                      </span>
+
+                      {/* XP */}
                       <div className="flex items-center gap-1">
-                        <Flag className={`w-4 h-4 ${
-                          task.priority === 'urgent' ? 'text-red-500' :
-                          task.priority === 'high' ? 'text-orange-500' :
-                          task.priority === 'medium' ? 'text-yellow-500' :
-                          'text-gray-400'
-                        }`} />
-                        <span className="text-xs text-gray-600 capitalize">
-                          {task.priority === 'urgent' ? 'Urgente' :
-                           task.priority === 'high' ? 'Haute' :
-                           task.priority === 'medium' ? 'Moyenne' : 'Faible'}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-1">
-                        <Trophy className="w-4 h-4 text-yellow-500" />
-                        <span className="text-xs font-medium text-gray-900">
-                          {task.xpReward || 0} XP
-                        </span>
+                        <Trophy className="w-3 h-3 text-yellow-500" />
+                        <span className="font-medium">{task.xpReward || 0} XP</span>
                       </div>
                     </div>
-
-                    {/* Récurrence */}
-                    {task.isRecurring && (
-                      <div className="flex items-center gap-1">
-                        <Repeat className="w-4 h-4 text-purple-500" />
-                        <span className="text-xs text-purple-600">
-                          {RECURRENCE_OPTIONS[task.recurrenceType]?.label || 'Récurrente'}
-                        </span>
-                      </div>
-                    )}
 
                     {/* Date d'échéance */}
                     {task.dueDate && (
                       <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4 text-blue-500" />
-                        <span className="text-xs text-gray-600">
-                          {new Date(task.dueDate.seconds ? task.dueDate.seconds * 1000 : task.dueDate).toLocaleDateString()}
+                        <Calendar className="w-3 h-3" />
+                        <span>
+                          {new Date(task.dueDate.seconds ? 
+                            task.dueDate.seconds * 1000 : task.dueDate
+                          ).toLocaleDateString('fr-FR')}
                         </span>
                       </div>
                     )}
+                  </div>
 
-                    {/* Tags */}
-                    {task.tags && task.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {task.tags.slice(0, 3).map((tag, index) => (
-                          <span
-                            key={index}
-                            className="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded"
+                  {/* Tags */}
+                  {task.tags && task.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {task.tags.slice(0, 3).map((tag, index) => (
+                        <span key={index} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                          {tag}
+                        </span>
+                      ))}
+                      {task.tags.length > 3 && (
+                        <span className="text-xs text-gray-500">+{task.tags.length - 3}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ✅ AFFICHAGE SPÉCIAL POUR L'HISTORIQUE */}
+                  {activeTab === 'history' && (
+                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-green-800 mb-2">
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="font-medium">
+                          {task.status === 'validated' ? 'Validée par un admin' : 'Terminée'}
+                        </span>
+                      </div>
+                      
+                      {/* ✅ NOM DU RÉALISATEUR VISIBLE - RÈGLE IMPORTANTE */}
+                      {task.completedByName && (
+                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-1">
+                          <User className="w-3 h-3" />
+                          <span>Réalisée par : <strong className="text-green-700">{task.completedByName}</strong></span>
+                        </div>
+                      )}
+                      
+                      {/* Date de completion */}
+                      {task.completedAt && (
+                        <div className="text-xs text-gray-600 mb-1">
+                          📅 Terminée le {new Date(task.completedAt.seconds ? 
+                            task.completedAt.seconds * 1000 : task.completedAt
+                          ).toLocaleDateString('fr-FR', {
+                            day: '2-digit',
+                            month: '2-digit', 
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </div>
+                      )}
+                      
+                      {/* Validateur si validée */}
+                      {task.status === 'validated' && task.validatedByName && (
+                        <div className="flex items-center gap-1 text-xs text-green-700 mb-1">
+                          <Shield className="w-3 h-3" />
+                          <span>✅ Validée par <strong>{task.validatedByName}</strong></span>
+                        </div>
+                      )}
+                      
+                      {/* Commentaire admin si présent */}
+                      {task.adminComment && (
+                        <div className="mt-2 p-2 bg-blue-50 border-l-3 border-blue-400 text-xs text-gray-700">
+                          <strong>💬 Commentaire admin :</strong><br />
+                          <em>"{task.adminComment}"</em>
+                        </div>
+                      )}
+
+                      {/* XP gagnés */}
+                      {task.xpReward && (
+                        <div className="flex items-center gap-1 text-xs text-amber-700 mt-1">
+                          <Trophy className="w-3 h-3" />
+                          <span><strong>+{task.xpReward} XP</strong> gagnés</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Actions pour les tâches non-historiques */}
+                  {activeTab !== 'history' && (
+                    <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                      {/* Statut */}
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        task.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        task.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                        task.status === 'validated' ? 'bg-purple-100 text-purple-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {task.status === 'completed' ? 'Terminée' :
+                         task.status === 'in_progress' ? 'En cours' :
+                         task.status === 'validated' ? 'Validée' : 'À faire'}
+                      </span>
+
+                      {/* Boutons d'action */}
+                      <div className="flex items-center gap-1">
+                        {/* Bouton voir */}
+                        <button
+                          onClick={() => handleViewTask(task)}
+                          className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                          title="Voir les détails"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+
+                        {/* Bouton prendre/quitter la tâche */}
+                        {activeTab === 'available' && (
+                          <button
+                            onClick={() => handleTakeTask(task.id)}
+                            className="p-1 text-gray-400 hover:text-green-600 transition-colors"
+                            title="Prendre cette tâche"
                           >
-                            #{tag}
-                          </span>
-                        ))}
-                        {task.tags.length > 3 && (
-                          <span className="text-xs text-gray-400">
-                            +{task.tags.length - 3}
-                          </span>
+                            <Heart className="w-4 h-4" />
+                          </button>
+                        )}
+
+                        {isMyTask && task.status !== 'completed' && (
+                          <button
+                            onClick={() => handleLeaveTask(task.id)}
+                            className="p-1 text-gray-400 hover:text-orange-600 transition-colors"
+                            title="Se retirer de cette tâche"
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </button>
+                        )}
+
+                        {/* Bouton modifier */}
+                        {canEdit && (
+                          <button
+                            onClick={() => handleEditTask(task)}
+                            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                            title="Modifier"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        )}
+
+                        {/* Bouton supprimer */}
+                        {canEdit && (
+                          <button
+                            onClick={() => handleDeleteTask(task.id)}
+                            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         )}
                       </div>
-                    )}
-
-                    {/* Statut */}
-                    <div className="flex items-center gap-1">
-                      {task.status === 'completed' || task.status === 'validated' ? (
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                      ) : task.status === 'in_progress' ? (
-                        <Clock className="w-4 h-4 text-orange-500" />
-                      ) : (
-                        <AlertCircle className="w-4 h-4 text-gray-400" />
-                      )}
-                      <span className="text-xs text-gray-600">
-                        {task.status === 'completed' ? 'Terminée' :
-                         task.status === 'validated' ? 'Validée' :
-                         task.status === 'in_progress' ? 'En cours' :
-                         'À faire'}
-                      </span>
                     </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                    <div className="flex gap-1">
-                      {/* Consultation */}
-                      <button
-                        onClick={() => handleViewTask(task)}
-                        className="p-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg transition-colors"
-                        title="Voir les détails"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-
-                      {/* Assignation à moi (disponibles) */}
-                      {activeTab === 'available' && !isMyTask && (
-                        <button
-                          onClick={() => handleAssignToMe(task.id)}
-                          className="p-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-600 rounded-lg transition-colors"
-                          title="M'assigner cette tâche"
-                        >
-                          <User className="w-4 h-4" />
-                        </button>
-                      )}
-
-                      {/* ✅ NOUVEAU: Se retirer de la tâche (mes tâches) */}
-                      {activeTab === 'my' && isMyTask && !canEdit && (
-                        <button
-                          onClick={() => handleUnassignFromMe(task.id)}
-                          className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors"
-                          title="Me retirer de cette tâche"
-                        >
-                          <UserMinus className="w-4 h-4" />
-                        </button>
-                      )}
-
-                      {/* Modification (propriétaire) */}
-                      {canEdit && activeTab !== 'history' && (
-                        <button
-                          onClick={() => handleEditTask(task)}
-                          className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors"
-                          title="Modifier"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                      )}
-
-                      {/* Suppression (propriétaire) */}
-                      {canEdit && activeTab !== 'history' && (
-                        <button
-                          onClick={() => handleDeleteTask(task.id)}
-                          className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Indicator de propriété */}
-                    {isMyTask && (
-                      <div className="text-xs text-blue-600 font-medium">
-                        {task.createdBy === user?.uid ? 'Ma tâche' : 'Assignée'}
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </motion.div>
               );
             })}
@@ -1157,616 +1155,37 @@ const TasksPage = () => {
         )}
       </div>
 
+      {/* Messages d'erreur */}
+      {error && (
+        <div className="fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg">
+          {error}
+        </div>
+      )}
+
       {/* Modal de création/modification */}
-      <AnimatePresence>
-        {showCreateModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-            >
-              {/* Header */}
-              <div className="p-6 border-b border-gray-200 sticky top-0 bg-white">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {editMode ? '✏️ Modifier la Tâche' : '➕ Nouvelle Tâche'}
-                  </h2>
-                  <button
-                    onClick={() => {
-                      setShowCreateModal(false);
-                      resetForm();
-                    }}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
+      <TaskForm
+        isOpen={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          resetForm();
+        }}
+        onSubmit={handleSubmit}
+        initialData={editMode ? selectedTask : null}
+        submitting={uploading}
+      />
 
-              {/* Formulaire */}
-              <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                {/* Erreur */}
-                {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5 text-red-500" />
-                      <p className="text-red-700">{error}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Informations de base */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Titre */}
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Target className="w-4 h-4 inline mr-1" />
-                      Titre de la tâche *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.title}
-                      onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Ex: Réorganiser l'espace de stockage"
-                      required
-                    />
-                  </div>
-
-                  {/* Description */}
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <FileText className="w-4 h-4 inline mr-1" />
-                      Description détaillée *
-                    </label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Décrivez précisément ce qui doit être fait..."
-                      required
-                    />
-                  </div>
-
-                  {/* Rôle Synergia */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Building className="w-4 h-4 inline mr-1" />
-                      Rôle Synergia *
-                    </label>
-                    <select
-                      value={formData.roleId}
-                      onChange={(e) => setFormData(prev => ({ ...prev, roleId: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    >
-                      <option value="">Sélectionnez un rôle</option>
-                      {Object.values(SYNERGIA_ROLES).map(role => (
-                        <option key={role.id} value={role.id}>
-                          {role.icon} {role.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Priorité */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Flag className="w-4 h-4 inline mr-1" />
-                      Priorité
-                    </label>
-                    <select
-                      value={formData.priority}
-                      onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="low">🟢 Faible</option>
-                      <option value="medium">🟡 Moyenne</option>
-                      <option value="high">🟠 Haute</option>
-                      <option value="urgent">🔴 Urgente</option>
-                    </select>
-                  </div>
-
-                  {/* Difficulté */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Star className="w-4 h-4 inline mr-1" />
-                      Difficulté
-                    </label>
-                    <select
-                      value={formData.difficulty}
-                      onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="easy">🟢 Facile (15 XP)</option>
-                      <option value="normal">🟡 Normal (25 XP)</option>
-                      <option value="hard">🟠 Difficile (40 XP)</option>
-                      <option value="expert">🔴 Expert (60 XP)</option>
-                    </select>
-                  </div>
-
-                  {/* XP Reward */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Trophy className="w-4 h-4 inline mr-1" />
-                      Récompense XP
-                      <button
-                        type="button"
-                        onClick={() => setManualXP(!manualXP)}
-                        className="ml-2 text-xs text-blue-600 hover:text-blue-800"
-                      >
-                        {manualXP ? 'Auto' : 'Manuel'}
-                      </button>
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={formData.xpReward}
-                        onChange={(e) => setFormData(prev => ({ ...prev, xpReward: parseInt(e.target.value) || 0 }))}
-                        className={`flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                          !manualXP ? 'bg-gray-100 text-gray-500' : ''
-                        }`}
-                        disabled={!manualXP}
-                        min="0"
-                        max="1000"
-                      />
-                      <div className="text-yellow-600 font-bold">
-                        {formData.xpReward} XP
-                      </div>
-                    </div>
-                    {!manualXP && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        XP calculés automatiquement selon difficulté et priorité
-                        {formData.isRecurring && formData.recurrenceType !== 'none' 
-                          ? ` (×${RECURRENCE_OPTIONS[formData.recurrenceType]?.multiplier} récurrence)` 
-                          : ''
-                        }
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Temps estimé */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Clock className="w-4 h-4 inline mr-1" />
-                      Temps estimé (heures)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.estimatedHours}
-                      onChange={(e) => setFormData(prev => ({ ...prev, estimatedHours: parseFloat(e.target.value) || 1 }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      min="0.5"
-                      max="40"
-                      step="0.5"
-                    />
-                  </div>
-
-                  {/* Date d'échéance */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Calendar className="w-4 h-4 inline mr-1" />
-                      Date d'échéance
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.dueDate}
-                      onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      min={new Date().toISOString().split('T')[0]}
-                    />
-                  </div>
-                </div>
-
-                {/* Récurrence */}
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Repeat className="w-5 h-5 text-purple-500" />
-                    <h3 className="font-medium text-gray-900">Configuration Récurrence</h3>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.isRecurring}
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          isRecurring: e.target.checked,
-                          recurrenceType: e.target.checked ? 'weekly' : 'none'
-                        }))}
-                        className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                      />
-                      <span className="text-sm text-gray-600">Tâche récurrente</span>
-                    </label>
-                  </div>
-
-                  {formData.isRecurring && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                        <select
-                          value={formData.recurrenceType}
-                          onChange={(e) => setFormData(prev => ({ ...prev, recurrenceType: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                        >
-                          {Object.entries(RECURRENCE_OPTIONS).map(([key, option]) => (
-                            key !== 'none' && (
-                              <option key={key} value={key}>
-                                {option.label} (×{option.multiplier} XP)
-                              </option>
-                            )
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Intervalle</label>
-                        <input
-                          type="number"
-                          value={formData.recurrenceInterval}
-                          onChange={(e) => setFormData(prev => ({ ...prev, recurrenceInterval: parseInt(e.target.value) || 1 }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                          min="1"
-                          max="365"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Fin</label>
-                        <input
-                          type="date"
-                          value={formData.recurrenceEndDate}
-                          onChange={(e) => setFormData(prev => ({ ...prev, recurrenceEndDate: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                          min={new Date().toISOString().split('T')[0]}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Upload Média */}
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Upload className="w-5 h-5 text-blue-500" />
-                    <h3 className="font-medium text-gray-900">Tutoriel ou Exemple (Optionnel)</h3>
-                  </div>
-                  
-                  <p className="text-sm text-gray-600 mb-4">
-                    Ajoutez une image ou vidéo pour aider à comprendre la tâche (tutoriel, exemple, référence...)
-                  </p>
-
-                  {!selectedFile && !formData.mediaUrl ? (
-                    <div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*,video/*"
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors"
-                      >
-                        <div className="flex flex-col items-center gap-2">
-                          <Upload className="w-8 h-8 text-gray-400" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">
-                              Cliquez pour ajouter un fichier
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Images: JPG, PNG, GIF (max 10MB) • Vidéos: MP4, WebM, MOV (max 100MB)
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      {/* Média existant (mode édition) */}
-                      {formData.mediaUrl && !selectedFile && (
-                        <div className="border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-center gap-3">
-                            {formData.mediaType === 'video' ? (
-                              <Video className="w-8 h-8 text-purple-500" />
-                            ) : (
-                              <ImageIcon className="w-8 h-8 text-blue-500" />
-                            )}
-                            <div>
-                              <p className="font-medium text-gray-900">
-                                {formData.mediaType === 'video' ? 'Vidéo tutoriel' : 'Image exemple'}
-                              </p>
-                              <p className="text-sm text-gray-600">{formData.mediaFilename}</p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setFormData(prev => ({ 
-                                ...prev, 
-                                mediaUrl: null, 
-                                mediaType: null, 
-                                mediaFilename: null,
-                                hasMedia: false 
-                              }))}
-                              className="ml-auto p-1 text-red-500 hover:bg-red-50 rounded"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Nouveau fichier sélectionné */}
-                      {selectedFile && (
-                        <div className="border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-center gap-3">
-                            {fileType === 'video' ? (
-                              <Video className="w-8 h-8 text-purple-500" />
-                            ) : (
-                              <ImageIcon className="w-8 h-8 text-blue-500" />
-                            )}
-                            <div>
-                              <p className="font-medium text-gray-900">
-                                {fileType === 'video' ? 'Vidéo tutoriel' : 'Image exemple'}
-                              </p>
-                              <p className="text-sm text-gray-600">
-                                {selectedFile.name} • {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedFile(null);
-                                setFileType(null);
-                                if (fileInputRef.current) fileInputRef.current.value = '';
-                              }}
-                              className="ml-auto p-1 text-red-500 hover:bg-red-50 rounded"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-
-                          {/* Barre de progression upload */}
-                          {uploading && (
-                            <div className="mt-3">
-                              <div className="flex items-center justify-between text-sm mb-1">
-                                <span className="text-gray-600">Upload en cours...</span>
-                                <span className="text-gray-600">{uploadProgress}%</span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div 
-                                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                                  style={{ width: `${uploadProgress}%` }}
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Bouton pour ajouter/changer fichier */}
-                      {(formData.mediaUrl || selectedFile) && (
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="mt-2 text-sm text-blue-600 hover:text-blue-800"
-                        >
-                          Changer le fichier
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Système volontaires */}
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Heart className="w-5 h-5 text-pink-500" />
-                    <h3 className="font-medium text-gray-900">Système Volontaires</h3>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.isOpenToVolunteers}
-                        onChange={(e) => setFormData(prev => ({ ...prev, isOpenToVolunteers: e.target.checked }))}
-                        className="rounded border-gray-300 text-pink-600 focus:ring-pink-500"
-                      />
-                      <span className="text-sm text-gray-600">Ouvrir aux volontaires</span>
-                    </label>
-                  </div>
-
-                  {formData.isOpenToVolunteers && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Mode d'acceptation
-                        </label>
-                        <select
-                          value={formData.volunteerAcceptanceMode}
-                          onChange={(e) => setFormData(prev => ({ ...prev, volunteerAcceptanceMode: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                        >
-                          <option value="manual">Manuel (validation requise)</option>
-                          <option value="auto">Automatique</option>
-                          <option value="first_come">Premier arrivé, premier servi</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Nombre max de volontaires
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.maxVolunteers || ''}
-                          onChange={(e) => setFormData(prev => ({ ...prev, maxVolunteers: e.target.value ? parseInt(e.target.value) : null }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                          placeholder="Illimité"
-                          min="1"
-                          max="10"
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Message aux volontaires
-                        </label>
-                        <textarea
-                          value={formData.volunteerMessage}
-                          onChange={(e) => setFormData(prev => ({ ...prev, volunteerMessage: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                          rows={2}
-                          placeholder="Message d'encouragement ou instructions spéciales..."
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Tags */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Tag className="w-4 h-4 inline mr-1" />
-                    Tags (optionnel)
-                  </label>
-                  
-                  <div className="flex gap-2 mb-2">
-                    <input
-                      type="text"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddTag();
-                        }
-                      }}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Ajouter un tag..."
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddTag}
-                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {formData.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {formData.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-1 rounded text-sm"
-                        >
-                          #{tag}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveTag(tag)}
-                            className="text-blue-500 hover:text-blue-700"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <FileText className="w-4 h-4 inline mr-1" />
-                    Notes internes (optionnel)
-                  </label>
-                  <textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Notes privées, contexte supplémentaire..."
-                  />
-                </div>
-
-                {/* Boutons */}
-                <div className="flex items-center justify-between pt-6 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCreateModal(false);
-                      resetForm();
-                    }}
-                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-                  >
-                    Annuler
-                  </button>
-
-                  <div className="flex items-center gap-3">
-                    {/* Résumé XP */}
-                    <div className="text-sm text-gray-600">
-                      Récompense: <strong className="text-yellow-600">{formData.xpReward} XP</strong>
-                      {formData.isRecurring && formData.recurrenceType !== 'none' && (
-                        <span className="text-purple-600 ml-1">
-                          (×{RECURRENCE_OPTIONS[formData.recurrenceType]?.multiplier} récurrence)
-                        </span>
-                      )}
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={submitting || uploading}
-                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg transition-colors"
-                    >
-                      {submitting ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          {editMode ? 'Modification...' : 'Création...'}
-                        </>
-                      ) : (
-                        <>
-                          <Save className="w-4 h-4" />
-                          {editMode ? 'Modifier la Tâche' : 'Créer la Tâche'}
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal de détail/consultation */}
+      {/* Modal de détails */}
       <TaskDetailModal
         isOpen={showDetailModal}
-        onClose={() => {
-          setShowDetailModal(false);
-          setSelectedTask(null);
-          // ✅ RECHARGER LES COMMENTAIRES APRÈS FERMETURE DU MODAL
-          if (tasks.length > 0) {
-            loadTaskComments(tasks);
-          }
-        }}
+        onClose={() => setShowDetailModal(false)}
         task={selectedTask}
-        currentUser={user}
         onEdit={handleEditTask}
         onDelete={handleDeleteTask}
-        onTaskUpdate={(updatedTask) => {
-          // La mise à jour sera automatique via le listener temps réel
-          console.log('Tâche mise à jour:', updatedTask.title);
-          // ✅ RECHARGER LES COMMENTAIRES
-          if (tasks.length > 0) {
-            loadTaskComments(tasks);
-          }
-        }}
+        onTake={handleTakeTask}
+        onLeave={handleLeaveTask}
+        canEdit={selectedTask?.createdBy === user?.uid}
+        canTake={activeTab === 'available'}
+        canLeave={selectedTask?.assignedTo === user?.uid}
       />
     </div>
   );
