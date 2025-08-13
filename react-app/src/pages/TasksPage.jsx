@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES COMPLÈTE AVEC TOUTES LES FONCTIONNALITÉS
+// PAGE TÂCHES COMPLÈTE - VERSION CORRIGÉE SANS STATS
 // ==========================================
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -42,7 +42,11 @@ import {
   AlertTriangle,
   Paperclip,
   FileText,
-  EyeOff
+  EyeOff,
+  ChevronRight,
+  Building,
+  Globe,
+  MapPin
 } from 'lucide-react';
 
 // ✅ IMPORTS SERVICES FIREBASE
@@ -221,15 +225,6 @@ const TasksPage = () => {
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [editMode, setEditMode] = useState(false);
-  
-  // États pour la gamification
-  const [userStats, setUserStats] = useState({
-    totalTasks: 0,
-    completedTasks: 0,
-    pendingTasks: 0,
-    xpEarned: 0,
-    level: 1
-  });
 
   // État du formulaire de création/édition
   const [formData, setFormData] = useState({
@@ -322,7 +317,6 @@ const TasksPage = () => {
         });
 
         setTasks(fetchedTasks);
-        calculateUserStats(fetchedTasks);
         setLoading(false);
         setSyncing(false);
       },
@@ -339,26 +333,6 @@ const TasksPage = () => {
       unsubscribe();
     };
   }, [isAuthenticated, user]);
-
-  // ✅ CALCUL DES STATISTIQUES UTILISATEUR
-  const calculateUserStats = useCallback((tasksList) => {
-    const totalTasks = tasksList.length;
-    const completedTasks = tasksList.filter(t => t.status === 'completed').length;
-    const pendingTasks = tasksList.filter(t => ['todo', 'in_progress'].includes(t.status)).length;
-    const xpEarned = tasksList
-      .filter(t => t.status === 'completed')
-      .reduce((sum, task) => sum + (task.xpReward || 0), 0);
-    
-    const level = Math.floor(xpEarned / 100) + 1;
-
-    setUserStats({
-      totalTasks,
-      completedTasks,
-      pendingTasks,
-      xpEarned,
-      level
-    });
-  }, []);
 
   // ==========================================
   // 🔥 FILTRAGE ET TRI DES TÂCHES
@@ -655,12 +629,12 @@ const TasksPage = () => {
       id: 'my',
       label: 'Mes Tâches',
       icon: User,
-      count: currentTasks.length
+      count: tasks.filter(t => t.userId === user?.uid || t.assignedTo === user?.uid).length
     },
     {
       id: 'available',
       label: 'Disponibles',
-      icon: Users,
+      icon: Heart,
       count: tasks.filter(t => t.openToVolunteers && !t.assignedTo).length
     },
     {
@@ -696,7 +670,7 @@ const TasksPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-slate-900 p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* 📊 EN-TÊTE AVEC STATISTIQUES */}
+        {/* 📊 EN-TÊTE SIMPLE SANS STATISTIQUES */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Target className="w-8 h-8 text-blue-400" />
@@ -725,58 +699,6 @@ const TasksPage = () => {
               <span className="text-blue-400 text-sm">Synchronisation...</span>
             </div>
           )}
-        </div>
-
-        {/* 📈 STATISTIQUES RAPIDES */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <div className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <Target className="w-8 h-8 text-blue-400" />
-              <span className="text-2xl font-bold text-white">{userStats.totalTasks}</span>
-            </div>
-            <p className="text-gray-300 font-medium">Total Tâches</p>
-            <p className="text-gray-500 text-sm">Créées par vous</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-green-600/20 to-emerald-600/20 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <CheckCircle className="w-8 h-8 text-green-400" />
-              <span className="text-2xl font-bold text-white">{userStats.completedTasks}</span>
-            </div>
-            <p className="text-gray-300 font-medium">Terminées</p>
-            <p className="text-gray-500 text-sm">
-              {userStats.totalTasks > 0 ? Math.round((userStats.completedTasks / userStats.totalTasks) * 100) : 0}% de réussite
-            </p>
-          </div>
-
-          <div className="bg-gradient-to-br from-orange-600/20 to-yellow-600/20 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <Clock className="w-8 h-8 text-orange-400" />
-              <span className="text-2xl font-bold text-white">{userStats.pendingTasks}</span>
-            </div>
-            <p className="text-gray-300 font-medium">En Cours</p>
-            <p className="text-gray-500 text-sm">À terminer</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <Zap className="w-8 h-8 text-purple-400" />
-              <span className="text-2xl font-bold text-white">{userStats.xpEarned}</span>
-            </div>
-            <p className="text-gray-300 font-medium">XP Total</p>
-            <p className="text-gray-500 text-sm">Points d'expérience</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-yellow-600/20 to-orange-600/20 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <Trophy className="w-8 h-8 text-yellow-400" />
-              <span className="text-2xl font-bold text-white">{userStats.level}</span>
-            </div>
-            <p className="text-gray-300 font-medium">Niveau</p>
-            <p className="text-gray-500 text-sm">
-              {userStats.xpEarned % 100}/100 XP
-            </p>
-          </div>
         </div>
 
         {/* 🔍 BARRE DE RECHERCHE ET FILTRES */}
@@ -1599,212 +1521,414 @@ const TasksPage = () => {
         </div>
       )}
 
-      {/* 🔍 MODAL DE DÉTAILS D'UNE TÂCHE */}
+      {/* 🔍 MODAL DE DÉTAILS D'UNE TÂCHE COMPLET AVEC TOUTES LES INFOS */}
       {selectedTask && !editMode && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">Détails de la Tâche</h3>
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 p-8 w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-lg ${selectedTask.roleId && SYNERGIA_ROLES[selectedTask.roleId] ? SYNERGIA_ROLES[selectedTask.roleId].color : 'bg-gray-600'} flex items-center justify-center text-2xl shadow-lg`}>
+                  {selectedTask.roleId && SYNERGIA_ROLES[selectedTask.roleId] ? SYNERGIA_ROLES[selectedTask.roleId].icon : '📋'}
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white">Détails de la Tâche</h3>
+                  <p className="text-gray-400">#{selectedTask.id.substring(0, 8)}</p>
+                </div>
+              </div>
               <button
                 onClick={() => setSelectedTask(null)}
                 className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
               >
-                <X className="w-5 h-5 text-gray-400" />
+                <X className="w-6 h-6 text-gray-400" />
               </button>
             </div>
 
-            <div className="space-y-6">
-              {/* En-tête de la tâche */}
-              <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    selectedTask.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                    selectedTask.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                    selectedTask.status === 'todo' ? 'bg-gray-500/20 text-gray-400' :
-                    'bg-red-500/20 text-red-400'
-                  }`}>
-                    {selectedTask.status === 'completed' && 'Terminée'}
-                    {selectedTask.status === 'in_progress' && 'En cours'}
-                    {selectedTask.status === 'todo' && 'À faire'}
-                    {selectedTask.status === 'cancelled' && 'Annulée'}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Colonne principale - Informations de la tâche */}
+              <div className="lg:col-span-2 space-y-8">
+                {/* En-tête de la tâche */}
+                <div>
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className={`px-4 py-2 rounded-full text-sm font-medium ${
+                      selectedTask.status === 'completed' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                      selectedTask.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                      selectedTask.status === 'todo' ? 'bg-gray-500/20 text-gray-400 border border-gray-500/30' :
+                      'bg-red-500/20 text-red-400 border border-red-500/30'
+                    }`}>
+                      {selectedTask.status === 'completed' && '✅ Terminée'}
+                      {selectedTask.status === 'in_progress' && '🔄 En cours'}
+                      {selectedTask.status === 'todo' && '📋 À faire'}
+                      {selectedTask.status === 'cancelled' && '❌ Annulée'}
+                    </div>
+
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium border ${
+                      selectedTask.priority === 'urgent' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                      selectedTask.priority === 'high' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' :
+                      selectedTask.priority === 'medium' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                      'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                    }`}>
+                      🚨 Priorité {PRIORITY_XP_MULTIPLIERS[selectedTask.priority]?.label}
+                    </div>
+
+                    <div className="flex items-center gap-2 px-3 py-1 bg-purple-500/20 rounded-full text-purple-400 text-sm font-medium border border-purple-500/30">
+                      <Zap className="w-4 h-4" />
+                      <span>{selectedTask.xpReward} XP</span>
+                    </div>
                   </div>
 
-                  <div className={`px-3 py-1 rounded text-sm font-medium ${
-                    selectedTask.priority === 'urgent' ? 'bg-red-500/20 text-red-400' :
-                    selectedTask.priority === 'high' ? 'bg-orange-500/20 text-orange-400' :
-                    selectedTask.priority === 'medium' ? 'bg-blue-500/20 text-blue-400' :
-                    'bg-gray-500/20 text-gray-400'
-                  }`}>
-                    Priorité {PRIORITY_XP_MULTIPLIERS[selectedTask.priority]?.label}
+                  <h1 className="text-3xl font-bold text-white mb-4">{selectedTask.title}</h1>
+                  
+                  {selectedTask.description && (
+                    <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
+                      <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                        <FileText className="w-5 h-5" />
+                        Description
+                      </h4>
+                      <p className="text-gray-300 text-lg leading-relaxed">{selectedTask.description}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Informations détaillées */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-6">
+                    <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
+                      <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <Settings className="w-5 h-5" />
+                        Configuration
+                      </h4>
+                      
+                      <div className="space-y-4">
+                        {selectedTask.roleId && SYNERGIA_ROLES[selectedTask.roleId] && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Rôle Synergia:</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl">{SYNERGIA_ROLES[selectedTask.roleId].icon}</span>
+                              <span className="text-white font-medium">{SYNERGIA_ROLES[selectedTask.roleId].name}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Difficulté:</span>
+                          <span className={`font-medium px-3 py-1 rounded-full text-sm ${DIFFICULTY_XP_CONFIG[selectedTask.difficulty]?.bgColor || 'bg-gray-500/20'} ${DIFFICULTY_XP_CONFIG[selectedTask.difficulty]?.color || 'text-gray-400'}`}>
+                            {DIFFICULTY_XP_CONFIG[selectedTask.difficulty]?.label || 'Non définie'}
+                          </span>
+                        </div>
+
+                        {selectedTask.estimatedHours && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Durée estimée:</span>
+                            <div className="flex items-center gap-1 text-white">
+                              <Clock className="w-4 h-4" />
+                              <span>{selectedTask.estimatedHours}h</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedTask.category && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Catégorie:</span>
+                            <span className="text-white capitalize">{selectedTask.category}</span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Volontariat:</span>
+                          <span className={`font-medium ${selectedTask.openToVolunteers ? 'text-green-400' : 'text-red-400'}`}>
+                            {selectedTask.openToVolunteers ? '✅ Ouvert' : '❌ Fermé'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-1 px-3 py-1 bg-purple-500/20 rounded text-purple-400 text-sm font-medium">
-                    <Zap className="w-4 h-4" />
-                    {selectedTask.xpReward} XP
+                  <div className="space-y-6">
+                    <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
+                      <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <Calendar className="w-5 h-5" />
+                        Dates importantes
+                      </h4>
+                      
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Créée le:</span>
+                          <div className="flex items-center gap-1 text-white">
+                            <span>{selectedTask.createdAt?.toLocaleDateString('fr-FR', { 
+                              day: 'numeric', 
+                              month: 'long', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}</span>
+                          </div>
+                        </div>
+
+                        {selectedTask.dueDate && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Échéance:</span>
+                            <div className="flex items-center gap-1">
+                              <Flag className="w-4 h-4 text-orange-400" />
+                              <span className="text-orange-400 font-medium">
+                                {selectedTask.dueDate.toLocaleDateString('fr-FR', { 
+                                  day: 'numeric', 
+                                  month: 'long', 
+                                  year: 'numeric' 
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedTask.updatedAt && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Dernière MAJ:</span>
+                            <span className="text-gray-300">
+                              {selectedTask.updatedAt.toLocaleDateString('fr-FR', { 
+                                day: 'numeric', 
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                        )}
+
+                        {selectedTask.completedAt && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Terminée le:</span>
+                            <div className="flex items-center gap-1 text-green-400">
+                              <CheckCircle className="w-4 h-4" />
+                              <span className="font-medium">
+                                {selectedTask.completedAt.toLocaleDateString('fr-FR', { 
+                                  day: 'numeric', 
+                                  month: 'long',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <h4 className="text-2xl font-bold text-white mb-3">{selectedTask.title}</h4>
-                
-                {selectedTask.description && (
-                  <p className="text-gray-300 text-lg leading-relaxed">{selectedTask.description}</p>
+                {/* Tags */}
+                {selectedTask.tags && selectedTask.tags.length > 0 && (
+                  <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
+                    <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                      <Tag className="w-5 h-5" />
+                      Tags ({selectedTask.tags.length})
+                    </h4>
+                    <div className="flex flex-wrap gap-3">
+                      {selectedTask.tags.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium border border-blue-500/30"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Récurrence */}
+                {selectedTask.isRecurring && (
+                  <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
+                    <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                      <Repeat className="w-5 h-5" />
+                      Configuration de récurrence
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-500/20 rounded-lg">
+                          <Repeat className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-white font-medium">
+                            {selectedTask.recurrenceType === 'daily' && 'Récurrence quotidienne'}
+                            {selectedTask.recurrenceType === 'weekly' && 'Récurrence hebdomadaire'}
+                            {selectedTask.recurrenceType === 'monthly' && 'Récurrence mensuelle'}
+                          </p>
+                          {selectedTask.recurrenceInterval > 1 && (
+                            <p className="text-gray-400 text-sm">
+                              Toutes les {selectedTask.recurrenceInterval} {
+                                selectedTask.recurrenceType === 'daily' ? 'jours' : 
+                                selectedTask.recurrenceType === 'weekly' ? 'semaines' : 'mois'
+                              }
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {selectedTask.recurrenceEndDate && (
+                        <p className="text-gray-400 text-sm">
+                          Fin prévue: {new Date(selectedTask.recurrenceEndDate).toLocaleDateString('fr-FR')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes */}
+                {selectedTask.notes && (
+                  <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
+                    <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      Notes supplémentaires
+                    </h4>
+                    <div className="bg-gray-800/50 rounded-lg p-4">
+                      <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{selectedTask.notes}</p>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              {/* Métadonnées détaillées */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h5 className="text-lg font-semibold text-white border-b border-gray-700 pb-2">
-                    Informations générales
-                  </h5>
-                  
-                  <div className="space-y-3">
-                    {selectedTask.roleId && SYNERGIA_ROLES[selectedTask.roleId] && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-gray-400 w-20">Rôle:</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xl">{SYNERGIA_ROLES[selectedTask.roleId].icon}</span>
-                          <span className="text-white font-medium">{SYNERGIA_ROLES[selectedTask.roleId].name}</span>
-                        </div>
-                      </div>
-                    )}
+              {/* Sidebar droite - Métadonnées et actions */}
+              <div className="space-y-6">
+                {/* Propriétaire */}
+                <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
+                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <User className="w-5 h-5" />
+                    Propriétaire
+                  </h4>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                      {user?.email?.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">{user?.displayName || user?.email}</p>
+                      <p className="text-gray-400 text-sm">{user?.email}</p>
+                    </div>
+                  </div>
+                </div>
 
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-400 w-20">Difficulté:</span>
-                      <span className={`font-medium ${DIFFICULTY_XP_CONFIG[selectedTask.difficulty]?.color || 'text-gray-400'}`}>
-                        {DIFFICULTY_XP_CONFIG[selectedTask.difficulty]?.label || 'Non définie'}
-                      </span>
+                {/* Statistiques */}
+                <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
+                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5" />
+                    Statistiques
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Progression:</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-2 bg-gray-600 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all"
+                            style={{ width: `${selectedTask.progress || 0}%` }}
+                          />
+                        </div>
+                        <span className="text-white text-sm font-medium">{selectedTask.progress || 0}%</span>
+                      </div>
                     </div>
 
-                    {selectedTask.estimatedHours && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-gray-400 w-20">Durée:</span>
-                        <div className="flex items-center gap-1 text-white">
-                          <Clock className="w-4 h-4" />
-                          <span>{selectedTask.estimatedHours}h estimées</span>
-                        </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Gain XP:</span>
+                      <div className="flex items-center gap-1 text-purple-400 font-medium">
+                        <Zap className="w-4 h-4" />
+                        <span>{selectedTask.xpReward} points</span>
                       </div>
-                    )}
+                    </div>
 
-                    {selectedTask.category && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-gray-400 w-20">Catégorie:</span>
-                        <span className="text-white capitalize">{selectedTask.category}</span>
+                    {selectedTask.projectId && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400">Projet:</span>
+                        <span className="text-white">{selectedTask.projectId}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <h5 className="text-lg font-semibold text-white border-b border-gray-700 pb-2">
-                    Dates importantes
-                  </h5>
-                  
+                {/* Actions */}
+                <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
+                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <Settings className="w-5 h-5" />
+                    Actions
+                  </h4>
                   <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-400 w-20">Créée:</span>
-                      <div className="flex items-center gap-1 text-white">
-                        <Calendar className="w-4 h-4" />
-                        <span>{selectedTask.createdAt?.toLocaleDateString()}</span>
-                      </div>
-                    </div>
-
-                    {selectedTask.dueDate && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-gray-400 w-20">Échéance:</span>
-                        <div className="flex items-center gap-1 text-white">
-                          <Flag className="w-4 h-4" />
-                          <span>{selectedTask.dueDate.toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedTask.completedAt && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-gray-400 w-20">Terminée:</span>
-                        <div className="flex items-center gap-1 text-green-400">
-                          <CheckCircle className="w-4 h-4" />
-                          <span>{selectedTask.completedAt.toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Tags */}
-              {selectedTask.tags && selectedTask.tags.length > 0 && (
-                <div>
-                  <h5 className="text-lg font-semibold text-white mb-3">Tags</h5>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedTask.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm"
+                    {selectedTask.status !== 'completed' && (
+                      <button
+                        onClick={() => handleCompleteTask(selectedTask.id)}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
                       >
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+                        <CheckCircle className="w-4 h-4" />
+                        Marquer comme terminée
+                      </button>
+                    )}
 
-              {/* Récurrence */}
-              {selectedTask.isRecurring && (
-                <div>
-                  <h5 className="text-lg font-semibold text-white mb-3">Récurrence</h5>
-                  <div className="bg-gray-700/50 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Repeat className="w-5 h-5 text-blue-400" />
-                      <span className="text-white font-medium">
-                        {selectedTask.recurrenceType === 'daily' && 'Quotidienne'}
-                        {selectedTask.recurrenceType === 'weekly' && 'Hebdomadaire'}
-                        {selectedTask.recurrenceType === 'monthly' && 'Mensuelle'}
-                      </span>
-                    </div>
-                    {selectedTask.recurrenceInterval > 1 && (
-                      <p className="text-gray-400 text-sm">
-                        Toutes les {selectedTask.recurrenceInterval} {selectedTask.recurrenceType === 'daily' ? 'jours' : selectedTask.recurrenceType === 'weekly' ? 'semaines' : 'mois'}
-                      </p>
+                    {selectedTask.createdBy === user.uid && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setEditMode(true);
+                            setShowCreateModal(true);
+                          }}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                        >
+                          <Edit className="w-4 h-4" />
+                          Modifier la tâche
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (confirm(`Voulez-vous vraiment supprimer la tâche "${selectedTask.title}" ?`)) {
+                              handleDeleteTask(selectedTask.id, selectedTask.title);
+                              setSelectedTask(null);
+                            }
+                          }}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Supprimer
+                        </button>
+                      </>
+                    )}
+
+                    {activeTab === 'available' && selectedTask.openToVolunteers && !selectedTask.assignedTo && (
+                      <button
+                        onClick={() => {
+                          handleVolunteerTask(selectedTask.id);
+                          setSelectedTask(null);
+                        }}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium"
+                      >
+                        <Heart className="w-4 h-4" />
+                        Se porter volontaire
+                      </button>
                     )}
                   </div>
                 </div>
-              )}
 
-              {/* Notes */}
-              {selectedTask.notes && (
-                <div>
-                  <h5 className="text-lg font-semibold text-white mb-3">Notes</h5>
-                  <div className="bg-gray-700/50 rounded-lg p-4">
-                    <p className="text-gray-300 leading-relaxed">{selectedTask.notes}</p>
+                {/* Informations système */}
+                <div className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50">
+                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <Globe className="w-5 h-5" />
+                    Informations système
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400 text-sm">ID de la tâche:</span>
+                      <code className="text-gray-300 text-xs bg-gray-800/50 px-2 py-1 rounded">
+                        {selectedTask.id}
+                      </code>
+                    </div>
+                    
+                    {selectedTask.teamId && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400 text-sm">Équipe:</span>
+                        <span className="text-gray-300 text-sm">{selectedTask.teamId}</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400 text-sm">Version:</span>
+                      <span className="text-gray-300 text-sm">Synergia v3.5</span>
+                    </div>
                   </div>
                 </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-700">
-                {selectedTask.status !== 'completed' && (
-                  <button
-                    onClick={() => handleCompleteTask(selectedTask.id)}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    Marquer terminée
-                  </button>
-                )}
-
-                {selectedTask.createdBy === user.uid && (
-                  <button
-                    onClick={() => {
-                      setEditMode(true);
-                      setShowCreateModal(true);
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                    Modifier
-                  </button>
-                )}
               </div>
             </div>
           </div>
