@@ -37,6 +37,7 @@ import {
   Flag,
   Tag,
   User,
+  UserMinus,
   X,
   Save,
   AlertTriangle,
@@ -123,6 +124,8 @@ const TasksPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
+  // ✅ NOUVEAUX ÉTATS POUR COMMENTAIRES
+  const [taskComments, setTaskComments] = useState({}); // {taskId: count}
   // ✅ ÉTATS UI COMPLETS
   const [activeTab, setActiveTab] = useState('my');
   const [searchTerm, setSearchTerm] = useState('');
@@ -202,6 +205,10 @@ const TasksPage = () => {
       
       console.log(`📋 ${tasksData.length} tâches chargées`);
       setTasks(tasksData);
+      
+      // ✅ CHARGER LES COMMENTAIRES POUR CHAQUE TÂCHE
+      loadTaskComments(tasksData);
+      
       setLoading(false);
     }, (error) => {
       console.error('❌ Erreur chargement tâches:', error);
@@ -211,6 +218,43 @@ const TasksPage = () => {
 
     return () => unsubscribe();
   }, [isAuthenticated, user]);
+
+  // ✅ FONCTION POUR CHARGER LES COMMENTAIRES DE TOUTES LES TÂCHES
+  const loadTaskComments = async (tasksData) => {
+    console.log('💬 Chargement commentaires pour', tasksData.length, 'tâches...');
+    
+    try {
+      const commentsMap = {};
+      
+      // Charger les commentaires pour chaque tâche
+      for (const task of tasksData) {
+        try {
+          const commentsQuery = query(
+            collection(db, 'comments'),
+            where('entityType', '==', 'task'),
+            where('entityId', '==', task.id)
+          );
+          
+          const commentsSnapshot = await getDocs(commentsQuery);
+          const commentCount = commentsSnapshot.size;
+          
+          if (commentCount > 0) {
+            commentsMap[task.id] = commentCount;
+            console.log(`💬 Tâche "${task.title}": ${commentCount} commentaires`);
+          }
+          
+        } catch (error) {
+          console.warn('❌ Erreur chargement commentaires pour tâche', task.id, ':', error);
+        }
+      }
+      
+      setTaskComments(commentsMap);
+      console.log('💬 Commentaires chargés pour', Object.keys(commentsMap).length, 'tâches');
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement commentaires globaux:', error);
+    }
+  };
 
   // ✅ CALCUL XP AUTOMATIQUE
   useEffect(() => {
@@ -292,6 +336,7 @@ const TasksPage = () => {
       case 'my':
         filtered = tasks.filter(t => 
           t.assignedTo === user?.uid || 
+          t.createdBy === user?.uid ||
           (Array.isArray(t.assignedTo) && t.assignedTo.includes(user?.uid))
         );
         break;
@@ -584,7 +629,46 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ ONGLETS AVEC COMPTEURS
+  // ✅ NOUVEAU: SE RETIRER D'UNE TÂCHE
+  const handleUnassignFromMe = async (taskId) => {
+    if (!confirm('Êtes-vous sûr de vouloir vous retirer de cette tâche ?')) return;
+    
+    try {
+      const taskRef = doc(db, 'tasks', taskId);
+      const taskDoc = await getDoc(taskRef);
+      
+      if (!taskDoc.exists()) {
+        setError('Tâche introuvable');
+        return;
+      }
+      
+      const taskData = taskDoc.data();
+      let newAssignedTo = null;
+      
+      // Gérer les différents cas d'assignation
+      if (Array.isArray(taskData.assignedTo)) {
+        // Si c'est un tableau, retirer mon ID
+        newAssignedTo = taskData.assignedTo.filter(id => id !== user.uid);
+        if (newAssignedTo.length === 0) newAssignedTo = null;
+      } else if (taskData.assignedTo === user.uid) {
+        // Si c'est juste mon ID, mettre à null
+        newAssignedTo = null;
+      }
+      
+      await updateDoc(taskRef, {
+        assignedTo: newAssignedTo,
+        status: newAssignedTo ? 'in_progress' : 'todo', // Retour en "à faire" si plus personne
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Retiré de la tâche avec succès');
+    } catch (error) {
+      console.error('❌ Erreur pour se retirer:', error);
+      setError('Impossible de se retirer de la tâche');
+    }
+  };
+
+  // ✅ ONGLETS AVEC COMPTEURS CORRIGÉS
   const tabs = [
     {
       id: 'my',
@@ -592,7 +676,6 @@ const TasksPage = () => {
       icon: User,
       count: tasks.filter(t => 
         t.assignedTo === user?.uid || 
-        t.createdBy === user?.uid ||
         (Array.isArray(t.assignedTo) && t.assignedTo.includes(user?.uid))
       ).length
     },
@@ -889,16 +972,31 @@ const TasksPage = () => {
                       )}
                     </div>
                     
-                    {/* Média indicator */}
-                    {task.hasMedia && (
-                      <div className="ml-2">
-                        {task.mediaType === 'video' ? (
-                          <Video className="w-4 h-4 text-purple-500" />
-                        ) : (
-                          <ImageIcon className="w-4 h-4 text-blue-500" />
-                        )}
-                      </div>
-                    )}
+                    {/* Indicateurs médias et commentaires */}
+                    <div className="ml-2 flex items-center gap-1">
+                      {/* Média indicator */}
+                      {task.hasMedia && (
+                        <div title={`${task.mediaType === 'video' ? 'Vidéo' : 'Image'} disponible`}>
+                          {task.mediaType === 'video' ? (
+                            <Video className="w-4 h-4 text-purple-500" />
+                          ) : (
+                            <ImageIcon className="w-4 h-4 text-blue-500" />
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* ✅ BADGE COMMENTAIRES */}
+                      {taskComments[task.id] > 0 && (
+                        <div 
+                          className="flex items-center gap-1 bg-blue-100 text-blue-600 px-2 py-1 rounded-full cursor-pointer hover:bg-blue-200 transition-colors"
+                          onClick={() => handleViewTask(task)}
+                          title={`${taskComments[task.id]} message${taskComments[task.id] > 1 ? 's' : ''}`}
+                        >
+                          <MessageCircle className="w-3 h-3" />
+                          <span className="text-xs font-medium">{taskComments[task.id]}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Description */}
@@ -1008,6 +1106,17 @@ const TasksPage = () => {
                           title="M'assigner cette tâche"
                         >
                           <User className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {/* ✅ NOUVEAU: Se retirer de la tâche (mes tâches) */}
+                      {activeTab === 'my' && isMyTask && !canEdit && (
+                        <button
+                          onClick={() => handleUnassignFromMe(task.id)}
+                          className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors"
+                          title="Me retirer de cette tâche"
+                        >
+                          <UserMinus className="w-4 h-4" />
                         </button>
                       )}
 
@@ -1641,6 +1750,10 @@ const TasksPage = () => {
         onClose={() => {
           setShowDetailModal(false);
           setSelectedTask(null);
+          // ✅ RECHARGER LES COMMENTAIRES APRÈS FERMETURE DU MODAL
+          if (tasks.length > 0) {
+            loadTaskComments(tasks);
+          }
         }}
         task={selectedTask}
         currentUser={user}
@@ -1649,6 +1762,10 @@ const TasksPage = () => {
         onTaskUpdate={(updatedTask) => {
           // La mise à jour sera automatique via le listener temps réel
           console.log('Tâche mise à jour:', updatedTask.title);
+          // ✅ RECHARGER LES COMMENTAIRES
+          if (tasks.length > 0) {
+            loadTaskComments(tasks);
+          }
         }}
       />
     </div>
