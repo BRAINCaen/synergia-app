@@ -412,9 +412,10 @@ const GamificationPage = () => {
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Statistiques détaillées - VRAIES DONNÉES FIREBASE */}
-                <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+              {/* Statistiques détaillées - VRAIES DONNÉES FIREBASE */}
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
                   <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
                     <Gauge className="w-6 h-6 text-purple-400" />
                     Vraies Statistiques Firebase
