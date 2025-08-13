@@ -1,9 +1,10 @@
 // ==========================================
 // 📁 react-app/src/pages/GamificationPage.jsx
-// VERSION SIMPLIFIÉE FIREBASE - CORRECTION PAGE BLANCHE
+// CORRECTION SYNCHRONISATION XP FIREBASE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Trophy, 
   Star, 
@@ -19,60 +20,149 @@ import {
   Zap,
   Plus,
   Calendar,
-  RefreshCw
+  RefreshCw,
+  Activity,
+  Gauge,
+  BarChart3,
+  Medal,
+  Shield
 } from 'lucide-react';
 
-// ✅ IMPORTS SIMPLIFIÉS
+// ✅ IMPORTS CORRECTS POUR SYNCHRONISATION XP
 import { useAuthStore } from '../shared/stores/authStore.js';
+import { useUnifiedXP } from '../shared/hooks/useUnifiedXP.js';
 
 /**
- * 🎮 PAGE GAMIFICATION SIMPLIFIÉE - CORRECTION PAGE BLANCHE
+ * 🎮 PAGE GAMIFICATION AVEC SYNCHRONISATION XP RÉELLE
  */
 const GamificationPage = () => {
   const { user, isAuthenticated } = useAuthStore();
   
-  // États locaux simplifiés
+  // ✅ DONNÉES XP SYNCHRONISÉES AVEC FIREBASE
+  const {
+    gamificationData,
+    level,
+    totalXp,
+    weeklyXp,
+    monthlyXp,
+    badges,
+    loginStreak,
+    stats,
+    loading,
+    isReady,
+    syncStatus,
+    lastUpdate,
+    addXP,
+    forceSync
+  } = useUnifiedXP();
+  
+  // États locaux
   const [activeTab, setActiveTab] = useState('overview');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
 
-  // ✅ DONNÉES UTILISATEUR BASIQUES (éviter le hook qui cause l'erreur)
-  const userStats = {
-    totalXp: 0,
-    level: 1,
-    weeklyXp: 0,
-    monthlyXp: 0,
-    tasksCompleted: 0,
-    currentStreak: 0,
-    badges: [],
-    loginStreak: 1,
-    projectsCompleted: 0,
-    badgesUnlocked: 0
-  };
-
-  // ✅ CALCULS SIMPLIFIÉS
+  // ✅ CALCULS BASÉS SUR LES VRAIES DONNÉES XP
   const calculations = {
-    nextLevelXp: userStats.level * 1000,
-    progressPercent: 0,
-    weeklyProgress: 0,
-    xpToNextLevel: 1000
+    currentLevelXp: (level - 1) * 100,
+    nextLevelXp: level * 100,
+    xpToNextLevel: Math.max(0, (level * 100) - totalXp),
+    progressPercent: Math.min(100, ((totalXp % 100) / 100) * 100),
+    weeklyProgress: Math.min(100, (weeklyXp / 500) * 100), // Objectif 500 XP/semaine
+    monthlyProgress: Math.min(100, (monthlyXp / 2000) * 100) // Objectif 2000 XP/mois
   };
 
-  // ✅ DONNÉES VIDES POUR ÉVITER LES ERREURS
-  const objectives = [];
-  const recentActivities = [];
-  const leaderboardData = [];
-  const availableBadges = [];
+  // ✅ DONNÉES OBJECTIVES BASÉES SUR LES VRAIES DONNÉES
+  const objectives = [
+    {
+      id: 'weekly_xp',
+      title: 'XP Hebdomadaire',
+      description: 'Gagnez 500 XP cette semaine',
+      target: 500,
+      current: weeklyXp,
+      progress: Math.min(100, (weeklyXp / 500) * 100),
+      xpReward: 100,
+      type: 'weekly',
+      icon: '📅',
+      completed: weeklyXp >= 500
+    },
+    {
+      id: 'monthly_tasks',
+      title: 'Tâches Mensuelles', 
+      description: 'Terminez 20 tâches ce mois',
+      target: 20,
+      current: gamificationData?.tasksCompleted || 0,
+      progress: Math.min(100, ((gamificationData?.tasksCompleted || 0) / 20) * 100),
+      xpReward: 250,
+      type: 'monthly',
+      icon: '✅',
+      completed: (gamificationData?.tasksCompleted || 0) >= 20
+    },
+    {
+      id: 'streak_goal',
+      title: 'Série de Connexion',
+      description: 'Connectez-vous 7 jours consécutifs',
+      target: 7,
+      current: loginStreak,
+      progress: Math.min(100, (loginStreak / 7) * 100),
+      xpReward: 150,
+      type: 'streak',
+      icon: '🔥',
+      completed: loginStreak >= 7
+    }
+  ];
 
-  // ✅ FONCTIONS SIMPLIFIÉES
-  const handleRefresh = () => {
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 1000);
+  // ✅ ACTIVITÉS RÉCENTES BASÉES SUR LES VRAIES DONNÉES
+  const recentActivities = gamificationData?.xpHistory?.slice(-5).map((entry, index) => ({
+    id: index,
+    type: entry.source || 'task',
+    description: `+${entry.amount} XP - ${entry.source}`,
+    timestamp: entry.timestamp ? new Date(entry.timestamp) : new Date(),
+    xp: entry.amount,
+    icon: entry.source === 'task_completion' ? '✅' : 
+          entry.source === 'level_up' ? '🎉' : 
+          entry.source === 'badge_unlock' ? '🏆' : '⭐'
+  })) || [];
+
+  // ✅ LEADERBOARD SIMULÉ (EN ATTENDANT LES VRAIES DONNÉES)
+  const leaderboardData = [
+    { rank: 1, name: user?.displayName || 'Vous', xp: totalXp, level: level, isMe: true },
+    { rank: 2, name: 'Alice Martin', xp: Math.max(0, totalXp - 150), level: Math.floor(Math.max(0, totalXp - 150) / 100) + 1 },
+    { rank: 3, name: 'Bob Dupont', xp: Math.max(0, totalXp - 300), level: Math.floor(Math.max(0, totalXp - 300) / 100) + 1 },
+    { rank: 4, name: 'Claire Moreau', xp: Math.max(0, totalXp - 450), level: Math.floor(Math.max(0, totalXp - 450) / 100) + 1 },
+    { rank: 5, name: 'David Chen', xp: Math.max(0, totalXp - 600), level: Math.floor(Math.max(0, totalXp - 600) / 100) + 1 }
+  ];
+
+  // ✅ GESTION DU RAFRAÎCHISSEMENT
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await forceSync();
+      console.log('✅ Synchronisation XP forcée réussie');
+    } catch (error) {
+      console.error('❌ Erreur synchronisation:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
-  const claimObjective = (objectiveId) => {
-    setShowNotification(true);
-    setTimeout(() => setShowNotification(false), 3000);
+  // ✅ CLAIM D'OBJECTIF
+  const claimObjective = async (objectiveId) => {
+    const objective = objectives.find(obj => obj.id === objectiveId);
+    if (!objective || !objective.completed) return;
+
+    try {
+      const result = await addXP(objective.xpReward, 'objective_completion', {
+        objectiveId,
+        objectiveTitle: objective.title
+      });
+
+      if (result.success) {
+        setShowNotification(true);
+        setTimeout(() => setShowNotification(false), 3000);
+      }
+    } catch (error) {
+      console.error('❌ Erreur claim objectif:', error);
+    }
   };
 
   // Vérification d'authentification
@@ -92,38 +182,68 @@ const GamificationPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* 🎉 NOTIFICATION */}
-        {showNotification && (
-          <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce">
-            <div className="flex items-center gap-2">
-              <Gift className="w-5 h-5" />
-              <span className="font-semibold">Objectif complété !</span>
-            </div>
-          </div>
-        )}
+        {/* 🎉 NOTIFICATION DE SUCCÈS */}
+        <AnimatePresence>
+          {showNotification && (
+            <motion.div
+              initial={{ opacity: 0, y: -50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50"
+            >
+              <div className="flex items-center gap-2">
+                <Gift className="w-5 h-5" />
+                <span className="font-semibold">Objectif complété ! 🎉</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* 📊 EN-TÊTE */}
+        {/* 📊 EN-TÊTE AVEC STATUS DE SYNC */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Trophy className="w-8 h-8 text-yellow-400" />
             <h1 className="text-4xl font-bold text-white">Gamification</h1>
             <button
               onClick={handleRefresh}
-              disabled={isLoading}
+              disabled={isRefreshing || loading}
               className="ml-4 p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
             >
-              <RefreshCw className={`w-5 h-5 text-white ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-5 h-5 text-white ${(isRefreshing || loading) ? 'animate-spin' : ''}`} />
             </button>
           </div>
           <p className="text-gray-400 text-lg">Suivez vos progrès et débloquez des récompenses</p>
+          
+          {/* Status de synchronisation */}
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <div className={`w-2 h-2 rounded-full ${
+              syncStatus === 'synchronized' ? 'bg-green-400' :
+              syncStatus === 'syncing' ? 'bg-yellow-400 animate-pulse' :
+              syncStatus === 'error' ? 'bg-red-400' : 'bg-gray-400'
+            }`} />
+            <span className="text-sm text-gray-400">
+              {syncStatus === 'synchronized' ? 'Synchronisé' :
+               syncStatus === 'syncing' ? 'Synchronisation...' :
+               syncStatus === 'error' ? 'Erreur sync' : 'En attente'}
+            </span>
+            {lastUpdate && (
+              <span className="text-xs text-gray-500">
+                • MAJ: {lastUpdate.toLocaleTimeString()}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* 📈 STATISTIQUES PRINCIPALES */}
+        {/* 📈 STATISTIQUES PRINCIPALES SYNCHRONISÉES */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur-sm border border-white/10 rounded-2xl p-6"
+          >
             <div className="flex items-center justify-between mb-4">
               <Zap className="w-8 h-8 text-blue-400" />
-              <span className="text-2xl font-bold text-white">{userStats.totalXp}</span>
+              <span className="text-2xl font-bold text-white">{totalXp.toLocaleString()}</span>
             </div>
             <h3 className="text-blue-400 font-semibold mb-2">XP Total</h3>
             <div className="flex items-center gap-2">
@@ -133,208 +253,425 @@ const GamificationPage = () => {
                   style={{ width: `${calculations.progressPercent}%` }}
                 />
               </div>
-              <span className="text-sm text-gray-400">{calculations.xpToNextLevel} jusqu'au niveau {userStats.level + 1}</span>
+              <span className="text-sm text-gray-400">{calculations.xpToNextLevel}</span>
             </div>
-          </div>
+            <p className="text-gray-400 text-sm mt-2">
+              Niveau {level} • {calculations.xpToNextLevel} XP jusqu'au niveau {level + 1}
+            </p>
+          </motion.div>
 
-          <div className="bg-gradient-to-br from-yellow-600/20 to-orange-600/20 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-gradient-to-br from-green-600/20 to-emerald-600/20 backdrop-blur-sm border border-white/10 rounded-2xl p-6"
+          >
             <div className="flex items-center justify-between mb-4">
-              <Crown className="w-8 h-8 text-yellow-400" />
-              <span className="text-2xl font-bold text-white">{userStats.level}</span>
+              <Trophy className="w-8 h-8 text-green-400" />
+              <span className="text-2xl font-bold text-white">{level}</span>
             </div>
-            <h3 className="text-yellow-400 font-semibold mb-2">Niveau</h3>
-            <p className="text-gray-400 text-sm">Progression: {calculations.progressPercent.toFixed(1)}%</p>
-          </div>
+            <h3 className="text-green-400 font-semibold mb-2">Niveau Actuel</h3>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${calculations.progressPercent}%` }}
+                />
+              </div>
+              <span className="text-sm text-gray-400">{Math.round(calculations.progressPercent)}%</span>
+            </div>
+            <p className="text-gray-400 text-sm mt-2">
+              Progression vers niveau {level + 1}
+            </p>
+          </motion.div>
 
-          <div className="bg-gradient-to-br from-green-600/20 to-emerald-600/20 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-gradient-to-br from-orange-600/20 to-yellow-600/20 backdrop-blur-sm border border-white/10 rounded-2xl p-6"
+          >
             <div className="flex items-center justify-between mb-4">
-              <CheckCircle className="w-8 h-8 text-green-400" />
-              <span className="text-2xl font-bold text-white">{userStats.tasksCompleted}</span>
+              <Calendar className="w-8 h-8 text-orange-400" />
+              <span className="text-2xl font-bold text-white">{weeklyXp}</span>
             </div>
-            <h3 className="text-green-400 font-semibold mb-2">Tâches Terminées</h3>
-            <p className="text-gray-400 text-sm">Total depuis le début</p>
-          </div>
+            <h3 className="text-orange-400 font-semibold mb-2">XP Hebdomadaire</h3>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-orange-500 to-yellow-500 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${calculations.weeklyProgress}%` }}
+                />
+              </div>
+              <span className="text-sm text-gray-400">{Math.round(calculations.weeklyProgress)}%</span>
+            </div>
+            <p className="text-gray-400 text-sm mt-2">
+              Objectif: 500 XP/semaine
+            </p>
+          </motion.div>
 
-          <div className="bg-gradient-to-br from-red-600/20 to-pink-600/20 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 backdrop-blur-sm border border-white/10 rounded-2xl p-6"
+          >
             <div className="flex items-center justify-between mb-4">
-              <Flame className="w-8 h-8 text-red-400" />
-              <span className="text-2xl font-bold text-white">{userStats.currentStreak}</span>
+              <Flame className="w-8 h-8 text-purple-400" />
+              <span className="text-2xl font-bold text-white">{loginStreak}</span>
             </div>
-            <h3 className="text-red-400 font-semibold mb-2">Série Actuelle</h3>
-            <p className="text-gray-400 text-sm">Jours consécutifs</p>
-          </div>
+            <h3 className="text-purple-400 font-semibold mb-2">Série Connexion</h3>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, (loginStreak / 7) * 100)}%` }}
+                />
+              </div>
+              <span className="text-sm text-gray-400">{Math.min(7, loginStreak)}/7</span>
+            </div>
+            <p className="text-gray-400 text-sm mt-2">
+              Objectif: 7 jours consécutifs
+            </p>
+          </motion.div>
         </div>
 
-        {/* 🎯 NAVIGATION ONGLETS */}
-        <div className="flex justify-center">
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-2 flex gap-2">
+        {/* 📑 ONGLETS DE NAVIGATION */}
+        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-2">
+          <div className="flex gap-2">
             {[
-              { id: 'overview', label: 'Vue d\'ensemble', icon: TrendingUp },
-              { id: 'badges', label: 'Badges', icon: Award },
+              { id: 'overview', label: 'Vue d\'ensemble', icon: BarChart3 },
               { id: 'objectives', label: 'Objectifs', icon: Target },
-              { id: 'leaderboard', label: 'Classement', icon: Users }
+              { id: 'badges', label: 'Badges', icon: Medal },
+              { id: 'leaderboard', label: 'Classement', icon: Trophy },
+              { id: 'activity', label: 'Activité', icon: Activity }
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all ${
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all font-medium ${
                   activeTab === tab.id
-                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
                 <tab.icon className="w-5 h-5" />
-                <span className="font-medium">{tab.label}</span>
+                <span>{tab.label}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* 📊 CONTENU DES ONGLETS */}
-        <div className="mt-8">
+        {/* 📊 CONTENU SELON L'ONGLET ACTIF */}
+        <AnimatePresence mode="wait">
           {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Progression Hebdomadaire */}
+            <motion.div
+              key="overview"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+            >
+              {/* Progression de niveau */}
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                <h3 className="text-xl font-bold text-white mb-6 flex items-center">
-                  <Calendar className="w-6 h-6 text-purple-400 mr-3" />
-                  Progression Hebdomadaire
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                  <TrendingUp className="w-6 h-6 text-green-400" />
+                  Progression de Niveau
                 </h3>
+                
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">XP cette semaine</span>
-                    <span className="text-white font-semibold">{userStats.weeklyXp} XP</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Niveau actuel</span>
+                    <span className="text-white font-bold">{level}</span>
                   </div>
-                  <div className="bg-gray-700 rounded-full h-3">
+                  
+                  <div className="w-full bg-gray-700 rounded-full h-4">
                     <div 
-                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500"
-                      style={{ width: `${calculations.weeklyProgress}%` }}
-                    />
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 h-4 rounded-full transition-all duration-500 flex items-center justify-end pr-2"
+                      style={{ width: `${calculations.progressPercent}%` }}
+                    >
+                      <span className="text-white text-xs font-bold">
+                        {Math.round(calculations.progressPercent)}%
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-400">
-                    Commencez à utiliser l'application pour gagner des XP !
-                  </p>
+                  
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-400">{calculations.currentLevelXp} XP</span>
+                    <span className="text-gray-400">{calculations.nextLevelXp} XP</span>
+                  </div>
+                  
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                    <p className="text-blue-400 text-sm">
+                      🎯 <strong>{calculations.xpToNextLevel} XP</strong> restants pour atteindre le niveau <strong>{level + 1}</strong>
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              {/* Activités Récentes */}
+              {/* Statistiques détaillées */}
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                <h3 className="text-xl font-bold text-white mb-6 flex items-center">
-                  <Clock className="w-6 h-6 text-blue-400 mr-3" />
-                  Activités Récentes
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                  <Gauge className="w-6 h-6 text-purple-400" />
+                  Statistiques Détaillées
                 </h3>
-                <div className="text-center py-8">
-                  <Clock className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">Aucune activité récente</p>
-                  <p className="text-gray-500 text-sm">Commencez à utiliser l'application pour voir vos activités</p>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+                    <span className="text-gray-400">Tâches complétées</span>
+                    <span className="text-white font-bold">{gamificationData?.tasksCompleted || 0}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+                    <span className="text-gray-400">Projets créés</span>
+                    <span className="text-white font-bold">{gamificationData?.projectsCreated || 0}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+                    <span className="text-gray-400">Badges débloqués</span>
+                    <span className="text-white font-bold">{badges?.length || 0}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+                    <span className="text-gray-400">XP mensuel</span>
+                    <span className="text-white font-bold">{monthlyXp}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          {activeTab === 'badges' && (
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-              <h3 className="text-2xl font-bold text-white mb-8 flex items-center">
-                <Award className="w-8 h-8 text-orange-400 mr-3" />
-                Collection de Badges
-              </h3>
-              <div className="text-center py-12">
-                <Award className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400">Aucun badge disponible</p>
-                <p className="text-gray-500 text-sm">Terminez des tâches pour débloquer vos premiers badges</p>
-              </div>
-            </div>
+            </motion.div>
           )}
 
           {activeTab === 'objectives' && (
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-              <h3 className="text-2xl font-bold text-white mb-8 flex items-center">
-                <Target className="w-8 h-8 text-green-400 mr-3" />
-                Objectifs Actifs
-              </h3>
-              <div className="text-center py-12">
-                <Target className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400">Aucun objectif disponible</p>
-                <p className="text-gray-500 text-sm">Les objectifs apparaîtront automatiquement selon votre progression</p>
+            <motion.div
+              key="objectives"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <h3 className="text-2xl font-bold text-white">Objectifs Actifs</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {objectives.map((objective) => (
+                  <motion.div
+                    key={objective.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`bg-white/5 backdrop-blur-sm border rounded-2xl p-6 ${
+                      objective.completed 
+                        ? 'border-green-500/50 bg-green-500/10' 
+                        : 'border-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="text-3xl">{objective.icon}</div>
+                      {objective.completed && (
+                        <CheckCircle className="w-6 h-6 text-green-400" />
+                      )}
+                    </div>
+                    
+                    <h4 className="text-lg font-bold text-white mb-2">
+                      {objective.title}
+                    </h4>
+                    <p className="text-gray-400 text-sm mb-4">
+                      {objective.description}
+                    </p>
+                    
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-400">Progression</span>
+                        <span className="text-white font-bold">
+                          {objective.current}/{objective.target}
+                        </span>
+                      </div>
+                      
+                      <div className="w-full bg-gray-700 rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all duration-500 ${
+                            objective.completed 
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-500'
+                              : 'bg-gradient-to-r from-blue-500 to-purple-500'
+                          }`}
+                          style={{ width: `${objective.progress}%` }}
+                        />
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="text-yellow-400 text-sm font-medium">
+                          +{objective.xpReward} XP
+                        </span>
+                        {objective.completed && (
+                          <button
+                            onClick={() => claimObjective(objective.id)}
+                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                          >
+                            Réclamer
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
-            </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'badges' && (
+            <motion.div
+              key="badges"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-white">Collection de Badges</h3>
+                <span className="text-gray-400">
+                  {badges?.length || 0} badge{(badges?.length || 0) !== 1 ? 's' : ''} débloqué{(badges?.length || 0) !== 1 ? 's' : ''}
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                {badges && badges.length > 0 ? (
+                  badges.map((badge, index) => (
+                    <motion.div
+                      key={badge.id || index}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 text-center hover:bg-white/10 transition-colors"
+                    >
+                      <div className="text-4xl mb-2">{badge.icon || '🏆'}</div>
+                      <h4 className="text-white font-medium text-sm mb-1">
+                        {badge.name || badge.title || 'Badge'}
+                      </h4>
+                      <p className="text-gray-400 text-xs">
+                        {badge.description || 'Badge débloqué'}
+                      </p>
+                      {badge.unlockedAt && (
+                        <p className="text-green-400 text-xs mt-1">
+                          {new Date(badge.unlockedAt).toLocaleDateString()}
+                        </p>
+                      )}
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-12">
+                    <Shield className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+                    <h4 className="text-xl font-bold text-white mb-2">Aucun badge débloqué</h4>
+                    <p className="text-gray-400">
+                      Complétez des tâches et atteignez des objectifs pour débloquer vos premiers badges !
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
           )}
 
           {activeTab === 'leaderboard' && (
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-              <h3 className="text-2xl font-bold text-white mb-8 flex items-center">
-                <Users className="w-8 h-8 text-purple-400 mr-3" />
-                Classement Global
-              </h3>
-              <div className="text-center py-12">
-                <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400">Aucune donnée de classement</p>
-                <p className="text-gray-500 text-sm">Le classement apparaîtra quand d'autres utilisateurs rejoindront</p>
+            <motion.div
+              key="leaderboard"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <h3 className="text-2xl font-bold text-white">Classement</h3>
+              
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden">
+                <div className="p-6 border-b border-white/10">
+                  <h4 className="text-lg font-semibold text-white">Top 5 - XP Total</h4>
+                </div>
+                
+                <div className="divide-y divide-white/10">
+                  {leaderboardData.map((player) => (
+                    <div
+                      key={player.rank}
+                      className={`p-4 flex items-center gap-4 ${
+                        player.isMe ? 'bg-blue-500/10 border-l-4 border-blue-500' : ''
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                        player.rank === 1 ? 'bg-yellow-500 text-black' :
+                        player.rank === 2 ? 'bg-gray-400 text-black' :
+                        player.rank === 3 ? 'bg-orange-500 text-black' :
+                        'bg-white/10 text-white'
+                      }`}>
+                        {player.rank}
+                      </div>
+                      
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-medium ${player.isMe ? 'text-blue-400' : 'text-white'}`}>
+                            {player.name}
+                          </span>
+                          {player.isMe && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
+                              Vous
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-400">
+                          Niveau {player.level}
+                        </div>
+                      </div>
+                      
+                      <div className="text-right">
+                        <div className="text-white font-bold">
+                          {player.xp.toLocaleString()} XP
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            </motion.div>
           )}
-        </div>
 
-        {/* 🎯 STATISTIQUES SUPPLÉMENTAIRES */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 text-center">
-            <Award className="w-12 h-12 text-purple-400 mx-auto mb-4" />
-            <h4 className="text-2xl font-bold text-white mb-2">{availableBadges.filter(b => b.unlocked).length}</h4>
-            <p className="text-gray-400">Badges Débloqués</p>
-            <p className="text-purple-400 text-sm mt-1">
-              Commencez votre aventure !
-            </p>
-          </div>
-
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 text-center">
-            <Users className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-            <h4 className="text-2xl font-bold text-white mb-2">{userStats.loginStreak}</h4>
-            <p className="text-gray-400">Série de Connexions</p>
-            <p className="text-blue-400 text-sm mt-1">
-              Continuez ainsi !
-            </p>
-          </div>
-
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 text-center">
-            <TrendingUp className="w-12 h-12 text-green-400 mx-auto mb-4" />
-            <h4 className="text-2xl font-bold text-white mb-2">{userStats.projectsCompleted}</h4>
-            <p className="text-gray-400">Projets Terminés</p>
-            <p className="text-green-400 text-sm mt-1">
-              Prêt à commencer
-            </p>
-          </div>
-        </div>
-
-        {/* 🏆 SECTION MOTIVATION */}
-        <div className="bg-gradient-to-r from-purple-600/10 to-pink-600/10 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-8">
-          <div className="text-center">
-            <Crown className="w-16 h-16 text-yellow-400 mx-auto mb-6" />
-            <h3 className="text-3xl font-bold text-white mb-4">Bienvenue dans la Gamification !</h3>
-            <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
-              Commencez à utiliser Synergia pour débloquer des badges, gagner des XP et gravir les échelons du classement.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white/5 rounded-lg p-4 text-center border border-white/10">
-                <div className="text-3xl mb-2">🎯</div>
-                <p className="text-white text-sm font-medium">Terminez des tâches</p>
-                <p className="text-gray-400 text-xs">Gagnez de l'XP et progressez</p>
-              </div>
+          {activeTab === 'activity' && (
+            <motion.div
+              key="activity"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <h3 className="text-2xl font-bold text-white">Activité Récente</h3>
               
-              <div className="bg-white/5 rounded-lg p-4 text-center border border-white/10">
-                <div className="text-3xl mb-2">🏆</div>
-                <p className="text-white text-sm font-medium">Débloquez des badges</p>
-                <p className="text-gray-400 text-xs">Montrez vos accomplissements</p>
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                {recentActivities.length > 0 ? (
+                  <div className="space-y-4">
+                    {recentActivities.map((activity) => (
+                      <div
+                        key={activity.id}
+                        className="flex items-center gap-4 p-4 bg-white/5 rounded-lg"
+                      >
+                        <div className="text-2xl">{activity.icon}</div>
+                        <div className="flex-1">
+                          <p className="text-white font-medium">{activity.description}</p>
+                          <p className="text-gray-400 text-sm">
+                            {activity.timestamp.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="text-green-400 font-bold">
+                          +{activity.xp} XP
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Activity className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+                    <h4 className="text-xl font-bold text-white mb-2">Aucune activité récente</h4>
+                    <p className="text-gray-400">
+                      Votre activité XP apparaîtra ici au fur et à mesure
+                    </p>
+                  </div>
+                )}
               </div>
-              
-              <div className="bg-white/5 rounded-lg p-4 text-center border border-white/10">
-                <div className="text-3xl mb-2">👑</div>
-                <p className="text-white text-sm font-medium">Montez dans le classement</p>
-                <p className="text-gray-400 text-xs">Compétitionnez avec votre équipe</p>
-              </div>
-            </div>
-          </div>
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
