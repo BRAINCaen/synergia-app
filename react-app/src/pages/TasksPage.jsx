@@ -50,7 +50,7 @@ import {
 import { db } from '../core/firebase.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { SYNERGIA_ROLES } from '../core/data/roles.js';
-import TaskDetailModal from '../components/tasks/TaskDetailModal.jsx';
+import TaskDetailModal from '../components/tasks/TaskDetailsModal.jsx';
 import TaskSubmissionModal from '../components/tasks/TaskSubmissionModal.jsx';
 import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal.jsx';
 
