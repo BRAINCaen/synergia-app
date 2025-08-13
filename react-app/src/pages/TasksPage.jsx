@@ -719,3 +719,338 @@ const TasksPage = () => {
             >
               💼 Relations B2B
             </button>
+          </div>
+        </div>
+
+        {/* Onglets */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab('my')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              activeTab === 'my'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            <CheckCircle className="w-4 h-4" />
+            Mes tâches ({myTasks.length})
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('available')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              activeTab === 'available'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            <Heart className="w-4 h-4" />
+            Disponibles ({availableTasks.length})
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('other')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              activeTab === 'other'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            Autres ({otherTasks.length})
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              activeTab === 'history'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            <Archive className="w-4 h-4" />
+            Historique ({history?.length || 0})
+          </button>
+        </div>
+
+        {/* Filtres et recherche - PRÉSERVÉS */}
+        {activeTab !== 'history' && (
+          <div className="bg-gray-800 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher des tâches..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+              
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="active">Tâches actives</option>
+                <option value="all">Tous les statuts</option>
+                <option value="todo">À faire</option>
+                <option value="in_progress">En cours</option>
+                <option value="pending_review">En attente</option>
+                <option value="completed">Terminées</option>
+              </select>
+              
+              <select
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="all">Toutes les priorités</option>
+                <option value="low">Faible</option>
+                <option value="medium">Moyenne</option>
+                <option value="high">Élevée</option>
+                <option value="urgent">Urgente</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Liste des tâches - PRÉSERVÉE COMPLÈTEMENT */}
+        <div className="space-y-4">
+          <AnimatePresence>
+            {currentTasks.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-12"
+              >
+                <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-8 h-8 text-gray-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-300 mb-2">
+                  Aucune tâche trouvée
+                </h3>
+                <p className="text-gray-500">
+                  {activeTab === 'my' && 'Vous n\'avez aucune tâche assignée pour le moment.'}
+                  {activeTab === 'available' && 'Aucune tâche disponible actuellement.'}
+                  {activeTab === 'other' && 'Aucune tâche d\'autres équipes trouvée.'}
+                  {activeTab === 'history' && 'Aucune tâche complétée dans votre historique.'}
+                </p>
+              </motion.div>
+            ) : (
+              currentTasks.map((task) => (
+                <motion.div
+                  key={task.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="bg-gray-800 border border-gray-700 rounded-lg p-6 hover:bg-gray-750 transition-colors relative"
+                >
+                  {/* 💬 BADGE COMMENTAIRES - POSITION ABSOLUE TOP-RIGHT */}
+                  <div className="absolute top-3 right-3 z-20">
+                    <CommentNotificationBadge
+                      taskId={task.id}
+                      onClick={() => {
+                        setSelectedTask(task);
+                        setShowDetailModal(true);
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 pr-16">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-semibold text-white">
+                          {task.title || 'Tâche sans titre'}
+                        </h3>
+                        
+                        {/* Badge statut */}
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(task.status).color}`}>
+                          {getStatusBadge(task.status).icon}
+                          {getStatusBadge(task.status).label}
+                        </span>
+                        
+                        {/* Badge priorité */}
+                        {task.priority && task.priority !== 'normal' && (
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            task.priority === 'urgent' ? 'bg-red-100 text-red-700' :
+                            task.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {task.priority === 'urgent' ? '🔴' : task.priority === 'high' ? '🟠' : '🔵'} 
+                            {task.priority}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {task.description && (
+                        <p className="text-gray-300 mb-3 line-clamp-2">
+                          {task.description}
+                        </p>
+                      )}
+                      
+                      <div className="flex items-center gap-4 text-sm text-gray-400 mb-3">
+                        {task.createdAt && (
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            {new Date(task.createdAt.seconds ? task.createdAt.seconds * 1000 : task.createdAt).toLocaleDateString()}
+                          </span>
+                        )}
+                        
+                        {task.xpReward && (
+                          <span className="flex items-center gap-1">
+                            <Zap className="w-4 h-4" />
+                            {task.xpReward} XP
+                          </span>
+                        )}
+                        
+                        {task.projectId && (
+                          <span className="flex items-center gap-1">
+                            <Target className="w-4 h-4" />
+                            Projet
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 🙋‍♂️ BOUTONS VOLONTARIAT - REMIS */}
+                      <div className="flex items-center gap-2 mb-3">
+                        {/* Bouton se porter volontaire */}
+                        {activeTab === 'available' && !task.assignedTo?.includes?.(user?.uid) && (
+                          <button
+                            onClick={() => handleVolunteer(task.id)}
+                            disabled={submitting}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                            title="Se porter volontaire pour cette tâche"
+                          >
+                            <Heart className="w-4 h-4" />
+                            {submitting ? 'En cours...' : 'Volontaire'}
+                          </button>
+                        )}
+
+                        {/* Bouton se retirer */}
+                        {task.assignedTo?.includes?.(user?.uid) && task.createdBy !== user?.uid && (
+                          <button
+                            onClick={() => handleUnvolunteer(task.id)}
+                            disabled={submitting}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50"
+                            title="Se retirer de cette tâche"
+                          >
+                            <Users className="w-4 h-4" />
+                            Se désengager
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Actions principales */}
+                    <div className="flex items-center gap-2 ml-4">
+                      <button
+                        onClick={() => {
+                          setSelectedTask(task);
+                          setShowDetailModal(true);
+                        }}
+                        className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition-colors"
+                        title="Voir détails"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      
+                      {(task.createdBy === user?.uid || task.assignedTo?.includes?.(user?.uid)) && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setSelectedTask(task);
+                              setShowCreateModal(true);
+                            }}
+                            className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors"
+                            title="Modifier"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          
+                          <button
+                            onClick={() => handleDeleteTask(task.id)}
+                            className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Modals - PRÉSERVÉS COMPLÈTEMENT */}
+      {showCreateModal && (
+        <NewTaskModal
+          isOpen={showCreateModal}
+          onClose={() => {
+            setShowCreateModal(false);
+            setSelectedTask(null);
+          }}
+          onSubmit={selectedTask ? handleEditTask : handleCreateTask}
+          task={selectedTask}
+          isLoading={submitting}
+        />
+      )}
+
+      {showDetailModal && selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          isOpen={showDetailModal}
+          onClose={() => {
+            setShowDetailModal(false);
+            setSelectedTask(null);
+          }}
+          onEdit={() => {
+            setShowDetailModal(false);
+            setShowCreateModal(true);
+          }}
+          onDelete={() => {
+            setShowDetailModal(false);
+            setSelectedTask(null);
+            handleDeleteTask(selectedTask.id);
+          }}
+          onSubmit={handleSubmitTask}
+          currentUser={user}
+        />
+      )}
+
+      {showSubmissionModal && selectedTask && (
+        <TaskSubmissionModal
+          task={selectedTask}
+          isOpen={showSubmissionModal}
+          onClose={() => {
+            setShowSubmissionModal(false);
+            setSelectedTask(null);
+          }}
+          onSubmit={async (submissionData) => {
+            try {
+              await taskValidationServiceEnhanced.submitTaskForValidation({
+                ...submissionData,
+                taskId: selectedTask.id,
+                userId: user.uid,
+                taskTitle: selectedTask.title
+              });
+              handleSubmissionSuccess();
+            } catch (error) {
+              console.error('Erreur soumission:', error);
+              setError(error.message);
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default TasksPage;
