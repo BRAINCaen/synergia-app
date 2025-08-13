@@ -719,6 +719,199 @@ const TasksPage = () => {
                 <Plus className="w-4 h-4" />
                 Nouvelle Tâche
               </button>
+      )}
+
+      {/* Modal Soumission de Tâche */}
+      {showSubmissionModal && selectedTask && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Upload className="w-6 h-6 text-green-400" />
+                Soumettre la Tâche
+              </h3>
+              <button
+                onClick={() => setShowSubmissionModal(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Info tâche */}
+              <div className="bg-gray-700/30 rounded-lg p-4">
+                <h4 className="text-white font-medium mb-1">{selectedTask.title}</h4>
+                <p className="text-gray-400 text-sm">
+                  Récompense: {selectedTask.xpReward || 15} XP
+                </p>
+              </div>
+
+              {/* Formulaire de soumission */}
+              <form className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Description du travail effectué *
+                  </label>
+                  <textarea
+                    placeholder="Décrivez ce que vous avez accompli..."
+                    rows={4}
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 resize-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Preuves (optionnel)
+                  </label>
+                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-gray-500 transition-colors">
+                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-400 text-sm mb-1">
+                      Glissez vos fichiers ici ou cliquez pour sélectionner
+                    </p>
+                    <p className="text-gray-500 text-xs">
+                      Images, PDF, documents (max 10MB)
+                    </p>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx"
+                      className="hidden"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Temps passé (optionnel)
+                  </label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <input
+                        type="number"
+                        placeholder="Heures"
+                        min="0"
+                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        placeholder="Minutes"
+                        min="0"
+                        max="59"
+                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowSubmissionModal(false)}
+                    className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all"
+                  >
+                    Soumettre pour validation
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Filtres Avancés */}
+      {showFiltersModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Filter className="w-6 h-6 text-purple-400" />
+                Filtres Avancés
+              </h3>
+              <button
+                onClick={() => setShowFiltersModal(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Rôle Synergia
+                </label>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="all">Tous les rôles</option>
+                  <option value="serveur">🍽️ Serveur</option>
+                  <option value="cuisine">👨‍🍳 Cuisine</option>
+                  <option value="bar">🍺 Bar</option>
+                  <option value="accueil">👋 Accueil</option>
+                  <option value="nettoyage">🧹 Nettoyage</option>
+                  <option value="gestion">📊 Gestion</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Date de création
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-purple-500"
+                  />
+                  <input
+                    type="date"
+                    className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  XP Minimum
+                </label>
+                <input
+                  type="number"
+                  placeholder="Ex: 20"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    // Reset filtres
+                    setRoleFilter('all');
+                    setStatusFilter('active');
+                    setPriorityFilter('all');
+                    setSearchTerm('');
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  Réinitialiser
+                </button>
+                <button
+                  onClick={() => setShowFiltersModal(false)}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all"
+                >
+                  Appliquer
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -907,6 +1100,33 @@ const TasksPage = () => {
                               {task.assignedTo.length} assigné{task.assignedTo.length > 1 ? 's' : ''}
                             </span>
                           )}
+                          
+                          {/* Tags */}
+                          {task.tags && task.tags.length > 0 && (
+                            <div className="flex items-center gap-1">
+                              {task.tags.slice(0, 3).map((tag, index) => (
+                                <span
+                                  key={index}
+                                  className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs"
+                                >
+                                  #{tag}
+                                </span>
+                              ))}
+                              {task.tags.length > 3 && (
+                                <span className="text-gray-400 text-xs">
+                                  +{task.tags.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Indicateur de retard */}
+                          {task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'completed' && (
+                            <span className="flex items-center gap-1 text-red-400">
+                              <AlertCircle className="w-3 h-3" />
+                              En retard
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -943,6 +1163,34 @@ const TasksPage = () => {
                           >
                             <CheckCircle className="w-3 h-3" />
                             Terminer
+                          </button>
+                        )}
+
+                        {/* Soumettre pour validation */}
+                        {activeTab === 'my' && task.assignedTo?.includes(user.uid) && task.status === 'completed' && (
+                          <button
+                            onClick={() => {
+                              setSelectedTask(task);
+                              setShowSubmissionModal(true);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm transition-colors"
+                          >
+                            <Upload className="w-3 h-3" />
+                            Soumettre
+                          </button>
+                        )}
+
+                        {/* Actions collaboratives */}
+                        {task.status !== 'completed' && (
+                          <button
+                            onClick={() => {
+                              setSelectedTask(task);
+                              setShowDetailModal(true);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition-colors"
+                          >
+                            <MessageCircle className="w-3 h-3" />
+                            Discuter
                           </button>
                         )}
                       </div>
@@ -1023,9 +1271,9 @@ const TasksPage = () => {
         </div>
       </div>
 
-      {/* 🎭 MODALS - Simulées pour l'instant */}
+      {/* 🎭 MODALS COMPLÈTES AVEC FONCTIONNALITÉS AVANCÉES */}
       
-      {/* Modal Création/Modification */}
+      {/* Modal Création/Modification Avancée */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -1045,16 +1293,18 @@ const TasksPage = () => {
               </button>
             </div>
             
-            <div className="space-y-4">
+            <form id="task-form" className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Titre de la tâche *
                 </label>
                 <input
+                  name="title"
                   type="text"
                   placeholder="Entrez le titre..."
                   defaultValue={editMode ? selectedTask?.title : ''}
                   className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
                 />
               </div>
               
@@ -1063,6 +1313,7 @@ const TasksPage = () => {
                   Description
                 </label>
                 <textarea
+                  name="description"
                   placeholder="Décrivez la tâche..."
                   rows={4}
                   defaultValue={editMode ? selectedTask?.description : ''}
@@ -1076,13 +1327,14 @@ const TasksPage = () => {
                     Priorité
                   </label>
                   <select 
+                    name="priority"
                     defaultValue={editMode ? selectedTask?.priority : 'normal'}
                     className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="low">Faible</option>
-                    <option value="normal">Normale</option>
-                    <option value="high">Haute</option>
-                    <option value="urgent">Urgente</option>
+                    <option value="low">🟢 Faible</option>
+                    <option value="normal">⚪ Normale</option>
+                    <option value="high">🟠 Haute</option>
+                    <option value="urgent">🔴 Urgente</option>
                   </select>
                 </div>
 
@@ -1091,39 +1343,76 @@ const TasksPage = () => {
                     Complexité
                   </label>
                   <select 
+                    name="complexity"
                     defaultValue={editMode ? selectedTask?.complexity : 'medium'}
                     className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="easy">Facile</option>
-                    <option value="medium">Moyenne</option>
-                    <option value="hard">Difficile</option>
-                    <option value="expert">Expert</option>
+                    <option value="easy">🟢 Facile (10 XP)</option>
+                    <option value="medium">🟡 Moyenne (15 XP)</option>
+                    <option value="hard">🟠 Difficile (25 XP)</option>
+                    <option value="expert">🔴 Expert (40 XP)</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    XP Estimé
+                    XP Personnalisé
                   </label>
                   <input
+                    name="xpReward"
                     type="number"
-                    placeholder="15"
+                    min="1"
+                    max="100"
+                    placeholder="Auto"
                     defaultValue={editMode ? selectedTask?.xpReward : ''}
                     className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Date d'échéance
-                </label>
-                <input
-                  type="date"
-                  defaultValue={editMode && selectedTask?.dueDate ? selectedTask.dueDate.toISOString().split('T')[0] : ''}
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Date d'échéance
+                  </label>
+                  <input
+                    name="dueDate"
+                    type="date"
+                    defaultValue={editMode && selectedTask?.dueDate ? selectedTask.dueDate.toISOString().split('T')[0] : ''}
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Tags (séparés par des virgules)
+                  </label>
+                  <input
+                    name="tags"
+                    type="text"
+                    placeholder="urgent, frontend, bug"
+                    defaultValue={editMode && selectedTask?.tags ? selectedTask.tags.join(', ') : ''}
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
+
+              {/* Prévisualisation XP */}
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-purple-400" />
+                    <span className="text-purple-400 font-medium">Récompense XP</span>
+                  </div>
+                  <span className="text-white font-bold text-lg">
+                    {editMode ? selectedTask?.xpReward || 15 : 15} XP
+                  </span>
+                </div>
+                <p className="text-gray-400 text-sm mt-1">
+                  Calculé automatiquement selon la priorité et la complexité
+                </p>
+              </div>
+            </form>
               
               <div className="flex gap-3 pt-4">
                 <button
@@ -1137,12 +1426,26 @@ const TasksPage = () => {
                   Annuler
                 </button>
                 <button
-                  onClick={() => {
-                    // TODO: Implémenter la création/modification
-                    setShowCreateModal(false);
-                    setEditMode(false);
-                    setSelectedTask(null);
-                    showNotification(editMode ? '✅ Tâche modifiée !' : '✅ Tâche créée !', 'success');
+                  onClick={async () => {
+                    const formData = new FormData(document.querySelector('#task-form'));
+                    const taskData = {
+                      title: formData.get('title'),
+                      description: formData.get('description'),
+                      priority: formData.get('priority'),
+                      complexity: formData.get('complexity'),
+                      xpReward: parseInt(formData.get('xpReward')) || calculateXPReward({
+                        priority: formData.get('priority'),
+                        complexity: formData.get('complexity')
+                      }),
+                      dueDate: formData.get('dueDate') ? new Date(formData.get('dueDate')) : null,
+                      tags: formData.get('tags') ? formData.get('tags').split(',').map(t => t.trim()) : []
+                    };
+
+                    if (editMode) {
+                      await handleEditTask(selectedTask.id, taskData);
+                    } else {
+                      await handleCreateTask(taskData);
+                    }
                   }}
                   disabled={submitting}
                   className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50"
@@ -1276,9 +1579,85 @@ const TasksPage = () => {
                       rows={2}
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 text-sm resize-none"
                     />
-                    <button className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors">
-                      Publier
+                    <button className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors flex items-center gap-2">
+                      <Upload className="w-4 h-4" />
+                      Joindre un fichier
                     </button>
+                  </div>
+                </div>
+
+                {/* Actions rapides */}
+                <div className="bg-gray-700/50 rounded-lg p-4">
+                  <h5 className="text-white font-medium mb-3 flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-yellow-400" />
+                    Actions Rapides
+                  </h5>
+                  <div className="grid grid-cols-2 gap-3">
+                    {selectedTask.status === 'in_progress' && selectedTask.assignedTo?.includes(user.uid) && (
+                      <button
+                        onClick={() => handleMarkCompleted(selectedTask.id)}
+                        className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition-colors"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        Marquer terminée
+                      </button>
+                    )}
+                    
+                    {activeTab === 'available' && (
+                      <button
+                        onClick={() => handleVolunteer(selectedTask.id)}
+                        className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                      >
+                        <Heart className="w-4 h-4" />
+                        Se porter volontaire
+                      </button>
+                    )}
+
+                    {selectedTask.assignedTo?.includes(user.uid) && selectedTask.status !== 'completed' && (
+                      <button
+                        onClick={() => handleUnvolunteer(selectedTask.id)}
+                        className="flex items-center gap-2 px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm transition-colors"
+                      >
+                        Se désengager
+                      </button>
+                    )}
+
+                    <button className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition-colors">
+                      <Bell className="w-4 h-4" />
+                      S'abonner
+                    </button>
+                  </div>
+                </div>
+
+                {/* Historique des modifications */}
+                <div>
+                  <h5 className="text-white font-medium mb-3 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    Historique
+                  </h5>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    <div className="text-xs text-gray-400 flex items-start gap-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full mt-1.5"></div>
+                      <div>
+                        <span className="text-white">Tâche créée</span>
+                        <div className="text-gray-500">
+                          {selectedTask.createdAt?.toLocaleDateString('fr-FR')} à {selectedTask.createdAt?.toLocaleTimeString('fr-FR')}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {selectedTask.updatedAt && selectedTask.updatedAt > selectedTask.createdAt && (
+                      <div className="text-xs text-gray-400 flex items-start gap-2">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full mt-1.5"></div>
+                        <div>
+                          <span className="text-white">Dernière modification</span>
+                          <div className="text-gray-500">
+                            {selectedTask.updatedAt?.toLocaleDateString('fr-FR')} à {selectedTask.updatedAt?.toLocaleTimeString('fr-FR')}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   </div>
                 </div>
               </div>
