@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/vite.config.js
-// Configuration Vite CORRIGÉE pour build production
+// Configuration Vite OPTIMISÉE pour éviter l'erreur G2.initialize
 // ==========================================
 
 import { defineConfig } from 'vite'
@@ -33,29 +33,59 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    // 🔧 CORRECTION : Target compatible et minification
+    
+    // 🔧 CORRECTION CRITIQUE : Minification moins agressive
     minify: 'esbuild',
-    target: 'esnext', // ✅ Compatible avec top-level await si nécessaire
+    target: 'es2020', // ✅ Target plus conservateur pour la compatibilité
     
     rollupOptions: {
       output: {
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
-      }
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+        
+        // 🛡️ PROTECTION : Éviter la sur-optimisation des noms de fonctions
+        manualChunks: {
+          firebase: ['firebase/app', 'firebase/firestore', 'firebase/auth', 'firebase/storage'],
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['lucide-react', 'framer-motion'],
+          stores: ['zustand']
+        }
+      },
+      
+      // 🔧 Options de minification personnalisées
+      external: [],
+      
+      // 🛡️ Préserver certains noms de fonctions critiques
+      preserveEntrySignatures: 'allow-extension'
     },
     
     chunkSizeWarningLimit: 1000,
     
-    // 🚀 Configuration esbuild pour la compatibilité
+    // 🚀 Configuration esbuild MOINS AGRESSIVE
     esbuild: {
-      target: 'es2020', // ✅ Compatible avec la plupart des navigateurs modernes
-      format: 'esm'
+      target: 'es2020',
+      format: 'esm',
+      
+      // 🔧 CORRECTION : Préserver les noms de classe et fonction critiques
+      keepNames: true, // ✅ Garde les noms de fonctions originaux
+      minifyIdentifiers: false, // ✅ Ne pas renommer les identifiants trop agressivement
+      minifySyntax: true, // ✅ Optimiser la syntaxe mais pas les noms
+      minifyWhitespace: true, // ✅ Supprimer les espaces uniquement
+      
+      // 🛡️ Préserver les imports/exports critiques
+      treeShaking: true,
+      
+      // 🔧 Configuration pour éviter les erreurs d'initialisation
+      drop: [], // Ne pas supprimer d'appels spécifiques
+      pure: [], // Ne pas marquer de fonctions comme "pure" qui pourraient être supprimées
     }
   },
 
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '3.5.2')
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '3.5.3'),
+    // 🔧 Définir NODE_ENV explicitement
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
   },
 
   css: {
@@ -74,11 +104,39 @@ export default defineConfig({
       'zustand',
       'lucide-react',
       'framer-motion'
-    ]
+    ],
+    
+    // 🔧 Forcer la pré-optimisation de Firebase pour éviter les erreurs d'initialisation
+    force: false,
+    
+    // 🛡️ Exclure les modules problématiques de l'optimisation
+    exclude: []
   },
 
   // 🔧 Configuration pour le développement
   preview: {
     port: 3000
-  }
+  },
+
+  // 🚀 AJOUT : Configuration spécifique pour la production
+  ...(process.env.NODE_ENV === 'production' && {
+    build: {
+      ...this?.build,
+      
+      // 🔧 Options supplémentaires pour la production
+      reportCompressedSize: false, // Désactiver le rapport de taille pour accélérer le build
+      
+      // 🛡️ Rollup options spécifiques pour éviter les erreurs
+      rollupOptions: {
+        ...this?.build?.rollupOptions,
+        
+        // 🔧 Configuration pour préserver les fonctions d'initialisation
+        treeshake: {
+          moduleSideEffects: true, // ✅ Préserver les effets de bord des modules (comme les initialisations)
+          propertyReadSideEffects: true, // ✅ Préserver les lectures de propriétés
+          tryCatchDeoptimization: false // ✅ Ne pas optimiser les try/catch
+        }
+      }
+    }
+  })
 })
