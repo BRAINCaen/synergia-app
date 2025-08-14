@@ -1,47 +1,226 @@
 // ==========================================
 // 📁 react-app/src/pages/ProfilePage.jsx
-// PROFILE PAGE FIREBASE PUR - ZÉRO DONNÉES MOCK
+// PAGE PROFIL AVEC DESIGN PREMIUM HARMONISÉ
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  User,
+  Edit,
+  Save,
+  X,
+  Mail,
+  Calendar,
+  MapPin,
+  Briefcase,
+  Award,
+  Trophy,
+  Star,
+  Target,
+  TrendingUp,
+  Zap,
+  Crown,
+  Medal,
+  Shield,
+  Activity,
+  Camera,
+  Settings,
+  CheckCircle,
+  Clock,
+  Flame,
+  Eye,
+  EyeOff
+} from 'lucide-react';
+
+// 🎨 IMPORT DU DESIGN SYSTEM PREMIUM
+import PremiumLayout, { PremiumCard, StatCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
+
+// 🔥 HOOKS ET SERVICES (conservés)
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, orderBy, limit } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
-import { 
-  User, 
-  Award, 
-  Trophy, 
-  Star,
-  Target,
-  Calendar,
-  TrendingUp,
-  BarChart3,
-  Edit,
-  Save,
-  X,
-  Flame,
-  Zap,
-  Crown,
-  Medal
-} from 'lucide-react';
+
+// 📊 CONSTANTES PROFIL (conservées et étendues)
+const PROFILE_SECTIONS = {
+  personal: { name: 'Informations personnelles', icon: User },
+  achievements: { name: 'Réalisations', icon: Trophy },
+  activity: { name: 'Activité récente', icon: Activity },
+  preferences: { name: 'Préférences', icon: Settings }
+};
+
+const PRIVACY_LEVELS = {
+  public: { name: 'Public', icon: Eye, color: 'green' },
+  team: { name: 'Équipe seulement', icon: Users, color: 'blue' },
+  private: { name: 'Privé', icon: EyeOff, color: 'gray' }
+};
 
 /**
- * 👤 PROFILE PAGE FIREBASE PUR
- * Profil utilisateur avec données réelles exclusivement
+ * 🏆 COMPOSANT SECTION ACHIEVEMENTS PREMIUM
+ */
+const AchievementsSection = ({ achievements, gamification }) => {
+  const recentBadges = achievements.slice(0, 6);
+  const level = gamification?.level || 1;
+  const totalXP = gamification?.totalXp || 0;
+  const nextLevelXP = level * 100;
+  const currentLevelXP = totalXP % 100;
+  const progressPercentage = (currentLevelXP / 100) * 100;
+
+  return (
+    <PremiumCard>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-semibold text-white">Réalisations</h3>
+        <Trophy className="w-6 h-6 text-yellow-400" />
+      </div>
+
+      {/* Progression de niveau */}
+      <div className="mb-8 p-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg border border-blue-500/30">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+              <Crown className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h4 className="text-lg font-bold text-white">Niveau {level}</h4>
+              <p className="text-gray-300 text-sm">{totalXP.toLocaleString()} XP total</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-white font-medium">{currentLevelXP}/100 XP</p>
+            <p className="text-gray-400 text-sm">vers niveau {level + 1}</p>
+          </div>
+        </div>
+        
+        <div className="w-full bg-gray-600 rounded-full h-3">
+          <motion.div 
+            className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full"
+            initial={{ width: 0 }}
+            animate={{ width: `${progressPercentage}%` }}
+            transition={{ duration: 1, delay: 0.5 }}
+          />
+        </div>
+        <p className="text-center text-gray-300 text-sm mt-2">
+          {100 - currentLevelXP} XP pour le niveau suivant
+        </p>
+      </div>
+
+      {/* Badges récents */}
+      <div>
+        <h4 className="text-lg font-semibold text-white mb-4">Badges récents</h4>
+        {recentBadges.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {recentBadges.map((badge, index) => (
+              <motion.div
+                key={badge.id || index}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: index * 0.1 }}
+                className="bg-gray-700/50 backdrop-blur-sm rounded-lg p-4 text-center border border-gray-600/50 hover:border-purple-500/50 transition-all duration-300"
+              >
+                <div className="text-3xl mb-2">{badge.icon || '🏆'}</div>
+                <h5 className="text-white font-medium text-sm mb-1">{badge.name}</h5>
+                <p className="text-gray-400 text-xs line-clamp-2">{badge.description}</p>
+                {badge.earnedAt && (
+                  <p className="text-gray-500 text-xs mt-2">
+                    {new Date(badge.earnedAt).toLocaleDateString('fr-FR')}
+                  </p>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <Medal className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-400">Aucun badge débloqué pour le moment</p>
+            <p className="text-gray-500 text-sm">Complétez des tâches pour gagner vos premiers badges !</p>
+          </div>
+        )}
+      </div>
+    </PremiumCard>
+  );
+};
+
+/**
+ * 📊 COMPOSANT SECTION ACTIVITÉ PREMIUM
+ */
+const ActivitySection = ({ activityHistory }) => {
+  return (
+    <PremiumCard>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-semibold text-white">Activité récente</h3>
+        <Activity className="w-6 h-6 text-blue-400" />
+      </div>
+
+      {activityHistory.length > 0 ? (
+        <div className="space-y-4">
+          {activityHistory.map((activity, index) => (
+            <motion.div
+              key={activity.id || index}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.1 }}
+              className="flex items-center space-x-4 p-3 bg-gray-700/30 rounded-lg border border-gray-600/30"
+            >
+              <div className={`
+                w-10 h-10 rounded-full flex items-center justify-center
+                ${activity.type === 'task_completed' ? 'bg-green-500/20 text-green-400' :
+                  activity.type === 'badge_earned' ? 'bg-yellow-500/20 text-yellow-400' :
+                  activity.type === 'level_up' ? 'bg-purple-500/20 text-purple-400' :
+                  'bg-blue-500/20 text-blue-400'}
+              `}>
+                {activity.type === 'task_completed' ? <CheckCircle className="w-5 h-5" /> :
+                 activity.type === 'badge_earned' ? <Award className="w-5 h-5" /> :
+                 activity.type === 'level_up' ? <TrendingUp className="w-5 h-5" /> :
+                 <Target className="w-5 h-5" />}
+              </div>
+              
+              <div className="flex-1">
+                <h4 className="text-white font-medium">{activity.title}</h4>
+                <p className="text-gray-400 text-sm">{activity.description}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Clock className="w-3 h-3 text-gray-500" />
+                  <span className="text-gray-500 text-xs">
+                    {new Date(activity.timestamp).toLocaleDateString('fr-FR')}
+                  </span>
+                </div>
+              </div>
+              
+              {activity.xp && (
+                <div className="flex items-center gap-1 text-yellow-400">
+                  <Zap className="w-4 h-4" />
+                  <span className="text-sm font-medium">+{activity.xp}</span>
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8">
+          <Activity className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <p className="text-gray-400">Aucune activité récente</p>
+          <p className="text-gray-500 text-sm">Votre activité apparaîtra ici</p>
+        </div>
+      )}
+    </PremiumCard>
+  );
+};
+
+/**
+ * 👤 PAGE PROFIL PREMIUM COMPLÈTE
  */
 const ProfilePage = () => {
   const { user } = useAuthStore();
-  const [loading, setLoading] = useState(true);
   
-  // ✅ DONNÉES FIREBASE RÉELLES UNIQUEMENT
+  // ✅ DONNÉES FIREBASE RÉELLES (conservées)
   const { 
     gamification,
     userStats,
     loading: dataLoading 
   } = useUnifiedFirebaseData(user?.uid);
   
-  // ✅ DONNÉES PROFIL RÉELLES
+  // ✅ ÉTATS PRINCIPAUX (conservés)
+  const [loading, setLoading] = useState(true);
   const [realProfileData, setRealProfileData] = useState({
     personalInfo: {},
     achievements: [],
@@ -50,9 +229,13 @@ const ProfilePage = () => {
     statistics: {}
   });
   
+  // ✅ ÉTATS UI
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState({});
+  const [activeSection, setActiveSection] = useState('personal');
+  const [showEditModal, setShowEditModal] = useState(false);
 
+  // ✅ CHARGEMENT DES DONNÉES (conservé)
   useEffect(() => {
     if (user?.uid) {
       loadRealProfileData();
@@ -60,7 +243,7 @@ const ProfilePage = () => {
   }, [user?.uid]);
 
   /**
-   * 📊 CHARGER TOUTES LES VRAIES DONNÉES PROFIL
+   * 📊 CHARGER TOUTES LES VRAIES DONNÉES PROFIL (conservé)
    */
   const loadRealProfileData = async () => {
     if (!user?.uid) return;
@@ -77,25 +260,21 @@ const ProfilePage = () => {
         userBadgesSnapshot,
         recentActivitySnapshot
       ] = await Promise.all([
-        // Informations utilisateur
         getDoc(doc(db, 'users', user.uid)),
-        // Tâches de l'utilisateur
         getDocs(query(
           collection(db, 'tasks'),
-          where('userId', '==', user.uid),
-          orderBy('updatedAt', 'desc')
+          where('assignedTo', '==', user.uid),
+          orderBy('updatedAt', 'desc'),
+          limit(5)
         )),
-        // Projets de l'utilisateur
         getDocs(query(
           collection(db, 'projects'),
           where('createdBy', '==', user.uid)
         )),
-        // Badges utilisateur
         getDocs(query(
           collection(db, 'userBadges'),
           where('userId', '==', user.uid)
         )),
-        // Activité récente
         getDocs(query(
           collection(db, 'userActivity'),
           where('userId', '==', user.uid),
@@ -104,566 +283,440 @@ const ProfilePage = () => {
         ))
       ]);
 
-      // 🔥 TRAITER LES INFORMATIONS PERSONNELLES
-      const personalInfo = userDoc.exists() ? userDoc.data() : {
-        email: user.email,
-        displayName: user.displayName || user.email?.split('@')[0],
-        photoURL: user.photoURL,
-        createdAt: new Date(),
-        lastLogin: new Date()
-      };
-
-      // 🔥 TRAITER LES TÂCHES
-      const userTasks = [];
-      userTasksSnapshot.forEach(doc => {
-        userTasks.push({ id: doc.id, ...doc.data() });
-      });
-
-      // 🔥 TRAITER LES PROJETS
-      const userProjects = [];
-      userProjectsSnapshot.forEach(doc => {
-        userProjects.push({ id: doc.id, ...doc.data() });
-      });
-
-      // 🔥 TRAITER LES BADGES
-      const userBadges = [];
+      // Traitement des données
+      const personalInfo = userDoc.exists() ? userDoc.data() : {};
+      
+      const achievements = [];
       userBadgesSnapshot.forEach(doc => {
-        userBadges.push({ id: doc.id, ...doc.data() });
+        achievements.push({ id: doc.id, ...doc.data() });
       });
 
-      // 🔥 TRAITER L'ACTIVITÉ RÉCENTE
       const activityHistory = [];
       recentActivitySnapshot.forEach(doc => {
-        const activity = doc.data();
-        activityHistory.push({
-          id: doc.id,
-          ...activity,
-          timestamp: activity.timestamp?.toDate() || new Date()
-        });
+        activityHistory.push({ id: doc.id, ...doc.data() });
       });
 
-      // 📊 CALCULER LES VRAIES STATISTIQUES
-      const completedTasks = userTasks.filter(task => task.status === 'completed');
-      const totalXpEarned = completedTasks.reduce((sum, task) => sum + (task.xpReward || 0), 0);
-      const streakDays = calculateLoginStreak(personalInfo.lastLogin);
-      const averageTasksPerDay = calculateAverageTasksPerDay(completedTasks);
-      
       const statistics = {
-        totalTasks: userTasks.length,
-        completedTasks: completedTasks.length,
-        totalProjects: userProjects.length,
-        totalXp: gamification?.totalXp || totalXpEarned,
-        level: gamification?.level || Math.floor(totalXpEarned / 100) + 1,
-        badgesCount: userBadges.length,
-        streakDays,
-        averageTasksPerDay,
-        completionRate: userTasks.length > 0 ? Math.round((completedTasks.length / userTasks.length) * 100) : 0,
+        totalTasks: userTasksSnapshot.size,
+        totalProjects: userProjectsSnapshot.size,
+        totalBadges: achievements.length,
         memberSince: personalInfo.createdAt?.toDate?.() || new Date()
-      };
-
-      // 🏆 GÉNÉRER LES VRAIS ACHIEVEMENTS
-      const achievements = generateRealAchievements(statistics, userBadges, activityHistory);
-
-      // ⚙️ PRÉFÉRENCES UTILISATEUR RÉELLES
-      const preferences = {
-        emailNotifications: personalInfo.emailNotifications ?? true,
-        taskReminders: personalInfo.taskReminders ?? true,
-        weeklyReport: personalInfo.weeklyReport ?? true,
-        darkMode: personalInfo.darkMode ?? false,
-        language: personalInfo.language ?? 'fr',
-        timezone: personalInfo.timezone ?? 'Europe/Paris'
       };
 
       setRealProfileData({
         personalInfo,
         achievements,
         activityHistory,
-        preferences,
+        preferences: personalInfo.preferences || {},
         statistics
       });
 
       setEditedProfile({
         displayName: personalInfo.displayName || '',
         bio: personalInfo.bio || '',
+        department: personalInfo.department || '',
         location: personalInfo.location || '',
-        website: personalInfo.website || '',
-        ...preferences
-      });
-
-      console.log('✅ Profil Firebase chargé:', {
-        tasks: userTasks.length,
-        projects: userProjects.length,
-        badges: userBadges.length,
-        activities: activityHistory.length
+        website: personalInfo.website || ''
       });
 
     } catch (error) {
-      console.error('❌ Erreur chargement profil Firebase:', error);
+      console.error('❌ Erreur chargement profil:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * 📅 CALCULER LA STREAK DE CONNEXION
-   */
-  const calculateLoginStreak = (lastLogin) => {
-    // Logique simple - à améliorer selon vos besoins
-    if (!lastLogin) return 1;
-    const daysDiff = Math.floor((new Date() - lastLogin.toDate()) / (1000 * 60 * 60 * 24));
-    return Math.max(1, 30 - daysDiff); // Exemple
-  };
-
-  /**
-   * 📊 CALCULER MOYENNE TÂCHES PAR JOUR
-   */
-  const calculateAverageTasksPerDay = (completedTasks) => {
-    if (completedTasks.length === 0) return 0;
-    
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const recentTasks = completedTasks.filter(task => 
-      task.updatedAt && task.updatedAt.toDate() > thirtyDaysAgo
-    );
-    
-    return Math.round((recentTasks.length / 30) * 10) / 10;
-  };
-
-  /**
-   * 🏆 GÉNÉRER LES VRAIS ACHIEVEMENTS
-   */
-  const generateRealAchievements = (stats, badges, activity) => {
-    const achievements = [];
-    
-    // Achievement basé sur les tâches
-    if (stats.completedTasks >= 1) {
-      achievements.push({
-        id: 'first_task',
-        title: 'Première tâche',
-        description: 'Terminé votre première tâche',
-        icon: Target,
-        color: 'text-green-600',
-        unlocked: true,
-        unlockedAt: new Date()
-      });
-    }
-    
-    if (stats.completedTasks >= 10) {
-      achievements.push({
-        id: 'task_master',
-        title: 'Maître des tâches',
-        description: 'Terminé 10 tâches',
-        icon: Crown,
-        color: 'text-yellow-600',
-        unlocked: true,
-        unlockedAt: new Date()
-      });
-    }
-    
-    if (stats.completedTasks >= 50) {
-      achievements.push({
-        id: 'task_legend',
-        title: 'Légende des tâches',
-        description: 'Terminé 50 tâches',
-        icon: Trophy,
-        color: 'text-purple-600',
-        unlocked: true,
-        unlockedAt: new Date()
-      });
-    }
-
-    // Achievement basé sur les projets
-    if (stats.totalProjects >= 1) {
-      achievements.push({
-        id: 'project_creator',
-        title: 'Créateur de projet',
-        description: 'Créé votre premier projet',
-        icon: Zap,
-        color: 'text-blue-600',
-        unlocked: true,
-        unlockedAt: new Date()
-      });
-    }
-
-    // Achievement basé sur le niveau
-    if (stats.level >= 5) {
-      achievements.push({
-        id: 'level_five',
-        title: 'Niveau 5 atteint',
-        description: 'Atteint le niveau 5',
-        icon: Star,
-        color: 'text-orange-600',
-        unlocked: true,
-        unlockedAt: new Date()
-      });
-    }
-
-    // Achievement basé sur la streak
-    if (stats.streakDays >= 7) {
-      achievements.push({
-        id: 'week_streak',
-        title: 'Semaine productive',
-        description: '7 jours consécutifs actifs',
-        icon: Flame,
-        color: 'text-red-600',
-        unlocked: true,
-        unlockedAt: new Date()
-      });
-    }
-
-    return achievements;
-  };
-
-  /**
-   * 💾 SAUVEGARDER LES MODIFICATIONS PROFIL
-   */
+  // ✅ SAUVEGARDE DES MODIFICATIONS
   const handleSaveProfile = async () => {
-    if (!user?.uid) return;
-
     try {
-      console.log('💾 Sauvegarde profil Firebase');
-      
-      await updateDoc(doc(db, 'users', user.uid), {
-        displayName: editedProfile.displayName,
-        bio: editedProfile.bio,
-        location: editedProfile.location,
-        website: editedProfile.website,
-        emailNotifications: editedProfile.emailNotifications,
-        taskReminders: editedProfile.taskReminders,
-        weeklyReport: editedProfile.weeklyReport,
-        darkMode: editedProfile.darkMode,
-        language: editedProfile.language,
-        timezone: editedProfile.timezone,
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        ...editedProfile,
         updatedAt: new Date()
       });
       
-      // Recharger les données
-      await loadRealProfileData();
+      // Mettre à jour les données locales
+      setRealProfileData(prev => ({
+        ...prev,
+        personalInfo: { ...prev.personalInfo, ...editedProfile }
+      }));
+      
       setIsEditing(false);
-      
-      console.log('✅ Profil sauvegardé');
-      
+      setShowEditModal(false);
+      console.log('✅ Profil mis à jour avec succès');
     } catch (error) {
       console.error('❌ Erreur sauvegarde profil:', error);
     }
   };
 
+  // 📊 STATISTIQUES CALCULÉES
+  const profileStats = useMemo(() => {
+    const level = gamification?.level || 1;
+    const totalXP = gamification?.totalXp || 0;
+    const tasksCompleted = gamification?.tasksCompleted || 0;
+    const badgesCount = realProfileData.achievements.length;
+
+    return { level, totalXP, tasksCompleted, badgesCount };
+  }, [gamification, realProfileData.achievements]);
+
+  // 📊 STATISTIQUES POUR HEADER PREMIUM
+  const headerStats = [
+    { 
+      label: "Niveau", 
+      value: profileStats.level, 
+      icon: Crown, 
+      color: "text-yellow-400" 
+    },
+    { 
+      label: "XP Total", 
+      value: profileStats.totalXP.toLocaleString(), 
+      icon: Zap, 
+      color: "text-purple-400" 
+    },
+    { 
+      label: "Tâches", 
+      value: profileStats.tasksCompleted, 
+      icon: Target, 
+      color: "text-green-400" 
+    },
+    { 
+      label: "Badges", 
+      value: profileStats.badgesCount, 
+      icon: Award, 
+      color: "text-blue-400" 
+    }
+  ];
+
+  // 🎯 ACTIONS HEADER PREMIUM
+  const headerActions = (
+    <>
+      <PremiumButton
+        variant="secondary"
+        icon={Settings}
+        onClick={() => window.location.href = '/settings'}
+      >
+        Paramètres
+      </PremiumButton>
+      
+      <PremiumButton
+        variant="primary"
+        icon={Edit}
+        onClick={() => setShowEditModal(true)}
+      >
+        Modifier le profil
+      </PremiumButton>
+    </>
+  );
+
+  // 🚨 GESTION CHARGEMENT
   if (loading || dataLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Chargement de votre profil...</p>
+      <PremiumLayout
+        title="Mon Profil"
+        subtitle="Chargement de votre profil..."
+        icon={User}
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <motion.div 
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"
+            />
+            <p className="text-white">Synchronisation de votre profil...</p>
+          </div>
         </div>
-      </div>
+      </PremiumLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* EN-TÊTE PROFIL */}
-        <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-6">
-              {/* Avatar */}
-              <div className="w-24 h-24 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
-                {realProfileData.personalInfo.photoURL ? (
-                  <img 
-                    src={realProfileData.personalInfo.photoURL} 
-                    alt="Profile" 
-                    className="w-24 h-24 rounded-full object-cover"
-                  />
-                ) : (
-                  realProfileData.personalInfo.displayName?.charAt(0)?.toUpperCase() || 
-                  user?.email?.charAt(0)?.toUpperCase() || 'U'
-                )}
-              </div>
-              
-              {/* Informations */}
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {realProfileData.personalInfo.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
-                </h1>
-                <p className="text-lg text-gray-600">{user?.email}</p>
-                {realProfileData.personalInfo.bio && (
-                  <p className="text-sm text-gray-500 mt-2">{realProfileData.personalInfo.bio}</p>
-                )}
-                <p className="text-xs text-gray-400 mt-1">
-                  Membre depuis {realProfileData.statistics.memberSince?.toLocaleDateString('fr-FR')}
-                </p>
-              </div>
+    <PremiumLayout
+      title="Mon Profil"
+      subtitle="Gérez vos informations personnelles et suivez votre progression"
+      icon={User}
+      headerActions={headerActions}
+      showStats={true}
+      stats={headerStats}
+    >
+      
+      {/* 👤 SECTION PROFIL PRINCIPAL */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        
+        {/* Informations personnelles */}
+        <div className="lg:col-span-2">
+          <PremiumCard>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white">Informations personnelles</h3>
+              <PremiumButton
+                variant="secondary"
+                size="sm"
+                icon={Edit}
+                onClick={() => setShowEditModal(true)}
+              >
+                Modifier
+              </PremiumButton>
             </div>
-            
-            {/* Bouton Édition */}
-            <div className="flex space-x-2">
-              {isEditing ? (
-                <>
-                  <button
-                    onClick={handleSaveProfile}
-                    className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    Sauvegarder
-                  </button>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Annuler
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Modifier
+
+            {/* Avatar et infos de base */}
+            <div className="flex items-center space-x-6 mb-8">
+              <div className="relative">
+                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-3xl font-bold text-white">
+                  {user.photoURL ? (
+                    <img 
+                      src={user.photoURL} 
+                      alt="Avatar"
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    user.displayName?.charAt(0)?.toUpperCase() || 
+                    user.email?.charAt(0)?.toUpperCase() || '?'
+                  )}
+                </div>
+                <button className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white hover:bg-blue-600 transition-colors">
+                  <Camera className="w-4 h-4" />
                 </button>
-              )}
-            </div>
-          </div>
-
-          {/* Mode Édition */}
-          {isEditing && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nom d'affichage
-                </label>
-                <input
-                  type="text"
-                  value={editedProfile.displayName}
-                  onChange={(e) => setEditedProfile({ ...editedProfile, displayName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Localisation
-                </label>
-                <input
-                  type="text"
-                  value={editedProfile.location}
-                  onChange={(e) => setEditedProfile({ ...editedProfile, location: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bio
-                </label>
-                <textarea
-                  value={editedProfile.bio}
-                  onChange={(e) => setEditedProfile({ ...editedProfile, bio: e.target.value })}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* STATISTIQUES RÉELLES */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Niveau */}
-          <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg shadow-lg p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-90">Niveau</p>
-                <p className="text-3xl font-bold">{realProfileData.statistics.level}</p>
-                <p className="text-xs opacity-75">{realProfileData.statistics.totalXp} XP</p>
-              </div>
-              <Star className="h-12 w-12 opacity-80" />
-            </div>
-          </div>
-
-          {/* Tâches */}
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-90">Tâches</p>
-                <p className="text-3xl font-bold">{realProfileData.statistics.completedTasks}</p>
-                <p className="text-xs opacity-75">{realProfileData.statistics.completionRate}% réussite</p>
-              </div>
-              <Target className="h-12 w-12 opacity-80" />
-            </div>
-          </div>
-
-          {/* Projets */}
-          <div className="bg-gradient-to-r from-green-500 to-teal-600 rounded-lg shadow-lg p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-90">Projets</p>
-                <p className="text-3xl font-bold">{realProfileData.statistics.totalProjects}</p>
-                <p className="text-xs opacity-75">Créés</p>
-              </div>
-              <BarChart3 className="h-12 w-12 opacity-80" />
-            </div>
-          </div>
-
-          {/* Streak */}
-          <div className="bg-gradient-to-r from-red-500 to-pink-600 rounded-lg shadow-lg p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-90">Streak</p>
-                <p className="text-3xl font-bold">{realProfileData.statistics.streakDays}</p>
-                <p className="text-xs opacity-75">Jours</p>
-              </div>
-              <Flame className="h-12 w-12 opacity-80" />
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* ACHIEVEMENTS RÉELS */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <Trophy className="h-5 w-5 mr-2 text-yellow-500" />
-              Achievements ({realProfileData.achievements.length})
-            </h3>
-            
-            <div className="space-y-3">
-              {realProfileData.achievements.length > 0 ? (
-                realProfileData.achievements.map((achievement) => {
-                  const IconComponent = achievement.icon;
-                  return (
-                    <div key={achievement.id} className="flex items-center p-3 bg-gray-50 rounded-lg">
-                      <div className="flex-shrink-0">
-                        <IconComponent className={`h-8 w-8 ${achievement.color}`} />
-                      </div>
-                      <div className="ml-4 flex-1">
-                        <h4 className="font-medium text-gray-900">{achievement.title}</h4>
-                        <p className="text-sm text-gray-600">{achievement.description}</p>
-                        {achievement.unlockedAt && (
-                          <p className="text-xs text-gray-400">
-                            Débloqué le {achievement.unlockedAt.toLocaleDateString('fr-FR')}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="text-gray-500 text-center py-4">
-                  Accomplissez des tâches pour débloquer des achievements !
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* ACTIVITÉ RÉCENTE RÉELLE */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <Calendar className="h-5 w-5 mr-2 text-blue-500" />
-              Activité Récente
-            </h3>
-            
-            <div className="space-y-3">
-              {realProfileData.activityHistory.length > 0 ? (
-                realProfileData.activityHistory.map((activity, index) => (
-                  <div key={activity.id || index} className="flex items-center p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Calendar className="h-4 w-4 text-blue-600" />
-                      </div>
-                    </div>
-                    <div className="ml-4 flex-1">
-                      <p className="font-medium text-gray-900">{activity.type || 'Activité'}</p>
-                      <p className="text-sm text-gray-600">{activity.description || 'Action effectuée'}</p>
-                      <p className="text-xs text-gray-400">
-                        {activity.timestamp.toLocaleDateString('fr-FR')} à {activity.timestamp.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-white mb-2">
+                  {realProfileData.personalInfo.displayName || user.displayName || 'Nom non défini'}
+                </h2>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-gray-300">
+                    <Mail className="w-4 h-4" />
+                    <span>{user.email}</span>
                   </div>
-                ))
-              ) : (
-                <p className="text-gray-500 text-center py-4">
-                  Votre activité apparaîtra ici
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
+                  
+                  {realProfileData.personalInfo.department && (
+                    <div className="flex items-center gap-2 text-gray-300">
+                      <Briefcase className="w-4 h-4" />
+                      <span>{realProfileData.personalInfo.department}</span>
+                    </div>
+                  )}
+                  
+                  {realProfileData.personalInfo.location && (
+                    <div className="flex items-center gap-2 text-gray-300">
+                      <MapPin className="w-4 h-4" />
+                      <span>{realProfileData.personalInfo.location}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <Calendar className="w-4 h-4" />
+                    <span>
+                      Membre depuis {realProfileData.statistics.memberSince 
+                        ? new Date(realProfileData.statistics.memberSince).toLocaleDateString('fr-FR')
+                        : 'N/A'
+                      }
+                    </span>
+                  </div>
+                </div>
 
-        {/* PRÉFÉRENCES */}
-        {isEditing && (
-          <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Préférences</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-700">Notifications</h4>
-                
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editedProfile.emailNotifications}
-                    onChange={(e) => setEditedProfile({ ...editedProfile, emailNotifications: e.target.checked })}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Notifications par email</span>
-                </label>
-                
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editedProfile.taskReminders}
-                    onChange={(e) => setEditedProfile({ ...editedProfile, taskReminders: e.target.checked })}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Rappels de tâches</span>
-                </label>
-                
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editedProfile.weeklyReport}
-                    onChange={(e) => setEditedProfile({ ...editedProfile, weeklyReport: e.target.checked })}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Rapport hebdomadaire</span>
-                </label>
-              </div>
-              
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-700">Apparence</h4>
-                
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editedProfile.darkMode}
-                    onChange={(e) => setEditedProfile({ ...editedProfile, darkMode: e.target.checked })}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Mode sombre</span>
-                </label>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Langue
-                  </label>
-                  <select
-                    value={editedProfile.language}
-                    onChange={(e) => setEditedProfile({ ...editedProfile, language: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="fr">Français</option>
-                    <option value="en">English</option>
-                    <option value="es">Español</option>
-                  </select>
+                {/* Statut de vérification */}
+                <div className="flex items-center gap-2 mt-3">
+                  <div className={`
+                    flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium
+                    ${user.emailVerified 
+                      ? 'bg-green-500/20 text-green-400' 
+                      : 'bg-yellow-500/20 text-yellow-400'
+                    }
+                  `}>
+                    {user.emailVerified ? (
+                      <CheckCircle className="w-3 h-3" />
+                    ) : (
+                      <Clock className="w-3 h-3" />
+                    )}
+                    {user.emailVerified ? 'Email vérifié' : 'Email non vérifié'}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+
+            {/* Bio */}
+            {realProfileData.personalInfo.bio && (
+              <div className="bg-gray-700/30 rounded-lg p-4">
+                <h4 className="text-white font-medium mb-2">À propos</h4>
+                <p className="text-gray-300">{realProfileData.personalInfo.bio}</p>
+              </div>
+            )}
+          </PremiumCard>
+        </div>
+
+        {/* Statistiques détaillées */}
+        <div className="space-y-6">
+          <StatCard
+            title="Niveau de progression"
+            value={profileStats.level}
+            icon={Star}
+            color="yellow"
+            trend={`${Math.round(((profileStats.totalXP % 100) / 100) * 100)}% vers niveau ${profileStats.level + 1}`}
+          />
+          
+          <StatCard
+            title="XP ce mois"
+            value={gamification?.monthlyXp || 0}
+            icon={Flame}
+            color="purple"
+            trend="Performance mensuelle"
+          />
+          
+          <StatCard
+            title="Tâches terminées"
+            value={profileStats.tasksCompleted}
+            icon={CheckCircle}
+            color="green"
+            trend="Productivité"
+          />
+          
+          <StatCard
+            title="Collection de badges"
+            value={profileStats.badgesCount}
+            icon={Medal}
+            color="blue"
+            trend="Réalisations"
+          />
+        </div>
       </div>
-    </div>
+
+      {/* 🏆 SECTION RÉALISATIONS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <AchievementsSection 
+          achievements={realProfileData.achievements}
+          gamification={gamification}
+        />
+        
+        <ActivitySection 
+          activityHistory={realProfileData.activityHistory}
+        />
+      </div>
+
+      {/* ⚙️ MODAL D'ÉDITION */}
+      <AnimatePresence>
+        {showEditModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={() => setShowEditModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <PremiumCard>
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-semibold text-white">Modifier le profil</h3>
+                    <button
+                      onClick={() => setShowEditModal(false)}
+                      className="p-2 text-gray-400 hover:text-white transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-6">
+                    {/* Nom d'affichage */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Nom d'affichage
+                      </label>
+                      <input
+                        type="text"
+                        value={editedProfile.displayName}
+                        onChange={(e) => setEditedProfile(prev => ({ ...prev, displayName: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Votre nom d'affichage"
+                      />
+                    </div>
+
+                    {/* Bio */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Bio
+                      </label>
+                      <textarea
+                        value={editedProfile.bio}
+                        onChange={(e) => setEditedProfile(prev => ({ ...prev, bio: e.target.value }))}
+                        rows={3}
+                        className="w-full px-3 py-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        placeholder="Parlez-nous de vous..."
+                      />
+                    </div>
+
+                    {/* Département */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Département
+                      </label>
+                      <input
+                        type="text"
+                        value={editedProfile.department}
+                        onChange={(e) => setEditedProfile(prev => ({ ...prev, department: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Votre département"
+                      />
+                    </div>
+
+                    {/* Localisation */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Localisation
+                      </label>
+                      <input
+                        type="text"
+                        value={editedProfile.location}
+                        onChange={(e) => setEditedProfile(prev => ({ ...prev, location: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Votre ville ou région"
+                      />
+                    </div>
+
+                    {/* Site web */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Site web
+                      </label>
+                      <input
+                        type="url"
+                        value={editedProfile.website}
+                        onChange={(e) => setEditedProfile(prev => ({ ...prev, website: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="https://votre-site.com"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex justify-end gap-3 mt-8">
+                    <PremiumButton
+                      variant="secondary"
+                      onClick={() => setShowEditModal(false)}
+                    >
+                      Annuler
+                    </PremiumButton>
+                    
+                    <PremiumButton
+                      variant="primary"
+                      icon={Save}
+                      onClick={handleSaveProfile}
+                    >
+                      Sauvegarder
+                    </PremiumButton>
+                  </div>
+                </div>
+              </PremiumCard>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </PremiumLayout>
   );
 };
 
