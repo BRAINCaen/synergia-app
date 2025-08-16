@@ -8,9 +8,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AnimatePresence } from 'framer-motion';
 
 // ==========================================
-// 🚨 CORRECTIF D'URGENCE UNIFIÉ (USERS + ROLES)
+// 🚨 CORRECTIFS D'URGENCE
 // ==========================================
 import './core/emergencyFixUnified.js';
+import './core/arrayMapFix.js';
 
 // ==========================================
 // 🔧 STORES ET SERVICES CORE (seulement les essentiels)
