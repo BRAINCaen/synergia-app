@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/Dashboard.jsx
-// DASHBOARD AVEC DESIGN PREMIUM HARMONISÉ
+// DASHBOARD AVEC DESIGN PREMIUM HARMONISÉ - VERSION CORRIGÉE
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -21,12 +21,11 @@ import {
 // 🎨 IMPORT DU DESIGN SYSTEM PREMIUM
 import PremiumLayout, { PremiumCard, StatCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
 
-// 🔥 HOOKS ET SERVICES (conservés)
+// 🔥 HOOKS ET SERVICES
 import { useDashboardSync } from '../shared/hooks/useDashboardSync.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// 📊 COMPOSANTS (conservés)
-import StatsCard from '../components/dashboard/StatsCard.jsx';
+// 📊 COMPOSANTS
 import ActivityFeed from '../components/dashboard/ActivityFeed.jsx';
 import QuickActions from '../components/dashboard/QuickActions.jsx';
 
@@ -38,33 +37,35 @@ const Dashboard = () => {
   const [selectedTimeRange, setSelectedTimeRange] = useState('week');
   const [refreshing, setRefreshing] = useState(false);
   
-  // 🔥 HOOK SYNC DASHBOARD
+  // 🔥 HOOK SYNC DASHBOARD - CORRIGÉ
   const {
     dashboardData,
-    isLoading,
+    loading,
     error,
     lastUpdate,
-    userStats,
-    derivedStats,
-    refreshDashboard
+    forceSync,
+    topUsers,
+    userProgress,
+    teamStats,
+    recentActivities
   } = useDashboardSync();
 
-  // 🔄 FONCTION RAFRAÎCHIR
+  // 🔄 FONCTION RAFRAÎCHIR - CORRIGÉE
   const handleRefresh = useCallback(async () => {
     if (refreshing) return;
     
     setRefreshing(true);
     try {
-      await refreshDashboard();
+      await forceSync();
       console.log('✅ [DASHBOARD] Actualisation réussie');
     } catch (error) {
       console.error('❌ [DASHBOARD] Erreur actualisation:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshDashboard, refreshing]);
+  }, [forceSync, refreshing]);
 
-  // 🎮 ACTIONS GAMIFICATION (conservées)
+  // 🎮 ACTIONS GAMIFICATION
   const addXP = (amount) => {
     console.log(`🎮 [DASHBOARD] Ajout XP: ${amount}`);
   };
@@ -77,23 +78,23 @@ const Dashboard = () => {
     console.log('🎯 [DASHBOARD] Connexion quotidienne');
   };
 
-  // 📊 STATISTIQUES POUR HEADER PREMIUM
+  // 📊 STATISTIQUES POUR HEADER PREMIUM - CORRIGÉES
   const headerStats = [
     { 
       label: "Niveau", 
-      value: derivedStats?.currentLevel || 1, 
+      value: userProgress?.level || 1, 
       icon: Award, 
       color: "text-blue-400" 
     },
     { 
       label: "XP Total", 
-      value: derivedStats?.totalXP || 0, 
+      value: userProgress?.totalXp || 0, 
       icon: Zap, 
       color: "text-purple-400" 
     },
     { 
       label: "Tâches", 
-      value: userStats?.tasksCompleted || 0, 
+      value: userProgress?.tasksCompleted || 0, 
       icon: Target, 
       color: "text-green-400" 
     },
@@ -132,8 +133,69 @@ const Dashboard = () => {
     </>
   );
 
+  // 📊 STATISTIQUES PRINCIPALES - CORRIGÉES
+  const mainStats = [
+    {
+      id: 'total-users',
+      title: 'Utilisateurs Total',
+      value: teamStats?.totalUsers || 0,
+      icon: Users,
+      color: 'blue',
+      trend: '+12% ce mois'
+    },
+    {
+      id: 'avg-xp',
+      title: 'XP Moyen',
+      value: teamStats?.averageXp || 0,
+      icon: Zap,
+      color: 'purple',
+      trend: '+8% cette semaine'
+    },
+    {
+      id: 'total-tasks',
+      title: 'Tâches Total',
+      value: teamStats?.totalTasks || 0,
+      icon: Target,
+      color: 'green',
+      trend: '+15% ce mois'
+    },
+    {
+      id: 'active-badges',
+      title: 'Badges Actifs',
+      value: teamStats?.activeBadges || 0,
+      icon: Award,
+      color: 'yellow',
+      trend: '+5% cette semaine'
+    }
+  ];
+
+  // 🎯 OBJECTIFS FICTIFS POUR DEMO - À REMPLACER PAR VRAIES DONNÉES
+  const demoGoals = [
+    {
+      id: 'weekly-xp',
+      title: 'XP Hebdomadaire',
+      current: userProgress?.weeklyXp || 0,
+      target: 500,
+      color: 'from-blue-500 to-blue-600'
+    },
+    {
+      id: 'monthly-tasks',
+      title: 'Tâches Mensuelles',
+      current: userProgress?.tasksCompleted || 0,
+      target: 20,
+      color: 'from-green-500 to-green-600'
+    },
+    {
+      id: 'level-progress',
+      title: 'Progression de Niveau',
+      current: (userProgress?.totalXp || 0) % 100,
+      target: 100,
+      color: 'from-purple-500 to-purple-600'
+    }
+  ];
+
   // 🚨 GESTION CHARGEMENT
-  if (isLoading) {
+  if (loading) {
     return (
       <PremiumLayout
         title="Dashboard"
@@ -188,16 +250,14 @@ const Dashboard = () => {
       
       {/* 📈 STATISTIQUES PRINCIPALES PREMIUM */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {dashboardData.stats.map((stat) => (
+        {mainStats.map((stat) => (
           <StatCard
             key={stat.id}
             title={stat.title}
             value={stat.value}
             icon={stat.icon}
-            color={stat.color === 'text-blue-600' ? 'blue' : 
-                   stat.color === 'text-green-600' ? 'green' :
-                   stat.color === 'text-purple-600' ? 'purple' : 'yellow'}
-            trend={stat.change}
+            color={stat.color}
+            trend={stat.trend}
             className="transform hover:scale-105 transition-all duration-300"
           />
         ))}
@@ -216,7 +276,7 @@ const Dashboard = () => {
             
             {/* 🎯 OBJECTIFS PREMIUM */}
             <div className="space-y-4">
-              {dashboardData.goals.map((goal) => (
+              {demoGoals.map((goal) => (
                 <motion.div 
                   key={goal.id} 
                   className="bg-gray-700/50 backdrop-blur-sm rounded-lg p-4 border border-gray-600/50"
@@ -231,12 +291,7 @@ const Dashboard = () => {
                   </div>
                   <div className="w-full bg-gray-600 rounded-full h-3">
                     <motion.div
-                      className={`h-3 rounded-full bg-gradient-to-r ${
-                        goal.color === 'bg-blue-500' ? 'from-blue-500 to-blue-600' :
-                        goal.color === 'bg-green-500' ? 'from-green-500 to-green-600' :
-                        goal.color === 'bg-purple-500' ? 'from-purple-500 to-purple-600' :
-                        'from-yellow-500 to-yellow-600'
-                      }`}
+                      className={`h-3 rounded-full bg-gradient-to-r ${goal.color}`}
                       initial={{ width: 0 }}
                       animate={{ 
                         width: `${Math.min(100, (goal.current / goal.target) * 100)}%`
@@ -262,8 +317,8 @@ const Dashboard = () => {
               onAddXP={addXP}
               onCompleteTask={completeTask}
               onDailyLogin={dailyLogin}
-              userLevel={derivedStats?.currentLevel || 1}
-              userXP={derivedStats?.currentXP || 0}
+              userLevel={userProgress?.level || 1}
+              userXP={userProgress?.totalXp || 0}
             />
           </PremiumCard>
         </div>
@@ -277,13 +332,13 @@ const Dashboard = () => {
         </div>
         
         <ActivityFeed 
-          activities={dashboardData.activities}
-          loading={isLoading}
+          activities={recentActivities || []}
+          loading={loading}
         />
       </PremiumCard>
 
       {/* 👥 TOP UTILISATEURS PREMIUM */}
-      {dashboardData.topUsers && dashboardData.topUsers.length > 0 && (
+      {topUsers && topUsers.length > 0 && (
         <PremiumCard className="mt-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-white">Top Équipe</h2>
@@ -291,7 +346,7 @@ const Dashboard = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {dashboardData.topUsers.slice(0, 6).map((topUser, index) => (
+            {topUsers.slice(0, 6).map((topUser, index) => (
               <motion.div
                 key={topUser.uid}
                 initial={{ opacity: 0, y: 20 }}
@@ -336,9 +391,10 @@ const Dashboard = () => {
               <p>🆔 Utilisateur: {user?.uid}</p>
               <p>📧 Email: {user?.email}</p>
               <p>🕒 Dernière sync: {lastUpdate?.toLocaleTimeString('fr-FR')}</p>
-              <p>📊 Stats chargées: {dashboardData.stats?.length || 0}</p>
-              <p>🎯 Objectifs: {dashboardData.goals?.length || 0}</p>
-              <p>👥 Top users: {dashboardData.topUsers?.length || 0}</p>
+              <p>📊 Stats principales: {mainStats?.length || 0}</p>
+              <p>🎯 Objectifs: {demoGoals?.length || 0}</p>
+              <p>👥 Top users: {topUsers?.length || 0}</p>
+              <p>📈 User Progress: {JSON.stringify(userProgress, null, 2)}</p>
             </div>
           </details>
         </PremiumCard>
