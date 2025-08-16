@@ -64,11 +64,6 @@ import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import AdminAnalyticsPageStandalone from './pages/AdminAnalyticsPage.jsx';
 
 // ==========================================
-// 🎨 LAYOUTS
-// ==========================================
-import LayoutWrapper from './shared/layouts/LayoutWrapper.jsx';
-
-// ==========================================
 // 🧠 NAVIGATION INTELLIGENTE
 // ==========================================
 import Navigation from './shared/components/Navigation.jsx';
@@ -157,12 +152,11 @@ const App = () => {
   return (
     <Router>
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <LayoutWrapper>
-          <Navigation />
-          
-          <main className="flex-1 p-6">
-            <AnimatePresence mode="wait">
-              <Routes>
+        <Navigation />
+        
+        <main className="flex-1 p-6">
+          <AnimatePresence mode="wait">
+            <Routes>
                 {/* 🏠 Pages principales */}
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
@@ -199,13 +193,12 @@ const App = () => {
               </Routes>
             </AnimatePresence>
           </main>
-        </LayoutWrapper>
-      </div>
-    </Router>
-  );
-};
+        </div>
+      </Router>
+    );
+  };
 
-// Exposer des fonctions debug utiles
+  // Exposer des fonctions debug utiles
 if (typeof window !== 'undefined') {
   window.forceReload = () => {
     console.log('🔄 Rechargement forcé...');
