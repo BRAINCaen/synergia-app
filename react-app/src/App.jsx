@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APP PRINCIPAL AVEC CORRECTIF D'URGENCE USERS
+// APP PRINCIPAL VERSION STABLE D'URGENCE
 // ==========================================
 
 import React, { useEffect } from 'react';
@@ -8,20 +8,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AnimatePresence } from 'framer-motion';
 
 // ==========================================
-// 🚨 CORRECTIF D'URGENCE FIRST!
-// ==========================================
-import './core/emergencyFix.js';
-
-// ==========================================
-// 🔧 STORES ET SERVICES CORE
+// 🔧 STORES ET SERVICES CORE (seulement les essentiels)
 // ==========================================
 import { useAuthStore, initializeAuthStore } from './shared/stores/authStore.js';
-import userResolverService from './core/services/userResolverService.js';
-import weeklyRecurrenceService from './core/services/weeklyRecurrenceService.js';
-import recurrenceSchedulerService from './core/services/recurrenceSchedulerService.js';
 
 // ==========================================
-// 🎭 PAGES PRINCIPALES - CHEMINS CORRIGÉS
+// 🎭 PAGES PRINCIPALES (imports sécurisés)
 // ==========================================
 import LoginPage from './pages/Login.jsx';
 import DashboardPage from './pages/Dashboard.jsx';
@@ -31,106 +23,101 @@ import TeamPage from './pages/TeamPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 
 // ==========================================
-// 🏆 PAGES GAMIFICATION - CHEMINS CORRIGÉS
+// 🏆 PAGES GAMIFICATION
 // ==========================================
 import GamificationPage from './pages/GamificationPage.jsx';
-import BadgesPage from './pages/BadgesPage.jsx';
-import LeaderboardPage from './pages/LeaderboardPage.jsx';
-import RewardsPage from './pages/RewardsPage.jsx';
-import RoleProgressionPage from './pages/RoleProgressionPage.jsx';
-import EscapeProgressionPage from './pages/EscapeProgressionPage.jsx';
 
 // ==========================================
-// 🛡️ PAGES ADMIN - CHEMINS CORRIGÉS
-// ==========================================
-import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
-import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
-import {
-  AdminObjectiveValidationPage,
-  AdminRolePermissionsPage,
-  AdminRewardsPage,
-  AdminBadgesPage,
-  AdminUsersPage,
-  AdminAnalyticsPage,
-  AdminSettingsPage,
-  AdminDemoCleanerPage,
-  AdminCompleteTestPage
-} from './pages/RoleProgressionPage.jsx';
-
-// ==========================================
-// 📊 PAGES ANALYTICS ET ADMIN
+// 📊 PAGES ANALYTICS
 // ==========================================
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
-import AdminAnalyticsPageStandalone from './pages/AdminAnalyticsPage.jsx';
 
 // ==========================================
-// 🧠 NAVIGATION INTELLIGENTE
+// 🧠 NAVIGATION (si elle existe)
 // ==========================================
-import Navigation from './shared/components/Navigation.jsx';
+let Navigation = null;
+try {
+  Navigation = require('./shared/components/Navigation.jsx').default;
+} catch (error) {
+  console.warn('⚠️ Navigation component non trouvé, utilisation du fallback');
+}
 
 // ==========================================
-// 🛠️ UTILS & HELPERS
+// 🛠️ PAGE 404 SIMPLE
 // ==========================================
-import NotFound from './pages/NotFound.jsx';
+const NotFound = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-100">
+    <div className="text-center">
+      <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
+      <p className="text-gray-600 mb-6">Page non trouvée</p>
+      <a href="/" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        Retour à l'accueil
+      </a>
+    </div>
+  </div>
+);
 
-// Initialisation des services en mode stable
-const initializeAllServices = async () => {
-  try {
-    console.log('🚀 Initialisation services...');
-    
-    // 1. AuthStore (priorité absolue)
-    await initializeAuthStore();
-    console.log('✅ AuthStore initialisé');
-    
-    // 2. Services de base
-    userResolverService.initialize();
-    console.log('✅ UserResolverService initialisé');
-    
-    // 3. Services de récurrence (nouveau)
-    weeklyRecurrenceService.initialize();
-    console.log('📅 WeeklyRecurrenceService initialisé');
-    
-    recurrenceSchedulerService.initialize();
-    console.log('⏰ RecurrenceSchedulerService initialisé');
-    
-    console.log('🎯 Tous les services sont prêts !');
-    
-  } catch (error) {
-    console.error('❌ Erreur initialisation services:', error);
-  }
-};
+// ==========================================
+// 🧩 NAVIGATION FALLBACK SIMPLE
+// ==========================================
+const SimpleNavigation = () => (
+  <nav className="bg-white shadow-sm border-b">
+    <div className="max-w-7xl mx-auto px-4">
+      <div className="flex justify-between h-16">
+        <div className="flex items-center space-x-8">
+          <div className="flex-shrink-0">
+            <span className="text-xl font-bold text-blue-600">Synergia</span>
+          </div>
+          <div className="flex space-x-4">
+            <a href="/" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm">Dashboard</a>
+            <a href="/tasks" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm">Tâches</a>
+            <a href="/projects" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm">Projets</a>
+            <a href="/team" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm">Équipe</a>
+            <a href="/gamification" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm">Gamification</a>
+          </div>
+        </div>
+        <div className="flex items-center">
+          <button className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm">
+            Profil
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+);
 
 /**
- * 🏠 COMPOSANT APP PRINCIPAL
+ * 🏠 COMPOSANT APP PRINCIPAL - VERSION STABLE
  */
 const App = () => {
   const { user, isAuthenticated, loading, initializeAuth } = useAuthStore();
 
-  // ⚡ Initialisation au montage
+  // ⚡ Initialisation simple au montage
   useEffect(() => {
-    console.log('🚀 SYNERGIA v3.5.3 - MODE STABLE');
-    console.log('✅ Service Worker désactivé définitivement');
-    console.log('🧹 Nettoyage automatique terminé');
+    console.log('🚀 SYNERGIA v3.5.3 - MODE STABLE D\'URGENCE');
     
     const init = async () => {
       try {
-        await initializeAuth();
-        await initializeAllServices();
+        if (initializeAuth) {
+          await initializeAuth();
+        } else {
+          console.warn('⚠️ initializeAuth non disponible');
+        }
       } catch (error) {
-        console.error('❌ Erreur initialisation app:', error);
+        console.error('❌ Erreur initialisation auth:', error);
       }
     };
     
     init();
   }, [initializeAuth]);
 
-  // 🔄 État de chargement
+  // 🔄 État de chargement simple
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-white text-lg">Chargement de Synergia...</p>
+          <p className="text-gray-600 text-lg">Chargement de Synergia...</p>
         </div>
       </div>
     );
@@ -151,54 +138,37 @@ const App = () => {
   // 🎯 App principale pour utilisateurs authentifiés
   return (
     <Router>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <Navigation />
+      <div className="min-h-screen bg-gray-100">
+        {/* Navigation - utilise le composant s'il existe, sinon fallback */}
+        {Navigation ? <Navigation /> : <SimpleNavigation />}
         
-        <main className="flex-1 p-6">
+        <main className="py-6">
           <AnimatePresence mode="wait">
             <Routes>
-                {/* 🏠 Pages principales */}
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/tasks" element={<TasksPage />} />
-                <Route path="/projects" element={<ProjectsPage />} />
-                <Route path="/team" element={<TeamPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/analytics" element={<AnalyticsPage />} />
+              {/* 🏠 Pages principales */}
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/team" element={<TeamPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/analytics" element={<AnalyticsPage />} />
 
-                {/* 🏆 Pages Gamification */}
-                <Route path="/gamification" element={<GamificationPage />} />
-                <Route path="/badges" element={<BadgesPage />} />
-                <Route path="/leaderboard" element={<LeaderboardPage />} />
-                <Route path="/rewards" element={<RewardsPage />} />
-                <Route path="/progression" element={<RoleProgressionPage />} />
-                <Route path="/escape-progression" element={<EscapeProgressionPage />} />
+              {/* 🏆 Pages Gamification */}
+              <Route path="/gamification" element={<GamificationPage />} />
 
-                {/* 🛡️ Pages Admin */}
-                <Route path="/admin/validation" element={<AdminTaskValidationPage />} />
-                <Route path="/admin/test" element={<CompleteAdminTestPage />} />
-                <Route path="/admin/objectives" element={<AdminObjectiveValidationPage />} />
-                <Route path="/admin/roles" element={<AdminRolePermissionsPage />} />
-                <Route path="/admin/rewards" element={<AdminRewardsPage />} />
-                <Route path="/admin/badges" element={<AdminBadgesPage />} />
-                <Route path="/admin/users" element={<AdminUsersPage />} />
-                <Route path="/admin/analytics" element={<AdminAnalyticsPageStandalone />} />
-                <Route path="/admin/settings" element={<AdminSettingsPage />} />
-                <Route path="/admin/demo-cleaner" element={<AdminDemoCleanerPage />} />
-                <Route path="/admin/complete-test" element={<AdminCompleteTestPage />} />
+              {/* 🔐 Pages Système */}
+              <Route path="/login" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AnimatePresence>
+        </main>
+      </div>
+    </Router>
+  );
+};
 
-                {/* 🔐 Pages Système */}
-                <Route path="/login" element={<Navigate to="/" replace />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </AnimatePresence>
-          </main>
-        </div>
-      </Router>
-    );
-  };
-
-  // Exposer des fonctions debug utiles
+// Exposer des fonctions debug simples
 if (typeof window !== 'undefined') {
   window.forceReload = () => {
     console.log('🔄 Rechargement forcé...');
@@ -209,15 +179,10 @@ if (typeof window !== 'undefined') {
     console.log('🧹 Nettoyage d\'urgence...');
     localStorage.clear();
     sessionStorage.clear();
-    if ('caches' in window) {
-      caches.keys().then(names => {
-        names.forEach(name => caches.delete(name));
-      });
-    }
     setTimeout(() => window.location.reload(), 1000);
   };
   
-  console.log('✅ Fonctions debug: forceReload(), emergencyClean()');
+  console.log('✅ Fonctions debug disponibles: forceReload(), emergencyClean()');
 }
 
 export default App;
