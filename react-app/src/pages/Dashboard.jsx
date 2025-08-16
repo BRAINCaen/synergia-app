@@ -188,44 +188,8 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen p-6 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <div className="max-w-7xl mx-auto space-y-8">
-          
-          {/* 🎯 HEADER DASHBOARD */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Dashboard
-              </h1>
-              <p className="text-gray-400 text-lg mt-2">
-                Voici un aperçu de votre progression.
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {/* 📅 SÉLECTEUR DE PÉRIODE */}
-              <select
-                value={selectedTimeRange}
-                onChange={(e) => setSelectedTimeRange(e.target.value)}
-                className="px-3 py-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="day">Aujourd'hui</option>
-                <option value="week">Cette semaine</option>
-                <option value="month">Ce mois</option>
-                <option value="year">Cette année</option>
-              </select>
-
-              {/* 🔄 BOUTON RAFRAÎCHIR */}
-              <PremiumButton
-                variant="secondary"
-                icon={RefreshCw}
-                loading={refreshing}
-                onClick={handleRefresh}
-              >
-                {refreshing ? 'Actualisation...' : 'Actualiser'}
-              </PremiumButton>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="max-w-7xl mx-auto p-6 space-y-8">
 
           {/* 📊 STATISTIQUES UTILISATEUR PERSONAL */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
