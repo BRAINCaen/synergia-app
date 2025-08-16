@@ -29,7 +29,8 @@ import {
   Star,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  X
 } from 'lucide-react';
 
 // 🎨 IMPORT DU DESIGN SYSTEM PREMIUM
