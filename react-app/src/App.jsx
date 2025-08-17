@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APP PRINCIPAL VERSION STABLE D'URGENCE
+// APP PRINCIPAL SANS NAVIGATION DU HAUT
 // ==========================================
 
 import React, { useEffect } from 'react';
@@ -40,14 +40,10 @@ import GamificationPage from './pages/GamificationPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 
 // ==========================================
-// 🧠 NAVIGATION (si elle existe)
+// 🧠 NAVIGATION (supprimée - plus besoin)
 // ==========================================
 let Navigation = null;
-try {
-  Navigation = require('./shared/components/Navigation.jsx').default;
-} catch (error) {
-  console.warn('⚠️ Navigation component non trouvé, utilisation du fallback');
-}
+// Navigation component supprimé - plus de barre du haut !
 
 // ==========================================
 // 🛠️ PAGE 404 SIMPLE
@@ -65,131 +61,168 @@ const NotFound = () => (
 );
 
 // ==========================================
-// 🧩 NAVIGATION FALLBACK SIMPLE
+// 🛡️ COMPOSANT DE PROTECTION
 // ==========================================
-const SimpleNavigation = () => (
-  <nav className="bg-white shadow-sm border-b">
-    <div className="max-w-7xl mx-auto px-4">
-      <div className="flex justify-between h-16">
-        <div className="flex items-center space-x-8">
-          <div className="flex-shrink-0">
-            <span className="text-xl font-bold text-blue-600">Synergia</span>
-          </div>
-          <div className="flex space-x-4">
-            <a href="/" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm">Dashboard</a>
-            <a href="/tasks" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm">Tâches</a>
-            <a href="/projects" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm">Projets</a>
-            <a href="/team" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm">Équipe</a>
-            <a href="/gamification" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm">Gamification</a>
-          </div>
-        </div>
-        <div className="flex items-center">
-          <button className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm">
-            Profil
-          </button>
-        </div>
-      </div>
-    </div>
-  </nav>
-);
-
-/**
- * 🏠 COMPOSANT APP PRINCIPAL - VERSION STABLE
- */
-const App = () => {
-  const { user, isAuthenticated, loading, initializeAuth } = useAuthStore();
-
-  // ⚡ Initialisation simple au montage
-  useEffect(() => {
-    console.log('🚀 SYNERGIA v3.5.3 - MODE STABLE D\'URGENCE');
-    
-    const init = async () => {
-      try {
-        if (initializeAuth) {
-          await initializeAuth();
-        } else {
-          console.warn('⚠️ initializeAuth non disponible');
-        }
-      } catch (error) {
-        console.error('❌ Erreur initialisation auth:', error);
-      }
-    };
-    
-    init();
-  }, [initializeAuth]);
-
-  // 🔄 État de chargement simple
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuthStore();
+  
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Chargement de Synergia...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white">Chargement de l'application...</p>
+          <p className="text-gray-400 text-sm mt-2">Synergia v3.5.3 - Version stable</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
+
+// ==========================================
+// 🚀 COMPOSANT APP PRINCIPAL
+// ==========================================
+const App = () => {
+  const { loading, initialize } = useAuthStore();
+
+  // 🔥 INITIALISATION AU MONTAGE
+  useEffect(() => {
+    const initApp = async () => {
+      try {
+        console.log('🚀 [APP] Initialisation Synergia v3.5.3...');
+        
+        // Initialiser le store d'authentification
+        await initializeAuthStore();
+        await initialize();
+        
+        console.log('✅ [APP] Initialisation terminée');
+      } catch (error) {
+        console.error('❌ [APP] Erreur initialisation:', error);
+      }
+    };
+
+    initApp();
+  }, [initialize]);
+
+  // 🔄 AFFICHAGE DE CHARGEMENT GLOBAL
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-400 mx-auto mb-6"></div>
+          <h1 className="text-white text-2xl font-bold mb-2">Synergia v3.5.3</h1>
+          <p className="text-gray-400">Chargement en cours...</p>
         </div>
       </div>
     );
   }
 
-  // 🔐 Redirection si non authentifié
-  if (!isAuthenticated) {
-    return (
-      <Router>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </Router>
-    );
-  }
-
-  // 🎯 App principale pour utilisateurs authentifiés
   return (
     <Router>
-      <div className="min-h-screen bg-gray-100">
-        {/* Navigation - utilise le composant s'il existe, sinon fallback */}
-        {Navigation ? <Navigation /> : <SimpleNavigation />}
+      <div className="app min-h-screen">
         
-        <main className="py-6">
-          <AnimatePresence mode="wait">
-            <Routes>
-              {/* 🏠 Pages principales */}
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/tasks" element={<TasksPage />} />
-              <Route path="/projects" element={<ProjectsPage />} />
-              <Route path="/team" element={<TeamPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/analytics" element={<AnalyticsPage />} />
-
-              {/* 🏆 Pages Gamification */}
-              <Route path="/gamification" element={<GamificationPage />} />
-
-              {/* 🔐 Pages Système */}
-              <Route path="/login" element={<Navigate to="/" replace />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AnimatePresence>
-        </main>
+        {/* SUPPRESSION COMPLÈTE DE LA NAVIGATION DU HAUT */}
+        {/* Plus de SimpleNavigation ni de Navigation component ! */}
+        
+        <AnimatePresence mode="wait">
+          <Routes>
+            {/* 🔐 Route de connexion */}
+            <Route path="/login" element={<LoginPage />} />
+            
+            {/* 🏠 Route principale - Dashboard */}
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <DashboardPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* 🎮 Route gamification */}
+            <Route 
+              path="/gamification" 
+              element={
+                <ProtectedRoute>
+                  <GamificationPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* ✅ Route tâches */}
+            <Route 
+              path="/tasks" 
+              element={
+                <ProtectedRoute>
+                  <TasksPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* 📁 Route projets */}
+            <Route 
+              path="/projects" 
+              element={
+                <ProtectedRoute>
+                  <ProjectsPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* 👥 Route équipe */}
+            <Route 
+              path="/team" 
+              element={
+                <ProtectedRoute>
+                  <TeamPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* 📊 Route analytics */}
+            <Route 
+              path="/analytics" 
+              element={
+                <ProtectedRoute>
+                  <AnalyticsPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* 👤 Route profil */}
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* 🔄 Redirection par défaut */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            
+            {/* 🚫 Page 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AnimatePresence>
       </div>
     </Router>
   );
 };
 
-// Exposer des fonctions debug simples
-if (typeof window !== 'undefined') {
-  window.forceReload = () => {
-    console.log('🔄 Rechargement forcé...');
-    window.location.reload();
-  };
-  
-  window.emergencyClean = () => {
-    console.log('🧹 Nettoyage d\'urgence...');
-    localStorage.clear();
-    sessionStorage.clear();
-    setTimeout(() => window.location.reload(), 1000);
-  };
-  
-  console.log('✅ Fonctions debug disponibles: forceReload(), emergencyClean()');
-}
-
 export default App;
+
+// ==========================================
+// 🎉 LOGS DE CONFIRMATION
+// ==========================================
+console.log('✅ [APP] Version sans navigation du haut chargée');
+console.log('🚫 [APP] SimpleNavigation supprimée');
+console.log('🎯 [APP] Interface full screen activée');
+console.log('🍔 [APP] Navigation via menu hamburger uniquement');
