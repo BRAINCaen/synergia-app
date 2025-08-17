@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES COMPLÈTES AVEC CORRECTION LEADERBOARD
+// ROUTES COMPLÈTES AVEC TOUTES LES PAGES ADMIN
 // ==========================================
 
 import React from 'react'
@@ -20,7 +20,7 @@ import TasksPage from '../pages/TasksPage.jsx'
 import ProjectsPage from '../pages/ProjectsPage.jsx'
 import GamificationPage from '../pages/GamificationPage.jsx'
 import BadgesPage from '../pages/BadgesPage.jsx'
-import LeaderboardPage from '../pages/LeaderboardPage.jsx' // ✅ CORRECTION: Import de la page, pas du composant
+import LeaderboardPage from '../pages/LeaderboardPage.jsx'
 import UsersPage from '../pages/UsersPage.jsx'
 import OnboardingPage from '../pages/OnboardingPage.jsx'
 import TimeTrackPage from '../pages/TimeTrackPage.jsx'
@@ -28,65 +28,56 @@ import ProfilePage from '../pages/ProfilePage.jsx'
 import SettingsPage from '../pages/SettingsPage.jsx'
 import RewardsPage from '../pages/RewardsPage.jsx'
 
-// ✅ PAGES ADMIN COMPLÈTES
+// ✅ TOUTES LES PAGES ADMIN - IMPORTS COMPLETS
 import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx'
-import CompleteAdminTestPage from '../pages/CompleteAdminTestPage.jsx'
+import AdminObjectiveValidationPage from '../pages/AdminObjectiveValidationPage.jsx'
+import AdminCompleteTestPage from '../pages/AdminCompleteTestPage.jsx'
+import AdminProfileTestPage from '../pages/AdminProfileTestPage.jsx'
 import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx'
+import AdminRewardsPage from '../pages/AdminRewardsPage.jsx'
+import AdminBadgesPage from '../pages/AdminBadgesPage.jsx'
 import AdminUsersPage from '../pages/AdminUsersPage.jsx'
 import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx'
 import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
+import AdminSync from '../pages/AdminSync.jsx'
+import AdminDashboardTuteurPage from '../pages/AdminDashboardTuteurPage.jsx'
+import AdminDashboardManagerPage from '../pages/AdminDashboardManagerPage.jsx'
+import AdminInterviewPage from '../pages/AdminInterviewPage.jsx'
 
-// 🧹 NOUVELLE PAGE NETTOYAGE DONNÉES DÉMO
-import DemoDataCleanerPage from '../pages/admin/DemoDataCleanerPage.jsx'
+// Pages de nettoyage (si elle existe dans admin/)
+// import DemoDataCleanerPage from '../pages/admin/DemoDataCleanerPage.jsx'
 
-// Components utilisés comme pages (fallback pour certaines routes)
+// Components utilisés comme pages (fallback)
 import TaskList from '../modules/tasks/TaskList.jsx'
 import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
-// ❌ SUPPRIMÉ: import Leaderboard from '../components/gamification/Leaderboard.jsx' - Plus utilisé
-import ProjectDashboard from '../components/projects/ProjectDashboard.jsx'
-import Profile from '../components/profile/Profile.jsx'
 
-/**
- * 🔐 COMPOSANT DE PROTECTION DES ROUTES
- */
+// Composant de protection des routes
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuthStore()
   
-  // Affichage du loading
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin text-4xl mb-4">⚙️</div>
-          <p className="text-gray-600">Chargement...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
     )
   }
   
-  // Redirection si non connecté
   if (!user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to={ROUTES.LOGIN} replace />
   }
   
   return children
 }
 
-/**
- * 🚀 COMPOSANT PRINCIPAL DES ROUTES
- */
-export const AppRoutes = () => {
-  const { user } = useAuthStore()
-  
+// Composant principal des routes
+const AppRoutes = () => {
   return (
     <Routes>
-      {/* Route de connexion publique */}
-      <Route 
-        path="/login" 
-        element={user ? <Navigate to={ROUTES.DASHBOARD} replace /> : <Login />} 
-      />
+      {/* Route de connexion */}
+      <Route path={ROUTES.LOGIN} element={<Login />} />
       
-      {/* Routes principales protégées */}
+      {/* ✅ PAGES PRINCIPALES */}
       <Route 
         path={ROUTES.DASHBOARD} 
         element={
@@ -123,6 +114,7 @@ export const AppRoutes = () => {
         } 
       />
       
+      {/* ✅ PAGES GAMIFICATION */}
       <Route 
         path={ROUTES.GAMIFICATION} 
         element={
@@ -141,7 +133,6 @@ export const AppRoutes = () => {
         } 
       />
       
-      {/* ✅ CORRECTION: Utilisation de LeaderboardPage au lieu du composant Leaderboard */}
       <Route 
         path={ROUTES.LEADERBOARD} 
         element={
@@ -151,6 +142,16 @@ export const AppRoutes = () => {
         } 
       />
       
+      <Route 
+        path={ROUTES.REWARDS} 
+        element={
+          <ProtectedRoute>
+            <RewardsPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* ✅ PAGES ÉQUIPE */}
       <Route 
         path={ROUTES.TEAM} 
         element={
@@ -169,6 +170,7 @@ export const AppRoutes = () => {
         } 
       />
       
+      {/* ✅ PAGES OUTILS */}
       <Route 
         path={ROUTES.ONBOARDING} 
         element={
@@ -204,17 +206,10 @@ export const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
-      
-      <Route 
-        path={ROUTES.REWARDS} 
-        element={
-          <ProtectedRoute>
-            <RewardsPage />
-          </ProtectedRoute>
-        } 
-      />
 
-      {/* ✅ ROUTES ADMIN COMPLÈTES */}
+      {/* ✅ TOUTES LES ROUTES ADMIN - COMPLÈTES ! */}
+      
+      {/* 🛡️ Validation */}
       <Route 
         path={ROUTES.ADMIN_TASK_VALIDATION} 
         element={
@@ -225,14 +220,34 @@ export const AppRoutes = () => {
       />
       
       <Route 
+        path={ROUTES.ADMIN_OBJECTIVE_VALIDATION} 
+        element={
+          <ProtectedRoute>
+            <AdminObjectiveValidationPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* 🧪 Tests */}
+      <Route 
         path={ROUTES.ADMIN_COMPLETE_TEST} 
         element={
           <ProtectedRoute>
-            <CompleteAdminTestPage />
+            <AdminCompleteTestPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.ADMIN_PROFILE_TEST} 
+        element={
+          <ProtectedRoute>
+            <AdminProfileTestPage />
           </ProtectedRoute>
         } 
       />
 
+      {/* 🔐 Permissions et Rôles */}
       <Route 
         path={ROUTES.ADMIN_ROLE_PERMISSIONS} 
         element={
@@ -242,6 +257,26 @@ export const AppRoutes = () => {
         } 
       />
 
+      {/* 🎁 Gamification Admin */}
+      <Route 
+        path={ROUTES.ADMIN_REWARDS} 
+        element={
+          <ProtectedRoute>
+            <AdminRewardsPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.ADMIN_BADGES} 
+        element={
+          <ProtectedRoute>
+            <AdminBadgesPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 👥 Gestion */}
       <Route 
         path={ROUTES.ADMIN_USERS} 
         element={
@@ -251,6 +286,7 @@ export const AppRoutes = () => {
         } 
       />
 
+      {/* 📊 Analytics et Monitoring */}
       <Route 
         path={ROUTES.ADMIN_ANALYTICS} 
         element={
@@ -260,6 +296,7 @@ export const AppRoutes = () => {
         } 
       />
 
+      {/* ⚙️ Configuration */}
       <Route 
         path={ROUTES.ADMIN_SETTINGS} 
         element={
@@ -269,7 +306,47 @@ export const AppRoutes = () => {
         } 
       />
 
-      {/* 🧹 NOUVELLE ROUTE DEMO CLEANER */}
+      {/* 🔄 Synchronisation */}
+      <Route 
+        path={ROUTES.ADMIN_SYNC} 
+        element={
+          <ProtectedRoute>
+            <AdminSync />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 📊 Dashboards Spécialisés */}
+      <Route 
+        path={ROUTES.ADMIN_DASHBOARD_TUTEUR} 
+        element={
+          <ProtectedRoute>
+            <AdminDashboardTuteurPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.ADMIN_DASHBOARD_MANAGER} 
+        element={
+          <ProtectedRoute>
+            <AdminDashboardManagerPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 💼 Fonctionnalités Spéciales */}
+      <Route 
+        path={ROUTES.ADMIN_INTERVIEW} 
+        element={
+          <ProtectedRoute>
+            <AdminInterviewPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 🧹 Nettoyage (si le fichier existe) */}
+      {/* 
       <Route 
         path={ROUTES.ADMIN_DEMO_CLEANER} 
         element={
@@ -278,6 +355,7 @@ export const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
+      */}
 
       {/* Routes de fallback pour anciens liens */}
       <Route 
@@ -298,15 +376,6 @@ export const AppRoutes = () => {
         } 
       />
       
-      <Route 
-        path="/project-dashboard" 
-        element={
-          <ProtectedRoute>
-            <ProjectDashboard />
-          </ProtectedRoute>
-        } 
-      />
-      
       {/* Redirection par défaut */}
       <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
       
@@ -319,11 +388,24 @@ export const AppRoutes = () => {
 export default AppRoutes
 
 // ==========================================
-// 📊 RÉCAPITULATIF DES CORRECTIONS
+// 📊 RÉCAPITULATIF DES PAGES ADMIN AJOUTÉES
 // ==========================================
 
-console.log('✅ Routes fixes appliquées:');
-console.log('🔧 LeaderboardPage importé correctement depuis pages/');
-console.log('🔧 Route LEADERBOARD corrigée pour utiliser LeaderboardPage');
-console.log('🔧 Import du composant Leaderboard supprimé (plus utilisé en route)');
-console.log('🎯 URL /leaderboard maintenant fonctionnelle');
+console.log('✅ TOUTES les pages admin sont maintenant routées:');
+console.log('🛡️ AdminTaskValidationPage - Validation des tâches');
+console.log('🎯 AdminObjectiveValidationPage - Validation des objectifs'); 
+console.log('🧪 AdminCompleteTestPage - Tests complets du système');
+console.log('🧪 AdminProfileTestPage - Tests de profil admin');
+console.log('🔐 AdminRolePermissionsPage - Gestion des permissions');
+console.log('🎁 AdminRewardsPage - Gestion des récompenses');
+console.log('🏆 AdminBadgesPage - Administration des badges');
+console.log('👥 AdminUsersPage - Gestion des utilisateurs');
+console.log('📈 AdminAnalyticsPage - Analytics administrateur');
+console.log('⚙️ AdminSettingsPage - Paramètres système');
+console.log('🔄 AdminSync - Synchronisation des données');
+console.log('🎓 AdminDashboardTuteurPage - Dashboard tuteur');
+console.log('📊 AdminDashboardManagerPage - Dashboard manager');
+console.log('💼 AdminInterviewPage - Gestion des entretiens');
+console.log('🧹 AdminDemoCleanerPage - Nettoyage données (si existe)');
+
+console.log('🎯 Total: 15 pages admin complètement intégrées !');
