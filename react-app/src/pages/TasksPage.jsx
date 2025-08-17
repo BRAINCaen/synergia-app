@@ -82,17 +82,12 @@ const TASK_PRIORITY = {
   urgent: { label: 'Urgente', color: 'red', icon: '🔴' }
 };
 
-const TASK_CATEGORIES = {
-  maintenance: { label: 'Maintenance', color: 'orange', icon: '🔧' },
-  management: { label: 'Gestion', color: 'blue', icon: '📊' },
-  development: { label: 'Développement', color: 'green', icon: '💻' },
-  communication: { label: 'Communication', color: 'purple', icon: '📢' },
-  training: { label: 'Formation', color: 'indigo', icon: '🎓' },
-  marketing: { label: 'Marketing', color: 'pink', icon: '📱' },
-  sales: { label: 'Ventes', color: 'emerald', icon: '💰' },
-  support: { label: 'Support', color: 'cyan', icon: '🎧' },
-  research: { label: 'Recherche', color: 'violet', icon: '🔬' },
-  planning: { label: 'Planification', color: 'amber', icon: '📅' }
+// 🆕 ONGLETS DE TRI DES TÂCHES
+const TASK_TABS = {
+  my_tasks: { label: 'Mes tâches', icon: User, color: 'blue' },
+  available: { label: 'Disponibles', icon: Users, color: 'green' },
+  others: { label: 'Autres', icon: Eye, color: 'purple' },
+  history: { label: 'Historique', icon: Archive, color: 'gray' }
 };
 
 // 🔧 FONCTION HELPER POUR CONVERTIR LES TIMESTAMPS
@@ -126,8 +121,8 @@ const TasksPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedRole, setSelectedRole] = useState('all');
+  const [activeTab, setActiveTab] = useState('my_tasks'); // 🆕 État pour l'onglet actif
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
@@ -146,8 +141,15 @@ const TasksPage = () => {
       inProgress: tasks.filter(t => t.status === 'in_progress').length,
       completed: tasks.filter(t => t.status === 'completed').length,
       urgent: tasks.filter(t => t.priority === 'urgent').length,
-      myTasks: tasks.filter(t => t.assignedTo === user?.uid).length,
-      pending: tasks.filter(t => t.status === 'validation_pending').length
+      myTasks: tasks.filter(t => {
+        const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : [t.assignedTo];
+        return assignedTo.includes(user?.uid);
+      }).length,
+      pending: tasks.filter(t => t.status === 'validation_pending').length,
+      available: tasks.filter(t => {
+        const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : [t.assignedTo];
+        return !assignedTo.some(id => id && id !== '') && t.status === 'todo';
+      }).length
     };
   }, [tasks, user]);
 
@@ -195,9 +197,45 @@ const TasksPage = () => {
     return () => unsubscribe();
   }, [user]);
 
-  // 🔍 Filtrage et tri des tâches
+  // 🔍 Filtrage et tri des tâches avec onglets
   useEffect(() => {
     let filtered = [...tasks];
+
+    // 🆕 Filtrage par onglet actif
+    switch (activeTab) {
+      case 'my_tasks':
+        // Mes tâches : tâches assignées à l'utilisateur actuel
+        filtered = filtered.filter(task => {
+          const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
+          return assignedTo.includes(user?.uid);
+        });
+        break;
+      
+      case 'available':
+        // Tâches disponibles : sans assignation et status todo
+        filtered = filtered.filter(task => {
+          const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
+          return !assignedTo.some(id => id && id !== '') && task.status === 'todo';
+        });
+        break;
+      
+      case 'others':
+        // Autres tâches : assignées à d'autres personnes
+        filtered = filtered.filter(task => {
+          const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
+          return assignedTo.some(id => id && id !== '' && id !== user?.uid);
+        });
+        break;
+      
+      case 'history':
+        // Historique : tâches terminées ou annulées
+        filtered = filtered.filter(task => 
+          task.status === 'completed' || 
+          task.status === 'validated' || 
+          task.status === 'cancelled'
+        );
+        break;
+    }
 
     // Filtrage par recherche
     if (searchTerm) {
@@ -216,11 +254,6 @@ const TasksPage = () => {
     // Filtrage par priorité
     if (selectedPriority !== 'all') {
       filtered = filtered.filter(task => task.priority === selectedPriority);
-    }
-
-    // Filtrage par catégorie
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(task => task.category === selectedCategory);
     }
 
     // Filtrage par rôle
@@ -246,7 +279,7 @@ const TasksPage = () => {
     });
 
     setFilteredTasks(filtered);
-  }, [tasks, searchTerm, selectedStatus, selectedPriority, selectedCategory, selectedRole, sortBy, sortOrder]);
+  }, [tasks, searchTerm, selectedStatus, selectedPriority, selectedRole, sortBy, sortOrder, activeTab, user]);
 
   // 🎯 Gestionnaires d'événements pour TaskCard
   const handleViewDetails = (task) => {
@@ -350,9 +383,45 @@ const TasksPage = () => {
     }
   };
 
-  // 🎨 Rendu de la barre de filtres
+  // 🆕 Rendu des onglets de tri
+  const renderTabs = () => (
+    <div className="flex space-x-1 bg-gray-800 p-1 rounded-lg mb-6">
+      {Object.entries(TASK_TABS).map(([key, tab]) => {
+        const Icon = tab.icon;
+        const isActive = activeTab === key;
+        const count = key === 'my_tasks' ? taskStats.myTasks : 
+                     key === 'available' ? taskStats.available :
+                     key === 'others' ? taskStats.total - taskStats.myTasks - taskStats.available :
+                     taskStats.completed;
+        
+        return (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              isActive
+                ? `bg-${tab.color}-600 text-white shadow-md`
+                : 'text-gray-400 hover:text-white hover:bg-gray-700'
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            <span>{tab.label}</span>
+            <span className={`px-2 py-1 text-xs rounded-full ${
+              isActive 
+                ? 'bg-white/20 text-white' 
+                : 'bg-gray-600 text-gray-300'
+            }`}>
+              {count}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  // 🎨 Rendu de la barre de filtres (sans catégories)
   const renderFilters = () => (
-    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       {/* Statut */}
       <select
         value={selectedStatus}
@@ -374,18 +443,6 @@ const TasksPage = () => {
         <option value="all">Toutes priorités</option>
         {Object.entries(TASK_PRIORITY).map(([key, priority]) => (
           <option key={key} value={key}>{priority.icon} {priority.label}</option>
-        ))}
-      </select>
-
-      {/* Catégorie */}
-      <select
-        value={selectedCategory}
-        onChange={(e) => setSelectedCategory(e.target.value)}
-        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500"
-      >
-        <option value="all">Toutes catégories</option>
-        {Object.entries(TASK_CATEGORIES).map(([key, category]) => (
-          <option key={key} value={key}>{category.icon} {category.label}</option>
         ))}
       </select>
 
@@ -487,7 +544,10 @@ const TasksPage = () => {
         />
       </div>
 
-      {/* Filtres */}
+      {/* 🆕 Onglets de tri */}
+      {renderTabs()}
+
+      {/* Filtres (sans catégories) */}
       {renderFilters()}
 
       {/* Contenu principal */}
@@ -547,9 +607,9 @@ const TasksPage = () => {
               <CheckSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-white mb-2">Aucune tâche trouvée</h3>
               <p className="text-gray-400 mb-6">
-                {searchTerm || selectedStatus !== 'all' || selectedPriority !== 'all' || selectedCategory !== 'all' || selectedRole !== 'all'
+                {searchTerm || selectedStatus !== 'all' || selectedPriority !== 'all' || selectedRole !== 'all'
                   ? 'Aucune tâche ne correspond à vos critères de recherche.'
-                  : 'Commencez par créer votre première tâche.'}
+                  : `Aucune tâche dans la catégorie "${TASK_TABS[activeTab].label}".`}
               </p>
               <PremiumButton
                 onClick={() => setShowNewTaskModal(true)}
