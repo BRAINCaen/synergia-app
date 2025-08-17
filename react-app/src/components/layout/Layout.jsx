@@ -1,57 +1,41 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// MENU HAMBURGER BULLETPROOF - RESTAURÉ EXACTEMENT
+// LAYOUT SANS BARRE DE NAVIGATION DU HAUT
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  Home, CheckSquare, FolderOpen, BarChart3, Trophy, Users, Settings, 
-  Menu, X, User, LogOut, Award, Clock, BookOpen, UserCheck, Shield,
-  Crown, TestTube, Lock, Gift, PieChart, Gamepad2, Zap
-} from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Menu } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
+import { isAdmin } from '../../core/services/adminService.js';
 
-const isUserAdmin = (user) => {
-  if (!user) return false;
-  const adminEmails = ['alan.boehme61@gmail.com', 'tanguy.caron@gmail.com', 'admin@synergia.com'];
-  return adminEmails.includes(user.email) || user.role === 'admin' || user.isAdmin === true;
-};
-
+/**
+ * 🎯 LAYOUT PRINCIPAL AVEC MENU HAMBURGER - SANS HEADER
+ */
 const Layout = ({ children }) => {
+  // 🔌 HOOKS
+  const { user, signOut } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, signOut } = useAuthStore();
   
-  // ✅ ÉTAT MENU SIMPLE
+  // 📱 ÉTATS
   const [menuOpen, setMenuOpen] = useState(false);
+  
+  // 🛡️ PERMISSIONS
+  const userIsAdmin = isAdmin(user);
 
-  const userIsAdmin = React.useMemo(() => {
-    return isUserAdmin(user);
-  }, [user?.email]);
-
+  // 🚪 DÉCONNEXION
   const handleLogout = async () => {
     try {
-      setMenuOpen(false);
       await signOut();
       navigate('/login');
+      console.log('✅ [LAYOUT] Déconnexion réussie');
     } catch (error) {
-      console.error('❌ Erreur déconnexion:', error);
+      console.error('❌ [LAYOUT] Erreur déconnexion:', error);
     }
   };
 
-  // ✅ FERMETURE SUR ESCAPE
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === 'Escape') {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, []);
-
-  // ✅ MENU ITEMS COMPLETS
+  // 🧭 NAVIGATION STRUCTURE
   const menuItems = [
     { section: 'PRINCIPAL', items: [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
@@ -149,77 +133,64 @@ const Layout = ({ children }) => {
               SYNERGIA MENU
             </div>
             <div style="color: rgba(255,255,255,0.8); font-size: 12px;">
-              ${userIsAdmin ? 'MODE ADMINISTRATEUR' : 'NAVIGATION PRINCIPALE'}
+              ${userIsAdmin ? 'Accès Admin Activé' : 'Mode Utilisateur'}
             </div>
           </div>
         </div>
         <button id="close-menu-btn" style="
-          background: rgba(255,255,255,0.2) !important;
+          background: rgba(255, 255, 255, 0.2) !important;
           border: none !important;
           color: white !important;
-          padding: 10px !important;
-          border-radius: 8px !important;
-          cursor: pointer !important;
-          font-size: 20px !important;
+          width: 40px !important;
+          height: 40px !important;
+          border-radius: 50% !important;
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
+          cursor: pointer !important;
+          font-size: 18px !important;
           transition: all 0.2s !important;
-        " onmouseover="this.style.background='rgba(255,255,255,0.3)'" 
-           onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+        " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
           ✕
         </button>
       `;
 
-      // Info utilisateur
+      // Informations utilisateur
       const userInfo = document.createElement('div');
       userInfo.style.cssText = `
         padding: 20px !important;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-        background: rgba(255, 255, 255, 0.05) !important;
+        background: rgba(0, 0, 0, 0.2) !important;
       `;
       userInfo.innerHTML = `
         <div style="display: flex; align-items: center; gap: 15px;">
           <div style="
             width: 50px;
             height: 50px;
-            background: linear-gradient(135deg, #10b981, #059669);
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-weight: bold;
-            font-size: 20px;
+            font-size: 18px;
           ">
             ${user?.email?.[0]?.toUpperCase() || '?'}
           </div>
-          <div>
+          <div style="flex: 1;">
             <div style="color: white; font-weight: 600; font-size: 16px;">
-              ${user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
+              ${user?.displayName || user?.email || 'Utilisateur'}
             </div>
             <div style="color: rgba(255,255,255,0.7); font-size: 14px;">
-              ${user?.email || 'Pas d\'email'}
+              ${user?.email || 'Aucun email'}
             </div>
-            ${userIsAdmin ? `
-              <div style="
-                background: linear-gradient(135deg, #dc2626, #b91c1c);
-                color: white;
-                padding: 2px 8px;
-                border-radius: 12px;
-                font-size: 10px;
-                font-weight: bold;
-                display: inline-block;
-                margin-top: 5px;
-              ">
-                🛡️ ADMINISTRATEUR
-              </div>
-            ` : ''}
+            ${userIsAdmin ? '<div style="color: #fbbf24; font-size: 12px; font-weight: bold; margin-top: 5px;">🛡️ ADMINISTRATEUR</div>' : ''}
           </div>
         </div>
       `;
 
-      // Menu de navigation
+      // Navigation
       const navigation = document.createElement('div');
       navigation.style.cssText = `
         flex: 1 !important;
@@ -228,22 +199,22 @@ const Layout = ({ children }) => {
       `;
 
       let navHTML = '';
-      menuItems.forEach(section => {
+      menuItems.forEach((section, sectionIndex) => {
         const isAdminSection = section.section === 'ADMINISTRATION';
         navHTML += `
           <div style="margin-bottom: 30px;">
             <div style="
               padding: 0 20px 10px 20px;
-              color: ${isAdminSection ? '#fca5a5' : 'rgba(255,255,255,0.6)'};
+              color: ${isAdminSection ? '#fbbf24' : 'rgba(255,255,255,0.6)'};
               font-size: 12px;
               font-weight: bold;
-              letter-spacing: 1px;
               text-transform: uppercase;
-              border-bottom: 1px solid ${isAdminSection ? 'rgba(252, 165, 165, 0.3)' : 'rgba(255,255,255,0.1)'};
+              letter-spacing: 1px;
+              border-bottom: 1px solid ${isAdminSection ? 'rgba(251, 191, 36, 0.3)' : 'rgba(255,255,255,0.1)'};
             ">
               ${isAdminSection ? '🛡️ ' : ''}${section.section}
             </div>
-            <div style="margin-top: 10px;">
+            <div style="padding: 10px 0;">
         `;
         
         section.items.forEach(item => {
@@ -253,14 +224,13 @@ const Layout = ({ children }) => {
               display: flex !important;
               align-items: center !important;
               gap: 15px !important;
-              padding: 12px 20px !important;
-              color: ${isActive ? (isAdminSection ? '#fef2f2' : 'white') : 'rgba(255,255,255,0.8)'} !important;
+              padding: 15px 20px !important;
+              color: ${isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.8)'} !important;
               text-decoration: none !important;
-              font-weight: ${isActive ? '600' : '500'} !important;
-              background: ${isActive ? (isAdminSection ? 'linear-gradient(135deg, #dc2626, #b91c1c)' : 'linear-gradient(135deg, #3b82f6, #2563eb)') : 'transparent'} !important;
-              border-left: 4px solid ${isActive ? (isAdminSection ? '#dc2626' : '#3b82f6') : 'transparent'} !important;
               transition: all 0.2s !important;
-              margin: 2px 0 !important;
+              background: ${isActive ? (isAdminSection ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #3b82f6, #2563eb)') : 'transparent'} !important;
+              border-left: 4px solid ${isActive ? (isAdminSection ? '#ef4444' : '#60a5fa') : 'transparent'} !important;
+              font-weight: ${isActive ? '600' : '500'} !important;
             " onmouseover="
               if (!this.style.background.includes('gradient')) {
                 this.style.background = '${isAdminSection ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)'}';
@@ -375,125 +345,43 @@ const Layout = ({ children }) => {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
       
-      {/* ✅ HEADER UNIVERSEL - PC ET MOBILE */}
-      <header style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 1000,
-        backgroundColor: 'white',
-        borderBottom: '1px solid #e5e7eb',
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-        padding: '0'
-      }}>
-        <div style={{
+      {/* SUPPRESSION COMPLÈTE DU HEADER - PLUS DE BARRE DU HAUT ! */}
+
+      {/* BOUTON FLOTTANT POUR OUVRIR LE MENU */}
+      <button
+        onClick={() => setMenuOpen(true)}
+        style={{
+          position: 'fixed',
+          top: '20px',
+          left: '20px',
+          zIndex: 999998,
+          width: '60px',
+          height: '60px',
+          background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+          border: 'none',
+          borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '15px 20px',
-          maxWidth: '100%'
-        }}>
-          {/* Section gauche avec hamburger */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '15px'
-          }}>
-            {/* BOUTON HAMBURGER ÉNORME */}
-            <button
-              onClick={() => setMenuOpen(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '50px',
-                height: '50px',
-                background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                fontSize: '24px',
-                fontWeight: 'bold',
-                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
-                transition: 'all 0.2s ease',
-                position: 'relative',
-                overflow: 'hidden'
-              }}
-              onMouseOver={(e) => {
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.4)';
-              }}
-              onMouseOut={(e) => {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 4px 15px rgba(59, 130, 246, 0.3)';
-              }}
-              title="Ouvrir le menu"
-            >
-              <Menu style={{ width: '24px', height: '24px' }} />
-            </button>
-            
-            <div>
-              <h1 style={{
-                margin: 0,
-                fontSize: '24px',
-                fontWeight: 'bold',
-                background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text'
-              }}>
-                ⚡ Synergia
-              </h1>
-              <div style={{
-                fontSize: '12px',
-                color: '#6b7280',
-                fontWeight: '500'
-              }}>
-                v3.5 {userIsAdmin && '• ADMIN'}
-              </div>
-            </div>
-          </div>
+          justifyContent: 'center',
+          cursor: 'pointer',
+          boxShadow: '0 10px 25px rgba(59, 130, 246, 0.3)',
+          transition: 'all 0.3s ease',
+          color: 'white'
+        }}
+        onMouseEnter={(e) => {
+          e.target.style.transform = 'translateY(-2px) scale(1.1)';
+          e.target.style.boxShadow = '0 15px 35px rgba(59, 130, 246, 0.4)';
+        }}
+        onMouseLeave={(e) => {
+          e.target.style.transform = 'translateY(0) scale(1)';
+          e.target.style.boxShadow = '0 10px 25px rgba(59, 130, 246, 0.3)';
+        }}
+        title="Ouvrir le menu"
+      >
+        <Menu style={{ width: '24px', height: '24px' }} />
+      </button>
 
-          {/* Indicateur utilisateur */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '8px 15px',
-            backgroundColor: '#f8fafc',
-            borderRadius: '25px',
-            border: '1px solid #e2e8f0'
-          }}>
-            <div style={{
-              width: '30px',
-              height: '30px',
-              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '12px',
-              fontWeight: 'bold'
-            }}>
-              {user?.email?.[0]?.toUpperCase() || '?'}
-            </div>
-            <div style={{
-              fontSize: '14px',
-              color: '#374151',
-              fontWeight: '500',
-              maxWidth: '150px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
-            }}>
-              {user?.displayName || user?.email || 'Utilisateur'}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* ✅ CONTENU PRINCIPAL */}
+      {/* ✅ CONTENU PRINCIPAL FULL SCREEN */}
       <main style={{ padding: '0' }}>
         {children}
       </main>
