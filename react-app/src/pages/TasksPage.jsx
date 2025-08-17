@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES AVEC DESIGN PREMIUM HARMONISÉ
+// PAGE TÂCHES AVEC DESIGN PREMIUM HARMONISÉ - CORRECTION TIMESTAMPS
 // ==========================================
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -29,7 +29,8 @@ import {
   Star,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  X
 } from 'lucide-react';
 
 // 🎨 IMPORT DU DESIGN SYSTEM PREMIUM
@@ -87,6 +88,32 @@ const TASK_CATEGORIES = {
   planning: { label: 'Planification', color: 'amber', icon: '📅' }
 };
 
+// 🔧 FONCTION HELPER POUR CONVERTIR LES TIMESTAMPS
+const convertFirebaseTimestamp = (timestamp) => {
+  if (!timestamp) return new Date();
+  
+  // Si c'est déjà une Date
+  if (timestamp instanceof Date) return timestamp;
+  
+  // Si c'est un timestamp Firebase avec .toDate()
+  if (timestamp && typeof timestamp.toDate === 'function') {
+    try {
+      return timestamp.toDate();
+    } catch (error) {
+      console.warn('Erreur conversion timestamp:', error);
+      return new Date();
+    }
+  }
+  
+  // Si c'est un timestamp Unix ou string
+  if (typeof timestamp === 'number' || typeof timestamp === 'string') {
+    return new Date(timestamp);
+  }
+  
+  // Fallback
+  return new Date();
+};
+
 /**
  * 🏠 PAGE PRINCIPALE DES TÂCHES
  */
@@ -124,22 +151,41 @@ const TasksPage = () => {
   useEffect(() => {
     if (!user) return;
 
+    console.log('🔄 [TASKS] Démarrage chargement tâches...');
+    
     const tasksRef = collection(db, 'tasks');
     const q = query(tasksRef, orderBy('createdAt', 'desc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const tasksData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        dueDate: doc.data().dueDate?.toDate() || null
-      }));
+      console.log(`📊 [TASKS] Snapshot reçu: ${snapshot.size} documents`);
+      
+      try {
+        const tasksData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          
+          // 🔧 CONVERSION SÉCURISÉE DES TIMESTAMPS
+          const taskData = {
+            id: doc.id,
+            ...data,
+            createdAt: convertFirebaseTimestamp(data.createdAt),
+            updatedAt: convertFirebaseTimestamp(data.updatedAt),
+            dueDate: data.dueDate ? convertFirebaseTimestamp(data.dueDate) : null
+          };
+          
+          return taskData;
+        });
 
-      setTasks(tasksData);
-      setIsLoading(false);
+        console.log(`✅ [TASKS] ${tasksData.length} tâches traitées avec succès`);
+        setTasks(tasksData);
+        setIsLoading(false);
+        
+      } catch (error) {
+        console.error('❌ [TASKS] Erreur traitement données:', error);
+        setTasks([]);
+        setIsLoading(false);
+      }
     }, (error) => {
-      console.error('❌ Erreur chargement tâches:', error);
+      console.error('❌ [TASKS] Erreur écoute Firebase:', error);
       setIsLoading(false);
     });
 
@@ -153,7 +199,7 @@ const TasksPage = () => {
     // Filtrage par recherche
     if (searchTerm) {
       filtered = filtered.filter(task => 
-        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
       );
@@ -179,14 +225,15 @@ const TasksPage = () => {
       filtered = filtered.filter(task => task.role === selectedRole);
     }
 
-    // Tri
+    // Tri sécurisé
     filtered.sort((a, b) => {
       let aValue = a[sortBy];
       let bValue = b[sortBy];
 
       if (sortBy === 'createdAt' || sortBy === 'updatedAt' || sortBy === 'dueDate') {
-        aValue = aValue?.getTime() || 0;
-        bValue = bValue?.getTime() || 0;
+        // Conversion sécurisée en timestamp
+        aValue = aValue instanceof Date ? aValue.getTime() : 0;
+        bValue = bValue instanceof Date ? bValue.getTime() : 0;
       }
 
       if (sortOrder === 'asc') {
@@ -212,8 +259,9 @@ const TasksPage = () => {
 
       await addDoc(collection(db, 'tasks'), newTask);
       setShowNewTaskModal(false);
+      console.log('✅ [TASKS] Tâche créée avec succès');
     } catch (error) {
-      console.error('❌ Erreur création tâche:', error);
+      console.error('❌ [TASKS] Erreur création tâche:', error);
     }
   };
 
@@ -223,8 +271,9 @@ const TasksPage = () => {
         status: newStatus,
         updatedAt: serverTimestamp()
       });
+      console.log('✅ [TASKS] Statut mis à jour:', newStatus);
     } catch (error) {
-      console.error('❌ Erreur mise à jour statut:', error);
+      console.error('❌ [TASKS] Erreur mise à jour statut:', error);
     }
   };
 
@@ -233,8 +282,9 @@ const TasksPage = () => {
 
     try {
       await deleteDoc(doc(db, 'tasks', taskId));
+      console.log('✅ [TASKS] Tâche supprimée');
     } catch (error) {
-      console.error('❌ Erreur suppression tâche:', error);
+      console.error('❌ [TASKS] Erreur suppression tâche:', error);
     }
   };
 
@@ -322,7 +372,7 @@ const TasksPage = () => {
           </div>
 
           {/* Date d'échéance */}
-          {task.dueDate && (
+          {task.dueDate && task.dueDate instanceof Date && (
             <div className="flex items-center space-x-1 text-gray-400 text-xs">
               <Calendar className="w-3 h-3" />
               <span>{task.dueDate.toLocaleDateString()}</span>
@@ -368,7 +418,7 @@ const TasksPage = () => {
           </div>
 
           <div className="text-xs text-gray-400">
-            {task.createdAt.toLocaleDateString()}
+            {task.createdAt instanceof Date ? task.createdAt.toLocaleDateString() : 'Date inconnue'}
           </div>
         </div>
       </PremiumCard>
@@ -517,6 +567,7 @@ const TasksPage = () => {
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+          <span className="ml-3 text-white">Chargement des tâches...</span>
         </div>
       ) : (
         <div className="space-y-6">
