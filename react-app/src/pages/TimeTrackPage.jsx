@@ -1,44 +1,42 @@
-// ==========================================
-// 📁 react-app/src/pages/TimeTrackPage.jsx
-// PAGE SUIVI DU TEMPS - Timer et historique
-// ==========================================
-
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { 
   Clock, 
   Play, 
   Pause, 
   Square, 
+  Timer,
   Calendar,
   BarChart3,
   Target,
-  Timer,
   TrendingUp,
   Activity,
   CheckCircle,
   AlertCircle,
   Plus,
   Filter,
-  Download
+  Download,
+  RefreshCw
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import PremiumLayout, { PremiumCard, StatCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 const TimeTrackPage = () => {
   const { user } = useAuthStore();
   
   // États du timer
-  const [isRunning, setIsRunning] = useState(false);
-  const [time, setTime] = useState(0);
+  const [isTracking, setIsTracking] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
   const [currentTask, setCurrentTask] = useState('');
   const [currentProject, setCurrentProject] = useState('');
+  const [startTime, setStartTime] = useState(null);
   
   // États de l'historique
   const [sessions, setSessions] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [viewMode, setViewMode] = useState('today'); // today, week, month
+  const [viewMode, setViewMode] = useState('today');
   
-  // Sessions simulées pour l'affichage
+  // Sessions simulées
   const mockSessions = [
     {
       id: 1,
@@ -46,6 +44,8 @@ const TimeTrackPage = () => {
       project: 'Synergia v3.5',
       duration: 7200, // 2h
       date: new Date(),
+      startTime: '09:00',
+      endTime: '11:00',
       completed: true
     },
     {
@@ -54,6 +54,8 @@ const TimeTrackPage = () => {
       project: 'Synergia v3.5',
       duration: 3600, // 1h
       date: new Date(),
+      startTime: '14:00',
+      endTime: '15:00',
       completed: true
     },
     {
@@ -62,20 +64,26 @@ const TimeTrackPage = () => {
       project: 'Général',
       duration: 1800, // 30min
       date: new Date(),
+      startTime: '16:00',
+      endTime: '16:30',
       completed: false
     }
   ];
 
-  // Effet pour le timer
+  useEffect(() => {
+    setSessions(mockSessions);
+  }, []);
+
+  // Timer effect
   useEffect(() => {
     let interval;
-    if (isRunning) {
+    if (isTracking && startTime) {
       interval = setInterval(() => {
-        setTime(prevTime => prevTime + 1);
+        setCurrentTime(Math.floor((Date.now() - startTime) / 1000));
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isRunning]);
+  }, [isTracking, startTime]);
 
   // Formatage du temps
   const formatTime = (seconds) => {
@@ -95,280 +103,266 @@ const TimeTrackPage = () => {
       alert('Veuillez saisir une tâche');
       return;
     }
-    setIsRunning(true);
+    setIsTracking(true);
+    setStartTime(Date.now());
+    setCurrentTime(0);
   };
 
   const pauseTimer = () => {
-    setIsRunning(false);
+    setIsTracking(false);
   };
 
   const stopTimer = () => {
-    if (time > 0) {
-      // Sauvegarder la session
+    if (currentTime > 0) {
       const newSession = {
         id: Date.now(),
         task: currentTask,
         project: currentProject || 'Sans projet',
-        duration: time,
+        duration: currentTime,
         date: new Date(),
+        startTime: new Date(startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        endTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         completed: true
       };
       setSessions(prev => [newSession, ...prev]);
     }
     
-    setIsRunning(false);
-    setTime(0);
+    setIsTracking(false);
+    setCurrentTime(0);
     setCurrentTask('');
     setCurrentProject('');
+    setStartTime(null);
   };
 
   // Statistiques du jour
   const todayStats = {
-    totalTime: mockSessions.reduce((acc, session) => acc + session.duration, 0),
-    completedTasks: mockSessions.filter(s => s.completed).length,
-    sessionsCount: mockSessions.length,
-    avgSessionTime: mockSessions.length > 0 ? 
-      Math.round(mockSessions.reduce((acc, s) => acc + s.duration, 0) / mockSessions.length) : 0
+    totalTime: sessions.reduce((acc, session) => acc + session.duration, 0),
+    completedTasks: sessions.filter(s => s.completed).length,
+    sessionsCount: sessions.length,
+    avgSessionTime: sessions.length > 0 ? Math.round(sessions.reduce((acc, s) => acc + s.duration, 0) / sessions.length) : 0
   };
 
+  const headerStats = [
+    { 
+      label: "Aujourd'hui", 
+      value: formatTime(todayStats.totalTime), 
+      icon: Clock, 
+      color: "text-blue-400" 
+    },
+    { 
+      label: "Sessions", 
+      value: todayStats.sessionsCount.toString(), 
+      icon: Activity, 
+      color: "text-green-400" 
+    },
+    { 
+      label: "Tâches", 
+      value: todayStats.completedTasks.toString(), 
+      icon: Target, 
+      color: "text-purple-400" 
+    },
+    { 
+      label: "Statut", 
+      value: isTracking ? "En cours" : "Arrêté", 
+      icon: isTracking ? Play : Pause, 
+      color: isTracking ? "text-green-400" : "text-red-400" 
+    }
+  ];
+
+  const headerActions = (
+    <div className="flex space-x-3">
+      <PremiumButton variant="secondary" icon={Download}>
+        Exporter
+      </PremiumButton>
+      <PremiumButton variant="secondary" icon={RefreshCw}>
+        Actualiser
+      </PremiumButton>
+    </div>
+  );
+
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-green-600/20 via-blue-600/20 to-green-700/20 backdrop-blur-sm rounded-3xl p-8 border border-white/10 shadow-2xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2 flex items-center">
-              <Clock className="w-8 h-8 text-green-300 mr-3" />
-              Suivi du Temps
-            </h1>
-            <p className="text-xl text-gray-200">
-              Mesurez et optimisez votre productivité
-            </p>
-          </div>
-          
-          {/* Stats rapides */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-white">
-                {formatTime(todayStats.totalTime)}
-              </div>
-              <div className="text-sm text-gray-300">Aujourd'hui</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-white">{todayStats.completedTasks}</div>
-              <div className="text-sm text-gray-300">Tâches terminées</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Timer principal */}
-        <div className="lg:col-span-2">
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10">
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-              <Timer className="w-6 h-6 mr-3 text-green-400" />
-              Timer
-            </h2>
-
+    <PremiumLayout
+      title="Suivi du temps"
+      subtitle="Pointeuse et gestion du temps de travail"
+      icon={Clock}
+      headerActions={headerActions}
+      showStats={true}
+      stats={headerStats}
+    >
+      {/* Timer principal */}
+      <div className="mb-6">
+        <PremiumCard>
+          <div className="text-center">
             {/* Affichage du temps */}
-            <div className="text-center mb-8">
-              <div className="text-6xl font-bold text-white mb-4 font-mono">
-                {formatTime(time)}
+            <div className="mb-6">
+              <div className="text-6xl font-mono font-bold text-white mb-2">
+                {formatTime(currentTime)}
               </div>
               <div className="text-lg text-gray-300">
-                {isRunning ? '⏳ En cours...' : time > 0 ? '⏸️ En pause' : '⏹️ Arrêté'}
+                {isTracking ? '⏳ Suivi en cours...' : 
+                 currentTime > 0 ? '⏸️ En pause' : 
+                 '⏹️ Prêt à démarrer'}
               </div>
             </div>
 
             {/* Saisie de la tâche */}
-            <div className="space-y-4 mb-8">
+            <div className="max-w-md mx-auto mb-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Tâche actuelle
-                </label>
                 <input
                   type="text"
                   value={currentTask}
                   onChange={(e) => setCurrentTask(e.target.value)}
                   placeholder="Que faites-vous en ce moment ?"
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-green-400"
-                  disabled={isRunning}
+                  disabled={isTracking}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                 />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Projet (optionnel)
-                </label>
                 <input
                   type="text"
                   value={currentProject}
                   onChange={(e) => setCurrentProject(e.target.value)}
-                  placeholder="Associer à un projet"
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-green-400"
-                  disabled={isRunning}
+                  placeholder="Projet (optionnel)"
+                  disabled={isTracking}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                 />
               </div>
             </div>
 
             {/* Contrôles du timer */}
             <div className="flex justify-center space-x-4">
-              {!isRunning ? (
-                <button
+              {!isTracking ? (
+                <PremiumButton
+                  variant="primary"
+                  icon={Play}
                   onClick={startTimer}
-                  className="flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl transition-all duration-200 shadow-lg font-medium"
+                  className="px-8 py-3"
                 >
-                  <Play className="w-5 h-5" />
-                  <span>Démarrer</span>
-                </button>
+                  Démarrer
+                </PremiumButton>
               ) : (
-                <button
-                  onClick={pauseTimer}
-                  className="flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white rounded-xl transition-all duration-200 shadow-lg font-medium"
-                >
-                  <Pause className="w-5 h-5" />
-                  <span>Pause</span>
-                </button>
+                <>
+                  <PremiumButton
+                    variant="secondary"
+                    icon={Pause}
+                    onClick={pauseTimer}
+                    className="px-6 py-3"
+                  >
+                    Pause
+                  </PremiumButton>
+                  <PremiumButton
+                    variant="danger"
+                    icon={Square}
+                    onClick={stopTimer}
+                    className="px-6 py-3"
+                  >
+                    Arrêter
+                  </PremiumButton>
+                </>
               )}
-              
-              <button
-                onClick={stopTimer}
-                className="flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl transition-all duration-200 shadow-lg font-medium"
-                disabled={time === 0}
-              >
-                <Square className="w-5 h-5" />
-                <span>Terminer</span>
-              </button>
             </div>
           </div>
-        </div>
+        </PremiumCard>
+      </div>
 
-        {/* Statistiques du jour */}
-        <div className="space-y-6">
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center">
-              <BarChart3 className="w-5 h-5 mr-2 text-blue-400" />
-              Aujourd'hui
-            </h3>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-300">Temps total</span>
-                <span className="text-white font-medium">
-                  {formatTime(todayStats.totalTime)}
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-gray-300">Sessions</span>
-                <span className="text-white font-medium">{todayStats.sessionsCount}</span>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-gray-300">Tâches terminées</span>
-                <span className="text-white font-medium">{todayStats.completedTasks}</span>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-gray-300">Temps moyen/session</span>
-                <span className="text-white font-medium">
-                  {formatTime(todayStats.avgSessionTime)}
-                </span>
-              </div>
-            </div>
+      {/* Statistiques quotidiennes */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <PremiumCard>
+          <div className="text-center">
+            <Clock className="w-12 h-12 text-blue-400 mx-auto mb-3" />
+            <div className="text-2xl font-bold text-white">{formatTime(todayStats.totalTime)}</div>
+            <div className="text-gray-400 text-sm">Temps total</div>
           </div>
+        </PremiumCard>
 
-          {/* Objectifs */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center">
-              <Target className="w-5 h-5 mr-2 text-purple-400" />
-              Objectifs
-            </h3>
-            
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-300">Objectif quotidien</span>
-                  <span className="text-white font-medium">6h</span>
-                </div>
-                <div className="w-full bg-white/10 rounded-full h-2">
-                  <div 
-                    className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min((todayStats.totalTime / 21600) * 100, 100)}%` }}
-                  ></div>
-                </div>
-                <div className="text-xs text-gray-400 mt-1">
-                  {Math.round((todayStats.totalTime / 21600) * 100)}% atteint
-                </div>
-              </div>
-            </div>
+        <PremiumCard>
+          <div className="text-center">
+            <Activity className="w-12 h-12 text-green-400 mx-auto mb-3" />
+            <div className="text-2xl font-bold text-white">{todayStats.sessionsCount}</div>
+            <div className="text-gray-400 text-sm">Sessions</div>
           </div>
-        </div>
+        </PremiumCard>
+
+        <PremiumCard>
+          <div className="text-center">
+            <Target className="w-12 h-12 text-purple-400 mx-auto mb-3" />
+            <div className="text-2xl font-bold text-white">{todayStats.completedTasks}</div>
+            <div className="text-gray-400 text-sm">Tâches terminées</div>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard>
+          <div className="text-center">
+            <TrendingUp className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
+            <div className="text-2xl font-bold text-white">{formatTime(todayStats.avgSessionTime)}</div>
+            <div className="text-gray-400 text-sm">Durée moyenne</div>
+          </div>
+        </PremiumCard>
       </div>
 
       {/* Historique des sessions */}
-      <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10">
+      <PremiumCard>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white flex items-center">
-            <Activity className="w-6 h-6 mr-3 text-blue-400" />
-            Historique des Sessions
-          </h2>
-          
-          <div className="flex items-center space-x-4">
+          <h3 className="text-white text-xl font-semibold flex items-center">
+            <BarChart3 className="w-6 h-6 mr-2 text-blue-400" />
+            Historique du jour
+          </h3>
+          <div className="flex space-x-3">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-3 py-1 bg-white/10 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
             <select
               value={viewMode}
               onChange={(e) => setViewMode(e.target.value)}
-              className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-blue-400"
+              className="px-3 py-1 bg-white/10 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="today">Aujourd'hui</option>
               <option value="week">Cette semaine</option>
               <option value="month">Ce mois</option>
             </select>
-            
-            <button className="flex items-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all duration-200">
-              <Download className="w-4 h-4" />
-              <span>Exporter</span>
-            </button>
           </div>
         </div>
 
-        <div className="space-y-3">
-          {mockSessions.map((session, index) => (
-            <motion.div
-              key={session.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 hover:border-white/20 transition-all duration-200"
-            >
-              <div className="flex items-center space-x-4">
-                <div className={`w-2 h-2 rounded-full ${session.completed ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
-                <div>
-                  <h4 className="font-medium text-white">{session.task}</h4>
-                  <p className="text-sm text-gray-400">{session.project}</p>
+        {sessions.length > 0 ? (
+          <div className="space-y-3">
+            {sessions.map((session) => (
+              <motion.div
+                key={session.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center justify-between bg-white/5 rounded-lg p-4 hover:bg-white/10 transition-all"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className={`w-3 h-3 rounded-full ${
+                    session.completed ? 'bg-green-400' : 'bg-yellow-400'
+                  }`} />
+                  <div>
+                    <h4 className="font-medium text-white">{session.task}</h4>
+                    <p className="text-sm text-gray-400">{session.project}</p>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="text-right">
-                <div className="text-white font-medium">{formatTime(session.duration)}</div>
-                <div className="text-xs text-gray-400">
-                  {session.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                
+                <div className="text-right">
+                  <div className="text-white font-medium">{formatTime(session.duration)}</div>
+                  <div className="text-xs text-gray-400">
+                    {session.startTime} - {session.endTime}
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
-        {mockSessions.length === 0 && (
+              </motion.div>
+            ))}
+          </div>
+        ) : (
           <div className="text-center py-12">
-            <Clock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-white mb-2">Aucune session enregistrée</h3>
+            <Timer className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">Aucune session enregistrée</h3>
             <p className="text-gray-400">Démarrez votre premier timer pour commencer le suivi</p>
           </div>
         )}
-      </div>
-    </div>
+      </PremiumCard>
+    </PremiumLayout>
   );
 };
 
