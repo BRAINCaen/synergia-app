@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES AVEC DESIGN PREMIUM ET MENU HAMBURGER
+// PAGE TÂCHES VERSION STABLE AVEC MENU HAMBURGER
 // ==========================================
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -30,16 +30,14 @@ import {
   Eye,
   Edit,
   Trash2,
-  X
+  X,
+  Menu
 } from 'lucide-react';
 
-// 🎨 IMPORT DU DESIGN SYSTEM PREMIUM AVEC MENU HAMBURGER
-import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
-
-// 🔥 HOOKS ET SERVICES (conservés)
+// 🔥 HOOKS ET SERVICES
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// 📊 FIREBASE (conservé)
+// 📊 FIREBASE
 import { 
   collection, 
   query, 
@@ -55,10 +53,47 @@ import {
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-// 🎮 SERVICES ET CONSTANTES (corrigé)
-import { SYNERGIA_ROLES } from '../core/data/roles.js';
+// 🎮 SERVICES ET CONSTANTES - DÉFINITION LOCALE POUR ÉVITER ERREURS
+const SYNERGIA_ROLES = {
+  maintenance: {
+    id: 'maintenance',
+    name: 'Entretien & Maintenance',
+    icon: '🔧',
+    color: 'bg-orange-500'
+  },
+  reputation: {
+    id: 'reputation',
+    name: 'Gestion des Avis & Réputation',
+    icon: '⭐',
+    color: 'bg-yellow-500'
+  },
+  stock: {
+    id: 'stock',
+    name: 'Gestion des Stocks & Matériel',
+    icon: '📦',
+    color: 'bg-blue-500'
+  },
+  organization: {
+    id: 'organization',
+    name: 'Organisation Interne',
+    icon: '📋',
+    color: 'bg-purple-500'
+  },
+  content: {
+    id: 'content',
+    name: 'Création de Contenu',
+    icon: '🎨',
+    color: 'bg-pink-500'
+  },
+  mentoring: {
+    id: 'mentoring',
+    name: 'Mentorat & Formation',
+    icon: '🎓',
+    color: 'bg-green-500'
+  }
+};
 
-// 📊 CONSTANTES TÂCHES (conservées)
+// 📊 CONSTANTES TÂCHES
 const TASK_STATUS = {
   todo: { label: 'À faire', color: 'gray', icon: '⏳' },
   in_progress: { label: 'En cours', color: 'blue', icon: '⚡' },
@@ -93,6 +128,7 @@ const TASK_CATEGORIES = {
  */
 const TasksPage = () => {
   const { user } = useAuthStore();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // États pour les données et UI
   const [tasks, setTasks] = useState([]);
@@ -123,24 +159,35 @@ const TasksPage = () => {
 
   // 🔥 Charger les tâches depuis Firebase
   useEffect(() => {
-    if (!user) return;
+    console.log('🔍 [TASKS] Démarrage chargement tâches...');
+    
+    if (!user) {
+      console.log('❌ [TASKS] Pas d\'utilisateur, arrêt du chargement');
+      return;
+    }
 
     const tasksRef = collection(db, 'tasks');
     const q = query(tasksRef, orderBy('createdAt', 'desc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const tasksData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        dueDate: doc.data().dueDate?.toDate() || null
-      }));
+      console.log(`📊 [TASKS] Snapshot reçu avec ${snapshot.size} documents`);
+      
+      const tasksData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+          dueDate: data.dueDate?.toDate() || null
+        };
+      });
 
+      console.log('✅ [TASKS] Tâches chargées:', tasksData.length);
       setTasks(tasksData);
       setIsLoading(false);
     }, (error) => {
-      console.error('❌ Erreur chargement tâches:', error);
+      console.error('❌ [TASKS] Erreur chargement tâches:', error);
       setIsLoading(false);
     });
 
@@ -154,7 +201,7 @@ const TasksPage = () => {
     // Filtrage par recherche
     if (searchTerm) {
       filtered = filtered.filter(task => 
-        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
       );
@@ -213,8 +260,9 @@ const TasksPage = () => {
 
       await addDoc(collection(db, 'tasks'), newTask);
       setShowNewTaskModal(false);
+      console.log('✅ [TASKS] Tâche créée avec succès');
     } catch (error) {
-      console.error('❌ Erreur création tâche:', error);
+      console.error('❌ [TASKS] Erreur création tâche:', error);
     }
   };
 
@@ -224,8 +272,9 @@ const TasksPage = () => {
         status: newStatus,
         updatedAt: serverTimestamp()
       });
+      console.log('✅ [TASKS] Statut mis à jour:', newStatus);
     } catch (error) {
-      console.error('❌ Erreur mise à jour statut:', error);
+      console.error('❌ [TASKS] Erreur mise à jour statut:', error);
     }
   };
 
@@ -234,8 +283,9 @@ const TasksPage = () => {
 
     try {
       await deleteDoc(doc(db, 'tasks', taskId));
+      console.log('✅ [TASKS] Tâche supprimée');
     } catch (error) {
-      console.error('❌ Erreur suppression tâche:', error);
+      console.error('❌ [TASKS] Erreur suppression tâche:', error);
     }
   };
 
@@ -249,7 +299,7 @@ const TasksPage = () => {
       exit={{ opacity: 0, y: -20 }}
       className="group"
     >
-      <PremiumCard className="p-4 hover:scale-[1.02] transition-all duration-300">
+      <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4 hover:scale-[1.02] transition-all duration-300 hover:border-blue-500/30">
         {/* En-tête de la tâche */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center space-x-2">
@@ -277,12 +327,6 @@ const TasksPage = () => {
               className="p-1 rounded text-gray-400 hover:text-blue-400 transition-colors"
             >
               <Eye className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => {/* Edit logic */}}
-              className="p-1 rounded text-gray-400 hover:text-yellow-400 transition-colors"
-            >
-              <Edit className="w-4 h-4" />
             </button>
             <button
               onClick={() => handleDeleteTask(task.id)}
@@ -372,7 +416,7 @@ const TasksPage = () => {
             {task.createdAt.toLocaleDateString()}
           </div>
         </div>
-      </PremiumCard>
+      </div>
     </motion.div>
   );
 
@@ -451,122 +495,183 @@ const TasksPage = () => {
   );
 
   return (
-    <PremiumLayout
-      title="Gestion des Tâches"
-      subtitle="Organisez et suivez vos tâches avec efficacité"
-      icon={CheckSquare}
-      showStats={true}
-      stats={[
-        { title: 'Total', value: taskStats.total, icon: FileText, color: 'blue' },
-        { title: 'En cours', value: taskStats.inProgress, icon: Play, color: 'yellow' },
-        { title: 'Terminées', value: taskStats.completed, icon: CheckSquare, color: 'green' },
-        { title: 'Urgentes', value: taskStats.urgent, icon: AlertCircle, color: 'red' }
-      ]}
-      headerActions={
-        <div className="flex items-center space-x-3">
-          {/* Modes d'affichage */}
-          <div className="flex items-center space-x-1 bg-gray-800 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'cards' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <CheckSquare className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('kanban')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'kanban' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <Target className="w-4 h-4" />
-            </button>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
+      
+      {/* BOUTON MENU HAMBURGER */}
+      <button
+        onClick={() => setMenuOpen(true)}
+        className="fixed top-6 left-6 z-50 w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-300"
+      >
+        <Menu className="w-6 h-6" />
+      </button>
 
-          <PremiumButton
-            onClick={() => setShowNewTaskModal(true)}
-            icon={Plus}
-            variant="primary"
-          >
-            Nouvelle tâche
-          </PremiumButton>
-        </div>
-      }
-    >
-      {/* Barre de recherche */}
-      <div className="mb-6">
-        <PremiumSearchBar
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Rechercher des tâches..."
-        />
-      </div>
-
-      {/* Filtres */}
-      {renderFilters()}
-
-      {/* Contenu principal */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Liste des tâches */}
-          {viewMode === 'cards' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <AnimatePresence>
-                {filteredTasks.map(renderTaskCard)}
-              </AnimatePresence>
-            </div>
-          )}
-
-          {/* Vue liste (à implémenter) */}
-          {viewMode === 'list' && (
-            <PremiumCard className="p-6">
-              <p className="text-gray-400 text-center">Vue liste en cours de développement...</p>
-            </PremiumCard>
-          )}
-
-          {/* Vue Kanban (à implémenter) */}
-          {viewMode === 'kanban' && (
-            <PremiumCard className="p-6">
-              <p className="text-gray-400 text-center">Vue Kanban en cours de développement...</p>
-            </PremiumCard>
-          )}
-
-          {/* Message si aucune tâche */}
-          {filteredTasks.length === 0 && !isLoading && (
-            <PremiumCard className="text-center py-12">
-              <CheckSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Aucune tâche trouvée</h3>
-              <p className="text-gray-400 mb-6">
-                {searchTerm || selectedStatus !== 'all' || selectedPriority !== 'all' || selectedCategory !== 'all' || selectedRole !== 'all'
-                  ? 'Aucune tâche ne correspond à vos critères de recherche.'
-                  : 'Commencez par créer votre première tâche.'}
-              </p>
-              <PremiumButton
-                onClick={() => setShowNewTaskModal(true)}
-                icon={Plus}
-                variant="primary"
+      {/* MENU LATÉRAL */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-40">
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div className="absolute left-0 top-0 h-full w-80 bg-gray-900/95 backdrop-blur border-r border-gray-700 p-6 overflow-y-auto">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-xl font-bold text-white">Menu Navigation</h2>
+              <button
+                onClick={() => setMenuOpen(false)}
+                className="text-gray-400 hover:text-white"
               >
-                Créer une tâche
-              </PremiumButton>
-            </PremiumCard>
-          )}
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <nav className="space-y-6">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-400 mb-3">PRINCIPAL</h3>
+                <div className="space-y-2">
+                  <a href="/dashboard" className="flex items-center space-x-3 text-gray-300 hover:text-white p-2 rounded-lg hover:bg-gray-800">
+                    <span>🏠</span><span>Dashboard</span>
+                  </a>
+                  <a href="/tasks" className="flex items-center space-x-3 text-blue-400 p-2 rounded-lg bg-blue-600/20">
+                    <span>✅</span><span>Tâches</span>
+                  </a>
+                  <a href="/projects" className="flex items-center space-x-3 text-gray-300 hover:text-white p-2 rounded-lg hover:bg-gray-800">
+                    <span>📁</span><span>Projets</span>
+                  </a>
+                </div>
+              </div>
+            </nav>
+            
+            <div className="absolute bottom-6 left-6 right-6">
+              <button className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition-colors">
+                Déconnexion
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Modal nouvelle tâche (à implémenter) */}
+      {/* CONTENU PRINCIPAL */}
+      <div className="pt-24 px-6 pb-6">
+        <div className="max-w-7xl mx-auto">
+          
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center space-x-4 mb-4">
+              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
+                <CheckSquare className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-white">Gestion des Tâches</h1>
+                <p className="text-gray-400">Organisez et suivez vos tâches avec efficacité</p>
+              </div>
+            </div>
+            
+            {/* Statistiques */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4">
+                <div className="flex items-center space-x-3">
+                  <FileText className="w-5 h-5 text-blue-400" />
+                  <div>
+                    <p className="text-sm text-gray-400">Total</p>
+                    <p className="text-xl font-bold text-white">{taskStats.total}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4">
+                <div className="flex items-center space-x-3">
+                  <Play className="w-5 h-5 text-yellow-400" />
+                  <div>
+                    <p className="text-sm text-gray-400">En cours</p>
+                    <p className="text-xl font-bold text-white">{taskStats.inProgress}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4">
+                <div className="flex items-center space-x-3">
+                  <CheckSquare className="w-5 h-5 text-green-400" />
+                  <div>
+                    <p className="text-sm text-gray-400">Terminées</p>
+                    <p className="text-xl font-bold text-white">{taskStats.completed}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4">
+                <div className="flex items-center space-x-3">
+                  <AlertCircle className="w-5 h-5 text-red-400" />
+                  <div>
+                    <p className="text-sm text-gray-400">Urgentes</p>
+                    <p className="text-xl font-bold text-white">{taskStats.urgent}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4">
+                <button
+                  onClick={() => setShowNewTaskModal(true)}
+                  className="w-full h-full flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg text-white hover:from-blue-600 hover:to-purple-700 transition-all"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Nouvelle tâche</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Barre de recherche */}
+          <div className="mb-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Rechercher des tâches..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent backdrop-blur-sm"
+              />
+            </div>
+          </div>
+
+          {/* Filtres */}
+          {renderFilters()}
+
+          {/* Contenu principal */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+              <span className="ml-3 text-white">Chargement des tâches...</span>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Liste des tâches */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <AnimatePresence>
+                  {filteredTasks.map(renderTaskCard)}
+                </AnimatePresence>
+              </div>
+
+              {/* Message si aucune tâche */}
+              {filteredTasks.length === 0 && !isLoading && (
+                <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl text-center py-12">
+                  <CheckSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-white mb-2">Aucune tâche trouvée</h3>
+                  <p className="text-gray-400 mb-6">
+                    {searchTerm || selectedStatus !== 'all' || selectedPriority !== 'all' || selectedCategory !== 'all' || selectedRole !== 'all'
+                      ? 'Aucune tâche ne correspond à vos critères de recherche.'
+                      : 'Commencez par créer votre première tâche.'}
+                  </p>
+                  <button
+                    onClick={() => setShowNewTaskModal(true)}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-300 flex items-center space-x-2 mx-auto"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Créer une tâche</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modal nouvelle tâche */}
       {showNewTaskModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4">
@@ -579,15 +684,15 @@ const TasksPage = () => {
               >
                 Annuler
               </button>
-              <PremiumButton variant="primary">
+              <button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg">
                 Créer
-              </PremiumButton>
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal détails tâche (à implémenter) */}
+      {/* Modal détails tâche */}
       {selectedTask && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-gray-800 rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
@@ -604,7 +709,7 @@ const TasksPage = () => {
           </div>
         </div>
       )}
-    </PremiumLayout>
+    </div>
   );
 };
 
