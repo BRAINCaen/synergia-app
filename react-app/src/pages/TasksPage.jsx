@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES AVEC DESIGN PREMIUM HARMONISÉ
+// PAGE TÂCHES AVEC DESIGN PREMIUM ET MENU HAMBURGER
 // ==========================================
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -33,7 +33,7 @@ import {
   X
 } from 'lucide-react';
 
-// 🎨 IMPORT DU DESIGN SYSTEM PREMIUM
+// 🎨 IMPORT DU DESIGN SYSTEM PREMIUM AVEC MENU HAMBURGER
 import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
 
 // 🔥 HOOKS ET SERVICES (conservés)
@@ -506,7 +506,7 @@ const TasksPage = () => {
       <div className="mb-6">
         <PremiumSearchBar
           value={searchTerm}
-          onChange={setSearchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Rechercher des tâches..."
         />
       </div>
