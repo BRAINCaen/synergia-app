@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import PremiumLayout, { PremiumCard, StatCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useFirebaseGamification } from '../shared/hooks/useFirebaseGamification.js';
+import { useFirebaseGamification } from '../shared/hooks/useUnifiedFirebaseData.js';
 
 const GamificationPage = () => {
   const { user } = useAuthStore();
