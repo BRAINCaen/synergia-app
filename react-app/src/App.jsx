@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APP PRINCIPAL SANS NAVIGATION DU HAUT
+// APP PRINCIPAL AVEC TOUTES LES ROUTES CORRIGÉES
 // ==========================================
 
 import React, { useEffect } from 'react';
@@ -15,12 +15,12 @@ import './core/arrayMapFix.js';
 import './core/assignRoleFinalFix.js';
 
 // ==========================================
-// 🔧 STORES ET SERVICES CORE (seulement les essentiels)
+// 🔧 STORES ET SERVICES CORE
 // ==========================================
 import { useAuthStore, initializeAuthStore } from './shared/stores/authStore.js';
 
 // ==========================================
-// 🎭 PAGES PRINCIPALES (imports sécurisés)
+// 🎭 PAGES PRINCIPALES
 // ==========================================
 import LoginPage from './pages/Login.jsx';
 import DashboardPage from './pages/Dashboard.jsx';
@@ -28,40 +28,34 @@ import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
 import TeamPage from './pages/TeamPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import NotFound from './pages/NotFound.jsx';
 
 // ==========================================
-// 🏆 PAGES GAMIFICATION
+// 🏆 PAGES GAMIFICATION - TOUTES AJOUTÉES !
 // ==========================================
 import GamificationPage from './pages/GamificationPage.jsx';
+import BadgesPage from './pages/BadgesPage.jsx';
+import LeaderboardPage from './pages/LeaderboardPage.jsx';
+import RewardsPage from './pages/RewardsPage.jsx';
 
 // ==========================================
-// 📊 PAGES ANALYTICS
+// 🛠️ PAGES OUTILS
 // ==========================================
-import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import OnboardingPage from './pages/OnboardingPage.jsx';
+import TimeTrackPage from './pages/TimeTrackPage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
+import UsersPage from './pages/UsersPage.jsx';
 
 // ==========================================
-// 🧠 NAVIGATION (supprimée - plus besoin)
+// 🛡️ PAGES ADMIN (conditionnelles)
 // ==========================================
-let Navigation = null;
-// Navigation component supprimé - plus de barre du haut !
+import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
+import CompleteAdminTestPage from './pages/CompleteAdminTestPage.jsx';
+import AdminRolePermissionsPage from './pages/AdminRolePermissionsPage.jsx';
 
 // ==========================================
-// 🛠️ PAGE 404 SIMPLE
-// ==========================================
-const NotFound = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gray-100">
-    <div className="text-center">
-      <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
-      <p className="text-gray-600 mb-6">Page non trouvée</p>
-      <a href="/" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-        Retour à l'accueil
-      </a>
-    </div>
-  </div>
-);
-
-// ==========================================
-// 🛡️ COMPOSANT DE PROTECTION
+// 🔐 COMPOSANT DE PROTECTION DES ROUTES
 // ==========================================
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuthStore();
@@ -70,9 +64,8 @@ const ProtectedRoute = ({ children }) => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">Chargement de l'application...</p>
-          <p className="text-gray-400 text-sm mt-2">Synergia v3.5.3 - Version stable</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-400">Chargement...</p>
         </div>
       </div>
     );
@@ -86,38 +79,23 @@ const ProtectedRoute = ({ children }) => {
 };
 
 // ==========================================
-// 🚀 COMPOSANT APP PRINCIPAL
+// 🚀 APP PRINCIPAL
 // ==========================================
-const App = () => {
-  const { loading, initialize } = useAuthStore();
+function App() {
+  const { user, loading, initializeAuth } = useAuthStore();
 
-  // 🔥 INITIALISATION AU MONTAGE
   useEffect(() => {
-    const initApp = async () => {
-      try {
-        console.log('🚀 [APP] Initialisation Synergia v3.5.3...');
-        
-        // Initialiser le store d'authentification
-        await initializeAuthStore();
-        await initialize();
-        
-        console.log('✅ [APP] Initialisation terminée');
-      } catch (error) {
-        console.error('❌ [APP] Erreur initialisation:', error);
-      }
-    };
+    console.log('🚀 [APP] Initialisation de l\'authentification...');
+    initializeAuth();
+  }, []);
 
-    initApp();
-  }, [initialize]);
-
-  // 🔄 AFFICHAGE DE CHARGEMENT GLOBAL
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-400 mx-auto mb-6"></div>
-          <h1 className="text-white text-2xl font-bold mb-2">Synergia v3.5.3</h1>
-          <p className="text-gray-400">Chargement en cours...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <h2 className="text-white text-xl font-semibold mb-2">Synergia v3.5</h2>
+          <p className="text-gray-400">Démarrage de l'application...</p>
         </div>
       </div>
     );
@@ -125,104 +103,181 @@ const App = () => {
 
   return (
     <Router>
-      <div className="app min-h-screen">
-        
-        {/* SUPPRESSION COMPLÈTE DE LA NAVIGATION DU HAUT */}
-        {/* Plus de SimpleNavigation ni de Navigation component ! */}
-        
-        <AnimatePresence mode="wait">
-          <Routes>
-            {/* 🔐 Route de connexion */}
-            <Route path="/login" element={<LoginPage />} />
-            
-            {/* 🏠 Route principale - Dashboard */}
-            <Route 
-              path="/dashboard" 
-              element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* 🎮 Route gamification */}
-            <Route 
-              path="/gamification" 
-              element={
-                <ProtectedRoute>
-                  <GamificationPage />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* ✅ Route tâches */}
-            <Route 
-              path="/tasks" 
-              element={
-                <ProtectedRoute>
-                  <TasksPage />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* 📁 Route projets */}
-            <Route 
-              path="/projects" 
-              element={
-                <ProtectedRoute>
-                  <ProjectsPage />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* 👥 Route équipe */}
-            <Route 
-              path="/team" 
-              element={
-                <ProtectedRoute>
-                  <TeamPage />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* 📊 Route analytics */}
-            <Route 
-              path="/analytics" 
-              element={
-                <ProtectedRoute>
-                  <AnalyticsPage />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* 👤 Route profil */}
-            <Route 
-              path="/profile" 
-              element={
-                <ProtectedRoute>
-                  <ProfilePage />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* 🔄 Redirection par défaut */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            
-            {/* 🚫 Page 404 */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AnimatePresence>
-      </div>
+      <AnimatePresence mode="wait">
+        <Routes>
+          {/* 🔓 ROUTE PUBLIQUE */}
+          <Route 
+            path="/login" 
+            element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} 
+          />
+          
+          {/* 🏠 ROUTES PRINCIPALES */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/tasks" 
+            element={
+              <ProtectedRoute>
+                <TasksPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/projects" 
+            element={
+              <ProtectedRoute>
+                <ProjectsPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/analytics" 
+            element={
+              <ProtectedRoute>
+                <AnalyticsPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 🎮 ROUTES GAMIFICATION - TOUTES AJOUTÉES ! */}
+          <Route 
+            path="/gamification" 
+            element={
+              <ProtectedRoute>
+                <GamificationPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/badges" 
+            element={
+              <ProtectedRoute>
+                <BadgesPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/leaderboard" 
+            element={
+              <ProtectedRoute>
+                <LeaderboardPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/rewards" 
+            element={
+              <ProtectedRoute>
+                <RewardsPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 👥 ROUTES ÉQUIPE */}
+          <Route 
+            path="/team" 
+            element={
+              <ProtectedRoute>
+                <TeamPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/users" 
+            element={
+              <ProtectedRoute>
+                <UsersPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 🛠️ ROUTES OUTILS */}
+          <Route 
+            path="/onboarding" 
+            element={
+              <ProtectedRoute>
+                <OnboardingPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/time-track" 
+            element={
+              <ProtectedRoute>
+                <TimeTrackPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 🛡️ ROUTES ADMIN */}
+          <Route 
+            path="/admin/task-validation" 
+            element={
+              <ProtectedRoute>
+                <AdminTaskValidationPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/admin/complete-test" 
+            element={
+              <ProtectedRoute>
+                <CompleteAdminTestPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/admin/roles" 
+            element={
+              <ProtectedRoute>
+                <AdminRolePermissionsPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 🏠 REDIRECTION PAR DÉFAUT */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          
+          {/* 🚫 PAGE 404 */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </AnimatePresence>
     </Router>
   );
-};
+}
 
 export default App;
-
-// ==========================================
-// 🎉 LOGS DE CONFIRMATION
-// ==========================================
-console.log('✅ [APP] Version sans navigation du haut chargée');
-console.log('🚫 [APP] SimpleNavigation supprimée');
-console.log('🎯 [APP] Interface full screen activée');
-console.log('🍔 [APP] Navigation via menu hamburger uniquement');
