@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/layouts/DashboardLayout.jsx
-// DASHBOARD LAYOUT ORIGINAL - Version qui marchait parfaitement
+// DASHBOARD LAYOUT SANS BARRE DE NAVIGATION DU HAUT
 // ==========================================
 
 import React, { useState } from 'react';
@@ -9,7 +9,7 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
 
 /**
- * 🎨 DASHBOARD LAYOUT ORIGINAL - Compatible avec children prop
+ * 🎨 DASHBOARD LAYOUT SANS TOP HEADER - Compatible avec children prop
  */
 const DashboardLayout = ({ children }) => {
   const { user, signOut } = useAuthStore();
@@ -62,33 +62,6 @@ const DashboardLayout = ({ children }) => {
     }
   };
 
-  // Fonction pour obtenir le titre de la page
-  const getPageTitle = (pathname) => {
-    const item = allNavigationItems.find(item => item.href === pathname);
-    return item ? item.name : 'Synergia';
-  };
-
-  // Fonction pour obtenir la description de la page
-  const getPageDescription = (pathname) => {
-    const descriptions = {
-      '/dashboard': 'Vue d\'ensemble de votre activité',
-      '/tasks': 'Gérez vos tâches et projets',
-      '/projects': 'Suivez l\'avancement de vos projets',
-      '/analytics': 'Analysez vos performances',
-      '/gamification': 'Système de motivation et récompenses',
-      '/badges': 'Vos accomplissements et badges',
-      '/leaderboard': 'Classement de l\'équipe',
-      '/rewards': 'Récompenses et objectifs',
-      '/team': 'Gestion de votre équipe',
-      '/users': 'Gestion des utilisateurs',
-      '/onboarding': 'Processus d\'intégration',
-      '/timetrack': 'Suivi du temps de travail',
-      '/profile': 'Votre profil personnel',
-      '/settings': 'Paramètres de l\'application'
-    };
-    return descriptions[pathname] || 'Plateforme de gestion collaborative';
-  };
-
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f9fafb' }}>
       
@@ -109,95 +82,68 @@ const DashboardLayout = ({ children }) => {
           borderBottom: '1px solid #e5e7eb',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: sidebarCollapsed ? 'center' : 'space-between',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white'
+          justifyContent: sidebarCollapsed ? 'center' : 'space-between'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '1.5rem' }}>👑</span>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem'
+          }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              backgroundColor: '#3b82f6',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '16px'
+            }}>
+              ⚡
+            </div>
             {!sidebarCollapsed && (
               <div>
-                <span style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
+                <div style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#1f2937' }}>
                   Synergia
-                </span>
-                <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>
-                  v3.5 {isAdmin(user) && '• Admin'}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                  v3.5
                 </div>
               </div>
             )}
           </div>
           
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            style={{
-              padding: '0.5rem',
-              background: 'rgba(255,255,255,0.2)',
-              border: 'none',
-              borderRadius: '0.5rem',
-              cursor: 'pointer',
-              fontSize: '1rem',
-              color: 'white'
-            }}
-          >
-            {sidebarCollapsed ? '→' : '←'}
-          </button>
+          {!sidebarCollapsed && (
+            <button
+              onClick={() => setSidebarCollapsed(true)}
+              style={{
+                padding: '0.5rem',
+                color: '#6b7280',
+                backgroundColor: 'transparent',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#f3f4f6';
+                e.target.style.color = '#374151';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#6b7280';
+              }}
+            >
+              ←
+            </button>
+          )}
         </div>
 
-        {/* User Info */}
-        {!sidebarCollapsed && user && (
-          <div style={{
-            padding: '1rem',
-            borderBottom: '1px solid #e5e7eb',
-            background: '#f8fafc'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: 'bold'
-              }}>
-                {user.displayName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || '?'}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ 
-                  fontSize: '0.875rem', 
-                  fontWeight: '600', 
-                  color: '#1f2937',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {user.displayName || user.email?.split('@')[0] || 'Utilisateur'}
-                </div>
-                <div style={{ 
-                  fontSize: '0.75rem', 
-                  color: '#6b7280',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {user.email}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Navigation */}
-        <nav style={{ 
-          flex: 1, 
-          padding: '1rem 0',
-          overflowY: 'auto'
-        }}>
+        <nav style={{ flex: 1, padding: '1rem 0' }}>
           {allNavigationItems.map((item) => {
             const isActive = location.pathname === item.href;
-            const isAdminRoute = item.href.startsWith('/admin/');
+            const isAdminRoute = item.href.startsWith('/admin');
             
             return (
               <Link
@@ -206,83 +152,177 @@ const DashboardLayout = ({ children }) => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: sidebarCollapsed ? 0 : '0.75rem',
+                  gap: '0.75rem',
                   padding: sidebarCollapsed ? '0.75rem' : '0.75rem 1rem',
                   margin: '0 0.5rem',
-                  borderRadius: '0.5rem',
+                  color: isActive ? '#1f2937' : '#6b7280',
+                  backgroundColor: isActive ? '#f3f4f6' : 'transparent',
+                  borderRadius: '8px',
                   textDecoration: 'none',
-                  color: isActive ? '#667eea' : '#4b5563',
-                  backgroundColor: isActive ? '#f0f4ff' : 'transparent',
-                  borderLeft: isActive ? '3px solid #667eea' : '3px solid transparent',
-                  transition: 'all 0.2s ease',
                   fontSize: '0.875rem',
                   fontWeight: isActive ? '600' : '500',
-                  ...(isAdminRoute && {
-                    background: isActive ? 'linear-gradient(135deg, #fef3c7, #fde68a)' : '#fff7ed',
-                    border: '1px solid #f59e0b20'
-                  })
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start'
                 }}
                 onMouseEnter={(e) => {
                   if (!isActive) {
-                    e.target.style.backgroundColor = '#f8fafc';
+                    e.target.style.backgroundColor = '#f9fafb';
+                    e.target.style.color = '#374151';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!isActive) {
                     e.target.style.backgroundColor = 'transparent';
+                    e.target.style.color = '#6b7280';
                   }
                 }}
               >
                 <span style={{ 
-                  fontSize: '1.25rem',
-                  minWidth: '24px',
-                  textAlign: 'center'
+                  fontSize: '1.125rem',
+                  filter: isAdminRoute ? 'hue-rotate(45deg)' : 'none'
                 }}>
                   {item.icon}
                 </span>
-                {!sidebarCollapsed && (
-                  <span style={{ 
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
+                {!sidebarCollapsed && <span>{item.name}</span>}
+                {isAdminRoute && !sidebarCollapsed && (
+                  <span style={{
+                    fontSize: '0.625rem',
+                    backgroundColor: '#fef3c7',
+                    color: '#d97706',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    marginLeft: 'auto'
                   }}>
-                    {item.name}
+                    ADMIN
                   </span>
-                )}
-                {isActive && !sidebarCollapsed && (
-                  <span style={{ 
-                    marginLeft: 'auto',
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    backgroundColor: '#667eea'
-                  }} />
                 )}
               </Link>
             );
           })}
         </nav>
 
-        {/* Logout Button - GRIS au lieu de ROUGE */}
-        <div style={{ 
-          padding: '1rem',
-          borderTop: '1px solid #e5e7eb'
+        {/* Bouton Collapse en mode collapsed */}
+        {sidebarCollapsed && (
+          <div style={{ padding: '1rem' }}>
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                backgroundColor: '#f3f4f6',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '1.125rem',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#e5e7eb';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#f3f4f6';
+              }}
+            >
+              →
+            </button>
+          </div>
+        )}
+
+        {/* User Section & Logout */}
+        <div style={{
+          borderTop: '1px solid #e5e7eb',
+          padding: '1rem'
         }}>
-          <button
-            onClick={handleSignOut}
-            style={{
+          {/* User info - collapsed */}
+          {sidebarCollapsed && user && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              marginBottom: '0.75rem'
+            }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                backgroundColor: '#ddd6fe',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                color: '#7c3aed'
+              }}>
+                {user.displayName?.charAt(0) || user.email?.charAt(0) || '?'}
+              </div>
+            </div>
+          )}
+
+          {/* User info - expanded */}
+          {!sidebarCollapsed && user && (
+            <div style={{
               display: 'flex',
               alignItems: 'center',
               gap: '0.75rem',
-              width: '100%',
+              marginBottom: '0.75rem',
               padding: '0.75rem',
-              background: 'linear-gradient(135deg, #6b7280, #4b5563)', // GRIS au lieu de ROUGE
-              color: 'white',
+              backgroundColor: '#f9fafb',
+              borderRadius: '8px'
+            }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                backgroundColor: '#ddd6fe',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                color: '#7c3aed'
+              }}>
+                {user.displayName?.charAt(0) || user.email?.charAt(0) || '?'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  color: '#1f2937',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {user.displayName || 'Utilisateur'}
+                </div>
+                <div style={{
+                  fontSize: '0.75rem',
+                  color: '#6b7280',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {user.email}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Logout Button */}
+          <button
+            onClick={handleSignOut}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '0.75rem',
+              backgroundColor: '#fee2e2',
+              color: '#dc2626',
               border: 'none',
-              borderRadius: '0.5rem',
-              cursor: 'pointer',
+              borderRadius: '8px',
               fontSize: '0.875rem',
               fontWeight: '500',
+              cursor: 'pointer',
               transition: 'all 0.2s ease',
               justifyContent: sidebarCollapsed ? 'center' : 'flex-start'
             }}
@@ -309,54 +349,9 @@ const DashboardLayout = ({ children }) => {
         overflow: 'hidden'
       }}>
         
-        {/* TOP HEADER */}
-        <header style={{
-          backgroundColor: 'white',
-          borderBottom: '1px solid #e5e7eb',
-          padding: '1rem 2rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
-        }}>
-          <div>
-            <h1 style={{ 
-              fontSize: '1.875rem', 
-              fontWeight: 'bold', 
-              color: '#1f2937',
-              margin: 0,
-              marginBottom: '0.25rem'
-            }}>
-              {getPageTitle(location.pathname)}
-            </h1>
-            <p style={{ 
-              color: '#6b7280', 
-              margin: 0,
-              fontSize: '0.875rem'
-            }}>
-              {getPageDescription(location.pathname)}
-            </p>
-          </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            {user && (
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.5rem',
-                fontSize: '0.875rem',
-                color: '#6b7280'
-              }}>
-                <span>👋</span>
-                <span>
-                  Salut, {user.displayName?.split(' ')[0] || user.email?.split('@')[0] || 'Utilisateur'} !
-                </span>
-              </div>
-            )}
-          </div>
-        </header>
+        {/* SUPPRESSION COMPLÈTE DU TOP HEADER - PLUS DE BARRE DU HAUT ! */}
 
-        {/* PAGE CONTENT */}
+        {/* PAGE CONTENT - MAINTENANT FULL SCREEN */}
         <main style={{ 
           flex: 1,
           overflow: 'auto',
