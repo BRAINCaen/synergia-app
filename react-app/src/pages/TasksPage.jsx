@@ -1,9 +1,10 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES VERSION STABLE D'URGENCE
+// PAGE TÂCHES AVEC DESIGN PREMIUM HARMONISÉ
 // ==========================================
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CheckSquare,
   Plus,
@@ -13,13 +14,18 @@ import {
   SortDesc,
   User,
   Users,
+  Heart,
+  Archive,
   FileText,
   Play,
+  Image as ImageIcon,
+  MessageCircle,
   Calendar,
   Target,
   Zap,
   Clock,
   AlertCircle,
+  ChevronDown,
   Star,
   Eye,
   Edit,
@@ -27,10 +33,13 @@ import {
   X
 } from 'lucide-react';
 
-// 🔥 HOOKS ET SERVICES (stables)
+// 🎨 IMPORT DU DESIGN SYSTEM PREMIUM
+import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
+
+// 🔥 HOOKS ET SERVICES (conservés)
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// 📊 FIREBASE (stable)
+// 📊 FIREBASE (conservé)
 import { 
   collection, 
   query, 
@@ -40,57 +49,23 @@ import {
   updateDoc, 
   deleteDoc, 
   doc, 
-  serverTimestamp
+  serverTimestamp,
+  where,
+  getDocs
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-// 🎮 DÉFINITION LOCALE DES RÔLES (pour éviter les erreurs d'import)
-const SYNERGIA_ROLES = {
-  maintenance: {
-    id: 'maintenance',
-    name: 'Entretien & Maintenance',
-    icon: '🔧',
-    color: 'bg-orange-500'
-  },
-  reputation: {
-    id: 'reputation',
-    name: 'Gestion des Avis & Réputation',
-    icon: '⭐',
-    color: 'bg-yellow-500'
-  },
-  stock: {
-    id: 'stock',
-    name: 'Gestion des Stocks & Matériel',
-    icon: '📦',
-    color: 'bg-blue-500'
-  },
-  organization: {
-    id: 'organization',
-    name: 'Organisation Interne',
-    icon: '📋',
-    color: 'bg-purple-500'
-  },
-  content: {
-    id: 'content',
-    name: 'Création de Contenu',
-    icon: '🎨',
-    color: 'bg-pink-500'
-  },
-  mentoring: {
-    id: 'mentoring',
-    name: 'Mentorat & Formation',
-    icon: '🎓',
-    color: 'bg-green-500'
-  }
-};
+// 🎮 SERVICES ET CONSTANTES (corrigé)
+import { SYNERGIA_ROLES } from '../core/data/roles.js';
 
-// 📊 CONSTANTES TÂCHES
+// 📊 CONSTANTES TÂCHES (conservées)
 const TASK_STATUS = {
   todo: { label: 'À faire', color: 'gray', icon: '⏳' },
   in_progress: { label: 'En cours', color: 'blue', icon: '⚡' },
   review: { label: 'En révision', color: 'yellow', icon: '👀' },
   completed: { label: 'Terminée', color: 'green', icon: '✅' },
-  validated: { label: 'Validée', color: 'purple', icon: '🏆' }
+  validated: { label: 'Validée', color: 'purple', icon: '🏆' },
+  cancelled: { label: 'Annulée', color: 'red', icon: '❌' }
 };
 
 const TASK_PRIORITY = {
@@ -100,36 +75,49 @@ const TASK_PRIORITY = {
   urgent: { label: 'Urgente', color: 'red', icon: '🔴' }
 };
 
+const TASK_CATEGORIES = {
+  maintenance: { label: 'Maintenance', color: 'orange', icon: '🔧' },
+  management: { label: 'Gestion', color: 'blue', icon: '📊' },
+  development: { label: 'Développement', color: 'green', icon: '💻' },
+  communication: { label: 'Communication', color: 'purple', icon: '📢' },
+  training: { label: 'Formation', color: 'indigo', icon: '🎓' },
+  marketing: { label: 'Marketing', color: 'pink', icon: '📱' },
+  sales: { label: 'Ventes', color: 'emerald', icon: '💰' },
+  support: { label: 'Support', color: 'cyan', icon: '🎧' },
+  research: { label: 'Recherche', color: 'violet', icon: '🔬' },
+  planning: { label: 'Planification', color: 'amber', icon: '📅' }
+};
+
 /**
- * 🏠 PAGE PRINCIPALE DES TÂCHES - VERSION STABLE
+ * 🏠 PAGE PRINCIPALE DES TÂCHES
  */
 const TasksPage = () => {
   const { user } = useAuthStore();
 
-  // États de base
+  // États pour les données et UI
   const [tasks, setTasks] = useState([]);
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedRole, setSelectedRole] = useState('all');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'list' | 'kanban'
 
   // 📊 Statistiques calculées
   const taskStats = useMemo(() => {
-    if (!Array.isArray(tasks)) return { total: 0, todo: 0, inProgress: 0, completed: 0, urgent: 0, myTasks: 0 };
-    
     return {
       total: tasks.length,
-      todo: tasks.filter(t => t?.status === 'todo').length,
-      inProgress: tasks.filter(t => t?.status === 'in_progress').length,
-      completed: tasks.filter(t => t?.status === 'completed').length,
-      urgent: tasks.filter(t => t?.priority === 'urgent').length,
-      myTasks: tasks.filter(t => t?.assignedTo === user?.uid).length
+      todo: tasks.filter(t => t.status === 'todo').length,
+      inProgress: tasks.filter(t => t.status === 'in_progress').length,
+      completed: tasks.filter(t => t.status === 'completed').length,
+      urgent: tasks.filter(t => t.priority === 'urgent').length,
+      myTasks: tasks.filter(t => t.assignedTo === user?.uid).length
     };
   }, [tasks, user]);
 
@@ -141,67 +129,61 @@ const TasksPage = () => {
     const q = query(tasksRef, orderBy('createdAt', 'desc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      try {
-        const tasksData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate() || new Date(),
-          updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-          dueDate: doc.data().dueDate?.toDate() || null
-        }));
+      const tasksData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+        dueDate: doc.data().dueDate?.toDate() || null
+      }));
 
-        setTasks(tasksData || []);
-        setIsLoading(false);
-      } catch (error) {
-        console.error('❌ Erreur chargement tâches:', error);
-        setTasks([]);
-        setIsLoading(false);
-      }
+      setTasks(tasksData);
+      setIsLoading(false);
     }, (error) => {
-      console.error('❌ Erreur listener tâches:', error);
-      setTasks([]);
+      console.error('❌ Erreur chargement tâches:', error);
       setIsLoading(false);
     });
 
     return () => unsubscribe();
   }, [user]);
 
-  // 🔍 Filtrage des tâches
+  // 🔍 Filtrage et tri des tâches
   useEffect(() => {
-    if (!Array.isArray(tasks)) {
-      setFilteredTasks([]);
-      return;
-    }
-
     let filtered = [...tasks];
 
     // Filtrage par recherche
     if (searchTerm) {
       filtered = filtered.filter(task => 
-        task?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task?.description?.toLowerCase().includes(searchTerm.toLowerCase())
+        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
     // Filtrage par statut
     if (selectedStatus !== 'all') {
-      filtered = filtered.filter(task => task?.status === selectedStatus);
+      filtered = filtered.filter(task => task.status === selectedStatus);
     }
 
     // Filtrage par priorité
     if (selectedPriority !== 'all') {
-      filtered = filtered.filter(task => task?.priority === selectedPriority);
+      filtered = filtered.filter(task => task.priority === selectedPriority);
+    }
+
+    // Filtrage par catégorie
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(task => task.category === selectedCategory);
     }
 
     // Filtrage par rôle
     if (selectedRole !== 'all') {
-      filtered = filtered.filter(task => task?.role === selectedRole);
+      filtered = filtered.filter(task => task.role === selectedRole);
     }
 
     // Tri
     filtered.sort((a, b) => {
-      let aValue = a?.[sortBy];
-      let bValue = b?.[sortBy];
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
 
       if (sortBy === 'createdAt' || sortBy === 'updatedAt' || sortBy === 'dueDate') {
         aValue = aValue?.getTime() || 0;
@@ -216,9 +198,26 @@ const TasksPage = () => {
     });
 
     setFilteredTasks(filtered);
-  }, [tasks, searchTerm, selectedStatus, selectedPriority, selectedRole, sortBy, sortOrder]);
+  }, [tasks, searchTerm, selectedStatus, selectedPriority, selectedCategory, selectedRole, sortBy, sortOrder]);
 
   // 🎯 Fonctions de gestion des tâches
+  const handleCreateTask = async (taskData) => {
+    try {
+      const newTask = {
+        ...taskData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        createdBy: user.uid,
+        status: 'todo'
+      };
+
+      await addDoc(collection(db, 'tasks'), newTask);
+      setShowNewTaskModal(false);
+    } catch (error) {
+      console.error('❌ Erreur création tâche:', error);
+    }
+  };
+
   const handleUpdateTaskStatus = async (taskId, newStatus) => {
     try {
       await updateDoc(doc(db, 'tasks', taskId), {
@@ -240,233 +239,372 @@ const TasksPage = () => {
     }
   };
 
-  // 🎨 Rendu de base sans design premium (pour éviter les erreurs)
-  return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* Header simple */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <CheckSquare className="w-8 h-8 text-blue-600" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Gestion des Tâches</h1>
-                <p className="text-gray-600">Organisez et suivez vos tâches</p>
-              </div>
+  // 🎨 Rendu des cartes de tâches
+  const renderTaskCard = (task) => (
+    <motion.div
+      key={task.id}
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="group"
+    >
+      <PremiumCard className="p-4 hover:scale-[1.02] transition-all duration-300">
+        {/* En-tête de la tâche */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2">
+              {task.role && SYNERGIA_ROLES[task.role] && (
+                <span className="text-lg">{SYNERGIA_ROLES[task.role].icon}</span>
+              )}
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                TASK_STATUS[task.status]?.color === 'green' ? 'bg-green-100 text-green-800' :
+                TASK_STATUS[task.status]?.color === 'blue' ? 'bg-blue-100 text-blue-800' :
+                TASK_STATUS[task.status]?.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
+                TASK_STATUS[task.status]?.color === 'purple' ? 'bg-purple-100 text-purple-800' :
+                TASK_STATUS[task.status]?.color === 'red' ? 'bg-red-100 text-red-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {TASK_STATUS[task.status]?.icon} {TASK_STATUS[task.status]?.label}
+              </span>
             </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
-              onClick={() => setShowNewTaskModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
+              onClick={() => setSelectedTask(task)}
+              className="p-1 rounded text-gray-400 hover:text-blue-400 transition-colors"
             >
-              <Plus className="w-4 h-4" />
-              <span>Nouvelle tâche</span>
+              <Eye className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {/* Edit logic */}}
+              className="p-1 rounded text-gray-400 hover:text-yellow-400 transition-colors"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handleDeleteTask(task.id)}
+              className="p-1 rounded text-gray-400 hover:text-red-400 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Titre et description */}
+        <h3 className="text-white font-semibold mb-2 line-clamp-2">{task.title}</h3>
+        {task.description && (
+          <p className="text-gray-400 text-sm mb-3 line-clamp-2">{task.description}</p>
+        )}
+
+        {/* Métadonnées */}
+        <div className="space-y-2">
+          {/* Priorité et catégorie */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              {task.priority && (
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  TASK_PRIORITY[task.priority]?.color === 'red' ? 'bg-red-100 text-red-800' :
+                  TASK_PRIORITY[task.priority]?.color === 'orange' ? 'bg-orange-100 text-orange-800' :
+                  TASK_PRIORITY[task.priority]?.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {TASK_PRIORITY[task.priority]?.icon} {TASK_PRIORITY[task.priority]?.label}
+                </span>
+              )}
+              {task.category && (
+                <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800">
+                  {TASK_CATEGORIES[task.category]?.icon} {TASK_CATEGORIES[task.category]?.label}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Date d'échéance */}
+          {task.dueDate && (
+            <div className="flex items-center space-x-1 text-gray-400 text-xs">
+              <Calendar className="w-3 h-3" />
+              <span>{task.dueDate.toLocaleDateString()}</span>
+            </div>
+          )}
+
+          {/* Tags */}
+          {task.tags && task.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {task.tags.slice(0, 3).map((tag, index) => (
+                <span key={index} className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                  #{tag}
+                </span>
+              ))}
+              {task.tags.length > 3 && (
+                <span className="text-xs text-gray-400">+{task.tags.length - 3}</span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Actions rapides */}
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-700">
+          <div className="flex items-center space-x-2">
+            {task.status !== 'completed' && (
+              <button
+                onClick={() => handleUpdateTaskStatus(task.id, 'completed')}
+                className="text-xs px-3 py-1 rounded-full bg-green-600 hover:bg-green-700 text-white transition-colors"
+              >
+                <CheckSquare className="w-3 h-3 mr-1 inline" />
+                Terminer
+              </button>
+            )}
+            {task.status === 'todo' && (
+              <button
+                onClick={() => handleUpdateTaskStatus(task.id, 'in_progress')}
+                className="text-xs px-3 py-1 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+              >
+                <Play className="w-3 h-3 mr-1 inline" />
+                Démarrer
+              </button>
+            )}
+          </div>
+
+          <div className="text-xs text-gray-400">
+            {task.createdAt.toLocaleDateString()}
+          </div>
+        </div>
+      </PremiumCard>
+    </motion.div>
+  );
+
+  // 🎨 Rendu de la barre de filtres
+  const renderFilters = () => (
+    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+      {/* Statut */}
+      <select
+        value={selectedStatus}
+        onChange={(e) => setSelectedStatus(e.target.value)}
+        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="all">Tous les statuts</option>
+        {Object.entries(TASK_STATUS).map(([key, status]) => (
+          <option key={key} value={key}>{status.icon} {status.label}</option>
+        ))}
+      </select>
+
+      {/* Priorité */}
+      <select
+        value={selectedPriority}
+        onChange={(e) => setSelectedPriority(e.target.value)}
+        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="all">Toutes priorités</option>
+        {Object.entries(TASK_PRIORITY).map(([key, priority]) => (
+          <option key={key} value={key}>{priority.icon} {priority.label}</option>
+        ))}
+      </select>
+
+      {/* Catégorie */}
+      <select
+        value={selectedCategory}
+        onChange={(e) => setSelectedCategory(e.target.value)}
+        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="all">Toutes catégories</option>
+        {Object.entries(TASK_CATEGORIES).map(([key, category]) => (
+          <option key={key} value={key}>{category.icon} {category.label}</option>
+        ))}
+      </select>
+
+      {/* Rôle */}
+      <select
+        value={selectedRole}
+        onChange={(e) => setSelectedRole(e.target.value)}
+        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="all">Tous les rôles</option>
+        {Object.entries(SYNERGIA_ROLES).map(([key, role]) => (
+          <option key={key} value={key}>{role.icon} {role.name}</option>
+        ))}
+      </select>
+
+      {/* Tri */}
+      <div className="flex space-x-2">
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500 flex-1"
+        >
+          <option value="createdAt">Date création</option>
+          <option value="updatedAt">Date modification</option>
+          <option value="dueDate">Date échéance</option>
+          <option value="priority">Priorité</option>
+          <option value="title">Titre</option>
+        </select>
+        <button
+          onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white hover:bg-gray-700 transition-colors"
+        >
+          {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <PremiumLayout
+      title="Gestion des Tâches"
+      subtitle="Organisez et suivez vos tâches avec efficacité"
+      icon={CheckSquare}
+      showStats={true}
+      stats={[
+        { title: 'Total', value: taskStats.total, icon: FileText, color: 'blue' },
+        { title: 'En cours', value: taskStats.inProgress, icon: Play, color: 'yellow' },
+        { title: 'Terminées', value: taskStats.completed, icon: CheckSquare, color: 'green' },
+        { title: 'Urgentes', value: taskStats.urgent, icon: AlertCircle, color: 'red' }
+      ]}
+      headerActions={
+        <div className="flex items-center space-x-3">
+          {/* Modes d'affichage */}
+          <div className="flex items-center space-x-1 bg-gray-800 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'cards' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <CheckSquare className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('kanban')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'kanban' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Target className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Statistiques simples */}
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-            <div className="bg-gray-50 p-3 rounded">
-              <div className="text-2xl font-bold text-gray-900">{taskStats.total}</div>
-              <div className="text-sm text-gray-600">Total</div>
-            </div>
-            <div className="bg-gray-50 p-3 rounded">
-              <div className="text-2xl font-bold text-blue-600">{taskStats.inProgress}</div>
-              <div className="text-sm text-gray-600">En cours</div>
-            </div>
-            <div className="bg-gray-50 p-3 rounded">
-              <div className="text-2xl font-bold text-green-600">{taskStats.completed}</div>
-              <div className="text-sm text-gray-600">Terminées</div>
-            </div>
-            <div className="bg-gray-50 p-3 rounded">
-              <div className="text-2xl font-bold text-red-600">{taskStats.urgent}</div>
-              <div className="text-sm text-gray-600">Urgentes</div>
-            </div>
-            <div className="bg-gray-50 p-3 rounded">
-              <div className="text-2xl font-bold text-purple-600">{taskStats.myTasks}</div>
-              <div className="text-sm text-gray-600">Mes tâches</div>
-            </div>
-            <div className="bg-gray-50 p-3 rounded">
-              <div className="text-2xl font-bold text-gray-600">{taskStats.todo}</div>
-              <div className="text-sm text-gray-600">À faire</div>
-            </div>
-          </div>
+          <PremiumButton
+            onClick={() => setShowNewTaskModal(true)}
+            icon={Plus}
+            variant="primary"
+          >
+            Nouvelle tâche
+          </PremiumButton>
         </div>
-
-        {/* Barre de recherche simple */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-          <div className="flex items-center space-x-4">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Rechercher des tâches..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Tous les statuts</option>
-              {Object.entries(TASK_STATUS).map(([key, status]) => (
-                <option key={key} value={key}>{status.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Liste des tâches */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow-sm">
-            {Array.isArray(filteredTasks) && filteredTasks.length > 0 ? (
-              <div className="divide-y divide-gray-200">
-                {filteredTasks.map((task) => (
-                  <div key={task.id} className="p-4 hover:bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">{task.title || 'Tâche sans titre'}</h3>
-                        {task.description && (
-                          <p className="text-sm text-gray-600 mt-1">{task.description}</p>
-                        )}
-                        <div className="flex items-center space-x-4 mt-2">
-                          {task.status && TASK_STATUS[task.status] && (
-                            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
-                              {TASK_STATUS[task.status].label}
-                            </span>
-                          )}
-                          {task.priority && TASK_PRIORITY[task.priority] && (
-                            <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
-                              {TASK_PRIORITY[task.priority].label}
-                            </span>
-                          )}
-                          {task.role && SYNERGIA_ROLES[task.role] && (
-                            <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800">
-                              {SYNERGIA_ROLES[task.role].icon} {SYNERGIA_ROLES[task.role].name}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {task.status !== 'completed' && (
-                          <button
-                            onClick={() => handleUpdateTaskStatus(task.id, 'completed')}
-                            className="text-green-600 hover:text-green-800"
-                          >
-                            <CheckSquare className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setSelectedTask(task)}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTask(task.id)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <CheckSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune tâche trouvée</h3>
-                <p className="text-gray-600 mb-6">Commencez par créer votre première tâche.</p>
-                <button
-                  onClick={() => setShowNewTaskModal(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-                >
-                  Créer une tâche
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Modal simple nouvelle tâche */}
-        {showNewTaskModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Nouvelle tâche</h3>
-              <p className="text-gray-600 mb-6">Fonctionnalité en développement...</p>
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={() => setShowNewTaskModal(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={() => setShowNewTaskModal(false)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  Fermer
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Modal détails tâche */}
-        {selectedTask && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">{selectedTask.title}</h3>
-                <button
-                  onClick={() => setSelectedTask(null)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Description</label>
-                  <p className="mt-1 text-sm text-gray-900">{selectedTask.description || 'Aucune description'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Statut</label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedTask.status && TASK_STATUS[selectedTask.status] 
-                      ? TASK_STATUS[selectedTask.status].label 
-                      : 'Non défini'
-                    }
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Priorité</label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedTask.priority && TASK_PRIORITY[selectedTask.priority] 
-                      ? TASK_PRIORITY[selectedTask.priority].label 
-                      : 'Non définie'
-                    }
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Créée le</label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedTask.createdAt ? selectedTask.createdAt.toLocaleDateString() : 'Date inconnue'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      }
+    >
+      {/* Barre de recherche */}
+      <div className="mb-6">
+        <PremiumSearchBar
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="Rechercher des tâches..."
+        />
       </div>
-    </div>
+
+      {/* Filtres */}
+      {renderFilters()}
+
+      {/* Contenu principal */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Liste des tâches */}
+          {viewMode === 'cards' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <AnimatePresence>
+                {filteredTasks.map(renderTaskCard)}
+              </AnimatePresence>
+            </div>
+          )}
+
+          {/* Vue liste (à implémenter) */}
+          {viewMode === 'list' && (
+            <PremiumCard className="p-6">
+              <p className="text-gray-400 text-center">Vue liste en cours de développement...</p>
+            </PremiumCard>
+          )}
+
+          {/* Vue Kanban (à implémenter) */}
+          {viewMode === 'kanban' && (
+            <PremiumCard className="p-6">
+              <p className="text-gray-400 text-center">Vue Kanban en cours de développement...</p>
+            </PremiumCard>
+          )}
+
+          {/* Message si aucune tâche */}
+          {filteredTasks.length === 0 && !isLoading && (
+            <PremiumCard className="text-center py-12">
+              <CheckSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">Aucune tâche trouvée</h3>
+              <p className="text-gray-400 mb-6">
+                {searchTerm || selectedStatus !== 'all' || selectedPriority !== 'all' || selectedCategory !== 'all' || selectedRole !== 'all'
+                  ? 'Aucune tâche ne correspond à vos critères de recherche.'
+                  : 'Commencez par créer votre première tâche.'}
+              </p>
+              <PremiumButton
+                onClick={() => setShowNewTaskModal(true)}
+                icon={Plus}
+                variant="primary"
+              >
+                Créer une tâche
+              </PremiumButton>
+            </PremiumCard>
+          )}
+        </div>
+      )}
+
+      {/* Modal nouvelle tâche (à implémenter) */}
+      {showNewTaskModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold text-white mb-4">Nouvelle tâche</h3>
+            <p className="text-gray-400 mb-6">Formulaire de création en cours de développement...</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowNewTaskModal(false)}
+                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              >
+                Annuler
+              </button>
+              <PremiumButton variant="primary">
+                Créer
+              </PremiumButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal détails tâche (à implémenter) */}
+      {selectedTask && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-white">{selectedTask.title}</h3>
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <p className="text-gray-400 mb-6">Détails de la tâche en cours de développement...</p>
+          </div>
+        </div>
+      )}
+    </PremiumLayout>
   );
 };
 
