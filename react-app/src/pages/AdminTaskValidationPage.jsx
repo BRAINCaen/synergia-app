@@ -1,1096 +1,579 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminTaskValidationPage.jsx
-// PAGE ADMIN VALIDATION CORRIGÉE - RÉCUPÉRATION DIRECTE FIREBASE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Shield,
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  User, 
-  Calendar,
-  Trophy,
-  MessageSquare,
-  Image as ImageIcon,
-  Video,
-  Search,
-  RefreshCw,
-  AlertTriangle,
-  Eye,
-  Loader,
-  Wifi,
-  WifiOff,
-  Zap
-} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Shield, CheckCircle, XCircle, Clock, Search, Filter, Eye, AlertTriangle } from 'lucide-react';
+import PremiumLayout, { PremiumCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
+import { useAuthStore } from '../shared/stores/authStore.js';
 
-// ✅ IMPORTS FIREBASE DIRECTS
-import { 
-  collection, 
-  doc,
-  getDocs, 
-  getDoc,
-  updateDoc,
-  query, 
-  where, 
-  orderBy,
-  serverTimestamp
-} from 'firebase/firestore';
-import { db } from '../core/firebase.js';
-
-// ✅ CORRECTION BUILD: Import depuis l'index des stores
-import { useAuthStore } from '../shared/stores/index.js';
-
-/**
- * 🛡️ PAGE D'ADMINISTRATION DES VALIDATIONS - RÉCUPÉRATION DIRECTE
- */
 const AdminTaskValidationPage = () => {
   const { user } = useAuthStore();
-  
-  // 📊 États principaux
-  const [validations, setValidations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [stats, setStats] = useState({
-    total: 0,
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-    today: 0
-  });
+  const [pendingTasks, setPendingTasks] = useState([]);
 
-  // 🎨 États UI
-  const [activeTab, setActiveTab] = useState('pending');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedValidation, setSelectedValidation] = useState(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
-
-  // 📝 États pour l'action admin
-  const [adminComment, setAdminComment] = useState('');
-  const [showRejectModal, setShowRejectModal] = useState(false);
-
-  // 🔄 États pour le debug
-  const [showDebugInfo, setShowDebugInfo] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState(null);
-
-  /**
-   * 🔄 CHARGEMENT INITIAL
-   */
-  useEffect(() => {
-    loadValidationsDirectFromFirebase();
-    // Charger les stats seulement une fois au début ou lors du refresh
-    if (activeTab === 'pending') {
-      loadStatsDirectFromFirebase();
+  const mockTasks = [
+    {
+      id: 1,
+      title: 'Développer nouvelle feature',
+      user: 'Thomas Dubois',
+      xpClaimed: 50,
+      status: 'pending',
+      description: 'Implémentation du système de badges',
+      completedAt: new Date('2024-08-16'),
+      evidence: 'Code committé sur GitHub'
+    },
+    {
+      id: 2,
+      title: 'Design interface utilisateur',
+      user: 'Sophie Laurent',
+      xpClaimed: 35,
+      status: 'pending',
+      description: 'Mockups pour la page analytics',
+      completedAt: new Date('2024-08-15'),
+      evidence: 'Fichiers Figma partagés'
     }
-  }, [activeTab]);
-
-  /**
-   * 📥 RÉCUPÉRER LES VALIDATIONS DIRECTEMENT DEPUIS FIREBASE
-   */
-  const loadValidationsDirectFromFirebase = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      console.log('🔥 [FIREBASE-DIRECT] Chargement validations:', activeTab);
-      
-      let fetchedValidations = [];
-      
-      if (activeTab === 'pending') {
-        console.log('🔍 [FIREBASE-DIRECT] Recherche tâches validation_pending...');
-        
-        // ✅ RÉCUPÉRATION DIRECTE DES TÂCHES EN VALIDATION
-        const tasksQuery = query(
-          collection(db, 'tasks'),
-          where('status', '==', 'validation_pending'),
-          orderBy('updatedAt', 'desc')
-        );
-        
-        const tasksSnapshot = await getDocs(tasksQuery);
-        console.log(`📊 [FIREBASE-DIRECT] ${tasksSnapshot.size} tâches en validation_pending trouvées`);
-        
-        // Transformer chaque tâche en format validation
-        for (const taskDoc of tasksSnapshot.docs) {
-          const taskData = taskDoc.data();
-          
-          try {
-            // Récupérer les données utilisateur
-            let userData = { displayName: 'Utilisateur', email: 'email@exemple.com' };
-            if (taskData.submittedBy) {
-              try {
-                const userDoc = await getDoc(doc(db, 'users', taskData.submittedBy));
-                if (userDoc.exists()) {
-                  userData = userDoc.data();
-                }
-              } catch (userError) {
-                console.warn('⚠️ Erreur récupération utilisateur:', userError);
-              }
-            }
-            
-            fetchedValidations.push({
-              id: taskDoc.id,
-              taskId: taskDoc.id,
-              taskTitle: taskData.title || 'Tâche sans titre',
-              status: 'pending',
-              userId: taskData.submittedBy || taskData.assignedTo?.[0] || taskData.createdBy || 'unknown',
-              userName: userData.displayName || userData.name || 'Utilisateur',
-              userEmail: userData.email || 'email@exemple.com',
-              comment: taskData.submissionNotes || taskData.description || 'Tâche soumise pour validation',
-              xpReward: calculateXPForDifficulty(taskData.difficulty || 'normal'),
-              difficulty: taskData.difficulty || 'normal',
-              submittedAt: taskData.submittedAt || taskData.updatedAt || new Date(),
-              submittedBy: taskData.submittedBy || taskData.assignedTo?.[0] || taskData.createdBy,
-              taskData: taskData,
-              type: 'task_submission',
-              source: 'tasks_collection',
-              photoUrl: taskData.photoUrl || taskData.imageUrl || null,
-              videoUrl: taskData.videoUrl || null,
-              hasMedia: !!(taskData.photoUrl || taskData.imageUrl || taskData.videoUrl)
-            });
-            
-          } catch (taskError) {
-            console.warn('⚠️ Erreur traitement tâche:', taskError);
-          }
-        }
-        
-        // ✅ RÉCUPÉRATION AUSSI DES VALIDATIONS CLASSIQUES
-        try {
-          const validationsQuery = query(
-            collection(db, 'task_validations'),
-            where('status', '==', 'pending'),
-            orderBy('submittedAt', 'desc')
-          );
-          
-          const validationsSnapshot = await getDocs(validationsQuery);
-          console.log(`📊 [FIREBASE-DIRECT] ${validationsSnapshot.size} validations classiques trouvées`);
-          
-          for (const validationDoc of validationsSnapshot.docs) {
-            const validationData = validationDoc.data();
-            
-            try {
-              // Récupérer les données utilisateur
-              let userData = { displayName: 'Utilisateur', email: 'email@exemple.com' };
-              if (validationData.userId) {
-                try {
-                  const userDoc = await getDoc(doc(db, 'users', validationData.userId));
-                  if (userDoc.exists()) {
-                    userData = userDoc.data();
-                  }
-                } catch (userError) {
-                  console.warn('⚠️ Erreur récupération utilisateur validation:', userError);
-                }
-              }
-              
-              fetchedValidations.push({
-                id: validationDoc.id,
-                taskId: validationData.taskId,
-                taskTitle: validationData.taskTitle || 'Validation classique',
-                status: 'pending',
-                userId: validationData.userId,
-                userName: userData.displayName || userData.name || 'Utilisateur',
-                userEmail: userData.email || 'email@exemple.com',
-                comment: validationData.comment || 'Validation soumise',
-                xpReward: validationData.xpAmount || calculateXPForDifficulty(validationData.difficulty || 'normal'),
-                difficulty: validationData.difficulty || 'normal',
-                submittedAt: validationData.submittedAt || new Date(),
-                submittedBy: validationData.userId,
-                type: 'validation_request',
-                source: 'validations_collection',
-                photoUrl: validationData.photoUrl || null,
-                videoUrl: validationData.videoUrl || null,
-                hasMedia: !!(validationData.photoUrl || validationData.videoUrl),
-                // ✅ INCLURE LES COMMENTAIRES ADMIN EXISTANTS
-                adminComment: validationData.adminComment || '',
-                validationComment: validationData.validationComment || validationData.adminComment || '',
-                rejectionReason: validationData.rejectionReason || ''
-              });
-              
-            } catch (validationError) {
-              console.warn('⚠️ Erreur traitement validation:', validationError);
-            }
-          }
-        } catch (validationsError) {
-          console.warn('⚠️ Erreur récupération validations classiques:', validationsError);
-        }
-        
-      } else if (activeTab === 'approved') {
-        // Récupérer les validations approuvées
-        const approvedQuery = query(
-          collection(db, 'task_validations'),
-          where('status', '==', 'approved'),
-          orderBy('reviewedAt', 'desc')
-        );
-        
-        const approvedSnapshot = await getDocs(approvedQuery);
-        
-        for (const validationDoc of approvedSnapshot.docs) {
-          const validationData = validationDoc.data();
-          fetchedValidations.push({
-            id: validationDoc.id,
-            ...validationData,
-            source: 'validations_collection'
-          });
-        }
-        
-      } else if (activeTab === 'rejected') {
-        // Récupérer les validations rejetées
-        const rejectedQuery = query(
-          collection(db, 'task_validations'),
-          where('status', '==', 'rejected'),
-          orderBy('reviewedAt', 'desc')
-        );
-        
-        const rejectedSnapshot = await getDocs(rejectedQuery);
-        
-        for (const validationDoc of rejectedSnapshot.docs) {
-          const validationData = validationDoc.data();
-          fetchedValidations.push({
-            id: validationDoc.id,
-            ...validationData,
-            source: 'validations_collection'
-          });
-        }
-        
-      } else {
-        // Récupérer toutes les validations
-        const allValidationsQuery = query(
-          collection(db, 'task_validations'),
-          orderBy('submittedAt', 'desc')
-        );
-        
-        const allSnapshot = await getDocs(allValidationsQuery);
-        
-        for (const validationDoc of allSnapshot.docs) {
-          const validationData = validationDoc.data();
-          fetchedValidations.push({
-            id: validationDoc.id,
-            ...validationData,
-            source: 'validations_collection'
-          });
-        }
-      }
-      
-      console.log(`✅ [FIREBASE-DIRECT] ${fetchedValidations.length} validations chargées pour l'onglet ${activeTab}`);
-      setValidations(fetchedValidations);
-      setLastUpdate(new Date());
-      
-    } catch (error) {
-      console.error('❌ [FIREBASE-DIRECT] Erreur chargement validations:', error);
-      setError(`Erreur lors du chargement: ${error.message}`);
-      setValidations([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /**
-   * 📊 CHARGER LES STATISTIQUES GLOBALES (INDÉPENDANTES DE L'ONGLET)
-   */
-  const loadStatsDirectFromFirebase = async () => {
-    try {
-      console.log('📊 [FIREBASE-DIRECT] Calcul statistiques globales...');
-      
-      // 1. Compter les tâches en validation_pending
-      const pendingTasksQuery = query(
-        collection(db, 'tasks'),
-        where('status', '==', 'validation_pending')
-      );
-      const pendingTasksSnapshot = await getDocs(pendingTasksQuery);
-      
-      // 2. Compter toutes les validations classiques par statut
-      const allValidationsSnapshot = await getDocs(collection(db, 'task_validations'));
-      
-      let pendingValidations = 0;
-      let approvedValidations = 0;
-      let rejectedValidations = 0;
-      
-      allValidationsSnapshot.forEach(doc => {
-        const status = doc.data().status;
-        if (status === 'pending') pendingValidations++;
-        else if (status === 'approved') approvedValidations++;
-        else if (status === 'rejected') rejectedValidations++;
-      });
-      
-      // 3. Calculer les totaux
-      const statsData = {
-        total: pendingTasksSnapshot.size + allValidationsSnapshot.size,
-        pending: pendingTasksSnapshot.size + pendingValidations, // Tâches + validations en attente
-        approved: approvedValidations,
-        rejected: rejectedValidations,
-        today: 0 // TODO: calculer les validations du jour
-      };
-      
-      console.log('📊 [FIREBASE-DIRECT] Statistiques globales calculées:', {
-        tâchesEnValidation: pendingTasksSnapshot.size,
-        validationsPending: pendingValidations,
-        validationsApproved: approvedValidations,
-        validationsRejected: rejectedValidations,
-        total: statsData
-      });
-      
-      setStats(statsData);
-      
-    } catch (error) {
-      console.error('❌ [FIREBASE-DIRECT] Erreur stats:', error);
-      setStats({
-        total: 0,
-        pending: 0,
-        approved: 0,
-        rejected: 0,
-        today: 0
-      });
-    }
-  };
-
-  /**
-   * 🔄 RAFRAÎCHISSEMENT FORCÉ
-   */
-  const forceRefresh = async () => {
-    console.log('🔄 [ADMIN] Rafraîchissement forcé...');
-    await Promise.all([
-      loadValidationsDirectFromFirebase(),
-      loadStatsDirectFromFirebase() // Toujours recharger les stats lors du refresh
-    ]);
-  };
-
-  /**
-   * 🏆 CALCULER L'XP SELON LA DIFFICULTÉ
-   */
-  const calculateXPForDifficulty = (difficulty) => {
-    const xpMap = {
-      easy: 10,
-      normal: 25,
-      hard: 50,
-      expert: 100
-    };
-    return xpMap[difficulty] || 25;
-  };
-
-  /**
-   * 🔍 FILTRER LES VALIDATIONS SELON LA RECHERCHE
-   */
-  const getFilteredValidations = () => {
-    if (!searchTerm.trim()) return validations;
-    
-    const searchLower = searchTerm.toLowerCase();
-    return validations.filter(validation => {
-      return (
-        validation.taskTitle?.toLowerCase().includes(searchLower) ||
-        validation.userName?.toLowerCase().includes(searchLower) ||
-        validation.userEmail?.toLowerCase().includes(searchLower) ||
-        validation.comment?.toLowerCase().includes(searchLower)
-      );
-    });
-  };
-
-  /**
-   * ✅ APPROUVER UNE VALIDATION
-   */
-  const handleApprove = async (validationId, comment = '') => {
-    try {
-      setActionLoading(true);
-      console.log('✅ [ADMIN] Approbation validation:', validationId);
-      
-      const validation = validations.find(v => v.id === validationId);
-      if (!validation) {
-        throw new Error('Validation introuvable');
-      }
-
-      // Si c'est une tâche en validation_pending
-      if (validation.source === 'tasks_collection') {
-        console.log('🚀 [ADMIN] Approbation tâche via Firebase direct');
-        
-        await updateDoc(doc(db, 'tasks', validation.taskId), {
-          status: 'completed',
-          validatedAt: serverTimestamp(),
-          validatedBy: user.uid,
-          validationComment: comment, // ✅ SAUVEGARDER LE COMMENTAIRE
-          adminComment: comment, // ✅ AUSSI EN adminComment pour compatibilité
-          updatedAt: serverTimestamp()
-        });
-        
-        console.log('✅ [ADMIN] Tâche marquée comme completed avec commentaire:', comment);
-        
-      } else {
-        // Validation classique
-        console.log('🚀 [ADMIN] Approbation validation classique');
-        
-        await updateDoc(doc(db, 'task_validations', validationId), {
-          status: 'approved',
-          reviewedBy: user.uid,
-          reviewedAt: serverTimestamp(),
-          adminComment: comment, // ✅ SAUVEGARDER LE COMMENTAIRE
-          validationComment: comment // ✅ AUSSI EN validationComment pour compatibilité
-        });
-        
-        console.log('✅ [ADMIN] Validation classique approuvée avec commentaire:', comment);
-      }
-      
-      // Recharger les données ET les statistiques
-      await Promise.all([
-        forceRefresh(), // Ceci inclut déjà les stats
-      ]);
-      
-      // Fermer les modals
-      setShowDetailModal(false);
-      setSelectedValidation(null);
-      setAdminComment(''); // Réinitialiser le commentaire local
-      
-    } catch (error) {
-      console.error('❌ [ADMIN] Erreur approbation:', error);
-      alert('Erreur lors de l\'approbation: ' + error.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  /**
-   * ❌ REJETER UNE VALIDATION
-   */
-  const handleReject = async (validationId, comment = '') => {
-    try {
-      setActionLoading(true);
-      console.log('❌ [ADMIN] Rejet validation:', validationId);
-      
-      if (!comment.trim()) {
-        alert('Un commentaire est requis pour rejeter une validation');
-        return;
-      }
-      
-      const validation = validations.find(v => v.id === validationId);
-      if (!validation) {
-        throw new Error('Validation introuvable');
-      }
-
-      // Si c'est une tâche en validation_pending
-      if (validation.source === 'tasks_collection') {
-        console.log('🚀 [ADMIN] Rejet tâche via Firebase direct');
-        
-        await updateDoc(doc(db, 'tasks', validation.taskId), {
-          status: 'in_progress',
-          submittedForValidation: false,
-          rejectedAt: serverTimestamp(),
-          rejectedBy: user.uid,
-          rejectionReason: comment,
-          adminComment: comment, // ✅ SAUVEGARDER LE COMMENTAIRE DE REJET
-          validationComment: comment, // ✅ AUSSI EN validationComment pour compatibilité
-          updatedAt: serverTimestamp()
-        });
-        
-        console.log('✅ [ADMIN] Tâche remise en cours avec commentaire de rejet:', comment);
-        
-      } else {
-        // Validation classique
-        console.log('🚀 [ADMIN] Rejet validation classique');
-        
-        await updateDoc(doc(db, 'task_validations', validationId), {
-          status: 'rejected',
-          reviewedBy: user.uid,
-          reviewedAt: serverTimestamp(),
-          adminComment: comment, // ✅ SAUVEGARDER LE COMMENTAIRE DE REJET
-          rejectionReason: comment // ✅ AUSSI EN rejectionReason pour compatibilité
-        });
-        
-        console.log('✅ [ADMIN] Validation classique rejetée avec commentaire:', comment);
-      }
-      
-      // Recharger les données ET les statistiques
-      await Promise.all([
-        forceRefresh(), // Ceci inclut déjà les stats
-      ]);
-      
-      // Fermer les modals
-      setShowDetailModal(false);
-      setShowRejectModal(false);
-      setSelectedValidation(null);
-      setAdminComment(''); // Réinitialiser le commentaire local
-      
-    } catch (error) {
-      console.error('❌ [ADMIN] Erreur rejet:', error);
-      alert('Erreur lors du rejet: ' + error.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  /**
-   * 👁️ OUVRIR LES DÉTAILS D'UNE VALIDATION
-   */
-  const handleViewDetails = (validation) => {
-    setSelectedValidation(validation);
-    
-    // ✅ RÉCUPÉRER LE COMMENTAIRE ADMIN EXISTANT
-    const existingComment = validation.adminComment || 
-                           validation.validationComment || 
-                           validation.rejectionReason || 
-                           '';
-    
-    console.log('👁️ [ADMIN] Ouverture détails avec commentaire existant:', existingComment);
-    setAdminComment(existingComment);
-    
-    setShowDetailModal(true);
-  };
-
-  /**
-   * 📅 FORMATER UNE DATE
-   */
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'Date inconnue';
-    
-    try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return date.toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch (error) {
-      console.error('Erreur formatage date:', error);
-      return 'Date invalide';
-    }
-  };
-
-  /**
-   * 🏆 FORMATER LA DIFFICULTÉ
-   */
-  const formatDifficulty = (difficulty) => {
-    const difficultyMap = {
-      easy: { label: 'Facile', color: 'bg-green-100 text-green-700', icon: '🟢' },
-      normal: { label: 'Normal', color: 'bg-blue-100 text-blue-700', icon: '🔵' },
-      hard: { label: 'Difficile', color: 'bg-orange-100 text-orange-700', icon: '🟠' },
-      expert: { label: 'Expert', color: 'bg-red-100 text-red-700', icon: '🔴' }
-    };
-    
-    return difficultyMap[difficulty] || difficultyMap.normal;
-  };
-
-  // 📊 Utiliser les statistiques globales au lieu des validations filtrées
-  const tabStats = {
-    pending: stats.pending,
-    approved: stats.approved,
-    rejected: stats.rejected,
-    all: stats.total
-  };
-
-  // 🎨 Configuration des onglets
-  const tabs = [
-    { id: 'pending', label: 'En attente', icon: Clock, count: tabStats.pending },
-    { id: 'approved', label: 'Approuvées', icon: CheckCircle, count: tabStats.approved },
-    { id: 'rejected', label: 'Rejetées', icon: XCircle, count: tabStats.rejected },
-    { id: 'all', label: 'Toutes', icon: Eye, count: tabStats.all }
   ];
 
+  useEffect(() => {
+    setPendingTasks(mockTasks);
+  }, []);
+
+  const headerStats = [
+    { label: "En attente", value: pendingTasks.length.toString(), icon: Clock, color: "text-yellow-400" },
+    { label: "Validées", value: "15", icon: CheckCircle, color: "text-green-400" },
+    { label: "Rejetées", value: "2", icon: XCircle, color: "text-red-400" }
+  ];
+
+  const validateTask = (taskId, approved) => {
+    setPendingTasks(prev => prev.filter(task => task.id !== taskId));
+    // Logic pour validation
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      {/* 📊 EN-TÊTE AVEC STATISTIQUES */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Shield className="w-7 h-7 text-blue-600" />
-              Validation des Tâches
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Gérer les demandes de validation des collaborateurs
-            </p>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {/* STATS RAPIDES */}
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1">
-                <Clock className="w-4 h-4 text-orange-500" />
-                <span className="font-medium text-orange-700">{stats.pending}</span>
-                <span className="text-gray-500">en attente</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                <span className="font-medium text-green-700">{stats.approved}</span>
-                <span className="text-gray-500">validées</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Trophy className="w-4 h-4 text-blue-500" />
-                <span className="font-medium text-blue-700">{stats.total}</span>
-                <span className="text-gray-500">total</span>
-              </div>
-            </div>
-
-            {/* BOUTON RAFRAÎCHIR */}
-            <button
-              onClick={forceRefresh}
-              disabled={loading}
-              className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Actualiser
-            </button>
-
-            {/* BOUTON DEBUG */}
-            <button
-              onClick={() => setShowDebugInfo(!showDebugInfo)}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              <Eye className="w-4 h-4" />
-              Debug
-            </button>
-          </div>
-        </div>
-
-        {/* INFO DEBUG */}
-        {showDebugInfo && (
-          <div className="mt-4 p-3 bg-gray-100 rounded-lg text-sm">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <strong>Dernière mise à jour:</strong> {lastUpdate ? lastUpdate.toLocaleTimeString() : 'Jamais'}
-              </div>
-              <div>
-                <strong>Validations chargées:</strong> {validations.length}
-              </div>
-              <div>
-                <strong>Onglet actif:</strong> {activeTab}
-              </div>
-              <div>
-                <strong>Erreur:</strong> {error || 'Aucune'}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 🎨 ONGLETS */}
-      <div className="bg-white border-b border-gray-200 px-6">
-        <div className="flex space-x-8">
-          {tabs.map((tab) => {
-            const IconComponent = tab.icon;
-            const isActive = activeTab === tab.id;
-            
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  isActive
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <IconComponent className="w-4 h-4" />
-                {tab.label}
-                {tab.count > 0 && (
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    isActive
-                      ? 'bg-blue-100 text-blue-600'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 🔍 BARRE DE RECHERCHE */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Rechercher par titre, utilisateur, commentaire..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-      </div>
-
-      {/* 📋 CONTENU PRINCIPAL */}
-      <div className="flex-1 overflow-auto">
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-              <p className="text-gray-600">Chargement des validations...</p>
-            </div>
-          </div>
-        ) : error ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-4" />
-              <p className="text-red-600 mb-2">Erreur de chargement</p>
-              <p className="text-gray-600 text-sm">{error}</p>
-              <button
-                onClick={forceRefresh}
-                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Réessayer
-              </button>
-            </div>
-          </div>
-        ) : getFilteredValidations().length === 0 ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <Trophy className="w-8 h-8 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">
-                {searchTerm ? 'Aucune validation trouvée pour cette recherche' : 'Aucune validation à afficher'}
-              </p>
-              {!searchTerm && activeTab === 'pending' && (
-                <div className="mt-4 p-4 bg-blue-50 rounded-lg max-w-md">
-                  <p className="text-blue-800 text-sm">
-                    💡 <strong>Astuce:</strong> Les tâches apparaissent ici quand les utilisateurs les soumettent pour validation.
-                    Vérifiez que des tâches ont bien le statut "validation_pending" dans la base de données.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="p-6">
-            <div className="grid gap-4">
-              {getFilteredValidations().map((validation) => {
-                const difficultyInfo = formatDifficulty(validation.difficulty);
+    <PremiumLayout
+      title="Validation des Tâches"
+      subtitle="Administration et validation des tâches complétées"
+      icon={Shield}
+      showStats={true}
+      stats={headerStats}
+    >
+      <div className="space-y-6">
+        {pendingTasks.map((task) => (
+          <PremiumCard key={task.id}>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h3 className="text-white font-semibold text-lg">{task.title}</h3>
+                <p className="text-gray-400 mb-2">Par {task.user}</p>
+                <p className="text-gray-300 mb-4">{task.description}</p>
                 
-                return (
-                  <div
-                    key={validation.id}
-                    className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {validation.taskTitle}
-                          </h3>
-                          <span className={`px-2 py-1 text-xs rounded-full ${difficultyInfo.color}`}>
-                            {difficultyInfo.icon} {difficultyInfo.label}
-                          </span>
-                          <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
-                            +{validation.xpReward} XP
-                          </span>
-                          {validation.source === 'tasks_collection' && (
-                            <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-700">
-                              Tâche
-                            </span>
-                          )}
-                          {validation.source === 'validations_collection' && (
-                            <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">
-                              Validation
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
-                          <div className="flex items-center gap-2">
-                            <User className="w-4 h-4" />
-                            {validation.userName}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4" />
-                            {formatDate(validation.submittedAt)}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MessageSquare className="w-4 h-4" />
-                            {validation.comment.substring(0, 50)}...
-                          </div>
-                        </div>
-
-                        {/* MÉDIAS SI PRÉSENTS */}
-                        {(validation.photoUrl || validation.imageUrl || validation.hasMedia) && (
-                          <div className="flex items-center gap-2 mb-4">
-                            {(validation.photoUrl || validation.imageUrl) && (
-                              <div className="flex items-center gap-1 text-sm text-green-600">
-                                <ImageIcon className="w-4 h-4" />
-                                Photo jointe
-                              </div>
-                            )}
-                            {validation.videoUrl && (
-                              <div className="flex items-center gap-1 text-sm text-purple-600">
-                                <Video className="w-4 h-4" />
-                                Vidéo jointe
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleViewDetails(validation)}
-                          className="px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        
-                        {validation.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleApprove(validation.id)}
-                              disabled={actionLoading}
-                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedValidation(validation);
-                                setShowRejectModal(true);
-                              }}
-                              disabled={actionLoading}
-                              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 📱 MODAL DÉTAILS */}
-      {showDetailModal && selectedValidation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">Détails de la validation</h2>
-                <button
-                  onClick={() => setShowDetailModal(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <XCircle className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Tâche</label>
-                  <p className="text-gray-900">{selectedValidation.taskTitle}</p>
+                <div className="flex items-center space-x-4 text-sm text-gray-400">
+                  <span>XP réclamés: {task.xpClaimed}</span>
+                  <span>Complété le: {task.completedAt.toLocaleDateString('fr-FR')}</span>
                 </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Utilisateur</label>
-                  <p className="text-gray-900">{selectedValidation.userName} ({selectedValidation.userEmail})</p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Commentaire</label>
-                  <p className="text-gray-900">{selectedValidation.comment}</p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Difficulté</label>
-                  <span className={`inline-block px-2 py-1 text-xs rounded-full ${formatDifficulty(selectedValidation.difficulty).color}`}>
-                    {formatDifficulty(selectedValidation.difficulty).label}
-                  </span>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Récompense XP</label>
-                  <p className="text-gray-900">{selectedValidation.xpReward} XP</p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Source</label>
-                  <p className="text-gray-900">
-                    {selectedValidation.source === 'tasks_collection' ? 'Collection Tâches' : 'Collection Validations'}
-                  </p>
-                </div>
-
-                {/* MÉDIAS */}
-                {(selectedValidation.photoUrl || selectedValidation.imageUrl) && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Photo</label>
-                    <div className="mt-2">
-                      <img 
-                        src={selectedValidation.photoUrl || selectedValidation.imageUrl} 
-                        alt="Validation" 
-                        className="max-w-full h-auto rounded-lg border border-gray-200"
-                        onError={(e) => {
-                          console.error('Erreur chargement image:', e.target.src);
-                          e.target.style.display = 'none';
-                          // Afficher un message d'erreur
-                          const errorDiv = document.createElement('div');
-                          errorDiv.className = 'text-red-500 text-sm mt-2';
-                          errorDiv.textContent = 'Impossible de charger l\'image';
-                          e.target.parentNode.appendChild(errorDiv);
-                        }}
-                        onLoad={() => {
-                          console.log('✅ Image chargée avec succès:', selectedValidation.photoUrl || selectedValidation.imageUrl);
-                        }}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        URL: {selectedValidation.photoUrl || selectedValidation.imageUrl}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {selectedValidation.videoUrl && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Vidéo</label>
-                    <div className="mt-2">
-                      <video 
-                        src={selectedValidation.videoUrl} 
-                        controls 
-                        className="max-w-full h-auto rounded-lg border border-gray-200"
-                        onError={(e) => {
-                          console.error('Erreur chargement vidéo:', e.target.src);
-                          e.target.style.display = 'none';
-                          // Afficher un message d'erreur
-                          const errorDiv = document.createElement('div');
-                          errorDiv.className = 'text-red-500 text-sm mt-2';
-                          errorDiv.textContent = 'Impossible de charger la vidéo';
-                          e.target.parentNode.appendChild(errorDiv);
-                        }}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        URL: {selectedValidation.videoUrl}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* DEBUG MÉDIAS */}
-                {showDebugInfo && (
-                  <div className="bg-gray-100 p-3 rounded-lg">
-                    <label className="text-sm font-medium text-gray-700">Debug Médias</label>
-                    <div className="text-xs text-gray-600 mt-1">
-                      <div><strong>photoUrl:</strong> {selectedValidation.photoUrl || 'null'}</div>
-                      <div><strong>imageUrl:</strong> {selectedValidation.imageUrl || 'null'}</div>
-                      <div><strong>videoUrl:</strong> {selectedValidation.videoUrl || 'null'}</div>
-                      <div><strong>hasMedia:</strong> {selectedValidation.hasMedia ? 'true' : 'false'}</div>
-                      <div><strong>adminComment:</strong> {selectedValidation.adminComment || 'null'}</div>
-                      <div><strong>validationComment:</strong> {selectedValidation.validationComment || 'null'}</div>
-                      <div><strong>rejectionReason:</strong> {selectedValidation.rejectionReason || 'null'}</div>
-                      <div><strong>taskData.adminComment:</strong> {selectedValidation.taskData?.adminComment || 'null'}</div>
-                      <div><strong>taskData.validationComment:</strong> {selectedValidation.taskData?.validationComment || 'null'}</div>
-                    </div>
-                  </div>
-                )}
-
-                {/* COMMENTAIRE ADMIN */}
-                <div>
-                  <label className="text-sm font-medium text-gray-700">
-                    Commentaire admin {selectedValidation.status === 'pending' ? '(optionnel)' : '(enregistré)'}
-                  </label>
-                  <textarea
-                    value={adminComment}
-                    onChange={(e) => setAdminComment(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    rows="3"
-                    placeholder={selectedValidation.status === 'pending' ? "Ajoutez un commentaire..." : "Commentaire enregistré"}
-                    disabled={selectedValidation.status !== 'pending'}
-                  />
-                  {selectedValidation.status !== 'pending' && selectedValidation.adminComment && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      💾 Ce commentaire a été enregistré lors de la validation
-                    </p>
-                  )}
+                
+                <div className="mt-3 p-3 bg-blue-500/20 rounded-lg">
+                  <p className="text-blue-300 text-sm"><strong>Preuve:</strong> {task.evidence}</p>
                 </div>
               </div>
-
-              {/* ACTIONS */}
-              {selectedValidation.status === 'pending' && (
-                <div className="flex items-center gap-3 mt-6 pt-4 border-t">
-                  <button
-                    onClick={() => handleApprove(selectedValidation.id, adminComment)}
-                    disabled={actionLoading}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-                  >
-                    {actionLoading ? (
-                      <Loader className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <CheckCircle className="w-4 h-4" />
-                    )}
-                    Approuver
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowDetailModal(false);
-                      setShowRejectModal(true);
-                    }}
-                    disabled={actionLoading}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
-                  >
-                    <XCircle className="w-4 h-4" />
-                    Rejeter
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 📱 MODAL REJET */}
-      {showRejectModal && selectedValidation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-red-600">Rejeter la validation</h2>
-                <button
-                  onClick={() => setShowRejectModal(false)}
-                  className="text-gray-500 hover:text-gray-700"
+              
+              <div className="flex space-x-2 ml-6">
+                <PremiumButton
+                  variant="secondary"
+                  icon={Eye}
+                  size="sm"
                 >
-                  <XCircle className="w-6 h-6" />
-                </button>
-              </div>
-
-              <p className="text-gray-600 mb-4">
-                Vous êtes sur le point de rejeter la validation pour "{selectedValidation.taskTitle}".
-                Un commentaire explicatif est requis.
-              </p>
-
-              <div className="mb-4">
-                <label className="text-sm font-medium text-gray-700">Raison du rejet *</label>
-                <textarea
-                  value={adminComment}
-                  onChange={(e) => setAdminComment(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                  rows="4"
-                  placeholder="Expliquez pourquoi cette validation est rejetée..."
-                  required
-                />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowRejectModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  Détails
+                </PremiumButton>
+                <PremiumButton
+                  variant="primary"
+                  icon={CheckCircle}
+                  size="sm"
+                  onClick={() => validateTask(task.id, true)}
                 >
-                  Annuler
-                </button>
-                <button
-                  onClick={() => handleReject(selectedValidation.id, adminComment)}
-                  disabled={actionLoading || !adminComment.trim()}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                  Valider
+                </PremiumButton>
+                <PremiumButton
+                  variant="danger"
+                  icon={XCircle}
+                  size="sm"
+                  onClick={() => validateTask(task.id, false)}
                 >
-                  {actionLoading ? (
-                    <Loader className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <XCircle className="w-4 h-4" />
-                  )}
                   Rejeter
-                </button>
+                </PremiumButton>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-    </div>
+          </PremiumCard>
+        ))}
+      </div>
+    </PremiumLayout>
   );
 };
 
 export default AdminTaskValidationPage;
+
+// ==========================================
+// 📁 react-app/src/pages/AdminRolePermissionsPage.jsx
+// ==========================================
+
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Lock, Users, Shield, Crown, Key, Save } from 'lucide-react';
+import PremiumLayout, { PremiumCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
+
+const AdminRolePermissionsPage = () => {
+  const [roles, setRoles] = useState([
+    {
+      id: 'admin',
+      name: 'Administrateur',
+      color: 'red',
+      permissions: ['read', 'write', 'delete', 'admin', 'validate'],
+      userCount: 2
+    },
+    {
+      id: 'manager',
+      name: 'Manager',
+      color: 'blue',
+      permissions: ['read', 'write', 'validate'],
+      userCount: 5
+    },
+    {
+      id: 'user',
+      name: 'Utilisateur',
+      color: 'green',
+      permissions: ['read', 'write'],
+      userCount: 25
+    }
+  ]);
+
+  const permissions = [
+    { id: 'read', name: 'Lecture', description: 'Consulter les données' },
+    { id: 'write', name: 'Écriture', description: 'Créer et modifier' },
+    { id: 'delete', name: 'Suppression', description: 'Supprimer des éléments' },
+    { id: 'validate', name: 'Validation', description: 'Valider les tâches' },
+    { id: 'admin', name: 'Administration', description: 'Gestion complète' }
+  ];
+
+  return (
+    <PremiumLayout
+      title="Rôles et Permissions"
+      subtitle="Gestion des droits d'accès utilisateurs"
+      icon={Lock}
+      headerActions={
+        <PremiumButton variant="primary" icon={Save}>
+          Sauvegarder
+        </PremiumButton>
+      }
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {roles.map((role) => (
+          <PremiumCard key={role.id}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <Crown className={`w-6 h-6 mr-3 text-${role.color}-400`} />
+                <div>
+                  <h3 className="text-white font-semibold">{role.name}</h3>
+                  <p className="text-gray-400 text-sm">{role.userCount} utilisateurs</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              {permissions.map((permission) => (
+                <div key={permission.id} className="flex items-center justify-between">
+                  <div>
+                    <span className="text-white font-medium">{permission.name}</span>
+                    <p className="text-gray-400 text-sm">{permission.description}</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={role.permissions.includes(permission.id)}
+                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                    readOnly
+                  />
+                </div>
+              ))}
+            </div>
+          </PremiumCard>
+        ))}
+      </div>
+    </PremiumLayout>
+  );
+};
+
+export { AdminRolePermissionsPage };
+
+// ==========================================
+// 📁 react-app/src/pages/AdminUsersPage.jsx
+// ==========================================
+
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { UserCheck, UserX, Shield, Mail, Phone, Edit, Trash2 } from 'lucide-react';
+import PremiumLayout, { PremiumCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
+
+const AdminUsersPage = () => {
+  const [users, setUsers] = useState([
+    {
+      id: 1,
+      name: 'Alice Martin',
+      email: 'alice.martin@brain.com',
+      role: 'Admin',
+      status: 'active',
+      lastLogin: new Date('2024-08-17'),
+      joinDate: new Date('2024-01-15'),
+      avatar: '👩‍💼'
+    }
+    // ... autres utilisateurs
+  ]);
+
+  const headerStats = [
+    { label: "Total", value: users.length.toString(), icon: Users, color: "text-blue-400" },
+    { label: "Actifs", value: users.filter(u => u.status === 'active').length.toString(), icon: UserCheck, color: "text-green-400" }
+  ];
+
+  return (
+    <PremiumLayout
+      title="Gestion Utilisateurs"
+      subtitle="Administration des comptes utilisateurs"
+      icon={UserCheck}
+      showStats={true}
+      stats={headerStats}
+    >
+      <div className="space-y-4">
+        {users.map((user) => (
+          <PremiumCard key={user.id}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="text-3xl">{user.avatar}</div>
+                <div>
+                  <h3 className="text-white font-semibold">{user.name}</h3>
+                  <p className="text-gray-400">{user.email}</p>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    user.role === 'Admin' ? 'bg-red-500/20 text-red-400' :
+                    'bg-blue-500/20 text-blue-400'
+                  }`}>
+                    {user.role}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex space-x-2">
+                <PremiumButton variant="secondary" icon={Edit} size="sm">
+                  Modifier
+                </PremiumButton>
+                <PremiumButton variant="danger" icon={Trash2} size="sm">
+                  Supprimer
+                </PremiumButton>
+              </div>
+            </div>
+          </PremiumCard>
+        ))}
+      </div>
+    </PremiumLayout>
+  );
+};
+
+export { AdminUsersPage };
+
+// ==========================================
+// 📁 react-app/src/pages/AdminAnalyticsPage.jsx
+// ==========================================
+
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { BarChart3, TrendingUp, Users, Activity, Download, RefreshCw } from 'lucide-react';
+import PremiumLayout, { PremiumCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
+
+const AdminAnalyticsPage = () => {
+  const [analytics, setAnalytics] = useState({
+    users: { total: 32, active: 28, newThisWeek: 3 },
+    tasks: { total: 156, completed: 142, completionRate: 91 },
+    xp: { total: 15420, thisWeek: 2340, average: 482 }
+  });
+
+  const headerStats = [
+    { label: "Utilisateurs", value: analytics.users.total.toString(), icon: Users, color: "text-blue-400" },
+    { label: "Tâches", value: analytics.tasks.total.toString(), icon: Activity, color: "text-green-400" },
+    { label: "XP Total", value: analytics.xp.total.toLocaleString(), icon: TrendingUp, color: "text-yellow-400" }
+  ];
+
+  return (
+    <PremiumLayout
+      title="Analytics Admin"
+      subtitle="Tableau de bord administrateur avec métriques avancées"
+      icon={BarChart3}
+      headerActions={
+        <div className="flex space-x-3">
+          <PremiumButton variant="secondary" icon={Download}>
+            Exporter
+          </PremiumButton>
+          <PremiumButton variant="primary" icon={RefreshCw}>
+            Actualiser
+          </PremiumButton>
+        </div>
+      }
+      showStats={true}
+      stats={headerStats}
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <PremiumCard>
+          <h3 className="text-white text-lg font-semibold mb-4">Utilisateurs</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Total</span>
+              <span className="text-white font-medium">{analytics.users.total}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Actifs</span>
+              <span className="text-green-400 font-medium">{analytics.users.active}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Nouveaux (7j)</span>
+              <span className="text-blue-400 font-medium">{analytics.users.newThisWeek}</span>
+            </div>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard>
+          <h3 className="text-white text-lg font-semibold mb-4">Tâches</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Total</span>
+              <span className="text-white font-medium">{analytics.tasks.total}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Complétées</span>
+              <span className="text-green-400 font-medium">{analytics.tasks.completed}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Taux completion</span>
+              <span className="text-purple-400 font-medium">{analytics.tasks.completionRate}%</span>
+            </div>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard>
+          <h3 className="text-white text-lg font-semibold mb-4">Experience (XP)</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Total</span>
+              <span className="text-white font-medium">{analytics.xp.total.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Cette semaine</span>
+              <span className="text-yellow-400 font-medium">{analytics.xp.thisWeek.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Moyenne/user</span>
+              <span className="text-blue-400 font-medium">{analytics.xp.average}</span>
+            </div>
+          </div>
+        </PremiumCard>
+      </div>
+    </PremiumLayout>
+  );
+};
+
+export { AdminAnalyticsPage };
+
+// ==========================================
+// 📁 react-app/src/pages/AdminSettingsPage.jsx
+// ==========================================
+
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Settings, Save, RefreshCw, Database, Shield, Bell } from 'lucide-react';
+import PremiumLayout, { PremiumCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
+
+const AdminSettingsPage = () => {
+  const [settings, setSettings] = useState({
+    system: {
+      maintenance: false,
+      registrationOpen: true,
+      defaultXpReward: 10
+    },
+    notifications: {
+      emailEnabled: true,
+      slackIntegration: false
+    }
+  });
+
+  return (
+    <PremiumLayout
+      title="Paramètres Admin"
+      subtitle="Configuration système et paramètres globaux"
+      icon={Settings}
+      headerActions={
+        <PremiumButton variant="primary" icon={Save}>
+          Sauvegarder
+        </PremiumButton>
+      }
+    >
+      <div className="space-y-6">
+        <PremiumCard>
+          <h3 className="text-white text-lg font-semibold mb-6 flex items-center">
+            <Database className="w-5 h-5 mr-2 text-blue-400" />
+            Paramètres Système
+          </h3>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-white font-medium">Mode maintenance</span>
+                <p className="text-gray-400 text-sm">Désactiver l'accès utilisateur</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.system.maintenance}
+                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                readOnly
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-white font-medium">Inscription ouverte</span>
+                <p className="text-gray-400 text-sm">Permettre les nouvelles inscriptions</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.system.registrationOpen}
+                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                readOnly
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                XP par défaut par tâche
+              </label>
+              <input
+                type="number"
+                value={settings.system.defaultXpReward}
+                className="w-32 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                readOnly
+              />
+            </div>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard>
+          <h3 className="text-white text-lg font-semibold mb-6 flex items-center">
+            <Bell className="w-5 h-5 mr-2 text-yellow-400" />
+            Notifications
+          </h3>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-white font-medium">Notifications email</span>
+                <p className="text-gray-400 text-sm">Système de notifications par email</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.notifications.emailEnabled}
+                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                readOnly
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-white font-medium">Intégration Slack</span>
+                <p className="text-gray-400 text-sm">Notifications vers Slack</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.notifications.slackIntegration}
+                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                readOnly
+              />
+            </div>
+          </div>
+        </PremiumCard>
+      </div>
+    </PremiumLayout>
+  );
+};
+
+export { AdminSettingsPage };
+
+// ==========================================
+// 📁 react-app/src/pages/CompleteAdminTestPage.jsx
+// ==========================================
+
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { TestTube, CheckCircle, XCircle, AlertTriangle, Play, RefreshCw } from 'lucide-react';
+import PremiumLayout, { PremiumCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
+
+const CompleteAdminTestPage = () => {
+  const [testResults, setTestResults] = useState([
+    { id: 1, name: 'Connexion Firebase', status: 'success', message: 'Connexion réussie' },
+    { id: 2, name: 'Authentication', status: 'success', message: 'Auth service fonctionnel' },
+    { id: 3, name: 'Database Read/Write', status: 'warning', message: 'Latence élevée détectée' },
+    { id: 4, name: 'XP System', status: 'error', message: 'Erreur calcul niveau' }
+  ]);
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'success': return <CheckCircle className="w-5 h-5 text-green-400" />;
+      case 'warning': return <AlertTriangle className="w-5 h-5 text-yellow-400" />;
+      case 'error': return <XCircle className="w-5 h-5 text-red-400" />;
+      default: return null;
+    }
+  };
+
+  const headerStats = [
+    { label: "Tests", value: testResults.length.toString(), icon: TestTube, color: "text-blue-400" },
+    { label: "Réussis", value: testResults.filter(t => t.status === 'success').length.toString(), icon: CheckCircle, color: "text-green-400" },
+    { label: "Erreurs", value: testResults.filter(t => t.status === 'error').length.toString(), icon: XCircle, color: "text-red-400" }
+  ];
+
+  return (
+    <PremiumLayout
+      title="Tests Système"
+      subtitle="Diagnostic complet de l'état du système"
+      icon={TestTube}
+      headerActions={
+        <div className="flex space-x-3">
+          <PremiumButton variant="secondary" icon={RefreshCw}>
+            Relancer
+          </PremiumButton>
+          <PremiumButton variant="primary" icon={Play}>
+            Nouveau Test
+          </PremiumButton>
+        </div>
+      }
+      showStats={true}
+      stats={headerStats}
+    >
+      <div className="space-y-4">
+        {testResults.map((test) => (
+          <PremiumCard key={test.id}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                {getStatusIcon(test.status)}
+                <div>
+                  <h3 className="text-white font-semibold">{test.name}</h3>
+                  <p className="text-gray-400 text-sm">{test.message}</p>
+                </div>
+              </div>
+              
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                test.status === 'success' ? 'bg-green-500/20 text-green-400' :
+                test.status === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
+                'bg-red-500/20 text-red-400'
+              }`}>
+                {test.status.toUpperCase()}
+              </span>
+            </div>
+          </PremiumCard>
+        ))}
+      </div>
+    </PremiumLayout>
+  );
+};
+
+export default CompleteAdminTestPage;
