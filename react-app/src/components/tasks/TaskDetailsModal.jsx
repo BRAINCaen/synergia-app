@@ -1,5 +1,5 @@
 // ==========================================
-// 📁 react-app/src/components/tasks/TaskDetailsModal.jsx
+// 📁 react-app/src/components/ui/TaskDetailModal.jsx
 // MODAL DÉTAILS TÂCHE - CORRECTION BOUTONS VOLONTAIRE/SOUMETTRE
 // ==========================================
 
@@ -34,8 +34,11 @@ import {
 } from 'lucide-react';
 
 // Imports Firebase
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
+
+// 🚨 IMPORT COLLABORATION SERVICE POUR COMMENTAIRES
+import { collaborationService } from '../../core/services/collaborationService.js';
 
 // Import authStore
 import { useAuthStore } from '../../shared/stores/authStore.js';
@@ -44,7 +47,7 @@ import { useAuthStore } from '../../shared/stores/authStore.js';
 import { taskAssignmentService } from '../../core/services/taskAssignmentService.js';
 
 /**
- * 📅 FORMATAGE DATE SÉCURISÉ
+ * 📅 FORMATAGE DATE FRANÇAIS
  */
 const formatDate = (date) => {
   try {
@@ -54,7 +57,9 @@ const formatDate = (date) => {
       return new Date(date.seconds * 1000).toLocaleDateString('fr-FR', {
         year: 'numeric',
         month: 'long',
-        day: 'numeric'
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
       });
     }
     
@@ -62,14 +67,18 @@ const formatDate = (date) => {
       return date.toLocaleDateString('fr-FR', {
         year: 'numeric',
         month: 'long',
-        day: 'numeric'
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
       });
     }
     
     return new Date(date).toLocaleDateString('fr-FR', {
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   } catch (error) {
     console.warn('Erreur formatage date:', error);
@@ -88,12 +97,13 @@ const TaskDetailModal = ({
   onEdit, 
   onDelete,
   onSubmit,
-  onTaskUpdate 
+  onTaskUpdate,
+  initialTab = 'details' // Ajout pour supporter l'ouverture directe sur commentaires
 }) => {
   const { user: authUser } = useAuthStore();
   const effectiveUser = currentUser || authUser;
 
-  const [activeTab, setActiveTab] = useState('details');
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [creatorName, setCreatorName] = useState('Chargement...');
   const [assigneeNames, setAssigneeNames] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -116,25 +126,54 @@ const TaskDetailModal = ({
                                   !isCreatedByMe &&
                                   !hasAlreadyVolunteered;
 
-  // Charger les commentaires
-  const loadComments = async () => {
-    if (!task?.id) return;
-    
+  // 🙋‍♂️ FONCTION POUR SE PORTER VOLONTAIRE
+  const handleVolunteer = async () => {
+    if (!effectiveUser) {
+      alert('Vous devez être connecté pour vous porter volontaire');
+      return;
+    }
+
     try {
-      setLoadingComments(true);
+      setVolunteerLoading(true);
+      console.log('🙋‍♂️ Tentative de volontariat pour tâche:', task.id);
+
+      const result = await taskAssignmentService.volunteerForTask(task.id, effectiveUser.uid);
       
-      // Pour l'instant, liste vide jusqu'à implémentation complète du système de commentaires
-      setComments([]);
+      if (result.success) {
+        console.log('✅ Volontariat réussi:', result);
+        
+        if (result.pending) {
+          alert('✅ Votre candidature a été envoyée ! Le créateur de la tâche l\'examinera bientôt.');
+        } else {
+          alert('✅ Vous avez été automatiquement assigné à cette tâche !');
+        }
+        
+        // Notifier le parent pour recharger les données
+        if (onTaskUpdate) {
+          onTaskUpdate();
+        }
+        
+        // Fermer le modal
+        onClose();
+      }
       
     } catch (error) {
-      console.error('❌ Erreur chargement commentaires:', error);
-      setComments([]);
+      console.error('❌ Erreur lors du volontariat:', error);
+      alert('❌ Erreur: ' + error.message);
     } finally {
-      setLoadingComments(false);
+      setVolunteerLoading(false);
     }
   };
 
-  // Charger les noms d'utilisateurs
+  // ⌛ Au chargement, charger les noms d'utilisateurs et commentaires
+  useEffect(() => {
+    if (isOpen && task) {
+      loadUserNames();
+      loadComments();
+    }
+  }, [isOpen, task]);
+
+  // 👤 Charger les noms d'utilisateurs
   const loadUserNames = async () => {
     if (!task) return;
     
@@ -186,54 +225,25 @@ const TaskDetailModal = ({
     }
   };
 
-  // 🙋‍♂️ FONCTION POUR SE PORTER VOLONTAIRE
-  const handleVolunteer = async () => {
-    if (!effectiveUser) {
-      alert('Vous devez être connecté pour vous porter volontaire');
-      return;
-    }
-
+  // 💬 Charger les commentaires (système simplifié pour l'instant)
+  const loadComments = async () => {
+    if (!task?.id) return;
+    
     try {
-      setVolunteerLoading(true);
-      console.log('🙋‍♂️ Tentative de volontariat pour tâche:', task.id);
-
-      const result = await taskAssignmentService.volunteerForTask(task.id, effectiveUser.uid);
+      setLoadingComments(true);
       
-      if (result.success) {
-        console.log('✅ Volontariat réussi:', result);
-        
-        if (result.pending) {
-          alert('✅ Votre candidature a été envoyée ! Le créateur de la tâche l\'examinera bientôt.');
-        } else {
-          alert('✅ Vous avez été automatiquement assigné à cette tâche !');
-        }
-        
-        // Notifier le parent pour recharger les données
-        if (onTaskUpdate) {
-          onTaskUpdate();
-        }
-        
-        // Fermer le modal
-        onClose();
-      }
+      // Pour l'instant, utiliser une liste vide jusqu'à implémentation complète
+      setComments([]);
       
     } catch (error) {
-      console.error('❌ Erreur lors du volontariat:', error);
-      alert('❌ Erreur: ' + error.message);
+      console.error('❌ Erreur chargement commentaires:', error);
+      setComments([]);
     } finally {
-      setVolunteerLoading(false);
+      setLoadingComments(false);
     }
   };
 
-  // Charger les données au montage
-  useEffect(() => {
-    if (isOpen && task) {
-      loadUserNames();
-      loadComments();
-    }
-  }, [isOpen, task]);
-
-  // Soumettre un commentaire
+  // 📝 Soumettre un commentaire
   const handleSubmitComment = async (e) => {
     e.preventDefault();
     if (!newComment.trim() || !effectiveUser) return;
@@ -241,9 +251,18 @@ const TaskDetailModal = ({
     try {
       setSubmittingComment(true);
       
-      // TODO: Implémenter la soumission de commentaires
+      // TODO: Implémenter la soumission de commentaires via le service
       console.log('💬 Soumission commentaire:', newComment);
       
+      // Ajouter temporairement à la liste locale
+      const tempComment = {
+        id: Date.now(),
+        content: newComment,
+        userName: effectiveUser.displayName || effectiveUser.email || 'Utilisateur',
+        createdAt: new Date()
+      };
+      
+      setComments(prev => [...prev, tempComment]);
       setNewComment('');
       
     } catch (error) {
@@ -253,13 +272,14 @@ const TaskDetailModal = ({
     }
   };
 
-  // Ne pas rendre si pas ouvert
+  // Ne pas render si pas ouvert
   if (!isOpen || !task) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-900 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden text-white">
-        {/* Header */}
+        
+        {/* Header avec titre et badges de statut */}
         <div className="bg-gray-800 border-b border-gray-700 p-6">
           <div className="flex justify-between items-start">
             <div className="flex-1 pr-4">
@@ -288,6 +308,12 @@ const TaskDetailModal = ({
                    task.priority === 'medium' ? 'Moyenne' :
                    'Basse'}
                 </span>
+
+                {task.isOpenToVolunteers && (
+                  <span className="px-2 py-1 rounded text-xs font-medium border bg-purple-800/50 text-purple-300 border-purple-600">
+                    Ouvert aux volontaires
+                  </span>
+                )}
               </div>
             </div>
             
@@ -300,7 +326,7 @@ const TaskDetailModal = ({
           </div>
         </div>
 
-        {/* Onglets */}
+        {/* Navigation des onglets */}
         <div className="flex border-b border-gray-700 bg-gray-800">
           <button
             onClick={() => setActiveTab('details')}
@@ -322,61 +348,75 @@ const TaskDetailModal = ({
             }`}
           >
             <MessageCircle className="w-4 h-4 inline mr-2" />
-            Commentaires ({comments.length})
+            Messages ({loadingComments ? '...' : comments.length})
           </button>
         </div>
 
-        {/* Contenu */}
-        <div className="flex-1 overflow-y-auto p-6 max-h-[60vh]">
-          {/* Onglet Détails */}
+        {/* Contenu scrollable */}
+        <div className="overflow-y-auto max-h-[60vh] bg-gray-900">
+          
+          {/* 🔄 Onglet Détails */}
           {activeTab === 'details' && (
-            <div className="space-y-6">
+            <div className="p-6 space-y-6">
+              
               {/* Description */}
               {task.description && (
                 <div>
-                  <h3 className="text-lg font-medium text-white mb-3 flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-blue-400" />
+                  <h3 className="text-lg font-semibold mb-3 flex items-center text-white">
+                    <FileText className="w-5 h-5 mr-2 text-blue-400" />
                     Description
                   </h3>
-                  <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                  <div className="bg-gray-800 p-4 rounded-lg border-l-4 border-blue-500">
                     <p className="text-gray-300 whitespace-pre-wrap">{task.description}</p>
                   </div>
                 </div>
               )}
 
-              {/* Informations principales */}
+              {/* Grille d'informations */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Créateur et assignés */}
+                
+                {/* Assignation */}
                 <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
                   <div className="flex items-center gap-2 mb-3">
-                    <User className="w-4 h-4 text-blue-400" />
-                    <h4 className="font-medium text-white">Participants</h4>
+                    <Users className="w-4 h-4 text-blue-400" />
+                    <h4 className="font-medium text-white">Assignation</h4>
                   </div>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-2">
+                    <div className="flex items-center text-sm">
+                      <User className="w-4 h-4 text-gray-400 mr-2" />
                       <span className="text-gray-400">Créé par:</span>
-                      <span className="text-white font-medium">
-                        {loadingUsers ? 'Chargement...' : creatorName}
-                      </span>
+                      {loadingUsers ? (
+                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin ml-2"></div>
+                      ) : (
+                        <span className="text-white ml-2 font-medium">{creatorName}</span>
+                      )}
                     </div>
+
+                    {/* Assignés */}
                     {task.assignedTo && task.assignedTo.length > 0 && (
-                      <div className="flex items-start gap-2">
-                        <span className="text-gray-400">Assigné à:</span>
-                        <div className="flex flex-col gap-1">
-                          {loadingUsers ? (
-                            <span className="text-gray-400">Chargement...</span>
-                          ) : (
-                            assigneeNames.map((name, index) => (
-                              <span key={index} className="text-blue-400 font-medium">
-                                {name}
-                              </span>
-                            ))
-                          )}
+                      <div className="flex items-start text-sm">
+                        <Users className="w-4 h-4 text-gray-400 mr-2 mt-0.5" />
+                        <div>
+                          <span className="text-gray-400">Assigné à:</span>
+                          <div className="mt-1">
+                            {loadingUsers ? (
+                              <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                            ) : assigneeNames.length > 0 ? (
+                              assigneeNames.map((name, index) => (
+                                <div key={index} className="text-blue-400 font-medium">
+                                  {name}
+                                </div>
+                              ))
+                            ) : (
+                              <span className="text-gray-400">Aucun assigné</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
+
                     {(!task.assignedTo || task.assignedTo.length === 0) && (
-                      <div className="flex items-center gap-2 text-orange-400">
+                      <div className="flex items-center gap-2 text-orange-400 text-sm">
                         <AlertCircle className="w-4 h-4" />
                         <span>Non assignée</span>
                       </div>
@@ -384,7 +424,7 @@ const TaskDetailModal = ({
                   </div>
                 </div>
 
-                {/* Dates et priorité */}
+                {/* Dates et métriques */}
                 <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
                   <div className="flex items-center gap-2 mb-3">
                     <Calendar className="w-4 h-4 text-green-400" />
@@ -422,7 +462,7 @@ const TaskDetailModal = ({
                 </div>
 
                 {/* Informations supplémentaires */}
-                {(task.projectId || task.isOpenToVolunteers || task.isRecurring) && (
+                {(task.projectId || task.isRecurring) && (
                   <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
                     <div className="flex items-center gap-2 mb-3">
                       <Info className="w-4 h-4 text-blue-400" />
@@ -434,12 +474,6 @@ const TaskDetailModal = ({
                           <MapPin className="w-4 h-4 text-gray-400" />
                           <span className="text-gray-400">Projet:</span>
                           <span className="text-blue-400 font-medium">{task.projectId}</span>
-                        </div>
-                      )}
-                      {task.isOpenToVolunteers && (
-                        <div className="flex items-center gap-2 text-green-400">
-                          <Users className="w-4 h-4" />
-                          <span className="font-medium">Ouvert aux volontaires</span>
                         </div>
                       )}
                       {task.isRecurring && (
@@ -496,20 +530,32 @@ const TaskDetailModal = ({
             </div>
           )}
 
-          {/* Onglet Commentaires */}
+          {/* 💬 Onglet Commentaires/Messages */}
           {activeTab === 'comments' && (
-            <div className="space-y-4">
+            <div className="p-6">
+              
+              {/* En-tête section commentaires */}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <MessageCircle className="w-5 h-5 text-blue-400" />
+                  Messages de collaboration
+                </h3>
+                <span className="text-sm text-gray-400">
+                  {comments.length} message{comments.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+
               {/* Liste des commentaires */}
-              <div className="space-y-4">
+              <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
                 {loadingComments ? (
                   <div className="text-center py-4 text-gray-400">
                     <div className="inline-block w-6 h-6 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin"></div>
-                    <p className="mt-2">Chargement des commentaires...</p>
+                    <p className="mt-2">Chargement des messages...</p>
                   </div>
                 ) : comments.length === 0 ? (
                   <div className="text-center py-8 text-gray-400">
                     <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>Aucun commentaire pour le moment</p>
+                    <p>Aucun message pour le moment</p>
                     <p className="text-sm">Soyez le premier à commenter cette tâche !</p>
                   </div>
                 ) : (
@@ -529,6 +575,7 @@ const TaskDetailModal = ({
                         </div>
                       </div>
                       
+                      {/* Contenu du commentaire */}
                       <p className="text-gray-300 whitespace-pre-wrap">{comment.content}</p>
                     </div>
                   ))
@@ -575,7 +622,7 @@ const TaskDetailModal = ({
 
               {/* Message si non connecté */}
               {!effectiveUser && (
-                <div className="text-center py-4 text-gray-400 text-sm">
+                <div className="text-center py-4 text-gray-400 text-sm border-t border-gray-700 pt-4">
                   Connectez-vous pour ajouter un commentaire
                 </div>
               )}
