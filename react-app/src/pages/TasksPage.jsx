@@ -212,15 +212,14 @@ const TasksPage = () => {
         break;
       
       case 'available':
-        // Tâches disponibles : sans assignation et status todo
-        filtered = filtered.filter(task => {
-          const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
-          return !assignedTo.some(id => id && id !== '') && task.status === 'todo';
-        });
+        // Tâches disponibles : ouvertes aux volontaires
+        filtered = filtered.filter(task => 
+          task.openToVolunteers === true && task.status === 'todo'
+        );
         break;
       
       case 'others':
-        // Autres tâches : assignées à d'autres personnes
+        // Autres tâches : déjà prises par d'autres utilisateurs
         filtered = filtered.filter(task => {
           const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
           return assignedTo.some(id => id && id !== '' && id !== user?.uid);
