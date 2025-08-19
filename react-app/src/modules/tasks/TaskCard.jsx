@@ -176,7 +176,8 @@ const TaskCard = ({
     task && 
     !isAssignedToMe &&
     !isTaskOwner &&
-    task.status === 'todo' &&
+    (task.status === 'todo' || task.openToVolunteers) &&
+    task.openToVolunteers === true &&
     onVolunteer; // S'assurer que la fonction est disponible
 
   // ✅ NOUVEAU useEffect POUR CHARGER LES NOMS D'UTILISATEURS
