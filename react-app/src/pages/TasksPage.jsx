@@ -206,23 +206,27 @@ const TasksPage = () => {
       case 'my_tasks':
         // Mes tâches : tâches assignées à l'utilisateur actuel
         filtered = filtered.filter(task => {
-          const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
+          const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
           return assignedTo.includes(user?.uid);
         });
         break;
       
       case 'available':
-        // Tâches disponibles : ouvertes aux volontaires
-        filtered = filtered.filter(task => 
-          task.openToVolunteers === true && task.status === 'todo'
-        );
+        // Tâches disponibles : ouvertes aux volontaires OU sans assignation
+        filtered = filtered.filter(task => {
+          const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+          const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
+          return (task.openToVolunteers === true || hasNoAssignment) && task.status === 'todo';
+        });
         break;
       
       case 'others':
-        // Autres tâches : déjà prises par d'autres utilisateurs
+        // Autres tâches : assignées à d'autres personnes (pas à moi)
         filtered = filtered.filter(task => {
-          const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
-          return assignedTo.some(id => id && id !== '' && id !== user?.uid);
+          const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+          const hasAssignment = assignedTo.some(id => id && id !== '');
+          const isAssignedToOthers = assignedTo.some(id => id && id !== '' && id !== user?.uid);
+          return hasAssignment && isAssignedToOthers;
         });
         break;
       
@@ -233,6 +237,10 @@ const TasksPage = () => {
           task.status === 'validated' || 
           task.status === 'cancelled'
         );
+        break;
+        
+      default:
+        // Par défaut, afficher toutes les tâches
         break;
     }
 
