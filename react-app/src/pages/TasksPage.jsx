@@ -133,7 +133,7 @@ const TasksPage = () => {
   const [selectedTaskForDetails, setSelectedTaskForDetails] = useState(null);
   const [selectedTaskForEdit, setSelectedTaskForEdit] = useState(null);
 
-  // 📊 Statistiques calculées
+  // 📊 Statistiques calculées CORRIGÉES
   const taskStats = useMemo(() => {
     return {
       total: tasks.length,
@@ -142,13 +142,20 @@ const TasksPage = () => {
       completed: tasks.filter(t => t.status === 'completed').length,
       urgent: tasks.filter(t => t.priority === 'urgent').length,
       myTasks: tasks.filter(t => {
-        const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : [t.assignedTo];
+        const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
         return assignedTo.includes(user?.uid);
       }).length,
       pending: tasks.filter(t => t.status === 'validation_pending').length,
       available: tasks.filter(t => {
-        const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : [t.assignedTo];
-        return !assignedTo.some(id => id && id !== '') && t.status === 'todo';
+        const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+        const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
+        return (t.openToVolunteers === true || hasNoAssignment) && t.status === 'todo';
+      }).length,
+      others: tasks.filter(t => {
+        const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+        const hasAssignment = assignedTo.some(id => id && id !== '');
+        const isAssignedToOthers = assignedTo.some(id => id && id !== '' && id !== user?.uid);
+        return hasAssignment && isAssignedToOthers;
       }).length
     };
   }, [tasks, user]);
@@ -297,6 +304,7 @@ const TasksPage = () => {
   const handleEdit = (task) => {
     console.log('✏️ Modifier tâche:', task.title);
     setSelectedTaskForEdit(task);
+    setShowNewTaskModal(true); // CORRECTION: Ouvrir le modal d'édition
   };
 
   const handleDelete = async (taskId) => {
@@ -398,7 +406,7 @@ const TasksPage = () => {
         const isActive = activeTab === key;
         const count = key === 'my_tasks' ? taskStats.myTasks : 
                      key === 'available' ? taskStats.available :
-                     key === 'others' ? taskStats.total - taskStats.myTasks - taskStats.available :
+                     key === 'others' ? taskStats.others :
                      taskStats.completed;
         
         return (
@@ -630,13 +638,17 @@ const TasksPage = () => {
         </div>
       )}
 
-      {/* Modal nouvelle tâche */}
+      {/* Modal nouvelle tâche / édition */}
       {showNewTaskModal && (
         <NewTaskModal
           isOpen={showNewTaskModal}
-          onClose={() => setShowNewTaskModal(false)}
+          onClose={() => {
+            setShowNewTaskModal(false);
+            setSelectedTaskForEdit(null); // CORRECTION: Reset de l'édition
+          }}
           onSubmit={handleCreateTask}
           currentUser={user}
+          editTask={selectedTaskForEdit} // CORRECTION: Passer la tâche à éditer
         />
       )}
 
