@@ -1,490 +1,704 @@
 // ==========================================
-// 📁 react-app/src/modules/tasks/TaskCard.jsx
-// COMPOSANT TASK CARD - CORRECTION BOUTON VOLONTAIRE
+// 📁 react-app/src/pages/TasksPage.jsx
+// PAGE TÂCHES AVEC LES VRAIS COMPOSANTS QUI MARCHAIENT
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Eye, 
-  Edit, 
-  Trash2, 
-  Calendar, 
-  Users, 
-  Trophy, 
-  Heart, 
-  MessageCircle, 
-  Clock, 
+  CheckSquare,
+  Plus,
+  Search,
+  Filter,
+  SortAsc,
+  SortDesc,
+  User,
+  Users,
+  Heart,
+  Archive,
+  FileText,
+  Play,
+  Image as ImageIcon,
+  MessageCircle,
+  Calendar,
+  Target,
+  Zap,
+  Clock,
   AlertCircle,
-  UserPlus,
-  UserMinus,
-  Bell,
-  CheckCircle,
-  Play
+  ChevronDown,
+  Star,
+  Eye,
+  Edit,
+  Trash2,
+  X
 } from 'lucide-react';
 
-import { useAuthStore } from '../../shared/stores/authStore.js';
-import SubmitTaskButton from '../../components/tasks/SubmitTaskButton.jsx';
+// 🎨 IMPORT DU DESIGN SYSTEM PREMIUM
+import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
+
+// 🔥 IMPORT DES VRAIS COMPOSANTS QUI MARCHAIENT
+import TaskCard from '../modules/tasks/TaskCard.jsx';
+import TaskDetailModal from '../components/ui/TaskDetailModal.jsx';
+import NewTaskModal from '../components/tasks/NewTaskModal.jsx';
+
+// 🔥 HOOKS ET SERVICES (conservés)
+import { useAuthStore } from '../shared/stores/authStore.js';
+
+// 📊 FIREBASE (conservé)
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  onSnapshot, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  serverTimestamp,
+  where,
+  getDocs
+} from 'firebase/firestore';
+import { db } from '../core/firebase.js';
+
+// 🎮 SERVICES ET CONSTANTES (corrigé)
+import { SYNERGIA_ROLES } from '../core/data/roles.js';
+import { taskService } from '../core/services/taskService.js';
+
+// 📊 CONSTANTES TÂCHES (conservées)
+const TASK_STATUS = {
+  todo: { label: 'À faire', color: 'gray', icon: '⏳' },
+  in_progress: { label: 'En cours', color: 'blue', icon: '⚡' },
+  review: { label: 'En révision', color: 'yellow', icon: '👀' },
+  completed: { label: 'Terminée', color: 'green', icon: '✅' },
+  validated: { label: 'Validée', color: 'purple', icon: '🏆' },
+  cancelled: { label: 'Annulée', color: 'red', icon: '❌' },
+  validation_pending: { label: 'En attente validation', color: 'orange', icon: '⏰' }
+};
+
+const TASK_PRIORITY = {
+  low: { label: 'Basse', color: 'gray', icon: '🟢' },
+  medium: { label: 'Moyenne', color: 'yellow', icon: '🟡' },
+  high: { label: 'Haute', color: 'orange', icon: '🟠' },
+  urgent: { label: 'Urgente', color: 'red', icon: '🔴' }
+};
+
+// 🆕 ONGLETS DE TRI DES TÂCHES
+const TASK_TABS = {
+  my_tasks: { label: 'Mes tâches', icon: User, color: 'blue' },
+  available: { label: 'Disponibles', icon: Users, color: 'green' },
+  others: { label: 'Autres', icon: Eye, color: 'purple' },
+  history: { label: 'Historique', icon: Archive, color: 'gray' }
+};
+
+// 🔧 FONCTION HELPER POUR CONVERTIR LES TIMESTAMPS
+const convertFirebaseTimestamp = (timestamp) => {
+  if (!timestamp) return new Date();
+  if (timestamp instanceof Date) return timestamp;
+  if (timestamp && typeof timestamp.toDate === 'function') {
+    try {
+      return timestamp.toDate();
+    } catch (error) {
+      console.warn('Erreur conversion timestamp:', error);
+      return new Date();
+    }
+  }
+  if (typeof timestamp === 'number' || typeof timestamp === 'string') {
+    return new Date(timestamp);
+  }
+  return new Date();
+};
 
 /**
- * 💬 COMPOSANT BADGE DE COMMENTAIRES AVEC NOTIFICATION
+ * 🏠 PAGE PRINCIPALE DES TÂCHES AVEC VRAIS COMPOSANTS
  */
-const CommentNotificationBadge = ({ taskId, onClick, className = '' }) => {
-  const [commentCount, setCommentCount] = useState(0);
-  const [hasNewComments, setHasNewComments] = useState(false);
+const TasksPage = () => {
+  const { user } = useAuthStore();
+
+  // États pour les données et UI
+  const [tasks, setTasks] = useState([]);
+  const [filteredTasks, setFilteredTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedPriority, setSelectedPriority] = useState('all');
+  const [selectedRole, setSelectedRole] = useState('all');
+  const [activeTab, setActiveTab] = useState('my_tasks'); // 🆕 État pour l'onglet actif
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [showNewTaskModal, setShowNewTaskModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [viewMode, setViewMode] = useState('cards');
 
+  // 🆕 États pour les modals et actions
+  const [selectedTaskForDetails, setSelectedTaskForDetails] = useState(null);
+  const [selectedTaskForEdit, setSelectedTaskForEdit] = useState(null);
+
+  // 📊 Statistiques calculées
+  const taskStats = useMemo(() => {
+    const myTasks = tasks.filter(t => {
+      const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+      return assignedTo.includes(user?.uid);
+    });
+    
+    const available = tasks.filter(t => {
+      const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+      const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
+      return (t.openToVolunteers === true || hasNoAssignment) && t.status === 'todo';
+    });
+    
+    const others = tasks.filter(t => {
+      const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+      const hasAssignment = assignedTo.some(id => id && id !== '');
+      const isAssignedToOthers = assignedTo.some(id => id && id !== '' && id !== user?.uid);
+      return hasAssignment && isAssignedToOthers;
+    });
+    
+    const history = tasks.filter(t => 
+      t.status === 'completed' || 
+      t.status === 'validated' || 
+      t.status === 'cancelled'
+    );
+
+    return {
+      total: tasks.length,
+      todo: tasks.filter(t => t.status === 'todo').length,
+      inProgress: tasks.filter(t => t.status === 'in_progress').length,
+      completed: tasks.filter(t => t.status === 'completed').length,
+      urgent: tasks.filter(t => t.priority === 'urgent').length,
+      myTasks: myTasks.length,
+      pending: tasks.filter(t => t.status === 'validation_pending').length,
+      available: available.length,
+      others: others.length,
+      history: history.length
+    };
+  }, [tasks, user]);
+
+  // 🔥 Charger les tâches depuis Firebase
   useEffect(() => {
-    const loadCommentData = async () => {
-      if (!taskId) {
-        setIsLoading(false);
-        return;
-      }
+    if (!user) return;
 
+    console.log('🔄 [TASKS] Démarrage chargement tâches...');
+    
+    const tasksRef = collection(db, 'tasks');
+    const q = query(tasksRef, orderBy('createdAt', 'desc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log(`📊 [TASKS] Snapshot reçu: ${snapshot.size} documents`);
+      
       try {
-        setIsLoading(true);
-        
-        // 📖 IMPORT FIREBASE DIRECT
-        const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
-        const { db } = await import('../../core/firebase.js');
-
-        // 📊 COMPTER LES COMMENTAIRES
-        const commentsRef = collection(db, 'task_comments');
-        const commentsQuery = query(
-          commentsRef,
-          where('taskId', '==', taskId),
-          orderBy('createdAt', 'desc')
-        );
-        
-        const commentsSnapshot = await getDocs(commentsQuery);
-        const commentsData = commentsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-
-        setCommentCount(commentsData.length);
-        
-        // 🔍 VÉRIFIER S'IL Y A DE NOUVEAUX COMMENTAIRES (dernières 24h)
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const recentComments = commentsData.filter(comment => {
-          const commentDate = comment.createdAt?.toDate?.() || new Date(comment.createdAt);
-          return commentDate > oneDayAgo;
+        const tasksData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          
+          const taskData = {
+            id: doc.id,
+            ...data,
+            createdAt: convertFirebaseTimestamp(data.createdAt),
+            updatedAt: convertFirebaseTimestamp(data.updatedAt),
+            dueDate: data.dueDate ? convertFirebaseTimestamp(data.dueDate) : null
+          };
+          
+          return taskData;
         });
 
-        setHasNewComments(recentComments.length > 0);
-
+        console.log(`✅ [TASKS] ${tasksData.length} tâches traitées avec succès`);
+        setTasks(tasksData);
+        setIsLoading(false);
+        
       } catch (error) {
-        console.warn('⚠️ Erreur chargement commentaires:', error);
-        setCommentCount(0);
-        setHasNewComments(false);
-      } finally {
+        console.error('❌ [TASKS] Erreur traitement données:', error);
+        setTasks([]);
         setIsLoading(false);
       }
-    };
+    }, (error) => {
+      console.error('❌ [TASKS] Erreur écoute Firebase:', error);
+      setIsLoading(false);
+    });
 
-    loadCommentData();
-  }, [taskId]);
+    return () => unsubscribe();
+  }, [user]);
 
-  return (
-    <button
-      onClick={onClick}
-      disabled={isLoading}
-      className={`relative flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-all transform hover:scale-105 ${
-        isLoading
-          ? 'bg-gray-600/20 text-gray-400 border border-gray-600/30 hover:bg-gray-600/30'
-          : hasNewComments
-            ? 'bg-blue-500/30 text-blue-300 border border-blue-400/50 hover:bg-blue-500/40 animate-pulse'
-            : 'bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30'
-      } ${className}`}
-      title={
-        commentCount === 0 
-          ? "Aucun commentaire - Cliquer pour ajouter"
-          : `${commentCount} commentaire${commentCount > 1 ? 's' : ''} - ${hasNewComments ? 'Nouveaux messages !' : 'Cliquer pour voir'}`
-      }
-    >
-      <MessageCircle className="w-3 h-3" />
-      <span>{commentCount}</span>
+  // 🔍 Filtrage et tri des tâches avec onglets
+  useEffect(() => {
+    let filtered = [...tasks];
+
+    // 🆕 Filtrage par onglet actif
+    switch (activeTab) {
+      case 'my_tasks':
+        // Mes tâches : tâches assignées à l'utilisateur actuel
+        filtered = filtered.filter(task => {
+          const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+          return assignedTo.includes(user?.uid);
+        });
+        break;
       
-      {/* 🚨 INDICATEUR VISUEL POUR NOUVEAUX COMMENTAIRES */}
-      {hasNewComments && commentCount > 0 && (
-        <>
-          {/* Point rouge animé */}
-          <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-gray-800">
-            <div className="w-full h-full bg-red-500 rounded-full animate-ping" />
-          </div>
-          
-          {/* Icône de notification */}
-          <Bell className="w-2 h-2 text-yellow-400 animate-bounce ml-1" />
-        </>
-      )}
-    </button>
-  );
-};
+      case 'available':
+        // Tâches disponibles : ouvertes aux volontaires OU sans assignation
+        filtered = filtered.filter(task => {
+          const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+          const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
+          return (task.openToVolunteers === true || hasNoAssignment) && task.status === 'todo';
+        });
+        break;
+      
+      case 'others':
+        // Autres tâches : assignées à d'autres personnes (pas à moi)
+        filtered = filtered.filter(task => {
+          const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+          const hasAssignment = assignedTo.some(id => id && id !== '');
+          const isAssignedToOthers = assignedTo.some(id => id && id !== '' && id !== user?.uid);
+          return hasAssignment && isAssignedToOthers;
+        });
+        break;
+      
+      case 'history':
+        // Historique : tâches terminées ou annulées
+        filtered = filtered.filter(task => 
+          task.status === 'completed' || 
+          task.status === 'validated' || 
+          task.status === 'cancelled'
+        );
+        break;
+        
+      default:
+        // Par défaut, afficher toutes les tâches
+        break;
+    }
 
-/**
- * 🏷️ COMPOSANT BADGE DE PRIORITÉ
- */
-const PriorityBadge = ({ priority }) => {
-  const priorityConfigs = {
-    low: { bg: 'bg-green-100', text: 'text-green-700', label: 'Basse', icon: Clock },
-    medium: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Moyenne', icon: AlertCircle },
-    high: { bg: 'bg-orange-100', text: 'text-orange-700', label: 'Haute', icon: AlertCircle },
-    urgent: { bg: 'bg-red-100', text: 'text-red-700', label: 'Urgente', icon: AlertCircle }
+    // Filtrage par recherche
+    if (searchTerm) {
+      filtered = filtered.filter(task => 
+        task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    // Filtrage par statut
+    if (selectedStatus !== 'all') {
+      filtered = filtered.filter(task => task.status === selectedStatus);
+    }
+
+    // Filtrage par priorité
+    if (selectedPriority !== 'all') {
+      filtered = filtered.filter(task => task.priority === selectedPriority);
+    }
+
+    // Filtrage par rôle
+    if (selectedRole !== 'all') {
+      filtered = filtered.filter(task => task.role === selectedRole);
+    }
+
+    // Tri sécurisé
+    filtered.sort((a, b) => {
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
+
+      if (sortBy === 'createdAt' || sortBy === 'updatedAt' || sortBy === 'dueDate') {
+        aValue = aValue instanceof Date ? aValue.getTime() : 0;
+        bValue = bValue instanceof Date ? bValue.getTime() : 0;
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+    setFilteredTasks(filtered);
+  }, [tasks, searchTerm, selectedStatus, selectedPriority, selectedRole, sortBy, sortOrder, activeTab, user]);
+
+  // 🎯 Gestionnaires d'événements pour TaskCard
+  const handleViewDetails = (task) => {
+    console.log('👁️ Voir détails tâche:', task.title);
+    setSelectedTaskForDetails(task);
   };
 
-  const config = priorityConfigs[priority] || priorityConfigs.medium;
-  const IconComponent = config.icon;
+  const handleEdit = (task) => {
+    console.log('✏️ Modifier tâche:', task.title);
+    setSelectedTaskForEdit(task);
+    setShowNewTaskModal(true); // Ouvrir le modal avec la tâche à modifier
+  };
 
-  return (
-    <span className={`${config.bg} ${config.text} px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1`}>
-      <IconComponent className="w-3 h-3" />
-      {config.label}
-    </span>
-  );
-};
+  const handleDelete = async (taskId) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) return;
 
-/**
- * 🎯 COMPOSANT TASKCARD AVEC NOMS UTILISATEURS RÉSOLUS ET BOUTON VOLONTAIRE CORRIGÉ
- */
-const TaskCard = ({ 
-  task, 
-  currentUser,
-  onEdit, 
-  onDelete, 
-  onViewDetails, 
-  onSubmit,
-  onVolunteer,
-  onUnvolunteer,
-  onTaskUpdate,
-  isMyTask = false
-}) => {
-  const { user } = useAuthStore();
-  const [isVolunteering, setIsVolunteering] = useState(false);
-  
-  // ✅ NOUVEAUX ÉTATS POUR LES NOMS D'UTILISATEURS
-  const [creatorName, setCreatorName] = useState('Chargement...');
-  const [assigneeNames, setAssigneeNames] = useState([]);
-  const [loadingUserNames, setLoadingUserNames] = useState(true);
-
-  // ✅ Vérifications de statut CORRIGÉES
-  const isTaskOwner = user && task && task.createdBy === user.uid;
-  const isAssignedToMe = Array.isArray(task.assignedTo) 
-    ? task.assignedTo.includes(user.uid)
-    : task.assignedTo === user.uid;
-  
-  // 🔥 CORRECTION : Condition simple pour le bouton volontaire
-  const canVolunteer = user && 
-    task && 
-    !isAssignedToMe &&
-    !isTaskOwner &&
-    task.status === 'todo' &&
-    onVolunteer; // S'assurer que la fonction est disponible
-
-  // ✅ NOUVEAU useEffect POUR CHARGER LES NOMS D'UTILISATEURS
-  useEffect(() => {
-    const loadUserNames = async () => {
-      if (!task) {
-        setLoadingUserNames(false);
-        return;
-      }
-
-      try {
-        setLoadingUserNames(true);
-        
-        // 📖 IMPORT FIREBASE DIRECT
-        const { doc, getDoc } = await import('firebase/firestore');
-        const { db } = await import('../../core/firebase.js');
-
-        // 👤 CHARGER LE NOM DU CRÉATEUR
-        if (task.createdBy) {
-          try {
-            const creatorDoc = await getDoc(doc(db, 'users', task.createdBy));
-            if (creatorDoc.exists()) {
-              const creatorData = creatorDoc.data();
-              setCreatorName(creatorData.displayName || creatorData.name || creatorData.email || 'Utilisateur anonyme');
-            } else {
-              setCreatorName('Utilisateur anonyme');
-            }
-          } catch (error) {
-            console.warn('Erreur chargement créateur:', error);
-            setCreatorName('Utilisateur anonyme');
-          }
-        } else {
-          setCreatorName('Utilisateur anonyme');
-        }
-
-        // 👥 CHARGER LES NOMS DES ASSIGNÉS
-        if (task.assignedTo && task.assignedTo.length > 0) {
-          const assignedArray = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
-          const names = [];
-
-          for (const userId of assignedArray) {
-            if (userId) {
-              try {
-                const userDoc = await getDoc(doc(db, 'users', userId));
-                if (userDoc.exists()) {
-                  const userData = userDoc.data();
-                  names.push(userData.displayName || userData.name || userData.email || 'Utilisateur anonyme');
-                } else {
-                  names.push('Utilisateur anonyme');
-                }
-              } catch (error) {
-                console.warn('Erreur chargement assigné:', userId, error);
-                names.push('Utilisateur anonyme');
-              }
-            }
-          }
-
-          setAssigneeNames(names);
-        } else {
-          setAssigneeNames([]);
-        }
-
-      } catch (error) {
-        console.error('Erreur chargement données utilisateurs:', error);
-        setCreatorName('Erreur chargement');
-        setAssigneeNames([]);
-      } finally {
-        setLoadingUserNames(false);
-      }
-    };
-
-    loadUserNames();
-  }, [task]);
-
-  // Fonction pour devenir volontaire
-  const handleVolunteer = async () => {
-    if (!onVolunteer || !user || !task) return;
-    
     try {
-      setIsVolunteering(true);
+      await deleteDoc(doc(db, 'tasks', taskId));
+      console.log('✅ [TASKS] Tâche supprimée');
+    } catch (error) {
+      console.error('❌ [TASKS] Erreur suppression tâche:', error);
+    }
+  };
+
+  const handleVolunteer = async (task) => {
+    try {
       console.log('🙋 Volontariat pour tâche:', task.title);
       
-      await onVolunteer(task);
+      // Ajouter l'utilisateur aux assignés
+      const currentAssigned = Array.isArray(task.assignedTo) ? task.assignedTo : [];
+      const updatedAssigned = [...currentAssigned, user.uid];
       
-      if (onTaskUpdate) {
-        onTaskUpdate();
-      }
-
+      await updateDoc(doc(db, 'tasks', task.id), {
+        assignedTo: updatedAssigned,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Volontariat enregistré');
     } catch (error) {
       console.error('❌ Erreur volontariat:', error);
-    } finally {
-      setIsVolunteering(false);
     }
   };
 
-  // Fonction pour ne plus être volontaire
-  const handleUnvolunteer = async () => {
-    if (!onUnvolunteer) return;
-    
+  const handleUnvolunteer = async (task) => {
     try {
-      await onUnvolunteer(task);
-      if (onTaskUpdate) {
-        onTaskUpdate();
-      }
-    } catch (error) {
-      console.error('❌ Erreur désengagement:', error);
-    }
-  };
-
-  // 💬 GESTIONNAIRE CLIC COMMENTAIRES
-  const handleCommentsClick = () => {
-    console.log('💬 Ouverture commentaires pour tâche:', task.id);
-    if (onViewDetails) {
-      onViewDetails(task, 'comments'); // Ouvrir directement sur l'onglet commentaires
-    }
-  };
-
-  // ✅ VALIDATION OBLIGATOIRE
-  if (!task) {
-    console.warn('⚠️ TaskCard: task manquant');
-    return null;
-  }
-
-  return (
-    <div className="bg-gray-800 border border-gray-600 rounded-lg p-4 hover:border-gray-500 transition-all duration-200 shadow-lg relative">
+      console.log('🚪 Retrait volontariat:', task.title);
       
-      {/* 💬 BADGE COMMENTAIRES - POSITION ABSOLUE TOP-RIGHT TRÈS VISIBLE */}
-      <div className="absolute top-3 right-3 z-20">
-        <CommentNotificationBadge
-          taskId={task.id}
-          onClick={handleCommentsClick}
-        />
-      </div>
+      const currentAssigned = Array.isArray(task.assignedTo) ? task.assignedTo : [];
+      const updatedAssigned = currentAssigned.filter(id => id !== user.uid);
+      
+      await updateDoc(doc(db, 'tasks', task.id), {
+        assignedTo: updatedAssigned,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Retrait enregistré');
+    } catch (error) {
+      console.error('❌ Erreur retrait:', error);
+    }
+  };
 
-      {/* En-tête avec titre et statut */}
-      <div className="mb-3">
-        <div className="flex items-start justify-between mb-2">
-          <h3 className="text-white font-semibold text-lg leading-tight pr-20">
-            {task.title}
-          </h3>
-        </div>
+  const handleSubmit = async (task) => {
+    try {
+      console.log('📤 Soumission tâche:', task.title);
+      
+      await updateDoc(doc(db, 'tasks', task.id), {
+        status: 'validation_pending',
+        submittedAt: serverTimestamp(),
+        submittedBy: user.uid,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Tâche soumise pour validation');
+      alert(`✅ Tâche "${task.title}" soumise pour validation !`);
+    } catch (error) {
+      console.error('❌ Erreur soumission:', error);
+      alert('❌ Erreur lors de la soumission');
+    }
+  };
 
-        {/* Badge de statut */}
-        <div className="flex items-center gap-2 mb-2">
-          <span className={`px-2 py-1 rounded text-xs font-medium ${
-            task.status === 'completed' ? 'bg-green-100 text-green-700' :
-            task.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-            task.status === 'validation_pending' ? 'bg-orange-100 text-orange-700' :
-            'bg-gray-100 text-gray-700'
-          }`}>
-            {task.status === 'completed' ? 'Terminée' :
-             task.status === 'in_progress' ? 'En cours' :
-             task.status === 'validation_pending' ? 'En validation' :
-             'En attente'}
-          </span>
-          
-          {/* Badge de priorité */}
-          {task.priority && <PriorityBadge priority={task.priority} />}
-        </div>
-      </div>
+  const handleTaskUpdate = () => {
+    console.log('🔄 Mise à jour des tâches demandée');
+    // Les tâches se mettent à jour automatiquement via onSnapshot
+  };
 
-      {/* Description courte */}
-      {task.description && (
-        <div className="mb-3">
-          <p className="text-gray-300 text-sm line-clamp-2">
-            {task.description.length > 100 
-              ? `${task.description.substring(0, 100)}...`
-              : task.description}
-          </p>
-        </div>
-      )}
+  const handleCreateTask = async (taskData) => {
+    try {
+      if (selectedTaskForEdit) {
+        // Mode édition : mettre à jour la tâche existante
+        await updateDoc(doc(db, 'tasks', selectedTaskForEdit.id), {
+          ...taskData,
+          updatedAt: serverTimestamp()
+        });
+        console.log('✅ [TASKS] Tâche modifiée avec succès');
+      } else {
+        // Mode création : créer une nouvelle tâche
+        const newTask = {
+          ...taskData,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          createdBy: user.uid,
+          creatorName: user.displayName || user.email,
+          status: 'todo'
+        };
+        await addDoc(collection(db, 'tasks'), newTask);
+        console.log('✅ [TASKS] Tâche créée avec succès');
+      }
+      
+      setShowNewTaskModal(false);
+      setSelectedTaskForEdit(null);
+    } catch (error) {
+      console.error('❌ [TASKS] Erreur traitement tâche:', error);
+    }
+  };
 
-      {/* Métadonnées avec noms résolus */}
-      <div className="space-y-2 mb-4 text-sm text-gray-400">
-        {/* Créateur avec nom résolu */}
-        <div className="flex items-center gap-2">
-          <UserPlus className="w-4 h-4" />
-          <span>
-            Créé par: {loadingUserNames ? (
-              <span className="text-gray-500">Chargement...</span>
-            ) : (
-              <span className="text-white font-medium">{creatorName}</span>
-            )}
-          </span>
-        </div>
-
-        {/* Assignés avec noms résolus */}
-        {task.assignedTo && task.assignedTo.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            <span>
-              Assigné à: {loadingUserNames ? (
-                <span className="text-gray-500">Chargement...</span>
-              ) : assigneeNames.length > 0 ? (
-                assigneeNames.map((name, index) => (
-                  <span key={index} className="inline-block bg-blue-500/20 text-blue-300 px-2 py-1 rounded text-xs mr-1 mb-1 font-medium">
-                    {name}
-                  </span>
-                ))
-              ) : (
-                <span className="text-gray-500">Utilisateurs anonymes</span>
-              )}
-            </span>
-          </div>
-        )}
-
-        {/* Échéance */}
-        {task.dueDate && (
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            <span>Échéance: {new Date(task.dueDate).toLocaleDateString('fr-FR')}</span>
-          </div>
-        )}
-
-        {/* Récompense XP */}
-        {task.xpReward && (
-          <div className="flex items-center gap-2">
-            <Trophy className="w-4 h-4 text-yellow-400" />
-            <span className="text-yellow-400">+{task.xpReward} XP</span>
-          </div>
-        )}
-
-        {/* Ouvert aux volontaires */}
-        {task.openToVolunteers && (
-          <div className="flex items-center gap-2">
-            <Heart className="w-4 h-4 text-red-400" />
-            <span className="text-green-400">Ouvert aux volontaires</span>
-          </div>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-2 flex-wrap">
+  // 🆕 Rendu des onglets de tri
+  const renderTabs = () => (
+    <div className="flex space-x-1 bg-gray-800 p-1 rounded-lg mb-6">
+      {Object.entries(TASK_TABS).map(([key, tab]) => {
+        const Icon = tab.icon;
+        const isActive = activeTab === key;
+        const count = key === 'my_tasks' ? taskStats.myTasks : 
+                     key === 'available' ? taskStats.available :
+                     key === 'others' ? taskStats.others :
+                     taskStats.history;
         
-        {/* Voir détails */}
-        <button
-          onClick={() => onViewDetails && onViewDetails(task)}
-          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
+        return (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              isActive
+                ? `bg-${tab.color}-600 text-white shadow-md`
+                : 'text-gray-400 hover:text-white hover:bg-gray-700'
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            <span>{tab.label}</span>
+            <span className={`px-2 py-1 text-xs rounded-full ${
+              isActive 
+                ? 'bg-white/20 text-white' 
+                : 'bg-gray-600 text-gray-300'
+            }`}>
+              {count}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  // 🎨 Rendu de la barre de filtres (sans catégories)
+  const renderFilters = () => (
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      {/* Statut */}
+      <select
+        value={selectedStatus}
+        onChange={(e) => setSelectedStatus(e.target.value)}
+        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="all">Tous les statuts</option>
+        {Object.entries(TASK_STATUS).map(([key, status]) => (
+          <option key={key} value={key}>{status.icon} {status.label}</option>
+        ))}
+      </select>
+
+      {/* Priorité */}
+      <select
+        value={selectedPriority}
+        onChange={(e) => setSelectedPriority(e.target.value)}
+        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="all">Toutes priorités</option>
+        {Object.entries(TASK_PRIORITY).map(([key, priority]) => (
+          <option key={key} value={key}>{priority.icon} {priority.label}</option>
+        ))}
+      </select>
+
+      {/* Rôle */}
+      <select
+        value={selectedRole}
+        onChange={(e) => setSelectedRole(e.target.value)}
+        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="all">Tous les rôles</option>
+        {Object.entries(SYNERGIA_ROLES).map(([key, role]) => (
+          <option key={key} value={key}>{role.icon} {role.name}</option>
+        ))}
+      </select>
+
+      {/* Tri */}
+      <div className="flex space-x-2">
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500 flex-1"
         >
-          <Eye className="w-4 h-4" />
-          Détails
+          <option value="createdAt">Date création</option>
+          <option value="updatedAt">Date modification</option>
+          <option value="dueDate">Date échéance</option>
+          <option value="priority">Priorité</option>
+          <option value="title">Titre</option>
+        </select>
+        <button
+          onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white hover:bg-gray-700 transition-colors"
+        >
+          {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
         </button>
-
-        {/* Bouton de soumission */}
-        {isAssignedToMe && task.status !== 'completed' && task.status !== 'validation_pending' && (
-          <SubmitTaskButton
-            task={task}
-            onSubmit={onSubmit}
-            onTaskUpdate={onTaskUpdate}
-          />
-        )}
-
-        {/* 🔥 DEVENIR VOLONTAIRE - BOUTON CORRIGÉ */}
-        {canVolunteer && (
-          <button
-            onClick={handleVolunteer}
-            disabled={isVolunteering}
-            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
-          >
-            <UserPlus className="w-4 h-4" />
-            {isVolunteering ? 'En cours...' : 'Volontaire'}
-          </button>
-        )}
-
-        {/* Ne plus être volontaire */}
-        {isAssignedToMe && !isTaskOwner && onUnvolunteer && (
-          <button
-            onClick={handleUnvolunteer}
-            className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 text-white rounded text-sm hover:bg-orange-700 transition-colors"
-          >
-            <UserMinus className="w-4 h-4" />
-            Se désengager
-          </button>
-        )}
-
-        {/* Actions propriétaire */}
-        {(isTaskOwner || isMyTask) && (
-          <>
-            <button
-              onClick={() => onEdit && onEdit(task)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700 transition-colors"
-            >
-              <Edit className="w-4 h-4" />
-              Modifier
-            </button>
-            
-            <button
-              onClick={() => onDelete && onDelete(task.id)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-              Supprimer
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* Indicateur de nouveaux commentaires au bas de la carte */}
-      <div className="mt-3 pt-3 border-t border-gray-600">
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>ID: {task.id.slice(-8)}</span>
-          <div className="flex items-center gap-2">
-            <span>💬 Cliquez sur le badge pour voir les commentaires</span>
-          </div>
-        </div>
       </div>
     </div>
   );
+
+  return (
+    <PremiumLayout
+      title="Gestion des Tâches"
+      subtitle="Organisez et suivez vos tâches avec efficacité"
+      icon={CheckSquare}
+      showStats={true}
+      stats={[
+        { title: 'Total', value: taskStats.total, icon: FileText, color: 'blue' },
+        { title: 'En cours', value: taskStats.inProgress, icon: Play, color: 'yellow' },
+        { title: 'Terminées', value: taskStats.completed, icon: CheckSquare, color: 'green' },
+        { title: 'En attente', value: taskStats.pending, icon: Clock, color: 'orange' },
+        { title: 'Urgentes', value: taskStats.urgent, icon: AlertCircle, color: 'red' },
+        { title: 'Mes tâches', value: taskStats.myTasks, icon: User, color: 'purple' }
+      ]}
+      headerActions={
+        <div className="flex items-center space-x-3">
+          {/* Modes d'affichage */}
+          <div className="flex items-center space-x-1 bg-gray-800 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'cards' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <CheckSquare className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('kanban')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'kanban' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Target className="w-4 h-4" />
+            </button>
+          </div>
+
+          <PremiumButton
+            onClick={() => {
+              setSelectedTaskForEdit(null);
+              setShowNewTaskModal(true);
+            }}
+            icon={Plus}
+            variant="primary"
+          >
+            Nouvelle tâche
+          </PremiumButton>
+        </div>
+      }
+    >
+      {/* Barre de recherche */}
+      <div className="mb-6">
+        <PremiumSearchBar
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="Rechercher des tâches..."
+        />
+      </div>
+
+      {/* 🆕 Onglets de tri */}
+      {renderTabs()}
+
+      {/* Filtres (sans catégories) */}
+      {renderFilters()}
+
+      {/* Contenu principal */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+          <span className="ml-3 text-white">Chargement des tâches...</span>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Liste des tâches avec VRAIS TaskCard */}
+          {viewMode === 'cards' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <AnimatePresence>
+                {filteredTasks.map(task => (
+                  <motion.div
+                    key={task.id}
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                  >
+                    <TaskCard
+                      task={task}
+                      currentUser={user}
+                      onViewDetails={handleViewDetails}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      onVolunteer={handleVolunteer}
+                      onUnvolunteer={handleUnvolunteer}
+                      onSubmit={handleSubmit}
+                      onTaskUpdate={handleTaskUpdate}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+
+          {/* Vue liste (à implémenter) */}
+          {viewMode === 'list' && (
+            <PremiumCard className="p-6">
+              <p className="text-gray-400 text-center">Vue liste en cours de développement...</p>
+            </PremiumCard>
+          )}
+
+          {/* Vue Kanban (à implémenter) */}
+          {viewMode === 'kanban' && (
+            <PremiumCard className="p-6">
+              <p className="text-gray-400 text-center">Vue Kanban en cours de développement...</p>
+            </PremiumCard>
+          )}
+
+          {/* Message si aucune tâche */}
+          {filteredTasks.length === 0 && !isLoading && (
+            <PremiumCard className="text-center py-12">
+              <CheckSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">Aucune tâche trouvée</h3>
+              <p className="text-gray-400 mb-6">
+                {searchTerm || selectedStatus !== 'all' || selectedPriority !== 'all' || selectedRole !== 'all'
+                  ? 'Aucune tâche ne correspond à vos critères de recherche.'
+                  : `Aucune tâche dans la catégorie "${TASK_TABS[activeTab].label}".`}
+              </p>
+              <PremiumButton
+                onClick={() => {
+                  setSelectedTaskForEdit(null);
+                  setShowNewTaskModal(true);
+                }}
+                icon={Plus}
+                variant="primary"
+              >
+                Créer une tâche
+              </PremiumButton>
+            </PremiumCard>
+          )}
+        </div>
+      )}
+
+      {/* Modal nouvelle tâche */}
+      {showNewTaskModal && (
+        <NewTaskModal
+          isOpen={showNewTaskModal}
+          onClose={() => {
+            setShowNewTaskModal(false);
+            setSelectedTaskForEdit(null);
+          }}
+          onSubmit={handleCreateTask}
+          onSuccess={handleCreateTask}
+          currentUser={user}
+          initialData={selectedTaskForEdit}
+          mode={selectedTaskForEdit ? 'edit' : 'create'}
+        />
+      )}
+
+      {/* Modal détails tâche */}
+      {selectedTaskForDetails && (
+        <TaskDetailModal
+          isOpen={!!selectedTaskForDetails}
+          onClose={() => setSelectedTaskForDetails(null)}
+          task={selectedTaskForDetails}
+          currentUser={user}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onSubmit={handleSubmit}
+          onTaskUpdate={handleTaskUpdate}
+        />
+      )}
+    </PremiumLayout>
+  );
 };
 
-export default TaskCard;
+export default TasksPage;
