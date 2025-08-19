@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/tasks/NewTaskModal.jsx
-// MODAL CRÉATION/ÉDITION TÂCHES AVANCÉE AVEC RÔLES SYNERGIA
+// MODAL CRÉATION/ÉDITION TÂCHES AVEC DATE DE PLANIFICATION
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -29,7 +29,8 @@ import {
   FileText,
   Upload,
   Eye,
-  EyeOff
+  EyeOff,
+  MapPin
 } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { createTaskSafely } from '../../core/services/taskCreationFix.js';
@@ -68,65 +69,46 @@ const SYNERGIA_ROLES = {
     icon: '📋',
     color: 'bg-gradient-to-r from-purple-500 to-indigo-500',
     textColor: 'text-purple-600',
-    description: 'Organisation et planification'
+    description: 'RH, plannings, pointages'
   },
   content: {
     id: 'content',
-    name: 'Création de Contenu',
+    name: 'Création de Contenu & Affichage',
     icon: '🎨',
     color: 'bg-gradient-to-r from-pink-500 to-rose-500',
     textColor: 'text-pink-600',
-    description: 'Création et gestion de contenu'
+    description: 'Supports visuels et communication'
   },
   mentoring: {
     id: 'mentoring',
     name: 'Mentorat & Formation',
-    icon: '🎓',
+    icon: '👩‍🏫',
     color: 'bg-gradient-to-r from-green-500 to-emerald-500',
     textColor: 'text-green-600',
-    description: 'Formation et encadrement équipe'
+    description: 'Formation et accompagnement'
   },
   partnerships: {
     id: 'partnerships',
     name: 'Partenariats & Référencement',
     icon: '🤝',
-    color: 'bg-gradient-to-r from-indigo-500 to-purple-500',
+    color: 'bg-gradient-to-r from-indigo-500 to-blue-500',
     textColor: 'text-indigo-600',
-    description: 'Développement des partenariats'
+    description: 'Relations extérieures et SEO'
   },
   communication: {
     id: 'communication',
-    name: 'Communication & Réseaux',
+    name: 'Communication & Réseaux Sociaux',
     icon: '📱',
-    color: 'bg-gradient-to-r from-cyan-500 to-blue-500',
+    color: 'bg-gradient-to-r from-cyan-500 to-teal-500',
     textColor: 'text-cyan-600',
-    description: 'Gestion des réseaux sociaux'
-  },
-  b2b: {
-    id: 'b2b',
-    name: 'Relations B2B & Devis',
-    icon: '💼',
-    color: 'bg-gradient-to-r from-slate-500 to-gray-600',
-    textColor: 'text-slate-600',
-    description: 'Relations professionnelles et devis'
-  },
-  gamification: {
-    id: 'gamification',
-    name: 'Gamification & Système XP',
-    icon: '🎮',
-    color: 'bg-gradient-to-r from-red-500 to-pink-500',
-    textColor: 'text-red-600',
-    description: 'Gestion du système de gamification'
+    description: 'Animation des réseaux sociaux'
   }
 };
 
-/**
- * 🏆 SYSTÈME DE CALCUL XP AUTOMATIQUE OBLIGATOIRE
- */
 const DIFFICULTY_XP_CONFIG = {
   easy: { 
-    label: 'Facile (5-15 XP)', 
-    baseXP: 10, 
+    label: 'Facile (10-20 XP)', 
+    baseXP: 15, 
     color: 'text-green-600',
     bgColor: 'bg-green-50',
     borderColor: 'border-green-200',
@@ -193,7 +175,7 @@ const calculateAutoXP = (difficulty, priority, isRecurring, recurrenceType) => {
 };
 
 /**
- * 📝 MODAL DE CRÉATION/ÉDITION DE TÂCHES AVEC RÔLES SYNERGIA
+ * 📝 MODAL DE CRÉATION/ÉDITION DE TÂCHES AVEC RÔLES SYNERGIA ET DATE PLANIFICATION
  */
 const NewTaskModal = ({ 
   isOpen, 
@@ -213,6 +195,7 @@ const NewTaskModal = ({
     category: 'general',
     status: 'todo',
     dueDate: '',
+    scheduledDate: '', // 🆕 DATE DE PLANIFICATION
     estimatedHours: 1,
     xpReward: 25,
     roleId: '', // ✅ RÔLE SYNERGIA
@@ -265,6 +248,12 @@ const NewTaskModal = ({
             initialData.dueDate.seconds ? new Date(initialData.dueDate.seconds * 1000).toISOString().split('T')[0] :
             ''
           ) : '',
+          scheduledDate: initialData.scheduledDate ? (
+            typeof initialData.scheduledDate === 'string' ? initialData.scheduledDate : 
+            initialData.scheduledDate.toISOString ? initialData.scheduledDate.toISOString().split('T')[0] :
+            initialData.scheduledDate.seconds ? new Date(initialData.scheduledDate.seconds * 1000).toISOString().split('T')[0] :
+            ''
+          ) : '',
           estimatedHours: initialData.estimatedHours || initialData.estimatedTime || 1,
           xpReward: initialData.xpReward || 25,
           roleId: initialData.roleId || '', // ✅ RÔLE SYNERGIA
@@ -294,6 +283,7 @@ const NewTaskModal = ({
           category: 'general',
           status: 'todo',
           dueDate: '',
+          scheduledDate: '',
           estimatedHours: 1,
           xpReward: 25,
           roleId: '',
@@ -393,6 +383,7 @@ const NewTaskModal = ({
         estimatedHours: parseFloat(formData.estimatedHours) || 1,
         roleId: formData.roleId || null, // ✅ RÔLE SYNERGIA
         dueDate: formData.dueDate || null,
+        scheduledDate: formData.scheduledDate || null, // 🆕 DATE DE PLANIFICATION
         openToVolunteers: Boolean(formData.openToVolunteers),
         isRecurring: Boolean(formData.isRecurring),
         recurrenceType: formData.isRecurring ? formData.recurrenceType : 'none',
@@ -553,27 +544,15 @@ const NewTaskModal = ({
                       </option>
                     ))}
                   </select>
-                  
-                  {/* Affichage du rôle sélectionné */}
                   {currentRoleConfig && (
-                    <div className={`mt-2 p-3 ${currentRoleConfig.color} bg-opacity-10 rounded-lg border border-current border-opacity-20`}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl">{currentRoleConfig.icon}</span>
-                        <div>
-                          <div className={`font-semibold ${currentRoleConfig.textColor}`}>
-                            {currentRoleConfig.name}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            {currentRoleConfig.description}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <p className={`text-xs mt-1 ${currentRoleConfig.textColor}`}>
+                      {currentRoleConfig.description}
+                    </p>
                   )}
                 </div>
               </div>
 
-              {/* Description */}
+              {/* Ligne 2: Description */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <FileText className="w-4 h-4 inline mr-2" />
@@ -589,7 +568,7 @@ const NewTaskModal = ({
                 />
               </div>
 
-              {/* Ligne 2: Difficulté + Priorité + XP */}
+              {/* Ligne 3: Difficulté + Priorité + XP */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Difficulté */}
                 <div>
@@ -609,13 +588,9 @@ const NewTaskModal = ({
                       </option>
                     ))}
                   </select>
-                  
-                  {/* Indicateur de difficulté */}
-                  <div className={`mt-2 p-3 ${currentDifficultyConfig.bgColor} border ${currentDifficultyConfig.borderColor} rounded-lg`}>
-                    <div className={`text-sm font-medium ${currentDifficultyConfig.color}`}>
-                      {currentDifficultyConfig.description}
-                    </div>
-                  </div>
+                  <p className={`text-xs mt-1 ${currentDifficultyConfig.color}`}>
+                    {currentDifficultyConfig.description}
+                  </p>
                 </div>
 
                 {/* Priorité */}
@@ -632,36 +607,31 @@ const NewTaskModal = ({
                   >
                     {Object.entries(PRIORITY_MULTIPLIERS).map(([key, config]) => (
                       <option key={key} value={key}>
-                        {config.label} (x{config.multiplier})
+                        {key.charAt(0).toUpperCase() + key.slice(1)} ({config.label})
                       </option>
                     ))}
                   </select>
                 </div>
 
-                {/* XP Calculé Automatiquement */}
+                {/* XP Calculé automatiquement */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     <Trophy className="w-4 h-4 inline mr-2" />
                     XP (Calculé automatiquement)
                   </label>
-                  <div className="w-full p-4 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <Zap className="w-6 h-6 text-yellow-600" />
-                      <div>
-                        <div className="text-2xl font-bold text-yellow-700">
-                          {formData.xpReward} XP
-                        </div>
-                        <div className="text-xs text-yellow-600">
-                          Auto-calculé selon difficulté et priorité
-                        </div>
-                      </div>
+                  <div className="w-full p-4 bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-yellow-300 rounded-xl text-center">
+                    <div className="text-2xl font-bold text-amber-600">
+                      ⚡ {formData.xpReward} XP
+                    </div>
+                    <div className="text-xs text-amber-700 mt-1">
+                      Auto-calculé selon difficulté et priorité
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Ligne 3: Date + Heures estimées */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Ligne 4: Date échéance + Date planification + Heures estimées */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Date d'échéance */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -675,6 +645,24 @@ const NewTaskModal = ({
                     onChange={handleInputChange}
                     className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
                   />
+                </div>
+
+                {/* 🆕 Date de planification */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <MapPin className="w-4 h-4 inline mr-2" />
+                    Date de planification
+                  </label>
+                  <input
+                    type="date"
+                    name="scheduledDate"
+                    value={formData.scheduledDate}
+                    onChange={handleInputChange}
+                    className="w-full p-4 border-2 border-orange-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-100 transition-all"
+                  />
+                  <p className="text-xs text-orange-600 mt-1">
+                    ⭐ Jour précis où la tâche doit apparaître
+                  </p>
                 </div>
 
                 {/* Heures estimées */}
@@ -745,13 +733,13 @@ const NewTaskModal = ({
                             {formData.tags.map((tag, index) => (
                               <span
                                 key={index}
-                                className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm"
+                                className="inline-flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm"
                               >
                                 {tag}
                                 <button
                                   type="button"
                                   onClick={() => removeTag(tag)}
-                                  className="hover:text-indigo-900"
+                                  className="ml-1 hover:text-indigo-900"
                                 >
                                   <X className="w-3 h-3" />
                                 </button>
@@ -761,126 +749,117 @@ const NewTaskModal = ({
                         )}
                       </div>
 
-                      {/* Options diverses */}
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Ouvert aux volontaires */}
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="checkbox"
-                            name="openToVolunteers"
-                            id="openToVolunteers"
-                            checked={formData.openToVolunteers}
-                            onChange={handleInputChange}
-                            className="w-5 h-5 text-indigo-600 border-2 border-gray-300 rounded focus:ring-indigo-500"
-                          />
-                          <label htmlFor="openToVolunteers" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                            <Users className="w-4 h-4" />
-                            Ouvert aux volontaires
-                          </label>
-                        </div>
+                      {/* Ouvert aux volontaires */}
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="openToVolunteers"
+                          name="openToVolunteers"
+                          checked={formData.openToVolunteers}
+                          onChange={handleInputChange}
+                          className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                        />
+                        <label htmlFor="openToVolunteers" className="text-sm font-medium text-gray-700">
+                          <Users className="w-4 h-4 inline mr-2" />
+                          Ouvert aux volontaires
+                        </label>
+                      </div>
 
-                        {/* Tâche récurrente */}
-                        <div className="flex items-center gap-3">
+                      {/* Tâche récurrente */}
+                      <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                        <div className="flex items-center gap-3 mb-4">
                           <input
                             type="checkbox"
-                            name="isRecurring"
                             id="isRecurring"
+                            name="isRecurring"
                             checked={formData.isRecurring}
                             onChange={handleInputChange}
-                            className="w-5 h-5 text-indigo-600 border-2 border-gray-300 rounded focus:ring-indigo-500"
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                           />
-                          <label htmlFor="isRecurring" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                            <Repeat className="w-4 h-4" />
+                          <label htmlFor="isRecurring" className="text-sm font-semibold text-blue-700">
+                            <Repeat className="w-4 h-4 inline mr-2" />
                             Tâche récurrente
                           </label>
                         </div>
-                      </div>
 
-                      {/* Configuration de récurrence */}
-                      {formData.isRecurring && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-4">
-                          <h4 className="font-semibold text-blue-800 flex items-center gap-2">
-                            <Repeat className="w-4 h-4" />
-                            Configuration de la récurrence
-                          </h4>
-                          
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {formData.isRecurring && (
+                          <div className="space-y-4">
                             {/* Type de récurrence */}
-                            <div>
-                              <label className="block text-sm font-medium text-blue-700 mb-2">
-                                Type de récurrence
-                              </label>
-                              <select
-                                name="recurrenceType"
-                                value={formData.recurrenceType}
-                                onChange={handleInputChange}
-                                className="w-full p-3 border border-blue-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                              >
-                                {Object.entries(RECURRENCE_MULTIPLIERS).map(([key, config]) => (
-                                  <option key={key} value={key}>
-                                    {config.label} (x{config.multiplier} XP)
-                                  </option>
-                                ))}
-                              </select>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-blue-700 mb-2">
+                                  Type de récurrence
+                                </label>
+                                <select
+                                  name="recurrenceType"
+                                  value={formData.recurrenceType}
+                                  onChange={handleInputChange}
+                                  className="w-full p-3 border border-blue-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                                >
+                                  <option value="daily">Quotidienne (x0.6 XP)</option>
+                                  <option value="weekly">Hebdomadaire (x1.0 XP)</option>
+                                  <option value="monthly">Mensuelle (x1.8 XP)</option>
+                                  <option value="yearly">Annuelle (x3.0 XP)</option>
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-blue-700 mb-2">
+                                  Intervalle
+                                </label>
+                                <input
+                                  type="number"
+                                  name="recurrenceInterval"
+                                  value={formData.recurrenceInterval}
+                                  onChange={handleInputChange}
+                                  min="1"
+                                  max="12"
+                                  className="w-full p-3 border border-blue-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                                />
+                              </div>
                             </div>
 
-                            {/* Intervalle */}
+                            {/* Jours de la semaine pour récurrence hebdomadaire */}
+                            {formData.recurrenceType === 'weekly' && (
+                              <div>
+                                <label className="block text-sm font-medium text-blue-700 mb-2">
+                                  Jours de la semaine
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                                    <button
+                                      key={day}
+                                      type="button"
+                                      onClick={() => toggleRecurrenceDay(day)}
+                                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                        formData.recurrenceDays.includes(day)
+                                          ? 'bg-blue-600 text-white'
+                                          : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                                      }`}
+                                    >
+                                      {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Date de fin de récurrence */}
                             <div>
                               <label className="block text-sm font-medium text-blue-700 mb-2">
-                                Intervalle
+                                Date de fin de récurrence (optionnel)
                               </label>
                               <input
-                                type="number"
-                                name="recurrenceInterval"
-                                value={formData.recurrenceInterval}
+                                type="date"
+                                name="recurrenceEndDate"
+                                value={formData.recurrenceEndDate}
                                 onChange={handleInputChange}
-                                min="1"
-                                max="30"
                                 className="w-full p-3 border border-blue-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                               />
                             </div>
                           </div>
-
-                          {/* Jours spécifiques pour récurrence hebdomadaire */}
-                          {formData.recurrenceType === 'weekly' && (
-                            <div>
-                              <label className="block text-sm font-medium text-blue-700 mb-2">
-                                Jours de la semaine
-                              </label>
-                              <div className="flex flex-wrap gap-2">
-                                {['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'].map((day) => (
-                                  <button
-                                    key={day}
-                                    type="button"
-                                    onClick={() => toggleRecurrenceDay(day)}
-                                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                                      formData.recurrenceDays.includes(day)
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-                                    }`}
-                                  >
-                                    {day.charAt(0).toUpperCase() + day.slice(1, 3)}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Date de fin de récurrence */}
-                          <div>
-                            <label className="block text-sm font-medium text-blue-700 mb-2">
-                              Date de fin de récurrence (optionnel)
-                            </label>
-                            <input
-                              type="date"
-                              name="recurrenceEndDate"
-                              value={formData.recurrenceEndDate}
-                              onChange={handleInputChange}
-                              className="w-full p-3 border border-blue-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                            />
-                          </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
 
                       {/* Notes supplémentaires */}
                       <div>
