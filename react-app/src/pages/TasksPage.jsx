@@ -133,30 +133,43 @@ const TasksPage = () => {
   const [selectedTaskForDetails, setSelectedTaskForDetails] = useState(null);
   const [selectedTaskForEdit, setSelectedTaskForEdit] = useState(null);
 
-  // 📊 Statistiques calculées CORRIGÉES
+  // 📊 Statistiques calculées
   const taskStats = useMemo(() => {
+    const myTasks = tasks.filter(t => {
+      const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+      return assignedTo.includes(user?.uid);
+    });
+    
+    const available = tasks.filter(t => {
+      const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+      const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
+      return (t.openToVolunteers === true || hasNoAssignment) && t.status === 'todo';
+    });
+    
+    const others = tasks.filter(t => {
+      const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+      const hasAssignment = assignedTo.some(id => id && id !== '');
+      const isAssignedToOthers = assignedTo.some(id => id && id !== '' && id !== user?.uid);
+      return hasAssignment && isAssignedToOthers;
+    });
+    
+    const history = tasks.filter(t => 
+      t.status === 'completed' || 
+      t.status === 'validated' || 
+      t.status === 'cancelled'
+    );
+
     return {
       total: tasks.length,
       todo: tasks.filter(t => t.status === 'todo').length,
       inProgress: tasks.filter(t => t.status === 'in_progress').length,
       completed: tasks.filter(t => t.status === 'completed').length,
       urgent: tasks.filter(t => t.priority === 'urgent').length,
-      myTasks: tasks.filter(t => {
-        const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
-        return assignedTo.includes(user?.uid);
-      }).length,
+      myTasks: myTasks.length,
       pending: tasks.filter(t => t.status === 'validation_pending').length,
-      available: tasks.filter(t => {
-        const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
-        const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
-        return (t.openToVolunteers === true || hasNoAssignment) && t.status === 'todo';
-      }).length,
-      others: tasks.filter(t => {
-        const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
-        const hasAssignment = assignedTo.some(id => id && id !== '');
-        const isAssignedToOthers = assignedTo.some(id => id && id !== '' && id !== user?.uid);
-        return hasAssignment && isAssignedToOthers;
-      }).length
+      available: available.length,
+      others: others.length,
+      history: history.length
     };
   }, [tasks, user]);
 
@@ -304,7 +317,7 @@ const TasksPage = () => {
   const handleEdit = (task) => {
     console.log('✏️ Modifier tâche:', task.title);
     setSelectedTaskForEdit(task);
-    setShowNewTaskModal(true); // CORRECTION: Ouvrir le modal d'édition
+    setShowNewTaskModal(true); // Ouvrir le modal avec la tâche à modifier
   };
 
   const handleDelete = async (taskId) => {
@@ -381,20 +394,31 @@ const TasksPage = () => {
 
   const handleCreateTask = async (taskData) => {
     try {
-      const newTask = {
-        ...taskData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        createdBy: user.uid,
-        creatorName: user.displayName || user.email,
-        status: 'todo'
-      };
-
-      await addDoc(collection(db, 'tasks'), newTask);
+      if (selectedTaskForEdit) {
+        // Mode édition : mettre à jour la tâche existante
+        await updateDoc(doc(db, 'tasks', selectedTaskForEdit.id), {
+          ...taskData,
+          updatedAt: serverTimestamp()
+        });
+        console.log('✅ [TASKS] Tâche modifiée avec succès');
+      } else {
+        // Mode création : créer une nouvelle tâche
+        const newTask = {
+          ...taskData,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          createdBy: user.uid,
+          creatorName: user.displayName || user.email,
+          status: 'todo'
+        };
+        await addDoc(collection(db, 'tasks'), newTask);
+        console.log('✅ [TASKS] Tâche créée avec succès');
+      }
+      
       setShowNewTaskModal(false);
-      console.log('✅ [TASKS] Tâche créée avec succès');
+      setSelectedTaskForEdit(null);
     } catch (error) {
-      console.error('❌ [TASKS] Erreur création tâche:', error);
+      console.error('❌ [TASKS] Erreur traitement tâche:', error);
     }
   };
 
@@ -407,7 +431,7 @@ const TasksPage = () => {
         const count = key === 'my_tasks' ? taskStats.myTasks : 
                      key === 'available' ? taskStats.available :
                      key === 'others' ? taskStats.others :
-                     taskStats.completed;
+                     taskStats.history;
         
         return (
           <button
@@ -541,7 +565,10 @@ const TasksPage = () => {
           </div>
 
           <PremiumButton
-            onClick={() => setShowNewTaskModal(true)}
+            onClick={() => {
+              setSelectedTaskForEdit(null);
+              setShowNewTaskModal(true);
+            }}
             icon={Plus}
             variant="primary"
           >
@@ -627,7 +654,10 @@ const TasksPage = () => {
                   : `Aucune tâche dans la catégorie "${TASK_TABS[activeTab].label}".`}
               </p>
               <PremiumButton
-                onClick={() => setShowNewTaskModal(true)}
+                onClick={() => {
+                  setSelectedTaskForEdit(null);
+                  setShowNewTaskModal(true);
+                }}
                 icon={Plus}
                 variant="primary"
               >
@@ -638,17 +668,19 @@ const TasksPage = () => {
         </div>
       )}
 
-      {/* Modal nouvelle tâche / édition */}
+      {/* Modal nouvelle tâche */}
       {showNewTaskModal && (
         <NewTaskModal
           isOpen={showNewTaskModal}
           onClose={() => {
             setShowNewTaskModal(false);
-            setSelectedTaskForEdit(null); // CORRECTION: Reset de l'édition
+            setSelectedTaskForEdit(null);
           }}
           onSubmit={handleCreateTask}
+          onSuccess={handleCreateTask}
           currentUser={user}
-          editTask={selectedTaskForEdit} // CORRECTION: Passer la tâche à éditer
+          initialData={selectedTaskForEdit}
+          mode={selectedTaskForEdit ? 'edit' : 'create'}
         />
       )}
 
