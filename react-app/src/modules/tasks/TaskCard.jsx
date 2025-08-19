@@ -1,135 +1,95 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx
-// TASKCARD AVEC NOMS UTILISATEURS RÉSOLUS - FIX COMPLET
+// COMPOSANT TASK CARD - CORRECTION BOUTON VOLONTAIRE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Clock, 
-  User, 
-  Users,
+  Eye, 
+  Edit, 
+  Trash2, 
   Calendar, 
+  Users, 
+  Trophy, 
+  Heart, 
+  MessageCircle, 
+  Clock, 
   AlertCircle,
-  CheckCircle,
-  Edit,
-  Trash2,
-  Eye,
   UserPlus,
   UserMinus,
-  Trophy,
-  Star,
-  MessageCircle,
   Bell,
-  Heart
+  CheckCircle,
+  Play
 } from 'lucide-react';
+
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import { taskService } from '../../core/services/taskService.js';
-import { collaborationService } from '../../core/services/collaborationService.js';
-import SubmitTaskButton from './SubmitTaskButton.jsx';
+import SubmitTaskButton from '../../components/tasks/SubmitTaskButton.jsx';
 
 /**
- * 💬 BADGE COMMENTAIRES AVEC FIREBASE DIRECT - FIX SYNCHRONISATION
+ * 💬 COMPOSANT BADGE DE COMMENTAIRES AVEC NOTIFICATION
  */
 const CommentNotificationBadge = ({ taskId, onClick, className = '' }) => {
   const [commentCount, setCommentCount] = useState(0);
   const [hasNewComments, setHasNewComments] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!taskId) {
-      setLoading(false);
-      return;
-    }
+    const loadCommentData = async () => {
+      if (!taskId) {
+        setIsLoading(false);
+        return;
+      }
 
-    console.log('🔄 [TASK_CARD_COMMENT_BADGE] Chargement direct Firebase pour tâche:', taskId);
-
-    // 📡 CHARGEMENT DIRECT FIREBASE - MÊME MÉTHODE QUE TaskDetailModal
-    const loadCommentsDirect = async () => {
       try {
-        setLoading(true);
+        setIsLoading(true);
         
         // 📖 IMPORT FIREBASE DIRECT
-        const { getDocs, collection, query, where, onSnapshot } = await import('firebase/firestore');
+        const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
         const { db } = await import('../../core/firebase.js');
-        
-        // 🔄 REQUÊTE TEMPS RÉEL FIREBASE DIRECTE
+
+        // 📊 COMPTER LES COMMENTAIRES
+        const commentsRef = collection(db, 'task_comments');
         const commentsQuery = query(
-          collection(db, 'comments'),
-          where('entityType', '==', 'task'),
-          where('entityId', '==', taskId)
+          commentsRef,
+          where('taskId', '==', taskId),
+          orderBy('createdAt', 'desc')
         );
         
-        // 📡 ÉCOUTE TEMPS RÉEL DIRECTE
-        const unsubscribe = onSnapshot(
-          commentsQuery,
-          (snapshot) => {
-            const count = snapshot.size;
-            console.log('📊 [TASK_CARD_COMMENT_BADGE] Commentaires reçus:', count, 'pour tâche:', taskId);
-            setCommentCount(count);
-            
-            // Détecter nouveaux commentaires
-            if (count > 0) {
-              const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-              const lastComment = docs[docs.length - 1];
-              const isRecent = lastComment && 
-                new Date() - (lastComment.createdAt?.seconds ? new Date(lastComment.createdAt.seconds * 1000) : new Date()) < 30 * 60 * 1000;
-              setHasNewComments(isRecent);
-            } else {
-              setHasNewComments(false);
-            }
-            
-            setLoading(false);
-          },
-          (error) => {
-            console.error('❌ [TASK_CARD_COMMENT_BADGE] Erreur Firebase:', error);
-            setCommentCount(0);
-            setLoading(false);
-          }
-        );
+        const commentsSnapshot = await getDocs(commentsQuery);
+        const commentsData = commentsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
 
-        return unsubscribe;
+        setCommentCount(commentsData.length);
         
+        // 🔍 VÉRIFIER S'IL Y A DE NOUVEAUX COMMENTAIRES (dernières 24h)
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const recentComments = commentsData.filter(comment => {
+          const commentDate = comment.createdAt?.toDate?.() || new Date(comment.createdAt);
+          return commentDate > oneDayAgo;
+        });
+
+        setHasNewComments(recentComments.length > 0);
+
       } catch (error) {
-        console.error('❌ [TASK_CARD_COMMENT_BADGE] Erreur chargement:', error);
+        console.warn('⚠️ Erreur chargement commentaires:', error);
         setCommentCount(0);
-        setLoading(false);
-        return null;
+        setHasNewComments(false);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    let unsubscribeRef = null;
-    
-    loadCommentsDirect().then(unsubscribe => {
-      unsubscribeRef = unsubscribe;
-    });
-
-    // Nettoyer l'écoute au démontage
-    return () => {
-      if (unsubscribeRef) {
-        unsubscribeRef();
-      }
-    };
+    loadCommentData();
   }, [taskId]);
-
-  if (loading) {
-    return (
-      <div className={`inline-flex items-center gap-1 ${className}`}>
-        <div className="w-3 h-3 bg-gray-600 rounded-full animate-pulse" />
-      </div>
-    );
-  }
-
-  // ✅ TOUJOURS AFFICHER LE BADGE - MÊME AVEC 0 COMMENTAIRES
-  const handleClick = (e) => {
-    e.stopPropagation();
-    if (onClick) onClick();
-  };
 
   return (
     <button
-      onClick={handleClick}
-      className={`inline-flex items-center gap-1 px-2 py-1 relative transition-all duration-200 text-xs font-medium rounded ${
-        commentCount === 0
+      onClick={onClick}
+      disabled={isLoading}
+      className={`relative flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-all transform hover:scale-105 ${
+        isLoading
           ? 'bg-gray-600/20 text-gray-400 border border-gray-600/30 hover:bg-gray-600/30'
           : hasNewComments
             ? 'bg-blue-500/30 text-blue-300 border border-blue-400/50 hover:bg-blue-500/40 animate-pulse'
@@ -183,18 +143,19 @@ const PriorityBadge = ({ priority }) => {
 };
 
 /**
- * 🎯 COMPOSANT TASKCARD AVEC NOMS UTILISATEURS RÉSOLUS
+ * 🎯 COMPOSANT TASKCARD AVEC NOMS UTILISATEURS RÉSOLUS ET BOUTON VOLONTAIRE CORRIGÉ
  */
 const TaskCard = ({ 
   task, 
+  currentUser,
   onEdit, 
   onDelete, 
   onViewDetails, 
   onSubmit,
+  onVolunteer,
   onUnvolunteer,
   onTaskUpdate,
-  isMyTask = false,
-  showVolunteerButton = false
+  isMyTask = false
 }) => {
   const { user } = useAuthStore();
   const [isVolunteering, setIsVolunteering] = useState(false);
@@ -204,15 +165,19 @@ const TaskCard = ({
   const [assigneeNames, setAssigneeNames] = useState([]);
   const [loadingUserNames, setLoadingUserNames] = useState(true);
 
-  // ✅ Vérifications de statut
+  // ✅ Vérifications de statut CORRIGÉES
   const isTaskOwner = user && task && task.createdBy === user.uid;
-  const isAssignedToMe = Array.isArray(task.assignedTo) && task.assignedTo.includes(user.uid);
-  const canVolunteer = showVolunteerButton && 
-    user && 
+  const isAssignedToMe = Array.isArray(task.assignedTo) 
+    ? task.assignedTo.includes(user.uid)
+    : task.assignedTo === user.uid;
+  
+  // 🔥 CORRECTION : Condition simple pour le bouton volontaire
+  const canVolunteer = user && 
     task && 
     !isAssignedToMe &&
-    task.status !== 'completed' &&
-    task.status !== 'validation_pending';
+    !isTaskOwner &&
+    task.status === 'todo' &&
+    onVolunteer; // S'assurer que la fonction est disponible
 
   // ✅ NOUVEAU useEffect POUR CHARGER LES NOMS D'UTILISATEURS
   useEffect(() => {
@@ -248,35 +213,35 @@ const TaskCard = ({
         }
 
         // 👥 CHARGER LES NOMS DES ASSIGNÉS
-        if (task.assignedTo && Array.isArray(task.assignedTo) && task.assignedTo.length > 0) {
-          try {
-            const assigneePromises = task.assignedTo.map(async (userId) => {
+        if (task.assignedTo && task.assignedTo.length > 0) {
+          const assignedArray = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
+          const names = [];
+
+          for (const userId of assignedArray) {
+            if (userId) {
               try {
                 const userDoc = await getDoc(doc(db, 'users', userId));
                 if (userDoc.exists()) {
                   const userData = userDoc.data();
-                  return userData.displayName || userData.name || userData.email || 'Utilisateur anonyme';
+                  names.push(userData.displayName || userData.name || userData.email || 'Utilisateur anonyme');
+                } else {
+                  names.push('Utilisateur anonyme');
                 }
-                return 'Utilisateur anonyme';
               } catch (error) {
                 console.warn('Erreur chargement assigné:', userId, error);
-                return 'Utilisateur anonyme';
+                names.push('Utilisateur anonyme');
               }
-            });
-
-            const names = await Promise.all(assigneePromises);
-            setAssigneeNames(names);
-          } catch (error) {
-            console.warn('Erreur chargement assignés:', error);
-            setAssigneeNames([]);
+            }
           }
+
+          setAssigneeNames(names);
         } else {
           setAssigneeNames([]);
         }
 
       } catch (error) {
-        console.error('Erreur chargement noms utilisateurs:', error);
-        setCreatorName('Erreur de chargement');
+        console.error('Erreur chargement données utilisateurs:', error);
+        setCreatorName('Erreur chargement');
         setAssigneeNames([]);
       } finally {
         setLoadingUserNames(false);
@@ -284,23 +249,17 @@ const TaskCard = ({
     };
 
     loadUserNames();
-  }, [task?.id, task?.createdBy, task?.assignedTo]);
+  }, [task]);
 
-  // Fonction de volontariat
+  // Fonction pour devenir volontaire
   const handleVolunteer = async () => {
-    if (isVolunteering) return;
+    if (!onVolunteer || !user || !task) return;
     
-    setIsVolunteering(true);
     try {
-      const updatedAssignedTo = [...(task.assignedTo || []), user.uid];
+      setIsVolunteering(true);
+      console.log('🙋 Volontariat pour tâche:', task.title);
       
-      await taskService.updateTask(task.id, {
-        assignedTo: updatedAssignedTo,
-        status: task.status === 'todo' ? 'in_progress' : task.status,
-        updatedAt: new Date()
-      });
-
-      console.log('✅ Volontariat enregistré avec succès');
+      await onVolunteer(task);
       
       if (onTaskUpdate) {
         onTaskUpdate();
@@ -318,7 +277,7 @@ const TaskCard = ({
     if (!onUnvolunteer) return;
     
     try {
-      await onUnvolunteer(task.id);
+      await onUnvolunteer(task);
       if (onTaskUpdate) {
         onTaskUpdate();
       }
@@ -385,18 +344,16 @@ const TaskCard = ({
           <p className="text-gray-300 text-sm line-clamp-2">
             {task.description.length > 100 
               ? `${task.description.substring(0, 100)}...`
-              : task.description
-            }
+              : task.description}
           </p>
         </div>
       )}
 
-      {/* Métadonnées avec noms d'utilisateurs résolus */}
-      <div className="space-y-2 text-sm text-gray-400 mb-4">
-        
+      {/* Métadonnées avec noms résolus */}
+      <div className="space-y-2 mb-4 text-sm text-gray-400">
         {/* Créateur avec nom résolu */}
         <div className="flex items-center gap-2">
-          <User className="w-4 h-4" />
+          <UserPlus className="w-4 h-4" />
           <span>
             Créé par: {loadingUserNames ? (
               <span className="text-gray-500">Chargement...</span>
@@ -472,7 +429,7 @@ const TaskCard = ({
           />
         )}
 
-        {/* Devenir volontaire */}
+        {/* 🔥 DEVENIR VOLONTAIRE - BOUTON CORRIGÉ */}
         {canVolunteer && (
           <button
             onClick={handleVolunteer}
