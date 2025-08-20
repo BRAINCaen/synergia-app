@@ -119,7 +119,7 @@ const TaskDetailModal = ({
   const hasAlreadyVolunteered = effectiveUser && Array.isArray(task.volunteers) && task.volunteers.includes(effectiveUser.uid);
   
   // 🎯 VÉRIFIER SI LA TÂCHE EST OUVERTE AUX VOLONTAIRES
-  const isAvailableForVolunteers = task.isOpenToVolunteers && 
+  const isAvailableForVolunteers = task.openToVolunteers && 
                                   task.status !== 'completed' && 
                                   task.status !== 'validation_pending' &&
                                   !isAssignedToMe && 
@@ -309,7 +309,7 @@ const TaskDetailModal = ({
                    'Basse'}
                 </span>
 
-                {task.isOpenToVolunteers && (
+                {task.openToVolunteers && (
                   <span className="px-2 py-1 rounded text-xs font-medium border bg-purple-800/50 text-purple-300 border-purple-600">
                     Ouvert aux volontaires
                   </span>
