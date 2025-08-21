@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES SIMPLIFIÉE SANS PREMIUMLAYOUT POUR ÉVITER LE BLOCAGE
+// PAGE TÂCHES AVEC PREMIUMLAYOUT - FONCTION HANDLEDELETE CORRIGÉE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -17,6 +17,9 @@ import {
   Eye,
   Filter
 } from 'lucide-react';
+
+// 🎨 IMPORT DU DESIGN SYSTEM PREMIUM
+import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
 
 // 🔥 IMPORT DES VRAIS COMPOSANTS QUI MARCHAIENT
 import TaskCard from '../modules/tasks/TaskCard.jsx';
@@ -84,7 +87,7 @@ const convertFirebaseTimestamp = (timestamp) => {
 };
 
 /**
- * 📋 PAGE TÂCHES SIMPLIFIÉE POUR ÉVITER LES BLOCAGES
+ * 📋 PAGE TÂCHES AVEC DESIGN PREMIUM
  */
 const TasksPage = () => {
   // 🔐 État de l'utilisateur
@@ -376,85 +379,91 @@ const TasksPage = () => {
     }
   };
 
+  // 🎨 STATISTIQUES POUR LE HEADER
+  const headerStats = [
+    { label: 'Total', value: taskStats.total.toString(), icon: CheckSquare, color: 'text-blue-400' },
+    { label: 'Mes tâches', value: taskStats.myTasks.toString(), icon: User, color: 'text-purple-400' },
+    { label: 'Disponibles', value: taskStats.available.toString(), icon: Users, color: 'text-green-400' },
+    { label: 'Terminées', value: taskStats.completed.toString(), icon: Archive, color: 'text-emerald-400' }
+  ];
+
+  // 🎯 ACTIONS DU HEADER
+  const headerActions = (
+    <PremiumButton
+      onClick={() => setShowNewTaskModal(true)}
+      variant="primary"
+      icon={Plus}
+    >
+      Nouvelle tâche
+    </PremiumButton>
+  );
+
   // 🔄 ÉTATS DE CHARGEMENT
   if (!isLoaded || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
-          <p className="text-gray-400">Chargement des tâches...</p>
+      <PremiumLayout
+        title="Gestion des Tâches"
+        subtitle="Chargement de vos tâches..."
+        icon={CheckSquare}
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <motion.div 
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"
+            />
+            <p className="text-white">Synchronisation des tâches...</p>
+          </div>
         </div>
-      </div>
+      </PremiumLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-400 text-6xl mb-4">⚠️</div>
-          <h3 className="text-xl font-bold text-white mb-2">Erreur de chargement</h3>
-          <p className="text-gray-400 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-          >
+      <PremiumLayout
+        title="Gestion des Tâches"
+        subtitle="Erreur de chargement"
+        icon={CheckSquare}
+      >
+        <PremiumCard className="text-center py-8">
+          <div className="text-red-400 mb-4">
+            <CheckSquare className="w-12 h-12 mx-auto mb-2" />
+            <p className="text-lg font-medium">Erreur de synchronisation</p>
+            <p className="text-gray-400 text-sm mt-1">{error}</p>
+          </div>
+          <PremiumButton variant="primary" onClick={() => window.location.reload()}>
             Réessayer
-          </button>
-        </div>
-      </div>
+          </PremiumButton>
+        </PremiumCard>
+      </PremiumLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* 🎯 HEADER */}
-      <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent flex items-center gap-3">
-                <CheckSquare className="w-8 h-8 text-blue-400" />
-                Gestion des Tâches
-              </h1>
-              <p className="text-gray-400 mt-1">Organisez et suivez votre progression</p>
-            </div>
-            <button
-              onClick={() => setShowNewTaskModal(true)}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 hover:from-blue-700 hover:to-purple-700 transition-all"
-            >
-              <Plus className="w-5 h-5" />
-              Nouvelle tâche
-            </button>
-          </div>
-
-          {/* 📊 STATISTIQUES */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
-              <div className="text-2xl font-bold text-blue-400">{taskStats.total}</div>
-              <div className="text-sm text-gray-400">Total</div>
-            </div>
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
-              <div className="text-2xl font-bold text-purple-400">{taskStats.myTasks}</div>
-              <div className="text-sm text-gray-400">Mes tâches</div>
-            </div>
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
-              <div className="text-2xl font-bold text-green-400">{taskStats.available}</div>
-              <div className="text-sm text-gray-400">Disponibles</div>
-            </div>
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
-              <div className="text-2xl font-bold text-emerald-400">{taskStats.completed}</div>
-              <div className="text-sm text-gray-400">Terminées</div>
-            </div>
-          </div>
-        </div>
+    <PremiumLayout
+      title="Gestion des Tâches"
+      subtitle="Organisez et suivez votre progression"
+      icon={CheckSquare}
+      headerActions={headerActions}
+      showStats={true}
+      stats={headerStats}
+    >
+      {/* 🔍 BARRE DE RECHERCHE */}
+      <div className="mb-6">
+        <PremiumSearchBar
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Rechercher une tâche..."
+        />
       </div>
 
       {/* 🎛️ CONTRÔLES */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-6 mb-6">
+      <PremiumCard className="mb-6">
+        <div className="space-y-4">
           {/* Onglets de navigation */}
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap gap-2">
             {Object.entries(TASK_TABS).map(([key, tab]) => {
               const IconComponent = tab.icon;
               const isActive = activeTab === key;
@@ -480,21 +489,7 @@ const TasksPage = () => {
           </div>
 
           {/* Recherche et filtres */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-            {/* Barre de recherche */}
-            <div className="md:col-span-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Rechercher une tâche..."
-                  className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-10 py-2 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {/* Filtre par statut */}
             <select
               value={selectedStatus}
@@ -538,92 +533,90 @@ const TasksPage = () => {
             </select>
 
             {/* Tri */}
-            <div className="flex gap-2">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="bg-gray-700/50 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex-1"
-              >
-                <option value="updatedAt">Date modification</option>
-                <option value="createdAt">Date création</option>
-                <option value="dueDate">Date échéance</option>
-                <option value="priority">Priorité</option>
-                <option value="title">Titre</option>
-              </select>
-              
-              <button
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className="bg-gray-700/50 border border-gray-600 rounded-lg px-3 py-2 text-white hover:bg-gray-600/50 transition-colors"
-                title={`Tri ${sortOrder === 'asc' ? 'croissant' : 'décroissant'}`}
-              >
-                {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
-              </button>
-            </div>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="bg-gray-700/50 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="updatedAt">Date modification</option>
+              <option value="createdAt">Date création</option>
+              <option value="dueDate">Date échéance</option>
+              <option value="priority">Priorité</option>
+              <option value="title">Titre</option>
+            </select>
+            
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="bg-gray-700/50 border border-gray-600 rounded-lg px-3 py-2 text-white hover:bg-gray-600/50 transition-colors"
+              title={`Tri ${sortOrder === 'asc' ? 'croissant' : 'décroissant'}`}
+            >
+              {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
+            </button>
           </div>
         </div>
+      </PremiumCard>
 
-        {/* 📋 LISTE DES TÂCHES */}
-        <AnimatePresence mode="wait">
-          {filteredTasks.length === 0 ? (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-            >
-              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg text-center py-12">
-                <div className="text-gray-400 text-6xl mb-4">📭</div>
-                <h3 className="text-xl font-bold text-white mb-2">
-                  Aucune tâche trouvée
-                </h3>
-                <p className="text-gray-400 mb-6">
-                  {searchTerm 
-                    ? `Aucune tâche ne correspond à "${searchTerm}"`
-                    : "Commencez par créer une nouvelle tâche"}
-                </p>
-                {!searchTerm && (
-                  <button
-                    onClick={() => setShowNewTaskModal(true)}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 mx-auto hover:from-blue-700 hover:to-purple-700 transition-all"
-                  >
-                    <Plus className="w-5 h-5" />
-                    Créer ma première tâche
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="tasks"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
-            >
-              {filteredTasks.map((task, index) => (
-                <motion.div
-                  key={task.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
+      {/* 📋 LISTE DES TÂCHES */}
+      <AnimatePresence mode="wait">
+        {filteredTasks.length === 0 ? (
+          <motion.div
+            key="empty"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <PremiumCard className="text-center py-12">
+              <div className="text-gray-400 text-6xl mb-4">📭</div>
+              <h3 className="text-xl font-bold text-white mb-2">
+                Aucune tâche trouvée
+              </h3>
+              <p className="text-gray-400 mb-6">
+                {searchTerm 
+                  ? `Aucune tâche ne correspond à "${searchTerm}"`
+                  : "Commencez par créer une nouvelle tâche"}
+              </p>
+              {!searchTerm && (
+                <PremiumButton
+                  onClick={() => setShowNewTaskModal(true)}
+                  variant="primary"
+                  icon={Plus}
                 >
-                  <TaskCard
-                    task={task}
-                    currentUser={user}
-                    onViewDetails={handleViewDetails}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onSubmit={handleSubmit}
-                    onVolunteer={handleVolunteer}
-                    onUnvolunteer={handleUnvolunteer}
-                    isMyTask={task.createdBy === user?.uid}
-                  />
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+                  Créer ma première tâche
+                </PremiumButton>
+              )}
+            </PremiumCard>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="tasks"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+          >
+            {filteredTasks.map((task, index) => (
+              <motion.div
+                key={task.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <TaskCard
+                  task={task}
+                  currentUser={user}
+                  onViewDetails={handleViewDetails}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onSubmit={handleSubmit}
+                  onVolunteer={handleVolunteer}
+                  onUnvolunteer={handleUnvolunteer}
+                  isMyTask={task.createdBy === user?.uid}
+                />
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 🎯 MODALS */}
       {showNewTaskModal && (
@@ -649,7 +642,7 @@ const TasksPage = () => {
           onUnvolunteer={handleUnvolunteer}
         />
       )}
-    </div>
+    </PremiumLayout>
   );
 };
 
