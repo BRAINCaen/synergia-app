@@ -336,14 +336,17 @@ const TasksPage = () => {
     setShowNewTaskModal(true); // Ouvrir le modal avec la tâche à modifier
   };
 
+  // ✅ CORRECTION UNIQUE : handleDelete utilise maintenant taskService
   const handleDelete = async (taskId) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) return;
 
     try {
-      await deleteDoc(doc(db, 'tasks', taskId));
-      console.log('✅ [TASKS] Tâche supprimée');
+      console.log('🗑️ Suppression de la tâche via taskService:', taskId);
+      await taskService.deleteTask(taskId);
+      console.log('✅ [TASKS] Tâche supprimée avec succès');
     } catch (error) {
       console.error('❌ [TASKS] Erreur suppression tâche:', error);
+      alert('Erreur lors de la suppression: ' + error.message);
     }
   };
 
