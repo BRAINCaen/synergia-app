@@ -1,70 +1,45 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES AVEC LES VRAIS COMPOSANTS QUI MARCHAIENT - FONCTION HANDLEDELETE CORRIGÉE
+// PAGE TÂCHES SIMPLIFIÉE SANS PREMIUMLAYOUT POUR ÉVITER LE BLOCAGE
 // ==========================================
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CheckSquare,
   Plus,
   Search,
-  Filter,
   SortAsc,
   SortDesc,
   User,
   Users,
-  Heart,
   Archive,
-  FileText,
-  Play,
-  Image as ImageIcon,
-  MessageCircle,
-  Calendar,
-  Target,
-  Zap,
-  Clock,
-  AlertCircle,
-  ChevronDown,
-  Star,
   Eye,
-  Edit,
-  Trash2,
-  X
+  Filter
 } from 'lucide-react';
-
-// 🎨 IMPORT DU DESIGN SYSTEM PREMIUM
-import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
 
 // 🔥 IMPORT DES VRAIS COMPOSANTS QUI MARCHAIENT
 import TaskCard from '../modules/tasks/TaskCard.jsx';
 import TaskDetailModal from '../components/ui/TaskDetailModal.jsx';
 import NewTaskModal from '../components/tasks/NewTaskModal.jsx';
 
-// 🔥 HOOKS ET SERVICES (conservés)
+// 🔥 HOOKS ET SERVICES
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// 📊 FIREBASE (conservé)
+// 📊 FIREBASE
 import { 
   collection, 
   query, 
   orderBy, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  serverTimestamp,
-  where,
-  getDocs
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-// 🎮 SERVICES ET CONSTANTES (corrigé)
+// 🎮 SERVICES ET CONSTANTES
 import { SYNERGIA_ROLES } from '../core/data/roles.js';
 import { taskService } from '../core/services/taskService.js';
 
-// 📊 CONSTANTES TÂCHES (conservées)
+// 📊 CONSTANTES TÂCHES
 const TASK_STATUS = {
   todo: { label: 'À faire', color: 'gray', icon: '⏳' },
   in_progress: { label: 'En cours', color: 'blue', icon: '⚡' },
@@ -109,7 +84,7 @@ const convertFirebaseTimestamp = (timestamp) => {
 };
 
 /**
- * 📋 PAGE TÂCHES AVEC DESIGN PREMIUM ET FONCTIONNALITÉS COMPLÈTES
+ * 📋 PAGE TÂCHES SIMPLIFIÉE POUR ÉVITER LES BLOCAGES
  */
 const TasksPage = () => {
   // 🔐 État de l'utilisateur
@@ -141,7 +116,7 @@ const TasksPage = () => {
   const [selectedTaskForDetails, setSelectedTaskForDetails] = useState(null);
   const [selectedTaskForEdit, setSelectedTaskForEdit] = useState(null);
 
-  // 📡 CHARGEMENT TEMPS RÉEL DES TÂCHES (conservé)
+  // 📡 CHARGEMENT TEMPS RÉEL DES TÂCHES
   useEffect(() => {
     if (!user?.uid) {
       setLoading(false);
@@ -189,7 +164,7 @@ const TasksPage = () => {
     };
   }, [user?.uid]);
 
-  // 📊 CALCUL DES STATISTIQUES (conservé)
+  // 📊 CALCUL DES STATISTIQUES
   useEffect(() => {
     if (!user?.uid || tasks.length === 0) {
       setTaskStats({ total: 0, myTasks: 0, available: 0, completed: 0 });
@@ -218,7 +193,7 @@ const TasksPage = () => {
     });
   }, [tasks, user?.uid]);
 
-  // 🔍 FILTRAGE ET TRI DES TÂCHES (conservé)
+  // 🔍 FILTRAGE ET TRI DES TÂCHES
   useEffect(() => {
     if (!user?.uid) {
       setFilteredTasks([]);
@@ -230,7 +205,6 @@ const TasksPage = () => {
     // Filtrage par onglet
     switch (activeTab) {
       case 'my_tasks':
-        // Mes tâches : assignées à moi OU créées par moi
         filtered = filtered.filter(task => {
           const assignedTo = Array.isArray(task.assignedTo) 
             ? task.assignedTo 
@@ -240,7 +214,6 @@ const TasksPage = () => {
         break;
       
       case 'available':
-        // Disponibles : pas assignées OU ouvertes aux volontaires OU assignées à moi ET ouvertes
         filtered = filtered.filter(task => {
           const assignedTo = Array.isArray(task.assignedTo) 
             ? task.assignedTo 
@@ -255,7 +228,6 @@ const TasksPage = () => {
         break;
       
       case 'others':
-        // Autres : assignées à d'autres ET pas ouvertes aux volontaires
         filtered = filtered.filter(task => {
           const assignedTo = Array.isArray(task.assignedTo) 
             ? task.assignedTo 
@@ -265,13 +237,11 @@ const TasksPage = () => {
           const isAssignedToOthers = hasAssignment && !isAssignedToMe;
           const isOpenToVolunteers = task.openToVolunteers === true;
           
-          // ✅ EXCLUSION : Si assignée à moi OU ouverte aux volontaires, elle ne peut PAS être dans "autres"
           return !isAssignedToMe && hasAssignment && isAssignedToOthers && !isOpenToVolunteers;
         });
         break;
       
       case 'history':
-        // Historique : tâches terminées ou annulées UNIQUEMENT
         filtered = filtered.filter(task => 
           task.status === 'completed' || 
           task.status === 'validated' || 
@@ -280,7 +250,6 @@ const TasksPage = () => {
         break;
         
       default:
-        // Par défaut, afficher toutes les tâches
         break;
     }
 
@@ -337,10 +306,10 @@ const TasksPage = () => {
   const handleEdit = (task) => {
     console.log('✏️ Modifier tâche:', task.title);
     setSelectedTaskForEdit(task);
-    setShowNewTaskModal(true); // Ouvrir le modal avec la tâche à modifier
+    setShowNewTaskModal(true);
   };
 
-  // ✅ FONCTION HANDLEDELETE CORRIGÉE - APPELLE MAINTENANT TASKSERVICE
+  // ✅ FONCTION HANDLEDELETE CORRIGÉE
   const handleDelete = async (taskId) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
       return;
@@ -348,15 +317,8 @@ const TasksPage = () => {
 
     try {
       console.log('🗑️ Suppression de la tâche:', taskId);
-      
-      // ✅ APPEL DU SERVICE DE SUPPRESSION
       await taskService.deleteTask(taskId);
-      
       console.log('✅ Tâche supprimée avec succès');
-      
-      // La mise à jour sera automatique grâce au listener temps réel
-      // Pas besoin de mettre à jour manuellement l'état
-      
     } catch (error) {
       console.error('❌ Erreur lors de la suppression:', error);
       alert('Erreur lors de la suppression de la tâche: ' + error.message);
@@ -414,49 +376,6 @@ const TasksPage = () => {
     }
   };
 
-  // 🎨 STATISTIQUES POUR LE LAYOUT PREMIUM
-  const stats = [
-    {
-      title: 'Total',
-      value: taskStats.total,
-      subtitle: 'tâches',
-      icon: '📋',
-      color: 'blue'
-    },
-    {
-      title: 'Mes tâches',
-      value: taskStats.myTasks,
-      subtitle: 'assignées',
-      icon: '👤',
-      color: 'purple'
-    },
-    {
-      title: 'Disponibles',
-      value: taskStats.available,
-      subtitle: 'ouvertes',
-      icon: '🔓',
-      color: 'green'
-    },
-    {
-      title: 'Terminées',
-      value: taskStats.completed,
-      subtitle: 'complétées',
-      icon: '✅',
-      color: 'emerald'
-    }
-  ];
-
-  // 🎯 ACTIONS DU HEADER
-  const headerActions = (
-    <PremiumButton
-      onClick={() => setShowNewTaskModal(true)}
-      variant="primary"
-      icon={Plus}
-    >
-      Nouvelle tâche
-    </PremiumButton>
-  );
-
   // 🔄 ÉTATS DE CHARGEMENT
   if (!isLoaded || loading) {
     return (
@@ -488,19 +407,54 @@ const TasksPage = () => {
   }
 
   return (
-    <PremiumLayout
-      title="Gestion des Tâches"
-      subtitle="Organisez et suivez votre progression"
-      icon={CheckSquare}
-      headerActions={headerActions}
-      showStats={true}
-      stats={stats}
-    >
-      {/* 🎛️ BARRE DE CONTRÔLES */}
-      <PremiumCard className="mb-6">
-        <div className="space-y-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* 🎯 HEADER */}
+      <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent flex items-center gap-3">
+                <CheckSquare className="w-8 h-8 text-blue-400" />
+                Gestion des Tâches
+              </h1>
+              <p className="text-gray-400 mt-1">Organisez et suivez votre progression</p>
+            </div>
+            <button
+              onClick={() => setShowNewTaskModal(true)}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 hover:from-blue-700 hover:to-purple-700 transition-all"
+            >
+              <Plus className="w-5 h-5" />
+              Nouvelle tâche
+            </button>
+          </div>
+
+          {/* 📊 STATISTIQUES */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
+              <div className="text-2xl font-bold text-blue-400">{taskStats.total}</div>
+              <div className="text-sm text-gray-400">Total</div>
+            </div>
+            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
+              <div className="text-2xl font-bold text-purple-400">{taskStats.myTasks}</div>
+              <div className="text-sm text-gray-400">Mes tâches</div>
+            </div>
+            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
+              <div className="text-2xl font-bold text-green-400">{taskStats.available}</div>
+              <div className="text-sm text-gray-400">Disponibles</div>
+            </div>
+            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
+              <div className="text-2xl font-bold text-emerald-400">{taskStats.completed}</div>
+              <div className="text-sm text-gray-400">Terminées</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 🎛️ CONTRÔLES */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-6 mb-6">
           {/* Onglets de navigation */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mb-4">
             {Object.entries(TASK_TABS).map(([key, tab]) => {
               const IconComponent = tab.icon;
               const isActive = activeTab === key;
@@ -529,11 +483,16 @@ const TasksPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
             {/* Barre de recherche */}
             <div className="md:col-span-2">
-              <PremiumSearchBar
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder="Rechercher une tâche..."
-              />
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Rechercher une tâche..."
+                  className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-10 py-2 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
 
             {/* Filtre par statut */}
@@ -602,69 +561,69 @@ const TasksPage = () => {
             </div>
           </div>
         </div>
-      </PremiumCard>
 
-      {/* 📋 LISTE DES TÂCHES */}
-      <AnimatePresence mode="wait">
-        {filteredTasks.length === 0 ? (
-          <motion.div
-            key="empty"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <PremiumCard className="text-center py-12">
-              <div className="text-gray-400 text-6xl mb-4">📭</div>
-              <h3 className="text-xl font-bold text-white mb-2">
-                Aucune tâche trouvée
-              </h3>
-              <p className="text-gray-400 mb-6">
-                {searchTerm 
-                  ? `Aucune tâche ne correspond à "${searchTerm}"`
-                  : "Commencez par créer une nouvelle tâche"}
-              </p>
-              {!searchTerm && (
-                <PremiumButton
-                  onClick={() => setShowNewTaskModal(true)}
-                  variant="primary"
-                  icon={Plus}
+        {/* 📋 LISTE DES TÂCHES */}
+        <AnimatePresence mode="wait">
+          {filteredTasks.length === 0 ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg text-center py-12">
+                <div className="text-gray-400 text-6xl mb-4">📭</div>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  Aucune tâche trouvée
+                </h3>
+                <p className="text-gray-400 mb-6">
+                  {searchTerm 
+                    ? `Aucune tâche ne correspond à "${searchTerm}"`
+                    : "Commencez par créer une nouvelle tâche"}
+                </p>
+                {!searchTerm && (
+                  <button
+                    onClick={() => setShowNewTaskModal(true)}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 mx-auto hover:from-blue-700 hover:to-purple-700 transition-all"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Créer ma première tâche
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="tasks"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+            >
+              {filteredTasks.map((task, index) => (
+                <motion.div
+                  key={task.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
                 >
-                  Créer ma première tâche
-                </PremiumButton>
-              )}
-            </PremiumCard>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="tasks"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
-          >
-            {filteredTasks.map((task, index) => (
-              <motion.div
-                key={task.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <TaskCard
-                  task={task}
-                  currentUser={user}
-                  onViewDetails={handleViewDetails}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onSubmit={handleSubmit}
-                  onVolunteer={handleVolunteer}
-                  onUnvolunteer={handleUnvolunteer}
-                  isMyTask={task.createdBy === user?.uid}
-                />
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  <TaskCard
+                    task={task}
+                    currentUser={user}
+                    onViewDetails={handleViewDetails}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onSubmit={handleSubmit}
+                    onVolunteer={handleVolunteer}
+                    onUnvolunteer={handleUnvolunteer}
+                    isMyTask={task.createdBy === user?.uid}
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* 🎯 MODALS */}
       {showNewTaskModal && (
@@ -690,7 +649,7 @@ const TasksPage = () => {
           onUnvolunteer={handleUnvolunteer}
         />
       )}
-    </PremiumLayout>
+    </div>
   );
 };
 
