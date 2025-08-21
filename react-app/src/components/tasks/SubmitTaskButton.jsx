@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/tasks/SubmitTaskButton.jsx
-// BOUTON DE SOUMISSION CORRIGÉ - LOGIQUE FIXÉE
+// BOUTON DE SOUMISSION CORRIGÉ - AVEC MODAL DE SOUMISSION
 // ==========================================
 
 import React, { useState } from 'react';
@@ -15,10 +15,10 @@ import {
   Play
 } from 'lucide-react';
 import { taskService } from '../../core/services/taskService.js';
-import { taskValidationService } from '../../core/services/taskValidationService.js';
+import TaskSubmissionModal from './TaskSubmissionModal.jsx';
 
 /**
- * 🎯 BOUTON INTELLIGENT DE SOUMISSION DE TÂCHE - VERSION CORRIGÉE
+ * 🎯 BOUTON INTELLIGENT DE SOUMISSION DE TÂCHE - AVEC MODAL
  */
 const SubmitTaskButton = ({ 
   task, 
@@ -27,6 +27,7 @@ const SubmitTaskButton = ({
   size = 'default' // 'small', 'default', 'large'
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
 
   // Debug : afficher le statut de la tâche
   console.log('🔍 SubmitTaskButton - Statut tâche:', {
@@ -124,16 +125,24 @@ const SubmitTaskButton = ({
       return;
     }
 
+    console.log('🎯 Action demandée:', {
+      action: buttonConfig.action,
+      taskId: task.id,
+      title: task.title,
+      currentStatus: task.status
+    });
+
+    if (buttonConfig.action === 'submit') {
+      // ✅ CORRECTION PRINCIPALE : Ouvrir le modal de soumission au lieu de soumettre directement
+      console.log('📝 Ouverture du modal de soumission...');
+      setShowSubmissionModal(true);
+      return;
+    }
+
+    // Pour les autres actions (start, restart), continuer avec les actions directes
     setIsSubmitting(true);
     
     try {
-      console.log('🎯 Action demandée:', {
-        action: buttonConfig.action,
-        taskId: task.id,
-        title: task.title,
-        currentStatus: task.status
-      });
-
       if (buttonConfig.action === 'start') {
         // ✅ COMMENCER LA TÂCHE
         console.log('▶️ Démarrage de la tâche...');
@@ -147,28 +156,6 @@ const SubmitTaskButton = ({
         if (result.success) {
           console.log('✅ Tâche démarrée avec succès');
           alert(`✅ Tâche "${task.title}" démarrée ! Vous pouvez maintenant la soumettre une fois terminée.`);
-        }
-        
-      } else if (buttonConfig.action === 'submit') {
-        // ✅ SOUMETTRE LA TÂCHE POUR VALIDATION
-        console.log('📤 Soumission de la tâche...');
-        
-        const validationData = {
-          taskId: task.id,
-          userId: task.assignedTo?.[0] || task.createdBy,
-          taskTitle: task.title,
-          projectId: task.projectId,
-          difficulty: task.difficulty || 'normal',
-          comment: 'Tâche soumise via l\'interface utilisateur',
-          photoFile: null,
-          videoFile: null
-        };
-        
-        const result = await taskValidationService.submitTaskForValidation(validationData);
-
-        if (result.success) {
-          console.log('✅ Tâche soumise avec succès');
-          alert(`✅ Tâche "${task.title}" soumise pour validation ! Un administrateur va la vérifier.`);
         }
         
       } else if (buttonConfig.action === 'restart') {
@@ -192,7 +179,7 @@ const SubmitTaskButton = ({
         onSubmissionSuccess({
           taskId: task.id,
           action: buttonConfig.action,
-          newStatus: buttonConfig.action === 'start' || buttonConfig.action === 'restart' ? 'in_progress' : 'validation_pending'
+          newStatus: 'in_progress'
         });
       }
 
@@ -204,6 +191,24 @@ const SubmitTaskButton = ({
     }
   };
 
+  // ✅ GESTIONNAIRE DE SUCCÈS DE SOUMISSION
+  const handleSubmissionSuccess = (result) => {
+    console.log('✅ Soumission réussie depuis le modal:', result);
+    
+    // Fermer le modal
+    setShowSubmissionModal(false);
+    
+    // Notifier le parent
+    if (onSubmissionSuccess) {
+      onSubmissionSuccess({
+        taskId: task.id,
+        action: 'submit',
+        newStatus: 'validation_pending',
+        ...result
+      });
+    }
+  };
+
   // 🔧 Fonction pour obtenir la taille d'icône
   const getIconSize = () => {
     if (size === 'small') return 'w-3 h-3';
@@ -212,48 +217,60 @@ const SubmitTaskButton = ({
   };
 
   return (
-    <div className="relative group">
-      <button
-        onClick={handleClick}
-        disabled={buttonConfig.disabled || isSubmitting}
-        className={`
-          ${buttonConfig.className}
-          ${className}
-          px-4 py-2 rounded-lg font-medium text-sm
-          border transition-all duration-200
-          flex items-center space-x-2
-          ${size === 'small' ? 'px-3 py-1.5 text-xs' : ''}
-          ${size === 'large' ? 'px-6 py-3 text-base' : ''}
-          ${(buttonConfig.disabled || isSubmitting)
-            ? 'opacity-75 cursor-not-allowed' 
-            : 'hover:shadow-md hover:scale-105 transform'
-          }
-        `}
-        title={buttonConfig.tooltip}
-      >
-        {isSubmitting ? (
-          <Loader className={`${getIconSize()} animate-spin`} />
-        ) : (
-          <IconComponent className={getIconSize()} />
-        )}
-        <span>
-          {isSubmitting ? 'En cours...' : buttonConfig.text}
-        </span>
-        {!buttonConfig.disabled && !isSubmitting && (
-          <span className="text-xs opacity-75">
-            +{expectedXP} XP
+    <>
+      <div className="relative group">
+        <button
+          onClick={handleClick}
+          disabled={buttonConfig.disabled || isSubmitting}
+          className={`
+            ${buttonConfig.className}
+            ${className}
+            px-4 py-2 rounded-lg font-medium text-sm
+            border transition-all duration-200
+            flex items-center space-x-2
+            ${size === 'small' ? 'px-3 py-1.5 text-xs' : ''}
+            ${size === 'large' ? 'px-6 py-3 text-base' : ''}
+            ${(buttonConfig.disabled || isSubmitting)
+              ? 'opacity-75 cursor-not-allowed' 
+              : 'hover:shadow-md hover:scale-105 transform'
+            }
+          `}
+          title={buttonConfig.tooltip}
+        >
+          {isSubmitting ? (
+            <Loader className={`${getIconSize()} animate-spin`} />
+          ) : (
+            <IconComponent className={getIconSize()} />
+          )}
+          <span>
+            {isSubmitting ? 'En cours...' : buttonConfig.text}
           </span>
-        )}
-      </button>
-      
-      {/* Tooltip de debug amélioré */}
-      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-        {buttonConfig.tooltip}
-        <div className="text-xs text-gray-400 mt-1">
-          Statut: {task.status || 'undefined'} → Action: {buttonConfig.action}
+          {!buttonConfig.disabled && !isSubmitting && (
+            <span className="text-xs opacity-75">
+              +{expectedXP} XP
+            </span>
+          )}
+        </button>
+        
+        {/* Tooltip de debug amélioré */}
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+          {buttonConfig.tooltip}
+          <div className="text-xs text-gray-400 mt-1">
+            Statut: {task.status || 'undefined'} → Action: {buttonConfig.action}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* ✅ MODAL DE SOUMISSION */}
+      {showSubmissionModal && (
+        <TaskSubmissionModal
+          task={task}
+          isOpen={showSubmissionModal}
+          onClose={() => setShowSubmissionModal(false)}
+          onSubmit={handleSubmissionSuccess}
+        />
+      )}
+    </>
   );
 };
 
