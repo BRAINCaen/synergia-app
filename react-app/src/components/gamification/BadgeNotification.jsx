@@ -366,4 +366,3 @@ export const BadgeNotificationContainer = () => {
 };
 
 export default BadgeNotification;
-export { BadgeNotification, useBadgeNotifications, BadgeNotificationContainer };
